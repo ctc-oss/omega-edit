@@ -36,7 +36,7 @@ omega-edit/
 | --- | --- | --- |
 | CMake | 3.16+ | C/C++ build system |
 | C++17 compiler | GCC 9+, Clang 10+, MSVC 2019+ | Native library and server |
-| Node.js | 16+ | TypeScript packages |
+| Node.js | 24.x | TypeScript packages |
 | Yarn | 1.x | Package manager (workspaces) |
 
 ### First-time setup

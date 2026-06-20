@@ -14,6 +14,7 @@
     "url": "https://github.com/ctc-oss/omega-edit/issues"
   },
   "engines": {
+    "node": "^24.0.0",
     "vscode": "^1.110.0"
   },
   "categories": [
@@ -116,12 +117,12 @@
       {
         "command": "omegaEdit.undo",
         "title": "%omegaEdit.command.undo.title%",
-        "enablement": "omegaEdit.hexEditorActive && omegaEdit.canUndo"
+        "enablement": "omegaEdit.hexEditorActive && omegaEdit.canUndo && !omegaEdit.transformInFlight"
       },
       {
         "command": "omegaEdit.redo",
         "title": "%omegaEdit.command.redo.title%",
-        "enablement": "omegaEdit.hexEditorActive && omegaEdit.canRedo"
+        "enablement": "omegaEdit.hexEditorActive && omegaEdit.canRedo && !omegaEdit.transformInFlight"
       },
       {
         "command": "omegaEdit.toggleInsertDirection",
@@ -140,22 +141,23 @@
       },
       {
         "command": "omegaEdit.replayChangeScript",
-        "title": "%omegaEdit.command.replayChangeScript.title%"
+        "title": "%omegaEdit.command.replayChangeScript.title%",
+        "enablement": "omegaEdit.hexEditorActive && !omegaEdit.transformInFlight"
       },
       {
         "command": "omegaEdit.rollbackSession",
         "title": "%omegaEdit.command.rollbackSession.title%",
-        "enablement": "omegaEdit.hexEditorActive && omegaEdit.hasPendingChanges"
+        "enablement": "omegaEdit.hexEditorActive && omegaEdit.hasPendingChanges && !omegaEdit.transformInFlight"
       },
       {
         "command": "omegaEdit.rollbackCheckpoint",
         "title": "%omegaEdit.command.rollbackCheckpoint.title%",
-        "enablement": "omegaEdit.hexEditorActive"
+        "enablement": "omegaEdit.hexEditorActive && !omegaEdit.transformInFlight"
       },
       {
         "command": "omegaEdit.createCheckpoint",
         "title": "%omegaEdit.command.createCheckpoint.title%",
-        "enablement": "omegaEdit.hexEditorActive"
+        "enablement": "omegaEdit.hexEditorActive && !omegaEdit.transformInFlight"
       },
       {
         "command": "omegaEdit.getEditorState",
@@ -186,7 +188,7 @@
         },
         {
           "command": "omegaEdit.rollbackSession",
-          "when": "omegaEdit.hexEditorActive && omegaEdit.hasPendingChanges",
+          "when": "omegaEdit.hexEditorActive && omegaEdit.hasPendingChanges && !omegaEdit.transformInFlight",
           "group": "navigation@9"
         }
       ],
@@ -204,11 +206,11 @@
         },
         {
           "command": "omegaEdit.undo",
-          "when": "omegaEdit.hexEditorActive"
+          "when": "omegaEdit.hexEditorActive && !omegaEdit.transformInFlight"
         },
         {
           "command": "omegaEdit.redo",
-          "when": "omegaEdit.hexEditorActive"
+          "when": "omegaEdit.hexEditorActive && !omegaEdit.transformInFlight"
         },
         {
           "command": "omegaEdit.toggleInsertDirection",
@@ -220,15 +222,15 @@
         },
         {
           "command": "omegaEdit.rollbackSession",
-          "when": "omegaEdit.hexEditorActive && omegaEdit.hasPendingChanges"
+          "when": "omegaEdit.hexEditorActive && omegaEdit.hasPendingChanges && !omegaEdit.transformInFlight"
         },
         {
           "command": "omegaEdit.rollbackCheckpoint",
-          "when": "omegaEdit.hexEditorActive"
+          "when": "omegaEdit.hexEditorActive && !omegaEdit.transformInFlight"
         },
         {
           "command": "omegaEdit.createCheckpoint",
-          "when": "omegaEdit.hexEditorActive"
+          "when": "omegaEdit.hexEditorActive && !omegaEdit.transformInFlight"
         },
         {
           "command": "omegaEdit.getEditorState",
@@ -276,7 +278,7 @@
   "devDependencies": {
     "@biomejs/biome": "^2.4.9",
     "@sveltejs/vite-plugin-svelte": "^7.1.2",
-    "@types/node": "^22.12.0",
+    "@types/node": "^24.0.0",
     "@types/vscode": "^1.110.0",
     "@vscode/test-electron": "^2.5.2",
     "@vscode/vsce": "^3.7.1",

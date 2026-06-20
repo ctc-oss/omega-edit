@@ -88,6 +88,7 @@ export interface WebviewEditorState extends WebviewEditorUiState {
   uri: string
   filePath: string
   fileSize: number
+  transformInFlight: boolean
   dirty: boolean
   canUndo: boolean
   canRedo: boolean
@@ -215,6 +216,18 @@ export type HostToWebviewMessage =
       type: 'transformPlugins'
       plugins: WebviewTransformPlugin[]
       error?: string
+    }
+  | {
+      type: 'transformStatus'
+      inFlight: boolean
+      pluginId?: string
+      message?: string
+      operationId?: string
+      processedBytes?: number
+      totalBytes?: number
+      percent?: number
+      phase?: string
+      indeterminate?: boolean
     }
   | {
       type: 'transformComplete'

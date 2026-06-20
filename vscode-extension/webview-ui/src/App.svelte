@@ -39,6 +39,10 @@
     HostToWebviewMessage,
     { type: 'transformComplete' }
   >
+  type TransformStatusMessage = Extract<
+    HostToWebviewMessage,
+    { type: 'transformStatus' }
+  >
   type ViewportDataMessage = Extract<
     HostToWebviewMessage,
     { type: 'viewportData' }
@@ -123,6 +127,7 @@
   let transformPluginsLoading = $state(false)
   let transformPluginError = $state('')
   let transformFeedback = $state('')
+  let transformInFlight = $state(false)
   let transformResult = $state<TransformResultState | undefined>(undefined)
   let transformResultHistory = $state<TransformResultState[]>([])
   let transformResultSequence = $state(0)
@@ -211,7 +216,8 @@
     hasActiveSearchResult &&
     searchPatternLength > 0 &&
     !searchInputInvalid &&
-    !replacementInputInvalid
+    !replacementInputInvalid &&
+    !transformInFlight
   )
   const searchResultSummary = $derived(searchInputInvalid
     ? searchHex
@@ -755,7 +761,19 @@
     return fileSize > 0 ? clampOffset(visibleOffset) : 0
   }
 
+  function blockMutationWhileTransform(): boolean {
+    if (!transformInFlight) {
+      return false
+    }
+    clipboardMessage = strings.transform.inFlight
+    replaceMessage = strings.transform.inFlight
+    return true
+  }
+
   function postDeleteRange(offset: number, length: number): void {
+    if (blockMutationWhileTransform()) {
+      return
+    }
     if (length <= 0 || fileSize <= 0 || offset < 0 || offset >= fileSize) {
       return
     }
@@ -769,6 +787,9 @@
   }
 
   function deleteFromKeyboard(backward: boolean): boolean {
+    if (blockMutationWhileTransform()) {
+      return true
+    }
     if (fileSize <= 0) {
       return false
     }
@@ -874,6 +895,9 @@
   }
 
   function postClipboardSelection(action: 'copy' | 'cut'): void {
+    if (action === 'cut' && blockMutationWhileTransform()) {
+      return
+    }
     const range = selectedClipboardRange()
     if (!range) {
       return
@@ -917,6 +941,9 @@
     if (!range) {
       return
     }
+    if (action === 'cut' && blockMutationWhileTransform()) {
+      return
+    }
 
     const bytes = getVisibleRangeBytes(range.offset, range.length)
     if (event.clipboardData && bytes && writeClipboardBytes(event.clipboardData, bytes)) {
@@ -926,6 +953,9 @@
           ? strings.inspector.cutSelection(range.length)
           : strings.inspector.copiedSelection(range.length, activeClipboardFormat())
       if (action === 'cut') {
+        if (blockMutationWhileTransform()) {
+          return
+        }
         postToHost({ type: 'delete', offset: range.offset, length: range.length })
       }
       return
@@ -982,6 +1012,9 @@
   }
 
   function pasteClipboardHex(data: string): void {
+    if (blockMutationWhileTransform()) {
+      return
+    }
     const range = selectedClipboardRange()
     const offset = range?.offset ?? selectedEditOffset()
     if (offset < 0 || offset > fileSize) {
@@ -1079,6 +1112,9 @@
   }
 
   function commitByteEdit(offset: number, byte: number): void {
+    if (blockMutationWhileTransform()) {
+      return
+    }
     if (offset < 0 || byte < 0 || byte > 0xff) {
       return
     }
@@ -1108,6 +1144,9 @@
   }
 
   function handleGridType(pane: GridEditPane, key: string): boolean {
+    if (transformInFlight) {
+      return false
+    }
     const offset = selectedEditOffset()
     if (offset < 0 || offset > fileSize) {
       return false
@@ -1149,6 +1188,9 @@
     length: number,
     data: string
   ): void {
+    if (blockMutationWhileTransform()) {
+      return
+    }
     if (offset < 0 || length <= 0 || offset + length > fileSize) {
       clipboardMessage = strings.inspector.cannotOverwrite
       return
@@ -1193,6 +1235,9 @@
     length: number,
     optionsJson?: string
   ): void {
+    if (transformInFlight) {
+      return
+    }
     if (
       fileSize <= 0 ||
       offset < 0 ||
@@ -1204,6 +1249,7 @@
     }
 
     const plugin = transformPlugins.find((entry) => entry.id === pluginId)
+    transformInFlight = true
     transformFeedback = strings.transform.applying(plugin?.name || pluginId)
     transformResult = undefined
     postToHost({
@@ -1228,6 +1274,32 @@
       )
     }
     return strings.transform.completed
+  }
+
+  function describeTransformStatus(message: TransformStatusMessage): string {
+    if (!message.inFlight) {
+      return message.message || strings.transform.completed
+    }
+
+    const prefix = message.message || message.phase || strings.transform.completed
+    if (typeof message.processedBytes === 'number') {
+      const processed = message.processedBytes.toLocaleString()
+      if (typeof message.totalBytes === 'number' && message.totalBytes > 0) {
+        const total = message.totalBytes.toLocaleString()
+        const percent =
+          typeof message.percent === 'number'
+            ? ` (${message.percent.toFixed(1)}%)`
+            : ''
+        return `${prefix}: ${processed} / ${total} bytes${percent}`
+      }
+      return `${prefix}: ${processed} bytes`
+    }
+
+    if (typeof message.percent === 'number') {
+      return `${prefix}: ${message.percent.toFixed(1)}%`
+    }
+
+    return prefix
   }
 
   function transformPluginTitle(pluginId: string): string {
@@ -1531,6 +1603,9 @@
   }
 
   function replaceCurrentMatch(): void {
+    if (blockMutationWhileTransform()) {
+      return
+    }
     const currentOffset = getCurrentSearchOffset()
     if (
       currentOffset < 0 ||
@@ -1554,6 +1629,9 @@
   }
 
   function replaceAllMatches(): void {
+    if (blockMutationWhileTransform()) {
+      return
+    }
     const normalizedQuery = normalizeSearchQuery(searchQuery, searchHex)
     if (
       !hasSearchResults() ||
@@ -1791,6 +1869,17 @@
         transformPluginsLoading = false
         transformPluginError = message.error ?? ''
         break
+      case 'transformStatus':
+        transformInFlight = message.inFlight
+        if (
+          message.inFlight ||
+          message.message ||
+          typeof message.processedBytes === 'number' ||
+          typeof message.percent === 'number'
+        ) {
+          transformFeedback = describeTransformStatus(message)
+        }
+        break
       case 'serverHealth':
         serverHealth = message
         break
@@ -1849,6 +1938,7 @@
         break
       }
       case 'transformComplete':
+        transformInFlight = false
         if (message.contentChanged) {
           clearSearchResults()
         }
@@ -1901,6 +1991,7 @@
       if (
         event.defaultPrevented ||
         event.key !== 'Insert' ||
+        transformInFlight ||
         isEditableTarget(event.target)
       ) {
         return
@@ -1946,6 +2037,7 @@
     {transformPlugins}
     {transformPluginsLoaded}
     {transformPluginsLoading}
+    {transformInFlight}
     {transformPluginError}
     {transformFeedback}
     transformResults={transformResultHistory}
@@ -2046,6 +2138,7 @@
     onToggleEditMode={toggleInspectorEditMode}
     onTypeByte={handleGridType}
     onDeleteByte={deleteFromKeyboard}
+    editDisabled={transformInFlight}
     onVisibleRowsChange={setVisibleRows}
     onToggleProfilerExpanded={toggleProfilerExpanded}
     onProfilerModeChange={setProfilerMode}
@@ -2062,6 +2155,7 @@
     {clipboardMessage}
     littleEndian={inspectorLittleEndian}
     expanded={inspectorExpanded}
+    disabled={transformInFlight}
     onToggleExpanded={toggleInspectorExpanded}
     onInspectRange={inspectRange}
     onToggleEndian={toggleInspectorEndian}

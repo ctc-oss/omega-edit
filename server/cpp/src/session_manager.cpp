@@ -175,6 +175,42 @@ std::string format_uuid(uint64_t hi, uint64_t lo) {
 
 } // namespace
 
+SessionOperationGuard::SessionOperationGuard(SessionManager *manager, std::string session_id,
+                                             SessionOperationKind kind, SessionOperationStartResult result)
+    : manager_(manager), session_id_(std::move(session_id)), kind_(kind), result_(result) {}
+
+SessionOperationGuard::SessionOperationGuard(SessionOperationGuard &&other) noexcept
+    : manager_(other.manager_), session_id_(std::move(other.session_id_)), kind_(other.kind_),
+      result_(other.result_) {
+    other.manager_ = nullptr;
+    other.result_ = SessionOperationStartResult::SESSION_NOT_FOUND;
+}
+
+auto SessionOperationGuard::operator=(SessionOperationGuard &&other) noexcept -> SessionOperationGuard & {
+    if (this != &other) {
+        release();
+        manager_ = other.manager_;
+        session_id_ = std::move(other.session_id_);
+        kind_ = other.kind_;
+        result_ = other.result_;
+        other.manager_ = nullptr;
+        other.result_ = SessionOperationStartResult::SESSION_NOT_FOUND;
+    }
+    return *this;
+}
+
+SessionOperationGuard::~SessionOperationGuard() {
+    release();
+}
+
+void SessionOperationGuard::release() {
+    if (manager_ && result_ == SessionOperationStartResult::STARTED) {
+        manager_->finish_operation(session_id_, kind_);
+    }
+    manager_ = nullptr;
+    result_ = SessionOperationStartResult::SESSION_NOT_FOUND;
+}
+
 // ── UUID generation ──────────────────────────────────────────────────────────
 #ifdef _WIN32
 static std::string generate_random_uuid_fallback() {
@@ -690,6 +726,106 @@ LockedSession SessionManager::lock_session(const std::string &session_id) {
     std::unique_lock<std::mutex> core_lock(info->core_mutex);
     if (info->session == nullptr) { return {}; }
     return LockedSession{std::move(info), std::move(core_lock)};
+}
+
+SessionOperationGuard SessionManager::try_begin_mutation(const std::string &session_id) {
+    std::lock_guard<std::mutex> lock(mutex_);
+    auto it = sessions_.find(session_id);
+    if (it == sessions_.end() || it->second->session == nullptr) {
+        return SessionOperationGuard(this, session_id, SessionOperationKind::MUTATION,
+                                     SessionOperationStartResult::SESSION_NOT_FOUND);
+    }
+    auto &info = it->second;
+    if (info->transform_in_progress) {
+        return SessionOperationGuard(this, session_id, SessionOperationKind::MUTATION,
+                                     SessionOperationStartResult::TRANSFORM_IN_PROGRESS);
+    }
+    ++info->active_mutations;
+    info->last_activity = std::chrono::steady_clock::now();
+    return SessionOperationGuard(this, session_id, SessionOperationKind::MUTATION,
+                                 SessionOperationStartResult::STARTED);
+}
+
+SessionOperationGuard SessionManager::try_begin_transform(const std::string &session_id) {
+    std::lock_guard<std::mutex> lock(mutex_);
+    auto it = sessions_.find(session_id);
+    if (it == sessions_.end() || it->second->session == nullptr) {
+        return SessionOperationGuard(this, session_id, SessionOperationKind::TRANSFORM,
+                                     SessionOperationStartResult::SESSION_NOT_FOUND);
+    }
+    auto &info = it->second;
+    if (info->transform_in_progress) {
+        return SessionOperationGuard(this, session_id, SessionOperationKind::TRANSFORM,
+                                     SessionOperationStartResult::TRANSFORM_IN_PROGRESS);
+    }
+    if (info->active_mutations > 0) {
+        return SessionOperationGuard(this, session_id, SessionOperationKind::TRANSFORM,
+                                     SessionOperationStartResult::MUTATION_IN_PROGRESS);
+    }
+    info->transform_in_progress = true;
+    info->last_activity = std::chrono::steady_clock::now();
+    return SessionOperationGuard(this, session_id, SessionOperationKind::TRANSFORM,
+                                 SessionOperationStartResult::STARTED);
+}
+
+bool SessionManager::session_transform_in_progress(const std::string &session_id) const {
+    std::lock_guard<std::mutex> lock(mutex_);
+    auto it = sessions_.find(session_id);
+    return it != sessions_.end() && it->second->transform_in_progress;
+}
+
+bool SessionManager::publish_transform_progress(const std::string &session_id,
+                                                int32_t event_kind,
+                                                const TransformProgressData &progress) {
+    std::shared_ptr<SessionInfo> info;
+    {
+        std::lock_guard<std::mutex> lock(mutex_);
+        auto it = sessions_.find(session_id);
+        if (it == sessions_.end() || it->second->session == nullptr) {
+            return false;
+        }
+        info = it->second;
+    }
+
+    SessionEventData evt;
+    evt.session_id = info->session_id;
+    evt.session_event_kind = event_kind;
+    evt.computed_file_size = omega_session_get_computed_file_size(info->session);
+    evt.change_count = omega_session_get_num_changes(info->session);
+    evt.undo_count = omega_session_get_num_undone_changes(info->session);
+    evt.serial = 0;
+    evt.transform_progress = progress;
+    evt.has_transform_progress = true;
+
+    const auto event_mask = static_cast<uint32_t>(event_kind);
+    std::vector<std::shared_ptr<EventQueue<SessionEventData>>> subscribers;
+    {
+        std::lock_guard<std::mutex> subscription_lock(info->session_subscription_mutex);
+        subscribers.reserve(info->session_subscriptions.size());
+        for (const auto &subscription : info->session_subscriptions) {
+            if (subscription.event_queue &&
+                ((static_cast<uint32_t>(subscription.interest) & event_mask) != 0U)) {
+                subscribers.push_back(subscription.event_queue);
+            }
+        }
+    }
+
+    for (const auto &subscriber : subscribers) {
+        subscriber->push(evt);
+    }
+    return true;
+}
+
+void SessionManager::finish_operation(const std::string &session_id, SessionOperationKind kind) {
+    std::lock_guard<std::mutex> lock(mutex_);
+    auto it = sessions_.find(session_id);
+    if (it == sessions_.end()) { return; }
+    auto &info = it->second;
+    if (kind == SessionOperationKind::TRANSFORM) {
+        info->transform_in_progress = false;
+    } else if (info->active_mutations > 0) {
+        --info->active_mutations;
+    }
 }
 
 int64_t SessionManager::session_count() const {

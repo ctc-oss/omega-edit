@@ -15,7 +15,7 @@ If you find yourself adding any other recurring poll against session or viewport
 
 ## Prerequisites
 
-- Node.js 16+
+- Node.js 24.x
 - Yarn (v1 or compatible)
 - The `@omega-edit/server` package must be built and packaged first
 

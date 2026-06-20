@@ -41,7 +41,11 @@ typedef enum {
     SESSION_EVT_CREATE_VIEWPORT = 1 << 10,//< Occurs when the session has successfully created a viewport
     SESSION_EVT_DESTROY_VIEWPORT = 1 << 11,//< Occurs when the session has successfully destroyed a viewport
     SESSION_EVT_TRANSACTION_STARTED = 1 << 12,//< Occurs when a transaction is opened on the session
-    SESSION_EVT_TRANSACTION_ENDED = 1 << 13//< Occurs when an open transaction is ended on the session
+    SESSION_EVT_TRANSACTION_ENDED = 1 << 13,//< Occurs when an open transaction is ended on the session
+    SESSION_EVT_TRANSFORM_STARTED = 1 << 14,//< Occurs when a transform starts
+    SESSION_EVT_TRANSFORM_PROGRESS = 1 << 15,//< Occurs when a running transform reports progress
+    SESSION_EVT_TRANSFORM_COMPLETED = 1 << 16,//< Occurs when a transform completes successfully
+    SESSION_EVT_TRANSFORM_FAILED = 1 << 17//< Occurs when a transform fails
 } omega_session_event_t;
 
 /** Enumeration of viewport events */

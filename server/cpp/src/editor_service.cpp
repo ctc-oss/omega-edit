@@ -20,6 +20,8 @@
 #include <omega_edit/version.h>
 
 #include <algorithm>
+#include <atomic>
+#include <chrono>
 #include <cstring>
 #include <filesystem>
 #include <fstream>
@@ -86,6 +88,95 @@ struct transform_plugin_response_guard {
     auto operator=(const transform_plugin_response_guard &) -> transform_plugin_response_guard & = delete;
     ~transform_plugin_response_guard() { omega_transform_plugin_response_clear(&response); }
 };
+
+struct transform_progress_context {
+    SessionManager *session_manager{};
+    std::string session_id;
+    std::string plugin_id;
+    std::string operation_id;
+    std::chrono::steady_clock::time_point last_emit{};
+};
+
+static std::atomic<uint64_t> g_transform_operation_counter{0};
+
+static std::string next_transform_operation_id() {
+    return "transform_" + std::to_string(g_transform_operation_counter.fetch_add(1, std::memory_order_relaxed) + 1);
+}
+
+static TransformProgressData make_transform_progress(const std::string &plugin_id,
+                                                     const std::string &operation_id,
+                                                     const char *phase,
+                                                     const char *message,
+                                                     bool indeterminate = true) {
+    TransformProgressData progress;
+    progress.plugin_id = plugin_id;
+    progress.operation_id = operation_id;
+    progress.phase = phase ? phase : "";
+    progress.message = message ? message : "";
+    progress.indeterminate = indeterminate;
+    return progress;
+}
+
+static TransformProgressData make_transform_progress(const transform_progress_context &context,
+                                                     const omega_transform_plugin_progress_t &reported) {
+    TransformProgressData progress;
+    progress.plugin_id = context.plugin_id;
+    progress.operation_id = context.operation_id;
+    progress.phase = reported.phase ? reported.phase : "";
+    progress.message = reported.message ? reported.message : "";
+    progress.indeterminate = (reported.flags & OMEGA_TRANSFORM_PROGRESS_INDETERMINATE) != 0U;
+    progress.has_processed_bytes = (reported.flags & OMEGA_TRANSFORM_PROGRESS_HAS_PROCESSED_BYTES) != 0U;
+    progress.has_total_bytes = (reported.flags & OMEGA_TRANSFORM_PROGRESS_HAS_TOTAL_BYTES) != 0U;
+    progress.has_percent = (reported.flags & OMEGA_TRANSFORM_PROGRESS_HAS_PERCENT) != 0U;
+    progress.processed_bytes = reported.processed_bytes;
+    progress.total_bytes = reported.total_bytes;
+    progress.percent = reported.percent;
+    return progress;
+}
+
+static int transform_progress_callback(const omega_transform_plugin_progress_t *progress_ptr, void *user_data_ptr) {
+    auto *context = static_cast<transform_progress_context *>(user_data_ptr);
+    if (!context || !context->session_manager || !progress_ptr) {
+        return -1;
+    }
+
+    const auto now = std::chrono::steady_clock::now();
+    constexpr auto min_interval = std::chrono::milliseconds(250);
+    const bool complete_percent =
+            (progress_ptr->flags & OMEGA_TRANSFORM_PROGRESS_HAS_PERCENT) != 0U && progress_ptr->percent >= 100.0;
+    if (context->last_emit.time_since_epoch().count() != 0 &&
+        now - context->last_emit < min_interval &&
+        !complete_percent) {
+        return 0;
+    }
+
+    context->last_emit = now;
+    const auto progress = make_transform_progress(*context, *progress_ptr);
+    context->session_manager->publish_transform_progress(context->session_id,
+                                                         static_cast<int32_t>(SESSION_EVT_TRANSFORM_PROGRESS),
+                                                         progress);
+    return 0;
+}
+
+static grpc::Status status_for_session_operation_start(SessionOperationStartResult result,
+                                                       const std::string &operation_name,
+                                                       const std::string &session_id) {
+    switch (result) {
+        case SessionOperationStartResult::STARTED:
+            return grpc::Status::OK;
+        case SessionOperationStartResult::SESSION_NOT_FOUND:
+            return grpc::Status(grpc::StatusCode::NOT_FOUND, "session not found: " + session_id);
+        case SessionOperationStartResult::TRANSFORM_IN_PROGRESS:
+            return grpc::Status(grpc::StatusCode::FAILED_PRECONDITION,
+                                operation_name + " cannot run while a transform is in progress for session: " +
+                                        session_id);
+        case SessionOperationStartResult::MUTATION_IN_PROGRESS:
+            return grpc::Status(grpc::StatusCode::FAILED_PRECONDITION,
+                                operation_name + " cannot run while a session mutation is in progress for session: " +
+                                        session_id);
+    }
+    return grpc::Status(grpc::StatusCode::INTERNAL, "unknown session operation state");
+}
 
 static const std::string &get_runtime_kind() {
     static const std::string value = "native";
@@ -643,6 +734,11 @@ grpc::Status EditorServiceImpl::DestroySession(grpc::ServerContext * /*context*/
 grpc::Status EditorServiceImpl::SubmitChange(grpc::ServerContext * /*context*/,
                                               const ::omega_edit::v1::SubmitChangeRequest *request,
                                               ::omega_edit::v1::SubmitChangeResponse *response) {
+    auto mutation_guard = session_manager_.try_begin_mutation(request->session_id());
+    if (!mutation_guard) {
+        return status_for_session_operation_start(mutation_guard.result(), "change", request->session_id());
+    }
+
     auto locked_session = session_manager_.lock_session(request->session_id());
     if (!locked_session) {
         return grpc::Status(grpc::StatusCode::NOT_FOUND, "session not found: " + request->session_id());
@@ -702,6 +798,11 @@ grpc::Status EditorServiceImpl::SubmitChange(grpc::ServerContext * /*context*/,
 grpc::Status EditorServiceImpl::UndoLastChange(grpc::ServerContext * /*context*/,
                                                 const ::omega_edit::v1::UndoLastChangeRequest *request,
                                                 ::omega_edit::v1::UndoLastChangeResponse *response) {
+    auto mutation_guard = session_manager_.try_begin_mutation(request->id());
+    if (!mutation_guard) {
+        return status_for_session_operation_start(mutation_guard.result(), "undo", request->id());
+    }
+
     auto locked_session = session_manager_.lock_session(request->id());
     if (!locked_session) {
         return grpc::Status(grpc::StatusCode::NOT_FOUND, "session not found: " + request->id());
@@ -721,6 +822,11 @@ grpc::Status EditorServiceImpl::UndoLastChange(grpc::ServerContext * /*context*/
 grpc::Status EditorServiceImpl::RedoLastUndo(grpc::ServerContext * /*context*/,
                                               const ::omega_edit::v1::RedoLastUndoRequest *request,
                                               ::omega_edit::v1::RedoLastUndoResponse *response) {
+    auto mutation_guard = session_manager_.try_begin_mutation(request->id());
+    if (!mutation_guard) {
+        return status_for_session_operation_start(mutation_guard.result(), "redo", request->id());
+    }
+
     auto locked_session = session_manager_.lock_session(request->id());
     if (!locked_session) {
         return grpc::Status(grpc::StatusCode::NOT_FOUND, "session not found: " + request->id());
@@ -740,6 +846,11 @@ grpc::Status EditorServiceImpl::RedoLastUndo(grpc::ServerContext * /*context*/,
 grpc::Status EditorServiceImpl::ClearChanges(grpc::ServerContext * /*context*/,
                                               const ::omega_edit::v1::ClearChangesRequest *request,
                                               ::omega_edit::v1::ClearChangesResponse *response) {
+    auto mutation_guard = session_manager_.try_begin_mutation(request->id());
+    if (!mutation_guard) {
+        return status_for_session_operation_start(mutation_guard.result(), "clear changes", request->id());
+    }
+
     auto locked_session = session_manager_.lock_session(request->id());
     if (!locked_session) {
         return grpc::Status(grpc::StatusCode::NOT_FOUND, "session not found: " + request->id());
@@ -760,6 +871,11 @@ grpc::Status EditorServiceImpl::ClearChanges(grpc::ServerContext * /*context*/,
 grpc::Status EditorServiceImpl::PauseSessionChanges(grpc::ServerContext * /*context*/,
                                                      const ::omega_edit::v1::PauseSessionChangesRequest *request,
                                                      ::omega_edit::v1::PauseSessionChangesResponse *response) {
+    auto mutation_guard = session_manager_.try_begin_mutation(request->id());
+    if (!mutation_guard) {
+        return status_for_session_operation_start(mutation_guard.result(), "pause changes", request->id());
+    }
+
     auto locked_session = session_manager_.lock_session(request->id());
     if (!locked_session) {
         return grpc::Status(grpc::StatusCode::NOT_FOUND, "session not found: " + request->id());
@@ -774,6 +890,11 @@ grpc::Status EditorServiceImpl::PauseSessionChanges(grpc::ServerContext * /*cont
 grpc::Status EditorServiceImpl::ResumeSessionChanges(grpc::ServerContext * /*context*/,
                                                       const ::omega_edit::v1::ResumeSessionChangesRequest *request,
                                                       ::omega_edit::v1::ResumeSessionChangesResponse *response) {
+    auto mutation_guard = session_manager_.try_begin_mutation(request->id());
+    if (!mutation_guard) {
+        return status_for_session_operation_start(mutation_guard.result(), "resume changes", request->id());
+    }
+
     auto locked_session = session_manager_.lock_session(request->id());
     if (!locked_session) {
         return grpc::Status(grpc::StatusCode::NOT_FOUND, "session not found: " + request->id());
@@ -816,6 +937,11 @@ grpc::Status EditorServiceImpl::ResumeViewportEvents(grpc::ServerContext * /*con
 grpc::Status EditorServiceImpl::SessionBeginTransaction(grpc::ServerContext * /*context*/,
                                                          const ::omega_edit::v1::SessionBeginTransactionRequest *request,
                                                          ::omega_edit::v1::SessionBeginTransactionResponse *response) {
+    auto mutation_guard = session_manager_.try_begin_mutation(request->id());
+    if (!mutation_guard) {
+        return status_for_session_operation_start(mutation_guard.result(), "begin transaction", request->id());
+    }
+
     auto locked_session = session_manager_.lock_session(request->id());
     if (!locked_session) {
         return grpc::Status(grpc::StatusCode::NOT_FOUND, "session not found: " + request->id());
@@ -835,6 +961,11 @@ grpc::Status EditorServiceImpl::SessionBeginTransaction(grpc::ServerContext * /*
 grpc::Status EditorServiceImpl::SessionEndTransaction(grpc::ServerContext * /*context*/,
                                                        const ::omega_edit::v1::SessionEndTransactionRequest *request,
                                                        ::omega_edit::v1::SessionEndTransactionResponse *response) {
+    auto mutation_guard = session_manager_.try_begin_mutation(request->id());
+    if (!mutation_guard) {
+        return status_for_session_operation_start(mutation_guard.result(), "end transaction", request->id());
+    }
+
     auto locked_session = session_manager_.lock_session(request->id());
     if (!locked_session) {
         return grpc::Status(grpc::StatusCode::NOT_FOUND, "session not found: " + request->id());
@@ -1336,15 +1467,13 @@ grpc::Status EditorServiceImpl::SearchSession(grpc::ServerContext * /*context*/,
 grpc::Status EditorServiceImpl::ReplaceSession(grpc::ServerContext * /*context*/,
                                                const ::omega_edit::v1::ReplaceSessionRequest *request,
                                                ::omega_edit::v1::ReplaceSessionResponse *response) {
-    {
-        auto locked_session = session_manager_.lock_session(request->session_id());
-        if (!locked_session) {
-            return grpc::Status(grpc::StatusCode::NOT_FOUND, "session not found: " + request->session_id());
-        }
+    auto mutation_guard = session_manager_.try_begin_mutation(request->session_id());
+    if (!mutation_guard) {
+        return status_for_session_operation_start(mutation_guard.result(), "replace", request->session_id());
     }
-    // Lock released intentionally: validation runs without holding core_mutex to avoid blocking other
-    // handlers during potentially long payload and size checks. The second lock_session below
-    // re-acquires for mutation and returns NOT_FOUND if the session was destroyed in this window.
+    // Session operation guard held intentionally: validation runs without holding core_mutex to avoid blocking other
+    // handlers during potentially long payload and size checks, while still preventing transforms from starting until
+    // the mutation attempt has completed.
 
     const bool case_insensitive =
             request->has_is_case_insensitive() ? request->is_case_insensitive() : false;
@@ -1435,15 +1564,14 @@ grpc::Status EditorServiceImpl::ReplaceSessionCheckpointed(
         grpc::ServerContext * /*context*/,
         const ::omega_edit::v1::ReplaceSessionCheckpointedRequest *request,
         ::omega_edit::v1::ReplaceSessionCheckpointedResponse *response) {
-    {
-        auto locked_session = session_manager_.lock_session(request->session_id());
-        if (!locked_session) {
-            return grpc::Status(grpc::StatusCode::NOT_FOUND, "session not found: " + request->session_id());
-        }
+    auto mutation_guard = session_manager_.try_begin_mutation(request->session_id());
+    if (!mutation_guard) {
+        return status_for_session_operation_start(mutation_guard.result(), "checkpointed replace",
+                                                  request->session_id());
     }
-    // Lock released intentionally: validation runs without holding core_mutex to avoid blocking other
-    // handlers during potentially long payload and size checks. The second lock_session below
-    // re-acquires for mutation and returns NOT_FOUND if the session was destroyed in this window.
+    // Session operation guard held intentionally: validation runs without holding core_mutex to avoid blocking other
+    // handlers during potentially long payload and size checks, while still preventing transforms from starting until
+    // the mutation attempt has completed.
 
     const bool case_insensitive =
             request->has_is_case_insensitive() ? request->is_case_insensitive() : false;
@@ -1524,6 +1652,12 @@ grpc::Status EditorServiceImpl::DestroyLastCheckpoint(
         grpc::ServerContext * /*context*/,
         const ::omega_edit::v1::DestroyLastCheckpointRequest *request,
         ::omega_edit::v1::DestroyLastCheckpointResponse *response) {
+    auto mutation_guard = session_manager_.try_begin_mutation(request->session_id());
+    if (!mutation_guard) {
+        return status_for_session_operation_start(mutation_guard.result(), "destroy checkpoint",
+                                                  request->session_id());
+    }
+
     auto locked_session = session_manager_.lock_session(request->session_id());
     if (!locked_session) {
         return grpc::Status(grpc::StatusCode::NOT_FOUND, "session not found: " + request->session_id());
@@ -1543,6 +1677,12 @@ grpc::Status EditorServiceImpl::CreateCheckpoint(
         grpc::ServerContext * /*context*/,
         const ::omega_edit::v1::CreateCheckpointRequest *request,
         ::omega_edit::v1::CreateCheckpointResponse *response) {
+    auto mutation_guard = session_manager_.try_begin_mutation(request->session_id());
+    if (!mutation_guard) {
+        return status_for_session_operation_start(mutation_guard.result(), "create checkpoint",
+                                                  request->session_id());
+    }
+
     auto locked_session = session_manager_.lock_session(request->session_id());
     if (!locked_session) {
         return grpc::Status(grpc::StatusCode::NOT_FOUND, "session not found: " + request->session_id());
@@ -1586,11 +1726,22 @@ grpc::Status EditorServiceImpl::ApplyTransformPlugin(
                             "transform offset and length must be non-negative");
     }
 
+    auto transform_guard = session_manager_.try_begin_transform(request->session_id());
+    if (!transform_guard) {
+        return status_for_session_operation_start(transform_guard.result(), "transform", request->session_id());
+    }
+
     auto locked_session = session_manager_.lock_session(request->session_id());
     if (!locked_session) {
         return grpc::Status(grpc::StatusCode::NOT_FOUND, "session not found: " + request->session_id());
     }
     auto *session = locked_session.session();
+
+    if (omega_session_get_transaction_state(session) != 0) {
+        return grpc::Status(grpc::StatusCode::FAILED_PRECONDITION,
+                            "transform cannot run while a session transaction is open for session: " +
+                                    request->session_id());
+    }
 
     const auto file_size_before = omega_session_get_computed_file_size(session);
     if (file_size_before < 0 || offset > file_size_before) {
@@ -1600,6 +1751,18 @@ grpc::Status EditorServiceImpl::ApplyTransformPlugin(
     const auto effective_length = (length == 0 || length > remaining) ? remaining : length;
 
     omega_transform_plugin_operation_t operation = OMEGA_TRANSFORM_PLUGIN_OPERATION_INSPECT;
+    const std::string operation_id = next_transform_operation_id();
+    transform_progress_context progress_context{
+            &session_manager_,
+            request->session_id(),
+            request->plugin_id(),
+            operation_id,
+            {},
+    };
+    session_manager_.publish_transform_progress(
+            request->session_id(),
+            static_cast<int32_t>(SESSION_EVT_TRANSFORM_STARTED),
+            make_transform_progress(request->plugin_id(), operation_id, "starting", "Transform started"));
     transform_plugin_response_guard plugin_response;
     {
         // Serializes registry/plugin-library access while the session lock above serializes
@@ -1608,6 +1771,10 @@ grpc::Status EditorServiceImpl::ApplyTransformPlugin(
         const auto *plugin_info = omega_transform_plugin_registry_find_info(transform_plugin_registry_,
                                                                            request->plugin_id().c_str());
         if (!plugin_info) {
+            session_manager_.publish_transform_progress(
+                    request->session_id(),
+                    static_cast<int32_t>(SESSION_EVT_TRANSFORM_FAILED),
+                    make_transform_progress(request->plugin_id(), operation_id, "failed", "Transform plugin not found"));
             return grpc::Status(grpc::StatusCode::NOT_FOUND,
                                 "transform plugin not found: " + request->plugin_id());
         }
@@ -1615,13 +1782,24 @@ grpc::Status EditorServiceImpl::ApplyTransformPlugin(
         operation = plugin_info->operation;
         const char *options_json = request->has_options_json() ? request->options_json().c_str() : nullptr;
         if (0 != omega_transform_plugin_options_match_args_schema(options_json, plugin_info->args_schema)) {
+            session_manager_.publish_transform_progress(
+                    request->session_id(),
+                    static_cast<int32_t>(SESSION_EVT_TRANSFORM_FAILED),
+                    make_transform_progress(request->plugin_id(), operation_id, "failed",
+                                            "Transform options do not match schema"));
             return grpc::Status(grpc::StatusCode::INVALID_ARGUMENT,
                                 "transform options do not match schema: " + request->plugin_id());
         }
-        if (0 != omega_transform_plugin_registry_apply_to_session(transform_plugin_registry_,
-                                                                  request->plugin_id().c_str(), session,
-                                                                  offset, length, options_json,
-                                                                  &plugin_response.response)) {
+        if (0 != omega_transform_plugin_registry_apply_to_session_with_progress(
+                         transform_plugin_registry_,
+                         request->plugin_id().c_str(), session,
+                         offset, length, options_json,
+                         transform_progress_callback, &progress_context,
+                         &plugin_response.response)) {
+            session_manager_.publish_transform_progress(
+                    request->session_id(),
+                    static_cast<int32_t>(SESSION_EVT_TRANSFORM_FAILED),
+                    make_transform_progress(request->plugin_id(), operation_id, "failed", "Transform plugin failed"));
             return grpc::Status(grpc::StatusCode::INTERNAL,
                                 "transform plugin failed: " + request->plugin_id());
         }
@@ -1629,6 +1807,11 @@ grpc::Status EditorServiceImpl::ApplyTransformPlugin(
 
     if (plugin_response.response.result_length < 0 ||
         (plugin_response.response.result_length > 0 && plugin_response.response.result_bytes == nullptr)) {
+        session_manager_.publish_transform_progress(
+                request->session_id(),
+                static_cast<int32_t>(SESSION_EVT_TRANSFORM_FAILED),
+                make_transform_progress(request->plugin_id(), operation_id, "failed",
+                                        "Transform plugin returned an invalid inspection result"));
         return grpc::Status(grpc::StatusCode::INTERNAL,
                             "transform plugin returned an invalid inspection result");
     }
@@ -1654,6 +1837,17 @@ grpc::Status EditorServiceImpl::ApplyTransformPlugin(
         response->set_result(reinterpret_cast<const char *>(plugin_response.response.result_bytes),
                              static_cast<size_t>(plugin_response.response.result_length));
     }
+    TransformProgressData completed =
+            make_transform_progress(request->plugin_id(), operation_id, "completed", "Transform completed", false);
+    completed.processed_bytes = effective_length;
+    completed.total_bytes = effective_length;
+    completed.percent = 100.0;
+    completed.has_processed_bytes = true;
+    completed.has_total_bytes = true;
+    completed.has_percent = true;
+    session_manager_.publish_transform_progress(request->session_id(),
+                                                static_cast<int32_t>(SESSION_EVT_TRANSFORM_COMPLETED),
+                                                completed);
     return grpc::Status::OK;
 }
 
@@ -1828,6 +2022,23 @@ grpc::Status EditorServiceImpl::SubscribeToSessionEvents(
             event.set_undo_count(event_data.undo_count);
             if (event_data.serial != 0) {
                 event.set_serial(event_data.serial);
+            }
+            if (event_data.has_transform_progress) {
+                auto *progress = event.mutable_transform_progress();
+                progress->set_plugin_id(event_data.transform_progress.plugin_id);
+                progress->set_operation_id(event_data.transform_progress.operation_id);
+                if (event_data.transform_progress.has_processed_bytes) {
+                    progress->set_processed_bytes(event_data.transform_progress.processed_bytes);
+                }
+                if (event_data.transform_progress.has_total_bytes) {
+                    progress->set_total_bytes(event_data.transform_progress.total_bytes);
+                }
+                if (event_data.transform_progress.has_percent) {
+                    progress->set_percent(event_data.transform_progress.percent);
+                }
+                progress->set_phase(event_data.transform_progress.phase);
+                progress->set_message(event_data.transform_progress.message);
+                progress->set_indeterminate(event_data.transform_progress.indeterminate);
             }
             if (!writer->Write(event)) {
                 break;

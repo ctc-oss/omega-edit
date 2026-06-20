@@ -26,6 +26,7 @@
     transformPlugins?: WebviewTransformPlugin[]
     transformPluginsLoaded?: boolean
     transformPluginsLoading?: boolean
+    transformInFlight?: boolean
     transformPluginError?: string
     transformFeedback?: string
     transformResults?: TransformResultHistoryItem[]
@@ -55,6 +56,7 @@
     transformPlugins = [],
     transformPluginsLoaded = false,
     transformPluginsLoading = false,
+    transformInFlight = false,
     transformPluginError = '',
     transformFeedback = '',
     transformResults = [],
@@ -142,6 +144,7 @@
       plugins={transformPlugins}
       pluginsLoaded={transformPluginsLoaded}
       pluginsLoading={transformPluginsLoading}
+      busy={transformInFlight}
       error={transformPluginError}
       {fileSize}
       {selectionStart}

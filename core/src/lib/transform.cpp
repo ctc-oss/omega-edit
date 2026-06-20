@@ -512,6 +512,9 @@ namespace {
         const omega_session_t *session_ptr{};
         int64_t offset{};
         int64_t length{};
+        int64_t furthest_read{};
+        omega_transform_plugin_progress_cbk_t progress{};
+        void *progress_user_data_ptr{};
     };
 
     // Transfers plugin-owned response buffers to the caller. If no caller response is supplied,
@@ -581,6 +584,24 @@ namespace {
         }
         if (segment_length > 0) { std::memcpy(buffer, data, static_cast<size_t>(segment_length)); }
         omega_segment_destroy(segment);
+        if (segment_length > 0 && reader->progress) {
+            const auto processed = std::min(reader->length, relative_offset + segment_length);
+            if (processed > reader->furthest_read) {
+                reader->furthest_read = processed;
+                omega_transform_plugin_progress_t progress{};
+                progress.processed_bytes = processed;
+                progress.total_bytes = reader->length;
+                progress.percent = reader->length > 0
+                                           ? (static_cast<double>(processed) / static_cast<double>(reader->length)) *
+                                                     100.0
+                                           : 100.0;
+                progress.phase = "reading";
+                progress.flags = OMEGA_TRANSFORM_PROGRESS_HAS_PROCESSED_BYTES |
+                                 OMEGA_TRANSFORM_PROGRESS_HAS_TOTAL_BYTES |
+                                 OMEGA_TRANSFORM_PROGRESS_HAS_PERCENT;
+                if (reader->progress(&progress, reader->progress_user_data_ptr) != 0) { return -1; }
+            }
+        }
         return segment_length;
     }
 }
@@ -612,7 +633,8 @@ int omega_transform_plugin_registry_register_plugin(omega_transform_plugin_regis
             plugin->library.symbol("omega_transform_plugin_apply"));
     if (!get_info || !plugin->apply) { return -1; }
     if (0 != get_info(&plugin->info)) { return -1; }
-    if (plugin->info.abi_version != OMEGA_TRANSFORM_PLUGIN_ABI_VERSION || !plugin->info.id || !*plugin->info.id ||
+    if (plugin->info.abi_version == 0 || plugin->info.abi_version > OMEGA_TRANSFORM_PLUGIN_ABI_VERSION ||
+        !plugin->info.id || !*plugin->info.id ||
         !plugin_operation_is_valid_(plugin->info.operation)) {
         return -1;
     }
@@ -668,6 +690,18 @@ int omega_transform_plugin_registry_apply_to_session(omega_transform_plugin_regi
                                                     const char *plugin_id, omega_session_t *session_ptr,
                                                     int64_t offset, int64_t length, const char *options_json,
                                                     omega_transform_plugin_response_t *response_ptr) {
+    return omega_transform_plugin_registry_apply_to_session_with_progress(registry_ptr, plugin_id, session_ptr, offset,
+                                                                         length, options_json, nullptr, nullptr,
+                                                                         response_ptr);
+}
+
+int omega_transform_plugin_registry_apply_to_session_with_progress(
+        omega_transform_plugin_registry_t *registry_ptr,
+        const char *plugin_id, omega_session_t *session_ptr,
+        int64_t offset, int64_t length, const char *options_json,
+        omega_transform_plugin_progress_cbk_t progress,
+        void *progress_user_data_ptr,
+        omega_transform_plugin_response_t *response_ptr) {
     if (response_ptr) { omega_transform_plugin_response_clear(response_ptr); }
     if (!registry_ptr || !plugin_id || !*plugin_id || !session_ptr || offset < 0 || length < 0) { return -1; }
 
@@ -692,7 +726,7 @@ int omega_transform_plugin_registry_apply_to_session(omega_transform_plugin_regi
     std::vector<omega_byte_t> input_bytes;
     if (should_materialize && 0 != read_session_range_(session_ptr, offset, length, input_bytes)) { return -1; }
 
-    session_range_reader_t reader{session_ptr, offset, requested_length};
+    session_range_reader_t reader{session_ptr, offset, requested_length, 0, progress, progress_user_data_ptr};
 
     omega_transform_plugin_request_t request{};
     request.input_bytes = input_bytes.empty() ? nullptr : input_bytes.data();
@@ -705,6 +739,8 @@ int omega_transform_plugin_registry_apply_to_session(omega_transform_plugin_regi
     request.read = read_session_range_chunk_;
     request.reader_user_data_ptr = &reader;
     request.preferred_chunk_size = TRANSFORM_PLUGIN_STREAM_CHUNK_BYTES;
+    request.progress = progress;
+    request.progress_user_data_ptr = progress_user_data_ptr;
 
     omega_transform_plugin_response_t plugin_response{};
     if (0 != (*iter)->apply(&request, &plugin_response)) {

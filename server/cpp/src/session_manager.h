@@ -44,6 +44,20 @@ struct ResourceLimits {
     size_t max_viewports_per_session{256};       ///< 0 = unbounded
 };
 
+struct TransformProgressData {
+    std::string plugin_id;
+    std::string operation_id;
+    int64_t processed_bytes{0};
+    int64_t total_bytes{0};
+    double percent{0};
+    std::string phase;
+    std::string message;
+    bool has_processed_bytes{false};
+    bool has_total_bytes{false};
+    bool has_percent{false};
+    bool indeterminate{false};
+};
+
 /// Session event data for streaming
 struct SessionEventData {
     std::string session_id;
@@ -52,6 +66,8 @@ struct SessionEventData {
     int64_t change_count;
     int64_t undo_count;
     int64_t serial; // 0 if no change serial
+    TransformProgressData transform_progress;
+    bool has_transform_progress{false};
 };
 
 /// Viewport event data for streaming
@@ -165,6 +181,8 @@ struct SessionInfo {
     // after the last attachment detaches.
     size_t attachment_count{0};
     std::map<std::string, std::shared_ptr<ViewportInfo>> viewports;
+    bool transform_in_progress{false};
+    size_t active_mutations{0};
     // Serializes all access to the underlying non-thread-safe omega_session_t and its viewports.
     std::mutex core_mutex;
     std::mutex session_subscription_mutex;
@@ -207,6 +225,46 @@ enum class ViewportCreateError {
     CORE_ERROR,            ///< the underlying omega_edit API failed to create the viewport
 };
 
+enum class SessionOperationStartResult {
+    STARTED,
+    SESSION_NOT_FOUND,
+    TRANSFORM_IN_PROGRESS,
+    MUTATION_IN_PROGRESS,
+};
+
+enum class SessionOperationKind {
+    MUTATION,
+    TRANSFORM,
+};
+
+class SessionManager;
+
+class SessionOperationGuard {
+public:
+    SessionOperationGuard() = default;
+    SessionOperationGuard(const SessionOperationGuard &) = delete;
+    auto operator=(const SessionOperationGuard &) -> SessionOperationGuard & = delete;
+    SessionOperationGuard(SessionOperationGuard &&other) noexcept;
+    auto operator=(SessionOperationGuard &&other) noexcept -> SessionOperationGuard &;
+    ~SessionOperationGuard();
+
+    explicit operator bool() const { return result_ == SessionOperationStartResult::STARTED; }
+    SessionOperationStartResult result() const { return result_; }
+
+private:
+    friend class SessionManager;
+
+    SessionOperationGuard(SessionManager *manager, std::string session_id, SessionOperationKind kind,
+                          SessionOperationStartResult result);
+
+    void release();
+
+    SessionManager *manager_{nullptr};
+    std::string session_id_;
+    SessionOperationKind kind_{SessionOperationKind::MUTATION};
+    SessionOperationStartResult result_{SessionOperationStartResult::SESSION_NOT_FOUND};
+};
+
 /// Manages all omega_edit sessions and viewports
 class SessionManager {
 public:
@@ -223,6 +281,12 @@ public:
     bool detach_session(const std::string &session_id);
     omega_session_t *get_session(const std::string &session_id);
     LockedSession lock_session(const std::string &session_id);
+    SessionOperationGuard try_begin_mutation(const std::string &session_id);
+    SessionOperationGuard try_begin_transform(const std::string &session_id);
+    bool session_transform_in_progress(const std::string &session_id) const;
+    bool publish_transform_progress(const std::string &session_id,
+                                    int32_t event_kind,
+                                    const TransformProgressData &progress);
     int64_t session_count() const;
 
     // Viewport lifecycle
@@ -263,6 +327,8 @@ public:
     void destroy_all();
 
 private:
+    friend class SessionOperationGuard;
+
     static std::string generate_uuid_v4();
     static std::string generate_uuid_v7();
     static std::string generate_prefixed_id(const char *prefix);
@@ -277,6 +343,7 @@ private:
     std::string create_managed_checkpoint_directory();
     void cleanup_managed_server_root_if_empty();
     bool destroy_session_locked(const std::map<std::string, std::shared_ptr<SessionInfo>>::iterator &it);
+    void finish_operation(const std::string &session_id, SessionOperationKind kind);
 
     // Callbacks
     static void session_event_callback(const omega_session_t *session, omega_session_event_t event, const void *ptr);

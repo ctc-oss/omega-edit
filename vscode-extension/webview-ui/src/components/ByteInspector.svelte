@@ -27,6 +27,7 @@
     littleEndian?: boolean
     offsetRadix?: 'hex' | 'dec'
     expanded?: boolean
+    disabled?: boolean
     onToggleExpanded: () => void
     onToggleEndian: () => void
     onInspectRange: (offset: number, length: number) => void
@@ -42,6 +43,7 @@
     littleEndian = true,
     offsetRadix = 'hex',
     expanded = true,
+    disabled = false,
     onToggleExpanded,
     onToggleEndian,
     onInspectRange,
@@ -469,7 +471,7 @@
 
   function beginEdit(item: InspectorFieldView): void {
     const { field } = item
-    if (!field.editable || !item.available || selectedOffset < 0) {
+    if (disabled || !field.editable || !item.available || selectedOffset < 0) {
       return
     }
     onInspectRange(selectedOffset, item.length)
@@ -492,7 +494,7 @@
 
   function commitEdit(item: InspectorFieldView): void {
     const { field } = item
-    if (!field.write || selectedOffset < 0) {
+    if (disabled || !field.write || selectedOffset < 0) {
       return
     }
 
@@ -611,11 +613,13 @@
                   aria-label={strings.inspector.valueInput(item.field.label)}
                   bind:value={editValue}
                   spellcheck="false"
+                  disabled={disabled}
                   onkeydown={(event) => handleEditKeydown(event, item)}
                 />
                 <button
                   type="button"
                   class="secondary"
+                  disabled={disabled}
                   onclick={() => commitEdit(item)}
                 >
                   {strings.inspector.apply}
@@ -625,6 +629,7 @@
               <button
                 type="button"
                 class="inspector-value-button"
+                disabled={disabled}
                 onclick={() => beginEdit(item)}
               >
                 {item.value}
@@ -634,7 +639,7 @@
                 type="button"
                 class="inspector-value-button"
                 class:inspector-value-readonly={!item.field.editable}
-                disabled={!item.available || selectedOffset < 0}
+                disabled={!item.available || selectedOffset < 0 || (disabled && item.field.editable)}
                 onclick={() =>
                   item.field.editable ? beginEdit(item) : inspectField(item)}
               >

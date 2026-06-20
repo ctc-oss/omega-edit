@@ -69,6 +69,7 @@
     canRedo?: boolean
     undoCount?: number
     redoCount?: number
+    editDisabled?: boolean
     onSelect: (offset: number, extend: boolean) => void
     onActivePaneChange: (pane: GridEditPane) => void
     onMoveSelection: (delta: number, extend: boolean) => void
@@ -130,6 +131,7 @@
     canRedo = false,
     undoCount = 0,
     redoCount = 0,
+    editDisabled = false,
     onSelect,
     onActivePaneChange,
     onMoveSelection,
@@ -174,6 +176,7 @@
       onToggleEditMode={onToggleEditMode}
       onTypeByte={onTypeByte}
       onDeleteByte={onDeleteByte}
+      readOnly={editDisabled}
       onVisibleRowsChange={onVisibleRowsChange}
       editMode={editMode}
     />

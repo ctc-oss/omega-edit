@@ -42,6 +42,7 @@ export const strings = {
     choose: 'Select transform...',
     chooseTitle: 'Choose a transform to apply to the selected bytes',
     loading: 'Loading transforms...',
+    inFlight: 'Transform in progress; edits are disabled.',
     noTransforms: 'No transforms found',
     selectRange: 'Select bytes first',
     selectRangeFirst: 'Select one or more bytes to transform',
