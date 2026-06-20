@@ -57,6 +57,8 @@ endif()
 if (NOT TARGET omega_edit::omega_edit)
     find_package(omega_edit CONFIG REQUIRED)
 endif()
+set(OPENSSL_USE_STATIC_LIBS TRUE)
+find_package(OpenSSL 3 REQUIRED COMPONENTS Crypto)
 find_package(ZLIB REQUIRED)
 get_target_property(OMEGA_EDIT_INCLUDE_DIRS omega_edit::omega_edit INTERFACE_INCLUDE_DIRECTORIES)
 
@@ -70,8 +72,25 @@ foreach (plugin_src
         src/and.c
         src/base64_decode.c
         src/base64_encode.c
+        src/blake2b512.c
+        src/blake2s256.c
+        src/character_transcode.cpp
+        src/common_checksums.cpp
+        src/decimal_codecs.cpp
+        src/endian_swap.cpp
+        src/format_inspectors.cpp
         src/fnv1a64.c
+        src/md5.c
         src/or.c
+        src/record_text_helpers.cpp
+        src/sha1.c
+        src/sha224.c
+        src/sha256.c
+        src/sha3_256.c
+        src/sha3_512.c
+        src/sha384.c
+        src/sha512.c
+        src/text_codecs.cpp
         src/zlib_compress.c
         src/zlib_decompress.c
         src/xor.c
@@ -83,6 +102,17 @@ foreach (plugin_src
     target_include_directories(${plugin_target} PRIVATE ${OMEGA_EDIT_INCLUDE_DIRS})
     if (plugin_name MATCHES "^zlib_")
         target_link_libraries(${plugin_target} PRIVATE ZLIB::ZLIB)
+    endif()
+    if (plugin_name MATCHES "^(md5|sha1|sha224|sha256|sha384|sha512|sha3_256|sha3_512|blake2b512|blake2s256)$")
+        target_link_libraries(${plugin_target} PRIVATE OpenSSL::Crypto)
+        if (CMAKE_C_COMPILER_ID MATCHES "GNU|Clang")
+            target_compile_options(${plugin_target} PRIVATE -fvisibility=hidden)
+        endif()
+        if (UNIX AND NOT APPLE)
+            target_link_options(${plugin_target} PRIVATE "LINKER:--exclude-libs,ALL")
+        elseif (APPLE)
+            target_link_options(${plugin_target} PRIVATE "LINKER:-dead_strip")
+        endif()
     endif()
     set_target_properties(
             ${plugin_target} PROPERTIES

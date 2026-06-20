@@ -104,6 +104,7 @@ jobs:
         with:
           runner-os: ${{ matrix.runner-os }}
           os-name: ${{ matrix.os }}
+          platform: ${{ matrix.platform }}
           skip-tests: 'true'
 
       - name: Rename binary with platform suffix
@@ -359,7 +360,7 @@ jobs:
         uses: lukka/get-cmake@latest
 
       - name: Install lcov and transform plugin dependencies
-        run: sudo apt-get update && sudo apt-get install -y lcov zlib1g-dev
+        run: sudo apt-get update && sudo apt-get install -y lcov libssl-dev zlib1g-dev
 
       - name: Build with coverage instrumentation
         run: |
@@ -415,9 +416,9 @@ jobs:
         uses: actions/cache@v5
         with:
           path: ~/.conan2
-          key: conan-coverage-${{ hashFiles('server/cpp/conanfile.py') }}
+          key: conan-coverage-v2-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('server/cpp/conanfile.py') }}
           restore-keys: |
-            conan-coverage-
+            conan-coverage-v2-${{ runner.os }}-${{ runner.arch }}-
 
       - name: Build C++ gRPC server for client tests
         run: |

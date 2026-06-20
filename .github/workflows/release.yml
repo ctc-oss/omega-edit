@@ -231,6 +231,7 @@ jobs:
         with:
           runner-os: ${{ matrix.runner-os }}
           os-name: ${{ matrix.os }}
+          platform: ${{ matrix.platform }}
           skip-tests: 'true'
 
       - name: Rename binary with platform suffix

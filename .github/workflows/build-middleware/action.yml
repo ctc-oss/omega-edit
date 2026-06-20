@@ -23,6 +23,10 @@ inputs:
     description: 'Skip running client tests (e.g., during release builds)'
     required: false
     default: 'false'
+  platform:
+    description: 'Target platform label (e.g., macos-x64, macos-arm64)'
+    required: false
+    default: ''
 runs:
   using: "composite"
   steps:
@@ -61,21 +65,57 @@ runs:
       shell: bash
       run: echo "CONAN_MSBUILD_VS_CONF=-c tools.microsoft.msbuild:vs_version=18" >> "$GITHUB_ENV"
 
+    - name: Resolve macOS target architecture
+      if: inputs.runner-os == 'macOS'
+      shell: bash
+      run: |
+        conan_arch=""
+        macos_arch=""
+        platform="${{ inputs.platform }}"
+        os_name="${{ inputs.os-name }}"
+
+        if [[ "$platform" == *"-x64" ]] || [[ "$os_name" == *"-x64" ]]; then
+          conan_arch="x86_64"
+          macos_arch="x86_64"
+        elif [[ "$platform" == *"-arm64" ]] || [[ "$os_name" == *"-arm64" ]]; then
+          conan_arch="armv8"
+          macos_arch="arm64"
+        elif [ "$RUNNER_ARCH" = "X64" ]; then
+          conan_arch="x86_64"
+          macos_arch="x86_64"
+        elif [ "$RUNNER_ARCH" = "ARM64" ]; then
+          conan_arch="armv8"
+          macos_arch="arm64"
+        fi
+
+        if [ -z "$conan_arch" ] || [ -z "$macos_arch" ]; then
+          echo "ERROR: Unable to resolve macOS target architecture for platform '${platform}' and os-name '${os_name}'" >&2
+          exit 1
+        fi
+
+        echo "TARGET_CONAN_ARCH=$conan_arch" >> "$GITHUB_ENV"
+        echo "TARGET_MACOS_ARCH=$macos_arch" >> "$GITHUB_ENV"
+
     - name: Cache Conan packages
       uses: actions/cache@v4
       with:
         path: ~/.conan2
-        key: conan-${{ inputs.os-name }}-${{ hashFiles('server/cpp/conanfile.py', 'plugins/conanfile.py') }}
+        key: conan-v2-${{ inputs.runner-os }}-${{ runner.arch }}-${{ inputs.os-name }}-${{ inputs.platform }}-${{ hashFiles('server/cpp/conanfile.py', 'plugins/conanfile.py') }}
         restore-keys: |
-          conan-${{ inputs.os-name }}-
+          conan-v2-${{ inputs.runner-os }}-${{ runner.arch }}-${{ inputs.os-name }}-${{ inputs.platform }}-
 
     - name: Install transform plugin dependencies via Conan
-      if: inputs.runner-os == 'Windows'
+      if: inputs.runner-os == 'Windows' || inputs.runner-os == 'macOS'
       shell: bash
       run: |
+        conan_arch=()
+        if [ "${{ inputs.runner-os }}" == "macOS" ]; then
+          conan_arch=("-s:h" "arch=${TARGET_CONAN_ARCH}")
+        fi
         conan install plugins --output-folder=_build_core/plugin-conan \
           --build=missing \
           -s build_type=Release \
+          "${conan_arch[@]}" \
           ${CONAN_MSBUILD_VS_CONF:-} \
           -c tools.cmake.cmaketoolchain:generator=Ninja
 
@@ -84,14 +124,17 @@ runs:
       shell: bash
       run: |
         sudo apt-get update
-        sudo apt-get install -y zlib1g-dev
+        sudo apt-get install -y libssl-dev zlib1g-dev
 
     - name: Build omega_edit core library and transform plugins (static)
       shell: bash
       run: |
         cmake_args=()
-        if [ "${{ inputs.runner-os }}" == "Windows" ]; then
+        if [ "${{ inputs.runner-os }}" == "Windows" ] || [ "${{ inputs.runner-os }}" == "macOS" ]; then
           cmake_args+=("-DCMAKE_TOOLCHAIN_FILE=$(pwd)/_build_core/plugin-conan/conan_toolchain.cmake")
+        fi
+        if [ "${{ inputs.runner-os }}" == "macOS" ]; then
+          cmake_args+=("-DCMAKE_OSX_ARCHITECTURES=${TARGET_MACOS_ARCH}")
         fi
         cmake -G Ninja -S . -B _build_core \
           -DCMAKE_BUILD_TYPE=Release \
@@ -110,10 +153,15 @@ runs:
       shell: bash
       run: |
         cd server/cpp
+        conan_arch=()
+        if [ "${{ inputs.runner-os }}" == "macOS" ]; then
+          conan_arch=("-s:h" "arch=${TARGET_CONAN_ARCH}")
+        fi
         conan install . --output-folder=build \
           --build=missing \
           -s build_type=Release \
           -s compiler.cppstd=17 \
+          "${conan_arch[@]}" \
           ${CONAN_MSBUILD_VS_CONF:-} \
           -c tools.cmake.cmaketoolchain:generator=Ninja
 
@@ -128,14 +176,20 @@ runs:
       shell: bash
       run: |
         cd server/cpp
+        cmake_args=()
+        if [ "${{ inputs.runner-os }}" == "macOS" ]; then
+          cmake_args+=("-DCMAKE_OSX_ARCHITECTURES=${TARGET_MACOS_ARCH}")
+        fi
         cmake --preset conan-release \
           -DOE_LIB_DIR="$OE_LIB_DIR" \
           -DCMAKE_PREFIX_PATH="$OE_PREFIX" \
+          "${cmake_args[@]}" \
           || cmake -G Ninja -S . -B build \
             -DCMAKE_BUILD_TYPE=Release \
             -DCMAKE_TOOLCHAIN_FILE="build/conan_toolchain.cmake" \
             -DOE_LIB_DIR="$OE_LIB_DIR" \
-            -DCMAKE_PREFIX_PATH="$OE_PREFIX"
+            -DCMAKE_PREFIX_PATH="$OE_PREFIX" \
+            "${cmake_args[@]}"
         cmake --build build --config Release
         cd ../..
         echo "CPP_SERVER_BINARY=$(pwd)/server/cpp/build/omega-edit-grpc-server$([ '${{ inputs.runner-os }}' == 'Windows' ] && echo '.exe' || echo '')" >> $GITHUB_ENV
