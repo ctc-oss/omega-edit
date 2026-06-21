@@ -5,6 +5,7 @@
     ServerHealthMessage,
     WebviewExternalHighlight,
   } from '../protocol'
+  import { strings } from '../i18n'
   import FileScrollbar from './FileScrollbar.svelte'
   import PreviewGrid from './PreviewGrid.svelte'
   import ProfilerPanel from './ProfilerPanel.svelte'
@@ -47,6 +48,7 @@
     inspectorStart?: number
     inspectorEnd?: number
     externalHighlights?: WebviewExternalHighlight[]
+    preparing?: boolean
     activePane?: GridEditPane
     editMode?: InspectorEditMode
     pendingHexLabel?: string
@@ -109,6 +111,7 @@
     inspectorStart = -1,
     inspectorEnd = -1,
     externalHighlights = [],
+    preparing = false,
     activePane = 'hex',
     editMode = 'insert',
     pendingHexLabel = '',
@@ -150,45 +153,52 @@
 </script>
 
 <div class="editor-main">
-  <div class="editor-grid-shell">
-    <PreviewGrid
-      {data}
-      offset={visibleOffset}
-      {bytesPerRow}
-      {offsetRadix}
-      {selectedOffset}
-      {selectionStart}
-      {selectionEnd}
-      {activePane}
-      searchStart={searchStart}
-      searchEnd={searchEnd}
-      inspectorStart={inspectorStart}
-      inspectorEnd={inspectorEnd}
-      {externalHighlights}
-      {pendingHexLabel}
-      {canScrollUp}
-      {canScrollDown}
-      onSelect={onSelect}
-      onActivePaneChange={onActivePaneChange}
-      onMoveSelection={onMoveSelection}
-      onJumpToBoundary={onJumpToBoundary}
-      onScroll={onScroll}
-      onToggleEditMode={onToggleEditMode}
-      onTypeByte={onTypeByte}
-      onDeleteByte={onDeleteByte}
-      readOnly={editDisabled}
-      onVisibleRowsChange={onVisibleRowsChange}
-      editMode={editMode}
-    />
-    <FileScrollbar
-      {fileSize}
-      visibleOffset={scrollOffset}
-      {bytesPerRow}
-      {visibleRows}
-      {visibleByteCount}
-      {offsetRadix}
-      onScrollTo={onScrollTo}
-    />
+  <div class="editor-grid-shell" class:preparing>
+    {#if preparing}
+      <div class="preparing-file" role="status" aria-live="polite">
+        <span class="preparing-spinner" aria-hidden="true"></span>
+        <span>{strings.grid.preparingFile}</span>
+      </div>
+    {:else}
+      <PreviewGrid
+        {data}
+        offset={visibleOffset}
+        {bytesPerRow}
+        {offsetRadix}
+        {selectedOffset}
+        {selectionStart}
+        {selectionEnd}
+        {activePane}
+        searchStart={searchStart}
+        searchEnd={searchEnd}
+        inspectorStart={inspectorStart}
+        inspectorEnd={inspectorEnd}
+        {externalHighlights}
+        {pendingHexLabel}
+        {canScrollUp}
+        {canScrollDown}
+        onSelect={onSelect}
+        onActivePaneChange={onActivePaneChange}
+        onMoveSelection={onMoveSelection}
+        onJumpToBoundary={onJumpToBoundary}
+        onScroll={onScroll}
+        onToggleEditMode={onToggleEditMode}
+        onTypeByte={onTypeByte}
+        onDeleteByte={onDeleteByte}
+        readOnly={editDisabled}
+        onVisibleRowsChange={onVisibleRowsChange}
+        editMode={editMode}
+      />
+      <FileScrollbar
+        {fileSize}
+        visibleOffset={scrollOffset}
+        {bytesPerRow}
+        {visibleRows}
+        {visibleByteCount}
+        {offsetRadix}
+        onScrollTo={onScrollTo}
+      />
+    {/if}
   </div>
 
   <ProfilerPanel

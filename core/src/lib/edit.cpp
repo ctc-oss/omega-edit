@@ -119,7 +119,7 @@ namespace {
     auto create_session_with_backing_file_(FILE *file_ptr, const char *file_path, const char *checkpoint_file_name,
                                            const std::string &checkpoint_directory, omega_session_event_cbk_t cbk,
                                            void *user_data_ptr, int32_t event_interest) -> omega_session_t * {
-        off_t file_size = 0;
+        int64_t file_size = 0;
         if (file_ptr != nullptr) {
             if (0 != FSEEK(file_ptr, 0L, SEEK_END)) {
                 FCLOSE(file_ptr);
@@ -1107,7 +1107,7 @@ omega_session_t *omega_edit_create_session(const char *file_path, omega_session_
                       << static_cast<char *>(checkpoint_filename) << "'");
             return nullptr;
         }
-        close(checkpoint_fd);
+        CLOSE(checkpoint_fd);
         if (0 != omega_util_file_copy(file_path, static_cast<char *>(checkpoint_filename), mode)) {
             LOG_ERROR("failed to copy original file '" << file_path << "' to checkpoint file '"
                                                        << static_cast<char *>(checkpoint_filename)

@@ -158,10 +158,13 @@ static inline FILE *safe_fopen_(const char *filename, const char *mode) {
 #endif
 
 /**
- * Alias for the fseek/fseeko function, using fseeko if _LARGEFILE_SOURCE is defined to accommodate large files.
+ * Alias for the fseek/fseeko function, using a 64-bit file offset API where
+ * needed to accommodate large files.
  */
 #ifndef FSEEK
-#ifdef HAVE_FSEEKO
+#ifdef OMEGA_BUILD_WINDOWS
+#define FSEEK _fseeki64
+#elif defined(HAVE_FSEEKO)
 #define FSEEK fseeko
 #else
 #define FSEEK fseek
@@ -169,10 +172,13 @@ static inline FILE *safe_fopen_(const char *filename, const char *mode) {
 #endif
 
 /**
- * Alias for the ftell/ftello function, using ftello if _LARGEFILE_SOURCE is defined to accommodate large files.
+ * Alias for the ftell/ftello function, using a 64-bit file offset API where
+ * needed to accommodate large files.
  */
 #ifndef FTELL
-#ifdef HAVE_FTELLO
+#ifdef OMEGA_BUILD_WINDOWS
+#define FTELL _ftelli64
+#elif defined(HAVE_FTELLO)
 #define FTELL ftello
 #else
 #define FTELL ftell

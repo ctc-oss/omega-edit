@@ -32,6 +32,7 @@
 #include <iostream>
 #include <sys/stat.h>
 #include <thread>
+#include <vector>
 
 using namespace std;
 namespace fs = std::filesystem;
@@ -1038,6 +1039,52 @@ TEST_CASE("File Viewing", "[InitTests]") {
     REQUIRE(viewport_count - 1 == omega_session_get_num_viewports(session_ptr));
     omega_edit_destroy_session(session_ptr);
     omega_util_remove_file(file_name);
+}
+
+TEST_CASE("Large sparse file viewports use 64-bit file offsets", "[.][LargeFile][ViewportTests]") {
+    const auto file_name_str = std::string(MAKE_PATH("large_sparse_viewport.dat"));
+    const auto file_name = file_name_str.c_str();
+    const int64_t marker_offset = (int64_t{4} * 1024 * 1024 * 1024) + 4096;
+    const char marker[] = "OMEGA64";
+    const auto checkpoint_dir = DATA_DIR / "large_sparse_viewport_checkpoint";
+    const auto checkpoint_dir_str = checkpoint_dir.string();
+    omega_util_remove_file(file_name);
+    fs::remove_all(checkpoint_dir);
+    fs::create_directories(checkpoint_dir);
+
+    {
+        std::ofstream out(file_name, std::ios::binary | std::ios::trunc);
+        REQUIRE(out);
+        out.seekp(marker_offset);
+        REQUIRE(out);
+        out.write(marker, sizeof(marker) - 1);
+        REQUIRE(out);
+    }
+
+    const auto expected_size = marker_offset + static_cast<int64_t>(sizeof(marker) - 1);
+    const auto session_ptr = omega_edit_create_session(file_name, nullptr, nullptr, NO_EVENTS, checkpoint_dir_str.c_str());
+    REQUIRE(session_ptr);
+    REQUIRE(expected_size == omega_session_get_computed_file_size(session_ptr));
+    std::vector<fs::path> original_markers;
+    for (const auto &entry: fs::directory_iterator(checkpoint_dir)) {
+        if (entry.path().filename().string().rfind(".OmegaEdit-orig.", 0) == 0) {
+            original_markers.push_back(entry.path());
+        }
+    }
+    REQUIRE(1 == original_markers.size());
+    REQUIRE(expected_size == fs::file_size(original_markers.front()));
+
+    const auto viewport_ptr =
+            omega_edit_create_viewport(session_ptr, marker_offset, sizeof(marker) - 1, 0, nullptr, nullptr, NO_EVENTS);
+    REQUIRE(viewport_ptr);
+    REQUIRE(sizeof(marker) - 1 == omega_viewport_get_length(viewport_ptr));
+    REQUIRE(std::string(marker, sizeof(marker) - 1) == omega_viewport_get_string(viewport_ptr));
+    REQUIRE(0 == omega_viewport_get_following_byte_count(viewport_ptr));
+
+    omega_edit_destroy_viewport(viewport_ptr);
+    omega_edit_destroy_session(session_ptr);
+    omega_util_remove_file(file_name);
+    fs::remove_all(checkpoint_dir);
 }
 
 TEST_CASE("Viewports", "[ViewportTests]") {

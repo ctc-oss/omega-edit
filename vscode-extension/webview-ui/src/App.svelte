@@ -132,6 +132,7 @@
   let transformResultHistory = $state<TransformResultState[]>([])
   let transformResultSequence = $state(0)
   let externalHighlights = $state<WebviewExternalHighlight[]>([])
+  let preparingFile = $state(true)
   let canUndo = $state(false)
   let canRedo = $state(false)
   let undoCount = $state(0)
@@ -1802,27 +1803,27 @@
 
   function handleHostMessage(message: HostToWebviewMessage): void {
     switch (message.type) {
-      case 'viewportData':
-        {
-          const requestedOffset = pendingVisibleOffset
+      case 'viewportData': {
+        const requestedOffset = pendingVisibleOffset
 
         updateProfilerViewportSnapshot(message)
+        preparingFile = false
         fileSize = message.fileSize
         viewportOffset = message.offset
         viewportData = message.data
         externalHighlights = message.externalHighlights
 
-          if (
-            requestedOffset !== undefined &&
-            message.visibleOffset !== requestedOffset
-          ) {
-            if (canRenderVisibleOffset(requestedOffset)) {
-              visibleOffset = requestedOffset
-            }
-          } else {
-            visibleOffset = message.visibleOffset
-            pendingVisibleOffset = undefined
+        if (
+          requestedOffset !== undefined &&
+          message.visibleOffset !== requestedOffset
+        ) {
+          if (canRenderVisibleOffset(requestedOffset)) {
+            visibleOffset = requestedOffset
           }
+        } else {
+          visibleOffset = message.visibleOffset
+          pendingVisibleOffset = undefined
+        }
 
         if (message.fileSize <= 0) {
           selectionAnchor = -1
@@ -1835,9 +1836,9 @@
           selectionAnchor = -1
           selectedOffset = nextOffset
         }
-          applyPendingSearchReveal()
+        applyPendingSearchReveal()
         break
-        }
+      }
       case 'fileSizeChanged':
         fileSize = message.fileSize
         latestDataProfile = undefined
@@ -2107,6 +2108,7 @@
     inspectorStart={inspectorHighlightStart}
     inspectorEnd={inspectorHighlightEnd}
     {externalHighlights}
+    preparing={preparingFile}
     {activePane}
     editMode={inspectorEditMode}
     {pendingHexLabel}

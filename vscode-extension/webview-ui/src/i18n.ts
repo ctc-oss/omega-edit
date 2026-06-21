@@ -168,6 +168,7 @@ export const strings = {
     text: 'TEXT',
     textPane: 'TEXT',
     waitingForData: 'Waiting for data',
+    preparingFile: 'Preparing file...',
     insertTitle: 'Insert mode',
     overwriteTitle: 'Overwrite mode',
     notPrintable: 'Not printable',

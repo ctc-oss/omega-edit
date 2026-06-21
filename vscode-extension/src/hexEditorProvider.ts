@@ -749,6 +749,8 @@ export class HexEditorProvider
 
   private latestServerHealth: ServerHealthMessage | undefined
 
+  private pendingHealthWebviews = new Set<vscode.Webview>()
+
   private lastServerStatusItemKey = ''
 
   private readonly statusItems = {
@@ -962,6 +964,43 @@ export class HexEditorProvider
     // resize the server-side viewport. Only the visible row count changes.
     const capacity = this.getViewportCapacity(bytesPerRow)
 
+    // Configure the webview before opening the native session so very large
+    // files still show a live preparing state while Ωedit copies the original
+    // into its immutable checkpoint.
+    webviewPanel.webview.options = {
+      enableScripts: true,
+      localResourceRoots: this.getLocalResourceRoots(),
+    }
+    webviewPanel.webview.html = this.renderWebviewHtml(
+      webviewPanel.webview,
+      bytesPerRow
+    )
+
+    const panelDisposables: vscode.Disposable[] = []
+    const pendingWebviewMessages: WebviewToHostMessage[] = []
+    let resolvedSession: EditorSession | undefined
+    let panelDisposed = false
+    webviewPanel.webview.onDidReceiveMessage(
+      (msg) => {
+        if (!resolvedSession) {
+          pendingWebviewMessages.push(msg)
+          return
+        }
+        void this.handleWebviewMessage(resolvedSession, msg)
+      },
+      undefined,
+      panelDisposables
+    )
+    this.pendingHealthWebviews.add(webviewPanel.webview)
+    panelDisposables.push(
+      webviewPanel.onDidDispose(() => {
+        panelDisposed = true
+        this.pendingHealthWebviews.delete(webviewPanel.webview)
+        this.stopHealthPollingIfIdle()
+      })
+    )
+    this.startHealthPolling()
+
     // --- Create a viewport starting at offset 0 ---
     // If VS Code supplies a backup id (crash-recovery), open from the backup so
     // unsaved edits are restored; save still targets the original filePath.
@@ -970,10 +1009,22 @@ export class HexEditorProvider
     const restoreFromPath = backupFilePath ?? filePath
     document.backupId = undefined // consume – do not re-use on subsequent resolves
 
-    const scope = await ScopedEditorSessionHandle.openFile(restoreFromPath, {
-      filePath: restoreFromPath,
-      capacity,
-    })
+    let scope: ScopedEditorSessionHandle
+    try {
+      scope = await ScopedEditorSessionHandle.openFile(restoreFromPath, {
+        filePath: restoreFromPath,
+        capacity,
+      })
+    } catch (error) {
+      this.pendingHealthWebviews.delete(webviewPanel.webview)
+      this.stopHealthPollingIfIdle()
+      throw error
+    }
+    if (panelDisposed) {
+      await scope.dispose()
+      this.stopHealthPollingIfIdle()
+      return
+    }
 
     const session: EditorSession = {
       get sessionId() {
@@ -1009,35 +1060,20 @@ export class HexEditorProvider
       restoredFromBackup: wasRestoredFromBackup,
     }
     this.sessions.set(uri.toString(), session)
+    this.pendingHealthWebviews.delete(webviewPanel.webview)
+    resolvedSession = session
     this.activeSession = session
     this.updateEditCommandContexts(session)
-
-    // --- Configure the webview ---
-    webviewPanel.webview.options = {
-      enableScripts: true,
-      localResourceRoots: this.getLocalResourceRoots(),
-    }
-    webviewPanel.webview.html = this.renderWebviewHtml(
-      webviewPanel.webview,
-      bytesPerRow
-    )
-
-    // --- Handle messages FROM the webview ---
-    const panelDisposables: vscode.Disposable[] = []
-
-    webviewPanel.webview.onDidReceiveMessage(
-      (msg) => this.handleWebviewMessage(session, msg),
-      undefined,
-      panelDisposables
-    )
 
     // Send initial data to the webview. The message listener must be in place
     // first because the webview posts its first metrics update as soon as it
     // mounts, and that update is also our reliable ready-to-render signal.
+    for (const pendingMessage of pendingWebviewMessages.splice(0)) {
+      await this.handleWebviewMessage(session, pendingMessage)
+    }
     await this.sendViewportData(session)
     this.postEditState(session)
     this.postEditMode(session)
-    this.startHealthPolling()
 
     await this.startSessionSubscriptions(session)
 
@@ -1065,9 +1101,7 @@ export class HexEditorProvider
         this.activeSession = undefined
         this.updateEditCommandContexts(undefined)
       }
-      if (this.sessions.size === 0) {
-        this.stopHealthPolling()
-      }
+      this.stopHealthPollingIfIdle()
       await session.scope.dispose()
     })
   }
@@ -1482,6 +1516,33 @@ export class HexEditorProvider
         error.message.includes('Webview is disposed')
       ) {
         session.disposed = true
+        return
+      }
+      throw error
+    }
+  }
+
+  private postPendingHealthWebviewMessage(
+    webview: vscode.Webview,
+    message: HostToWebviewMessage
+  ): void {
+    try {
+      void webview.postMessage(message).then(undefined, (error) => {
+        if (
+          error instanceof Error &&
+          error.message.includes('Webview is disposed')
+        ) {
+          this.pendingHealthWebviews.delete(webview)
+          this.stopHealthPollingIfIdle()
+        }
+      })
+    } catch (error) {
+      if (
+        error instanceof Error &&
+        error.message.includes('Webview is disposed')
+      ) {
+        this.pendingHealthWebviews.delete(webview)
+        this.stopHealthPollingIfIdle()
         return
       }
       throw error
@@ -2294,6 +2355,12 @@ export class HexEditorProvider
     this.serverInfo = undefined
   }
 
+  private stopHealthPollingIfIdle(): void {
+    if (this.sessions.size === 0 && this.pendingHealthWebviews.size === 0) {
+      this.stopHealthPolling()
+    }
+  }
+
   private async publishServerHealth(heartbeat: {
     latency: number
     sessionCount: number
@@ -2304,7 +2371,7 @@ export class HexEditorProvider
     serverVirtualMemoryBytes?: number
     serverPeakResidentMemoryBytes?: number
   }): Promise<void> {
-    if (this.sessions.size === 0) {
+    if (this.sessions.size === 0 && this.pendingHealthWebviews.size === 0) {
       return
     }
 
@@ -2517,6 +2584,9 @@ export class HexEditorProvider
     }
     for (const session of this.sessions.values()) {
       this.postWebviewMessage(session, payload)
+    }
+    for (const webview of this.pendingHealthWebviews) {
+      this.postPendingHealthWebviewMessage(webview, payload)
     }
   }
 

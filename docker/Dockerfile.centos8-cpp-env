@@ -43,8 +43,8 @@ RUN pip3 install \
   sphinx_rtd_theme \
   sphinx-sitemap
 
-# Install nodejs and yarn
-RUN curl -fsSL https://rpm.nodesource.com/setup_16.x | bash - \
+# Install Node.js 24 and yarn
+RUN curl -fsSL https://rpm.nodesource.com/setup_24.x | bash - \
   && yum install -y nodejs \
   && npm install -g yarn
 `n
