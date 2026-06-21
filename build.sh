@@ -23,6 +23,23 @@ install_dir="${PWD}/_install"
 conan_venv_dir="${PWD}/.venv-conan"
 cmake_extra_args=""
 
+case "$(uname -s)" in
+  MINGW* | MSYS* | CYGWIN*) is_windows="YES" ;;
+  *) is_windows="NO" ;;
+esac
+
+# Convert a path into a form that native tools (CMake, Conan, node) accept.
+# On Windows (Git Bash) this yields a mixed "D:/path" that both POSIX
+# coreutils and native Windows programs understand; elsewhere it is a no-op
+# resolve via readlink.
+to_native_path() {
+  if command -v cygpath >/dev/null 2>&1; then
+    cygpath -m "$1"
+  else
+    readlink -f "$1"
+  fi
+}
+
 find_python() {
   if [[ -n "${PYTHON:-}" ]]; then
     if command -v "$PYTHON" >/dev/null 2>&1; then
@@ -54,6 +71,76 @@ activate_conan_venv() {
     source "${conan_venv_dir}/Scripts/activate"
   else
     echo "Conan virtual environment was not created correctly: ${conan_venv_dir}"
+    exit 1
+  fi
+}
+
+setup_msvc_env() {
+  [[ "$is_windows" == "YES" ]] || return 0
+
+  # Already inside a Developer prompt / vcvars-initialized shell. Finding cl is
+  # not enough: CMake can cache a full cl.exe path while INCLUDE/LIB are missing,
+  # which leaves the compiler unable to find standard Windows/MSVC headers.
+  if command -v cl >/dev/null 2>&1 && [[ -n "${INCLUDE:-}" && -n "${LIB:-}" ]]; then
+    return 0
+  fi
+
+  local vswhere="/c/Program Files (x86)/Microsoft Visual Studio/Installer/vswhere.exe"
+  if [[ ! -f "$vswhere" ]]; then
+    echo "MSVC compiler (cl) is not on PATH and vswhere.exe was not found." >&2
+    echo "Run this script from a Visual Studio Developer prompt, or install Visual Studio with the C++ workload." >&2
+    exit 1
+  fi
+
+  local vs_install
+  vs_install="$("$vswhere" -latest -products '*' \
+    -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 \
+    -property installationPath | tr -d '\r')"
+  if [[ -z "$vs_install" ]]; then
+    echo "No Visual Studio installation with the C++ toolset was found via vswhere." >&2
+    exit 1
+  fi
+
+  local vcvars="${vs_install}\\VC\\Auxiliary\\Build\\vcvars64.bat"
+  echo "Initializing the MSVC environment from ${vcvars}"
+
+  # Run vcvars64.bat in cmd and import the variables it sets into this shell.
+  # Embedded quotes get mangled when passing a command string through the MSYS
+  # layer to cmd.exe, so drive cmd from a throwaway batch file instead.
+  local bat="${TMPDIR:-/tmp}/oe-vcvars-$$.bat"
+  {
+    printf '@echo off\r\n'
+    printf 'call "%s" >nul 2>&1\r\n' "$vcvars"
+    printf 'set\r\n'
+  } > "$bat"
+
+  local env_dump
+  if ! env_dump="$(cmd //c "$(cygpath -w "$bat")")"; then
+    rm -f "$bat"
+    echo "Failed to initialize the MSVC environment via vcvars64.bat" >&2
+    exit 1
+  fi
+  rm -f "$bat"
+
+  local line key value
+  while IFS= read -r line; do
+    line="${line%$'\r'}"
+    key="${line%%=*}"
+    value="${line#*=}"
+    case "$key" in
+      PATH | Path)
+        # Convert the Windows PATH list to POSIX so cl/link/rc are resolvable.
+        export PATH="$(cygpath -u -p "$value"):${PATH}"
+        ;;
+      INCLUDE | LIB | LIBPATH)
+        # Consumed by the native toolchain; keep Windows-style values verbatim.
+        export "${key}=${value}"
+        ;;
+    esac
+  done <<< "$env_dump"
+
+  if ! command -v cl >/dev/null 2>&1; then
+    echo "MSVC environment initialization did not place cl on PATH." >&2
     exit 1
   fi
 }
@@ -148,6 +235,30 @@ ensure_conan_profile() {
   conan profile detect --force
 }
 
+# The transform plugins depend on zlib and OpenSSL 3. On Linux/macOS these are
+# expected from system packages (apt/brew); on Windows there is no system
+# OpenSSL, so provide them through Conan and feed the generated toolchain to the
+# top-level CMake configure, mirroring the CI build-native action.
+plugin_conan_dir="${PWD}/build-plugin-conan"
+ensure_plugin_deps() {
+  [[ "$is_windows" == "YES" ]] || return 0
+
+  conan install plugins --output-folder="$plugin_conan_dir" \
+    --build=missing \
+    -s build_type="$type" \
+    ${CONAN_MSBUILD_VS_CONF:-} \
+    -c "tools.cmake.cmaketoolchain:generator=$generator"
+
+  local toolchain
+  toolchain="$(to_native_path "${plugin_conan_dir}/conan_toolchain.cmake")"
+  if [[ -n "$cmake_extra_args" ]]; then
+    echo "WARNING: a toolchain is already configured; not adding the Conan plugin toolchain." >&2
+  else
+    cmake_extra_args="-DCMAKE_TOOLCHAIN_FILE=${toolchain}"
+  fi
+}
+
+setup_msvc_env
 ensure_conan
 ensure_conan_profile
 
@@ -160,8 +271,10 @@ if [[ -n "$toolchain_file" ]]; then
     echo "Toolchain file not found: $toolchain_file"
     exit 1
   fi
-  cmake_extra_args=-DCMAKE_TOOLCHAIN_FILE=${toolchain_file}
+  cmake_extra_args=-DCMAKE_TOOLCHAIN_FILE=$(to_native_path "${toolchain_file}")
 fi
+
+ensure_plugin_deps
 
 for objtype in shared static; do
   build_shared_libs="NO"
@@ -185,11 +298,11 @@ done
 # OE_LIB_DIR is used by native code to bundle the proper library file
 # NOTE: Windows uses bin for shared libraries, and non-Windows uses lib
 if [[ -d "${install_dir}-shared-${type}/bin" ]]; then
-  export OE_LIB_DIR="$(readlink -f "${install_dir}-shared-${type}/bin")"
+  export OE_LIB_DIR="$(to_native_path "${install_dir}-shared-${type}/bin")"
 else
-  export OE_LIB_DIR="$(readlink -f "${install_dir}-shared-${type}/lib")"
+  export OE_LIB_DIR="$(to_native_path "${install_dir}-shared-${type}/lib")"
 fi
-export OE_PREFIX="$(readlink -f "${install_dir}-shared-${type}")"
+export OE_PREFIX="$(to_native_path "${install_dir}-shared-${type}")"
 
 # Copy the shared library to the _install directory
 if [[ -d "$OE_LIB_DIR" ]]; then
@@ -249,13 +362,15 @@ stage_vscode_transform_plugins \
   "$transform_plugin_platform"
 
 cp -R vscode-extension/. "$vsix_stage"
+# These paths are consumed by native node/npm, so pass them in native form.
+server_tgz="$(to_native_path "${root_dir}/packages/server/omega-edit-node-server-v${pkg_version}.tgz")"
+client_tgz="$(to_native_path "${root_dir}/packages/client/omega-edit-node-client-v${pkg_version}.tgz")"
+transform_plugins_stage_native="$(to_native_path "$transform_plugins_stage")"
 (
   cd "$vsix_stage"
   npm pkg set "dependencies.@omega-edit/client=${pkg_version}"
-  npm install --no-save \
-    "${root_dir}/packages/server/omega-edit-node-server-v${pkg_version}.tgz" \
-    "${root_dir}/packages/client/omega-edit-node-client-v${pkg_version}.tgz"
-  npm run stage:transform-plugins -- "$transform_plugins_stage" --platform "$transform_plugin_platform"
+  npm install --no-save "$server_tgz" "$client_tgz"
+  npm run stage:transform-plugins -- "$transform_plugins_stage_native" --platform "$transform_plugin_platform"
   npm run package:vsix
 )
 cp "$vsix_stage/omega-edit-data-editor.vsix" "${root_dir}/vscode-extension/"

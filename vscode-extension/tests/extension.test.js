@@ -285,11 +285,25 @@ test('root build stages transform plugins before packaging the VSIX', () => {
   assert.match(rootBuildScript, /stage_vscode_transform_plugins/)
   assert.match(
     rootBuildScript,
-    /build-shared-\$\{type\}\/core\/src\/tests\/plugins/
+    /command -v cl[\s\S]*\[\[ -n "\$\{INCLUDE:-\}" && -n "\$\{LIB:-\}" \]\]/
   )
   assert.match(
     rootBuildScript,
-    /npm run stage:transform-plugins -- "\$transform_plugins_stage" --platform "\$transform_plugin_platform"/
+    /build-shared-\$\{type\}\/core\/src\/tests\/plugins/
+  )
+  assert.match(rootBuildScript, /server_tgz="\$\(to_native_path/)
+  assert.match(rootBuildScript, /client_tgz="\$\(to_native_path/)
+  assert.match(
+    rootBuildScript,
+    /transform_plugins_stage_native="\$\(to_native_path "\$transform_plugins_stage"\)"/
+  )
+  assert.match(
+    rootBuildScript,
+    /npm install --no-save "\$server_tgz" "\$client_tgz"/
+  )
+  assert.match(
+    rootBuildScript,
+    /npm run stage:transform-plugins -- "\$transform_plugins_stage_native" --platform "\$transform_plugin_platform"/
   )
   assert.match(
     rootBuildScript,
@@ -752,9 +766,15 @@ test('compiled extension entrypoints exist after build', () => {
   assert.match(svelteAppSource, /type: 'search'/)
   assert.match(svelteAppSource, /type: 'replace'/)
   assert.match(svelteAppSource, /type: 'replaceAllMatches'/)
-  assert.match(svelteAppSource, /transformFeedback = strings\.search\.replacingAll/)
+  assert.match(
+    svelteAppSource,
+    /transformFeedback = strings\.search\.replacingAll/
+  )
   assert.match(svelteAppSource, /transformFeedback = ''/)
-  assert.match(svelteAppSource, /readOnlyTitle=\{transformFeedback \|\| strings\.transform\.inFlight\}/)
+  assert.match(
+    svelteAppSource,
+    /readOnlyTitle=\{transformFeedback \|\| strings\.transform\.inFlight\}/
+  )
   assert.match(svelteAppSource, /transformPlugins = \$state/)
   assert.match(svelteAppSource, /transformPluginsLoaded = \$state/)
   assert.match(svelteAppSource, /transformPluginsLoading = \$state/)

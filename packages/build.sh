@@ -15,7 +15,7 @@
 root_path_regex="[\/]omega-edit$"
 link_script_dir=$(realpath ${0%/*})
 project_root_dir=${link_script_dir%%/packages}
-oe_lib_install="${OE_LIB_DIR:=$project_root_dir/_install/lib}"
+oe_lib_install="${OE_LIB_DIR:=$project_root_dir/_install}"
 
 yarn_link_dir=$HOME/.config/yarn/link/@omega-edit
 yarn_link_client_dir=$yarn_link_dir/client
@@ -60,8 +60,17 @@ OPTIONS:
 # Check the Omega Edit install directory for the locally installed, or OE_LIB_DIR environment variable, library directory
 # The packages cannot be built unless Omega Edit has successfully built and been installed.
 check_oe_install() {
-  
-  [[ ! $(find $oe_lib_install -iregex ".*libomega_edit[.].*" 2>/dev/null) ]] && { log_err "Omega Edit local install directory does not contain built library. \n    Build the Omega Edit library prior to executing this command" ; exit 1 ; }
+  # Match the same library naming/layout that packages/server/webpack.config.js uses.
+  # Windows builds produce "omega_edit.dll" (no "lib" prefix); macOS/Linux produce
+  # "libomega_edit.dylib"/"libomega_edit.so*". The library may live directly in the
+  # install dir or in its "lib"/"bin" subdirectories.
+  case "$(uname -s)" in
+    MINGW*|MSYS*|CYGWIN*) lib_regex=".*omega_edit[.]dll" ;;
+    Darwin)               lib_regex=".*libomega_edit[.]dylib" ;;
+    *)                    lib_regex=".*libomega_edit[.]so.*" ;;
+  esac
+
+  [[ ! $(find "$oe_lib_install" "$oe_lib_install/lib" "$oe_lib_install/bin" -maxdepth 1 -iregex "$lib_regex" 2>/dev/null) ]] && { log_err "Omega Edit local install directory does not contain built library. \n    Build the Omega Edit library prior to executing this command" ; exit 1 ; }
 }
 
 # Destroys the cached link directories for yarn

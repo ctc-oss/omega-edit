@@ -540,7 +540,15 @@ void EditorServiceImpl::request_shutdown() {
         return;
     }
 
-    std::call_once(shutdown_once_, [this]() { shutdown_callback_(); });
+    std::call_once(shutdown_once_, [callback = shutdown_callback_]() {
+        std::thread([callback]() {
+            // Let the active unary RPC return before the shutdown monitor calls
+            // grpc::Server::Shutdown(); Windows can otherwise strand the client
+            // call until an external cleanup kills the process.
+            std::this_thread::sleep_for(std::chrono::milliseconds(50));
+            callback();
+        }).detach();
+    });
 }
 
 template <typename T>

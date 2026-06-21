@@ -639,7 +639,7 @@ std::string SessionManager::create_session(const std::string &file_path, const s
 }
 
 bool SessionManager::destroy_session_locked(const std::map<std::string, std::shared_ptr<SessionInfo>>::iterator &it) {
-    auto &info = it->second;
+    auto info = it->second;
     std::lock_guard<std::mutex> core_lock(info->core_mutex);
 
     // Close event queues
