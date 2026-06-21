@@ -17,6 +17,9 @@
   },
   "author": "CTC-OSS",
   "license": "Apache-2.0",
+  "engines": {
+    "node": "^24.0.0"
+  },
   "scripts": {
     "test": "echo 'C++ server tests run via yarn workspace @omega-edit/client test'",
     "build": "node scripts/ensure-native-server-built.js && webpack --mode=production",

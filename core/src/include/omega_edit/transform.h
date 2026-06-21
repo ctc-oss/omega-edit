@@ -36,7 +36,7 @@ extern "C" {
 
 #endif
 
-#define OMEGA_TRANSFORM_PLUGIN_ABI_VERSION 1
+#define OMEGA_TRANSFORM_PLUGIN_ABI_VERSION 2
 
 typedef enum {
     OMEGA_TRANSFORM_PLUGIN_OPERATION_REPLACE = 1,
@@ -74,6 +74,25 @@ typedef void *(*omega_transform_plugin_alloc_t)(size_t size, void *user_data_ptr
 typedef int64_t (*omega_transform_plugin_read_t)(int64_t relative_offset, omega_byte_t *buffer, int64_t length,
                                                  void *user_data_ptr);
 
+typedef enum {
+    OMEGA_TRANSFORM_PROGRESS_HAS_PROCESSED_BYTES = 1,
+    OMEGA_TRANSFORM_PROGRESS_HAS_TOTAL_BYTES = 1 << 1,
+    OMEGA_TRANSFORM_PROGRESS_HAS_PERCENT = 1 << 2,
+    OMEGA_TRANSFORM_PROGRESS_INDETERMINATE = 1 << 3
+} omega_transform_progress_flags_t;
+
+typedef struct {
+    int64_t processed_bytes;
+    int64_t total_bytes;
+    double percent;
+    const char *phase;
+    const char *message;
+    uint32_t flags;
+} omega_transform_plugin_progress_t;
+
+typedef int (*omega_transform_plugin_progress_cbk_t)(const omega_transform_plugin_progress_t *progress_ptr,
+                                                     void *user_data_ptr);
+
 typedef struct {
     /** Bytes from the requested session range when the host materialized them. May be null for streaming requests. */
     const omega_byte_t *input_bytes;
@@ -93,6 +112,9 @@ typedef struct {
     void *reader_user_data_ptr;
     /** Suggested maximum chunk size for read calls. */
     int64_t preferred_chunk_size;
+    /** Optional callback for reporting long-running transform progress. */
+    omega_transform_plugin_progress_cbk_t progress;
+    void *progress_user_data_ptr;
 } omega_transform_plugin_request_t;
 
 /**
@@ -139,6 +161,14 @@ int omega_transform_plugin_registry_apply_to_session(omega_transform_plugin_regi
                                                     const char *plugin_id, omega_session_t *session_ptr,
                                                     int64_t offset, int64_t length, const char *options_json,
                                                     omega_transform_plugin_response_t *response_ptr);
+
+int omega_transform_plugin_registry_apply_to_session_with_progress(
+        omega_transform_plugin_registry_t *registry_ptr,
+        const char *plugin_id, omega_session_t *session_ptr,
+        int64_t offset, int64_t length, const char *options_json,
+        omega_transform_plugin_progress_cbk_t progress,
+        void *progress_user_data_ptr,
+        omega_transform_plugin_response_t *response_ptr);
 
 /**
  * Release response-owned replacement/result buffers and reset all fields to zero/null.

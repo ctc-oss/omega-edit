@@ -12,6 +12,7 @@
     plugins?: WebviewTransformPlugin[]
     pluginsLoaded?: boolean
     pluginsLoading?: boolean
+    busy?: boolean
     error?: string
     fileSize?: number
     selectionStart?: number
@@ -52,6 +53,7 @@
     plugins = [],
     pluginsLoaded = false,
     pluginsLoading = false,
+    busy = false,
     error = '',
     fileSize = 0,
     selectionStart = -1,
@@ -80,7 +82,7 @@
     plugins.find((plugin) => plugin.id === selectedPluginId)
   )
   const canTransformSelection = $derived(
-    selectionStart >= 0 && selectionLength > 0
+    !busy && selectionStart >= 0 && selectionLength > 0
   )
   const hasOptionsSchema = $derived(Boolean(selectedPlugin?.argsSchema))
   const advertisedExamples = $derived(advertisedTransformExamples(selectedPlugin))
@@ -94,7 +96,8 @@
   const canApplyTransform = $derived(
     transformRange.error === '' &&
       transformRange.length > 0 &&
-      optionsValidationError === ''
+      optionsValidationError === '' &&
+      !busy
   )
   const controlTitle = $derived(
     !canTransformSelection
@@ -106,7 +109,9 @@
           : strings.transform.chooseTitle
   )
   const statusMessage = $derived(
-    error || feedback || (pluginsLoading ? strings.transform.loading : '')
+    busy
+      ? strings.transform.inFlight
+      : error || feedback || (pluginsLoading ? strings.transform.loading : '')
   )
   const latestResult = $derived(results[0])
   const resultHistorySummary = $derived(

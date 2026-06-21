@@ -1655,6 +1655,45 @@ export interface ApplyTransformPluginResponse {
   result: Uint8Array // Plugin-provided inspection bytes.
 }
 /**
+ * Progress reported by a session-level transform event.
+ *
+ * @generated from protobuf message omega_edit.v1.TransformProgress
+ */
+export interface TransformProgress {
+  /**
+   * @generated from protobuf field: string plugin_id = 1
+   */
+  pluginId: string // Plugin currently running.
+  /**
+   * @generated from protobuf field: string operation_id = 2
+   */
+  operationId: string // Server-generated ID for this transform run.
+  /**
+   * @generated from protobuf field: optional int64 processed_bytes = 3
+   */
+  processedBytes?: number // Bytes processed when known.
+  /**
+   * @generated from protobuf field: optional int64 total_bytes = 4
+   */
+  totalBytes?: number // Total bytes when known.
+  /**
+   * @generated from protobuf field: optional double percent = 5
+   */
+  percent?: number // Completion percentage when known.
+  /**
+   * @generated from protobuf field: string phase = 6
+   */
+  phase: string // Machine-readable phase label.
+  /**
+   * @generated from protobuf field: string message = 7
+   */
+  message: string // Human-readable progress message.
+  /**
+   * @generated from protobuf field: bool indeterminate = 8
+   */
+  indeterminate: boolean // True when determinate progress is unavailable.
+}
+/**
  * Request to compute a byte-frequency histogram.
  *
  * @generated from protobuf message omega_edit.v1.GetByteFrequencyProfileRequest
@@ -1820,6 +1859,10 @@ export interface SubscribeToSessionEventsResponse {
    * @generated from protobuf field: optional int64 serial = 6
    */
   serial?: number // Serial number of the change (if applicable).
+  /**
+   * @generated from protobuf field: optional omega_edit.v1.TransformProgress transform_progress = 7
+   */
+  transformProgress?: TransformProgress // Transform lifecycle/progress details.
 }
 /**
  * Request to subscribe to viewport events.
@@ -2073,6 +2116,30 @@ export enum SessionEventKind {
    * @generated from protobuf enum value: SESSION_EVENT_KIND_TRANSACTION_ENDED = 8192;
    */
   TRANSACTION_ENDED = 8192,
+  /**
+   * A transform started running on this session.
+   *
+   * @generated from protobuf enum value: SESSION_EVENT_KIND_TRANSFORM_STARTED = 16384;
+   */
+  TRANSFORM_STARTED = 16384,
+  /**
+   * A running transform reported progress.
+   *
+   * @generated from protobuf enum value: SESSION_EVENT_KIND_TRANSFORM_PROGRESS = 32768;
+   */
+  TRANSFORM_PROGRESS = 32768,
+  /**
+   * A transform completed successfully.
+   *
+   * @generated from protobuf enum value: SESSION_EVENT_KIND_TRANSFORM_COMPLETED = 65536;
+   */
+  TRANSFORM_COMPLETED = 65536,
+  /**
+   * A transform failed.
+   *
+   * @generated from protobuf enum value: SESSION_EVENT_KIND_TRANSFORM_FAILED = 131072;
+   */
+  TRANSFORM_FAILED = 131072,
 }
 /**
  * Viewport-level event kinds.  Values are powers of two so they can be OR'd
@@ -10240,6 +10307,158 @@ class ApplyTransformPluginResponse$Type extends MessageType<ApplyTransformPlugin
 export const ApplyTransformPluginResponse =
   new ApplyTransformPluginResponse$Type()
 // @generated message type with reflection information, may provide speed optimized methods
+class TransformProgress$Type extends MessageType<TransformProgress> {
+  constructor() {
+    super('omega_edit.v1.TransformProgress', [
+      { no: 1, name: 'plugin_id', kind: 'scalar', T: 9 /*ScalarType.STRING*/ },
+      {
+        no: 2,
+        name: 'operation_id',
+        kind: 'scalar',
+        T: 9 /*ScalarType.STRING*/,
+      },
+      {
+        no: 3,
+        name: 'processed_bytes',
+        kind: 'scalar',
+        opt: true,
+        T: 3 /*ScalarType.INT64*/,
+        L: 2 /*LongType.NUMBER*/,
+      },
+      {
+        no: 4,
+        name: 'total_bytes',
+        kind: 'scalar',
+        opt: true,
+        T: 3 /*ScalarType.INT64*/,
+        L: 2 /*LongType.NUMBER*/,
+      },
+      {
+        no: 5,
+        name: 'percent',
+        kind: 'scalar',
+        opt: true,
+        T: 1 /*ScalarType.DOUBLE*/,
+      },
+      { no: 6, name: 'phase', kind: 'scalar', T: 9 /*ScalarType.STRING*/ },
+      { no: 7, name: 'message', kind: 'scalar', T: 9 /*ScalarType.STRING*/ },
+      {
+        no: 8,
+        name: 'indeterminate',
+        kind: 'scalar',
+        T: 8 /*ScalarType.BOOL*/,
+      },
+    ])
+  }
+  create(value?: PartialMessage<TransformProgress>): TransformProgress {
+    const message = globalThis.Object.create(this.messagePrototype!)
+    message.pluginId = ''
+    message.operationId = ''
+    message.phase = ''
+    message.message = ''
+    message.indeterminate = false
+    if (value !== undefined)
+      reflectionMergePartial<TransformProgress>(this, message, value)
+    return message
+  }
+  internalBinaryRead(
+    reader: IBinaryReader,
+    length: number,
+    options: BinaryReadOptions,
+    target?: TransformProgress
+  ): TransformProgress {
+    let message = target ?? this.create(),
+      end = reader.pos + length
+    while (reader.pos < end) {
+      let [fieldNo, wireType] = reader.tag()
+      switch (fieldNo) {
+        case /* string plugin_id */ 1:
+          message.pluginId = reader.string()
+          break
+        case /* string operation_id */ 2:
+          message.operationId = reader.string()
+          break
+        case /* optional int64 processed_bytes */ 3:
+          message.processedBytes = reader.int64().toNumber()
+          break
+        case /* optional int64 total_bytes */ 4:
+          message.totalBytes = reader.int64().toNumber()
+          break
+        case /* optional double percent */ 5:
+          message.percent = reader.double()
+          break
+        case /* string phase */ 6:
+          message.phase = reader.string()
+          break
+        case /* string message */ 7:
+          message.message = reader.string()
+          break
+        case /* bool indeterminate */ 8:
+          message.indeterminate = reader.bool()
+          break
+        default:
+          let u = options.readUnknownField
+          if (u === 'throw')
+            throw new globalThis.Error(
+              `Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`
+            )
+          let d = reader.skip(wireType)
+          if (u !== false)
+            (u === true ? UnknownFieldHandler.onRead : u)(
+              this.typeName,
+              message,
+              fieldNo,
+              wireType,
+              d
+            )
+      }
+    }
+    return message
+  }
+  internalBinaryWrite(
+    message: TransformProgress,
+    writer: IBinaryWriter,
+    options: BinaryWriteOptions
+  ): IBinaryWriter {
+    /* string plugin_id = 1; */
+    if (message.pluginId !== '')
+      writer.tag(1, WireType.LengthDelimited).string(message.pluginId)
+    /* string operation_id = 2; */
+    if (message.operationId !== '')
+      writer.tag(2, WireType.LengthDelimited).string(message.operationId)
+    /* optional int64 processed_bytes = 3; */
+    if (message.processedBytes !== undefined)
+      writer.tag(3, WireType.Varint).int64(message.processedBytes)
+    /* optional int64 total_bytes = 4; */
+    if (message.totalBytes !== undefined)
+      writer.tag(4, WireType.Varint).int64(message.totalBytes)
+    /* optional double percent = 5; */
+    if (message.percent !== undefined)
+      writer.tag(5, WireType.Bit64).double(message.percent)
+    /* string phase = 6; */
+    if (message.phase !== '')
+      writer.tag(6, WireType.LengthDelimited).string(message.phase)
+    /* string message = 7; */
+    if (message.message !== '')
+      writer.tag(7, WireType.LengthDelimited).string(message.message)
+    /* bool indeterminate = 8; */
+    if (message.indeterminate !== false)
+      writer.tag(8, WireType.Varint).bool(message.indeterminate)
+    let u = options.writeUnknownFields
+    if (u !== false)
+      (u == true ? UnknownFieldHandler.onWrite : u)(
+        this.typeName,
+        message,
+        writer
+      )
+    return writer
+  }
+}
+/**
+ * @generated MessageType for protobuf message omega_edit.v1.TransformProgress
+ */
+export const TransformProgress = new TransformProgress$Type()
+// @generated message type with reflection information, may provide speed optimized methods
 class GetByteFrequencyProfileRequest$Type extends MessageType<GetByteFrequencyProfileRequest> {
   constructor() {
     super('omega_edit.v1.GetByteFrequencyProfileRequest', [
@@ -10910,6 +11129,12 @@ class SubscribeToSessionEventsResponse$Type extends MessageType<SubscribeToSessi
         T: 3 /*ScalarType.INT64*/,
         L: 2 /*LongType.NUMBER*/,
       },
+      {
+        no: 7,
+        name: 'transform_progress',
+        kind: 'message',
+        T: () => TransformProgress,
+      },
     ])
   }
   create(
@@ -10958,6 +11183,14 @@ class SubscribeToSessionEventsResponse$Type extends MessageType<SubscribeToSessi
         case /* optional int64 serial */ 6:
           message.serial = reader.int64().toNumber()
           break
+        case /* optional omega_edit.v1.TransformProgress transform_progress */ 7:
+          message.transformProgress = TransformProgress.internalBinaryRead(
+            reader,
+            reader.uint32(),
+            options,
+            message.transformProgress
+          )
+          break
         default:
           let u = options.readUnknownField
           if (u === 'throw')
@@ -11000,6 +11233,13 @@ class SubscribeToSessionEventsResponse$Type extends MessageType<SubscribeToSessi
     /* optional int64 serial = 6; */
     if (message.serial !== undefined)
       writer.tag(6, WireType.Varint).int64(message.serial)
+    /* optional omega_edit.v1.TransformProgress transform_progress = 7; */
+    if (message.transformProgress)
+      TransformProgress.internalBinaryWrite(
+        message.transformProgress,
+        writer.tag(7, WireType.LengthDelimited).fork(),
+        options
+      ).join()
     let u = options.writeUnknownFields
     if (u !== false)
       (u == true ? UnknownFieldHandler.onWrite : u)(

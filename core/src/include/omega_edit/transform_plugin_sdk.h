@@ -56,6 +56,39 @@ static inline char *omega_transform_plugin_sdk_copy_cstring(const omega_transfor
     return copy;
 }
 
+static inline int omega_transform_plugin_sdk_report_progress(
+        const omega_transform_plugin_request_t *request_ptr, const omega_transform_plugin_progress_t *progress_ptr) {
+    if (!request_ptr || !request_ptr->progress || !progress_ptr) { return 0; }
+    return request_ptr->progress(progress_ptr, request_ptr->progress_user_data_ptr);
+}
+
+static inline int omega_transform_plugin_sdk_report_byte_progress(
+        const omega_transform_plugin_request_t *request_ptr, int64_t processed_bytes, int64_t total_bytes,
+        const char *phase, const char *message) {
+    if (processed_bytes < 0 || total_bytes < 0) { return -1; }
+    omega_transform_plugin_progress_t progress;
+    memset(&progress, 0, sizeof(progress));
+    progress.processed_bytes = processed_bytes;
+    progress.total_bytes = total_bytes;
+    progress.percent = total_bytes > 0 ? ((double) processed_bytes / (double) total_bytes) * 100.0 : 100.0;
+    progress.phase = phase;
+    progress.message = message;
+    progress.flags = OMEGA_TRANSFORM_PROGRESS_HAS_PROCESSED_BYTES |
+                     OMEGA_TRANSFORM_PROGRESS_HAS_TOTAL_BYTES |
+                     OMEGA_TRANSFORM_PROGRESS_HAS_PERCENT;
+    return omega_transform_plugin_sdk_report_progress(request_ptr, &progress);
+}
+
+static inline int omega_transform_plugin_sdk_report_phase(
+        const omega_transform_plugin_request_t *request_ptr, const char *phase, const char *message) {
+    omega_transform_plugin_progress_t progress;
+    memset(&progress, 0, sizeof(progress));
+    progress.phase = phase;
+    progress.message = message;
+    progress.flags = OMEGA_TRANSFORM_PROGRESS_INDETERMINATE;
+    return omega_transform_plugin_sdk_report_progress(request_ptr, &progress);
+}
+
 static inline int omega_transform_plugin_sdk_set_replacement(
         const omega_transform_plugin_request_t *request_ptr, omega_transform_plugin_response_t *response_ptr,
         const omega_byte_t *bytes, int64_t length) {

@@ -23,6 +23,7 @@ import {
   SessionEventKind as RawProtoSessionEventKind,
   ViewportEventKind as RawProtoViewportEventKind,
   type ApplyTransformPluginResponse as RawApplyTransformPluginResponse,
+  type TransformProgress,
   type TransformPluginInfo as RawTransformPluginInfo,
 } from './protobuf_ts/generated/omega_edit/v1/omega_edit'
 import {
@@ -105,6 +106,10 @@ export const SessionEventKind = {
   DESTROY_VIEWPORT: RawProtoSessionEventKind.DESTROY_VIEWPORT,
   TRANSACTION_STARTED: RawProtoSessionEventKind.TRANSACTION_STARTED,
   TRANSACTION_ENDED: RawProtoSessionEventKind.TRANSACTION_ENDED,
+  TRANSFORM_STARTED: RawProtoSessionEventKind.TRANSFORM_STARTED,
+  TRANSFORM_PROGRESS: RawProtoSessionEventKind.TRANSFORM_PROGRESS,
+  TRANSFORM_COMPLETED: RawProtoSessionEventKind.TRANSFORM_COMPLETED,
+  TRANSFORM_FAILED: RawProtoSessionEventKind.TRANSFORM_FAILED,
 } as const
 export type SessionEventKind =
   (typeof SessionEventKind)[keyof typeof SessionEventKind]
@@ -133,6 +138,7 @@ export type TransformPluginOperation =
 
 export type TransformPluginInfo = RawTransformPluginInfo
 export type ApplyTransformPluginResponse = RawApplyTransformPluginResponse
+export type { TransformProgress }
 
 export const PROFILE_DOS_EOL = 256
 

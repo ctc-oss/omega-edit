@@ -61,7 +61,9 @@ import {
   replaceSessionCheckpointed,
   redo,
   saveSession,
+  SessionEventKind,
   startServerHeartbeatLoop,
+  type TransformProgress,
   type TransformPluginInfo,
   type ServerHeartbeatLoop,
   undo,
@@ -120,6 +122,7 @@ interface EditorSession {
   webviewState: WebviewEditorUiState
   externalHighlights: WebviewExternalHighlight[]
   transformPlugins: WebviewTransformPlugin[]
+  transformInFlight: boolean
   contentType?: string
   language?: string
 }
@@ -146,6 +149,7 @@ const CONTEXT_HEX_EDITOR_ACTIVE = 'omegaEdit.hexEditorActive'
 const CONTEXT_CAN_UNDO = 'omegaEdit.canUndo'
 const CONTEXT_CAN_REDO = 'omegaEdit.canRedo'
 const CONTEXT_HAS_PENDING_CHANGES = 'omegaEdit.hasPendingChanges'
+const CONTEXT_TRANSFORM_IN_FLIGHT = 'omegaEdit.transformInFlight'
 
 function openEditorFirstMessage(): string {
   return vscode.l10n.t('Open an OmegaEdit editor first')
@@ -153,6 +157,10 @@ function openEditorFirstMessage(): string {
 
 function omegaEditErrorMessage(message: string): string {
   return vscode.l10n.t('OmegaEdit error: {message}', { message })
+}
+
+function transformMutationBlockedMessage(): string {
+  return vscode.l10n.t('Transform in progress; edits are disabled.')
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -217,6 +225,23 @@ function initialWebviewState(bytesPerRow: BytesPerRow): WebviewEditorUiState {
     activePane: 'hex',
     editMode: 'insert',
     insertDirection: 'forward',
+  }
+}
+
+function isMutationWebviewMessage(message: WebviewToHostMessage): boolean {
+  switch (message.type) {
+    case 'cutSelection':
+    case 'insert':
+    case 'delete':
+    case 'overwrite':
+    case 'replace':
+    case 'replaceAllMatches':
+    case 'undo':
+    case 'redo':
+    case 'revert':
+      return true
+    default:
+      return false
   }
 }
 
@@ -818,9 +843,15 @@ export class HexEditorProvider
     // no real VS Code custom-editor edit stack is registered.
     switch (msg.type) {
       case 'undo':
+        if (!this.ensureSessionCanMutate(session)) {
+          return
+        }
         await this.performUndoOnSession(session)
         return
       case 'redo':
+        if (!this.ensureSessionCanMutate(session)) {
+          return
+        }
         await this.performRedoOnSession(session)
         return
       case 'save':
@@ -834,6 +865,9 @@ export class HexEditorProvider
         return
       }
       case 'revert': {
+        if (!this.ensureSessionCanMutate(session)) {
+          return
+        }
         const cts = new vscode.CancellationTokenSource()
         try {
           await this.revertCustomDocument(session.document, cts.token)
@@ -851,11 +885,17 @@ export class HexEditorProvider
     if (!this.activeSession) {
       return
     }
+    if (!this.ensureSessionCanMutate(this.activeSession, true)) {
+      return
+    }
     await vscode.commands.executeCommand('undo')
   }
 
   public async redoActive(): Promise<void> {
     if (!this.activeSession) {
+      return
+    }
+    if (!this.ensureSessionCanMutate(this.activeSession, true)) {
       return
     }
     await vscode.commands.executeCommand('redo')
@@ -965,6 +1005,7 @@ export class HexEditorProvider
       webviewState: initialWebviewState(bytesPerRow),
       externalHighlights: [],
       transformPlugins: [],
+      transformInFlight: false,
       restoredFromBackup: wasRestoredFromBackup,
     }
     this.sessions.set(uri.toString(), session)
@@ -981,14 +1022,6 @@ export class HexEditorProvider
       bytesPerRow
     )
 
-    // Send initial data to the webview
-    await this.sendViewportData(session)
-    this.postEditState(session)
-    this.postEditMode(session)
-    this.startHealthPolling()
-
-    await this.startSessionSubscriptions(session)
-
     // --- Handle messages FROM the webview ---
     const panelDisposables: vscode.Disposable[] = []
 
@@ -997,6 +1030,16 @@ export class HexEditorProvider
       undefined,
       panelDisposables
     )
+
+    // Send initial data to the webview. The message listener must be in place
+    // first because the webview posts its first metrics update as soon as it
+    // mounts, and that update is also our reliable ready-to-render signal.
+    await this.sendViewportData(session)
+    this.postEditState(session)
+    this.postEditMode(session)
+    this.startHealthPolling()
+
+    await this.startSessionSubscriptions(session)
 
     // Track which editor is active (for command routing)
     webviewPanel.onDidChangeViewState(
@@ -1123,7 +1166,8 @@ export class HexEditorProvider
           await this.sendViewportData(session)
         }
       },
-      onSessionEvent: async (_event, context) => {
+      onSessionEvent: async (event, context) => {
+        this.postTransformProgress(session, event)
         if (!context.stateChanged) {
           return
         }
@@ -1311,6 +1355,9 @@ export class HexEditorProvider
       return
     }
     const session = this.activeSession
+    if (!this.ensureSessionCanMutate(session, true)) {
+      return
+    }
 
     const scriptUri =
       sourceUri ??
@@ -1358,6 +1405,9 @@ export class HexEditorProvider
       void vscode.window.showWarningMessage(openEditorFirstMessage())
       return
     }
+    if (!this.ensureSessionCanMutate(this.activeSession, true)) {
+      return
+    }
 
     const count = await this.createSessionCheckpoint(this.activeSession)
     void vscode.window.showInformationMessage(
@@ -1368,6 +1418,9 @@ export class HexEditorProvider
   async rollbackActiveCheckpoint(): Promise<void> {
     if (!this.activeSession) {
       void vscode.window.showWarningMessage(openEditorFirstMessage())
+      return
+    }
+    if (!this.ensureSessionCanMutate(this.activeSession, true)) {
       return
     }
 
@@ -1382,6 +1435,9 @@ export class HexEditorProvider
   async rollbackActiveSession(): Promise<void> {
     if (!this.activeSession) {
       void vscode.window.showWarningMessage(openEditorFirstMessage())
+      return
+    }
+    if (!this.ensureSessionCanMutate(this.activeSession, true)) {
       return
     }
 
@@ -1525,6 +1581,79 @@ export class HexEditorProvider
     this.fireEditorStateChanged(session)
   }
 
+  private postTransformStatus(
+    session: EditorSession,
+    inFlight: boolean,
+    pluginId?: string,
+    message?: string
+  ): void {
+    session.transformInFlight = inFlight
+    if (this.activeSession === session) {
+      this.updateEditCommandContexts(session)
+    }
+    this.postWebviewMessage(session, {
+      type: 'transformStatus',
+      inFlight,
+      pluginId,
+      message,
+    })
+    this.fireEditorStateChanged(session)
+  }
+
+  private postTransformProgress(session: EditorSession, event: unknown): void {
+    const sessionEvent = event as {
+      getSessionEventKind?: () => number
+      getTransformProgress?: () => TransformProgress | undefined
+    }
+    const kind = sessionEvent.getSessionEventKind?.()
+    if (
+      kind !== SessionEventKind.TRANSFORM_STARTED &&
+      kind !== SessionEventKind.TRANSFORM_PROGRESS &&
+      kind !== SessionEventKind.TRANSFORM_COMPLETED &&
+      kind !== SessionEventKind.TRANSFORM_FAILED
+    ) {
+      return
+    }
+
+    const progress = sessionEvent.getTransformProgress?.()
+    const inFlight =
+      kind === SessionEventKind.TRANSFORM_STARTED ||
+      kind === SessionEventKind.TRANSFORM_PROGRESS
+    session.transformInFlight = inFlight
+    if (this.activeSession === session) {
+      this.updateEditCommandContexts(session)
+    }
+    this.postWebviewMessage(session, {
+      type: 'transformStatus',
+      inFlight,
+      pluginId: progress?.pluginId,
+      operationId: progress?.operationId,
+      message: progress?.message,
+      processedBytes: progress?.processedBytes,
+      totalBytes: progress?.totalBytes,
+      percent: progress?.percent,
+      phase: progress?.phase,
+      indeterminate: progress?.indeterminate,
+    })
+    this.fireEditorStateChanged(session)
+  }
+
+  private ensureSessionCanMutate(
+    session: EditorSession,
+    showWarning = false
+  ): boolean {
+    if (!session.transformInFlight) {
+      return true
+    }
+
+    const message = transformMutationBlockedMessage()
+    this.postTransformStatus(session, true, undefined, message)
+    if (showWarning) {
+      void vscode.window.showWarningMessage(message)
+    }
+    return false
+  }
+
   private toggleEditMode(session: EditorSession): void {
     const editMode: WebviewEditMode =
       session.webviewState.editMode === 'insert' ? 'overwrite' : 'insert'
@@ -1571,6 +1700,7 @@ export class HexEditorProvider
       savedChangeDepth: editState.savedChangeDepth,
       changeCount: session.changeCount,
       sessionSyncVersion: session.sessionSyncVersion,
+      transformInFlight: session.transformInFlight,
       ...session.webviewState,
       externalHighlights: session.externalHighlights,
       transformSummaries: session.transformPlugins.map((plugin) => ({
@@ -1650,6 +1780,11 @@ export class HexEditorProvider
           !!editState?.undoCount ||
           !!session.restoredFromBackup)
     )
+    void vscode.commands.executeCommand(
+      'setContext',
+      CONTEXT_TRANSFORM_IN_FLIGHT,
+      !!session?.transformInFlight
+    )
     this.updateStatusBar(session)
   }
 
@@ -1694,10 +1829,12 @@ export class HexEditorProvider
         : vscode.l10n.t('HEX')
     this.statusItems.pane.tooltip = vscode.l10n.t('Ωedit active edit pane')
 
-    this.statusItems.transforms.text = `$(tools) ${session.transformPlugins.length.toLocaleString()}`
-    this.statusItems.transforms.tooltip = vscode.l10n.t(
-      'Ωedit transform plugins available'
-    )
+    this.statusItems.transforms.text = session.transformInFlight
+      ? vscode.l10n.t('$(sync~spin) Transforming')
+      : `$(tools) ${session.transformPlugins.length.toLocaleString()}`
+    this.statusItems.transforms.tooltip = session.transformInFlight
+      ? vscode.l10n.t('Ωedit transform in progress; edits are disabled')
+      : vscode.l10n.t('Ωedit transform plugins available')
 
     const dirty = editState.isDirty || !!session.restoredFromBackup
     this.statusItems.dirty.text = dirty
@@ -1764,78 +1901,96 @@ export class HexEditorProvider
     length: number,
     optionsJson?: string
   ): Promise<void> {
-    const clampedOffset = Math.max(0, Math.min(offset, session.fileSize))
-    const remainingLength = Math.max(0, session.fileSize - clampedOffset)
-    const originalLength =
-      length === 0 ? remainingLength : Math.min(length, remainingLength)
-    const sessionSyncVersion = session.sessionSyncVersion
-    const response = await applyTransformPlugin(
-      session.sessionId,
-      pluginId,
-      clampedOffset,
-      originalLength,
-      optionsJson
-    )
-
-    let contentChanged = response.contentChanged
-    if (response.contentChanged) {
-      const canCompareNoOp =
-        response.offset === clampedOffset &&
-        response.length === originalLength &&
-        originalLength <= MAX_TRANSFORM_NOOP_COMPARE_BYTES &&
-        response.replacementLength <= MAX_TRANSFORM_NOOP_COMPARE_BYTES
-      const originalBytes =
-        canCompareNoOp && originalLength > 0
-          ? await getSegment(session.sessionId, clampedOffset, originalLength)
-          : new Uint8Array()
-      const replacement =
-        canCompareNoOp && response.replacementLength > 0
-          ? await getSegment(
-              session.sessionId,
-              response.offset,
-              response.replacementLength
-            )
-          : new Uint8Array()
-      const isNoOpReplace =
-        canCompareNoOp && bytesEqual(originalBytes, replacement)
-
-      if (isNoOpReplace) {
-        await this.waitForSessionSync(session, sessionSyncVersion)
-        const undoSyncVersion = session.sessionSyncVersion
-        await undo(session.sessionId)
-        await this.waitForSessionSync(session, undoSyncVersion)
-        contentChanged = false
-      } else {
-        session.history.recordLocalChange({
-          serial: session.history.getChangeLog().length + 1,
-          kind: 'REPLACE',
-          offset: response.offset,
-          length: response.length,
-          data:
-            replacement.byteLength > 0
-              ? Buffer.from(replacement).toString('hex')
-              : '',
-        })
-        this.postEditState(session)
-        this.notifyDocumentChanged(session)
-        await this.waitForSessionSync(session, sessionSyncVersion)
-        this.clearSearchState(session)
-      }
+    if (session.transformInFlight) {
+      throw new Error('A transform is already in progress for this session')
     }
 
-    this.postWebviewMessage(session, {
-      type: 'transformComplete',
-      pluginId: response.pluginId,
-      offset: response.offset,
-      length: response.length,
-      operation: response.operation,
-      contentChanged,
-      replacementLength: response.replacementLength,
-      computedFileSize: response.computedFileSize,
-      resultLabel: response.resultLabel ?? '',
-      resultMimeType: response.resultMimeType ?? '',
-      resultText: transformResultToText(response.result),
-    })
+    this.postTransformStatus(
+      session,
+      true,
+      pluginId,
+      vscode.l10n.t('Applying transform...')
+    )
+    let failureMessage: string | undefined
+    try {
+      const clampedOffset = Math.max(0, Math.min(offset, session.fileSize))
+      const remainingLength = Math.max(0, session.fileSize - clampedOffset)
+      const originalLength =
+        length === 0 ? remainingLength : Math.min(length, remainingLength)
+      const sessionSyncVersion = session.sessionSyncVersion
+      const response = await applyTransformPlugin(
+        session.sessionId,
+        pluginId,
+        clampedOffset,
+        originalLength,
+        optionsJson
+      )
+
+      let contentChanged = response.contentChanged
+      if (response.contentChanged) {
+        const canCompareNoOp =
+          response.offset === clampedOffset &&
+          response.length === originalLength &&
+          originalLength <= MAX_TRANSFORM_NOOP_COMPARE_BYTES &&
+          response.replacementLength <= MAX_TRANSFORM_NOOP_COMPARE_BYTES
+        const originalBytes =
+          canCompareNoOp && originalLength > 0
+            ? await getSegment(session.sessionId, clampedOffset, originalLength)
+            : new Uint8Array()
+        const replacement =
+          canCompareNoOp && response.replacementLength > 0
+            ? await getSegment(
+                session.sessionId,
+                response.offset,
+                response.replacementLength
+              )
+            : new Uint8Array()
+        const isNoOpReplace =
+          canCompareNoOp && bytesEqual(originalBytes, replacement)
+
+        if (isNoOpReplace) {
+          await this.waitForSessionSync(session, sessionSyncVersion)
+          const undoSyncVersion = session.sessionSyncVersion
+          await undo(session.sessionId)
+          await this.waitForSessionSync(session, undoSyncVersion)
+          contentChanged = false
+        } else {
+          session.history.recordLocalChange({
+            serial: session.history.getChangeLog().length + 1,
+            kind: 'REPLACE',
+            offset: response.offset,
+            length: response.length,
+            data:
+              replacement.byteLength > 0
+                ? Buffer.from(replacement).toString('hex')
+                : '',
+          })
+          this.postEditState(session)
+          this.notifyDocumentChanged(session)
+          await this.waitForSessionSync(session, sessionSyncVersion)
+          this.clearSearchState(session)
+        }
+      }
+
+      this.postWebviewMessage(session, {
+        type: 'transformComplete',
+        pluginId: response.pluginId,
+        offset: response.offset,
+        length: response.length,
+        operation: response.operation,
+        contentChanged,
+        replacementLength: response.replacementLength,
+        computedFileSize: response.computedFileSize,
+        resultLabel: response.resultLabel ?? '',
+        resultMimeType: response.resultMimeType ?? '',
+        resultText: transformResultToText(response.result),
+      })
+    } catch (error) {
+      failureMessage = error instanceof Error ? error.message : String(error)
+      throw error
+    } finally {
+      this.postTransformStatus(session, false, pluginId, failureMessage)
+    }
   }
 
   private async postClipboardSelection(
@@ -2032,6 +2187,10 @@ export class HexEditorProvider
   private async createSessionCheckpoint(
     session: EditorSession
   ): Promise<number> {
+    if (!this.ensureSessionCanMutate(session, true)) {
+      return this.getCheckpointCount(session)
+    }
+
     const wasDirty =
       session.history.getEditState().isDirty || !!session.restoredFromBackup
     const sessionSyncVersion = session.sessionSyncVersion
@@ -2045,6 +2204,10 @@ export class HexEditorProvider
     session: EditorSession,
     markDirty: boolean
   ): Promise<boolean> {
+    if (!this.ensureSessionCanMutate(session, true)) {
+      return false
+    }
+
     const checkpointCount = await this.getCheckpointCount(session)
     if (checkpointCount <= 0) {
       void vscode.window.showWarningMessage(
@@ -2064,6 +2227,10 @@ export class HexEditorProvider
     session: EditorSession,
     markDirty: boolean
   ): Promise<void> {
+    if (!this.ensureSessionCanMutate(session, true)) {
+      return
+    }
+
     const sessionSyncVersion = session.sessionSyncVersion
     let checkpointCount = await this.getCheckpointCount(session)
     while (checkpointCount > 0) {
@@ -2079,6 +2246,10 @@ export class HexEditorProvider
     session: EditorSession,
     markDirty: boolean
   ): Promise<void> {
+    if (!this.ensureSessionCanMutate(session, true)) {
+      return
+    }
+
     await this.rollbackSession(session, markDirty)
     this.postWebviewMessage(session, { type: 'documentReverted' })
   }
@@ -2377,6 +2548,10 @@ export class HexEditorProvider
   }
 
   private async performUndoOnSession(session: EditorSession): Promise<void> {
+    if (!this.ensureSessionCanMutate(session)) {
+      return
+    }
+
     const sessionSyncVersion = session.sessionSyncVersion
     const didUndo = await session.history.undo(
       this.makeHistoryExecutor(session)
@@ -2389,6 +2564,10 @@ export class HexEditorProvider
   }
 
   private async performRedoOnSession(session: EditorSession): Promise<void> {
+    if (!this.ensureSessionCanMutate(session)) {
+      return
+    }
+
     const sessionSyncVersion = session.sessionSyncVersion
     const didRedo = await session.history.redo(
       this.makeHistoryExecutor(session)
@@ -2412,6 +2591,10 @@ export class HexEditorProvider
     session: EditorSession,
     changes: ChangeRecord[]
   ): Promise<void> {
+    if (!this.ensureSessionCanMutate(session, true)) {
+      return
+    }
+
     for (const change of changes) {
       const sessionSyncVersion = session.sessionSyncVersion
       let shouldWaitForSync = true
@@ -2618,6 +2801,16 @@ export class HexEditorProvider
       return
     }
 
+    if (session.transformInFlight && isMutationWebviewMessage(msg)) {
+      this.postTransformStatus(
+        session,
+        true,
+        undefined,
+        vscode.l10n.t('Transform in progress; edits are disabled.')
+      )
+      return
+    }
+
     try {
       switch (msg.type) {
         case 'editorStateChanged': {
@@ -2708,6 +2901,8 @@ export class HexEditorProvider
           if (visibleRows !== session.visibleRows) {
             session.visibleRows = visibleRows
             await this.scrollTo(session, session.offset)
+          } else {
+            await this.sendViewportData(session)
           }
           break
         }

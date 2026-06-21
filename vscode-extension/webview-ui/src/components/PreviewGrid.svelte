@@ -20,6 +20,7 @@
     externalHighlights?: WebviewExternalHighlight[]
     activePane?: 'hex' | 'ascii'
     editMode?: 'insert' | 'overwrite'
+    readOnly?: boolean
     pendingHexLabel?: string
     onSelect: (offset: number, extend: boolean) => void
     onActivePaneChange: (pane: 'hex' | 'ascii') => void
@@ -49,6 +50,7 @@
     externalHighlights = [],
     activePane = 'hex',
     editMode = 'insert',
+    readOnly = false,
     pendingHexLabel = '',
     onSelect,
     onActivePaneChange,
@@ -246,14 +248,26 @@
 
     switch (event.key) {
       case 'Insert':
+        if (readOnly) {
+          event.preventDefault()
+          break
+        }
         event.preventDefault()
         onToggleEditMode()
         break
       case 'Backspace':
+        if (readOnly) {
+          event.preventDefault()
+          break
+        }
         event.preventDefault()
         onDeleteByte(true)
         break
       case 'Delete':
+        if (readOnly) {
+          event.preventDefault()
+          break
+        }
         event.preventDefault()
         onDeleteByte(false)
         break
@@ -296,7 +310,7 @@
         }
         break
       default:
-        if (onTypeByte(activePane, event.key)) {
+        if (!readOnly && onTypeByte(activePane, event.key)) {
           event.preventDefault()
         }
     }

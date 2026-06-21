@@ -106,7 +106,7 @@ test('package.json matches shared extension constants', () => {
   )
   assert.equal(
     packageJson.contributes.commands[4].enablement,
-    'omegaEdit.hexEditorActive && omegaEdit.canUndo'
+    'omegaEdit.hexEditorActive && omegaEdit.canUndo && !omegaEdit.transformInFlight'
   )
   assert.equal(
     packageJson.contributes.commands[5].command,
@@ -114,7 +114,7 @@ test('package.json matches shared extension constants', () => {
   )
   assert.equal(
     packageJson.contributes.commands[5].enablement,
-    'omegaEdit.hexEditorActive && omegaEdit.canRedo'
+    'omegaEdit.hexEditorActive && omegaEdit.canRedo && !omegaEdit.transformInFlight'
   )
   assert.equal(
     packageJson.contributes.commands[6].command,
@@ -145,12 +145,16 @@ test('package.json matches shared extension constants', () => {
     OMEGA_EDIT_REPLAY_CHANGE_SCRIPT_COMMAND
   )
   assert.equal(
+    packageJson.contributes.commands[9].enablement,
+    'omegaEdit.hexEditorActive && !omegaEdit.transformInFlight'
+  )
+  assert.equal(
     packageJson.contributes.commands[10].command,
     OMEGA_EDIT_ROLLBACK_SESSION_COMMAND
   )
   assert.equal(
     packageJson.contributes.commands[10].enablement,
-    'omegaEdit.hexEditorActive && omegaEdit.hasPendingChanges'
+    'omegaEdit.hexEditorActive && omegaEdit.hasPendingChanges && !omegaEdit.transformInFlight'
   )
   assert.equal(
     packageJson.contributes.commands[11].command,
@@ -158,7 +162,7 @@ test('package.json matches shared extension constants', () => {
   )
   assert.equal(
     packageJson.contributes.commands[11].enablement,
-    'omegaEdit.hexEditorActive'
+    'omegaEdit.hexEditorActive && !omegaEdit.transformInFlight'
   )
   assert.equal(
     packageJson.contributes.commands[12].command,
@@ -166,7 +170,7 @@ test('package.json matches shared extension constants', () => {
   )
   assert.equal(
     packageJson.contributes.commands[12].enablement,
-    'omegaEdit.hexEditorActive'
+    'omegaEdit.hexEditorActive && !omegaEdit.transformInFlight'
   )
   assert.deepEqual(
     packageJson.contributes.commands.slice(13).map((entry) => entry.command),
@@ -223,7 +227,7 @@ test('package.json matches shared extension constants', () => {
     ),
     {
       command: OMEGA_EDIT_ROLLBACK_SESSION_COMMAND,
-      when: 'omegaEdit.hexEditorActive && omegaEdit.hasPendingChanges',
+      when: 'omegaEdit.hexEditorActive && omegaEdit.hasPendingChanges && !omegaEdit.transformInFlight',
       group: 'navigation@9',
     }
   )
@@ -251,7 +255,7 @@ test('package.json matches shared extension constants', () => {
     ),
     {
       command: OMEGA_EDIT_ROLLBACK_SESSION_COMMAND,
-      when: 'omegaEdit.hexEditorActive && omegaEdit.hasPendingChanges',
+      when: 'omegaEdit.hexEditorActive && omegaEdit.hasPendingChanges && !omegaEdit.transformInFlight',
     }
   )
   assert.deepEqual(

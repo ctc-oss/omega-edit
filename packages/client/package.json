@@ -31,6 +31,9 @@
   },
   "author": "CTC-OSS",
   "license": "Apache-2.0",
+  "engines": {
+    "node": "^24.0.0"
+  },
   "scripts": {
     "pretest": "yarn build && node scripts/ensure-server-prepackaged.js",
     "clean": "rimraf dist",

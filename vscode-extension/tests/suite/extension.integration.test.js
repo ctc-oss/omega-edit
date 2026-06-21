@@ -966,6 +966,54 @@ suite('OmegaEdit VS Code extension', () => {
     }
   })
 
+  test('refreshes viewport data when webview metrics arrive after initial load', async () => {
+    const tmpDir = await fs.mkdtemp(
+      path.join(os.tmpdir(), 'omega-edit-vscode-ready-')
+    )
+    const samplePath = path.join(tmpDir, 'ready.bin')
+    await fs.writeFile(samplePath, Buffer.from('ready bytes', 'utf8'))
+
+    const provider = new HexEditorProvider({ subscriptions: [] }, testPort)
+    const panel = createMockWebviewPanel()
+    const document = await provider.openCustomDocument(
+      vscode.Uri.file(samplePath),
+      { backupId: undefined, untitledDocumentData: undefined },
+      new vscode.CancellationTokenSource().token
+    )
+
+    try {
+      await provider.resolveCustomEditor(
+        document,
+        panel,
+        new vscode.CancellationTokenSource().token
+      )
+
+      const initialViewportMessages = panel.messages.filter(
+        (message) => message.type === 'viewportData'
+      )
+      assert.equal(initialViewportMessages.length, 1)
+
+      const session = provider.getSessionForTesting(document.uri)
+      assert.ok(session, 'Expected a live session for the ready test')
+      await provider.dispatchWebviewMessageForTesting(document.uri, {
+        type: 'setViewportMetrics',
+        visibleRows: session.visibleRows,
+      })
+
+      const refreshedViewportMessages = panel.messages.filter(
+        (message) => message.type === 'viewportData'
+      )
+      assert.equal(refreshedViewportMessages.length, 2)
+      assert.deepEqual(
+        refreshedViewportMessages.at(-1).data,
+        Array.from(Buffer.from('ready bytes', 'utf8'))
+      )
+    } finally {
+      await panel.fireDidDispose()
+      await fs.rm(tmpDir, { recursive: true, force: true })
+    }
+  })
+
   test('tracks optimized replace counts and clears dirty state on save', async () => {
     const tmpDir = await fs.mkdtemp(
       path.join(os.tmpdir(), 'omega-edit-vscode-replace-')

@@ -345,18 +345,31 @@ describe('Proto Compatibility', () => {
 
     const sessionEvent = new SessionEvent({
       sessionId: 'sid',
-      sessionEventKind: SessionEventKind.EDIT,
+      sessionEventKind: SessionEventKind.TRANSFORM_PROGRESS,
       computedFileSize: 20,
       changeCount: 2,
       undoCount: 1,
       serial: 8,
+      transformProgress: {
+        pluginId: 'plugin.progress',
+        operationId: 'transform_1',
+        processedBytes: 5,
+        totalBytes: 20,
+        percent: 25,
+        phase: 'reading',
+        message: 'Reading',
+        indeterminate: false,
+      },
     })
     expect(sessionEvent.getSessionId()).to.equal('sid')
-    expect(sessionEvent.getSessionEventKind()).to.equal(SessionEventKind.EDIT)
+    expect(sessionEvent.getSessionEventKind()).to.equal(
+      SessionEventKind.TRANSFORM_PROGRESS
+    )
     expect(sessionEvent.getComputedFileSize()).to.equal(20)
     expect(sessionEvent.getChangeCount()).to.equal(2)
     expect(sessionEvent.getUndoCount()).to.equal(1)
     expect(sessionEvent.getSerial()).to.equal(8)
+    expect(sessionEvent.getTransformProgress()?.processedBytes).to.equal(5)
 
     const sessionEventWithoutSerial = new SessionEvent({
       sessionId: 'sid',
@@ -458,6 +471,9 @@ describe('Proto Compatibility', () => {
     )
     expect(IOFlags.OVERWRITE).to.equal(ProtoIOFlags.IO_FLAGS_OVERWRITE)
     expect(PublicSessionEventKind.EDIT).to.equal(SessionEventKind.EDIT)
+    expect(PublicSessionEventKind.TRANSFORM_PROGRESS).to.equal(
+      SessionEventKind.TRANSFORM_PROGRESS
+    )
     expect(PublicViewportEventKind.EDIT).to.equal(ViewportEventKind.EDIT)
     expect('COUNT_VIEWPORTS' in CountKind).to.equal(false)
     expect('SERVER_CONTROL_GRACEFUL_SHUTDOWN' in ServerControlKind).to.equal(
@@ -468,6 +484,9 @@ describe('Proto Compatibility', () => {
     )
     expect('IO_FLG_OVERWRITE' in IOFlags).to.equal(false)
     expect('SESSION_EVT_EDIT' in PublicSessionEventKind).to.equal(false)
+    expect('SESSION_EVT_TRANSFORM_PROGRESS' in PublicSessionEventKind).to.equal(
+      false
+    )
     expect('VIEWPORT_EVT_EDIT' in PublicViewportEventKind).to.equal(false)
   })
 

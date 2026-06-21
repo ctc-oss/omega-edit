@@ -676,6 +676,10 @@ export class SessionEvent {
     return safeNumberOrZero('SessionEvent.serial', this.response_.serial)
   }
 
+  getTransformProgress(): RawSubscribeToSessionEventsResponse['transformProgress'] {
+    return this.response_.transformProgress
+  }
+
   toObject(): RawSubscribeToSessionEventsResponse {
     return {
       ...this.response_,
@@ -683,6 +687,7 @@ export class SessionEvent {
       changeCount: this.getChangeCount(),
       undoCount: this.getUndoCount(),
       serial: this.response_.serial === undefined ? undefined : this.getSerial(),
+      transformProgress: this.getTransformProgress(),
     }
   }
 }

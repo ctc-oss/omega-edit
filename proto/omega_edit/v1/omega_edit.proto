@@ -308,6 +308,14 @@ enum SessionEventKind {
   SESSION_EVENT_KIND_TRANSACTION_STARTED = 4096;
   // An open transaction was ended on this session.
   SESSION_EVENT_KIND_TRANSACTION_ENDED = 8192;
+  // A transform started running on this session.
+  SESSION_EVENT_KIND_TRANSFORM_STARTED = 16384;
+  // A running transform reported progress.
+  SESSION_EVENT_KIND_TRANSFORM_PROGRESS = 32768;
+  // A transform completed successfully.
+  SESSION_EVENT_KIND_TRANSFORM_COMPLETED = 65536;
+  // A transform failed.
+  SESSION_EVENT_KIND_TRANSFORM_FAILED = 131072;
 }
 
 // Viewport-level event kinds.  Values are powers of two so they can be OR'd
@@ -991,6 +999,18 @@ message ApplyTransformPluginResponse {
   bytes result = 11;                         // Plugin-provided inspection bytes.
 }
 
+// Progress reported by a session-level transform event.
+message TransformProgress {
+  string plugin_id = 1;              // Plugin currently running.
+  string operation_id = 2;           // Server-generated ID for this transform run.
+  optional int64 processed_bytes = 3; // Bytes processed when known.
+  optional int64 total_bytes = 4;     // Total bytes when known.
+  optional double percent = 5;        // Completion percentage when known.
+  string phase = 6;                  // Machine-readable phase label.
+  string message = 7;                // Human-readable progress message.
+  bool indeterminate = 8;            // True when determinate progress is unavailable.
+}
+
 // Request to compute a byte-frequency histogram.
 message GetByteFrequencyProfileRequest {
   string session_id = 1; // Session ID.
@@ -1049,6 +1069,7 @@ message SubscribeToSessionEventsResponse {
   int64 change_count = 4;                      // Number of applied changes after this event.
   int64 undo_count = 5;                        // Number of undone changes after this event.
   optional int64 serial = 6;                   // Serial number of the change (if applicable).
+  optional TransformProgress transform_progress = 7; // Transform lifecycle/progress details.
 }
 
 // Request to subscribe to viewport events.
