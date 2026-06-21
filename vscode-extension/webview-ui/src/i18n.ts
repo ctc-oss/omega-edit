@@ -47,9 +47,12 @@ export const strings = {
     selectRange: 'Select bytes first',
     selectRangeFirst: 'Select one or more bytes to transform',
     unavailable: (message: string) => `Transform plugins unavailable: ${message}`,
+    options: 'Options',
     optionsJson: 'Options JSON',
     optionsPlaceholder: 'options JSON',
     examplePlaceholder: (example: string) => `e.g. ${example}`,
+    rawOptionsJson: 'JSON',
+    optionUnset: 'Unset',
     noDescription: 'This transform did not advertise a description.',
     selectedRange: 'Selected Range',
     start: 'Start',
@@ -77,6 +80,7 @@ export const strings = {
       `${path} must match exactly one allowed shape`,
     schemaNot: (path: string) =>
       `${path} uses a disallowed option combination`,
+    schemaEnum: (path: string) => `${path} must be one of the allowed values`,
     schemaObject: (path: string) => `${path} must be an object`,
     schemaRequired: (path: string, key: string) =>
       `${path} is missing "${key}"`,
@@ -160,6 +164,7 @@ export const strings = {
       count === 1
         ? 'Replaced 1 match'
         : `Replaced ${count.toLocaleString()} matches`,
+    replacingAll: 'Replacing matches...',
   },
   grid: {
     label: 'OmegaEdit byte editor',
@@ -169,6 +174,7 @@ export const strings = {
     textPane: 'TEXT',
     waitingForData: 'Waiting for data',
     preparingFile: 'Preparing file...',
+    readOnly: 'Read-only',
     insertTitle: 'Insert mode',
     overwriteTitle: 'Overwrite mode',
     notPrintable: 'Not printable',

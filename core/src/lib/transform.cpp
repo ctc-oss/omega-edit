@@ -364,6 +364,35 @@ namespace {
         return true;
     }
 
+    auto json_values_equal_(const json_value_t &left, const json_value_t &right) -> bool {
+        if (left.kind != right.kind) { return false; }
+        switch (left.kind) {
+            case json_value_t::kind_t::null_value:
+                return true;
+            case json_value_t::kind_t::string:
+                return left.string_value == right.string_value;
+            case json_value_t::kind_t::number:
+                return left.number_value == right.number_value;
+            case json_value_t::kind_t::boolean:
+                return left.bool_value == right.bool_value;
+            case json_value_t::kind_t::array:
+                if (left.array_value.size() != right.array_value.size()) { return false; }
+                for (size_t index = 0; index < left.array_value.size(); ++index) {
+                    if (!json_values_equal_(left.array_value[index], right.array_value[index])) { return false; }
+                }
+                return true;
+            case json_value_t::kind_t::object:
+                if (left.object_value.size() != right.object_value.size()) { return false; }
+                for (const auto &[key, left_value]: left.object_value) {
+                    const auto right_iter = right.object_value.find(key);
+                    if (right_iter == right.object_value.end()) { return false; }
+                    if (!json_values_equal_(left_value, right_iter->second)) { return false; }
+                }
+                return true;
+        }
+        return false;
+    }
+
     auto schema_number_(const json_value_t &schema, const char *key, double &out) -> bool {
         const auto *member = json_object_member_(schema, key);
         if (!member) { return false; }
@@ -394,6 +423,18 @@ namespace {
 
         const auto *not_schema = json_object_member_(schema, "not");
         if (not_schema && validate_schema_value_(value, *not_schema)) { return false; }
+
+        if (const auto *enum_values = json_object_member_(schema, "enum")) {
+            if (enum_values->kind != json_value_t::kind_t::array) { return false; }
+            auto matches = false;
+            for (const auto &candidate: enum_values->array_value) {
+                if (json_values_equal_(value, candidate)) {
+                    matches = true;
+                    break;
+                }
+            }
+            if (!matches) { return false; }
+        }
 
         std::string type;
         if (const auto *type_value = json_object_member_(schema, "type")) {

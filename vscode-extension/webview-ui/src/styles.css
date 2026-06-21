@@ -544,6 +544,27 @@ button.dialog-backdrop:focus-visible {
   margin-top: 12px;
 }
 
+.transform-options-form {
+  display: grid;
+  gap: 10px;
+}
+
+.transform-option-field {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.transform-option-label,
+.transform-option-description {
+  color: var(--vscode-descriptionForeground);
+  font-size: 11px;
+}
+
+.transform-option-description {
+  line-height: 1.35;
+}
+
 .transform-range-grid {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(90px, auto);
@@ -564,9 +585,11 @@ button.dialog-backdrop:focus-visible {
 }
 
 .transform-range-field input,
-.transform-options-field input {
+.transform-options-field input,
+.transform-options-field textarea,
+.transform-option-field input,
+.transform-option-field select {
   width: 100%;
-  height: 26px;
   padding: 3px 7px;
   border: 1px solid var(--vscode-input-border, var(--vscode-editorGroup-border));
   border-radius: 2px;
@@ -575,15 +598,51 @@ button.dialog-backdrop:focus-visible {
   font: inherit;
 }
 
+.transform-range-field input,
+.transform-options-field input,
+.transform-option-field input,
+.transform-option-field select {
+  height: 26px;
+}
+
+.transform-options-field textarea {
+  min-height: 68px;
+  resize: vertical;
+}
+
+.transform-option-field input[type='checkbox'] {
+  width: 16px;
+  height: 16px;
+  margin: 2px 0;
+  padding: 0;
+  accent-color: var(--vscode-checkbox-selectBackground, var(--vscode-focusBorder));
+}
+
 .transform-range-field input:focus,
-.transform-options-field input:focus {
+.transform-options-field input:focus,
+.transform-options-field textarea:focus,
+.transform-option-field input:focus,
+.transform-option-field select:focus {
   outline: 1px solid var(--vscode-focusBorder);
   outline-offset: -1px;
 }
 
 .transform-range-field input[aria-invalid='true'],
-.transform-options-field input[aria-invalid='true'] {
+.transform-options-field input[aria-invalid='true'],
+.transform-options-field textarea[aria-invalid='true'],
+.transform-option-field input[aria-invalid='true'],
+.transform-option-field select[aria-invalid='true'] {
   border-color: var(--vscode-inputValidation-errorBorder);
+}
+
+.transform-raw-options {
+  margin-top: 10px;
+}
+
+.transform-raw-options summary {
+  cursor: pointer;
+  color: var(--vscode-descriptionForeground);
+  font-size: 11px;
 }
 
 .transform-range-end-control {
@@ -725,6 +784,7 @@ button.dialog-backdrop:focus-visible {
 }
 
 .editor-grid-shell {
+  position: relative;
   display: grid;
   grid-template-columns: minmax(0, 1fr) 14px;
   min-width: 0;
@@ -758,6 +818,62 @@ button.dialog-backdrop:focus-visible {
   );
   border-radius: 50%;
   animation: omega-spin 0.8s linear infinite;
+}
+
+.editor-readonly-badge {
+  position: absolute;
+  top: 8px;
+  right: 22px;
+  z-index: 8;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  max-width: min(180px, calc(100% - 44px));
+  min-height: 26px;
+  padding: 3px 8px;
+  overflow: hidden;
+  border: 1px solid var(
+    --vscode-inputValidation-warningBorder,
+    var(--vscode-editorGroup-border)
+  );
+  border-radius: 4px;
+  color: var(--vscode-foreground);
+  background: color-mix(
+    in srgb,
+    var(--vscode-editorWidget-background) 90%,
+    var(--vscode-editor-background) 10%
+  );
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.22);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0;
+  text-transform: uppercase;
+  pointer-events: none;
+}
+
+.editor-readonly-badge span:last-child {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.editor-readonly-dot {
+  width: 8px;
+  height: 8px;
+  flex: 0 0 8px;
+  border-radius: 50%;
+  background: var(
+    --vscode-inputValidation-warningBorder,
+    var(--vscode-charts-yellow)
+  );
+  box-shadow: 0 0 0 2px
+    color-mix(
+      in srgb,
+      var(--vscode-inputValidation-warningBorder, var(--vscode-charts-yellow))
+        24%,
+      transparent
+    );
 }
 
 @keyframes omega-spin {

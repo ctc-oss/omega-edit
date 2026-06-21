@@ -23,7 +23,62 @@
 #include <random>
 #include <string>
 
+#if defined(__APPLE__)
+#include <sys/clonefile.h>
+#include <sys/stat.h>
+#elif defined(__linux__)
+#include <fcntl.h>
+#include <linux/fs.h>
+#include <sys/ioctl.h>
+#include <sys/stat.h>
+#include <unistd.h>
+#ifndef FICLONE
+#define FICLONE _IOW(0x94, 9, int)
+#endif
+#elif !defined(OMEGA_BUILD_WINDOWS)
+#include <sys/stat.h>
+#endif
+
 namespace fs = std::filesystem;
+
+namespace {
+    auto try_clone_file_(const fs::path &src_path, const fs::path &dst_path, int mode) -> bool {
+#if defined(__APPLE__)
+        if (0 == clonefile(src_path.c_str(), dst_path.c_str(), 0)) { return true; }
+        try {
+            if (fs::exists(dst_path)) { fs::remove(dst_path); }
+        } catch (const fs::filesystem_error &) {}
+        return false;
+#elif defined(__linux__)
+        const auto src_path_str = src_path.string();
+        const auto dst_path_str = dst_path.string();
+        const auto src_fd = OPEN(src_path_str.c_str(), O_RDONLY, 0);
+        if (src_fd < 0) { return false; }
+
+        const auto dst_mode = mode ? (mode & 07777) : 0600;
+        const auto dst_fd = OPEN(dst_path_str.c_str(), O_WRONLY | O_CREAT | O_TRUNC, dst_mode);
+        if (dst_fd < 0) {
+            close(src_fd);
+            return false;
+        }
+
+        const auto cloned = (0 == ioctl(dst_fd, FICLONE, src_fd));
+        close(dst_fd);
+        close(src_fd);
+        if (!cloned) {
+            try {
+                if (fs::exists(dst_path)) { fs::remove(dst_path); }
+            } catch (const fs::filesystem_error &) {}
+        }
+        return cloned;
+#else
+        (void) src_path;
+        (void) dst_path;
+        (void) mode;
+        return false;
+#endif
+    }
+}
 
 int omega_util_mkstemp(char *tmpl, int mode) {
     if (!tmpl) {
@@ -293,10 +348,12 @@ int omega_util_file_copy(const char *src_path, const char *dst_path, int mode) {
         // Remove the destination file if it already exists
         if (fs::exists(dst_fs_path)) { fs::remove(dst_fs_path); }
 
-        // Copy the file to the destination path, overwriting if it already exists
-        if (!fs::copy_file(src_fs_path, dst_fs_path, fs::copy_options::overwrite_existing)) {
-            LOG_ERROR("Error copying file '" << src_fs_path << "' to '" << dst_fs_path << "'");
-            return -3;
+        // Prefer copy-on-write clones/reflinks where the platform and filesystem support them.
+        if (!try_clone_file_(src_fs_path, dst_fs_path, mode)) {
+            if (!fs::copy_file(src_fs_path, dst_fs_path, fs::copy_options::overwrite_existing)) {
+                LOG_ERROR("Error copying file '" << src_fs_path << "' to '" << dst_fs_path << "'");
+                return -3;
+            }
         }
 
         // Set the modification time of the copied file to the current time
@@ -304,7 +361,12 @@ int omega_util_file_copy(const char *src_path, const char *dst_path, int mode) {
         fs::last_write_time(dst_fs_path, now_file_time);
 
         // Set the mode of the destination file (if the mode is 0, use the mode of the source file)
-        fs::permissions(dst_fs_path, (mode) ? static_cast<fs::perms>(mode) : fs::status(src_fs_path).permissions());
+        fs::permissions(dst_fs_path, (mode) ? static_cast<fs::perms>(mode & 07777)
+                                            : fs::status(src_fs_path).permissions(),
+                        fs::perm_options::replace);
+#ifndef OMEGA_BUILD_WINDOWS
+        if (mode && chmod(dst_path, static_cast<mode_t>(mode & 07777)) != 0) { return -4; }
+#endif
     } catch (const fs::filesystem_error &ex) {
         LOG_ERROR("Error copying file '" << src_fs_path << "' to '" << dst_fs_path << "': " << ex.what());
         return -4;

@@ -72,6 +72,8 @@
     undoCount?: number
     redoCount?: number
     editDisabled?: boolean
+    readOnlyLabel?: string
+    readOnlyTitle?: string
     onSelect: (offset: number, extend: boolean) => void
     onActivePaneChange: (pane: GridEditPane) => void
     onMoveSelection: (delta: number, extend: boolean) => void
@@ -135,6 +137,8 @@
     undoCount = 0,
     redoCount = 0,
     editDisabled = false,
+    readOnlyLabel = strings.grid.readOnly,
+    readOnlyTitle = readOnlyLabel,
     onSelect,
     onActivePaneChange,
     onMoveSelection,
@@ -198,6 +202,17 @@
         {offsetRadix}
         onScrollTo={onScrollTo}
       />
+      {#if editDisabled}
+        <div
+          class="editor-readonly-badge"
+          role="status"
+          aria-live="polite"
+          title={readOnlyTitle}
+        >
+          <span class="editor-readonly-dot" aria-hidden="true"></span>
+          <span>{readOnlyLabel}</span>
+        </div>
+      {/if}
     {/if}
   </div>
 

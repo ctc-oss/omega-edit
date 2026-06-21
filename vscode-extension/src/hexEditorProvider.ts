@@ -2252,13 +2252,35 @@ export class HexEditorProvider
       return this.getCheckpointCount(session)
     }
 
-    const wasDirty =
-      session.history.getEditState().isDirty || !!session.restoredFromBackup
-    const sessionSyncVersion = session.sessionSyncVersion
-    const count = await createCheckpoint(session.sessionId)
-    await this.waitForSessionSync(session, sessionSyncVersion)
-    await this.resetSessionState(session, wasDirty, false, false)
-    return count
+    this.postTransformStatus(
+      session,
+      true,
+      undefined,
+      vscode.l10n.t('Creating checkpoint...')
+    )
+    let failureMessage: string | undefined
+    try {
+      const wasDirty =
+        session.history.getEditState().isDirty || !!session.restoredFromBackup
+      const sessionSyncVersion = session.sessionSyncVersion
+      const count = await createCheckpoint(session.sessionId)
+      await this.waitForSessionSync(session, sessionSyncVersion)
+      await this.resetSessionState(session, wasDirty, false, false)
+      this.postTransformStatus(
+        session,
+        false,
+        undefined,
+        vscode.l10n.t('Checkpoint created')
+      )
+      return count
+    } catch (error) {
+      failureMessage = error instanceof Error ? error.message : String(error)
+      throw error
+    } finally {
+      if (failureMessage) {
+        this.postTransformStatus(session, false, undefined, failureMessage)
+      }
+    }
   }
 
   private async rollbackCheckpoint(
@@ -2277,11 +2299,33 @@ export class HexEditorProvider
       return false
     }
 
-    const sessionSyncVersion = session.sessionSyncVersion
-    await destroyLastCheckpoint(session.sessionId)
-    await this.waitForSessionSync(session, sessionSyncVersion)
-    await this.resetSessionState(session, markDirty, markDirty, false)
-    return true
+    this.postTransformStatus(
+      session,
+      true,
+      undefined,
+      vscode.l10n.t('Rolling back checkpoint...')
+    )
+    let failureMessage: string | undefined
+    try {
+      const sessionSyncVersion = session.sessionSyncVersion
+      await destroyLastCheckpoint(session.sessionId)
+      await this.waitForSessionSync(session, sessionSyncVersion)
+      await this.resetSessionState(session, markDirty, markDirty, false)
+      this.postTransformStatus(
+        session,
+        false,
+        undefined,
+        vscode.l10n.t('Checkpoint rolled back')
+      )
+      return true
+    } catch (error) {
+      failureMessage = error instanceof Error ? error.message : String(error)
+      throw error
+    } finally {
+      if (failureMessage) {
+        this.postTransformStatus(session, false, undefined, failureMessage)
+      }
+    }
   }
 
   private async rollbackSession(
@@ -2292,15 +2336,37 @@ export class HexEditorProvider
       return
     }
 
-    const sessionSyncVersion = session.sessionSyncVersion
-    let checkpointCount = await this.getCheckpointCount(session)
-    while (checkpointCount > 0) {
-      await destroyLastCheckpoint(session.sessionId)
-      checkpointCount -= 1
+    this.postTransformStatus(
+      session,
+      true,
+      undefined,
+      vscode.l10n.t('Rolling back session...')
+    )
+    let failureMessage: string | undefined
+    try {
+      const sessionSyncVersion = session.sessionSyncVersion
+      let checkpointCount = await this.getCheckpointCount(session)
+      while (checkpointCount > 0) {
+        await destroyLastCheckpoint(session.sessionId)
+        checkpointCount -= 1
+      }
+      await clear(session.sessionId)
+      await this.waitForSessionSync(session, sessionSyncVersion)
+      await this.resetSessionState(session, markDirty, markDirty, true)
+      this.postTransformStatus(
+        session,
+        false,
+        undefined,
+        vscode.l10n.t('Session rolled back')
+      )
+    } catch (error) {
+      failureMessage = error instanceof Error ? error.message : String(error)
+      throw error
+    } finally {
+      if (failureMessage) {
+        this.postTransformStatus(session, false, undefined, failureMessage)
+      }
     }
-    await clear(session.sessionId)
-    await this.waitForSessionSync(session, sessionSyncVersion)
-    await this.resetSessionState(session, markDirty, markDirty, true)
   }
 
   private async revertSessionChanges(
@@ -3110,46 +3176,61 @@ export class HexEditorProvider
         }
 
         case 'replaceAllMatches': {
+          this.postTransformStatus(
+            session,
+            true,
+            undefined,
+            vscode.l10n.t('Replacing matches...')
+          )
+          let failureMessage: string | undefined
           const sessionSyncVersion = session.sessionSyncVersion
-          await session.search.preserveState(async () => {
-            const result = await session.search.replaceAll({
-              query: msg.query,
-              isHex: msg.isHex,
-              caseInsensitive: msg.caseInsensitive ?? false,
-              isReverse: msg.isReverse ?? false,
-              length: msg.length,
-              replacement: Buffer.from(msg.data, 'hex'),
-              replacementData: msg.data,
-            })
+          try {
+            await session.search.preserveState(async () => {
+              const result = await session.search.replaceAll({
+                query: msg.query,
+                isHex: msg.isHex,
+                caseInsensitive: msg.caseInsensitive ?? false,
+                isReverse: msg.isReverse ?? false,
+                length: msg.length,
+                replacement: Buffer.from(msg.data, 'hex'),
+                replacementData: msg.data,
+              })
 
-            if (result.replacedCount > 0) {
-              if (
-                result.strategy === 'checkpointed' &&
-                result.checkpointTransaction
-              ) {
-                session.history.recordCheckpointReplaceAll(
+              if (result.replacedCount > 0) {
+                if (
+                  result.strategy === 'checkpointed' &&
                   result.checkpointTransaction
-                )
-              } else {
-                session.history.recordLocalReplaceAll(
-                  result.orderedOffsets,
-                  msg.length,
-                  msg.data
-                )
+                ) {
+                  session.history.recordCheckpointReplaceAll(
+                    result.checkpointTransaction
+                  )
+                } else {
+                  session.history.recordLocalReplaceAll(
+                    result.orderedOffsets,
+                    msg.length,
+                    msg.data
+                  )
+                }
+                this.postEditState(session)
+                this.notifyDocumentChanged(session)
+                await this.waitForSessionSync(session, sessionSyncVersion)
+                await this.sendViewportData(session)
               }
-              this.postEditState(session)
-              this.notifyDocumentChanged(session)
-              await this.waitForSessionSync(session, sessionSyncVersion)
-              await this.sendViewportData(session)
-            }
 
-            this.postWebviewMessage(session, {
-              type: 'replaceComplete',
-              scope: 'all',
-              selectionOffset: result.selectionOffset,
-              replacedCount: result.replacedCount,
+              this.postWebviewMessage(session, {
+                type: 'replaceComplete',
+                scope: 'all',
+                selectionOffset: result.selectionOffset,
+                replacedCount: result.replacedCount,
+              })
             })
-          })
+          } catch (error) {
+            failureMessage =
+              error instanceof Error ? error.message : String(error)
+            throw error
+          } finally {
+            this.postTransformStatus(session, false, undefined, failureMessage)
+          }
           break
         }
 

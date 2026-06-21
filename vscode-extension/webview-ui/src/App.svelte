@@ -1648,6 +1648,8 @@
     }
 
     replaceMessage = ''
+    transformInFlight = true
+    transformFeedback = strings.search.replacingAll
     postToHost({
       type: 'replaceAllMatches',
       query: normalizedQuery,
@@ -1904,6 +1906,8 @@
         navigateSearch(message.direction)
         break
       case 'replaceComplete': {
+        transformInFlight = false
+        transformFeedback = ''
         const replacedCount = message.replacedCount ?? 0
         replaceMessage = strings.search.replaceSummary(replacedCount)
         let nextMatchOffset = -1
@@ -2141,6 +2145,8 @@
     onTypeByte={handleGridType}
     onDeleteByte={deleteFromKeyboard}
     editDisabled={transformInFlight}
+    readOnlyLabel={strings.grid.readOnly}
+    readOnlyTitle={transformFeedback || strings.transform.inFlight}
     onVisibleRowsChange={setVisibleRows}
     onToggleProfilerExpanded={toggleProfilerExpanded}
     onProfilerModeChange={setProfilerMode}

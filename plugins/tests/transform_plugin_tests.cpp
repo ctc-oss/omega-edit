@@ -78,6 +78,15 @@ TEST_CASE("Packaged Transform Plugins", "[TransformPlugin]") {
     REQUIRE(-1 == omega_transform_plugin_options_match_args_schema(
                           "{\"emoji\":\"\\uD83D\"}", "{\"type\":\"object\",\"properties\":{\"emoji\":{\"type\":"
                                                      "\"string\"}},\"additionalProperties\":false}"));
+    const auto common_checksums_info =
+            omega_transform_plugin_registry_find_info(registry_ptr, "omega.example.common_checksums");
+    REQUIRE("Common Checksums" == std::string(common_checksums_info->name));
+    REQUIRE(std::string(common_checksums_info->args_schema).find("\"enum\"") != std::string::npos);
+    REQUIRE(std::string(common_checksums_info->args_schema).find("\"x-omega-enumGroups\"") != std::string::npos);
+    REQUIRE(0 == omega_transform_plugin_options_match_args_schema("{\"algorithm\":\"crc32c\"}",
+                                                                  common_checksums_info->args_schema));
+    REQUIRE(-1 == omega_transform_plugin_options_match_args_schema("{\"algorithm\":\"not-a-checksum\"}",
+                                                                   common_checksums_info->args_schema));
     const auto zlib_compress_info =
             omega_transform_plugin_registry_find_info(registry_ptr, "omega.example.zlib_compress");
     REQUIRE("Zlib Compress" == std::string(zlib_compress_info->name));
