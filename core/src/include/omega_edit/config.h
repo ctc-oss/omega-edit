@@ -58,6 +58,11 @@
 #define OMEGA_SEARCH_PATTERN_LENGTH_LIMIT (OMEGA_VIEWPORT_CAPACITY_LIMIT / 2)
 #endif//OMEGA_SEARCH_PATTERN_LENGTH_LIMIT
 
+#ifndef OMEGA_MEMORY_BUFFER_LIMIT
+/** Maximum byte range that APIs may materialize into one in-memory buffer. */
+#define OMEGA_MEMORY_BUFFER_LIMIT (64LL * 1024LL * 1024LL)
+#endif//OMEGA_MEMORY_BUFFER_LIMIT
+
 #ifndef OMEGA_BYTE_T
 /** Define the byte type to be used across the project */
 #define OMEGA_BYTE_T unsigned char

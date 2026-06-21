@@ -30,6 +30,7 @@
 #include <cstdio>
 #include <cstring>
 #include <filesystem>
+#include <fstream>
 #include <limits>
 #include <new>
 #include <string>
@@ -723,6 +724,37 @@ TEST_CASE("Overflow Sized Read Ranges Are Rejected", "[EdgeCase][Overflow]") {
     omega_edit_destroy_session(session_ptr);
 }
 
+TEST_CASE("Save To Bytes Rejects Ranges Above Memory Buffer Limit", "[EdgeCase][LargeFile]") {
+    const auto path = (DATA_DIR / "oversized_to_bytes.dat").string();
+    {
+        std::ofstream output(path, std::ios::binary | std::ios::trunc);
+        REQUIRE(output.good());
+        output.seekp(static_cast<std::streamoff>(OMEGA_MEMORY_BUFFER_LIMIT));
+        const char byte = 0;
+        output.write(&byte, 1);
+        REQUIRE(output.good());
+    }
+    REQUIRE(OMEGA_MEMORY_BUFFER_LIMIT + 1 == omega_util_file_size(path.c_str()));
+
+    const auto session_ptr = omega_edit_create_session(path.c_str(), nullptr, nullptr, NO_EVENTS, nullptr);
+    REQUIRE(session_ptr);
+    REQUIRE(OMEGA_MEMORY_BUFFER_LIMIT + 1 == omega_session_get_computed_file_size(session_ptr));
+
+    omega_byte_t *bytes = nullptr;
+    int64_t length = -1;
+    REQUIRE(-1 == omega_edit_save_to_bytes(session_ptr, &bytes, &length));
+    REQUIRE(nullptr == bytes);
+    REQUIRE(0 == length);
+
+    REQUIRE(-1 == omega_edit_save_segment_to_bytes(session_ptr, &bytes, &length, 0,
+                                                   OMEGA_MEMORY_BUFFER_LIMIT + 1));
+    REQUIRE(nullptr == bytes);
+    REQUIRE(0 == length);
+
+    omega_edit_destroy_session(session_ptr);
+    omega_util_remove_file(path.c_str());
+}
+
 static int viewport_notify_count = 0;
 
 static void test_viewport_event_cbk(const omega_viewport_t *, omega_viewport_event_t, const void *) {
@@ -961,6 +993,23 @@ TEST_CASE("Save Segment Partial File", "[EdgeCase][SaveSegment]") {
 
     omega_edit_destroy_session(verify_session);
     omega_util_remove_file(MAKE_PATH("edge_case_segment.dat"));
+    omega_edit_destroy_session(session_ptr);
+}
+
+TEST_CASE("Checkpointed Replace Streams Through A New Model", "[EdgeCase][CheckpointReplace]") {
+    const auto session_ptr = omega_edit_create_session(nullptr, nullptr, nullptr, 0, nullptr);
+    REQUIRE(session_ptr);
+    REQUIRE(0 < omega_edit_insert_string(session_ptr, 0, "ABCDEFGHIJ"));
+
+    const omega_byte_t replacement[] = {'x', 'y', 'z'};
+    REQUIRE(0 == omega_edit_replace_bytes_checkpointed(session_ptr, 2, 5, replacement,
+                                                       static_cast<int64_t>(sizeof(replacement))));
+
+    REQUIRE(8 == omega_session_get_computed_file_size(session_ptr));
+    REQUIRE("ABxyzHIJ" == omega_session_get_segment_string(session_ptr, 0, 8));
+    REQUIRE(1 == omega_session_get_num_checkpoints(session_ptr));
+    REQUIRE(0 == omega_check_model(session_ptr));
+
     omega_edit_destroy_session(session_ptr);
 }
 

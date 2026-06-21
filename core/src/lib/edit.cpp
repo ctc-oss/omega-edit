@@ -931,7 +931,79 @@ namespace {
     auto write_bytes_to_file_(FILE *file_ptr, const omega_byte_t *bytes, int64_t length) -> int64_t {
         if (!file_ptr || length < 0 || (!bytes && length > 0)) { return -1; }
         if (length == 0) { return 0; }
-        return static_cast<int64_t>(fwrite(bytes, sizeof(omega_byte_t), length, file_ptr)) == length ? length : -1;
+        int64_t written = 0;
+        while (written < length) {
+            const auto count = std::min(length - written, OMEGA_IO_BUFFER_SIZE);
+            if (static_cast<int64_t>(fwrite(bytes + written, sizeof(omega_byte_t), count, file_ptr)) != count) {
+                break;
+            }
+            if (!safe_add_int64_(written, count, written)) { break; }
+        }
+        return written == length ? written : -1;
+    }
+
+    auto replace_bytes_checkpointed_(omega_session_t *session_ptr, int64_t offset, int64_t delete_length,
+                                     const omega_byte_t *bytes, int64_t insert_length) -> int {
+        if (!session_ptr || !valid_nonnegative_range_(offset, delete_length) || insert_length < 0) { return -1; }
+        if (!bytes && insert_length > 0) { return -1; }
+        if (omega_session_changes_paused(session_ptr) != 0) { return -1; }
+
+        const auto computed_file_size = omega_session_get_computed_file_size(session_ptr);
+        if (computed_file_size < 0 || offset > computed_file_size) { return -1; }
+        const auto adjusted_delete_length = std::min(delete_length, computed_file_size - offset);
+        if (adjusted_delete_length == 0 && insert_length == 0) { return 0; }
+
+        int64_t size_after_delete = 0;
+        int64_t checkpoint_file_size = 0;
+        if (!safe_add_int64_(computed_file_size, -adjusted_delete_length, size_after_delete) ||
+            !safe_add_int64_(size_after_delete, insert_length, checkpoint_file_size)) {
+            return -1;
+        }
+
+        char checkpoint_filename[FILENAME_MAX + 1];
+        if (0 != create_checkpoint_file_(session_ptr, checkpoint_filename, sizeof(checkpoint_filename))) {
+            return -1;
+        }
+
+        auto *checkpoint_fptr = FOPEN(checkpoint_filename, "wb");
+        if (checkpoint_fptr == nullptr) {
+            omega_util_remove_file(checkpoint_filename);
+            return -1;
+        }
+
+        session_stream_cursor_t cursor;
+        auto io_buf = std::make_unique<omega_byte_t[]>(OMEGA_IO_BUFFER_SIZE);
+        auto rc = 0;
+        if (!initialize_session_stream_cursor_(session_ptr, 0, cursor)) {
+            rc = -1;
+        } else if (stream_session_range_(cursor, offset, checkpoint_fptr, io_buf.get()) != offset) {
+            rc = -1;
+        } else if (write_bytes_to_file_(checkpoint_fptr, bytes, insert_length) != insert_length) {
+            rc = -1;
+        } else {
+            int64_t delete_end = 0;
+            if (!safe_add_int64_(offset, adjusted_delete_length, delete_end) ||
+                stream_session_range_(cursor, delete_end, nullptr, io_buf.get()) != adjusted_delete_length) {
+                rc = -1;
+            } else {
+                const auto remaining_suffix = computed_file_size - cursor.offset;
+                if (stream_session_range_(cursor, computed_file_size, checkpoint_fptr, io_buf.get()) !=
+                    remaining_suffix) {
+                    rc = -1;
+                }
+            }
+        }
+
+        FCLOSE(checkpoint_fptr);
+        if (rc != 0 || omega_util_file_size(checkpoint_filename) != checkpoint_file_size) {
+            omega_util_remove_file(checkpoint_filename);
+            return -1;
+        }
+
+        if (0 != promote_checkpoint_file_(session_ptr, checkpoint_filename, checkpoint_file_size, true)) {
+            return -1;
+        }
+        return 0;
     }
 
     int64_t write_file_segment_(FILE *from_file_ptr, int64_t offset, int64_t byte_count, FILE *to_file_ptr,
@@ -1298,6 +1370,11 @@ int64_t omega_edit_overwrite(omega_session_t *session_ptr, int64_t offset, const
 int64_t omega_edit_replace_bytes(omega_session_t *session_ptr, int64_t offset, int64_t delete_length,
                                  const omega_byte_t *bytes, int64_t insert_length) {
     return replace_bytes_impl_(session_ptr, offset, delete_length, bytes, insert_length);
+}
+
+int omega_edit_replace_bytes_checkpointed(omega_session_t *session_ptr, int64_t offset, int64_t delete_length,
+                                          const omega_byte_t *bytes, int64_t insert_length) {
+    return replace_bytes_checkpointed_(session_ptr, offset, delete_length, bytes, insert_length);
 }
 
 int64_t omega_edit_replace(omega_session_t *session_ptr, int64_t offset, int64_t delete_length, const char *cstr,
@@ -1856,6 +1933,11 @@ int omega_edit_save_segment_to_bytes(const omega_session_t *session_ptr, omega_b
     const auto remaining_length = computed_file_size - offset;
     const auto requested_length = (length == 0 || length > remaining_length) ? remaining_length : length;
     if (requested_length < 0) { return -1; }
+    if (requested_length > OMEGA_MEMORY_BUFFER_LIMIT ||
+        static_cast<uint64_t>(requested_length) > static_cast<uint64_t>((std::numeric_limits<size_t>::max)() - 1U)) {
+        LOG_ERROR("requested byte buffer length exceeds in-memory limit: " << requested_length);
+        return -1;
+    }
 
     auto *const data_ptr = static_cast<omega_byte_t *>(malloc(static_cast<size_t>(requested_length) + 1));
     if (data_ptr == nullptr) { return -1; }

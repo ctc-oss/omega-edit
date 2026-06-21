@@ -19,6 +19,7 @@
 
 #include <catch2/catch_test_macros.hpp>
 
+#include <cstring>
 #include <filesystem>
 #include <string>
 #include <vector>
@@ -437,6 +438,52 @@ TEST_CASE("Packaged Transform Plugins", "[TransformPlugin]") {
     REQUIRE(-1 == omega_transform_plugin_registry_apply_to_session(registry_ptr, "omega.example.missing", session_ptr,
                                                                    0, 0, nullptr, nullptr));
 
+    omega_edit_destroy_session(session_ptr);
+    omega_transform_plugin_registry_destroy(registry_ptr);
+}
+
+TEST_CASE("Large Transform Replacement Uses File-Backed Checkpoint", "[TransformPlugin][LargeFile]") {
+    REQUIRE(std::filesystem::is_directory(PLUGIN_DIR));
+
+    const auto registry_ptr = omega_transform_plugin_registry_create();
+    REQUIRE(registry_ptr);
+    REQUIRE(0 < omega_transform_plugin_registry_register_directory(registry_ptr, PLUGIN_DIR.string().c_str()));
+
+    const auto input_length = static_cast<int64_t>((OMEGA_MEMORY_BUFFER_LIMIT / 2) + 1);
+    std::vector<omega_byte_t> input(static_cast<size_t>(input_length));
+    for (int64_t i = 0; i < input_length; ++i) {
+        input[static_cast<size_t>(i)] = static_cast<omega_byte_t>(i % 251);
+    }
+
+    const auto session_ptr = omega_edit_create_session_from_bytes(input.data(), input_length, nullptr, nullptr,
+                                                                  NO_EVENTS, nullptr);
+    REQUIRE(session_ptr);
+
+    omega_transform_plugin_response_t response{};
+    REQUIRE(0 == omega_transform_plugin_registry_apply_to_session(registry_ptr, "omega.example.repeat", session_ptr,
+                                                                  0, input_length, nullptr, &response));
+    REQUIRE(input_length * 2 == response.replacement_length);
+    REQUIRE(input_length * 2 == omega_session_get_computed_file_size(session_ptr));
+    REQUIRE(1 == omega_session_get_num_checkpoints(session_ptr));
+
+    auto *segment = omega_segment_create(16);
+    REQUIRE(segment);
+
+    REQUIRE(0 == omega_session_get_segment(session_ptr, segment, 0));
+    REQUIRE(16 == omega_segment_get_length(segment));
+    REQUIRE(0 == std::memcmp(omega_segment_get_data(segment), input.data(), 16));
+
+    REQUIRE(0 == omega_session_get_segment(session_ptr, segment, input_length - 8));
+    REQUIRE(16 == omega_segment_get_length(segment));
+    REQUIRE(0 == std::memcmp(omega_segment_get_data(segment), input.data() + input.size() - 8, 8));
+    REQUIRE(0 == std::memcmp(omega_segment_get_data(segment) + 8, input.data(), 8));
+
+    REQUIRE(0 == omega_session_get_segment(session_ptr, segment, input_length));
+    REQUIRE(16 == omega_segment_get_length(segment));
+    REQUIRE(0 == std::memcmp(omega_segment_get_data(segment), input.data(), 16));
+
+    omega_segment_destroy(segment);
+    omega_transform_plugin_response_clear(&response);
     omega_edit_destroy_session(session_ptr);
     omega_transform_plugin_registry_destroy(registry_ptr);
 }
