@@ -71,6 +71,7 @@
 <li><a class="reference internal" href="#c.O_BINARY"><code class="docutils literal notranslate"><span class="pre">O_BINARY</span></code></a></li>
 <li><a class="reference internal" href="#c.OMEGA_VIEWPORT_CAPACITY_LIMIT"><code class="docutils literal notranslate"><span class="pre">OMEGA_VIEWPORT_CAPACITY_LIMIT</span></code></a></li>
 <li><a class="reference internal" href="#c.OMEGA_SEARCH_PATTERN_LENGTH_LIMIT"><code class="docutils literal notranslate"><span class="pre">OMEGA_SEARCH_PATTERN_LENGTH_LIMIT</span></code></a></li>
+<li><a class="reference internal" href="#c.OMEGA_MEMORY_BUFFER_LIMIT"><code class="docutils literal notranslate"><span class="pre">OMEGA_MEMORY_BUFFER_LIMIT</span></code></a></li>
 <li><a class="reference internal" href="#c.OMEGA_BYTE_T"><code class="docutils literal notranslate"><span class="pre">OMEGA_BYTE_T</span></code></a></li>
 <li><a class="reference internal" href="#c.OMEGA_BUILD_UNIX"><code class="docutils literal notranslate"><span class="pre">OMEGA_BUILD_UNIX</span></code></a></li>
 <li><a class="reference internal" href="#c.OMEGA_BUILD_64_BIT"><code class="docutils literal notranslate"><span class="pre">OMEGA_BUILD_64_BIT</span></code></a></li>
@@ -119,6 +120,7 @@
 <li><a class="reference internal" href="#_CPPv426omega_edit_overwrite_bytesP15omega_session_t7int64_tPK12omega_byte_t7int64_t"><code class="docutils literal notranslate"><span class="pre">omega_edit_overwrite_bytes()</span></code></a></li>
 <li><a class="reference internal" href="#_CPPv420omega_edit_overwriteP15omega_session_t7int64_tPKc7int64_t"><code class="docutils literal notranslate"><span class="pre">omega_edit_overwrite()</span></code></a></li>
 <li><a class="reference internal" href="#_CPPv424omega_edit_replace_bytesP15omega_session_t7int64_t7int64_tPK12omega_byte_t7int64_t"><code class="docutils literal notranslate"><span class="pre">omega_edit_replace_bytes()</span></code></a></li>
+<li><a class="reference internal" href="#_CPPv437omega_edit_replace_bytes_checkpointedP15omega_session_t7int64_t7int64_tPK12omega_byte_t7int64_t"><code class="docutils literal notranslate"><span class="pre">omega_edit_replace_bytes_checkpointed()</span></code></a></li>
 <li><a class="reference internal" href="#_CPPv418omega_edit_replaceP15omega_session_t7int64_t7int64_tPKc7int64_t"><code class="docutils literal notranslate"><span class="pre">omega_edit_replace()</span></code></a></li>
 <li><a class="reference internal" href="#_CPPv432omega_edit_replace_matches_bytesP15omega_session_tPK12omega_byte_t7int64_tPK12omega_byte_t7int64_tii7int64_t7int64_t7int64_tiiP7int64_tP7int64_tP7int64_tP7int64_t"><code class="docutils literal notranslate"><span class="pre">omega_edit_replace_matches_bytes()</span></code></a></li>
 <li><a class="reference internal" href="#_CPPv426omega_edit_replace_matchesP15omega_session_tPKc7int64_tPKc7int64_tii7int64_t7int64_t7int64_tiiP7int64_tP7int64_tP7int64_tP7int64_t"><code class="docutils literal notranslate"><span class="pre">omega_edit_replace_matches()</span></code></a></li>
@@ -565,6 +567,12 @@
 </dd></dl>
 
 <dl class="cpp macro">
+<dt class="sig sig-object cpp" id="c.OMEGA_MEMORY_BUFFER_LIMIT">
+<span class="target" id="config_8h_1a59b6799c45ce3e0831c643446b1523f3"></span><span class="sig-name descname"><span class="n"><span class="pre">OMEGA_MEMORY_BUFFER_LIMIT</span></span></span><a class="headerlink" href="#c.OMEGA_MEMORY_BUFFER_LIMIT" title="Link to this definition"></a><br /></dt>
+<dd><p>Maximum byte range that APIs may materialize into one in-memory buffer. </p>
+</dd></dl>
+
+<dl class="cpp macro">
 <dt class="sig sig-object cpp" id="c.OMEGA_BYTE_T">
 <span class="target" id="config_8h_1a02e763ef59507b75acb10633737cb9c4"></span><span class="sig-name descname"><span class="n"><span class="pre">OMEGA_BYTE_T</span></span></span><a class="headerlink" href="#c.OMEGA_BYTE_T" title="Link to this definition"></a><br /></dt>
 <dd><p>Define the byte type to be used across the project </p>
@@ -614,13 +622,13 @@
 <dl class="cpp macro">
 <dt class="sig sig-object cpp" id="c.FSEEK">
 <span class="target" id="config_8h_1aea660a9139172ebd945a83b409fb4f67"></span><span class="sig-name descname"><span class="n"><span class="pre">FSEEK</span></span></span><a class="headerlink" href="#c.FSEEK" title="Link to this definition"></a><br /></dt>
-<dd><p>Alias for the fseek/fseeko function, using fseeko if _LARGEFILE_SOURCE is defined to accommodate large files. </p>
+<dd><p>Alias for the fseek/fseeko function, using a 64-bit file offset API where needed to accommodate large files. </p>
 </dd></dl>
 
 <dl class="cpp macro">
 <dt class="sig sig-object cpp" id="c.FTELL">
 <span class="target" id="config_8h_1a13626ef7288234ec5471d94d9f45e06a"></span><span class="sig-name descname"><span class="n"><span class="pre">FTELL</span></span></span><a class="headerlink" href="#c.FTELL" title="Link to this definition"></a><br /></dt>
-<dd><p>Alias for the ftell/ftello function, using ftello if _LARGEFILE_SOURCE is defined to accommodate large files. </p>
+<dd><p>Alias for the ftell/ftello function, using a 64-bit file offset API where needed to accommodate large files. </p>
 </dd></dl>
 
 </div>
@@ -887,7 +895,7 @@
 <dl class="cpp function">
 <dt class="sig sig-object cpp" id="_CPPv432omega_edit_save_segment_to_bytesPK15omega_session_tPP12omega_byte_tP7int64_t7int64_t7int64_t">
 <span id="_CPPv332omega_edit_save_segment_to_bytesPK15omega_session_tPP12omega_byte_tP7int64_t7int64_t7int64_t"></span><span id="_CPPv232omega_edit_save_segment_to_bytesPK15omega_session_tPP12omega_byte_tP7int64_t7int64_t7int64_t"></span><span id="omega_edit_save_segment_to_bytes__omega_session_tCP.omega_byte_tPP.int64_tP.int64_t.int64_t"></span><span class="target" id="edit_8h_1abb6b1cf19ddb85878b3f4775e7a5fd5f"></span><span class="kt"><span class="pre">int</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">omega_edit_save_segment_to_bytes</span></span></span><span class="sig-paren">(</span><span class="k"><span class="pre">const</span></span><span class="w"> </span><a class="reference internal" href="#_CPPv415omega_session_t" title="omega_session_t"><span class="n"><span class="pre">omega_session_t</span></span></a><span class="w"> </span><span class="p"><span class="pre">*</span></span><span class="n sig-param"><span class="pre">session_ptr</span></span>, <a class="reference internal" href="#_CPPv412omega_byte_t" title="omega_byte_t"><span class="n"><span class="pre">omega_byte_t</span></span></a><span class="w"> </span><span class="p"><span class="pre">*</span></span><span class="p"><span class="pre">*</span></span><span class="n sig-param"><span class="pre">data_ptr_out</span></span>, <span class="n"><span class="pre">int64_t</span></span><span class="w"> </span><span class="p"><span class="pre">*</span></span><span class="n sig-param"><span class="pre">length_out</span></span>, <span class="n"><span class="pre">int64_t</span></span><span class="w"> </span><span class="n sig-param"><span class="pre">offset</span></span>, <span class="n"><span class="pre">int64_t</span></span><span class="w"> </span><span class="n sig-param"><span class="pre">length</span></span><span class="sig-paren">)</span><a class="headerlink" href="#_CPPv432omega_edit_save_segment_to_bytesPK15omega_session_tPP12omega_byte_tP7int64_t7int64_t7int64_t" title="Link to this definition"></a><br /></dt>
-<dd><p>Copy a session byte range into a newly allocated memory buffer. </p>
+<dd><p>Copy a bounded session byte range into a newly allocated memory buffer. </p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
@@ -899,7 +907,7 @@
 </ul>
 </dd>
 <dt class="field-even">Returns<span class="colon">:</span></dt>
-<dd class="field-even"><p>0 on success, non-zero otherwise </p>
+<dd class="field-even"><p>0 on success, non-zero otherwise. Requests larger than OMEGA_MEMORY_BUFFER_LIMIT fail; use omega_edit_save_segment for large streaming exports. </p>
 </dd>
 </dl>
 </dd></dl>
@@ -907,7 +915,7 @@
 <dl class="cpp function">
 <dt class="sig sig-object cpp" id="_CPPv424omega_edit_save_to_bytesPK15omega_session_tPP12omega_byte_tP7int64_t">
 <span id="_CPPv324omega_edit_save_to_bytesPK15omega_session_tPP12omega_byte_tP7int64_t"></span><span id="_CPPv224omega_edit_save_to_bytesPK15omega_session_tPP12omega_byte_tP7int64_t"></span><span id="omega_edit_save_to_bytes__omega_session_tCP.omega_byte_tPP.int64_tP"></span><span class="target" id="edit_8h_1a5c9fa2cf048856f7546de2f836d2f047"></span><span class="kt"><span class="pre">int</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">omega_edit_save_to_bytes</span></span></span><span class="sig-paren">(</span><span class="k"><span class="pre">const</span></span><span class="w"> </span><a class="reference internal" href="#_CPPv415omega_session_t" title="omega_session_t"><span class="n"><span class="pre">omega_session_t</span></span></a><span class="w"> </span><span class="p"><span class="pre">*</span></span><span class="n sig-param"><span class="pre">session_ptr</span></span>, <a class="reference internal" href="#_CPPv412omega_byte_t" title="omega_byte_t"><span class="n"><span class="pre">omega_byte_t</span></span></a><span class="w"> </span><span class="p"><span class="pre">*</span></span><span class="p"><span class="pre">*</span></span><span class="n sig-param"><span class="pre">data_ptr_out</span></span>, <span class="n"><span class="pre">int64_t</span></span><span class="w"> </span><span class="p"><span class="pre">*</span></span><span class="n sig-param"><span class="pre">length_out</span></span><span class="sig-paren">)</span><a class="headerlink" href="#_CPPv424omega_edit_save_to_bytesPK15omega_session_tPP12omega_byte_tP7int64_t" title="Link to this definition"></a><br /></dt>
-<dd><p>Copy the full computed session content into a newly allocated memory buffer. </p>
+<dd><p>Copy the full computed session content into a newly allocated memory buffer when it is bounded. </p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
@@ -917,7 +925,7 @@
 </ul>
 </dd>
 <dt class="field-even">Returns<span class="colon">:</span></dt>
-<dd class="field-even"><p>0 on success, non-zero otherwise </p>
+<dd class="field-even"><p>0 on success, non-zero otherwise. Large sessions fail instead of attempting an unbounded allocation; use omega_edit_save for large streaming exports. </p>
 </dd>
 </dl>
 </dd></dl>
@@ -1049,6 +1057,27 @@
 </dd>
 <dt class="field-even">Returns<span class="colon">:</span></dt>
 <dd class="field-even"><p>positive change serial number on success; 0 if the request is rejected without error or results in no change; -1 if the arguments are invalid (for example, <code class="docutils literal notranslate"><span class="pre">session_ptr</span></code> is null or <code class="docutils literal notranslate"><span class="pre">bytes</span></code> is null while <code class="docutils literal notranslate"><span class="pre">insert_length</span></code> is greater than zero) </p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="cpp function">
+<dt class="sig sig-object cpp" id="_CPPv437omega_edit_replace_bytes_checkpointedP15omega_session_t7int64_t7int64_tPK12omega_byte_t7int64_t">
+<span id="_CPPv337omega_edit_replace_bytes_checkpointedP15omega_session_t7int64_t7int64_tPK12omega_byte_t7int64_t"></span><span id="_CPPv237omega_edit_replace_bytes_checkpointedP15omega_session_t7int64_t7int64_tPK12omega_byte_t7int64_t"></span><span id="omega_edit_replace_bytes_checkpointed__omega_session_tP.int64_t.int64_t.omega_byte_tCP.int64_t"></span><span class="target" id="edit_8h_1a1d7cf7779871ff069946c056fd9c205d"></span><span class="kt"><span class="pre">int</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">omega_edit_replace_bytes_checkpointed</span></span></span><span class="sig-paren">(</span><a class="reference internal" href="#_CPPv415omega_session_t" title="omega_session_t"><span class="n"><span class="pre">omega_session_t</span></span></a><span class="w"> </span><span class="p"><span class="pre">*</span></span><span class="n sig-param"><span class="pre">session_ptr</span></span>, <span class="n"><span class="pre">int64_t</span></span><span class="w"> </span><span class="n sig-param"><span class="pre">offset</span></span>, <span class="n"><span class="pre">int64_t</span></span><span class="w"> </span><span class="n sig-param"><span class="pre">delete_length</span></span>, <span class="k"><span class="pre">const</span></span><span class="w"> </span><a class="reference internal" href="#_CPPv412omega_byte_t" title="omega_byte_t"><span class="n"><span class="pre">omega_byte_t</span></span></a><span class="w"> </span><span class="p"><span class="pre">*</span></span><span class="n sig-param"><span class="pre">bytes</span></span>, <span class="n"><span class="pre">int64_t</span></span><span class="w"> </span><span class="n sig-param"><span class="pre">insert_length</span></span><span class="sig-paren">)</span><a class="headerlink" href="#_CPPv437omega_edit_replace_bytes_checkpointedP15omega_session_t7int64_t7int64_tPK12omega_byte_t7int64_t" title="Link to this definition"></a><br /></dt>
+<dd><p>Replace a span of bytes by streaming the resulting session into a new checkpoint.</p>
+<p>This avoids storing replacement bytes in memory-backed change history and is intended for large generated replacements. Like other checkpoint operations, it promotes the newly written checkpoint as the active model.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>session_ptr</strong> – session to make the change in </p></li>
+<li><p><strong>offset</strong> – location offset to make the change </p></li>
+<li><p><strong>delete_length</strong> – number of original bytes to remove </p></li>
+<li><p><strong>bytes</strong> – replacement bytes, or null if <code class="docutils literal notranslate"><span class="pre">insert_length</span></code> is zero </p></li>
+<li><p><strong>insert_length</strong> – explicit number of replacement bytes to insert </p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>zero on success and non-zero otherwise </p>
 </dd>
 </dl>
 </dd></dl>
