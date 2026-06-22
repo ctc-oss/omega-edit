@@ -22,11 +22,76 @@
 
 namespace {
 
-constexpr const char *CHECKSUM_ARGS_SCHEMA =
-        "{\"type\":\"object\",\"properties\":{\"algorithm\":{\"type\":\"string\",\"pattern\":\"^(crc32|crc32c|crc32-"
-        "mpeg2|crc32-bzip2|crc16-ibm|crc16-arc|crc16-ccitt-false|crc16-xmodem|crc16-modbus|crc16-kermit|crc8|"
-        "adler32|fletcher16|fletcher32|internet-checksum|lrc|bcc|sum8|sum16|sum32|fnv1a32|fnv1a64|murmur3-32|"
-        "xxhash32|xxhash64)$\"}},\"additionalProperties\":false}";
+constexpr const char *CHECKSUM_ARGS_SCHEMA = R"json({
+  "type": "object",
+  "properties": {
+    "algorithm": {
+      "type": "string",
+      "title": "Algorithm",
+      "description": "Checksum, CRC, or non-cryptographic hash to calculate.",
+      "default": "crc32",
+      "enum": [
+        "crc32",
+        "crc32c",
+        "crc32-mpeg2",
+        "crc32-bzip2",
+        "crc16-ibm",
+        "crc16-arc",
+        "crc16-ccitt-false",
+        "crc16-xmodem",
+        "crc16-modbus",
+        "crc16-kermit",
+        "crc8",
+        "adler32",
+        "fletcher16",
+        "fletcher32",
+        "internet-checksum",
+        "lrc",
+        "bcc",
+        "sum8",
+        "sum16",
+        "sum32",
+        "fnv1a32",
+        "fnv1a64",
+        "murmur3-32",
+        "xxhash32",
+        "xxhash64"
+      ],
+      "x-omega-enumGroups": [
+        {
+          "label": "CRC",
+          "values": [
+            "crc32",
+            "crc32c",
+            "crc32-mpeg2",
+            "crc32-bzip2",
+            "crc16-ibm",
+            "crc16-arc",
+            "crc16-ccitt-false",
+            "crc16-xmodem",
+            "crc16-modbus",
+            "crc16-kermit",
+            "crc8"
+          ]
+        },
+        {
+          "label": "Adler/Fletcher",
+          "values": ["adler32", "fletcher16", "fletcher32"]
+        },
+        {
+          "label": "Sums",
+          "values": ["internet-checksum", "lrc", "bcc", "sum8", "sum16", "sum32"]
+        },
+        {
+          "label": "Hashes",
+          "values": ["fnv1a32", "fnv1a64", "murmur3-32", "xxhash32", "xxhash64"]
+        }
+      ]
+    }
+  },
+  "required": ["algorithm"],
+  "additionalProperties": false
+})json";
 
 uint64_t mask_for_width(int width) {
     return width == 64 ? UINT64_MAX : ((UINT64_C(1) << width) - UINT64_C(1));

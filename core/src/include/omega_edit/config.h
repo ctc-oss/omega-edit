@@ -58,6 +58,11 @@
 #define OMEGA_SEARCH_PATTERN_LENGTH_LIMIT (OMEGA_VIEWPORT_CAPACITY_LIMIT / 2)
 #endif//OMEGA_SEARCH_PATTERN_LENGTH_LIMIT
 
+#ifndef OMEGA_MEMORY_BUFFER_LIMIT
+/** Maximum byte range that APIs may materialize into one in-memory buffer. */
+#define OMEGA_MEMORY_BUFFER_LIMIT (64LL * 1024LL * 1024LL)
+#endif//OMEGA_MEMORY_BUFFER_LIMIT
+
 #ifndef OMEGA_BYTE_T
 /** Define the byte type to be used across the project */
 #define OMEGA_BYTE_T unsigned char
@@ -158,10 +163,13 @@ static inline FILE *safe_fopen_(const char *filename, const char *mode) {
 #endif
 
 /**
- * Alias for the fseek/fseeko function, using fseeko if _LARGEFILE_SOURCE is defined to accommodate large files.
+ * Alias for the fseek/fseeko function, using a 64-bit file offset API where
+ * needed to accommodate large files.
  */
 #ifndef FSEEK
-#ifdef HAVE_FSEEKO
+#ifdef OMEGA_BUILD_WINDOWS
+#define FSEEK _fseeki64
+#elif defined(HAVE_FSEEKO)
 #define FSEEK fseeko
 #else
 #define FSEEK fseek
@@ -169,10 +177,13 @@ static inline FILE *safe_fopen_(const char *filename, const char *mode) {
 #endif
 
 /**
- * Alias for the ftell/ftello function, using ftello if _LARGEFILE_SOURCE is defined to accommodate large files.
+ * Alias for the ftell/ftello function, using a 64-bit file offset API where
+ * needed to accommodate large files.
  */
 #ifndef FTELL
-#ifdef HAVE_FTELLO
+#ifdef OMEGA_BUILD_WINDOWS
+#define FTELL _ftelli64
+#elif defined(HAVE_FTELLO)
 #define FTELL ftello
 #else
 #define FTELL ftell

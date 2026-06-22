@@ -285,11 +285,25 @@ test('root build stages transform plugins before packaging the VSIX', () => {
   assert.match(rootBuildScript, /stage_vscode_transform_plugins/)
   assert.match(
     rootBuildScript,
-    /build-shared-\$\{type\}\/core\/src\/tests\/plugins/
+    /command -v cl[\s\S]*\[\[ -n "\$\{INCLUDE:-\}" && -n "\$\{LIB:-\}" \]\]/
   )
   assert.match(
     rootBuildScript,
-    /npm run stage:transform-plugins -- "\$transform_plugins_stage" --platform "\$transform_plugin_platform"/
+    /build-shared-\$\{type\}\/core\/src\/tests\/plugins/
+  )
+  assert.match(rootBuildScript, /server_tgz="\$\(to_native_path/)
+  assert.match(rootBuildScript, /client_tgz="\$\(to_native_path/)
+  assert.match(
+    rootBuildScript,
+    /transform_plugins_stage_native="\$\(to_native_path "\$transform_plugins_stage"\)"/
+  )
+  assert.match(
+    rootBuildScript,
+    /npm install --no-save "\$server_tgz" "\$client_tgz"/
+  )
+  assert.match(
+    rootBuildScript,
+    /npm run stage:transform-plugins -- "\$transform_plugins_stage_native" --platform "\$transform_plugin_platform"/
   )
   assert.match(
     rootBuildScript,
@@ -363,6 +377,10 @@ test('compiled extension entrypoints exist after build', () => {
     path.resolve(__dirname, '../out/svelte-webview/webview.css'),
     'utf8'
   )
+  const svelteStylesSource = fs.readFileSync(
+    path.resolve(__dirname, '../webview-ui/src/styles.css'),
+    'utf8'
+  )
   const viteConfigSource = fs.readFileSync(
     path.resolve(__dirname, '../vite.config.mts'),
     'utf8'
@@ -399,6 +417,14 @@ test('compiled extension entrypoints exist after build', () => {
       __dirname,
       '../webview-ui/src/components/TransformPanel.svelte'
     ),
+    'utf8'
+  )
+  const commonChecksumsSource = fs.readFileSync(
+    path.resolve(__dirname, '../../plugins/src/common_checksums.cpp'),
+    'utf8'
+  )
+  const coreTransformSource = fs.readFileSync(
+    path.resolve(__dirname, '../../core/src/lib/transform.cpp'),
     'utf8'
   )
   const transformResultPanelSource = fs.readFileSync(
@@ -513,6 +539,8 @@ test('compiled extension entrypoints exist after build', () => {
   assert.match(providerJs, /clearExternalHighlights/)
   assert.match(providerJs, /createStatusBarItem/)
   assert.match(providerJs, /updateStatusBar/)
+  assert.match(providerJs, /Replacing matches\.\.\./)
+  assert.match(providerJs, /Creating checkpoint\.\.\./)
   assert.match(providerJs, /buildServerHealthTooltip/)
   assert.match(providerJs, /new vscode\.MarkdownString/)
   assert.match(providerJs, /Ωedit™ Server/)
@@ -628,6 +656,11 @@ test('compiled extension entrypoints exist after build', () => {
   assert.doesNotMatch(svelteBundleCss, /\.inspector-feedback:empty/)
   assert.match(svelteBundleCss, /\.editor-main/)
   assert.match(svelteBundleCss, /\.editor-grid-shell/)
+  assert.match(svelteStylesSource, /\.editor-readonly-badge/)
+  assert.match(svelteStylesSource, /\.editor-readonly-dot/)
+  assert.match(svelteStylesSource, /\.transform-options-form/)
+  assert.match(svelteStylesSource, /\.transform-option-field/)
+  assert.match(svelteStylesSource, /\.transform-raw-options/)
   assert.match(svelteBundleCss, /\.file-scrollbar/)
   assert.match(svelteBundleCss, /\.file-scrollbar-track/)
   assert.match(svelteBundleCss, /\.file-scrollbar-thumb/)
@@ -733,6 +766,15 @@ test('compiled extension entrypoints exist after build', () => {
   assert.match(svelteAppSource, /type: 'search'/)
   assert.match(svelteAppSource, /type: 'replace'/)
   assert.match(svelteAppSource, /type: 'replaceAllMatches'/)
+  assert.match(
+    svelteAppSource,
+    /transformFeedback = strings\.search\.replacingAll/
+  )
+  assert.match(svelteAppSource, /transformFeedback = ''/)
+  assert.match(
+    svelteAppSource,
+    /readOnlyTitle=\{transformFeedback \|\| strings\.transform\.inFlight\}/
+  )
   assert.match(svelteAppSource, /transformPlugins = \$state/)
   assert.match(svelteAppSource, /transformPluginsLoaded = \$state/)
   assert.match(svelteAppSource, /transformPluginsLoading = \$state/)
@@ -852,6 +894,10 @@ test('compiled extension entrypoints exist after build', () => {
   assert.match(editorWorkspaceSource, /PreviewGrid/)
   assert.match(editorWorkspaceSource, /FileScrollbar/)
   assert.match(editorWorkspaceSource, /editor-grid-shell/)
+  assert.match(editorWorkspaceSource, /editor-readonly-badge/)
+  assert.match(editorWorkspaceSource, /editor-readonly-dot/)
+  assert.match(editorWorkspaceSource, /readOnlyLabel/)
+  assert.match(editorWorkspaceSource, /readOnlyTitle/)
   assert.match(editorWorkspaceSource, /scrollOffset/)
   assert.match(editorWorkspaceSource, /onScrollTo/)
   assert.match(editorWorkspaceSource, /ProfilerPanel/)
@@ -985,6 +1031,10 @@ test('compiled extension entrypoints exist after build', () => {
   assert.match(i18nSource, /resultAvailable/)
   assert.match(i18nSource, /resultHistoryTitle/)
   assert.match(i18nSource, /rangeEndBeforeStart/)
+  assert.match(i18nSource, /replacingAll: 'Replacing matches\.\.\.'/)
+  assert.match(i18nSource, /readOnly: 'Read-only'/)
+  assert.match(i18nSource, /rawOptionsJson: 'JSON'/)
+  assert.match(i18nSource, /schemaEnum/)
   assert.match(toolbarSource, /strings\.toolbar\.offsetRadix/)
   assert.match(toolbarSource, /strings\.toolbar\.hexOffsets/)
   assert.match(toolbarSource, /strings\.toolbar\.decOffsets/)
@@ -1008,6 +1058,10 @@ test('compiled extension entrypoints exist after build', () => {
   assert.doesNotMatch(toolbarSource, /strings\.toolbar\.redo/)
   assert.match(transformPanelSource, /strings\.transform\.label/)
   assert.match(transformPanelSource, /function advertisedTransformExamples/)
+  assert.match(transformPanelSource, /interface TransformOptionField/)
+  assert.match(transformPanelSource, /function buildTransformOptionFields/)
+  assert.match(transformPanelSource, /function setOptionValue/)
+  assert.match(transformPanelSource, /x-omega-enumGroups/)
   assert.match(transformPanelSource, /function validateJsonSchemaValue/)
   assert.match(transformPanelSource, /function validateTransformOptions/)
   assert.match(transformPanelSource, /function validateTransformRange/)
@@ -1034,6 +1088,9 @@ test('compiled extension entrypoints exist after build', () => {
     /aria-label=\{strings\.transform\.closeDialog\}/
   )
   assert.match(transformPanelSource, /class="transform-select"/)
+  assert.match(transformPanelSource, /class="transform-options-form"/)
+  assert.match(transformPanelSource, /class="transform-raw-options"/)
+  assert.match(transformPanelSource, /<optgroup label=\{group\.label\}>/)
   assert.match(transformPanelSource, /class="transform-result-history"/)
   assert.match(transformPanelSource, /onOpenTransformResult/)
   assert.match(transformPanelSource, /class="help-example"/)
@@ -1041,11 +1098,18 @@ test('compiled extension entrypoints exist after build', () => {
   assert.match(transformPanelSource, /argsSchema/)
   assert.match(transformPanelSource, /strings\.transform\.invalidJson/)
   assert.match(transformPanelSource, /strings\.transform\.invalidSchema/)
+  assert.match(transformPanelSource, /strings\.transform\.schemaEnum/)
   assert.match(transformPanelSource, /strings\.transform\.maxOffset/)
   assert.match(
     transformPanelSource,
     /onApplyTransform\([\s\S]*plugin\.id[\s\S]*transformRange\.offset[\s\S]*transformRange\.length/
   )
+  assert.match(commonChecksumsSource, /"enum": \[/)
+  assert.match(commonChecksumsSource, /"x-omega-enumGroups"/)
+  assert.match(commonChecksumsSource, /"label": "CRC"/)
+  assert.match(commonChecksumsSource, /"default": "crc32"/)
+  assert.match(coreTransformSource, /json_values_equal_/)
+  assert.match(coreTransformSource, /json_object_member_\(schema, "enum"\)/)
   assert.doesNotMatch(transformPanelSource, /transform-refresh/)
   assert.doesNotMatch(transformPanelSource, /refreshTransforms/)
   assert.match(transformResultPanelSource, /strings\.transform\.resultTitle/)

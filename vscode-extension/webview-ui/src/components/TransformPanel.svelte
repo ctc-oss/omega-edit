@@ -7,6 +7,36 @@
   } from '../protocol'
 
   type OffsetRadix = 'hex' | 'dec'
+  type JsonObject = Record<string, unknown>
+  type TransformOptionControl = 'checkbox' | 'number' | 'select' | 'text'
+
+  interface TransformOptionChoice {
+    label: string
+    value: string
+  }
+
+  interface TransformOptionGroup {
+    label: string
+    options: TransformOptionChoice[]
+  }
+
+  interface TransformOptionField {
+    key: string
+    id: string
+    label: string
+    description: string
+    type: string
+    control: TransformOptionControl
+    required: boolean
+    value: string
+    checked: boolean
+    choices: TransformOptionChoice[]
+    groups: TransformOptionGroup[]
+    ungroupedChoices: TransformOptionChoice[]
+    minimum?: number
+    maximum?: number
+    step?: string
+  }
 
   interface Props {
     plugins?: WebviewTransformPlugin[]
@@ -74,7 +104,7 @@
   let rangeStartInput = $state('')
   let rangeEndInput = $state('')
   let savedOptionsByPluginId = $state<Record<string, string>>({})
-  let optionsInput = $state<HTMLInputElement>()
+  let optionsInput = $state<HTMLElement>()
   let applyButton = $state<HTMLButtonElement>()
   let resultHistoryMenu = $state<HTMLDetailsElement>()
 
@@ -85,6 +115,13 @@
     !busy && selectionStart >= 0 && selectionLength > 0
   )
   const hasOptionsSchema = $derived(Boolean(selectedPlugin?.argsSchema))
+  const optionSchema = $derived(
+    parseJsonObject(selectedPlugin?.argsSchema || '')
+  )
+  const transformOptionFields = $derived(
+    buildTransformOptionFields(optionSchema, optionsJson)
+  )
+  const hasOptionForm = $derived(transformOptionFields.length > 0)
   const advertisedExamples = $derived(advertisedTransformExamples(selectedPlugin))
   const optionHelp = $derived(getTransformOptionHelp(selectedPlugin))
   const transformRange = $derived(
@@ -273,6 +310,48 @@
     return typeof value === 'object' && value !== null && !Array.isArray(value)
   }
 
+  function parseJsonObject(rawJson: string): JsonObject | undefined {
+    if (!rawJson.trim()) {
+      return undefined
+    }
+    try {
+      const parsed: unknown = JSON.parse(rawJson)
+      return schemaObject(parsed) ? parsed : undefined
+    } catch {
+      return undefined
+    }
+  }
+
+  function jsonValuesEqual(left: unknown, right: unknown): boolean {
+    if (Object.is(left, right)) {
+      return true
+    }
+    if (Array.isArray(left) || Array.isArray(right)) {
+      return (
+        Array.isArray(left) &&
+        Array.isArray(right) &&
+        left.length === right.length &&
+        left.every((item, index) => jsonValuesEqual(item, right[index]))
+      )
+    }
+    if (schemaObject(left) || schemaObject(right)) {
+      if (!schemaObject(left) || !schemaObject(right)) {
+        return false
+      }
+      const leftKeys = Object.keys(left)
+      const rightKeys = Object.keys(right)
+      return (
+        leftKeys.length === rightKeys.length &&
+        leftKeys.every(
+          (key) =>
+            Object.prototype.hasOwnProperty.call(right, key) &&
+            jsonValuesEqual(left[key], right[key])
+        )
+      )
+    }
+    return false
+  }
+
   function matchesPattern(value: string, pattern: string): boolean | undefined {
     try {
       return new RegExp(pattern).test(value)
@@ -299,6 +378,15 @@
 
     if (schema.not && validateJsonSchemaValue(value, schema.not, path) === '') {
       return strings.transform.schemaNot(path)
+    }
+
+    if (Array.isArray(schema.enum)) {
+      const matches = schema.enum.some((candidate) =>
+        jsonValuesEqual(value, candidate)
+      )
+      if (!matches) {
+        return strings.transform.schemaEnum(path)
+      }
     }
 
     if (schema.type === 'object') {
@@ -402,8 +490,16 @@
       }
     }
 
-    if (schema.type === 'number' && typeof value !== 'number') {
-      return strings.transform.schemaNumber(path)
+    if (schema.type === 'number') {
+      if (typeof value !== 'number') {
+        return strings.transform.schemaNumber(path)
+      }
+      if (typeof schema.minimum === 'number' && value < schema.minimum) {
+        return strings.transform.schemaMinimum(path, schema.minimum)
+      }
+      if (typeof schema.maximum === 'number' && value > schema.maximum) {
+        return strings.transform.schemaMaximum(path, schema.maximum)
+      }
     }
 
     if (schema.type === 'boolean' && typeof value !== 'boolean') {
@@ -440,6 +536,195 @@
     }
 
     return validateJsonSchemaValue(parsedOptions, schema, strings.transform.optionsPath)
+  }
+
+  function formatOptionLabel(key: string): string {
+    return key
+      .replace(/([a-z0-9])([A-Z])/g, '$1 $2')
+      .replace(/[-_]+/g, ' ')
+      .replace(/\b\w/g, (match) => match.toUpperCase())
+  }
+
+  function optionChoiceFor(value: unknown): TransformOptionChoice | undefined {
+    if (
+      typeof value !== 'string' &&
+      typeof value !== 'number' &&
+      typeof value !== 'boolean'
+    ) {
+      return undefined
+    }
+    const text = String(value)
+    return { label: text, value: text }
+  }
+
+  function optionChoices(value: unknown): TransformOptionChoice[] {
+    if (!Array.isArray(value)) {
+      return []
+    }
+    const choices: TransformOptionChoice[] = []
+    for (const item of value) {
+      const choice = optionChoiceFor(item)
+      if (choice) {
+        choices.push(choice)
+      }
+    }
+    return choices.length === value.length ? choices : []
+  }
+
+  function optionGroups(
+    schema: JsonObject,
+    choices: TransformOptionChoice[]
+  ): TransformOptionGroup[] {
+    const rawGroups = schema['x-omega-enumGroups']
+    if (!Array.isArray(rawGroups) || choices.length === 0) {
+      return []
+    }
+    const choicesByValue = new Map(
+      choices.map((choice) => [choice.value, choice])
+    )
+    const groups: TransformOptionGroup[] = []
+    for (const rawGroup of rawGroups) {
+      if (!schemaObject(rawGroup) || typeof rawGroup.label !== 'string') {
+        continue
+      }
+      if (!Array.isArray(rawGroup.values)) {
+        continue
+      }
+      const options = rawGroup.values
+        .map((value) => choicesByValue.get(String(value)))
+        .filter((choice): choice is TransformOptionChoice => Boolean(choice))
+      if (options.length > 0) {
+        groups.push({ label: rawGroup.label, options })
+      }
+    }
+    return groups
+  }
+
+  function ungroupedOptionChoices(
+    choices: TransformOptionChoice[],
+    groups: TransformOptionGroup[]
+  ): TransformOptionChoice[] {
+    const grouped = new Set(
+      groups.flatMap((group) => group.options.map((choice) => choice.value))
+    )
+    return choices.filter((choice) => !grouped.has(choice.value))
+  }
+
+  function currentOptionValue(
+    options: JsonObject | undefined,
+    key: string,
+    schema: JsonObject
+  ): unknown {
+    if (options && Object.prototype.hasOwnProperty.call(options, key)) {
+      return options[key]
+    }
+    return schema.default
+  }
+
+  function transformOptionField(
+    key: string,
+    schema: unknown,
+    required: boolean,
+    options: JsonObject | undefined
+  ): TransformOptionField | undefined {
+    if (!schemaObject(schema)) {
+      return undefined
+    }
+    const type = typeof schema.type === 'string' ? schema.type : ''
+    if (!['boolean', 'integer', 'number', 'string'].includes(type)) {
+      return undefined
+    }
+
+    const choices = optionChoices(schema.enum)
+    const control: TransformOptionControl =
+      choices.length > 0
+        ? 'select'
+        : type === 'boolean'
+          ? 'checkbox'
+          : type === 'integer' || type === 'number'
+            ? 'number'
+            : 'text'
+    const value = currentOptionValue(options, key, schema)
+    const groups = optionGroups(schema, choices)
+    return {
+      key,
+      id: `transformOption-${key.replace(/[^A-Za-z0-9_-]/g, '-')}`,
+      label:
+        typeof schema.title === 'string' ? schema.title : formatOptionLabel(key),
+      description:
+        typeof schema.description === 'string' ? schema.description : '',
+      type,
+      control,
+      required,
+      value: value === undefined ? '' : String(value),
+      checked: Boolean(value),
+      choices,
+      groups,
+      ungroupedChoices: ungroupedOptionChoices(choices, groups),
+      minimum: typeof schema.minimum === 'number' ? schema.minimum : undefined,
+      maximum: typeof schema.maximum === 'number' ? schema.maximum : undefined,
+      step: type === 'integer' ? '1' : 'any',
+    }
+  }
+
+  function buildTransformOptionFields(
+    schema: JsonObject | undefined,
+    rawOptionsJson: string
+  ): TransformOptionField[] {
+    if (
+      !schema ||
+      schema.type !== 'object' ||
+      !schemaObject(schema.properties)
+    ) {
+      return []
+    }
+
+    const required = new Set(
+      Array.isArray(schema.required)
+        ? schema.required.filter((key): key is string => typeof key === 'string')
+        : []
+    )
+    const options = parseJsonObject(rawOptionsJson)
+    const fields: TransformOptionField[] = []
+    for (const [key, propertySchema] of Object.entries(schema.properties)) {
+      const field = transformOptionField(
+        key,
+        propertySchema,
+        required.has(key),
+        options
+      )
+      if (!field) {
+        return []
+      }
+      fields.push(field)
+    }
+    return fields
+  }
+
+  function setOptionValue(
+    field: TransformOptionField,
+    rawValue: string | boolean
+  ): void {
+    const options = { ...(parseJsonObject(optionsJson) || {}) }
+    if (field.control === 'checkbox') {
+      options[field.key] = Boolean(rawValue)
+    } else {
+      const text = String(rawValue)
+      if (!text) {
+        delete options[field.key]
+      } else if (field.type === 'integer') {
+        const parsed = Number.parseInt(text, 10)
+        options[field.key] = Number.isFinite(parsed) ? parsed : text
+      } else if (field.type === 'number') {
+        const parsed = Number(text)
+        options[field.key] = Number.isFinite(parsed) ? parsed : text
+      } else if (field.type === 'boolean') {
+        options[field.key] = text === 'true'
+      } else {
+        options[field.key] = text
+      }
+    }
+    optionsJson = JSON.stringify(options)
   }
 
   async function openTransformDialog(pluginId: string): Promise<void> {
@@ -690,7 +975,11 @@
 
       {#if optionHelp.help}
         <div class="help-section-title">
-          {hasOptionsSchema ? strings.transform.optionsJson : strings.transform.help}
+          {hasOptionForm
+            ? strings.transform.options
+            : hasOptionsSchema
+              ? strings.transform.optionsJson
+              : strings.transform.help}
         </div>
         <p>{optionHelp.help}</p>
       {/if}
@@ -716,25 +1005,134 @@
       {/if}
 
       {#if hasOptionsSchema}
-        <label class="transform-options-field">
-          <span>{strings.transform.optionsJson}</span>
-          <input
-            bind:this={optionsInput}
-            value={optionsJson}
-            maxlength={MAX_TRANSFORM_OPTIONS_LENGTH}
-            placeholder={advertisedExamples[0]
-              ? strings.transform.examplePlaceholder(advertisedExamples[0])
-              : strings.transform.optionsPlaceholder}
-            aria-invalid={optionsValidationError ? 'true' : 'false'}
-            oninput={(event) => {
-              const input = event.currentTarget
-              if (input instanceof HTMLInputElement) {
-                optionsJson = input.value
-              }
-            }}
-            onkeydown={handleOptionsKeydown}
-          />
-        </label>
+        {#if hasOptionForm}
+          <div class="help-section-title">{strings.transform.options}</div>
+          <div class="transform-options-form">
+            {#each transformOptionFields as field (field.key)}
+              <div class="transform-option-field">
+                <label class="transform-option-label" for={field.id}>
+                  {field.label}
+                </label>
+                {#if field.control === 'select'}
+                  <select
+                    bind:this={optionsInput}
+                    id={field.id}
+                    value={field.value}
+                    aria-invalid={optionsValidationError ? 'true' : 'false'}
+                    onchange={(event) => {
+                      const select = event.currentTarget
+                      if (select instanceof HTMLSelectElement) {
+                        setOptionValue(field, select.value)
+                      }
+                    }}
+                    onkeydown={handleOptionsKeydown}
+                  >
+                    {#if !field.required}
+                      <option value="">{strings.transform.optionUnset}</option>
+                    {/if}
+                    {#if field.groups.length > 0}
+                      {#each field.groups as group}
+                        <optgroup label={group.label}>
+                          {#each group.options as choice}
+                            <option value={choice.value}>{choice.label}</option>
+                          {/each}
+                        </optgroup>
+                      {/each}
+                      {#each field.ungroupedChoices as choice}
+                        <option value={choice.value}>{choice.label}</option>
+                      {/each}
+                    {:else}
+                      {#each field.choices as choice}
+                        <option value={choice.value}>{choice.label}</option>
+                      {/each}
+                    {/if}
+                  </select>
+                {:else if field.control === 'checkbox'}
+                  <input
+                    bind:this={optionsInput}
+                    id={field.id}
+                    type="checkbox"
+                    checked={field.checked}
+                    aria-invalid={optionsValidationError ? 'true' : 'false'}
+                    onchange={(event) => {
+                      const input = event.currentTarget
+                      if (input instanceof HTMLInputElement) {
+                        setOptionValue(field, input.checked)
+                      }
+                    }}
+                    onkeydown={handleOptionsKeydown}
+                  />
+                {:else}
+                  <input
+                    bind:this={optionsInput}
+                    id={field.id}
+                    type={field.control === 'number' ? 'number' : 'text'}
+                    min={field.minimum}
+                    max={field.maximum}
+                    step={field.step}
+                    value={field.value}
+                    aria-invalid={optionsValidationError ? 'true' : 'false'}
+                    oninput={(event) => {
+                      const input = event.currentTarget
+                      if (input instanceof HTMLInputElement) {
+                        setOptionValue(field, input.value)
+                      }
+                    }}
+                    onkeydown={handleOptionsKeydown}
+                  />
+                {/if}
+                {#if field.description}
+                  <div class="transform-option-description">
+                    {field.description}
+                  </div>
+                {/if}
+              </div>
+            {/each}
+          </div>
+          <details class="transform-raw-options">
+            <summary>{strings.transform.rawOptionsJson}</summary>
+            <label class="transform-options-field">
+              <span>{strings.transform.optionsJson}</span>
+              <textarea
+                value={optionsJson}
+                maxlength={MAX_TRANSFORM_OPTIONS_LENGTH}
+                rows="3"
+                placeholder={advertisedExamples[0]
+                  ? strings.transform.examplePlaceholder(advertisedExamples[0])
+                  : strings.transform.optionsPlaceholder}
+                aria-invalid={optionsValidationError ? 'true' : 'false'}
+                oninput={(event) => {
+                  const input = event.currentTarget
+                  if (input instanceof HTMLTextAreaElement) {
+                    optionsJson = input.value
+                  }
+                }}
+                onkeydown={handleOptionsKeydown}
+              ></textarea>
+            </label>
+          </details>
+        {:else}
+          <label class="transform-options-field">
+            <span>{strings.transform.optionsJson}</span>
+            <textarea
+              bind:this={optionsInput}
+              value={optionsJson}
+              maxlength={MAX_TRANSFORM_OPTIONS_LENGTH}
+              rows="3"
+              placeholder={advertisedExamples[0]
+                ? strings.transform.examplePlaceholder(advertisedExamples[0])
+                : strings.transform.optionsPlaceholder}
+              aria-invalid={optionsValidationError ? 'true' : 'false'}
+              oninput={(event) => {
+                const input = event.currentTarget
+                if (input instanceof HTMLTextAreaElement) {
+                  optionsJson = input.value
+                }
+              }}
+              onkeydown={handleOptionsKeydown}
+            ></textarea>
+          </label>
+        {/if}
       {/if}
 
       {#if optionsValidationError}

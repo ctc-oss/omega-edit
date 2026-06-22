@@ -148,25 +148,27 @@ int omega_edit_save_segment(omega_session_t *session_ptr, const char *file_path,
 int omega_edit_save(omega_session_t *session_ptr, const char *file_path, int io_flags, char *saved_file_path);
 
 /**
- * Copy a session byte range into a newly allocated memory buffer.
+ * Copy a bounded session byte range into a newly allocated memory buffer.
  * @param session_ptr session to copy from
  * @param data_ptr_out receives a malloc-allocated buffer containing the copied bytes (caller must free).  The buffer is
  * null-terminated for convenience, but length_out reports the logical byte count.
  * @param length_out receives the number of copied bytes
  * @param offset starting byte offset in the session
  * @param length number of bytes to copy, or zero to copy from offset to the end of the session
- * @return 0 on success, non-zero otherwise
+ * @return 0 on success, non-zero otherwise. Requests larger than OMEGA_MEMORY_BUFFER_LIMIT fail; use
+ * omega_edit_save_segment for large streaming exports.
  */
 int omega_edit_save_segment_to_bytes(const omega_session_t *session_ptr, omega_byte_t **data_ptr_out,
                                      int64_t *length_out, int64_t offset, int64_t length);
 
 /**
- * Copy the full computed session content into a newly allocated memory buffer.
+ * Copy the full computed session content into a newly allocated memory buffer when it is bounded.
  * @param session_ptr session to copy from
  * @param data_ptr_out receives a malloc-allocated buffer containing the copied bytes (caller must free).  The buffer is
  * null-terminated for convenience, but length_out reports the logical byte count.
  * @param length_out receives the number of copied bytes
- * @return 0 on success, non-zero otherwise
+ * @return 0 on success, non-zero otherwise. Large sessions fail instead of attempting an unbounded allocation; use
+ * omega_edit_save for large streaming exports.
  */
 int omega_edit_save_to_bytes(const omega_session_t *session_ptr, omega_byte_t **data_ptr_out, int64_t *length_out);
 
@@ -302,6 +304,22 @@ int64_t omega_edit_overwrite(omega_session_t *session_ptr, int64_t offset, const
  */
 int64_t omega_edit_replace_bytes(omega_session_t *session_ptr, int64_t offset, int64_t delete_length,
                                  const omega_byte_t *bytes, int64_t insert_length);
+
+/**
+ * Replace a span of bytes by streaming the resulting session into a new checkpoint.
+ *
+ * This avoids storing replacement bytes in memory-backed change history and is intended for large generated
+ * replacements. Like other checkpoint operations, it promotes the newly written checkpoint as the active model.
+ *
+ * @param session_ptr session to make the change in
+ * @param offset location offset to make the change
+ * @param delete_length number of original bytes to remove
+ * @param bytes replacement bytes, or null if `insert_length` is zero
+ * @param insert_length explicit number of replacement bytes to insert
+ * @return zero on success and non-zero otherwise
+ */
+int omega_edit_replace_bytes_checkpointed(omega_session_t *session_ptr, int64_t offset, int64_t delete_length,
+                                          const omega_byte_t *bytes, int64_t insert_length);
 
 /**
  * Replace a span of bytes at the given offset with a new C string.

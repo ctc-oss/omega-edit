@@ -22,14 +22,18 @@
 #include <cstdlib>
 #include <cstring>
 #include <filesystem>
+#include <limits>
 #include <map>
 #include <memory>
+#include <mutex>
 #include <regex>
 #include <string>
+#include <unordered_map>
 #include <utility>
 #include <vector>
 
 #ifdef _WIN32
+#include <io.h>
 #include <windows.h>
 #ifdef min
 #undef min
@@ -39,6 +43,8 @@
 #endif
 #else
 #include <dlfcn.h>
+#include <sys/mman.h>
+#include <unistd.h>
 #endif
 
 namespace {
@@ -358,6 +364,35 @@ namespace {
         return true;
     }
 
+    auto json_values_equal_(const json_value_t &left, const json_value_t &right) -> bool {
+        if (left.kind != right.kind) { return false; }
+        switch (left.kind) {
+            case json_value_t::kind_t::null_value:
+                return true;
+            case json_value_t::kind_t::string:
+                return left.string_value == right.string_value;
+            case json_value_t::kind_t::number:
+                return left.number_value == right.number_value;
+            case json_value_t::kind_t::boolean:
+                return left.bool_value == right.bool_value;
+            case json_value_t::kind_t::array:
+                if (left.array_value.size() != right.array_value.size()) { return false; }
+                for (size_t index = 0; index < left.array_value.size(); ++index) {
+                    if (!json_values_equal_(left.array_value[index], right.array_value[index])) { return false; }
+                }
+                return true;
+            case json_value_t::kind_t::object:
+                if (left.object_value.size() != right.object_value.size()) { return false; }
+                for (const auto &[key, left_value]: left.object_value) {
+                    const auto right_iter = right.object_value.find(key);
+                    if (right_iter == right.object_value.end()) { return false; }
+                    if (!json_values_equal_(left_value, right_iter->second)) { return false; }
+                }
+                return true;
+        }
+        return false;
+    }
+
     auto schema_number_(const json_value_t &schema, const char *key, double &out) -> bool {
         const auto *member = json_object_member_(schema, key);
         if (!member) { return false; }
@@ -388,6 +423,18 @@ namespace {
 
         const auto *not_schema = json_object_member_(schema, "not");
         if (not_schema && validate_schema_value_(value, *not_schema)) { return false; }
+
+        if (const auto *enum_values = json_object_member_(schema, "enum")) {
+            if (enum_values->kind != json_value_t::kind_t::array) { return false; }
+            auto matches = false;
+            for (const auto &candidate: enum_values->array_value) {
+                if (json_values_equal_(value, candidate)) {
+                    matches = true;
+                    break;
+                }
+            }
+            if (!matches) { return false; }
+        }
 
         std::string type;
         if (const auto *type_value = json_object_member_(schema, "type")) {
@@ -492,6 +539,15 @@ namespace {
         return length >= 0 && (length == 0 || bytes != nullptr);
     }
 
+    auto int64_to_size_(int64_t value, size_t &out) -> bool {
+        if (value < 0) { return false; }
+        if (static_cast<uint64_t>(value) > static_cast<uint64_t>((std::numeric_limits<size_t>::max)())) {
+            return false;
+        }
+        out = static_cast<size_t>(value);
+        return true;
+    }
+
     auto plugin_extension_is_supported_(const std::filesystem::path &path) -> bool {
         const auto extension = path.extension().string();
 #ifdef _WIN32
@@ -503,10 +559,154 @@ namespace {
 #endif
     }
 
-    void *plugin_malloc_(size_t size, void *) { return std::malloc(size == 0 ? 1 : size); }
-
     constexpr int64_t TRANSFORM_PLUGIN_STREAM_CHUNK_BYTES = 1024 * 1024;
     constexpr int64_t TRANSFORM_PLUGIN_CONTIGUOUS_INPUT_LIMIT_BYTES = 4 * 1024 * 1024;
+    constexpr size_t TRANSFORM_PLUGIN_FILE_BACKED_ALLOC_LIMIT_BYTES = 64U * 1024U * 1024U;
+
+    class file_backed_buffer_t {
+    public:
+        file_backed_buffer_t(const file_backed_buffer_t &) = delete;
+        auto operator=(const file_backed_buffer_t &) -> file_backed_buffer_t & = delete;
+
+        ~file_backed_buffer_t() {
+            if (data_ != nullptr && size_ > 0) {
+#ifdef _WIN32
+                UnmapViewOfFile(data_);
+#else
+                munmap(data_, size_);
+#endif
+            }
+#ifdef _WIN32
+            if (mapping_handle_ != nullptr) { CloseHandle(mapping_handle_); }
+            if (file_handle_ != INVALID_HANDLE_VALUE) { CloseHandle(file_handle_); }
+#else
+            if (fd_ >= 0) { close(fd_); }
+#endif
+            if (!path_.empty()) { omega_util_remove_file(path_.c_str()); }
+        }
+
+        static auto create(const char *directory, const char *prefix, size_t size)
+                -> std::shared_ptr<file_backed_buffer_t> {
+            if (size == 0) { return nullptr; }
+            const auto *const dir = (directory && *directory) ? directory : ".";
+            char path[FILENAME_MAX + 1];
+            const auto count = snprintf(path, sizeof(path), "%s%c.%s.XXXXXX", dir,
+                                        omega_util_directory_separator(), prefix);
+            if (count < 0 || static_cast<size_t>(count) >= sizeof(path)) { return nullptr; }
+
+            const auto fd = omega_util_mkstemp(path, 0600);
+            if (fd < 0) { return nullptr; }
+
+            auto buffer = std::shared_ptr<file_backed_buffer_t>(new file_backed_buffer_t());
+            buffer->path_ = path;
+            buffer->size_ = size;
+
+#ifdef _WIN32
+            _close(fd);
+            buffer->file_handle_ = CreateFileA(path, GENERIC_READ | GENERIC_WRITE, FILE_SHARE_READ, nullptr,
+                                               OPEN_EXISTING,
+                                               FILE_ATTRIBUTE_TEMPORARY | FILE_ATTRIBUTE_NOT_CONTENT_INDEXED,
+                                               nullptr);
+            if (buffer->file_handle_ == INVALID_HANDLE_VALUE) { return nullptr; }
+            LARGE_INTEGER file_size;
+            file_size.QuadPart = static_cast<LONGLONG>(size);
+            if (!SetFilePointerEx(buffer->file_handle_, file_size, nullptr, FILE_BEGIN) ||
+                !SetEndOfFile(buffer->file_handle_)) {
+                return nullptr;
+            }
+            const auto mapped_size = static_cast<uint64_t>(size);
+            buffer->mapping_handle_ =
+                    CreateFileMappingA(buffer->file_handle_, nullptr, PAGE_READWRITE,
+                                       static_cast<DWORD>(mapped_size >> 32U),
+                                       static_cast<DWORD>(mapped_size & 0xFFFFFFFFU), nullptr);
+            if (buffer->mapping_handle_ == nullptr) { return nullptr; }
+            buffer->data_ = static_cast<omega_byte_t *>(
+                    MapViewOfFile(buffer->mapping_handle_, FILE_MAP_ALL_ACCESS, 0, 0, size));
+            if (buffer->data_ == nullptr) { return nullptr; }
+#else
+            buffer->fd_ = fd;
+            if (static_cast<uint64_t>(size) > static_cast<uint64_t>((std::numeric_limits<off_t>::max)())) {
+                return nullptr;
+            }
+            if (ftruncate(buffer->fd_, static_cast<off_t>(size)) != 0) { return nullptr; }
+            void *mapped = mmap(nullptr, size, PROT_READ | PROT_WRITE, MAP_SHARED, buffer->fd_, 0);
+            if (mapped == MAP_FAILED) { return nullptr; }
+            buffer->data_ = static_cast<omega_byte_t *>(mapped);
+#endif
+            return buffer;
+        }
+
+        auto data() const -> omega_byte_t * { return data_; }
+
+    private:
+        file_backed_buffer_t() = default;
+
+        omega_byte_t *data_{};
+        size_t size_{};
+        std::string path_;
+#ifdef _WIN32
+        HANDLE file_handle_{INVALID_HANDLE_VALUE};
+        HANDLE mapping_handle_{nullptr};
+#else
+        int fd_{-1};
+#endif
+    };
+
+    std::mutex g_file_backed_allocations_mutex;
+    std::unordered_map<void *, std::shared_ptr<file_backed_buffer_t>> g_file_backed_allocations;
+
+    void release_plugin_allocation_(void *ptr) {
+        if (!ptr) { return; }
+        std::shared_ptr<file_backed_buffer_t> file_backed;
+        {
+            std::lock_guard<std::mutex> lock(g_file_backed_allocations_mutex);
+            const auto iter = g_file_backed_allocations.find(ptr);
+            if (iter != g_file_backed_allocations.end()) {
+                file_backed = std::move(iter->second);
+                g_file_backed_allocations.erase(iter);
+            }
+        }
+        if (!file_backed) { std::free(ptr); }
+    }
+
+    struct plugin_allocator_state_t {
+        const char *checkpoint_directory{};
+        std::vector<void *> allocations;
+    };
+
+    void *plugin_alloc_(size_t size, void *user_data_ptr) {
+        auto *state = static_cast<plugin_allocator_state_t *>(user_data_ptr);
+        const auto requested_size = size == 0 ? 1 : size;
+        void *ptr = nullptr;
+        if (requested_size > TRANSFORM_PLUGIN_FILE_BACKED_ALLOC_LIMIT_BYTES && state) {
+            auto file_backed =
+                    file_backed_buffer_t::create(state->checkpoint_directory, "OmegaEdit-xform-alloc",
+                                                 requested_size);
+            if (file_backed) {
+                ptr = file_backed->data();
+                std::lock_guard<std::mutex> lock(g_file_backed_allocations_mutex);
+                g_file_backed_allocations[ptr] = std::move(file_backed);
+            }
+        } else {
+            ptr = std::malloc(requested_size);
+        }
+
+        if (ptr && state) { state->allocations.push_back(ptr); }
+        return ptr;
+    }
+
+    auto response_owns_allocation_(const omega_transform_plugin_response_t &response, void *ptr) -> bool {
+        return ptr == response.replacement_bytes || ptr == response.result_bytes ||
+               ptr == response.result_label || ptr == response.result_mime_type;
+    }
+
+    void release_unclaimed_plugin_allocations_(plugin_allocator_state_t &state,
+                                               const omega_transform_plugin_response_t &response) {
+        for (auto *ptr: state.allocations) {
+            if (!response_owns_allocation_(response, ptr)) { release_plugin_allocation_(ptr); }
+        }
+        state.allocations.clear();
+    }
 
     struct session_range_reader_t {
         const omega_session_t *session_ptr{};
@@ -516,6 +716,20 @@ namespace {
         omega_transform_plugin_progress_cbk_t progress{};
         void *progress_user_data_ptr{};
     };
+
+    struct materialized_input_t {
+        std::vector<omega_byte_t> bytes;
+        std::shared_ptr<file_backed_buffer_t> file_backed;
+        int64_t length{};
+
+        auto data() const -> const omega_byte_t * {
+            if (file_backed) { return file_backed->data(); }
+            return bytes.empty() ? nullptr : bytes.data();
+        }
+    };
+
+    auto read_session_range_chunk_(int64_t relative_offset, omega_byte_t *buffer, int64_t length,
+                                   void *user_data_ptr) -> int64_t;
 
     // Transfers plugin-owned response buffers to the caller. If no caller response is supplied,
     // the temporary response is cleared here so plugins never leak allocator-owned memory.
@@ -531,7 +745,8 @@ namespace {
     }
 
     auto read_session_range_(const omega_session_t *session_ptr, int64_t offset, int64_t length,
-                             std::vector<omega_byte_t> &bytes) -> int {
+                             omega_transform_plugin_progress_cbk_t progress, void *progress_user_data_ptr,
+                             materialized_input_t &input) -> int {
         if (!session_ptr || offset < 0 || length < 0) { return -1; }
 
         const auto computed_file_size = omega_session_get_computed_file_size(session_ptr);
@@ -540,19 +755,37 @@ namespace {
         const auto requested_length = (length == 0 || length > remaining) ? remaining : length;
         if (requested_length < 0) { return -1; }
         if (requested_length == 0) {
-            bytes.clear();
+            input = {};
             return 0;
         }
 
-        omega_byte_t *data_ptr = nullptr;
-        int64_t copied_length = 0;
-        const auto rc = omega_edit_save_segment_to_bytes(session_ptr, &data_ptr, &copied_length, offset, requested_length);
-        if (rc != 0) {
-            std::free(data_ptr);
-            return rc;
+        omega_byte_t *destination = nullptr;
+        if (requested_length <= TRANSFORM_PLUGIN_CONTIGUOUS_INPUT_LIMIT_BYTES) {
+            size_t requested_size = 0;
+            if (!int64_to_size_(requested_length, requested_size)) { return -1; }
+            input.bytes.resize(requested_size);
+            destination = input.bytes.data();
+        } else {
+            size_t requested_size = 0;
+            if (!int64_to_size_(requested_length, requested_size)) { return -1; }
+            input.file_backed =
+                    file_backed_buffer_t::create(omega_session_get_checkpoint_directory(session_ptr),
+                                                 "OmegaEdit-xform-input", requested_size);
+            if (!input.file_backed) { return -1; }
+            destination = input.file_backed->data();
         }
-        bytes.assign(data_ptr, data_ptr + copied_length);
-        std::free(data_ptr);
+
+        session_range_reader_t reader{session_ptr, offset, requested_length, 0, progress, progress_user_data_ptr};
+        int64_t copied_length = 0;
+        while (copied_length < requested_length) {
+            const auto chunk_length = std::min(TRANSFORM_PLUGIN_STREAM_CHUNK_BYTES,
+                                               requested_length - copied_length);
+            const auto read_length = read_session_range_chunk_(copied_length, destination + copied_length,
+                                                               chunk_length, &reader);
+            if (read_length <= 0) { return -1; }
+            copied_length += read_length;
+        }
+        input.length = requested_length;
         return 0;
     }
 
@@ -565,7 +798,7 @@ namespace {
         }
 
         const auto remaining = reader->length - relative_offset;
-        const auto read_length = std::min(length, remaining);
+        const auto read_length = std::min(std::min(length, remaining), TRANSFORM_PLUGIN_STREAM_CHUNK_BYTES);
         if (read_length == 0) { return 0; }
 
         auto *segment = omega_segment_create(read_length);
@@ -719,23 +952,25 @@ int omega_transform_plugin_registry_apply_to_session_with_progress(
 
     const auto operation = (*iter)->info.operation;
     const auto can_stream = ((*iter)->info.flags & OMEGA_TRANSFORM_PLUGIN_FLAG_STREAMING) != 0;
-    const auto should_materialize = !can_stream || requested_length <= TRANSFORM_PLUGIN_CONTIGUOUS_INPUT_LIMIT_BYTES ||
-                                    operation == OMEGA_TRANSFORM_PLUGIN_OPERATION_REPLACE ||
-                                    operation == OMEGA_TRANSFORM_PLUGIN_OPERATION_REPLACE_AND_INSPECT;
+    const auto should_materialize = !can_stream || requested_length <= TRANSFORM_PLUGIN_CONTIGUOUS_INPUT_LIMIT_BYTES;
 
-    std::vector<omega_byte_t> input_bytes;
-    if (should_materialize && 0 != read_session_range_(session_ptr, offset, length, input_bytes)) { return -1; }
+    materialized_input_t input;
+    if (should_materialize &&
+        0 != read_session_range_(session_ptr, offset, length, progress, progress_user_data_ptr, input)) {
+        return -1;
+    }
 
     session_range_reader_t reader{session_ptr, offset, requested_length, 0, progress, progress_user_data_ptr};
+    plugin_allocator_state_t allocator_state{omega_session_get_checkpoint_directory(session_ptr), {}};
 
     omega_transform_plugin_request_t request{};
-    request.input_bytes = input_bytes.empty() ? nullptr : input_bytes.data();
-    request.input_length = static_cast<int64_t>(input_bytes.size());
+    request.input_bytes = input.data();
+    request.input_length = input.length;
     request.session_offset = offset;
     request.session_length = requested_length;
     request.options_json = options_json;
-    request.alloc = plugin_malloc_;
-    request.allocator_user_data_ptr = nullptr;
+    request.alloc = plugin_alloc_;
+    request.allocator_user_data_ptr = &allocator_state;
     request.read = read_session_range_chunk_;
     request.reader_user_data_ptr = &reader;
     request.preferred_chunk_size = TRANSFORM_PLUGIN_STREAM_CHUNK_BYTES;
@@ -744,35 +979,48 @@ int omega_transform_plugin_registry_apply_to_session_with_progress(
 
     omega_transform_plugin_response_t plugin_response{};
     if (0 != (*iter)->apply(&request, &plugin_response)) {
+        release_unclaimed_plugin_allocations_(allocator_state, plugin_response);
         omega_transform_plugin_response_clear(&plugin_response);
         return -1;
     }
     if (!plugin_buffer_is_valid_(plugin_response.replacement_bytes, plugin_response.replacement_length) ||
         !plugin_buffer_is_valid_(plugin_response.result_bytes, plugin_response.result_length)) {
+        release_unclaimed_plugin_allocations_(allocator_state, plugin_response);
         omega_transform_plugin_response_clear(&plugin_response);
         return -1;
     }
 
     if (operation == OMEGA_TRANSFORM_PLUGIN_OPERATION_REPLACE ||
         operation == OMEGA_TRANSFORM_PLUGIN_OPERATION_REPLACE_AND_INSPECT) {
-        const auto serial = omega_edit_replace_bytes(session_ptr, offset, requested_length,
-                                                     plugin_response.replacement_bytes,
-                                                     plugin_response.replacement_length);
-        if (serial < 0 || (serial == 0 && (requested_length > 0 || plugin_response.replacement_length > 0))) {
+        const auto use_checkpoint =
+                plugin_response.replacement_length > static_cast<int64_t>(OMEGA_MEMORY_BUFFER_LIMIT);
+        const auto rc = use_checkpoint
+                                ? omega_edit_replace_bytes_checkpointed(session_ptr, offset, requested_length,
+                                                                        plugin_response.replacement_bytes,
+                                                                        plugin_response.replacement_length)
+                                : (omega_edit_replace_bytes(session_ptr, offset, requested_length,
+                                                            plugin_response.replacement_bytes,
+                                                            plugin_response.replacement_length) > 0 ||
+                                   (requested_length == 0 && plugin_response.replacement_length == 0)
+                                           ? 0
+                                           : -1);
+        if (rc != 0) {
+            release_unclaimed_plugin_allocations_(allocator_state, plugin_response);
             omega_transform_plugin_response_clear(&plugin_response);
             return -1;
         }
     }
 
+    release_unclaimed_plugin_allocations_(allocator_state, plugin_response);
     move_plugin_response_(response_ptr, plugin_response);
     return 0;
 }
 
 void omega_transform_plugin_response_clear(omega_transform_plugin_response_t *response_ptr) {
     if (!response_ptr) { return; }
-    std::free(response_ptr->replacement_bytes);
-    std::free(response_ptr->result_bytes);
-    std::free(response_ptr->result_label);
-    std::free(response_ptr->result_mime_type);
+    release_plugin_allocation_(response_ptr->replacement_bytes);
+    release_plugin_allocation_(response_ptr->result_bytes);
+    release_plugin_allocation_(response_ptr->result_label);
+    release_plugin_allocation_(response_ptr->result_mime_type);
     *response_ptr = {};
 }
