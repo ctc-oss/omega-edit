@@ -20,7 +20,9 @@
 import {
   ChangeKind as ProtoChangeKind,
   CountKind,
+  SessionEventKind,
   type GetCountResponse,
+  type GetChangeDetailsResponse,
   type GetLastChangeResponse,
   type GetLastUndoResponse,
   type SubmitChangeRequest,
@@ -339,6 +341,50 @@ export async function clear(
       }
       debugLog(log, () => ({ fn: 'protobufTs.clear', resp: response }))
       return resolve(response.id)
+    })
+  })
+}
+
+export async function getChangeDetails(
+  sessionId: string,
+  serial: number
+): Promise<GetChangeDetailsResponse> {
+  const log = getLogger()
+  const request = {
+    sessionId,
+    sessionEventKind: SessionEventKind.UNSPECIFIED,
+    computedFileSize: 0,
+    changeCount: 0,
+    undoCount: 0,
+    serial,
+  }
+  debugLog(log, () => ({ fn: 'protobufTs.getChangeDetails', rqst: request }))
+  const client = await getClient()
+
+  return new Promise<GetChangeDetailsResponse>((resolve, reject) => {
+    client.getChangeDetails(request, (err, response) => {
+      if (err) {
+        log.error({
+          fn: 'protobufTs.getChangeDetails',
+          err: {
+            msg: err.message,
+            details: err.details,
+            code: err.code,
+            stack: err.stack,
+          },
+        })
+        return reject(new Error('getChangeDetails failed: ' + err))
+      }
+
+      if (!response) {
+        return reject(new Error('getChangeDetails failed: empty response'))
+      }
+
+      debugLog(log, () => ({
+        fn: 'protobufTs.getChangeDetails',
+        resp: response,
+      }))
+      return resolve(response)
     })
   })
 }

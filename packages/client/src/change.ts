@@ -24,6 +24,7 @@ import {
   EditStats,
   getChangeCount as rawGetChangeCount,
   getChangeTransactionCount as rawGetChangeTransactionCount,
+  getChangeDetails as rawGetChangeDetails,
   getLastChange as rawGetLastChange,
   getLastUndo as rawGetLastUndo,
   getUndoCount as rawGetUndoCount,
@@ -372,6 +373,21 @@ export async function getLastChange(
   session_id: string
 ): Promise<ChangeDetailsResponse> {
   return wrapChangeDetailsResponse(await rawGetLastChange(session_id))
+}
+
+/**
+ * Get details about a specific change serial in a session.
+ * @param session_id session to inspect
+ * @param serial change serial to inspect
+ * @returns compatibility-wrapped change details
+ */
+export async function getChangeDetails(
+  session_id: string,
+  serial: number
+): Promise<ChangeDetailsResponse> {
+  return wrapChangeDetailsResponse(
+    await rawGetChangeDetails(session_id, serial)
+  )
 }
 
 /**

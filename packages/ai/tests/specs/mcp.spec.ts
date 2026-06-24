@@ -139,6 +139,22 @@ describe('@omega-edit/ai mcp server', function () {
         tools.some((tool) => tool.name === 'omega_edit_apply_transform_plugin'),
         'expected omega_edit_apply_transform_plugin in tool list'
       )
+      assert.ok(
+        tools.some((tool) => tool.name === 'omega_edit_create_checkpoint'),
+        'expected omega_edit_create_checkpoint in tool list'
+      )
+      assert.ok(
+        tools.some((tool) => tool.name === 'omega_edit_restore_checkpoint'),
+        'expected omega_edit_restore_checkpoint in tool list'
+      )
+      assert.ok(
+        tools.some((tool) => tool.name === 'omega_edit_export_change_log'),
+        'expected omega_edit_export_change_log in tool list'
+      )
+      assert.ok(
+        tools.some((tool) => tool.name === 'omega_edit_apply_change_log'),
+        'expected omega_edit_apply_change_log in tool list'
+      )
 
       const createSessionResponse = await sendRequest('tools/call', {
         name: 'omega_edit_create_session',

@@ -33,6 +33,10 @@ function usage(): string {
     '  create-session --file <path>',
     '  destroy-session --session <id>',
     '  session-status --session <id>',
+    '  create-checkpoint --session <id>',
+    '  restore-checkpoint --session <id>',
+    '  export-change-log --session <id> [--output <path>] [--overwrite]',
+    '  apply-change-log --session <id> --input <path> [--dry-run]',
     '  diff-session --session <id>',
     '  view --session <id> --offset <n> --length <n>',
     '  profile-range --session <id> --offset <n> --length <n>',
@@ -237,6 +241,81 @@ async function runCommand(
             diffMode: 'last-change-summary',
           }
         : result
+    }
+    case 'create-checkpoint': {
+      const parsed = parseArgs({
+        args,
+        options: {
+          ...commonOptions,
+          session: { type: 'string' as const },
+        },
+        allowPositionals: false,
+      })
+      return await getToolkit(parsed.values).createCheckpoint(
+        requireStringOption(
+          parsed.values.session as string | undefined,
+          'session'
+        )
+      )
+    }
+    case 'restore-checkpoint': {
+      const parsed = parseArgs({
+        args,
+        options: {
+          ...commonOptions,
+          session: { type: 'string' as const },
+        },
+        allowPositionals: false,
+      })
+      return await getToolkit(parsed.values).restoreCheckpoint(
+        requireStringOption(
+          parsed.values.session as string | undefined,
+          'session'
+        )
+      )
+    }
+    case 'export-change-log': {
+      const parsed = parseArgs({
+        args,
+        options: {
+          ...commonOptions,
+          session: { type: 'string' as const },
+          output: { type: 'string' as const },
+          overwrite: { type: 'boolean' as const },
+        },
+        allowPositionals: false,
+      })
+      return await getToolkit(parsed.values).exportChangeLog(
+        requireStringOption(
+          parsed.values.session as string | undefined,
+          'session'
+        ),
+        parsed.values.output as string | undefined,
+        Boolean(parsed.values.overwrite)
+      )
+    }
+    case 'apply-change-log': {
+      const parsed = parseArgs({
+        args,
+        options: {
+          ...commonOptions,
+          session: { type: 'string' as const },
+          input: { type: 'string' as const },
+          'dry-run': { type: 'boolean' as const },
+        },
+        allowPositionals: false,
+      })
+      return await getToolkit(parsed.values).applyChangeLog({
+        sessionId: requireStringOption(
+          parsed.values.session as string | undefined,
+          'session'
+        ),
+        inputPath: requireStringOption(
+          parsed.values.input as string | undefined,
+          'input'
+        ),
+        dryRun: Boolean(parsed.values['dry-run']),
+      })
     }
     case 'view': {
       const parsed = parseArgs({

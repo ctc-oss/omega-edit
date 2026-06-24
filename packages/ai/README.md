@@ -61,6 +61,12 @@ oe apply-transform-plugin --session <session-id> --plugin omega.example.zlib --o
 oe save-session --session <session-id> --output ./patched.bin --overwrite
 oe export-range --session <session-id> --offset 0 --length 128 --output ./header.bin --overwrite
 
+# Create checkpoints and broadcast/apply change logs
+oe create-checkpoint --session <session-id>
+oe restore-checkpoint --session <session-id>
+oe export-change-log --session <session-id> --output ./changes.json --overwrite
+oe apply-change-log --session <session-id> --input ./changes.json
+
 # Undo if needed
 oe undo --session <session-id>
 ```
@@ -71,6 +77,11 @@ for the ABI, SDK helpers, plugin directory layout, and exemplar plugin IDs for
 codecs, transcodes, record/message helpers, and digest/checksum inspectors.
 
 All CLI commands emit JSON to stdout and return non-zero exit codes on failure.
+Exported change logs are portable `omega-edit.change-log` documents containing
+the byte operations needed to apply the same edits to another session, another
+file, or a fleet of compatible files. `foldedChangeCount` is non-zero when
+earlier edits have been absorbed into an OmegaEdit checkpoint baseline rather
+than exported as replayable byte operations.
 
 ## MCP Quick Start
 
@@ -109,6 +120,10 @@ Available tools:
 - `omega_edit_create_session`
 - `omega_edit_destroy_session`
 - `omega_edit_session_status`
+- `omega_edit_create_checkpoint`
+- `omega_edit_restore_checkpoint`
+- `omega_edit_export_change_log`
+- `omega_edit_apply_change_log`
 - `omega_edit_read_range`
 - `omega_edit_profile_range`
 - `omega_edit_search`

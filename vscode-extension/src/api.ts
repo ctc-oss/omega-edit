@@ -40,6 +40,38 @@ export interface OmegaEditExternalHighlightRequest
   reveal?: boolean
 }
 
+export interface OmegaEditCheckpointOptions extends OmegaEditEditorSelector {}
+
+export interface OmegaEditChangeLogExportOptions
+  extends OmegaEditEditorSelector {
+  targetUri?: vscode.Uri | string
+}
+
+export interface OmegaEditChangeLogApplyOptions
+  extends OmegaEditEditorSelector {
+  sourceUri?: vscode.Uri | string
+}
+
+export interface OmegaEditCheckpointResult {
+  state?: OmegaEditEditorState
+  checkpointCount: number
+}
+
+export interface OmegaEditRestoreCheckpointResult {
+  state?: OmegaEditEditorState
+  restored: boolean
+  checkpointCount: number
+}
+
+export interface OmegaEditChangeLogResult {
+  state?: OmegaEditEditorState
+  uri?: vscode.Uri
+  changeCount: number
+  sourceChangeCount?: number
+  foldedChangeCount?: number
+  cancelled?: boolean
+}
+
 export interface OmegaEditExtensionApi {
   /**
    * Stable VS Code extension id expected by dependent extensions.
@@ -75,4 +107,16 @@ export interface OmegaEditExtensionApi {
       | OmegaEditInsertDirectionOptions,
     options?: vscode.Uri | string | OmegaEditEditorSelector
   ): OmegaEditEditorState | undefined
+  createCheckpoint(
+    options?: vscode.Uri | string | OmegaEditCheckpointOptions
+  ): Promise<OmegaEditCheckpointResult | undefined>
+  restoreCheckpoint(
+    options?: vscode.Uri | string | OmegaEditCheckpointOptions
+  ): Promise<OmegaEditRestoreCheckpointResult | undefined>
+  exportChangeLog(
+    options?: vscode.Uri | string | OmegaEditChangeLogExportOptions
+  ): Promise<OmegaEditChangeLogResult | undefined>
+  applyChangeLog(
+    options?: vscode.Uri | string | OmegaEditChangeLogApplyOptions
+  ): Promise<OmegaEditChangeLogResult | undefined>
 }

@@ -1,17 +1,22 @@
 import {
   ChangeKind,
+  CountKind,
   delay,
   type IServerControlResult,
   IOFlags,
   TransformPluginOperation,
   applyTransformPlugin as applyClientTransformPlugin,
+  createCheckpoint as createClientCheckpoint,
   createSession,
   del,
+  destroyLastCheckpoint as destroyClientCheckpoint,
   destroySession,
   getChangeCount,
+  getChangeDetails,
   getClient,
   getComputedFileSize,
   getContentType,
+  getCounts,
   getLastChange,
   getServerInfo,
   getSegment,
@@ -34,6 +39,7 @@ import {
   stopServerGraceful,
   undo,
 } from '@omega-edit/client'
+import * as fs from 'node:fs/promises'
 import {
   DEFAULT_HOST,
   DEFAULT_MAX_EDIT_BYTES,
@@ -46,6 +52,12 @@ import { concatBytes, encodeData, parseInputData } from './codec'
 import {
   ApplyTransformPluginRequest,
   ApplyTransformPluginResult,
+  ApplyChangeLogRequest,
+  ApplyChangeLogResult,
+  ChangeLogDocument,
+  ChangeLogEntry,
+  ChangeLogResult,
+  CheckpointResult,
   PatchPreview,
   PatchRequest,
   PatchResult,
@@ -53,12 +65,19 @@ import {
   ReadRangeResult,
   ReplaceSessionRequest,
   ReplaceSessionResult,
+  RestoreCheckpointResult,
   SearchRequest,
   SearchResult,
   SessionStatus,
   ToolkitOptions,
   TransformPluginInfoResult,
 } from './types'
+
+const MAX_CHANGE_LOG_ENTRIES = 100_000
+const MAX_CHANGE_LOG_ENTRY_BYTES = 32 * 1024 * 1024
+const MAX_CHANGE_LOG_BYTES = MAX_CHANGE_LOG_ENTRY_BYTES * 3
+const CHANGE_LOG_FORMAT = 'omega-edit.change-log'
+const CHANGE_LOG_VERSION = 1
 
 const changeKindNames = new Map<number, string>(
   Object.entries(ChangeKind)
@@ -79,6 +98,161 @@ function isFiniteInteger(value: number): boolean {
 function assertNonNegativeInteger(name: string, value: number): void {
   if (!isFiniteInteger(value) || value < 0) {
     throw new Error(`${name} must be a non-negative integer`)
+  }
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
+}
+
+function normalizeChangeLogEntries(value: unknown): ChangeLogEntry[] {
+  const entries = Array.isArray(value)
+    ? value
+    : isRecord(value) && Array.isArray(value.changes)
+      ? value.changes
+      : undefined
+
+  if (!entries) {
+    throw new Error('Change log must be a JSON array or an object with changes')
+  }
+  if (entries.length > MAX_CHANGE_LOG_ENTRIES) {
+    throw new Error(
+      `Change log has too many entries (${entries.length.toLocaleString()})`
+    )
+  }
+
+  return entries.map((entry, index) => normalizeChangeLogEntry(entry, index))
+}
+
+function normalizeChangeLogEntry(
+  entry: unknown,
+  index: number
+): ChangeLogEntry {
+  if (!isRecord(entry)) {
+    throw new Error(`Change log entry ${index} must be an object`)
+  }
+
+  const { kind, offset, length, serial, data, groupId } = entry
+  if (
+    kind !== 'INSERT' &&
+    kind !== 'DELETE' &&
+    kind !== 'OVERWRITE' &&
+    kind !== 'REPLACE'
+  ) {
+    throw new Error(`Change log entry ${index} has an unsupported kind`)
+  }
+  if (typeof offset !== 'number') {
+    throw new Error(`Change log entry ${index} offset must be a number`)
+  }
+  if (typeof length !== 'number') {
+    throw new Error(`Change log entry ${index} length must be a number`)
+  }
+  assertNonNegativeInteger(`change log entry ${index} offset`, offset)
+  assertNonNegativeInteger(`change log entry ${index} length`, length)
+
+  const dataBytes =
+    typeof data === 'string' ? parseInputData(data, 'hex') : new Uint8Array(0)
+  if ((kind === 'INSERT' || kind === 'OVERWRITE') && dataBytes.length === 0) {
+    throw new Error(`Change log entry ${index} ${kind} requires data`)
+  }
+  if (dataBytes.length > MAX_CHANGE_LOG_ENTRY_BYTES) {
+    throw new Error(
+      `Change log entry ${index} data exceeds ${MAX_CHANGE_LOG_ENTRY_BYTES.toLocaleString()} bytes`
+    )
+  }
+
+  const normalized: ChangeLogEntry = {
+    kind,
+    offset,
+    length,
+    data: Buffer.from(dataBytes).toString('hex'),
+  }
+  if (
+    typeof serial === 'number' &&
+    Number.isSafeInteger(serial) &&
+    serial >= 0
+  ) {
+    normalized.serial = serial
+  }
+  if (typeof groupId === 'string' && groupId.trim()) {
+    normalized.groupId = groupId.trim()
+  }
+  return normalized
+}
+
+async function readChangeLogFile(inputPath: string): Promise<ChangeLogEntry[]> {
+  const stat = await fs.stat(inputPath)
+  if (stat.size > MAX_CHANGE_LOG_BYTES) {
+    throw new Error(
+      `Change log is too large (${stat.size.toLocaleString()} bytes)`
+    )
+  }
+
+  const text = await fs.readFile(inputPath, 'utf8')
+  let parsed: unknown
+  try {
+    parsed = JSON.parse(text)
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error)
+    throw new Error(`Invalid change log JSON: ${message}`)
+  }
+  return normalizeChangeLogEntries(parsed)
+}
+
+function changeDetailsToLogEntry(
+  change: Awaited<ReturnType<typeof getChangeDetails>>
+): ChangeLogEntry {
+  const kind = changeKindNames.get(change.getKind())
+  if (kind !== 'INSERT' && kind !== 'DELETE' && kind !== 'OVERWRITE') {
+    throw new Error(`Unsupported change kind: ${kind ?? change.getKind()}`)
+  }
+
+  return {
+    serial: change.getSerial(),
+    kind,
+    offset: change.getOffset(),
+    length: kind === 'INSERT' ? 0 : change.getLength(),
+    data: Buffer.from(
+      kind === 'DELETE' ? new Uint8Array(0) : change.getData_asU8()
+    ).toString('hex'),
+  }
+}
+
+function isMissingChangeDetailsError(error: unknown): boolean {
+  const message = error instanceof Error ? error.message : String(error)
+  return message.includes('NOT_FOUND') || message.includes('change not found')
+}
+
+async function collectChangeLogEntries(
+  sessionId: string,
+  sourceChangeCount: number
+): Promise<ChangeLogEntry[]> {
+  const changes: ChangeLogEntry[] = []
+  for (let serial = 1; serial <= sourceChangeCount; serial += 1) {
+    try {
+      changes.push(
+        changeDetailsToLogEntry(await getChangeDetails(sessionId, serial))
+      )
+    } catch (error) {
+      if (!isMissingChangeDetailsError(error)) {
+        throw error
+      }
+    }
+  }
+  return changes
+}
+
+function createChangeLogDocument(
+  changes: ChangeLogEntry[],
+  sourceChangeCount: number
+): ChangeLogDocument {
+  return {
+    format: CHANGE_LOG_FORMAT,
+    version: CHANGE_LOG_VERSION,
+    changeCount: changes.length,
+    sourceChangeCount,
+    foldedChangeCount: sourceChangeCount - changes.length,
+    changes,
   }
 }
 
@@ -213,13 +387,19 @@ export class OmegaEditToolkit {
   async sessionStatus(sessionId: string): Promise<SessionStatus> {
     await this.ensureServerRunning()
 
-    const [computedSize, changeCount, undoCount, viewportCount] =
-      await Promise.all([
-        getComputedFileSize(sessionId),
-        getChangeCount(sessionId),
-        getUndoCount(sessionId),
-        getViewportCount(sessionId),
-      ])
+    const [
+      computedSize,
+      changeCount,
+      undoCount,
+      viewportCount,
+      checkpointCount,
+    ] = await Promise.all([
+      getComputedFileSize(sessionId),
+      getChangeCount(sessionId),
+      getUndoCount(sessionId),
+      getViewportCount(sessionId),
+      this.getCheckpointCount(sessionId),
+    ])
 
     let lastChange: SessionStatus['lastChange'] | undefined
 
@@ -240,7 +420,118 @@ export class OmegaEditToolkit {
       changeCount,
       undoCount,
       viewportCount,
+      checkpointCount,
       lastChange,
+    }
+  }
+
+  private async getCheckpointCount(sessionId: string): Promise<number> {
+    const counts = await getCounts(sessionId, [CountKind.CHECKPOINTS])
+    return counts[0]?.getCount() ?? 0
+  }
+
+  async createCheckpoint(sessionId: string): Promise<CheckpointResult> {
+    await this.ensureServerRunning()
+    return {
+      sessionId,
+      checkpointCount: await createClientCheckpoint(sessionId),
+    }
+  }
+
+  async restoreCheckpoint(sessionId: string): Promise<RestoreCheckpointResult> {
+    await this.ensureServerRunning()
+    const existingCount = await this.getCheckpointCount(sessionId)
+    if (existingCount <= 0) {
+      return {
+        sessionId,
+        restored: false,
+        checkpointCount: 0,
+      }
+    }
+
+    return {
+      sessionId,
+      restored: true,
+      checkpointCount: await destroyClientCheckpoint(sessionId),
+    }
+  }
+
+  async exportChangeLog(
+    sessionId: string,
+    outputPath?: string,
+    overwriteExisting: boolean = false
+  ): Promise<ChangeLogResult> {
+    await this.ensureServerRunning()
+
+    const sourceChangeCount = await getChangeCount(sessionId)
+    if (sourceChangeCount > MAX_CHANGE_LOG_ENTRIES) {
+      throw new Error(
+        `Change log has too many entries (${sourceChangeCount.toLocaleString()})`
+      )
+    }
+
+    const changes = await collectChangeLogEntries(sessionId, sourceChangeCount)
+    const document = createChangeLogDocument(changes, sourceChangeCount)
+
+    if (outputPath) {
+      await fs.writeFile(outputPath, `${JSON.stringify(document, null, 2)}\n`, {
+        flag: overwriteExisting ? 'w' : 'wx',
+      })
+    }
+
+    return {
+      sessionId,
+      format: document.format,
+      version: document.version,
+      changeCount: changes.length,
+      sourceChangeCount: document.sourceChangeCount,
+      foldedChangeCount: document.foldedChangeCount,
+      changes,
+      outputPath,
+    }
+  }
+
+  async applyChangeLog(
+    request: ApplyChangeLogRequest
+  ): Promise<ApplyChangeLogResult> {
+    const changes = request.inputPath
+      ? await readChangeLogFile(request.inputPath)
+      : normalizeChangeLogEntries(request.changes)
+
+    if (request.dryRun) {
+      return {
+        sessionId: request.sessionId,
+        applied: false,
+        changeCount: changes.length,
+        inputPath: request.inputPath,
+      }
+    }
+
+    await this.ensureServerRunning()
+
+    for (const change of changes) {
+      const data = Buffer.from(change.data, 'hex')
+      switch (change.kind) {
+        case 'INSERT':
+          await insert(request.sessionId, change.offset, data)
+          break
+        case 'DELETE':
+          await del(request.sessionId, change.offset, change.length)
+          break
+        case 'OVERWRITE':
+          await overwrite(request.sessionId, change.offset, data)
+          break
+        case 'REPLACE':
+          await replace(request.sessionId, change.offset, change.length, data)
+          break
+      }
+    }
+
+    return {
+      sessionId: request.sessionId,
+      applied: true,
+      changeCount: changes.length,
+      inputPath: request.inputPath,
     }
   }
 

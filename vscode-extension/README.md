@@ -20,11 +20,17 @@ A standalone VS Code extension that uses [Ωedit™](https://github.com/ctc-oss/
 | VS Code undo / redo with Structure-pane stack counts      | [hexEditorProvider.ts](src/hexEditorProvider.ts) + [ProfilerPanel.svelte](webview-ui/src/components/ProfilerPanel.svelte) |
 | VS Code dirty-document tracking (`onDidChangeCustomDocument`) | [hexEditorProvider.ts](src/hexEditorProvider.ts)                                    |
 | VS Code-initiated save / save-as / revert / backup            | [hexEditorProvider.ts](src/hexEditorProvider.ts)                                    |
-| Export / replay JSON change scripts                       | [hexEditorProvider.ts](src/hexEditorProvider.ts) + [extension.ts](src/extension.ts) |
+| Export / apply JSON change logs                           | [hexEditorProvider.ts](src/hexEditorProvider.ts) + [extension.ts](src/extension.ts) |
 | Bytes-per-row and offset-radix controls                   | [Toolbar.svelte](webview-ui/src/components/Toolbar.svelte)                         |
 | Native VS Code status-bar items, binary inspector, and server health indicator | [hexEditorProvider.ts](src/hexEditorProvider.ts) + [ByteInspector.svelte](webview-ui/src/components/ByteInspector.svelte) |
 | Profiling and structure analysis side pane                | [hexEditorProvider.ts](src/hexEditorProvider.ts) + [ProfilerPanel.svelte](webview-ui/src/components/ProfilerPanel.svelte) |
 | Extension settings                                        | [package.json](package.json)                                                        |
+
+Change log exports are portable `omega-edit.change-log` documents containing
+the byte operations needed to apply the same edits to another session, another
+file, or a fleet of compatible files. `foldedChangeCount` is non-zero when
+earlier edits have been absorbed into an OmegaEdit checkpoint baseline rather
+than exported as replayable byte operations.
 
 ## Client Helpers Used Here
 

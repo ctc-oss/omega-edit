@@ -47,6 +47,10 @@
     HostToWebviewMessage,
     { type: 'fileActionComplete' }
   >
+  type SessionActionCompleteMessage = Extract<
+    HostToWebviewMessage,
+    { type: 'sessionActionComplete' }
+  >
   type ViewportDataMessage = Extract<
     HostToWebviewMessage,
     { type: 'viewportData' }
@@ -1318,6 +1322,46 @@
     postToHost({ type: 'replaceRangeWithFile', offset, length })
   }
 
+  function createCheckpoint(): void {
+    if (transformInFlight) {
+      return
+    }
+
+    transformInFlight = true
+    transformFeedback = strings.transform.creatingCheckpoint
+    postToHost({ type: 'createCheckpoint' })
+  }
+
+  function restoreCheckpoint(): void {
+    if (transformInFlight) {
+      return
+    }
+
+    transformInFlight = true
+    transformFeedback = strings.transform.restoringCheckpoint
+    postToHost({ type: 'restoreCheckpoint' })
+  }
+
+  function exportChangeLog(): void {
+    if (transformInFlight) {
+      return
+    }
+
+    transformInFlight = true
+    transformFeedback = strings.transform.exportingChangeLog
+    postToHost({ type: 'exportChangeLog' })
+  }
+
+  function applyChangeLog(): void {
+    if (transformInFlight) {
+      return
+    }
+
+    transformInFlight = true
+    transformFeedback = strings.transform.applyingChangeLog
+    postToHost({ type: 'applyChangeLog' })
+  }
+
   function describeTransformComplete(message: TransformCompleteMessage): string {
     if (message.resultText) {
       return strings.transform.resultAvailable(
@@ -1379,6 +1423,28 @@
           message.length,
           message.byteCount
         )
+    }
+  }
+
+  function describeSessionActionComplete(
+    message: SessionActionCompleteMessage
+  ): string {
+    if (message.message) {
+      return message.message
+    }
+    if (message.cancelled) {
+      return strings.transform.fileActionCancelled
+    }
+
+    switch (message.action) {
+      case 'createCheckpoint':
+        return strings.transform.checkpointCreated(message.checkpointCount ?? 0)
+      case 'restoreCheckpoint':
+        return strings.transform.checkpointRestored(message.checkpointCount ?? 0)
+      case 'exportChangeLog':
+        return strings.transform.changeLogExported(message.changeCount ?? 0)
+      case 'applyChangeLog':
+        return strings.transform.changeLogApplied(message.changeCount ?? 0)
     }
   }
 
@@ -2058,6 +2124,19 @@
           }
         }
         break
+      case 'sessionActionComplete':
+        transformInFlight = false
+        transformFeedback = describeSessionActionComplete(message)
+        if (
+          !message.cancelled &&
+          (message.action === 'restoreCheckpoint' ||
+            message.action === 'applyChangeLog')
+        ) {
+          clearSearchResults()
+          pendingAnalysisProfileKey = ''
+          requestAnalysisProfile(true)
+        }
+        break
       case 'analysisProfile':
         latestDataProfile = message
         break
@@ -2161,6 +2240,10 @@
     onInsertFile={insertFile}
     onReplaceRangeWithFile={replaceRangeWithFile}
     onOpenTransformResult={openTransformResult}
+    onCreateCheckpoint={createCheckpoint}
+    onRestoreCheckpoint={restoreCheckpoint}
+    onExportChangeLog={exportChangeLog}
+    onApplyChangeLog={applyChangeLog}
   />
 
   <div class="top-panels">

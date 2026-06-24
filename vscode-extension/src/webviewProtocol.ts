@@ -144,6 +144,10 @@ export type WebviewToHostMessage =
   | { type: 'exportRange'; offset: number; length: number }
   | { type: 'insertFile'; offset: number }
   | { type: 'replaceRangeWithFile'; offset: number; length: number }
+  | { type: 'createCheckpoint' }
+  | { type: 'restoreCheckpoint' }
+  | { type: 'exportChangeLog' }
+  | { type: 'applyChangeLog' }
   | { type: 'toggleEditMode' }
   | { type: 'setInsertDirection'; insertDirection: InsertDirection }
   | {
@@ -252,6 +256,18 @@ export type HostToWebviewMessage =
       length: number
       byteCount: number
       fileName?: string
+      cancelled?: boolean
+      message?: string
+    }
+  | {
+      type: 'sessionActionComplete'
+      action:
+        | 'createCheckpoint'
+        | 'restoreCheckpoint'
+        | 'exportChangeLog'
+        | 'applyChangeLog'
+      changeCount?: number
+      checkpointCount?: number
       cancelled?: boolean
       message?: string
     }
@@ -714,6 +730,10 @@ export function normalizeWebviewMessage(
     }
 
     case 'requestTransformPlugins':
+    case 'createCheckpoint':
+    case 'restoreCheckpoint':
+    case 'exportChangeLog':
+    case 'applyChangeLog':
     case 'undo':
     case 'redo':
     case 'save':

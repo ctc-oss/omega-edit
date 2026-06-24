@@ -55,8 +55,8 @@ The migration must preserve these user-visible and integration features:
 - Profile and structure analysis panes.
 - Transform plugin discovery, option help, JSON Schema validation, and apply
   flow.
-- Change script export and replay.
-- Checkpoint creation, last-checkpoint rollback, and session rollback.
+- Change log export and application.
+- Checkpoint creation, last-checkpoint restore, and session rollback.
 - Integration and unit test coverage for the custom editor lifecycle.
 
 ## Svelte/Vite Requirements
@@ -148,7 +148,7 @@ Required command/API surfaces:
 - Go to an offset or select a range.
 - Search within bounded constraints.
 - Replace or edit a bounded range.
-- Export, validate, summarize, and apply a change script.
+- Export, validate, summarize, and apply a change log.
 - Profile a bounded range.
 - List available transforms and their schemas.
 - Apply a transform to a bounded range.
@@ -167,7 +167,7 @@ Machine-readable editor state should include:
 - language/encoding hints when available
 - undo/redo counts
 - change count
-- current checkpoint/change-script status when available
+- current checkpoint/change-log status when available
 - available transform summaries
 - active debugger byte position and external highlights when available
 
@@ -176,9 +176,9 @@ Editing requirements for AI clients:
 - Support dry-run validation before applying edits.
 - Return a before/after preview for bounded edits.
 - Return byte counts, offset ranges, and file-size delta.
-- Prefer change scripts as the durable edit artifact.
+- Prefer change logs as the durable edit artifact.
 - Require explicit confirmation or caller intent for destructive or broad edits.
-- Keep all applied AI edits auditable through command results and change-script
+- Keep all applied AI edits auditable through command results and change-log
   export.
 
 Safety requirements:
@@ -224,7 +224,7 @@ The Svelte webview should own:
 7. Port profile and structure analysis panes.
 8. Port transform plugin UI and option validation.
 9. Add generic external-highlight support for Daffodil debugger integration.
-10. Add AI/LLM command surfaces and change-script validation/summarization.
+10. Add AI/LLM command surfaces and change-log validation/summarization.
 11. Keep the retired legacy webview out of the runtime and package once parity
     tests pass.
 

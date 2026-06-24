@@ -11,7 +11,7 @@ import {
 } from './constants'
 import { OmegaEditToolkit } from './service'
 import { parseInputData } from './codec'
-import { InputEncoding, PatchKind } from './types'
+import { ChangeLogEntry, InputEncoding, PatchKind } from './types'
 
 type JsonObject = Record<string, unknown>
 
@@ -110,6 +110,18 @@ function getNumber(
     throw new Error(`${key} must be a non-negative integer`)
   }
   return value
+}
+
+function getChangeLogEntries(
+  object: JsonObject,
+  key: string
+): ChangeLogEntry[] | undefined {
+  const value = object[key]
+  if (value === undefined) return undefined
+  if (!Array.isArray(value)) {
+    throw new Error(`${key} must be an array`)
+  }
+  return value as ChangeLogEntry[]
 }
 
 function getInputValue(argumentsObject: JsonObject): {
@@ -256,6 +268,84 @@ function buildTools(toolkit: OmegaEditToolkit): ToolDefinition[] {
         return await toolkit.sessionStatus(
           getString(argumentsObject, 'sessionId', true)!
         )
+      },
+    },
+    {
+      name: 'omega_edit_create_checkpoint',
+      description:
+        'Create an OmegaEdit checkpoint for the current session state.',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          sessionId: { type: 'string' },
+        },
+        required: ['sessionId'],
+      },
+      run: async (argumentsObject) => {
+        return await toolkit.createCheckpoint(
+          getString(argumentsObject, 'sessionId', true)!
+        )
+      },
+    },
+    {
+      name: 'omega_edit_restore_checkpoint',
+      description:
+        'Restore the most recent OmegaEdit checkpoint by dropping the current checkpoint model.',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          sessionId: { type: 'string' },
+        },
+        required: ['sessionId'],
+      },
+      run: async (argumentsObject) => {
+        return await toolkit.restoreCheckpoint(
+          getString(argumentsObject, 'sessionId', true)!
+        )
+      },
+    },
+    {
+      name: 'omega_edit_export_change_log',
+      description:
+        'Export the OmegaEdit change log for a session as JSON entries, optionally writing the same change-log document to a file.',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          sessionId: { type: 'string' },
+          outputPath: { type: 'string' },
+          overwriteExisting: { type: 'boolean' },
+        },
+        required: ['sessionId'],
+      },
+      run: async (argumentsObject) => {
+        return await toolkit.exportChangeLog(
+          getString(argumentsObject, 'sessionId', true)!,
+          getString(argumentsObject, 'outputPath'),
+          getBoolean(argumentsObject, 'overwriteExisting') || false
+        )
+      },
+    },
+    {
+      name: 'omega_edit_apply_change_log',
+      description:
+        'Apply an OmegaEdit change log to a session from an inputPath or inline changeLog array.',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          sessionId: { type: 'string' },
+          inputPath: { type: 'string' },
+          changeLog: { type: 'array', items: { type: 'object' } },
+          dryRun: { type: 'boolean' },
+        },
+        required: ['sessionId'],
+      },
+      run: async (argumentsObject) => {
+        return await toolkit.applyChangeLog({
+          sessionId: getString(argumentsObject, 'sessionId', true)!,
+          inputPath: getString(argumentsObject, 'inputPath'),
+          changes: getChangeLogEntries(argumentsObject, 'changeLog'),
+          dryRun: getBoolean(argumentsObject, 'dryRun') || false,
+        })
       },
     },
     {

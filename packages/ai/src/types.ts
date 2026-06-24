@@ -1,5 +1,6 @@
 export type InputEncoding = 'utf8' | 'hex' | 'base64'
 export type PatchKind = 'insert' | 'overwrite' | 'delete' | 'replace'
+export type ChangeLogEntryKind = 'INSERT' | 'DELETE' | 'OVERWRITE' | 'REPLACE'
 
 export interface ToolkitOptions {
   host?: string
@@ -24,12 +25,67 @@ export interface SessionStatus {
   changeCount: number
   undoCount: number
   viewportCount: number
+  checkpointCount: number
   lastChange?: {
     kind: string
     offset: number
     length: number
     data: EncodedData
   }
+}
+
+export interface ChangeLogEntry {
+  serial?: number
+  kind: ChangeLogEntryKind
+  offset: number
+  length: number
+  data: string
+  groupId?: string
+}
+
+export interface ChangeLogDocument {
+  format: 'omega-edit.change-log'
+  version: 1
+  changeCount: number
+  sourceChangeCount: number
+  foldedChangeCount: number
+  changes: ChangeLogEntry[]
+}
+
+export interface ChangeLogResult {
+  sessionId: string
+  format: 'omega-edit.change-log'
+  version: 1
+  changeCount: number
+  sourceChangeCount: number
+  foldedChangeCount: number
+  changes: ChangeLogEntry[]
+  outputPath?: string
+}
+
+export interface ApplyChangeLogRequest {
+  sessionId: string
+  changes?: ChangeLogEntry[]
+  inputPath?: string
+  dryRun?: boolean
+}
+
+export interface ApplyChangeLogResult {
+  sessionId: string
+  applied: boolean
+  changeCount: number
+  inputPath?: string
+}
+
+export interface CheckpointResult {
+  sessionId: string
+  checkpointCount: number
+}
+
+export interface RestoreCheckpointResult {
+  sessionId: string
+  restored: boolean
+  checkpointCount: number
 }
 
 export interface ReadRangeResult {

@@ -34,19 +34,19 @@ import {
 } from './api'
 import {
   OMEGA_EDIT_CREATE_CHECKPOINT_COMMAND,
+  OMEGA_EDIT_APPLY_CHANGE_LOG_COMMAND,
   OMEGA_EDIT_CLEAR_EXTERNAL_HIGHLIGHTS_COMMAND,
-  OMEGA_EDIT_EXPORT_CHANGE_SCRIPT_COMMAND,
+  OMEGA_EDIT_EXPORT_CHANGE_LOG_COMMAND,
   OMEGA_EDIT_GET_EDITOR_STATE_COMMAND,
   OMEGA_EDIT_GO_TO_OFFSET_COMMAND,
   OMEGA_EDIT_OPEN_IN_HEX_EDITOR_COMMAND,
   OMEGA_EDIT_REFRESH_TRANSFORM_PLUGINS_COMMAND,
   OMEGA_EDIT_REDO_COMMAND,
-  OMEGA_EDIT_REPLAY_CHANGE_SCRIPT_COMMAND,
-  OMEGA_EDIT_ROLLBACK_CHECKPOINT_COMMAND,
   OMEGA_EDIT_ROLLBACK_SESSION_COMMAND,
   OMEGA_EDIT_SEARCH_NEXT_COMMAND,
   OMEGA_EDIT_SEARCH_PREVIOUS_COMMAND,
   OMEGA_EDIT_SET_EXTERNAL_HIGHLIGHTS_COMMAND,
+  OMEGA_EDIT_RESTORE_CHECKPOINT_COMMAND,
   OMEGA_EDIT_TOGGLE_INSERT_DIRECTION_COMMAND,
   OMEGA_EDIT_UNDO_COMMAND,
   OMEGA_EDIT_VIEW_TYPE,
@@ -554,6 +554,18 @@ function createOmegaEditExtensionApi(
     setInsertDirection(directionOrOptions, options) {
       return provider.setInsertDirection(directionOrOptions, options)
     },
+    async createCheckpoint(options) {
+      return provider.createCheckpoint(options)
+    },
+    async restoreCheckpoint(options) {
+      return provider.restoreCheckpoint(options)
+    },
+    async exportChangeLog(options) {
+      return provider.exportChangeLog(options)
+    },
+    async applyChangeLog(options) {
+      return provider.applyChangeLog(options)
+    },
   }
 }
 
@@ -764,18 +776,18 @@ export async function activate(
 
   context.subscriptions.push(
     vscode.commands.registerCommand(
-      OMEGA_EDIT_EXPORT_CHANGE_SCRIPT_COMMAND,
-      async () => {
-        await provider.exportActiveChangeScript()
+      OMEGA_EDIT_EXPORT_CHANGE_LOG_COMMAND,
+      async (options?: unknown) => {
+        await provider.exportChangeLog(options)
       }
     )
   )
 
   context.subscriptions.push(
     vscode.commands.registerCommand(
-      OMEGA_EDIT_REPLAY_CHANGE_SCRIPT_COMMAND,
-      async () => {
-        await provider.replayActiveChangeScript()
+      OMEGA_EDIT_APPLY_CHANGE_LOG_COMMAND,
+      async (options?: unknown) => {
+        await provider.applyChangeLog(options)
       }
     )
   )
@@ -791,9 +803,9 @@ export async function activate(
 
   context.subscriptions.push(
     vscode.commands.registerCommand(
-      OMEGA_EDIT_ROLLBACK_CHECKPOINT_COMMAND,
-      async () => {
-        await provider.rollbackActiveCheckpoint()
+      OMEGA_EDIT_RESTORE_CHECKPOINT_COMMAND,
+      async (options?: unknown) => {
+        await provider.restoreCheckpoint(options)
       }
     )
   )
@@ -801,8 +813,8 @@ export async function activate(
   context.subscriptions.push(
     vscode.commands.registerCommand(
       OMEGA_EDIT_CREATE_CHECKPOINT_COMMAND,
-      async () => {
-        await provider.createActiveCheckpoint()
+      async (options?: unknown) => {
+        await provider.createCheckpoint(options)
       }
     )
   )

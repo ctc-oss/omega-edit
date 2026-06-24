@@ -37,6 +37,8 @@ describe('@omega-edit/ai toolkit', function () {
     const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'omega-edit-ai-'))
     const inputPath = path.join(tempDir, 'input.bin')
     const outputPath = path.join(tempDir, 'output.bin')
+    const changeLogPath = path.join(tempDir, 'changes.json')
+    const replayPath = path.join(tempDir, 'replay.bin')
 
     fs.writeFileSync(inputPath, Buffer.from('abcdef', 'utf8'))
 
@@ -124,9 +126,51 @@ describe('@omega-edit/ai toolkit', function () {
       const afterRedo = await toolkit.readRange(createdSessionId, 0, 6)
       assert.equal(afterRedo.data.utf8, 'aZcdef')
 
+      const exportedLog = await toolkit.exportChangeLog(
+        createdSessionId,
+        changeLogPath,
+        true
+      )
+      assert.equal(exportedLog.format, 'omega-edit.change-log')
+      assert.equal(exportedLog.version, 1)
+      assert.equal(exportedLog.changeCount, 1)
+      assert.equal(exportedLog.sourceChangeCount, 1)
+      assert.equal(exportedLog.foldedChangeCount, 0)
+      assert.equal(exportedLog.changes[0].kind, 'OVERWRITE')
+      assert.equal(fs.existsSync(changeLogPath), true)
+      const changeLogDocument = JSON.parse(
+        await fs.promises.readFile(changeLogPath, 'utf8')
+      )
+      assert.equal(changeLogDocument.format, 'omega-edit.change-log')
+      assert.equal(changeLogDocument.version, 1)
+      assert.equal(changeLogDocument.changeCount, 1)
+      assert.equal(changeLogDocument.sourceChangeCount, 1)
+      assert.equal(changeLogDocument.foldedChangeCount, 0)
+      assert.equal(changeLogDocument.changes[0].kind, 'OVERWRITE')
+
+      await fs.promises.writeFile(replayPath, Buffer.from('abcdef', 'utf8'))
+      const replaySession = await toolkit.createSession(replayPath)
+      try {
+        const appliedLog = await toolkit.applyChangeLog({
+          sessionId: replaySession.sessionId,
+          inputPath: changeLogPath,
+        })
+        assert.equal(appliedLog.applied, true)
+        assert.equal(appliedLog.changeCount, 1)
+        const replayedRange = await toolkit.readRange(
+          replaySession.sessionId,
+          0,
+          6
+        )
+        assert.equal(replayedRange.data.utf8, 'aZcdef')
+      } finally {
+        await toolkit.destroySession(replaySession.sessionId)
+      }
+
       const status = await toolkit.sessionStatus(createdSessionId)
       assert.equal(status.changeCount, 1)
       assert.equal(status.undoCount, 0)
+      assert.equal(typeof status.checkpointCount, 'number')
 
       const saveResult = await toolkit.saveSession(
         createdSessionId,
@@ -138,6 +182,12 @@ describe('@omega-edit/ai toolkit', function () {
         fs.realpathSync.native(outputPath)
       )
       assert.equal(fs.readFileSync(outputPath, 'utf8'), 'aZcdef')
+
+      const checkpoint = await toolkit.createCheckpoint(createdSessionId)
+      assert.ok(checkpoint.checkpointCount >= 1)
+      const restored = await toolkit.restoreCheckpoint(createdSessionId)
+      assert.equal(restored.restored, true)
+      assert.ok(restored.checkpointCount >= 0)
     } finally {
       if (createdSessionId) {
         await toolkit.destroySession(createdSessionId)
