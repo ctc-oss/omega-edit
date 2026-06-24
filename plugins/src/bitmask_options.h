@@ -23,23 +23,28 @@
 
 #define OMEGA_BITMASK_MAX_BYTES 256
 
-typedef struct omega_bitmask_options_t {
-    omega_byte_t bytes[OMEGA_BITMASK_MAX_BYTES];
-    size_t length;
-} omega_bitmask_options_t;
-
-static const char OMEGA_BITMASK_OPTIONS_ARGS_SCHEMA[] =
-        "{\"type\":\"object\",\"properties\":{\"byte\":{\"oneOf\":["
-        "{\"type\":\"string\",\"pattern\":\"^0x[0-9A-Fa-f]{1,2}$\"},{\"type\":\"integer\",\"minimum\":0,"
-        "\"maximum\":255}]},\"mask\":{\"type\":\"array\",\"minItems\":1,\"items\":{\"oneOf\":[{\"type\":"
-        "\"string\",\"pattern\":\"^0x[0-9A-Fa-f]{1,2}$\"},{\"type\":\"integer\",\"minimum\":0,\"maximum\":"
-        "255}]}}},\"additionalProperties\":false,\"not\":{\"type\":\"object\",\"required\":[\"byte\",\"mask\"]}}";
-
 typedef enum omega_bitmask_operation_t {
     OMEGA_BITMASK_AND,
     OMEGA_BITMASK_OR,
     OMEGA_BITMASK_XOR
 } omega_bitmask_operation_t;
+
+typedef struct omega_bitmask_options_t {
+    omega_byte_t bytes[OMEGA_BITMASK_MAX_BYTES];
+    size_t length;
+    omega_bitmask_operation_t operation;
+} omega_bitmask_options_t;
+
+static const char OMEGA_BITMASK_OPTIONS_ARGS_SCHEMA[] =
+        "{\"type\":\"object\",\"properties\":{\"operator\":{\"type\":\"string\",\"title\":\"Operator\","
+        "\"description\":\"Logical operation to apply.\",\"default\":\"xor\",\"enum\":[\"and\",\"or\",\"xor\"]},"
+        "\"byte\":{\"title\":\"Single byte\",\"description\":\"Apply one byte to every selected byte.\","
+        "\"default\":\"0xFF\",\"x-omega-clears\":[\"mask\"],\"type\":\"string\","
+        "\"pattern\":\"^0x[0-9A-Fa-f]{1,2}$\"},\"mask\":{\"title\":\"Repeating mask\","
+        "\"description\":\"Apply a comma-separated byte mask repeatedly across the selection.\","
+        "\"x-omega-clears\":[\"byte\"],\"type\":\"array\",\"minItems\":1,"
+        "\"items\":{\"type\":\"string\",\"pattern\":\"^0x[0-9A-Fa-f]{1,2}$\"}}},"
+        "\"additionalProperties\":false}";
 
 static void omega_bitmask_skip_ws(const char **cursor) {
     while (**cursor && isspace((unsigned char) **cursor)) { ++(*cursor); }
@@ -98,6 +103,30 @@ static int omega_bitmask_parse_byte_value(const char **cursor, omega_byte_t *byt
         return omega_bitmask_parse_byte_text(value, byte_out);
     }
     return omega_bitmask_parse_byte_number(cursor, byte_out);
+}
+
+static int omega_bitmask_parse_operation_text(const char *value, omega_bitmask_operation_t *operation_out) {
+    if (!value || !operation_out) { return -1; }
+    if (strcmp(value, "and") == 0) {
+        *operation_out = OMEGA_BITMASK_AND;
+        return 0;
+    }
+    if (strcmp(value, "or") == 0) {
+        *operation_out = OMEGA_BITMASK_OR;
+        return 0;
+    }
+    if (strcmp(value, "xor") == 0) {
+        *operation_out = OMEGA_BITMASK_XOR;
+        return 0;
+    }
+    return -1;
+}
+
+static int omega_bitmask_parse_operation_value(const char **cursor, omega_bitmask_operation_t *operation_out) {
+    omega_bitmask_skip_ws(cursor);
+    char value[16];
+    if (omega_bitmask_parse_json_string(cursor, value, sizeof(value)) != 0) { return -1; }
+    return omega_bitmask_parse_operation_text(value, operation_out);
 }
 
 static int omega_bitmask_skip_json_string(const char **cursor) {
@@ -188,10 +217,12 @@ static int omega_bitmask_parse_mask_value(const char **cursor, omega_bitmask_opt
 }
 
 static int omega_bitmask_parse_options(const char *options_json, omega_byte_t default_byte,
+                                       omega_bitmask_operation_t default_operation,
                                        omega_bitmask_options_t *mask_out) {
     if (!mask_out) { return -1; }
     mask_out->bytes[0] = default_byte;
     mask_out->length = 1;
+    mask_out->operation = default_operation;
     if (!options_json || !*options_json) { return 0; }
 
     const char *cursor = options_json;
@@ -214,7 +245,9 @@ static int omega_bitmask_parse_options(const char *options_json, omega_byte_t de
         ++cursor;
         omega_bitmask_skip_ws(&cursor);
 
-        if (strcmp(key, "byte") == 0 || strcmp(key, "mask") == 0) {
+        if (strcmp(key, "operator") == 0) {
+            if (omega_bitmask_parse_operation_value(&cursor, &mask_out->operation) != 0) { return -1; }
+        } else if (strcmp(key, "byte") == 0 || strcmp(key, "mask") == 0) {
             if (omega_bitmask_parse_mask_value(&cursor, mask_out) != 0) { return -1; }
         } else {
             if (omega_bitmask_skip_json_value(&cursor) != 0) { return -1; }
@@ -248,8 +281,7 @@ static omega_byte_t omega_bitmask_apply_byte(omega_byte_t value, omega_byte_t ma
 
 static int omega_bitmask_apply_replace(const omega_transform_plugin_request_t *request_ptr,
                                        omega_transform_plugin_response_t *response_ptr,
-                                       const omega_bitmask_options_t *mask_ptr,
-                                       omega_bitmask_operation_t operation) {
+                                       const omega_bitmask_options_t *mask_ptr) {
     if (!request_ptr || !response_ptr || !request_ptr->alloc || !mask_ptr || mask_ptr->length == 0 ||
         request_ptr->input_length < 0 || (request_ptr->input_length > 0 && !request_ptr->input_bytes)) {
         return -1;
@@ -261,7 +293,7 @@ static int omega_bitmask_apply_replace(const omega_transform_plugin_request_t *r
 
     for (int64_t i = 0; i < request_ptr->input_length; ++i) {
         const omega_byte_t mask = mask_ptr->bytes[(size_t) i % mask_ptr->length];
-        bytes[i] = omega_bitmask_apply_byte(request_ptr->input_bytes[i], mask, operation);
+        bytes[i] = omega_bitmask_apply_byte(request_ptr->input_bytes[i], mask, mask_ptr->operation);
     }
     response_ptr->replacement_bytes = bytes;
     response_ptr->replacement_length = request_ptr->input_length;

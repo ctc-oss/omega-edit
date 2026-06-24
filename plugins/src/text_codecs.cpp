@@ -24,9 +24,11 @@
 namespace {
 
 constexpr const char *TEXT_CODEC_ARGS_SCHEMA =
-        "{\"type\":\"object\",\"properties\":{\"codec\":{\"type\":\"string\",\"pattern\":\"^(hex|base16|base64url|"
-        "base32|base32-crockford|ascii85|base85|z85|base58|percent|url|quoted-printable|uuencode|yenc)$\"},"
-        "\"direction\":{\"type\":\"string\",\"pattern\":\"^(encode|decode)$\"}},\"additionalProperties\":false}";
+        "{\"type\":\"object\",\"properties\":{\"codec\":{\"type\":\"string\",\"title\":\"Codec\","
+        "\"description\":\"Text-safe encoding to apply.\",\"default\":\"hex\",\"enum\":[\"hex\",\"base16\","
+        "\"base64url\",\"base32\",\"base32-crockford\",\"ascii85\",\"base85\",\"z85\",\"base58\",\"percent\","
+        "\"url\",\"quoted-printable\",\"uuencode\",\"yenc\"]},\"direction\":{\"type\":\"string\",\"title\":"
+        "\"Direction\",\"default\":\"encode\",\"enum\":[\"encode\",\"decode\"]}},\"additionalProperties\":false}";
 
 int hex_value(omega_byte_t byte) {
     if (byte >= '0' && byte <= '9') { return byte - '0'; }
@@ -496,9 +498,8 @@ extern "C" OMEGA_TRANSFORM_PLUGIN_EXPORT int omega_transform_plugin_get_info(
     info_ptr->flags = OMEGA_TRANSFORM_PLUGIN_FLAG_MAY_EXPAND | OMEGA_TRANSFORM_PLUGIN_FLAG_MAY_SHRINK |
                       OMEGA_TRANSFORM_PLUGIN_FLAG_BINARY_SAFE;
     info_ptr->help =
-            "Options JSON accepts {\"codec\":\"hex\",\"direction\":\"encode\"}. Codecs include hex/base16, "
-            "base64url, base32, base32-crockford, ascii85/base85, z85, base58, percent/url, quoted-printable, "
-            "uuencode, and yenc.";
+            "Choose a text codec and encode or decode direction. Codecs include hex/base16, base64url, base32, "
+            "base32-crockford, ascii85/base85, z85, base58, percent/url, quoted-printable, uuencode, and yenc.";
     info_ptr->example = "{\"codec\":\"base32\",\"direction\":\"encode\"}";
     info_ptr->default_args = "{\"codec\":\"hex\",\"direction\":\"encode\"}";
     info_ptr->args_schema = TEXT_CODEC_ARGS_SCHEMA;

@@ -529,6 +529,11 @@ test('compiled extension entrypoints exist after build', () => {
   assert.match(providerJs, /defaultArgs:\s*plugin\.defaultArgs/)
   assert.match(providerJs, /argsSchema:\s*plugin\.argsSchema/)
   assert.match(providerJs, /case\s+['"]applyTransform['"]/)
+  assert.match(providerJs, /case\s+['"]exportRange['"]/)
+  assert.match(providerJs, /case\s+['"]insertFile['"]/)
+  assert.match(providerJs, /case\s+['"]replaceRangeWithFile['"]/)
+  assert.match(providerJs, /pickFileSpliceBytes/)
+  assert.match(providerJs, /postFileActionComplete/)
   assert.match(providerJs, /kind:\s*['"]REPLACE['"]/)
   assert.match(providerJs, /getContentType/)
   assert.match(providerJs, /getLanguage/)
@@ -592,6 +597,9 @@ test('compiled extension entrypoints exist after build', () => {
   assert.match(protocolSource, /documentReverted/)
   assert.match(protocolJs, /case\s+['"]requestAnalysisProfile['"]/)
   assert.match(protocolJs, /case\s+['"]applyTransform['"]/)
+  assert.match(protocolJs, /case\s+['"]exportRange['"]/)
+  assert.match(protocolJs, /case\s+['"]insertFile['"]/)
+  assert.match(protocolJs, /case\s+['"]replaceRangeWithFile['"]/)
   assert.match(apiDts, /OmegaEditExtensionApi/)
   assert.match(apiDts, /OMEGA_EDIT_EXTENSION_ID/)
   assert.match(apiDts, /extensionId/)
@@ -788,6 +796,12 @@ test('compiled extension entrypoints exist after build', () => {
   assert.match(svelteAppSource, /if \(transformPluginsLoading\)/)
   assert.match(svelteAppSource, /function applyTransform/)
   assert.match(svelteAppSource, /type: 'applyTransform'/)
+  assert.match(svelteAppSource, /function exportRange/)
+  assert.match(svelteAppSource, /type: 'exportRange'/)
+  assert.match(svelteAppSource, /function insertFile/)
+  assert.match(svelteAppSource, /type: 'insertFile'/)
+  assert.match(svelteAppSource, /function replaceRangeWithFile/)
+  assert.match(svelteAppSource, /type: 'replaceRangeWithFile'/)
   assert.match(svelteAppSource, /offsetRadix: 'hex' \| 'dec'/)
   assert.match(
     svelteAppSource,
@@ -799,7 +813,9 @@ test('compiled extension entrypoints exist after build', () => {
   assert.match(svelteAppSource, /transformPluginsLoaded = true/)
   assert.match(svelteAppSource, /transformPluginsLoading = false/)
   assert.match(svelteAppSource, /case 'transformComplete'/)
+  assert.match(svelteAppSource, /case 'fileActionComplete'/)
   assert.match(svelteAppSource, /describeTransformComplete/)
+  assert.match(svelteAppSource, /describeFileActionComplete/)
   assert.match(svelteAppSource, /createTransformResult\(message\)/)
   assert.match(svelteAppSource, /rememberTransformResult/)
   assert.match(svelteAppSource, /openTransformResult/)
@@ -1030,6 +1046,8 @@ test('compiled extension entrypoints exist after build', () => {
   assert.match(i18nSource, /text: 'TEXT'/)
   assert.match(i18nSource, /resultAvailable/)
   assert.match(i18nSource, /resultHistoryTitle/)
+  assert.match(i18nSource, /fileSplicingGroup/)
+  assert.match(i18nSource, /replaceRangeWithFile/)
   assert.match(i18nSource, /rangeEndBeforeStart/)
   assert.match(i18nSource, /replacingAll: 'Replacing matches\.\.\.'/)
   assert.match(i18nSource, /readOnly: 'Read-only'/)
@@ -1050,6 +1068,9 @@ test('compiled extension entrypoints exist after build', () => {
   assert.match(toolbarSource, /onOpenTransformResult/)
   assert.match(toolbarSource, /onRequestTransforms/)
   assert.match(toolbarSource, /onApplyTransform/)
+  assert.match(toolbarSource, /onExportRange/)
+  assert.match(toolbarSource, /onInsertFile/)
+  assert.match(toolbarSource, /onReplaceRangeWithFile/)
   assert.doesNotMatch(toolbarSource, /canUndo/)
   assert.doesNotMatch(toolbarSource, /canRedo/)
   assert.doesNotMatch(toolbarSource, /onUndo/)
@@ -1065,10 +1086,14 @@ test('compiled extension entrypoints exist after build', () => {
   assert.match(transformPanelSource, /function validateJsonSchemaValue/)
   assert.match(transformPanelSource, /function validateTransformOptions/)
   assert.match(transformPanelSource, /function validateTransformRange/)
+  assert.match(transformPanelSource, /function validateInsertOffset/)
   assert.match(transformPanelSource, /function parseOffsetInput/)
   assert.match(transformPanelSource, /function useMaxRangeEnd/)
+  assert.match(transformPanelSource, /function useMaxInsertOffset/)
   assert.match(transformPanelSource, /function openTransformDialog/)
+  assert.match(transformPanelSource, /function openFileActionDialog/)
   assert.match(transformPanelSource, /function applySelectedTransform/)
+  assert.match(transformPanelSource, /function applySelectedFileAction/)
   assert.match(transformPanelSource, /rangeStartInput = \$state/)
   assert.match(transformPanelSource, /rangeEndInput = \$state/)
   assert.match(transformPanelSource, /savedOptionsByPluginId = \$state/)
@@ -1076,6 +1101,9 @@ test('compiled extension entrypoints exist after build', () => {
   assert.match(transformPanelSource, /pluginsLoaded/)
   assert.match(transformPanelSource, /onRequestTransforms/)
   assert.match(transformPanelSource, /onApplyTransform/)
+  assert.match(transformPanelSource, /onExportRange/)
+  assert.match(transformPanelSource, /onInsertFile/)
+  assert.match(transformPanelSource, /onReplaceRangeWithFile/)
   assert.match(transformPanelSource, /role="dialog"/)
   assert.match(transformPanelSource, /aria-modal="true"/)
   assert.match(transformPanelSource, /MAX_TRANSFORM_OPTIONS_LENGTH/)
@@ -1088,6 +1116,8 @@ test('compiled extension entrypoints exist after build', () => {
     /aria-label=\{strings\.transform\.closeDialog\}/
   )
   assert.match(transformPanelSource, /class="transform-select"/)
+  assert.match(transformPanelSource, /strings\.transform\.fileSplicingGroup/)
+  assert.match(transformPanelSource, /strings\.transform\.transformsGroup/)
   assert.match(transformPanelSource, /class="transform-options-form"/)
   assert.match(transformPanelSource, /class="transform-raw-options"/)
   assert.match(transformPanelSource, /<optgroup label=\{group\.label\}>/)
@@ -1552,6 +1582,52 @@ test('webview protocol normalizes editor commands and rejects invalid ranges', (
     }),
     { type: 'replace', offset: 10, length: 0, data: '' }
   )
+  assert.deepEqual(
+    normalizeWebviewMessage(context, {
+      type: 'exportRange',
+      offset: 2,
+      length: 3,
+    }),
+    { type: 'exportRange', offset: 2, length: 3 }
+  )
+  assert.equal(
+    normalizeWebviewMessage(context, {
+      type: 'exportRange',
+      offset: 8,
+      length: 3,
+    }),
+    undefined
+  )
+  assert.deepEqual(
+    normalizeWebviewMessage(context, {
+      type: 'insertFile',
+      offset: 10,
+    }),
+    { type: 'insertFile', offset: 10 }
+  )
+  assert.equal(
+    normalizeWebviewMessage(context, {
+      type: 'insertFile',
+      offset: 11,
+    }),
+    undefined
+  )
+  assert.deepEqual(
+    normalizeWebviewMessage(context, {
+      type: 'replaceRangeWithFile',
+      offset: 1,
+      length: 4,
+    }),
+    { type: 'replaceRangeWithFile', offset: 1, length: 4 }
+  )
+  assert.equal(
+    normalizeWebviewMessage(context, {
+      type: 'replaceRangeWithFile',
+      offset: 9,
+      length: 2,
+    }),
+    undefined
+  )
   assert.equal(
     normalizeWebviewMessage(context, {
       type: 'overwrite',
@@ -1698,23 +1774,23 @@ test('webview protocol normalizes analysis, search, and transform messages', () 
   assert.deepEqual(
     normalizeWebviewMessage(context, {
       type: 'applyTransform',
-      pluginId: 'omega.example.xor',
+      pluginId: 'omega.example.bitwise',
       offset: 1,
       length: 4,
-      optionsJson: ' { "mask": 255 } ',
+      optionsJson: ' { "operator": "xor", "mask": [255] } ',
     }),
     {
       type: 'applyTransform',
-      pluginId: 'omega.example.xor',
+      pluginId: 'omega.example.bitwise',
       offset: 1,
       length: 4,
-      optionsJson: '{ "mask": 255 }',
+      optionsJson: '{ "operator": "xor", "mask": [255] }',
     }
   )
   assert.equal(
     normalizeWebviewMessage(context, {
       type: 'applyTransform',
-      pluginId: 'omega.example.xor',
+      pluginId: 'omega.example.bitwise',
       offset: 1,
       length: 0,
     }),
@@ -1723,7 +1799,7 @@ test('webview protocol normalizes analysis, search, and transform messages', () 
   assert.equal(
     normalizeWebviewMessage(context, {
       type: 'applyTransform',
-      pluginId: 'omega.example.xor',
+      pluginId: 'omega.example.bitwise',
       offset: 99_999,
       length: 2,
     }),
@@ -1732,7 +1808,7 @@ test('webview protocol normalizes analysis, search, and transform messages', () 
   assert.equal(
     normalizeWebviewMessage(context, {
       type: 'applyTransform',
-      pluginId: 'omega.example.xor',
+      pluginId: 'omega.example.bitwise',
       offset: 1,
       length: 4,
       optionsJson: '{',

@@ -23,11 +23,14 @@
 namespace {
 
 constexpr const char *CHARACTER_TRANSCODE_ARGS_SCHEMA =
-        "{\"type\":\"object\",\"properties\":{\"from\":{\"type\":\"string\",\"pattern\":\"^(ascii|utf-8|utf-16le|utf-"
-        "16be|utf-32le|utf-32be|iso-8859-1|windows-1252|ebcdic-037|ibm037|ebcdic-500|ibm500|ebcdic-1047|ibm1047|"
-        "ebcdic-1140|ibm1140)$\"},\"to\":{\"type\":\"string\",\"pattern\":\"^(ascii|utf-8|utf-16le|utf-16be|utf-32le|"
-        "utf-32be|iso-8859-1|windows-1252|ebcdic-037|ibm037|ebcdic-500|ibm500|ebcdic-1047|ibm1047|ebcdic-1140|"
-        "ibm1140)$\"}},\"additionalProperties\":false}";
+        "{\"type\":\"object\",\"properties\":{\"from\":{\"type\":\"string\",\"title\":\"From\","
+        "\"description\":\"Source character encoding.\",\"default\":\"utf-8\",\"enum\":[\"ascii\",\"utf-8\","
+        "\"utf-16le\",\"utf-16be\",\"utf-32le\",\"utf-32be\",\"iso-8859-1\",\"windows-1252\",\"ebcdic-037\","
+        "\"ibm037\",\"ebcdic-500\",\"ibm500\",\"ebcdic-1047\",\"ibm1047\",\"ebcdic-1140\",\"ibm1140\"]},"
+        "\"to\":{\"type\":\"string\",\"title\":\"To\",\"description\":\"Destination character encoding.\","
+        "\"default\":\"utf-16le\",\"enum\":[\"ascii\",\"utf-8\",\"utf-16le\",\"utf-16be\",\"utf-32le\","
+        "\"utf-32be\",\"iso-8859-1\",\"windows-1252\",\"ebcdic-037\",\"ibm037\",\"ebcdic-500\",\"ibm500\","
+        "\"ebcdic-1047\",\"ibm1047\",\"ebcdic-1140\",\"ibm1140\"]}},\"additionalProperties\":false}";
 
 bool utf8_append(uint32_t codepoint, std::vector<omega_byte_t> &out) {
     if (codepoint <= 0x7FU) {
@@ -375,9 +378,8 @@ extern "C" OMEGA_TRANSFORM_PLUGIN_EXPORT int omega_transform_plugin_get_info(
     info_ptr->flags = OMEGA_TRANSFORM_PLUGIN_FLAG_MAY_EXPAND | OMEGA_TRANSFORM_PLUGIN_FLAG_MAY_SHRINK |
                       OMEGA_TRANSFORM_PLUGIN_FLAG_BINARY_SAFE;
     info_ptr->help =
-            "Options JSON accepts {\"from\":\"ebcdic-037\",\"to\":\"utf-8\"}. Charsets include ascii, utf-8, "
-            "utf-16le/be, utf-32le/be, iso-8859-1, windows-1252, ebcdic-037, ebcdic-500, ebcdic-1047, and "
-            "ebcdic-1140.";
+            "Choose source and target charsets. Supported charsets include ascii, utf-8, utf-16le/be, utf-32le/be, "
+            "iso-8859-1, windows-1252, ebcdic-037, ebcdic-500, ebcdic-1047, and ebcdic-1140.";
     info_ptr->example = "{\"from\":\"ebcdic-037\",\"to\":\"utf-8\"}";
     info_ptr->default_args = "{\"from\":\"utf-8\",\"to\":\"utf-16le\"}";
     info_ptr->args_schema = CHARACTER_TRANSCODE_ARGS_SCHEMA;

@@ -43,6 +43,10 @@
     HostToWebviewMessage,
     { type: 'transformStatus' }
   >
+  type FileActionCompleteMessage = Extract<
+    HostToWebviewMessage,
+    { type: 'fileActionComplete' }
+  >
   type ViewportDataMessage = Extract<
     HostToWebviewMessage,
     { type: 'viewportData' }
@@ -1262,6 +1266,58 @@
     })
   }
 
+  function exportRange(offset: number, length: number): void {
+    if (transformInFlight) {
+      return
+    }
+    if (
+      fileSize <= 0 ||
+      offset < 0 ||
+      length <= 0 ||
+      offset + length > fileSize
+    ) {
+      transformFeedback = strings.transform.selectRangeFirst
+      return
+    }
+
+    transformInFlight = true
+    transformFeedback = strings.transform.exportingRange
+    postToHost({ type: 'exportRange', offset, length })
+  }
+
+  function insertFile(offset: number): void {
+    if (transformInFlight) {
+      return
+    }
+    if (offset < 0 || offset > fileSize) {
+      transformFeedback = strings.transform.invalidInsertOffset
+      return
+    }
+
+    transformInFlight = true
+    transformFeedback = strings.transform.insertingFile
+    postToHost({ type: 'insertFile', offset })
+  }
+
+  function replaceRangeWithFile(offset: number, length: number): void {
+    if (transformInFlight) {
+      return
+    }
+    if (
+      fileSize <= 0 ||
+      offset < 0 ||
+      length <= 0 ||
+      offset + length > fileSize
+    ) {
+      transformFeedback = strings.transform.selectRangeFirst
+      return
+    }
+
+    transformInFlight = true
+    transformFeedback = strings.transform.replacingWithFile
+    postToHost({ type: 'replaceRangeWithFile', offset, length })
+  }
+
   function describeTransformComplete(message: TransformCompleteMessage): string {
     if (message.resultText) {
       return strings.transform.resultAvailable(
@@ -1301,6 +1357,29 @@
     }
 
     return prefix
+  }
+
+  function describeFileActionComplete(
+    message: FileActionCompleteMessage
+  ): string {
+    if (message.message) {
+      return message.message
+    }
+    if (message.cancelled) {
+      return strings.transform.fileActionCancelled
+    }
+
+    switch (message.action) {
+      case 'exportRange':
+        return strings.transform.exportedRange(message.byteCount)
+      case 'insertFile':
+        return strings.transform.insertedFile(message.byteCount)
+      case 'replaceRangeWithFile':
+        return strings.transform.replacedRangeWithFile(
+          message.length,
+          message.byteCount
+        )
+    }
   }
 
   function transformPluginTitle(pluginId: string): string {
@@ -1958,6 +2037,27 @@
         pendingAnalysisProfileKey = ''
         requestAnalysisProfile(true)
         break
+      case 'fileActionComplete':
+        transformInFlight = false
+        transformFeedback = describeFileActionComplete(message)
+        if (!message.cancelled) {
+          if (message.action === 'insertFile' && message.byteCount > 0) {
+            clearSearchResults()
+            selectRange(message.offset, message.byteCount)
+            pendingAnalysisProfileKey = ''
+            requestAnalysisProfile(true)
+          } else if (message.action === 'replaceRangeWithFile') {
+            clearSearchResults()
+            if (message.byteCount > 0) {
+              selectRange(message.offset, message.byteCount)
+            } else {
+              selectOffset(message.offset)
+            }
+            pendingAnalysisProfileKey = ''
+            requestAnalysisProfile(true)
+          }
+        }
+        break
       case 'analysisProfile':
         latestDataProfile = message
         break
@@ -2047,6 +2147,7 @@
     {transformFeedback}
     transformResults={transformResultHistory}
     activeTransformResultId={transformResult?.id}
+    {selectedOffset}
     {selectionStart}
     {selectionEnd}
     {selectionLength}
@@ -2056,6 +2157,9 @@
     onGoToOffset={goToOffset}
     onRequestTransforms={requestTransformPlugins}
     onApplyTransform={applyTransform}
+    onExportRange={exportRange}
+    onInsertFile={insertFile}
+    onReplaceRangeWithFile={replaceRangeWithFile}
     onOpenTransformResult={openTransformResult}
   />
 

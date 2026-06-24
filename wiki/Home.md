@@ -212,7 +212,7 @@ This AI tooling is a distinguishing feature of Ωedit™: it exposes the editing
 
 ## Transform Plugins
 
-OmegaEdit can load native `.so`, `.dylib`, and `.dll` transform plugins from registered plugin directories. Plugins can replace a selected byte range, expand or shrink content, or inspect a range and return results such as checksums and hashes. The separately packaged examples include one-for-one bitwise transforms, base64 encode/decode, zlib compress/decompress, MD5/SHA digest calculation, expansion/shrink behavior, and inspect-only results. See [Transform Plugins](Transform-Plugins) for the ABI, SDK helpers, plugin package layout, server registration options, and exemplar plugins.
+OmegaEdit can load native `.so`, `.dylib`, and `.dll` transform plugins from registered plugin directories. Plugins can replace a selected byte range, expand or shrink content, or inspect a range and return results such as checksums and hashes. The separately packaged examples include grouped bitwise operations, base64 encode/decode, zlib compress/decompress, OpenSSL digest calculation, expansion/shrink behavior, and inspect-only results. See [Transform Plugins](Transform-Plugins) for the ABI, SDK helpers, plugin package layout, server registration options, and exemplar plugins.
 
 ## Comparison with Other Editing Engines
 

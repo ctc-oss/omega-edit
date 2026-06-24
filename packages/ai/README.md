@@ -52,10 +52,10 @@ oe patch --session <session-id> --offset 8 --hex 0000000d
 
 # Discover and run native transform plugins
 oe list-transform-plugins
-oe apply-transform-plugin --session <session-id> --plugin omega.example.checksum8 --offset 0 --length 128
-oe apply-transform-plugin --session <session-id> --plugin omega.example.sha256 --offset 0 --length 128
-oe apply-transform-plugin --session <session-id> --plugin omega.example.base64_encode --offset 0 --length 128
-oe apply-transform-plugin --session <session-id> --plugin omega.example.zlib_compress --offset 0 --length 128 --options-json '{"level":9}'
+oe apply-transform-plugin --session <session-id> --plugin omega.example.common_checksums --offset 0 --length 128 --options-json '{"algorithm":"sum8"}'
+oe apply-transform-plugin --session <session-id> --plugin omega.example.openssl_digests --offset 0 --length 128 --options-json '{"algorithm":"sha256"}'
+oe apply-transform-plugin --session <session-id> --plugin omega.example.base64 --offset 0 --length 128 --options-json '{"direction":"encode"}'
+oe apply-transform-plugin --session <session-id> --plugin omega.example.zlib --offset 0 --length 128 --options-json '{"action":"compress","level":9}'
 
 # Save or export a slice
 oe save-session --session <session-id> --output ./patched.bin --overwrite

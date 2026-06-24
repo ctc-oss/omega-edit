@@ -31,6 +31,7 @@
     transformFeedback?: string
     transformResults?: TransformResultHistoryItem[]
     activeTransformResultId?: string
+    selectedOffset?: number
     selectionStart?: number
     selectionEnd?: number
     selectionLength?: number
@@ -45,6 +46,9 @@
       length: number,
       optionsJson?: string
     ) => void
+    onExportRange: (offset: number, length: number) => void
+    onInsertFile: (offset: number) => void
+    onReplaceRangeWithFile: (offset: number, length: number) => void
     onOpenTransformResult: (resultId: string) => void
   }
 
@@ -61,6 +65,7 @@
     transformFeedback = '',
     transformResults = [],
     activeTransformResultId = '',
+    selectedOffset = -1,
     selectionStart = -1,
     selectionEnd = -1,
     selectionLength = 0,
@@ -70,6 +75,9 @@
     onGoToOffset,
     onRequestTransforms,
     onApplyTransform,
+    onExportRange,
+    onInsertFile,
+    onReplaceRangeWithFile,
     onOpenTransformResult,
   }: Props = $props()
 
@@ -147,6 +155,7 @@
       busy={transformInFlight}
       error={transformPluginError}
       {fileSize}
+      {selectedOffset}
       {selectionStart}
       {selectionEnd}
       {selectionLength}
@@ -156,6 +165,9 @@
       {activeTransformResultId}
       {onRequestTransforms}
       {onApplyTransform}
+      {onExportRange}
+      {onInsertFile}
+      {onReplaceRangeWithFile}
       {onOpenTransformResult}
     />
   </div>

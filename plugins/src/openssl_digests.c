@@ -12,22 +12,117 @@
  *                                                                                                                    *
  **********************************************************************************************************************/
 
-/*
- * Implementation template for OpenSSL digest plugins. Include this file from exactly one translation unit per plugin
- * target after defining the OMEGA_DIGEST_* macros.
- */
-
-#ifndef OMEGA_EDIT_OPENSSL_DIGEST_PLUGIN_H
-#define OMEGA_EDIT_OPENSSL_DIGEST_PLUGIN_H
-
 #include <omega_edit/transform_plugin_sdk.h>
+#include <ctype.h>
 #include <openssl/evp.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
+
+typedef const EVP_MD *(*omega_digest_evp_function_t)(void);
+
+typedef struct omega_digest_algorithm_t {
+    const char *id;
+    const char *label;
+    omega_digest_evp_function_t evp_function;
+} omega_digest_algorithm_t;
 
 static const int64_t OMEGA_DIGEST_DEFAULT_CHUNK_SIZE = 64 * 1024;
 static const int64_t OMEGA_DIGEST_MAX_CHUNK_SIZE = 1024 * 1024;
+
+static const omega_digest_algorithm_t OMEGA_DIGEST_ALGORITHMS[] = {
+        {"md5", "md5", EVP_md5},
+        {"sha1", "sha1", EVP_sha1},
+        {"sha224", "sha224", EVP_sha224},
+        {"sha256", "sha256", EVP_sha256},
+        {"sha384", "sha384", EVP_sha384},
+        {"sha512", "sha512", EVP_sha512},
+        {"sha3-256", "sha3-256", EVP_sha3_256},
+        {"sha3-512", "sha3-512", EVP_sha3_512},
+        {"blake2b-512", "blake2b-512", EVP_blake2b512},
+        {"blake2s-256", "blake2s-256", EVP_blake2s256},
+};
+
+static const char DIGEST_ARGS_SCHEMA[] =
+        "{\"type\":\"object\",\"properties\":{\"algorithm\":{\"type\":\"string\",\"title\":\"Algorithm\","
+        "\"description\":\"OpenSSL digest algorithm to calculate.\",\"default\":\"sha256\","
+        "\"enum\":[\"md5\",\"sha1\",\"sha224\",\"sha256\",\"sha384\",\"sha512\",\"sha3-256\","
+        "\"sha3-512\",\"blake2b-512\",\"blake2s-256\"],\"x-omega-enumGroups\":[{\"label\":\"Legacy\","
+        "\"values\":[\"md5\",\"sha1\"]},{\"label\":\"SHA-2\",\"values\":[\"sha224\",\"sha256\","
+        "\"sha384\",\"sha512\"]},{\"label\":\"SHA-3\",\"values\":[\"sha3-256\",\"sha3-512\"]},"
+        "{\"label\":\"BLAKE2\",\"values\":[\"blake2b-512\",\"blake2s-256\"]}]}},"
+        "\"additionalProperties\":false}";
+
+static void digest_skip_ws(const char **cursor) {
+    while (cursor && *cursor && isspace((unsigned char) **cursor)) { ++(*cursor); }
+}
+
+static int digest_parse_json_string(const char **cursor, char *out, size_t out_size) {
+    if (!cursor || !*cursor || **cursor != '"' || out_size == 0) { return -1; }
+    ++(*cursor);
+    size_t length = 0;
+    while (**cursor && **cursor != '"') {
+        char ch = **cursor;
+        if (ch == '\\') {
+            ++(*cursor);
+            if (!**cursor) { return -1; }
+            ch = **cursor;
+        }
+        if (length + 1 >= out_size) { return -1; }
+        out[length++] = ch;
+        ++(*cursor);
+    }
+    if (**cursor != '"') { return -1; }
+    ++(*cursor);
+    out[length] = '\0';
+    return 0;
+}
+
+static const omega_digest_algorithm_t *digest_find_algorithm(const char *algorithm) {
+    if (!algorithm) { return NULL; }
+    const size_t count = sizeof(OMEGA_DIGEST_ALGORITHMS) / sizeof(OMEGA_DIGEST_ALGORITHMS[0]);
+    for (size_t i = 0; i < count; ++i) {
+        if (strcmp(OMEGA_DIGEST_ALGORITHMS[i].id, algorithm) == 0) { return &OMEGA_DIGEST_ALGORITHMS[i]; }
+    }
+    return NULL;
+}
+
+static int digest_parse_options(const char *options_json, const omega_digest_algorithm_t **algorithm_out) {
+    if (!algorithm_out) { return -1; }
+    *algorithm_out = digest_find_algorithm("sha256");
+    if (!*algorithm_out) { return -1; }
+    if (!options_json || !*options_json) { return 0; }
+
+    const char *cursor = options_json;
+    digest_skip_ws(&cursor);
+    if (*cursor != '{') { return -1; }
+    ++cursor;
+    digest_skip_ws(&cursor);
+    if (*cursor == '}') {
+        ++cursor;
+        digest_skip_ws(&cursor);
+        return *cursor == '\0' ? 0 : -1;
+    }
+
+    char key[32];
+    if (digest_parse_json_string(&cursor, key, sizeof(key)) != 0 || strcmp(key, "algorithm") != 0) { return -1; }
+    digest_skip_ws(&cursor);
+    if (*cursor != ':') { return -1; }
+    ++cursor;
+    digest_skip_ws(&cursor);
+
+    char algorithm[32];
+    if (digest_parse_json_string(&cursor, algorithm, sizeof(algorithm)) != 0) { return -1; }
+    *algorithm_out = digest_find_algorithm(algorithm);
+    if (!*algorithm_out) { return -1; }
+
+    digest_skip_ws(&cursor);
+    if (*cursor != '}') { return -1; }
+    ++cursor;
+    digest_skip_ws(&cursor);
+    return *cursor == '\0' ? 0 : -1;
+}
 
 static int64_t omega_digest_chunk_size(int64_t preferred_chunk_size) {
     if (preferred_chunk_size <= 0) { return OMEGA_DIGEST_DEFAULT_CHUNK_SIZE; }
@@ -67,16 +162,16 @@ static int omega_digest_update_from_request(const omega_transform_plugin_request
 
 OMEGA_TRANSFORM_PLUGIN_EXPORT int omega_transform_plugin_get_info(omega_transform_plugin_info_t *info_ptr) {
     if (!info_ptr) { return -1; }
-    info_ptr->id = OMEGA_DIGEST_PLUGIN_ID;
-    info_ptr->name = OMEGA_DIGEST_PLUGIN_NAME;
-    info_ptr->description = OMEGA_DIGEST_PLUGIN_DESCRIPTION;
+    info_ptr->id = "omega.example.openssl_digests";
+    info_ptr->name = "OpenSSL Digests";
+    info_ptr->description = "Calculate MD5, SHA, SHA-3, or BLAKE2 digests over the selected range.";
     info_ptr->operation = OMEGA_TRANSFORM_PLUGIN_OPERATION_INSPECT;
     info_ptr->flags = OMEGA_TRANSFORM_PLUGIN_FLAG_TEXT_RESULT | OMEGA_TRANSFORM_PLUGIN_FLAG_BINARY_SAFE |
                       OMEGA_TRANSFORM_PLUGIN_FLAG_STREAMING;
-    info_ptr->help = "No JSON options are used.";
-    info_ptr->example = "";
-    info_ptr->default_args = "";
-    info_ptr->args_schema = OMEGA_TRANSFORM_PLUGIN_NO_ARGS_SCHEMA;
+    info_ptr->help = "Choose a digest algorithm. MD5 and SHA-1 are included for legacy inspection workflows.";
+    info_ptr->example = "{\"algorithm\":\"sha256\"}";
+    info_ptr->default_args = "{\"algorithm\":\"sha256\"}";
+    info_ptr->args_schema = DIGEST_ARGS_SCHEMA;
     info_ptr->abi_version = OMEGA_TRANSFORM_PLUGIN_ABI_VERSION;
     return 0;
 }
@@ -88,7 +183,10 @@ OMEGA_TRANSFORM_PLUGIN_EXPORT int omega_transform_plugin_apply(const omega_trans
         return -1;
     }
 
-    const EVP_MD *digest_ptr = OMEGA_DIGEST_EVP_FUNCTION();
+    const omega_digest_algorithm_t *algorithm = NULL;
+    if (digest_parse_options(request_ptr->options_json, &algorithm) != 0) { return -1; }
+
+    const EVP_MD *digest_ptr = algorithm->evp_function();
     EVP_MD_CTX *context_ptr = EVP_MD_CTX_new();
     if (!digest_ptr || !context_ptr) {
         EVP_MD_CTX_free(context_ptr);
@@ -113,8 +211,6 @@ OMEGA_TRANSFORM_PLUGIN_EXPORT int omega_transform_plugin_apply(const omega_trans
     }
     result[digest_length * 2] = '\0';
 
-    return omega_transform_plugin_sdk_set_text_result(request_ptr, response_ptr, OMEGA_DIGEST_PLUGIN_LABEL, result,
+    return omega_transform_plugin_sdk_set_text_result(request_ptr, response_ptr, algorithm->label, result,
                                                       "text/plain");
 }
-
-#endif// OMEGA_EDIT_OPENSSL_DIGEST_PLUGIN_H

@@ -467,10 +467,10 @@ extern "C" OMEGA_TRANSFORM_PLUGIN_EXPORT int omega_transform_plugin_get_info(
     info_ptr->flags = OMEGA_TRANSFORM_PLUGIN_FLAG_TEXT_RESULT | OMEGA_TRANSFORM_PLUGIN_FLAG_BINARY_SAFE |
                       OMEGA_TRANSFORM_PLUGIN_FLAG_STREAMING;
     info_ptr->help =
-            "Options JSON accepts {\"algorithm\":\"crc32\"}. Algorithms include crc32, crc32c, crc32-mpeg2, "
-            "crc32-bzip2, crc16-ibm, crc16-ccitt-false, crc16-xmodem, crc16-modbus, crc16-kermit, crc8, adler32, "
-            "fletcher16, fletcher32, internet-checksum, lrc, bcc, sum8, sum16, sum32, fnv1a32, fnv1a64, murmur3-32, "
-            "xxhash32, and xxhash64.";
+            "Choose a checksum, CRC, or non-cryptographic hash algorithm. Algorithms include crc32, crc32c, "
+            "crc32-mpeg2, crc32-bzip2, crc16-ibm, crc16-ccitt-false, crc16-xmodem, crc16-modbus, crc16-kermit, "
+            "crc8, adler32, fletcher16, fletcher32, internet-checksum, lrc, bcc, sum8, sum16, sum32, fnv1a32, "
+            "fnv1a64, murmur3-32, xxhash32, and xxhash64.";
     info_ptr->example = "{\"algorithm\":\"crc32c\"}";
     info_ptr->default_args = "{\"algorithm\":\"crc32\"}";
     info_ptr->args_schema = CHECKSUM_ARGS_SCHEMA;
