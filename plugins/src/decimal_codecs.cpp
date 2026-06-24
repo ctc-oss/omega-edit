@@ -21,8 +21,10 @@
 namespace {
 
 constexpr const char *DECIMAL_CODEC_ARGS_SCHEMA =
-        "{\"type\":\"object\",\"properties\":{\"codec\":{\"type\":\"string\",\"pattern\":\"^(bcd|packed-decimal|"
-        "comp-3|zoned-decimal|overpunch)$\"},\"direction\":{\"type\":\"string\",\"pattern\":\"^(encode|decode)$\"}},"
+        "{\"type\":\"object\",\"properties\":{\"codec\":{\"type\":\"string\",\"title\":\"Codec\","
+        "\"description\":\"Decimal representation to encode or decode.\",\"default\":\"bcd\",\"enum\":[\"bcd\","
+        "\"packed-decimal\",\"comp-3\",\"zoned-decimal\",\"overpunch\"]},\"direction\":{\"type\":\"string\","
+        "\"title\":\"Direction\",\"default\":\"encode\",\"enum\":[\"encode\",\"decode\"]}},"
         "\"additionalProperties\":false}";
 
 bool is_ascii_space(omega_byte_t byte) {
@@ -177,8 +179,8 @@ extern "C" OMEGA_TRANSFORM_PLUGIN_EXPORT int omega_transform_plugin_get_info(
     info_ptr->flags = OMEGA_TRANSFORM_PLUGIN_FLAG_MAY_EXPAND | OMEGA_TRANSFORM_PLUGIN_FLAG_MAY_SHRINK |
                       OMEGA_TRANSFORM_PLUGIN_FLAG_BINARY_SAFE;
     info_ptr->help =
-            "Options JSON accepts {\"codec\":\"packed-decimal\",\"direction\":\"encode\"}. Codecs include bcd, "
-            "packed-decimal/comp-3, zoned-decimal, and overpunch.";
+            "Choose a decimal codec and encode or decode direction. Codecs include bcd, packed-decimal/comp-3, "
+            "zoned-decimal, and overpunch.";
     info_ptr->example = "{\"codec\":\"packed-decimal\",\"direction\":\"encode\"}";
     info_ptr->default_args = "{\"codec\":\"bcd\",\"direction\":\"encode\"}";
     info_ptr->args_schema = DECIMAL_CODEC_ARGS_SCHEMA;

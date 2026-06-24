@@ -144,6 +144,7 @@ const MAX_TRANSFORM_RESULT_TEXT_LENGTH = 240
 const MAX_TRANSFORM_RESULT_PREVIEW_BYTES = 4 * 1024
 const MAX_TRANSFORM_NOOP_COMPARE_BYTES = 1024 * 1024
 const MAX_CHANGE_SCRIPT_BYTES = 32 * 1024 * 1024
+const MAX_FILE_SPLICE_BYTES = MAX_CHANGE_SCRIPT_BYTES
 const MAX_CHANGE_SCRIPT_ENTRIES = 100_000
 const CONTEXT_HEX_EDITOR_ACTIVE = 'omegaEdit.hexEditorActive'
 const CONTEXT_CAN_UNDO = 'omegaEdit.canUndo'
@@ -160,7 +161,7 @@ function omegaEditErrorMessage(message: string): string {
 }
 
 function transformMutationBlockedMessage(): string {
-  return vscode.l10n.t('Transform in progress; edits are disabled.')
+  return vscode.l10n.t('Action in progress; edits are disabled.')
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -235,6 +236,8 @@ function isMutationWebviewMessage(message: WebviewToHostMessage): boolean {
     case 'delete':
     case 'overwrite':
     case 'replace':
+    case 'insertFile':
+    case 'replaceRangeWithFile':
     case 'replaceAllMatches':
     case 'undo':
     case 'redo':
@@ -1432,6 +1435,308 @@ export class HexEditorProvider
     void vscode.window.showInformationMessage(
       vscode.l10n.t('Replayed {count} change(s)', { count: changes.length })
     )
+  }
+
+  private async pickFileSpliceBytes(
+    openLabel: string
+  ): Promise<{ uri: vscode.Uri; bytes: Uint8Array } | undefined> {
+    const sourceUri = (
+      await vscode.window.showOpenDialog({
+        canSelectFiles: true,
+        canSelectFolders: false,
+        canSelectMany: false,
+        openLabel,
+      })
+    )?.[0]
+
+    if (!sourceUri) {
+      return undefined
+    }
+
+    const stat = await vscode.workspace.fs.stat(sourceUri)
+    if ((stat.type & vscode.FileType.File) === 0) {
+      throw new Error(vscode.l10n.t('Select a file to splice.'))
+    }
+    if (stat.size > MAX_FILE_SPLICE_BYTES) {
+      throw new Error(
+        vscode.l10n.t(
+          'Selected file is {size} bytes; file splicing is limited to {limit} bytes per operation.',
+          {
+            size: formatStatusByteCount(stat.size),
+            limit: formatStatusByteCount(MAX_FILE_SPLICE_BYTES),
+          }
+        )
+      )
+    }
+
+    const bytes = await vscode.workspace.fs.readFile(sourceUri)
+    if (bytes.byteLength > MAX_FILE_SPLICE_BYTES) {
+      throw new Error(
+        vscode.l10n.t(
+          'Selected file is {size} bytes; file splicing is limited to {limit} bytes per operation.',
+          {
+            size: formatStatusByteCount(bytes.byteLength),
+            limit: formatStatusByteCount(MAX_FILE_SPLICE_BYTES),
+          }
+        )
+      )
+    }
+
+    return { uri: sourceUri, bytes }
+  }
+
+  private postFileActionComplete(
+    session: EditorSession,
+    message: Omit<
+      Extract<HostToWebviewMessage, { type: 'fileActionComplete' }>,
+      'type'
+    >
+  ): void {
+    this.postWebviewMessage(session, {
+      type: 'fileActionComplete',
+      ...message,
+    })
+  }
+
+  private defaultRangeExportUri(
+    session: EditorSession,
+    offset: number,
+    length: number
+  ): vscode.Uri {
+    const end = offset + Math.max(0, length - 1)
+    return vscode.Uri.file(
+      `${session.filePath}.0x${offset.toString(16).toUpperCase()}-0x${end
+        .toString(16)
+        .toUpperCase()}.bin`
+    )
+  }
+
+  private async exportRangeToFile(
+    session: EditorSession,
+    offset: number,
+    length: number
+  ): Promise<void> {
+    this.postTransformStatus(
+      session,
+      true,
+      undefined,
+      vscode.l10n.t('Exporting range...')
+    )
+    let failureMessage: string | undefined
+
+    try {
+      if (length > MAX_FILE_SPLICE_BYTES) {
+        throw new Error(
+          vscode.l10n.t(
+            'Selected range is {size} bytes; file splicing is limited to {limit} bytes per operation.',
+            {
+              size: formatStatusByteCount(length),
+              limit: formatStatusByteCount(MAX_FILE_SPLICE_BYTES),
+            }
+          )
+        )
+      }
+
+      const targetUri = await vscode.window.showSaveDialog({
+        defaultUri: this.defaultRangeExportUri(session, offset, length),
+        saveLabel: vscode.l10n.t('Export Range'),
+        title: vscode.l10n.t('Export selected bytes'),
+      })
+
+      if (!targetUri) {
+        this.postFileActionComplete(session, {
+          action: 'exportRange',
+          offset,
+          length,
+          byteCount: 0,
+          cancelled: true,
+          message: vscode.l10n.t('Export cancelled'),
+        })
+        return
+      }
+
+      const bytes = await getSegment(session.sessionId, offset, length)
+      await vscode.workspace.fs.writeFile(targetUri, bytes)
+      const path = targetUri.fsPath || targetUri.toString(true)
+      const message = vscode.l10n.t('Exported {count} byte(s)', {
+        count: bytes.byteLength,
+      })
+      this.postFileActionComplete(session, {
+        action: 'exportRange',
+        offset,
+        length,
+        byteCount: bytes.byteLength,
+        fileName: path,
+        message,
+      })
+      void vscode.window.showInformationMessage(
+        vscode.l10n.t('Exported {count} byte(s) to {path}', {
+          count: bytes.byteLength,
+          path,
+        })
+      )
+    } catch (error) {
+      failureMessage = error instanceof Error ? error.message : String(error)
+      this.postFileActionComplete(session, {
+        action: 'exportRange',
+        offset,
+        length,
+        byteCount: 0,
+        cancelled: true,
+        message: failureMessage,
+      })
+      void vscode.window.showErrorMessage(omegaEditErrorMessage(failureMessage))
+    } finally {
+      this.postTransformStatus(session, false, undefined, failureMessage)
+    }
+  }
+
+  private async insertFileAtOffset(
+    session: EditorSession,
+    offset: number
+  ): Promise<void> {
+    this.postTransformStatus(
+      session,
+      true,
+      undefined,
+      vscode.l10n.t('Selecting file to insert...')
+    )
+    let failureMessage: string | undefined
+
+    try {
+      const picked = await this.pickFileSpliceBytes(vscode.l10n.t('Insert'))
+      if (!picked) {
+        this.postFileActionComplete(session, {
+          action: 'insertFile',
+          offset,
+          length: 0,
+          byteCount: 0,
+          cancelled: true,
+          message: vscode.l10n.t('Insert cancelled'),
+        })
+        return
+      }
+
+      const path = picked.uri.fsPath || picked.uri.toString(true)
+      if (picked.bytes.byteLength === 0) {
+        this.postFileActionComplete(session, {
+          action: 'insertFile',
+          offset,
+          length: 0,
+          byteCount: 0,
+          fileName: path,
+          message: vscode.l10n.t('Selected file is empty'),
+        })
+        return
+      }
+
+      const sessionSyncVersion = session.sessionSyncVersion
+      const dataHex = Buffer.from(picked.bytes).toString('hex')
+      const serial = await insert(session.sessionId, offset, picked.bytes)
+      session.history.recordLocalChange({
+        serial,
+        kind: 'INSERT',
+        offset,
+        length: 0,
+        data: dataHex,
+      })
+      this.postEditState(session)
+      this.notifyDocumentChanged(session)
+      await this.waitForSessionSync(session, sessionSyncVersion)
+      await this.sendViewportData(session)
+      this.clearSearchState(session)
+      this.postFileActionComplete(session, {
+        action: 'insertFile',
+        offset,
+        length: 0,
+        byteCount: picked.bytes.byteLength,
+        fileName: path,
+        message: vscode.l10n.t('Inserted {count} byte(s)', {
+          count: picked.bytes.byteLength,
+        }),
+      })
+    } catch (error) {
+      failureMessage = error instanceof Error ? error.message : String(error)
+      this.postFileActionComplete(session, {
+        action: 'insertFile',
+        offset,
+        length: 0,
+        byteCount: 0,
+        cancelled: true,
+        message: failureMessage,
+      })
+      void vscode.window.showErrorMessage(omegaEditErrorMessage(failureMessage))
+    } finally {
+      this.postTransformStatus(session, false, undefined, failureMessage)
+    }
+  }
+
+  private async replaceRangeWithFile(
+    session: EditorSession,
+    offset: number,
+    length: number
+  ): Promise<void> {
+    this.postTransformStatus(
+      session,
+      true,
+      undefined,
+      vscode.l10n.t('Selecting replacement file...')
+    )
+    let failureMessage: string | undefined
+
+    try {
+      const picked = await this.pickFileSpliceBytes(vscode.l10n.t('Replace'))
+      if (!picked) {
+        this.postFileActionComplete(session, {
+          action: 'replaceRangeWithFile',
+          offset,
+          length,
+          byteCount: 0,
+          cancelled: true,
+          message: vscode.l10n.t('Replace cancelled'),
+        })
+        return
+      }
+
+      const sessionSyncVersion = session.sessionSyncVersion
+      const replacementHex = Buffer.from(picked.bytes).toString('hex')
+      const changed = await this.applyReplace(
+        session,
+        offset,
+        length,
+        replacementHex
+      )
+      if (changed) {
+        await this.waitForSessionSync(session, sessionSyncVersion)
+        await this.sendViewportData(session)
+        this.clearSearchState(session)
+      }
+      this.postFileActionComplete(session, {
+        action: 'replaceRangeWithFile',
+        offset,
+        length,
+        byteCount: picked.bytes.byteLength,
+        fileName: picked.uri.fsPath || picked.uri.toString(true),
+        message: changed
+          ? vscode.l10n.t('Replaced range with {count} byte(s)', {
+              count: picked.bytes.byteLength,
+            })
+          : vscode.l10n.t('Replacement made no changes'),
+      })
+    } catch (error) {
+      failureMessage = error instanceof Error ? error.message : String(error)
+      this.postFileActionComplete(session, {
+        action: 'replaceRangeWithFile',
+        offset,
+        length,
+        byteCount: 0,
+        cancelled: true,
+        message: failureMessage,
+      })
+      void vscode.window.showErrorMessage(omegaEditErrorMessage(failureMessage))
+    } finally {
+      this.postTransformStatus(session, false, undefined, failureMessage)
+    }
   }
 
   async createActiveCheckpoint(): Promise<void> {
@@ -2942,7 +3247,7 @@ export class HexEditorProvider
         session,
         true,
         undefined,
-        vscode.l10n.t('Transform in progress; edits are disabled.')
+        transformMutationBlockedMessage()
       )
       return
     }
@@ -3172,6 +3477,21 @@ export class HexEditorProvider
               replacedCount: changed ? 1 : 0,
             })
           })
+          break
+        }
+
+        case 'exportRange': {
+          await this.exportRangeToFile(session, msg.offset, msg.length)
+          break
+        }
+
+        case 'insertFile': {
+          await this.insertFileAtOffset(session, msg.offset)
+          break
+        }
+
+        case 'replaceRangeWithFile': {
+          await this.replaceRangeWithFile(session, msg.offset, msg.length)
           break
         }
 

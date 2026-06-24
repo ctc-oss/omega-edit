@@ -114,52 +114,49 @@ describe('Transform plugin gRPC integration', () => {
 
       const plugins = await listTransformPlugins()
       expect(plugins.map((plugin) => plugin.id)).to.include.members([
-        'omega.example.and',
-        'omega.example.base64_decode',
-        'omega.example.base64_encode',
-        'omega.example.blake2b512',
-        'omega.example.blake2s256',
+        'omega.example.base64',
+        'omega.example.bitwise',
         'omega.example.character_transcode',
         'omega.example.common_checksums',
         'omega.example.decimal_codecs',
         'omega.example.endian_swap',
         'omega.example.format_inspectors',
-        'omega.example.fnv1a64',
-        'omega.example.md5',
-        'omega.example.or',
+        'omega.example.openssl_digests',
         'omega.example.record_text_helpers',
-        'omega.example.sha1',
-        'omega.example.sha224',
-        'omega.example.sha256',
-        'omega.example.sha3_256',
-        'omega.example.sha3_512',
-        'omega.example.sha384',
-        'omega.example.sha512',
         'omega.example.text_codecs',
-        'omega.example.zlib_compress',
-        'omega.example.zlib_decompress',
-        'omega.example.xor',
+        'omega.example.zlib',
         'omega.example.repeat',
-        'omega.example.checksum8',
       ])
-      const xorPlugin = plugins.find(
-        (plugin) => plugin.id === 'omega.example.xor'
+      const bitwisePlugin = plugins.find(
+        (plugin) => plugin.id === 'omega.example.bitwise'
       )
-      expect(xorPlugin?.help).to.include('Options JSON accepts')
-      expect(xorPlugin?.example).to.equal('{"mask":["0x42","0x24"]}')
-      expect(xorPlugin?.defaultArgs).to.equal('{"byte":"0xFF"}')
-      expect(xorPlugin?.argsSchema).to.include('additionalProperties')
-      const base64EncodePlugin = plugins.find(
-        (plugin) => plugin.id === 'omega.example.base64_encode'
+      expect(bitwisePlugin?.help).to.include('logical operator')
+      expect(bitwisePlugin?.example).to.equal(
+        '{"operator":"xor","mask":["0x42","0x24"]}'
       )
-      expect(base64EncodePlugin?.argsSchema).to.equal('')
-      const zlibCompressPlugin = plugins.find(
-        (plugin) => plugin.id === 'omega.example.zlib_compress'
+      expect(bitwisePlugin?.defaultArgs).to.equal(
+        '{"operator":"xor","byte":"0xFF"}'
       )
-      expect(zlibCompressPlugin?.help).to.include('level')
-      expect(zlibCompressPlugin?.example).to.equal('{"level":9}')
-      expect(zlibCompressPlugin?.defaultArgs).to.equal('{"level":-1}')
-      expect(zlibCompressPlugin?.argsSchema).to.include('"maximum":9')
+      expect(bitwisePlugin?.argsSchema).to.include('"operator"')
+      const base64Plugin = plugins.find(
+        (plugin) => plugin.id === 'omega.example.base64'
+      )
+      expect(base64Plugin?.defaultArgs).to.equal('{"direction":"encode"}')
+      expect(base64Plugin?.argsSchema).to.include('"direction"')
+      const zlibPlugin = plugins.find(
+        (plugin) => plugin.id === 'omega.example.zlib'
+      )
+      expect(zlibPlugin?.help).to.include('Compression level')
+      expect(zlibPlugin?.example).to.equal('{"action":"compress","level":9}')
+      expect(zlibPlugin?.defaultArgs).to.equal(
+        '{"action":"compress","level":-1}'
+      )
+      expect(zlibPlugin?.argsSchema).to.include('"maximum":9')
+      const digestPlugin = plugins.find(
+        (plugin) => plugin.id === 'omega.example.openssl_digests'
+      )
+      expect(digestPlugin?.defaultArgs).to.equal('{"algorithm":"sha256"}')
+      expect(digestPlugin?.argsSchema).to.include('"x-omega-enumGroups"')
 
       const session = await createSessionFromBytes(Buffer.from('abc', 'utf8'))
       sessionId = session.getSessionId()
@@ -167,21 +164,19 @@ describe('Transform plugin gRPC integration', () => {
       try {
         await applyTransformPlugin(
           sessionId,
-          'omega.example.base64_encode',
+          'omega.example.base64',
           0,
           3,
           JSON.stringify({ level: 9 })
         )
-        expect.fail(
-          'options should be rejected when no transform schema is advertised'
-        )
+        expect.fail('unknown base64 options should be rejected')
       } catch (err) {
         expect((err as Error).message).to.include('INVALID_ARGUMENT')
       }
 
       const encodeResponse = await applyTransformPlugin(
         sessionId,
-        'omega.example.base64_encode',
+        'omega.example.base64',
         0,
         3
       )
@@ -197,9 +192,10 @@ describe('Transform plugin gRPC integration', () => {
 
       const decodeResponse = await applyTransformPlugin(
         sessionId,
-        'omega.example.base64_decode',
+        'omega.example.base64',
         0,
-        4
+        4,
+        JSON.stringify({ direction: 'decode' })
       )
       expect(decodeResponse.operation).to.equal(
         TransformPluginOperation.REPLACE
@@ -214,10 +210,10 @@ describe('Transform plugin gRPC integration', () => {
       try {
         await applyTransformPlugin(
           sessionId,
-          'omega.example.zlib_compress',
+          'omega.example.zlib',
           0,
           3,
-          JSON.stringify({ level: 10 })
+          JSON.stringify({ action: 'compress', level: 10 })
         )
         expect.fail(
           'level 10 should be rejected by the advertised transform schema'
@@ -228,10 +224,10 @@ describe('Transform plugin gRPC integration', () => {
 
       const compressResponse = await applyTransformPlugin(
         sessionId,
-        'omega.example.zlib_compress',
+        'omega.example.zlib',
         0,
         3,
-        JSON.stringify({ level: 9 })
+        JSON.stringify({ action: 'compress', level: 9 })
       )
       expect(compressResponse.operation).to.equal(
         TransformPluginOperation.REPLACE
@@ -246,9 +242,10 @@ describe('Transform plugin gRPC integration', () => {
 
       const decompressResponse = await applyTransformPlugin(
         sessionId,
-        'omega.example.zlib_decompress',
+        'omega.example.zlib',
         0,
-        compressResponse.replacementLength
+        compressResponse.replacementLength,
+        JSON.stringify({ action: 'decompress' })
       )
       expect(decompressResponse.operation).to.equal(
         TransformPluginOperation.REPLACE
@@ -278,15 +275,16 @@ describe('Transform plugin gRPC integration', () => {
 
       const checksumResponse = await applyTransformPlugin(
         sessionId,
-        'omega.example.checksum8',
+        'omega.example.common_checksums',
         0,
-        5
+        5,
+        JSON.stringify({ algorithm: 'sum8' })
       )
       expect(checksumResponse.operation).to.equal(
         TransformPluginOperation.INSPECT
       )
       expect(checksumResponse.contentChanged).to.equal(false)
-      expect(checksumResponse.resultLabel).to.equal('checksum8')
+      expect(checksumResponse.resultLabel).to.equal('sum8')
       expect(checksumResponse.resultMimeType).to.equal('text/plain')
       expect(Buffer.from(checksumResponse.result).toString('utf8')).to.equal(
         '0xEB'
@@ -295,9 +293,10 @@ describe('Transform plugin gRPC integration', () => {
 
       const hashResponse = await applyTransformPlugin(
         sessionId,
-        'omega.example.fnv1a64',
+        'omega.example.common_checksums',
         0,
-        5
+        5,
+        JSON.stringify({ algorithm: 'fnv1a64' })
       )
       expect(hashResponse.operation).to.equal(TransformPluginOperation.INSPECT)
       expect(hashResponse.contentChanged).to.equal(false)
@@ -310,9 +309,10 @@ describe('Transform plugin gRPC integration', () => {
 
       const sha256Response = await applyTransformPlugin(
         sessionId,
-        'omega.example.sha256',
+        'omega.example.openssl_digests',
         0,
-        5
+        5,
+        JSON.stringify({ algorithm: 'sha256' })
       )
       expect(sha256Response.operation).to.equal(
         TransformPluginOperation.INSPECT
@@ -327,7 +327,7 @@ describe('Transform plugin gRPC integration', () => {
 
       const xorResponse = await applyTransformPlugin(
         sessionId,
-        'omega.example.xor',
+        'omega.example.bitwise',
         0,
         1
       )
@@ -340,10 +340,10 @@ describe('Transform plugin gRPC integration', () => {
 
       const xorOptionsResponse = await applyTransformPlugin(
         sessionId,
-        'omega.example.xor',
+        'omega.example.bitwise',
         1,
         1,
-        JSON.stringify({ byte: '0x42' })
+        JSON.stringify({ operator: 'xor', byte: '0x42' })
       )
       expect(xorOptionsResponse.operation).to.equal(
         TransformPluginOperation.REPLACE
@@ -357,10 +357,10 @@ describe('Transform plugin gRPC integration', () => {
       try {
         await applyTransformPlugin(
           sessionId,
-          'omega.example.xor',
+          'omega.example.bitwise',
           2,
           2,
-          JSON.stringify({ bytes: ['0x01', '0x02'] })
+          JSON.stringify({ operator: 'xor', bytes: ['0x01', '0x02'] })
         )
         expect.fail(
           'bytes should be rejected by the advertised transform schema'
@@ -371,10 +371,10 @@ describe('Transform plugin gRPC integration', () => {
 
       const xorMaskResponse = await applyTransformPlugin(
         sessionId,
-        'omega.example.xor',
+        'omega.example.bitwise',
         2,
         2,
-        JSON.stringify({ mask: ['0x01', '0x02'] })
+        JSON.stringify({ operator: 'xor', mask: ['0x01', '0x02'] })
       )
       expect(xorMaskResponse.operation).to.equal(
         TransformPluginOperation.REPLACE
@@ -388,10 +388,10 @@ describe('Transform plugin gRPC integration', () => {
 
       const andResponse = await applyTransformPlugin(
         sessionId,
-        'omega.example.and',
+        'omega.example.bitwise',
         2,
         2,
-        JSON.stringify({ mask: ['0x0F', '0xF0'] })
+        JSON.stringify({ operator: 'and', mask: ['0x0F', '0xF0'] })
       )
       expect(andResponse.operation).to.equal(TransformPluginOperation.REPLACE)
       expect(andResponse.contentChanged).to.equal(true)
@@ -403,10 +403,10 @@ describe('Transform plugin gRPC integration', () => {
 
       const orResponse = await applyTransformPlugin(
         sessionId,
-        'omega.example.or',
+        'omega.example.bitwise',
         3,
         2,
-        JSON.stringify({ mask: ['0x01', '0x04'] })
+        JSON.stringify({ operator: 'or', mask: ['0x01', '0x04'] })
       )
       expect(orResponse.operation).to.equal(TransformPluginOperation.REPLACE)
       expect(orResponse.contentChanged).to.equal(true)

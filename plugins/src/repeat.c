@@ -22,7 +22,7 @@ OMEGA_TRANSFORM_PLUGIN_EXPORT int omega_transform_plugin_get_info(omega_transfor
     info_ptr->description = "Replace the selected range with two copies of itself.";
     info_ptr->operation = OMEGA_TRANSFORM_PLUGIN_OPERATION_REPLACE;
     info_ptr->flags = OMEGA_TRANSFORM_PLUGIN_FLAG_MAY_EXPAND | OMEGA_TRANSFORM_PLUGIN_FLAG_BINARY_SAFE;
-    info_ptr->help = "No JSON options are used.";
+    info_ptr->help = "No options are used.";
     info_ptr->example = "";
     info_ptr->default_args = "";
     info_ptr->args_schema = OMEGA_TRANSFORM_PLUGIN_NO_ARGS_SCHEMA;

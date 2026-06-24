@@ -141,6 +141,9 @@ export type WebviewToHostMessage =
   | { type: 'delete'; offset: number; length: number }
   | { type: 'overwrite'; offset: number; data: string }
   | { type: 'replace'; offset: number; length: number; data: string }
+  | { type: 'exportRange'; offset: number; length: number }
+  | { type: 'insertFile'; offset: number }
+  | { type: 'replaceRangeWithFile'; offset: number; length: number }
   | { type: 'toggleEditMode' }
   | { type: 'setInsertDirection'; insertDirection: InsertDirection }
   | {
@@ -241,6 +244,16 @@ export type HostToWebviewMessage =
       resultLabel: string
       resultMimeType: string
       resultText: string
+    }
+  | {
+      type: 'fileActionComplete'
+      action: 'exportRange' | 'insertFile' | 'replaceRangeWithFile'
+      offset: number
+      length: number
+      byteCount: number
+      fileName?: string
+      cancelled?: boolean
+      message?: string
     }
   | {
       type: 'clipboardComplete'
@@ -761,6 +774,21 @@ export function normalizeWebviewMessage(
       return range && data !== undefined
         ? { type: 'replace', ...range, data }
         : undefined
+    }
+
+    case 'exportRange': {
+      const range = safeFileLengthRange(context, raw.offset, raw.length)
+      return range ? { type: 'exportRange', ...range } : undefined
+    }
+
+    case 'insertFile': {
+      const offset = safeFileOffset(context, raw.offset, true)
+      return offset === undefined ? undefined : { type: 'insertFile', offset }
+    }
+
+    case 'replaceRangeWithFile': {
+      const range = safeFileLengthRange(context, raw.offset, raw.length)
+      return range ? { type: 'replaceRangeWithFile', ...range } : undefined
     }
 
     case 'toggleEditMode':

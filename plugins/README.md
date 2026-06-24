@@ -8,10 +8,12 @@ owned here rather than by the core library.
 
 Transform plugin metadata includes a description, help text, example arguments,
 default arguments, and an optional JSON Schema for validating options on both
-the client and native apply path. The bitwise exemplars accept options JSON with
-a single repeated byte or a repeating mask sequence, for example
-`{"byte":"0x42"}` or `{"mask":["0x0F","0xF0"]}`. The zlib compression
-exemplar accepts `{"level":9}`, with valid levels from `-1` through `9`.
+the client and native apply path. The bitwise exemplar exposes one action with
+an `operator` field plus a single repeated byte or repeating mask sequence, for
+example `{"operator":"xor","byte":"0x42"}` or
+`{"operator":"and","mask":["0x0F","0xF0"]}`. The zlib exemplar exposes an
+`action` field for compression or decompression; compression accepts `level`
+values from `-1` through `9`.
 The richer data-format exemplars cover digest/hash inspection, CRC/checksum
 inspection, binary-to-text codecs, character set transcoding, decimal field
 encodings, byte-order swaps, record/text escaping helpers, and lightweight

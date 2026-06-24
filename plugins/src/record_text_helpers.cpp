@@ -22,10 +22,15 @@
 namespace {
 
 constexpr const char *RECORD_TEXT_ARGS_SCHEMA =
-        "{\"type\":\"object\",\"properties\":{\"action\":{\"type\":\"string\",\"pattern\":\"^(newline-lf|newline-crlf|"
-        "newline-cr|fixed-width-lines|delimiter-escape|delimiter-unescape|csv-quote|csv-unquote|xml-escape|xml-"
-        "unescape|json-escape|json-unescape)$\"},\"width\":{\"type\":\"integer\",\"minimum\":1,\"maximum\":4096},"
-        "\"delimiter\":{\"type\":\"string\"},\"escape\":{\"type\":\"string\"}},\"additionalProperties\":false}";
+        "{\"type\":\"object\",\"properties\":{\"action\":{\"type\":\"string\",\"title\":\"Action\","
+        "\"description\":\"Text or record operation to apply.\",\"default\":\"newline-lf\",\"enum\":[\"newline-lf\","
+        "\"newline-crlf\",\"newline-cr\",\"fixed-width-lines\",\"delimiter-escape\",\"delimiter-unescape\","
+        "\"csv-quote\",\"csv-unquote\",\"xml-escape\",\"xml-unescape\",\"json-escape\",\"json-unescape\"]},"
+        "\"width\":{\"type\":\"integer\",\"title\":\"Width\",\"description\":\"Characters per fixed-width line.\","
+        "\"default\":80,\"minimum\":1,\"maximum\":4096},\"delimiter\":{\"type\":\"string\",\"title\":\"Delimiter\","
+        "\"description\":\"Delimiter character for delimiter escape actions.\",\"default\":\",\"},\"escape\":{"
+        "\"type\":\"string\",\"title\":\"Escape\",\"description\":\"Escape character for delimiter actions.\","
+        "\"default\":\"\\\\\"}},\"additionalProperties\":false}";
 
 std::vector<omega_byte_t> text_bytes(const std::string &text) {
     return std::vector<omega_byte_t>(text.begin(), text.end());
@@ -261,9 +266,8 @@ extern "C" OMEGA_TRANSFORM_PLUGIN_EXPORT int omega_transform_plugin_get_info(
     info_ptr->flags = OMEGA_TRANSFORM_PLUGIN_FLAG_MAY_EXPAND | OMEGA_TRANSFORM_PLUGIN_FLAG_MAY_SHRINK |
                       OMEGA_TRANSFORM_PLUGIN_FLAG_BINARY_SAFE;
     info_ptr->help =
-            "Options JSON accepts actions such as newline-lf, newline-crlf, fixed-width-lines, delimiter-escape, "
-            "csv-quote, xml-escape, and json-escape. Use width for fixed-width-lines and delimiter/escape for "
-            "delimiter helpers.";
+            "Choose an action such as newline-lf, newline-crlf, fixed-width-lines, delimiter-escape, csv-quote, "
+            "xml-escape, or json-escape. Use width for fixed-width-lines and delimiter/escape for delimiter helpers.";
     info_ptr->example = "{\"action\":\"fixed-width-lines\",\"width\":80}";
     info_ptr->default_args = "{\"action\":\"newline-lf\"}";
     info_ptr->args_schema = RECORD_TEXT_ARGS_SCHEMA;

@@ -503,7 +503,7 @@ suite('OmegaEdit VS Code extension', () => {
 
     await provider.dispatchWebviewMessageForTesting(document.uri, {
       type: 'applyTransform',
-      pluginId: 'omega.example.base64_encode',
+      pluginId: 'omega.example.base64',
       offset: 0,
       length: 3,
     })
@@ -580,7 +580,7 @@ suite('OmegaEdit VS Code extension', () => {
 
     await provider.dispatchWebviewMessageForTesting(document.uri, {
       type: 'applyTransform',
-      pluginId: 'omega.example.base64_encode',
+      pluginId: 'omega.example.base64',
       offset: 1,
       length: 999,
     })
@@ -592,7 +592,7 @@ suite('OmegaEdit VS Code extension', () => {
 
     await provider.dispatchWebviewMessageForTesting(document.uri, {
       type: 'applyTransform',
-      pluginId: 'omega.example.base64_encode',
+      pluginId: 'omega.example.base64',
       offset: 1,
       length: 2,
     })
@@ -637,10 +637,10 @@ suite('OmegaEdit VS Code extension', () => {
 
     await provider.dispatchWebviewMessageForTesting(document.uri, {
       type: 'applyTransform',
-      pluginId: 'omega.example.and',
+      pluginId: 'omega.example.bitwise',
       offset: 0,
       length: 3,
-      optionsJson: JSON.stringify({ byte: '0xFF' }),
+      optionsJson: JSON.stringify({ operator: 'and', byte: '0xFF' }),
     })
 
     await assertSessionText(session.sessionId, 'abc')
@@ -656,7 +656,7 @@ suite('OmegaEdit VS Code extension', () => {
 
     await provider.dispatchWebviewMessageForTesting(document.uri, {
       type: 'applyTransform',
-      pluginId: 'omega.example.base64_encode',
+      pluginId: 'omega.example.base64',
       offset: 0,
       length: 3,
     })
@@ -675,10 +675,10 @@ suite('OmegaEdit VS Code extension', () => {
 
     await provider.dispatchWebviewMessageForTesting(document.uri, {
       type: 'applyTransform',
-      pluginId: 'omega.example.and',
+      pluginId: 'omega.example.bitwise',
       offset: 0,
       length: 4,
-      optionsJson: JSON.stringify({ byte: '0xFF' }),
+      optionsJson: JSON.stringify({ operator: 'and', byte: '0xFF' }),
     })
 
     await assertSessionText(session.sessionId, 'YWJj')
@@ -727,7 +727,7 @@ suite('OmegaEdit VS Code extension', () => {
 
     await provider.dispatchWebviewMessageForTesting(uri, {
       type: 'applyTransform',
-      pluginId: 'omega.example.base64_encode',
+      pluginId: 'omega.example.base64',
       offset: 0,
       length: 3,
     })

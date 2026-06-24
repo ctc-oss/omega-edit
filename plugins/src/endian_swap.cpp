@@ -19,7 +19,8 @@
 
 namespace {
 constexpr const char *ENDIAN_SWAP_ARGS_SCHEMA =
-        "{\"type\":\"object\",\"properties\":{\"width\":{\"type\":\"integer\",\"minimum\":2,\"maximum\":8}},"
+        "{\"type\":\"object\",\"properties\":{\"width\":{\"type\":\"integer\",\"title\":\"Field width\","
+        "\"description\":\"Bytes per integer field.\",\"default\":2,\"enum\":[2,4,8]}},"
         "\"additionalProperties\":false}";
 }
 
@@ -31,7 +32,7 @@ extern "C" OMEGA_TRANSFORM_PLUGIN_EXPORT int omega_transform_plugin_get_info(
     info_ptr->description = "Reverse byte order in fixed-width 2, 4, or 8 byte fields.";
     info_ptr->operation = OMEGA_TRANSFORM_PLUGIN_OPERATION_REPLACE;
     info_ptr->flags = OMEGA_TRANSFORM_PLUGIN_FLAG_ONE_FOR_ONE | OMEGA_TRANSFORM_PLUGIN_FLAG_BINARY_SAFE;
-    info_ptr->help = "Options JSON accepts {\"width\":2}, {\"width\":4}, or {\"width\":8}.";
+    info_ptr->help = "Choose a field width of 2, 4, or 8 bytes.";
     info_ptr->example = "{\"width\":4}";
     info_ptr->default_args = "{\"width\":2}";
     info_ptr->args_schema = ENDIAN_SWAP_ARGS_SCHEMA;

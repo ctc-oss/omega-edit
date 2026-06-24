@@ -30,47 +30,37 @@ TEST_CASE("Packaged Transform Plugins", "[TransformPlugin]") {
     const auto registry_ptr = omega_transform_plugin_registry_create();
     REQUIRE(registry_ptr);
     REQUIRE(0 < omega_transform_plugin_registry_register_directory(registry_ptr, PLUGIN_DIR.string().c_str()));
-    REQUIRE(16 <= omega_transform_plugin_registry_get_count(registry_ptr));
-    REQUIRE(nullptr != omega_transform_plugin_registry_find_info(registry_ptr, "omega.example.and"));
-    REQUIRE(nullptr != omega_transform_plugin_registry_find_info(registry_ptr, "omega.example.base64_decode"));
-    REQUIRE(nullptr != omega_transform_plugin_registry_find_info(registry_ptr, "omega.example.base64_encode"));
-    REQUIRE(nullptr != omega_transform_plugin_registry_find_info(registry_ptr, "omega.example.blake2b512"));
-    REQUIRE(nullptr != omega_transform_plugin_registry_find_info(registry_ptr, "omega.example.blake2s256"));
+    REQUIRE(12 <= omega_transform_plugin_registry_get_count(registry_ptr));
+    REQUIRE(nullptr != omega_transform_plugin_registry_find_info(registry_ptr, "omega.example.base64"));
+    REQUIRE(nullptr != omega_transform_plugin_registry_find_info(registry_ptr, "omega.example.bitwise"));
     REQUIRE(nullptr != omega_transform_plugin_registry_find_info(registry_ptr, "omega.example.character_transcode"));
     REQUIRE(nullptr != omega_transform_plugin_registry_find_info(registry_ptr, "omega.example.common_checksums"));
     REQUIRE(nullptr != omega_transform_plugin_registry_find_info(registry_ptr, "omega.example.decimal_codecs"));
     REQUIRE(nullptr != omega_transform_plugin_registry_find_info(registry_ptr, "omega.example.endian_swap"));
     REQUIRE(nullptr != omega_transform_plugin_registry_find_info(registry_ptr, "omega.example.format_inspectors"));
-    REQUIRE(nullptr != omega_transform_plugin_registry_find_info(registry_ptr, "omega.example.fnv1a64"));
-    REQUIRE(nullptr != omega_transform_plugin_registry_find_info(registry_ptr, "omega.example.md5"));
-    REQUIRE(nullptr != omega_transform_plugin_registry_find_info(registry_ptr, "omega.example.or"));
+    REQUIRE(nullptr != omega_transform_plugin_registry_find_info(registry_ptr, "omega.example.openssl_digests"));
     REQUIRE(nullptr != omega_transform_plugin_registry_find_info(registry_ptr, "omega.example.record_text_helpers"));
-    REQUIRE(nullptr != omega_transform_plugin_registry_find_info(registry_ptr, "omega.example.sha1"));
-    REQUIRE(nullptr != omega_transform_plugin_registry_find_info(registry_ptr, "omega.example.sha224"));
-    REQUIRE(nullptr != omega_transform_plugin_registry_find_info(registry_ptr, "omega.example.sha256"));
-    REQUIRE(nullptr != omega_transform_plugin_registry_find_info(registry_ptr, "omega.example.sha3_256"));
-    REQUIRE(nullptr != omega_transform_plugin_registry_find_info(registry_ptr, "omega.example.sha3_512"));
-    REQUIRE(nullptr != omega_transform_plugin_registry_find_info(registry_ptr, "omega.example.sha384"));
-    REQUIRE(nullptr != omega_transform_plugin_registry_find_info(registry_ptr, "omega.example.sha512"));
     REQUIRE(nullptr != omega_transform_plugin_registry_find_info(registry_ptr, "omega.example.text_codecs"));
-    REQUIRE(nullptr != omega_transform_plugin_registry_find_info(registry_ptr, "omega.example.zlib_compress"));
-    REQUIRE(nullptr != omega_transform_plugin_registry_find_info(registry_ptr, "omega.example.zlib_decompress"));
-    REQUIRE(nullptr != omega_transform_plugin_registry_find_info(registry_ptr, "omega.example.xor"));
+    REQUIRE(nullptr != omega_transform_plugin_registry_find_info(registry_ptr, "omega.example.zlib"));
     REQUIRE(nullptr != omega_transform_plugin_registry_find_info(registry_ptr, "omega.example.repeat"));
-    REQUIRE(nullptr != omega_transform_plugin_registry_find_info(registry_ptr, "omega.example.checksum8"));
-    const auto base64_encode_info =
-            omega_transform_plugin_registry_find_info(registry_ptr, "omega.example.base64_encode");
-    REQUIRE("" == std::string(base64_encode_info->args_schema));
-    const auto xor_info = omega_transform_plugin_registry_find_info(registry_ptr, "omega.example.xor");
-    REQUIRE("XOR" == std::string(xor_info->name));
-    REQUIRE(std::string(xor_info->help).find("Options JSON accepts") != std::string::npos);
-    REQUIRE("{\"mask\":[\"0x42\",\"0x24\"]}" == std::string(xor_info->example));
-    REQUIRE("{\"byte\":\"0xFF\"}" == std::string(xor_info->default_args));
-    REQUIRE(0 == omega_transform_plugin_options_match_args_schema("{\"mask\":[\"0x01\",\"0x02\"]}",
-                                                                  xor_info->args_schema));
-    REQUIRE(0 == omega_transform_plugin_options_match_args_schema("{\"\\u0062yte\":\"0x01\"}", xor_info->args_schema));
+    const auto base64_info = omega_transform_plugin_registry_find_info(registry_ptr, "omega.example.base64");
+    REQUIRE("Base64" == std::string(base64_info->name));
+    REQUIRE("{\"direction\":\"encode\"}" == std::string(base64_info->default_args));
+    REQUIRE(0 == omega_transform_plugin_options_match_args_schema("{\"direction\":\"decode\"}",
+                                                                  base64_info->args_schema));
+    REQUIRE(-1 == omega_transform_plugin_options_match_args_schema("{\"level\":9}", base64_info->args_schema));
+    const auto bitwise_info = omega_transform_plugin_registry_find_info(registry_ptr, "omega.example.bitwise");
+    REQUIRE("Bitwise" == std::string(bitwise_info->name));
+    REQUIRE(std::string(bitwise_info->help).find("logical operator") != std::string::npos);
+    REQUIRE("{\"operator\":\"xor\",\"mask\":[\"0x42\",\"0x24\"]}" == std::string(bitwise_info->example));
+    REQUIRE("{\"operator\":\"xor\",\"byte\":\"0xFF\"}" == std::string(bitwise_info->default_args));
+    REQUIRE(0 == omega_transform_plugin_options_match_args_schema("{\"operator\":\"xor\",\"mask\":[\"0x01\",\"0x02\"]}",
+                                                                  bitwise_info->args_schema));
+    REQUIRE(0 == omega_transform_plugin_options_match_args_schema("{\"\\u0062yte\":\"0x01\"}", bitwise_info->args_schema));
+    REQUIRE(-1 == omega_transform_plugin_options_match_args_schema("{\"operator\":\"nand\",\"byte\":\"0x01\"}",
+                                                                   bitwise_info->args_schema));
     REQUIRE(-1 == omega_transform_plugin_options_match_args_schema("{\"bytes\":[\"0x01\",\"0x02\"]}",
-                                                                   xor_info->args_schema));
+                                                                   bitwise_info->args_schema));
     REQUIRE(0 == omega_transform_plugin_options_match_args_schema(
                          "{\"name\":\"caf\\u00E9\",\"emoji\":\"\\uD83D\\uDE00\"}",
                          "{\"type\":\"object\",\"properties\":{\"name\":{\"type\":\"string\",\"pattern\":\"^caf\\u00E9$"
@@ -87,18 +77,26 @@ TEST_CASE("Packaged Transform Plugins", "[TransformPlugin]") {
                                                                   common_checksums_info->args_schema));
     REQUIRE(-1 == omega_transform_plugin_options_match_args_schema("{\"algorithm\":\"not-a-checksum\"}",
                                                                    common_checksums_info->args_schema));
-    const auto zlib_compress_info =
-            omega_transform_plugin_registry_find_info(registry_ptr, "omega.example.zlib_compress");
-    REQUIRE("Zlib Compress" == std::string(zlib_compress_info->name));
-    REQUIRE(std::string(zlib_compress_info->help).find("level") != std::string::npos);
-    REQUIRE("{\"level\":9}" == std::string(zlib_compress_info->example));
-    REQUIRE("{\"level\":-1}" == std::string(zlib_compress_info->default_args));
-    REQUIRE(0 == omega_transform_plugin_options_match_args_schema("{\"level\":9}", zlib_compress_info->args_schema));
-    REQUIRE(-1 == omega_transform_plugin_options_match_args_schema("{\"level\":10}", zlib_compress_info->args_schema));
-    const auto sha256_info = omega_transform_plugin_registry_find_info(registry_ptr, "omega.example.sha256");
-    REQUIRE("SHA-256" == std::string(sha256_info->name));
-    REQUIRE(std::string(sha256_info->description).find("SHA-256") != std::string::npos);
-    REQUIRE(std::string(OMEGA_TRANSFORM_PLUGIN_NO_ARGS_SCHEMA) == std::string(sha256_info->args_schema));
+    const auto zlib_info = omega_transform_plugin_registry_find_info(registry_ptr, "omega.example.zlib");
+    REQUIRE("Zlib" == std::string(zlib_info->name));
+    REQUIRE(std::string(zlib_info->help).find("Compression level") != std::string::npos);
+    REQUIRE("{\"action\":\"compress\",\"level\":9}" == std::string(zlib_info->example));
+    REQUIRE("{\"action\":\"compress\",\"level\":-1}" == std::string(zlib_info->default_args));
+    REQUIRE(0 == omega_transform_plugin_options_match_args_schema("{\"action\":\"compress\",\"level\":9}",
+                                                                  zlib_info->args_schema));
+    REQUIRE(0 == omega_transform_plugin_options_match_args_schema("{\"action\":\"decompress\"}",
+                                                                  zlib_info->args_schema));
+    REQUIRE(-1 == omega_transform_plugin_options_match_args_schema("{\"action\":\"compress\",\"level\":10}",
+                                                                   zlib_info->args_schema));
+    const auto digest_info = omega_transform_plugin_registry_find_info(registry_ptr, "omega.example.openssl_digests");
+    REQUIRE("OpenSSL Digests" == std::string(digest_info->name));
+    REQUIRE(std::string(digest_info->description).find("SHA") != std::string::npos);
+    REQUIRE("{\"algorithm\":\"sha256\"}" == std::string(digest_info->default_args));
+    REQUIRE(std::string(digest_info->args_schema).find("\"x-omega-enumGroups\"") != std::string::npos);
+    REQUIRE(0 == omega_transform_plugin_options_match_args_schema("{\"algorithm\":\"sha256\"}",
+                                                                  digest_info->args_schema));
+    REQUIRE(-1 == omega_transform_plugin_options_match_args_schema("{\"algorithm\":\"sha0\"}",
+                                                                   digest_info->args_schema));
 
     const auto session_ptr = omega_edit_create_session(nullptr, nullptr, nullptr, NO_EVENTS, nullptr);
     REQUIRE(session_ptr);
@@ -111,45 +109,49 @@ TEST_CASE("Packaged Transform Plugins", "[TransformPlugin]") {
                                                          omega_session_get_computed_file_size(session_ptr)));
     omega_transform_plugin_response_clear(&response);
 
-    REQUIRE(0 == omega_transform_plugin_registry_apply_to_session(registry_ptr, "omega.example.checksum8", session_ptr,
-                                                                  0, 0, nullptr, &response));
+    REQUIRE(0 == omega_transform_plugin_registry_apply_to_session(
+                         registry_ptr, "omega.example.common_checksums", session_ptr, 0, 0,
+                         "{\"algorithm\":\"sum8\"}", &response));
     REQUIRE(4 == response.result_length);
     REQUIRE("0x8F" == std::string(reinterpret_cast<const char *>(response.result_bytes),
                                   static_cast<size_t>(response.result_length)));
-    REQUIRE("checksum8" == std::string(response.result_label));
+    REQUIRE("sum8" == std::string(response.result_label));
     REQUIRE("ABCBCD" == omega_session_get_segment_string(session_ptr, 0,
                                                          omega_session_get_computed_file_size(session_ptr)));
     omega_transform_plugin_response_clear(&response);
 
-    REQUIRE(0 == omega_transform_plugin_registry_apply_to_session(registry_ptr, "omega.example.xor", session_ptr,
+    REQUIRE(0 == omega_transform_plugin_registry_apply_to_session(registry_ptr, "omega.example.bitwise", session_ptr,
                                                                   0, 1, nullptr, &response));
     REQUIRE(std::string({static_cast<char>(0xBE), 'B', 'C', 'B', 'C', 'D'}) ==
             omega_session_get_segment_string(session_ptr, 0, omega_session_get_computed_file_size(session_ptr)));
     omega_transform_plugin_response_clear(&response);
 
-    REQUIRE(0 == omega_transform_plugin_registry_apply_to_session(registry_ptr, "omega.example.xor", session_ptr,
-                                                                  1, 1, "{\"byte\":\"0x42\"}", &response));
+    REQUIRE(0 == omega_transform_plugin_registry_apply_to_session(registry_ptr, "omega.example.bitwise", session_ptr,
+                                                                  1, 1,
+                                                                  "{\"operator\":\"xor\",\"byte\":\"0x42\"}", &response));
     REQUIRE(std::string({static_cast<char>(0xBE), static_cast<char>('B' ^ 0x42), 'C', 'B', 'C', 'D'}) ==
             omega_session_get_segment_string(session_ptr, 0, omega_session_get_computed_file_size(session_ptr)));
     omega_transform_plugin_response_clear(&response);
 
-    REQUIRE(-1 == omega_transform_plugin_registry_apply_to_session(registry_ptr, "omega.example.xor", session_ptr,
-                                                                   1, 1, "{\"byte\":256}", &response));
+    REQUIRE(-1 == omega_transform_plugin_registry_apply_to_session(registry_ptr, "omega.example.bitwise", session_ptr,
+                                                                   1, 1,
+                                                                   "{\"operator\":\"xor\",\"byte\":256}", &response));
 
     REQUIRE(-1 == omega_transform_plugin_registry_apply_to_session(
-                          registry_ptr, "omega.example.xor", session_ptr, 2, 2, "{\"bytes\":[\"0x01\",\"0x02\"]}",
-                          &response));
+                          registry_ptr, "omega.example.bitwise", session_ptr, 2, 2,
+                          "{\"operator\":\"xor\",\"bytes\":[\"0x01\",\"0x02\"]}", &response));
 
     REQUIRE(0 == omega_transform_plugin_registry_apply_to_session(
-                         registry_ptr, "omega.example.xor", session_ptr, 2, 2, "{\"mask\":[\"0x01\",\"0x02\"]}",
-                         &response));
+                         registry_ptr, "omega.example.bitwise", session_ptr, 2, 2,
+                         "{\"operator\":\"xor\",\"mask\":[\"0x01\",\"0x02\"]}", &response));
     REQUIRE(std::string({static_cast<char>(0xBE), static_cast<char>('B' ^ 0x42),
                          static_cast<char>('C' ^ 0x01), static_cast<char>('B' ^ 0x02), 'C', 'D'}) ==
             omega_session_get_segment_string(session_ptr, 0, omega_session_get_computed_file_size(session_ptr)));
     omega_transform_plugin_response_clear(&response);
 
     REQUIRE(0 == omega_transform_plugin_registry_apply_to_session(
-                         registry_ptr, "omega.example.and", session_ptr, 2, 2, "{\"mask\":[\"0x0F\",\"0xF0\"]}",
+                         registry_ptr, "omega.example.bitwise", session_ptr, 2, 2,
+                         "{\"operator\":\"and\",\"mask\":[\"0x0F\",\"0xF0\"]}",
                          &response));
     REQUIRE(std::string({static_cast<char>(0xBE), static_cast<char>('B' ^ 0x42),
                          static_cast<char>(('C' ^ 0x01) & 0x0F),
@@ -158,7 +160,8 @@ TEST_CASE("Packaged Transform Plugins", "[TransformPlugin]") {
     omega_transform_plugin_response_clear(&response);
 
     REQUIRE(0 == omega_transform_plugin_registry_apply_to_session(
-                         registry_ptr, "omega.example.or", session_ptr, 4, 2, "{\"mask\":[\"0x01\",\"0x02\"]}",
+                         registry_ptr, "omega.example.bitwise", session_ptr, 4, 2,
+                         "{\"operator\":\"or\",\"mask\":[\"0x01\",\"0x02\"]}",
                          &response));
     REQUIRE(std::string({static_cast<char>(0xBE), static_cast<char>('B' ^ 0x42),
                          static_cast<char>(('C' ^ 0x01) & 0x0F),
@@ -171,35 +174,39 @@ TEST_CASE("Packaged Transform Plugins", "[TransformPlugin]") {
     REQUIRE(codec_session_ptr);
     REQUIRE(0 < omega_edit_insert_string(codec_session_ptr, 0, "hello"));
 
-    REQUIRE(0 == omega_transform_plugin_registry_apply_to_session(registry_ptr, "omega.example.base64_encode",
+    REQUIRE(0 == omega_transform_plugin_registry_apply_to_session(registry_ptr, "omega.example.base64",
                                                                   codec_session_ptr, 0, 5, nullptr, &response));
     REQUIRE("aGVsbG8=" == omega_session_get_segment_string(codec_session_ptr, 0,
                                                           omega_session_get_computed_file_size(codec_session_ptr)));
     REQUIRE(8 == response.replacement_length);
     omega_transform_plugin_response_clear(&response);
 
-    REQUIRE(-1 == omega_transform_plugin_registry_apply_to_session(registry_ptr, "omega.example.base64_encode",
+    REQUIRE(-1 == omega_transform_plugin_registry_apply_to_session(registry_ptr, "omega.example.base64",
                                                                    codec_session_ptr, 0, 5, "{\"level\":9}",
                                                                    &response));
 
-    REQUIRE(0 == omega_transform_plugin_registry_apply_to_session(registry_ptr, "omega.example.base64_decode",
-                                                                  codec_session_ptr, 0, 0, nullptr, &response));
+    REQUIRE(0 == omega_transform_plugin_registry_apply_to_session(registry_ptr, "omega.example.base64",
+                                                                  codec_session_ptr, 0, 0,
+                                                                  "{\"direction\":\"decode\"}", &response));
     REQUIRE("hello" == omega_session_get_segment_string(codec_session_ptr, 0,
                                                         omega_session_get_computed_file_size(codec_session_ptr)));
     REQUIRE(5 == response.replacement_length);
     omega_transform_plugin_response_clear(&response);
 
-    REQUIRE(0 == omega_transform_plugin_registry_apply_to_session(registry_ptr, "omega.example.fnv1a64",
-                                                                  codec_session_ptr, 0, 5, nullptr, &response));
+    REQUIRE(0 == omega_transform_plugin_registry_apply_to_session(
+                         registry_ptr, "omega.example.common_checksums", codec_session_ptr, 0, 5,
+                         "{\"algorithm\":\"fnv1a64\"}", &response));
     REQUIRE(18 == response.result_length);
     REQUIRE("0xA430D84680AABD0B" == std::string(reinterpret_cast<const char *>(response.result_bytes),
                                                static_cast<size_t>(response.result_length)));
     REQUIRE("fnv1a64" == std::string(response.result_label));
     omega_transform_plugin_response_clear(&response);
 
-    const auto require_digest_result = [&](const char *plugin_id, const char *label, const char *expected) {
-        REQUIRE(0 == omega_transform_plugin_registry_apply_to_session(registry_ptr, plugin_id, codec_session_ptr, 0,
-                                                                      5, nullptr, &response));
+    const auto require_digest_result = [&](const char *algorithm, const char *label, const char *expected) {
+        const std::string options = std::string("{\"algorithm\":\"") + algorithm + "\"}";
+        REQUIRE(0 == omega_transform_plugin_registry_apply_to_session(
+                             registry_ptr, "omega.example.openssl_digests", codec_session_ptr, 0, 5,
+                             options.c_str(), &response));
         REQUIRE(static_cast<int64_t>(std::string(expected).size()) == response.result_length);
         REQUIRE(expected == std::string(reinterpret_cast<const char *>(response.result_bytes),
                                         static_cast<size_t>(response.result_length)));
@@ -207,27 +214,27 @@ TEST_CASE("Packaged Transform Plugins", "[TransformPlugin]") {
         omega_transform_plugin_response_clear(&response);
     };
 
-    require_digest_result("omega.example.md5", "md5", "5d41402abc4b2a76b9719d911017c592");
-    require_digest_result("omega.example.sha1", "sha1", "aaf4c61ddcc5e8a2dabede0f3b482cd9aea9434d");
-    require_digest_result("omega.example.sha224", "sha224",
+    require_digest_result("md5", "md5", "5d41402abc4b2a76b9719d911017c592");
+    require_digest_result("sha1", "sha1", "aaf4c61ddcc5e8a2dabede0f3b482cd9aea9434d");
+    require_digest_result("sha224", "sha224",
                           "ea09ae9cc6768c50fcee903ed054556e5bfc8347907f12598aa24193");
-    require_digest_result("omega.example.sha256", "sha256",
+    require_digest_result("sha256", "sha256",
                           "2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824");
-    require_digest_result("omega.example.sha384", "sha384",
+    require_digest_result("sha384", "sha384",
                           "59e1748777448c69de6b800d7a33bbfb9ff1b463e44354c3553bcdb9c666fa90125a3c79f"
                           "90397bdf5f6a13de828684f");
-    require_digest_result("omega.example.sha512", "sha512",
+    require_digest_result("sha512", "sha512",
                           "9b71d224bd62f3785d96d46ad3ea3d73319bfbc2890caadae2dff72519673ca72323c"
                           "3d99ba5c11d7c7acc6e14b8c5da0c4663475c2e5c3adef46f73bcdec043");
-    require_digest_result("omega.example.sha3_256", "sha3-256",
+    require_digest_result("sha3-256", "sha3-256",
                           "3338be694f50c5f338814986cdf0686453a888b84f424d792af4b9202398f392");
-    require_digest_result("omega.example.sha3_512", "sha3-512",
+    require_digest_result("sha3-512", "sha3-512",
                           "75d527c368f2efe848ecf6b073a36767800805e9eef2b1857d5f984f036eb6df891d75f72d9b"
                           "154518c1cd58835286d1da9a38deba3de98b5a53e5ed78a84976");
-    require_digest_result("omega.example.blake2b512", "blake2b-512",
+    require_digest_result("blake2b-512", "blake2b-512",
                           "e4cfa39a3d37be31c59609e807970799caa68a19bfaa15135f165085e01d41a65ba1e1b146ae"
                           "b6bd0092b49eac214c103ccfa3a365954bbbe52f74a2b3620c94");
-    require_digest_result("omega.example.blake2s256", "blake2s-256",
+    require_digest_result("blake2s-256", "blake2s-256",
                           "19213bacc58dee6dbde3ceb9a47cbb330b3d86f8cca8997eb00be456f140ca25");
 
     const auto large_session_ptr = omega_edit_create_session(nullptr, nullptr, nullptr, NO_EVENTS, nullptr);
@@ -236,21 +243,24 @@ TEST_CASE("Packaged Transform Plugins", "[TransformPlugin]") {
     REQUIRE(0 < omega_edit_insert_bytes(large_session_ptr, 0, large_bytes.data(),
                                         static_cast<int64_t>(large_bytes.size())));
 
-    REQUIRE(0 == omega_transform_plugin_registry_apply_to_session(registry_ptr, "omega.example.checksum8",
-                                                                  large_session_ptr, 0, 0, nullptr, &response));
+    REQUIRE(0 == omega_transform_plugin_registry_apply_to_session(
+                         registry_ptr, "omega.example.common_checksums", large_session_ptr, 0, 0,
+                         "{\"algorithm\":\"sum8\"}", &response));
     REQUIRE(4 == response.result_length);
     REQUIRE("0x00" == std::string(reinterpret_cast<const char *>(response.result_bytes),
                                   static_cast<size_t>(response.result_length)));
     omega_transform_plugin_response_clear(&response);
 
-    REQUIRE(0 == omega_transform_plugin_registry_apply_to_session(registry_ptr, "omega.example.fnv1a64",
-                                                                  large_session_ptr, 0, 0, nullptr, &response));
+    REQUIRE(0 == omega_transform_plugin_registry_apply_to_session(
+                         registry_ptr, "omega.example.common_checksums", large_session_ptr, 0, 0,
+                         "{\"algorithm\":\"fnv1a64\"}", &response));
     REQUIRE(18 == response.result_length);
     REQUIRE("fnv1a64" == std::string(response.result_label));
     omega_transform_plugin_response_clear(&response);
 
-    REQUIRE(0 == omega_transform_plugin_registry_apply_to_session(registry_ptr, "omega.example.sha256",
-                                                                  large_session_ptr, 0, 0, nullptr, &response));
+    REQUIRE(0 == omega_transform_plugin_registry_apply_to_session(
+                         registry_ptr, "omega.example.openssl_digests", large_session_ptr, 0, 0,
+                         "{\"algorithm\":\"sha256\"}", &response));
     REQUIRE(64 == response.result_length);
     REQUIRE("c283e17a1b90a352c91de2c445b711c5c4126279eff884b8ffc44893576b19ef" ==
             std::string(reinterpret_cast<const char *>(response.result_bytes),
@@ -415,12 +425,14 @@ TEST_CASE("Packaged Transform Plugins", "[TransformPlugin]") {
                           "{\"action\":\"csv-unquote\"}", &response));
     omega_edit_destroy_session(invalid_csv_session_ptr);
 
-    REQUIRE(-1 == omega_transform_plugin_registry_apply_to_session(registry_ptr, "omega.example.zlib_compress",
-                                                                   codec_session_ptr, 0, 5, "{\"level\":10}",
+    REQUIRE(-1 == omega_transform_plugin_registry_apply_to_session(registry_ptr, "omega.example.zlib",
+                                                                   codec_session_ptr, 0, 5,
+                                                                   "{\"action\":\"compress\",\"level\":10}",
                                                                    &response));
 
-    REQUIRE(0 == omega_transform_plugin_registry_apply_to_session(registry_ptr, "omega.example.zlib_compress",
-                                                                  codec_session_ptr, 0, 5, "{\"level\":9}",
+    REQUIRE(0 == omega_transform_plugin_registry_apply_to_session(registry_ptr, "omega.example.zlib",
+                                                                  codec_session_ptr, 0, 5,
+                                                                  "{\"action\":\"compress\",\"level\":9}",
                                                                   &response));
     REQUIRE(0 < response.replacement_length);
     {
@@ -431,8 +443,9 @@ TEST_CASE("Packaged Transform Plugins", "[TransformPlugin]") {
     }
     omega_transform_plugin_response_clear(&response);
 
-    REQUIRE(0 == omega_transform_plugin_registry_apply_to_session(registry_ptr, "omega.example.zlib_decompress",
-                                                                  codec_session_ptr, 0, 0, nullptr, &response));
+    REQUIRE(0 == omega_transform_plugin_registry_apply_to_session(registry_ptr, "omega.example.zlib",
+                                                                  codec_session_ptr, 0, 0,
+                                                                  "{\"action\":\"decompress\"}", &response));
     REQUIRE("hello" == omega_session_get_segment_string(codec_session_ptr, 0,
                                                         omega_session_get_computed_file_size(codec_session_ptr)));
     REQUIRE(5 == response.replacement_length);
@@ -440,8 +453,9 @@ TEST_CASE("Packaged Transform Plugins", "[TransformPlugin]") {
 
     REQUIRE(0 < omega_edit_insert_string(codec_session_ptr, omega_session_get_computed_file_size(codec_session_ptr),
                                          "!"));
-    REQUIRE(-1 == omega_transform_plugin_registry_apply_to_session(registry_ptr, "omega.example.base64_decode",
-                                                                   codec_session_ptr, 0, 0, nullptr, &response));
+    REQUIRE(-1 == omega_transform_plugin_registry_apply_to_session(registry_ptr, "omega.example.base64",
+                                                                   codec_session_ptr, 0, 0,
+                                                                   "{\"direction\":\"decode\"}", &response));
     omega_edit_destroy_session(codec_session_ptr);
 
     REQUIRE(-1 == omega_transform_plugin_registry_apply_to_session(registry_ptr, "omega.example.missing", session_ptr,

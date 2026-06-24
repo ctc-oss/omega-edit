@@ -23,10 +23,12 @@
 namespace {
 
 constexpr const char *FORMAT_INSPECTOR_ARGS_SCHEMA =
-        "{\"type\":\"object\",\"properties\":{\"format\":{\"type\":\"string\",\"pattern\":\"^(protobuf-varint|asn1-"
-        "ber|asn1-der|tlv)$\"},\"tagBytes\":{\"type\":\"integer\",\"minimum\":1,\"maximum\":4},\"lengthBytes\":{"
-        "\"type\":\"integer\",\"minimum\":1,\"maximum\":4},\"endian\":{\"type\":\"string\",\"pattern\":\"^(big|little)$"
-        "\"}},\"additionalProperties\":false}";
+        "{\"type\":\"object\",\"properties\":{\"format\":{\"type\":\"string\",\"title\":\"Format\","
+        "\"description\":\"Structure to inspect.\",\"default\":\"protobuf-varint\",\"enum\":[\"protobuf-varint\","
+        "\"asn1-ber\",\"asn1-der\",\"tlv\"]},\"tagBytes\":{\"type\":\"integer\",\"title\":\"Tag bytes\","
+        "\"default\":1,\"enum\":[1,2,3,4]},\"lengthBytes\":{\"type\":\"integer\",\"title\":\"Length bytes\","
+        "\"default\":1,\"enum\":[1,2,3,4]},\"endian\":{\"type\":\"string\",\"title\":\"Byte order\","
+        "\"default\":\"big\",\"enum\":[\"big\",\"little\"]}},\"additionalProperties\":false}";
 
 std::string inspect_protobuf_varints(const std::vector<omega_byte_t> &input) {
     std::ostringstream out;
@@ -185,8 +187,8 @@ extern "C" OMEGA_TRANSFORM_PLUGIN_EXPORT int omega_transform_plugin_get_info(
     info_ptr->operation = OMEGA_TRANSFORM_PLUGIN_OPERATION_INSPECT;
     info_ptr->flags = OMEGA_TRANSFORM_PLUGIN_FLAG_TEXT_RESULT | OMEGA_TRANSFORM_PLUGIN_FLAG_BINARY_SAFE;
     info_ptr->help =
-            "Options JSON accepts {\"format\":\"protobuf-varint\"}, {\"format\":\"asn1-ber\"}, or "
-            "{\"format\":\"tlv\",\"tagBytes\":1,\"lengthBytes\":1,\"endian\":\"big\"}.";
+            "Choose protobuf varint, ASN.1 BER/DER, or configurable TLV inspection. TLV inspection uses tag byte "
+            "count, length byte count, and endian options.";
     info_ptr->example = "{\"format\":\"tlv\",\"tagBytes\":1,\"lengthBytes\":1,\"endian\":\"big\"}";
     info_ptr->default_args = "{\"format\":\"protobuf-varint\"}";
     info_ptr->args_schema = FORMAT_INSPECTOR_ARGS_SCHEMA;

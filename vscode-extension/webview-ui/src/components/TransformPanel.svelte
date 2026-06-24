@@ -9,6 +9,13 @@
   type OffsetRadix = 'hex' | 'dec'
   type JsonObject = Record<string, unknown>
   type TransformOptionControl = 'checkbox' | 'number' | 'select' | 'text'
+  type FileSpliceActionId =
+    | 'exportRange'
+    | 'insertFile'
+    | 'replaceRangeWithFile'
+
+  const TRANSFORM_ACTION_PREFIX = 'transform:'
+  const FILE_ACTION_PREFIX = 'file:'
 
   interface TransformOptionChoice {
     label: string
@@ -36,6 +43,10 @@
     minimum?: number
     maximum?: number
     step?: string
+    placeholder?: string
+    acceptsInteger?: boolean
+    arrayItemsAcceptInteger?: boolean
+    clears: string[]
   }
 
   interface Props {
@@ -45,6 +56,7 @@
     busy?: boolean
     error?: string
     fileSize?: number
+    selectedOffset?: number
     selectionStart?: number
     selectionEnd?: number
     selectionLength?: number
@@ -59,6 +71,9 @@
       length: number,
       optionsJson?: string
     ) => void
+    onExportRange: (offset: number, length: number) => void
+    onInsertFile: (offset: number) => void
+    onReplaceRangeWithFile: (offset: number, length: number) => void
     onOpenTransformResult: (resultId: string) => void
   }
 
@@ -86,6 +101,7 @@
     busy = false,
     error = '',
     fileSize = 0,
+    selectedOffset = -1,
     selectionStart = -1,
     selectionEnd = -1,
     selectionLength = 0,
@@ -95,10 +111,14 @@
     activeTransformResultId = '',
     onRequestTransforms,
     onApplyTransform,
+    onExportRange,
+    onInsertFile,
+    onReplaceRangeWithFile,
     onOpenTransformResult,
   }: Props = $props()
 
   let selectedPluginId = $state('')
+  let selectedFileAction = $state<FileSpliceActionId | ''>('')
   let dialogOpen = $state(false)
   let optionsJson = $state('')
   let rangeStartInput = $state('')
@@ -111,9 +131,18 @@
   const selectedPlugin = $derived(
     plugins.find((plugin) => plugin.id === selectedPluginId)
   )
+  const selectedActionValue = $derived(
+    selectedFileAction
+      ? `${FILE_ACTION_PREFIX}${selectedFileAction}`
+      : selectedPluginId
+        ? `${TRANSFORM_ACTION_PREFIX}${selectedPluginId}`
+        : ''
+  )
   const canTransformSelection = $derived(
     !busy && selectionStart >= 0 && selectionLength > 0
   )
+  const canUseFileRangeAction = $derived(!busy && fileSize > 0)
+  const canUseActions = $derived(!busy)
   const hasOptionsSchema = $derived(Boolean(selectedPlugin?.argsSchema))
   const optionSchema = $derived(
     parseJsonObject(selectedPlugin?.argsSchema || '')
@@ -127,6 +156,7 @@
   const transformRange = $derived(
     validateTransformRange(rangeStartInput, rangeEndInput)
   )
+  const insertOffset = $derived(validateInsertOffset(rangeStartInput))
   const optionsValidationError = $derived(
     selectedPlugin ? validateTransformOptions(selectedPlugin, optionsJson.trim()) : ''
   )
@@ -136,14 +166,15 @@
       optionsValidationError === '' &&
       !busy
   )
+  const canApplyFileAction = $derived(
+    selectedFileAction !== '' &&
+      !busy &&
+      (selectedFileAction === 'insertFile'
+        ? insertOffset.error === ''
+        : transformRange.error === '' && transformRange.length > 0)
+  )
   const controlTitle = $derived(
-    !canTransformSelection
-      ? strings.transform.selectRangeFirst
-      : error
-        ? strings.transform.unavailable(error)
-        : plugins.length === 0 && pluginsLoaded
-          ? strings.transform.noTransforms
-          : strings.transform.chooseTitle
+    busy ? strings.transform.inFlight : strings.transform.chooseTitle
   )
   const statusMessage = $derived(
     busy
@@ -227,11 +258,51 @@
     return { offset: start, end, length: end - start + 1, error: '' }
   }
 
+  function validateInsertOffset(input: string): { offset: number; error: string } {
+    const offset = parseOffsetInput(input)
+    if (offset === undefined) {
+      return { offset: -1, error: strings.transform.invalidInsertOffset }
+    }
+    if (offset > fileSize) {
+      return {
+        offset: -1,
+        error: strings.transform.insertOffsetOutOfBounds(formatOffset(fileSize)),
+      }
+    }
+    return { offset, error: '' }
+  }
+
+  function defaultRangeStart(): number {
+    if (selectionStart >= 0) {
+      return selectionStart
+    }
+    if (selectedOffset >= 0) {
+      return Math.max(0, Math.min(selectedOffset, Math.max(0, fileSize - 1)))
+    }
+    return 0
+  }
+
+  function defaultInsertOffset(): number {
+    if (selectionStart >= 0) {
+      return selectionStart
+    }
+    if (selectedOffset >= 0) {
+      return Math.max(0, Math.min(selectedOffset, fileSize))
+    }
+    return Math.max(0, fileSize)
+  }
+
   function resetRangeInputs(): void {
-    const start = selectionStart >= 0 ? selectionStart : 0
+    const start = defaultRangeStart()
     const end = selectionEnd >= start ? selectionEnd : start
     rangeStartInput = formatOffsetInput(start)
     rangeEndInput = formatOffsetInput(end)
+  }
+
+  function resetInsertOffsetInput(): void {
+    const offset = defaultInsertOffset()
+    rangeStartInput = formatOffsetInput(offset)
+    rangeEndInput = formatOffsetInput(offset)
   }
 
   function useMaxRangeEnd(): void {
@@ -239,6 +310,10 @@
       return
     }
     rangeEndInput = formatOffsetInput(fileSize - 1)
+  }
+
+  function useMaxInsertOffset(): void {
+    rangeStartInput = formatOffsetInput(Math.max(0, fileSize))
   }
 
   function transformOperationLabel(operation: number): string {
@@ -251,6 +326,65 @@
         return strings.transform.operationReplaceInspect
       default:
         return strings.transform.operationTransform
+    }
+  }
+
+  function transformActionValue(pluginId: string): string {
+    return `${TRANSFORM_ACTION_PREFIX}${pluginId}`
+  }
+
+  function fileActionValue(action: FileSpliceActionId): string {
+    return `${FILE_ACTION_PREFIX}${action}`
+  }
+
+  function parseFileActionValue(value: string): FileSpliceActionId | undefined {
+    if (!value.startsWith(FILE_ACTION_PREFIX)) {
+      return undefined
+    }
+    const action = value.slice(FILE_ACTION_PREFIX.length)
+    return action === 'exportRange' ||
+      action === 'insertFile' ||
+      action === 'replaceRangeWithFile'
+      ? action
+      : undefined
+  }
+
+  function fileActionLabel(action: FileSpliceActionId | ''): string {
+    switch (action) {
+      case 'exportRange':
+        return strings.transform.exportRange
+      case 'insertFile':
+        return strings.transform.insertFile
+      case 'replaceRangeWithFile':
+        return strings.transform.replaceRangeWithFile
+      default:
+        return ''
+    }
+  }
+
+  function fileActionDescription(action: FileSpliceActionId | ''): string {
+    switch (action) {
+      case 'exportRange':
+        return strings.transform.exportRangeDescription
+      case 'insertFile':
+        return strings.transform.insertFileDescription
+      case 'replaceRangeWithFile':
+        return strings.transform.replaceRangeWithFileDescription
+      default:
+        return ''
+    }
+  }
+
+  function fileActionApplyLabel(action: FileSpliceActionId | ''): string {
+    switch (action) {
+      case 'exportRange':
+        return strings.transform.exportRangeApply
+      case 'insertFile':
+        return strings.transform.insertFileApply
+      case 'replaceRangeWithFile':
+        return strings.transform.replaceRangeWithFileApply
+      default:
+        return strings.transform.apply
     }
   }
 
@@ -571,6 +705,91 @@
     return choices.length === value.length ? choices : []
   }
 
+  function patternOptionChoices(pattern: unknown): TransformOptionChoice[] {
+    if (typeof pattern !== 'string') {
+      return []
+    }
+    const match = pattern.match(/^\^\((.+)\)\$$/)
+    if (!match) {
+      return []
+    }
+    const values = match[1].split('|')
+    if (
+      values.length < 2 ||
+      values.some((value) => !/^[A-Za-z0-9._:+-]+$/.test(value))
+    ) {
+      return []
+    }
+    return values.map((value) => ({ label: value, value }))
+  }
+
+  function schemaAllowsType(schema: unknown, type: string): boolean {
+    if (!schemaObject(schema)) {
+      return false
+    }
+    if (schema.type === type) {
+      return true
+    }
+    return Array.isArray(schema.oneOf)
+      ? schema.oneOf.some((candidate) => schemaAllowsType(candidate, type))
+      : false
+  }
+
+  function formSchemaFor(schema: unknown): JsonObject | undefined {
+    if (!schemaObject(schema)) {
+      return undefined
+    }
+    const type = typeof schema.type === 'string' ? schema.type : ''
+    if (['array', 'boolean', 'integer', 'number', 'string'].includes(type)) {
+      return schema
+    }
+    if (!Array.isArray(schema.oneOf)) {
+      return undefined
+    }
+
+    for (const candidate of schema.oneOf) {
+      const candidateSchema = formSchemaFor(candidate)
+      if (candidateSchema) {
+        return {
+          ...candidateSchema,
+          title: schema.title ?? candidateSchema.title,
+          description: schema.description ?? candidateSchema.description,
+          default: schema.default ?? candidateSchema.default,
+        }
+      }
+    }
+    return undefined
+  }
+
+  function schemaChoices(schema: JsonObject): TransformOptionChoice[] {
+    const choices = optionChoices(schema.enum)
+    return choices.length > 0 ? choices : patternOptionChoices(schema.pattern)
+  }
+
+  function schemaClearTargets(schema: JsonObject): string[] {
+    const rawTargets = schema['x-omega-clears']
+    return Array.isArray(rawTargets)
+      ? rawTargets.filter((target): target is string => typeof target === 'string')
+      : []
+  }
+
+  function formatArrayOptionValue(value: unknown): string {
+    return Array.isArray(value) ? value.map(String).join(', ') : ''
+  }
+
+  function parseArrayOptionInput(
+    value: string,
+    coerceInteger: boolean
+  ): Array<string | number> {
+    return value
+      .split(/[,\s]+/)
+      .map((item) => item.trim())
+      .filter(Boolean)
+      .map((item) =>
+        coerceInteger && /^[0-9]+$/.test(item) ? Number.parseInt(item, 10) : item
+      )
+  }
+
   function optionGroups(
     schema: JsonObject,
     choices: TransformOptionChoice[]
@@ -627,15 +846,23 @@
     required: boolean,
     options: JsonObject | undefined
   ): TransformOptionField | undefined {
-    if (!schemaObject(schema)) {
+    const sourceSchema = schemaObject(schema) ? schema : undefined
+    const fieldSchema = formSchemaFor(schema)
+    if (!sourceSchema || !fieldSchema) {
       return undefined
     }
-    const type = typeof schema.type === 'string' ? schema.type : ''
-    if (!['boolean', 'integer', 'number', 'string'].includes(type)) {
+    const type = typeof fieldSchema.type === 'string' ? fieldSchema.type : ''
+    if (!['array', 'boolean', 'integer', 'number', 'string'].includes(type)) {
       return undefined
     }
 
-    const choices = optionChoices(schema.enum)
+    const itemSchema =
+      type === 'array' ? formSchemaFor(fieldSchema.items) : undefined
+    if (type === 'array' && !itemSchema) {
+      return undefined
+    }
+
+    const choices = type === 'array' ? [] : schemaChoices(fieldSchema)
     const control: TransformOptionControl =
       choices.length > 0
         ? 'select'
@@ -644,26 +871,53 @@
           : type === 'integer' || type === 'number'
             ? 'number'
             : 'text'
-    const value = currentOptionValue(options, key, schema)
-    const groups = optionGroups(schema, choices)
+    const value = currentOptionValue(options, key, sourceSchema)
+    const groups = optionGroups(sourceSchema, choices)
+    const acceptsInteger = schemaAllowsType(sourceSchema, 'integer')
+    const arrayItemsAcceptInteger = schemaAllowsType(itemSchema, 'integer')
     return {
       key,
       id: `transformOption-${key.replace(/[^A-Za-z0-9_-]/g, '-')}`,
       label:
-        typeof schema.title === 'string' ? schema.title : formatOptionLabel(key),
+        typeof sourceSchema.title === 'string'
+          ? sourceSchema.title
+          : typeof fieldSchema.title === 'string'
+            ? fieldSchema.title
+            : formatOptionLabel(key),
       description:
-        typeof schema.description === 'string' ? schema.description : '',
+        typeof sourceSchema.description === 'string'
+          ? sourceSchema.description
+          : typeof fieldSchema.description === 'string'
+            ? fieldSchema.description
+            : '',
       type,
       control,
       required,
-      value: value === undefined ? '' : String(value),
+      value:
+        value === undefined
+          ? ''
+          : type === 'array'
+            ? formatArrayOptionValue(value)
+            : String(value),
       checked: Boolean(value),
       choices,
       groups,
       ungroupedChoices: ungroupedOptionChoices(choices, groups),
-      minimum: typeof schema.minimum === 'number' ? schema.minimum : undefined,
-      maximum: typeof schema.maximum === 'number' ? schema.maximum : undefined,
+      minimum:
+        typeof fieldSchema.minimum === 'number' ? fieldSchema.minimum : undefined,
+      maximum:
+        typeof fieldSchema.maximum === 'number' ? fieldSchema.maximum : undefined,
       step: type === 'integer' ? '1' : 'any',
+      placeholder:
+        type === 'array'
+          ? strings.transform.arrayOptionPlaceholder
+          : typeof fieldSchema.pattern === 'string' &&
+              fieldSchema.pattern.includes('0x')
+            ? '0xFF'
+            : undefined,
+      acceptsInteger,
+      arrayItemsAcceptInteger,
+      clears: schemaClearTargets(sourceSchema),
     }
   }
 
@@ -706,22 +960,47 @@
     rawValue: string | boolean
   ): void {
     const options = { ...(parseJsonObject(optionsJson) || {}) }
+    let hasValue = false
     if (field.control === 'checkbox') {
       options[field.key] = Boolean(rawValue)
+      hasValue = true
     } else {
       const text = String(rawValue)
       if (!text) {
         delete options[field.key]
+      } else if (field.type === 'array') {
+        const items = parseArrayOptionInput(
+          text,
+          field.arrayItemsAcceptInteger ?? false
+        )
+        if (items.length > 0) {
+          options[field.key] = items
+          hasValue = true
+        } else {
+          delete options[field.key]
+        }
       } else if (field.type === 'integer') {
         const parsed = Number.parseInt(text, 10)
         options[field.key] = Number.isFinite(parsed) ? parsed : text
+        hasValue = true
       } else if (field.type === 'number') {
         const parsed = Number(text)
         options[field.key] = Number.isFinite(parsed) ? parsed : text
+        hasValue = true
       } else if (field.type === 'boolean') {
         options[field.key] = text === 'true'
+        hasValue = true
+      } else if (field.acceptsInteger && /^[0-9]+$/.test(text)) {
+        options[field.key] = Number.parseInt(text, 10)
+        hasValue = true
       } else {
         options[field.key] = text
+        hasValue = true
+      }
+    }
+    if (hasValue) {
+      for (const target of field.clears) {
+        delete options[target]
       }
     }
     optionsJson = JSON.stringify(options)
@@ -730,6 +1009,7 @@
   async function openTransformDialog(pluginId: string): Promise<void> {
     const plugin = plugins.find((entry) => entry.id === pluginId)
     selectedPluginId = pluginId
+    selectedFileAction = ''
     if (!plugin) {
       return
     }
@@ -747,19 +1027,38 @@
     }
   }
 
+  async function openFileActionDialog(action: FileSpliceActionId): Promise<void> {
+    selectedPluginId = ''
+    selectedFileAction = action
+    if (action === 'insertFile') {
+      resetInsertOffsetInput()
+    } else {
+      resetRangeInputs()
+    }
+    dialogOpen = true
+    await tick()
+    applyButton?.focus()
+  }
+
   function handleSelectChange(event: Event): void {
     const select = event.currentTarget
     if (!(select instanceof HTMLSelectElement)) {
       return
     }
-    if (select.value) {
-      void openTransformDialog(select.value)
+    const fileAction = parseFileActionValue(select.value)
+    if (fileAction) {
+      void openFileActionDialog(fileAction)
+      return
+    }
+    if (select.value.startsWith(TRANSFORM_ACTION_PREFIX)) {
+      void openTransformDialog(select.value.slice(TRANSFORM_ACTION_PREFIX.length))
     }
   }
 
   function closeTransformDialog(): void {
     dialogOpen = false
     selectedPluginId = ''
+    selectedFileAction = ''
     optionsJson = ''
   }
 
@@ -773,7 +1072,12 @@
 
   function applySelectedTransform(): void {
     const plugin = selectedPlugin
-    if (!plugin || !canApplyTransform || !canTransformSelection) {
+    if (
+      selectedFileAction ||
+      !plugin ||
+      !canApplyTransform ||
+      !canTransformSelection
+    ) {
       return
     }
 
@@ -794,6 +1098,21 @@
       transformRange.length,
       trimmedOptions || undefined
     )
+    closeTransformDialog()
+  }
+
+  function applySelectedFileAction(): void {
+    if (!selectedFileAction || !canApplyFileAction) {
+      return
+    }
+
+    if (selectedFileAction === 'insertFile') {
+      onInsertFile(insertOffset.offset)
+    } else if (selectedFileAction === 'exportRange') {
+      onExportRange(transformRange.offset, transformRange.length)
+    } else {
+      onReplaceRangeWithFile(transformRange.offset, transformRange.length)
+    }
     closeTransformDialog()
   }
 
@@ -819,7 +1138,15 @@
   }
 
   function handleRangeKeydown(event: KeyboardEvent): void {
-    if (event.key === 'Enter' && canApplyTransform) {
+    if (event.key !== 'Enter') {
+      return
+    }
+    if (selectedFileAction && canApplyFileAction) {
+      event.preventDefault()
+      applySelectedFileAction()
+      return
+    }
+    if (canApplyTransform) {
       event.preventDefault()
       applySelectedTransform()
     }
@@ -833,31 +1160,52 @@
   <select
     id="transformSelect"
     class="transform-select"
-    disabled={!canTransformSelection}
+    disabled={!canUseActions}
     title={controlTitle}
-    value={selectedPluginId}
+    value={selectedActionValue}
     onfocus={requestTransforms}
     onpointerdown={requestTransforms}
     onchange={handleSelectChange}
   >
-    {#if !canTransformSelection}
-      <option value="">{strings.transform.selectRange}</option>
-    {:else if plugins.length === 0}
-      <option value="">
-        {pluginsLoading
-          ? strings.transform.loading
-          : pluginsLoaded
-            ? strings.transform.noTransforms
-            : strings.transform.choose}
+    <option value="">{strings.transform.choose}</option>
+    <optgroup label={strings.transform.fileSplicingGroup}>
+      <option
+        value={fileActionValue('exportRange')}
+        disabled={!canUseFileRangeAction}
+      >
+        {strings.transform.exportRange}
       </option>
-    {:else}
-      <option value="">{strings.transform.choose}</option>
-      {#each plugins as plugin (plugin.id)}
-        <option value={plugin.id} title={plugin.description || plugin.id}>
-          {plugin.name || plugin.id}
+      <option value={fileActionValue('insertFile')}>
+        {strings.transform.insertFile}
+      </option>
+      <option
+        value={fileActionValue('replaceRangeWithFile')}
+        disabled={!canUseFileRangeAction}
+      >
+        {strings.transform.replaceRangeWithFile}
+      </option>
+    </optgroup>
+    <optgroup label={strings.transform.transformsGroup}>
+      {#if plugins.length === 0}
+        <option value="" disabled>
+          {pluginsLoading
+            ? strings.transform.loading
+            : pluginsLoaded
+              ? strings.transform.noTransforms
+              : strings.transform.loadTransforms}
         </option>
-      {/each}
-    {/if}
+      {:else}
+        {#each plugins as plugin (plugin.id)}
+          <option
+            value={transformActionValue(plugin.id)}
+            title={plugin.description || plugin.id}
+            disabled={!canTransformSelection}
+          >
+            {plugin.name || plugin.id}
+          </option>
+        {/each}
+      {/if}
+    </optgroup>
   </select>
   {#if results.length > 0}
     <details bind:this={resultHistoryMenu} class="transform-result-history">
@@ -975,16 +1323,12 @@
 
       {#if optionHelp.help}
         <div class="help-section-title">
-          {hasOptionForm
-            ? strings.transform.options
-            : hasOptionsSchema
-              ? strings.transform.optionsJson
-              : strings.transform.help}
+          {hasOptionForm ? strings.transform.options : strings.transform.details}
         </div>
         <p>{optionHelp.help}</p>
       {/if}
 
-      {#if advertisedExamples.length > 0}
+      {#if advertisedExamples.length > 0 && !hasOptionsSchema}
         <div class="help-section-title">{strings.transform.examples}</div>
         <div class="help-examples">
           {#each advertisedExamples as example, index}
@@ -1071,6 +1415,7 @@
                     max={field.maximum}
                     step={field.step}
                     value={field.value}
+                    placeholder={field.placeholder}
                     aria-invalid={optionsValidationError ? 'true' : 'false'}
                     oninput={(event) => {
                       const input = event.currentTarget
@@ -1090,7 +1435,7 @@
             {/each}
           </div>
           <details class="transform-raw-options">
-            <summary>{strings.transform.rawOptionsJson}</summary>
+            <summary>{strings.transform.advancedOptions}</summary>
             <label class="transform-options-field">
               <span>{strings.transform.optionsJson}</span>
               <textarea
@@ -1112,26 +1457,29 @@
             </label>
           </details>
         {:else}
-          <label class="transform-options-field">
-            <span>{strings.transform.optionsJson}</span>
-            <textarea
-              bind:this={optionsInput}
-              value={optionsJson}
-              maxlength={MAX_TRANSFORM_OPTIONS_LENGTH}
-              rows="3"
-              placeholder={advertisedExamples[0]
-                ? strings.transform.examplePlaceholder(advertisedExamples[0])
-                : strings.transform.optionsPlaceholder}
-              aria-invalid={optionsValidationError ? 'true' : 'false'}
-              oninput={(event) => {
-                const input = event.currentTarget
-                if (input instanceof HTMLTextAreaElement) {
-                  optionsJson = input.value
-                }
-              }}
-              onkeydown={handleOptionsKeydown}
-            ></textarea>
-          </label>
+          <details class="transform-raw-options">
+            <summary>{strings.transform.advancedOptions}</summary>
+            <label class="transform-options-field">
+              <span>{strings.transform.optionsJson}</span>
+              <textarea
+                bind:this={optionsInput}
+                value={optionsJson}
+                maxlength={MAX_TRANSFORM_OPTIONS_LENGTH}
+                rows="3"
+                placeholder={advertisedExamples[0]
+                  ? strings.transform.examplePlaceholder(advertisedExamples[0])
+                  : strings.transform.optionsPlaceholder}
+                aria-invalid={optionsValidationError ? 'true' : 'false'}
+                oninput={(event) => {
+                  const input = event.currentTarget
+                  if (input instanceof HTMLTextAreaElement) {
+                    optionsJson = input.value
+                  }
+                }}
+                onkeydown={handleOptionsKeydown}
+              ></textarea>
+            </label>
+          </details>
         {/if}
       {/if}
 
@@ -1151,6 +1499,151 @@
         onclick={applySelectedTransform}
       >
         {strings.transform.apply}
+      </button>
+    </div>
+  </div>
+{/if}
+
+{#if dialogOpen && selectedFileAction}
+  <button
+    type="button"
+    class="dialog-backdrop"
+    aria-label={strings.transform.closeDialog}
+    onclick={closeTransformDialog}
+  ></button>
+  <div
+    class="transform-dialog"
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="fileActionDialogTitle"
+    tabindex="-1"
+    onkeydown={handleDialogKeydown}
+  >
+    <h2 id="fileActionDialogTitle">{fileActionLabel(selectedFileAction)}</h2>
+    <div class="transform-dialog-body">
+      <div class="help-muted">{strings.transform.fileSplicingGroup}</div>
+      <p>{fileActionDescription(selectedFileAction)}</p>
+
+      {#if selectedFileAction === 'insertFile'}
+        <div class="help-section-title">{strings.transform.insertOffset}</div>
+        <div class="transform-range-grid">
+          <div class="transform-range-field">
+            <label for="fileActionInsertOffset">
+              {strings.transform.insertOffset}
+            </label>
+            <div class="transform-range-end-control">
+              <input
+                id="fileActionInsertOffset"
+                value={rangeStartInput}
+                aria-invalid={insertOffset.error ? 'true' : 'false'}
+                title={strings.transform.insertOffsetTitle}
+                oninput={(event) => {
+                  const input = event.currentTarget
+                  if (input instanceof HTMLInputElement) {
+                    rangeStartInput = input.value
+                  }
+                }}
+                onkeydown={handleRangeKeydown}
+              />
+              <button
+                type="button"
+                class="secondary transform-range-max"
+                title={strings.transform.useEndOffset}
+                onclick={useMaxInsertOffset}
+              >
+                {strings.transform.endOffset}
+              </button>
+            </div>
+          </div>
+          <div class="transform-range-length">
+            <span class="analysis-label">{strings.transform.destination}</span>
+            <span class="analysis-value">
+              {insertOffset.offset >= 0 ? formatOffset(insertOffset.offset) : '...'}
+            </span>
+          </div>
+        </div>
+
+        {#if insertOffset.error}
+          <div class="transform-error" aria-live="polite">
+            {insertOffset.error}
+          </div>
+        {/if}
+      {:else}
+        <div class="help-section-title">{strings.transform.destinationRange}</div>
+        <div class="transform-range-grid">
+          <div class="transform-range-field">
+            <label for="fileActionRangeStart">{strings.transform.start}</label>
+            <input
+              id="fileActionRangeStart"
+              value={rangeStartInput}
+              aria-invalid={transformRange.error ? 'true' : 'false'}
+              title={strings.transform.rangeOffsetTitle}
+              oninput={(event) => {
+                const input = event.currentTarget
+                if (input instanceof HTMLInputElement) {
+                  rangeStartInput = input.value
+                }
+              }}
+              onkeydown={handleRangeKeydown}
+            />
+          </div>
+          <div class="transform-range-field">
+            <label for="fileActionRangeEnd">{strings.transform.end}</label>
+            <div class="transform-range-end-control">
+              <input
+                id="fileActionRangeEnd"
+                value={rangeEndInput}
+                aria-invalid={transformRange.error ? 'true' : 'false'}
+                title={strings.transform.rangeOffsetTitle}
+                oninput={(event) => {
+                  const input = event.currentTarget
+                  if (input instanceof HTMLInputElement) {
+                    rangeEndInput = input.value
+                  }
+                }}
+                onkeydown={handleRangeKeydown}
+              />
+              <button
+                type="button"
+                class="secondary transform-range-max"
+                title={strings.transform.useMaxOffset}
+                onclick={useMaxRangeEnd}
+              >
+                {strings.transform.maxOffset}
+              </button>
+            </div>
+          </div>
+          <div class="transform-range-length">
+            <span class="analysis-label">{strings.transform.length}</span>
+            <span class="analysis-value">
+              {strings.transform.bytes(
+                transformRange.length > 0
+                  ? transformRange.length
+                  : selectionLength
+              )}
+            </span>
+          </div>
+        </div>
+
+        {#if transformRange.error}
+          <div class="transform-error" aria-live="polite">
+            {transformRange.error}
+          </div>
+        {/if}
+      {/if}
+    </div>
+
+    <div class="dialog-actions">
+      <button type="button" class="secondary" onclick={closeTransformDialog}>
+        {strings.transform.cancel}
+      </button>
+      <button
+        bind:this={applyButton}
+        type="button"
+        disabled={!canApplyFileAction}
+        onclick={applySelectedFileAction}
+      >
+        {fileActionApplyLabel(selectedFileAction)}
       </button>
     </div>
   </div>

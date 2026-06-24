@@ -62,7 +62,7 @@ info_ptr->abi_version = OMEGA_TRANSFORM_PLUGIN_ABI_VERSION;
 info_ptr->id = "omega.example.my_plugin";
 info_ptr->name = "My Plugin";
 info_ptr->description = "What this plugin does.";
-info_ptr->help = "Options JSON accepts {\"byte\":\"0x42\"}.";
+info_ptr->help = "Choose the byte value to apply.";
 info_ptr->example = "{\"byte\":\"0x42\"}";
 info_ptr->default_args = "{\"byte\":\"0xFF\"}";
 info_ptr->args_schema = "{\"type\":\"object\",\"properties\":{...}}";
@@ -71,7 +71,7 @@ info_ptr->flags = OMEGA_TRANSFORM_PLUGIN_FLAG_BINARY_SAFE;
 ```
 
 The plugin ID must be unique across all registered plugins. A reverse-DNS style ID
-is recommended, for example `com.example.base64_encode`.
+is recommended, for example `com.example.base64`.
 
 `description`, `help`, `example`, `default_args`, and `args_schema` are discovery
 metadata for clients. When `args_schema` is set, callers should validate
@@ -137,7 +137,7 @@ omega_transform_plugin_get_info(omega_transform_plugin_info_t *info_ptr) {
     info_ptr->id = "com.example.xor";
     info_ptr->name = "XOR";
     info_ptr->description = "XOR every byte in the selected range.";
-    info_ptr->help = "Options JSON accepts {\"byte\":\"0x42\"}.";
+    info_ptr->help = "Choose the byte value to XOR with each selected byte.";
     info_ptr->example = "{\"byte\":\"0x42\"}";
     info_ptr->default_args = "{\"byte\":\"0xFF\"}";
     info_ptr->args_schema =
@@ -202,33 +202,18 @@ At runtime, put one or more plugin shared libraries in a directory:
 
 ```text
 plugins/
-|- omega_transform_and.dll
-|- omega_transform_base64_decode.dll
-|- omega_transform_base64_encode.dll
-|- omega_transform_blake2b512.dll
-|- omega_transform_blake2s256.dll
+|- omega_transform_base64.dll
+|- omega_transform_bitwise.dll
 |- omega_transform_character_transcode.dll
 |- omega_transform_common_checksums.dll
 |- omega_transform_decimal_codecs.dll
 |- omega_transform_endian_swap.dll
 |- omega_transform_format_inspectors.dll
-|- omega_transform_fnv1a64.dll
-|- omega_transform_md5.dll
-|- omega_transform_or.dll
+|- omega_transform_openssl_digests.dll
 |- omega_transform_record_text_helpers.dll
-|- omega_transform_sha1.dll
-|- omega_transform_sha224.dll
-|- omega_transform_sha256.dll
-|- omega_transform_sha3_256.dll
-|- omega_transform_sha3_512.dll
-|- omega_transform_sha384.dll
-|- omega_transform_sha512.dll
 |- omega_transform_text_codecs.dll
-|- omega_transform_zlib_compress.dll
-|- omega_transform_zlib_decompress.dll
-|- omega_transform_xor.dll
-|- omega_transform_repeat.dll
-`- omega_transform_checksum8.dll
+|- omega_transform_zlib.dll
+`- omega_transform_repeat.dll
 ```
 
 Use the platform extension for your target operating system. Non-plugin files in
@@ -297,9 +282,10 @@ console.log(plugins.map((plugin) => plugin.id))
 const sessionId = (await createSession('input.bin')).getSessionId()
 const result = await applyTransformPlugin(
   sessionId,
-  'omega.example.checksum8',
+  'omega.example.common_checksums',
   0,
-  1024
+  1024,
+  JSON.stringify({ algorithm: 'sum8' })
 )
 console.log(Buffer.from(result.result).toString('utf8'))
 ```
@@ -310,25 +296,28 @@ AI CLI:
 oe list-transform-plugins
 oe apply-transform-plugin \
   --session <session-id> \
-  --plugin omega.example.checksum8 \
-  --offset 0 \
-  --length 1024
-oe apply-transform-plugin \
-  --session <session-id> \
-  --plugin omega.example.base64_encode \
-  --offset 0 \
-  --length 1024
-oe apply-transform-plugin \
-  --session <session-id> \
-  --plugin omega.example.sha256 \
-  --offset 0 \
-  --length 1024
-oe apply-transform-plugin \
-  --session <session-id> \
-  --plugin omega.example.zlib_compress \
+  --plugin omega.example.common_checksums \
   --offset 0 \
   --length 1024 \
-  --options-json '{"level":9}'
+  --options-json '{"algorithm":"sum8"}'
+oe apply-transform-plugin \
+  --session <session-id> \
+  --plugin omega.example.base64 \
+  --offset 0 \
+  --length 1024 \
+  --options-json '{"direction":"encode"}'
+oe apply-transform-plugin \
+  --session <session-id> \
+  --plugin omega.example.openssl_digests \
+  --offset 0 \
+  --length 1024 \
+  --options-json '{"algorithm":"sha256"}'
+oe apply-transform-plugin \
+  --session <session-id> \
+  --plugin omega.example.zlib \
+  --offset 0 \
+  --length 1024 \
+  --options-json '{"action":"compress","level":9}'
 ```
 
 MCP tools:
@@ -342,33 +331,18 @@ The repository ships small examples in `plugins/src/`:
 
 | Plugin ID | Source | Operation | Demonstrates |
 | --- | --- | --- | --- |
-| `omega.example.and` | `and.c` | Replace | One-for-one binary-safe AND transform. Accepts options JSON like `{"byte":"0x42"}` or a repeating byte sequence using `mask`; defaults to `0xFF`. |
-| `omega.example.base64_encode` | `base64_encode.c` | Replace | Expansion by encoding arbitrary bytes as base64 text. |
-| `omega.example.base64_decode` | `base64_decode.c` | Replace | Shrinking text content back to decoded bytes, with validation. ASCII whitespace is tolerated; other invalid bytes fail. |
-| `omega.example.blake2b512` | `blake2b512.c` | Inspect | BLAKE2b-512 digest calculation using OpenSSL 3 without changing session content. |
-| `omega.example.blake2s256` | `blake2s256.c` | Inspect | BLAKE2s-256 digest calculation using OpenSSL 3 without changing session content. |
+| `omega.example.base64` | `base64.c` | Replace | Base64 encode/decode with a `direction` option. Decoding tolerates ASCII whitespace; other invalid bytes fail. |
+| `omega.example.bitwise` | `bitwise.c` | Replace | One-for-one binary-safe AND/OR/XOR transform with `operator`, `byte`, and `mask` options; defaults to XOR with `0xFF`. |
 | `omega.example.character_transcode` | `character_transcode.cpp` | Replace | Transcoding between UTF-8/16/32, ASCII, ISO-8859-1, Windows-1252, and common single-byte EBCDIC pages. |
 | `omega.example.common_checksums` | `common_checksums.cpp` | Inspect | CRC, Adler, Fletcher, internet checksum, LRC/BCC, sum, FNV, Murmur3, and xxHash variants. |
 | `omega.example.decimal_codecs` | `decimal_codecs.cpp` | Replace | BCD, packed decimal/COMP-3, zoned decimal, and signed overpunch encode/decode helpers. |
 | `omega.example.endian_swap` | `endian_swap.cpp` | Replace | Fixed-width 2/4/8-byte endian swaps. |
 | `omega.example.format_inspectors` | `format_inspectors.cpp` | Inspect | Protobuf varint, ASN.1 BER/DER TLV, and configurable TLV summaries. |
-| `omega.example.fnv1a64` | `fnv1a64.c` | Inspect | 64-bit hash calculation without changing session content. |
-| `omega.example.md5` | `md5.c` | Inspect | MD5 digest calculation using OpenSSL 3 without changing session content. |
-| `omega.example.or` | `or.c` | Replace | One-for-one binary-safe OR transform. Accepts options JSON like `{"byte":"0x42"}` or a repeating byte sequence like `{"mask":["0x01","0x02"]}`; defaults to `0x00`. |
+| `omega.example.openssl_digests` | `openssl_digests.c` | Inspect | MD5, SHA-1, SHA-2, SHA-3, and BLAKE2 digest calculation using OpenSSL 3 without changing session content. |
 | `omega.example.record_text_helpers` | `record_text_helpers.cpp` | Replace | Newline normalization, fixed-width lines, delimiter escaping, CSV quoting, XML entities, and JSON string escaping. |
-| `omega.example.sha1` | `sha1.c` | Inspect | SHA-1 digest calculation using OpenSSL 3 without changing session content. |
-| `omega.example.sha224` | `sha224.c` | Inspect | SHA-224 digest calculation using OpenSSL 3 without changing session content. |
-| `omega.example.sha256` | `sha256.c` | Inspect | SHA-256 digest calculation using OpenSSL 3 without changing session content. |
-| `omega.example.sha3_256` | `sha3_256.c` | Inspect | SHA3-256 digest calculation using OpenSSL 3 without changing session content. |
-| `omega.example.sha3_512` | `sha3_512.c` | Inspect | SHA3-512 digest calculation using OpenSSL 3 without changing session content. |
-| `omega.example.sha384` | `sha384.c` | Inspect | SHA-384 digest calculation using OpenSSL 3 without changing session content. |
-| `omega.example.sha512` | `sha512.c` | Inspect | SHA-512 digest calculation using OpenSSL 3 without changing session content. |
 | `omega.example.text_codecs` | `text_codecs.cpp` | Replace | Hex/base16, Base64URL, Base32, Base32-Crockford, Ascii85/Base85, Z85, Base58, percent/URL, quoted-printable, uuencode, and yEnc encode/decode helpers. |
-| `omega.example.zlib_compress` | `zlib_compress.c` | Replace | Compression with zlib, supplied by the plugin package toolchain. Accepts `{"level":9}` with valid levels from `-1` through `9`; defaults to zlib's default compression. |
-| `omega.example.zlib_decompress` | `zlib_decompress.c` | Replace | Decompression with zlib, supplied by the plugin package toolchain. |
-| `omega.example.xor` | `xor.c` | Replace | One-for-one binary-safe XOR transform. Accepts options JSON like `{"byte":"0x42"}` or a repeating byte sequence using `mask`; defaults to `0xFF`. |
+| `omega.example.zlib` | `zlib.c` | Replace | Zlib compression/decompression with an `action` option. Compression accepts `level` values from `-1` through `9`. |
 | `omega.example.repeat` | `repeat.c` | Replace | Expansion by replacing a range with two copies of itself. |
-| `omega.example.checksum8` | `checksum8.c` | Inspect | Text result without changing session content. |
 
 These examples are intentionally small so they can serve as test fixtures and copyable
 developer starting points. Third-party dependencies belong to the plugin package,
