@@ -36,7 +36,7 @@ extern "C" {
 
 #endif
 
-#define OMEGA_TRANSFORM_PLUGIN_ABI_VERSION 2
+#define OMEGA_TRANSFORM_PLUGIN_ABI_VERSION 3
 
 typedef enum {
     OMEGA_TRANSFORM_PLUGIN_OPERATION_REPLACE = 1,
@@ -80,6 +80,10 @@ typedef enum {
     OMEGA_TRANSFORM_PROGRESS_HAS_PERCENT = 1 << 2,
     OMEGA_TRANSFORM_PROGRESS_INDETERMINATE = 1 << 3
 } omega_transform_progress_flags_t;
+
+typedef enum {
+    OMEGA_TRANSFORM_PLUGIN_RESPONSE_NO_CONTENT_CHANGE = 1
+} omega_transform_plugin_response_flags_t;
 
 typedef struct {
     int64_t processed_bytes;
@@ -129,6 +133,7 @@ typedef struct {
     int64_t result_length;
     char *result_label;
     char *result_mime_type;
+    uint32_t flags;
 } omega_transform_plugin_response_t;
 
 typedef int (*omega_transform_plugin_get_info_fn)(omega_transform_plugin_info_t *info_ptr);

@@ -65,7 +65,7 @@ export interface ChangeLogResult {
 
 export interface ApplyChangeLogRequest {
   sessionId: string
-  changes?: ChangeLogEntry[]
+  changes?: ChangeLogEntry[] | ChangeLogDocument
   inputPath?: string
   dryRun?: boolean
 }
@@ -82,9 +82,9 @@ export interface CheckpointResult {
   checkpointCount: number
 }
 
-export interface RestoreCheckpointResult {
+export interface RollbackCheckpointResult {
   sessionId: string
-  restored: boolean
+  rolledBack: boolean
   checkpointCount: number
 }
 

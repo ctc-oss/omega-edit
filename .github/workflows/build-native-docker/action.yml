@@ -26,7 +26,7 @@ runs:
   using: "composite"
   steps:
     - name: Set up QEMU 🔧
-      uses: docker/setup-qemu-action@v1
+      uses: docker/setup-qemu-action@v4
       with:
         platforms: arm64
 
@@ -64,7 +64,7 @@ runs:
           ${{ inputs.library-filename }}
 
     - name: Upload Native Library (${{ inputs.os-name }}-${{ inputs.library-filename }}) 🔺
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v7
       with:
         name: ${{ inputs.os-name }}-${{ inputs.library-filename }}
         path: ${{ inputs.library-filename }}

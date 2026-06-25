@@ -51,7 +51,7 @@
     onReplaceRangeWithFile: (offset: number, length: number) => void
     onOpenTransformResult: (resultId: string) => void
     onCreateCheckpoint: () => void
-    onRestoreCheckpoint: () => void
+    onRollbackCheckpoint: () => void
     onExportChangeLog: () => void
     onApplyChangeLog: () => void
   }
@@ -84,7 +84,7 @@
     onReplaceRangeWithFile,
     onOpenTransformResult,
     onCreateCheckpoint,
-    onRestoreCheckpoint,
+    onRollbackCheckpoint,
     onExportChangeLog,
     onApplyChangeLog,
   }: Props = $props()
@@ -167,10 +167,10 @@
     <button
       type="button"
       disabled={transformInFlight}
-      title={strings.toolbar.restoreCheckpointTitle}
-      onclick={onRestoreCheckpoint}
+      title={strings.toolbar.rollbackCheckpointTitle}
+      onclick={onRollbackCheckpoint}
     >
-      {strings.toolbar.restoreCheckpoint}
+      {strings.toolbar.rollbackCheckpoint}
     </button>
     <button
       type="button"

@@ -41,7 +41,8 @@ export interface EditorCheckpointReplaceAllTransaction {
 }
 
 export type EditorTransactionRecord =
-  | { kind: 'LOCAL' }
+  | { kind: 'LOCAL'; changeCount: number }
+  | { kind: 'LOCAL_UNTRACKED' }
   | EditorCheckpointReplaceAllTransaction
 
 export interface EditorEditState {
@@ -64,23 +65,16 @@ export interface EditorHistoryExecutor {
   ): Promise<void>
 }
 
-function moveLastGroupedChanges(
+function moveLastChanges(
   source: EditorChangeRecord[],
-  target: EditorChangeRecord[]
+  target: EditorChangeRecord[],
+  count: number
 ): void {
-  if (source.length === 0) {
+  if (source.length === 0 || count <= 0) {
     return
   }
 
-  const lastGroupId = source[source.length - 1].groupId
-  let startIndex = source.length - 1
-
-  if (lastGroupId) {
-    while (startIndex > 0 && source[startIndex - 1].groupId === lastGroupId) {
-      startIndex -= 1
-    }
-  }
-
+  const startIndex = Math.max(0, source.length - count)
   target.push(...source.splice(startIndex))
 }
 
@@ -114,6 +108,12 @@ export class EditorHistoryController {
     this.recordLocalChanges([change])
   }
 
+  public recordLocalMutation(): void {
+    this.undoneChangeLog.length = 0
+    this.transactionLog.push({ kind: 'LOCAL_UNTRACKED' })
+    this.undoneTransactionLog.length = 0
+  }
+
   public recordLocalChanges(changes: EditorChangeRecord[]): void {
     if (changes.length === 0) {
       return
@@ -121,7 +121,7 @@ export class EditorHistoryController {
 
     this.changeLog.push(...changes)
     this.undoneChangeLog.length = 0
-    this.transactionLog.push({ kind: 'LOCAL' })
+    this.transactionLog.push({ kind: 'LOCAL', changeCount: changes.length })
     this.undoneTransactionLog.length = 0
   }
 
@@ -168,7 +168,13 @@ export class EditorHistoryController {
     const transaction = this.transactionLog[this.transactionLog.length - 1]
     if (transaction.kind === 'LOCAL') {
       await executor.undoLocal()
-      moveLastGroupedChanges(this.changeLog, this.undoneChangeLog)
+      moveLastChanges(
+        this.changeLog,
+        this.undoneChangeLog,
+        transaction.changeCount
+      )
+    } else if (transaction.kind === 'LOCAL_UNTRACKED') {
+      await executor.undoLocal()
     } else {
       await executor.undoCheckpoint(transaction)
     }
@@ -191,7 +197,13 @@ export class EditorHistoryController {
       this.undoneTransactionLog[this.undoneTransactionLog.length - 1]
     if (transaction.kind === 'LOCAL') {
       await executor.redoLocal()
-      moveLastGroupedChanges(this.undoneChangeLog, this.changeLog)
+      moveLastChanges(
+        this.undoneChangeLog,
+        this.changeLog,
+        transaction.changeCount
+      )
+    } else if (transaction.kind === 'LOCAL_UNTRACKED') {
+      await executor.redoLocal()
     } else {
       await executor.redoCheckpoint(transaction)
     }

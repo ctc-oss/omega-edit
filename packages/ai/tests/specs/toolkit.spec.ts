@@ -29,6 +29,138 @@ describe('@omega-edit/ai toolkit', function () {
     }
   })
 
+  it('rejects wrapped change logs with incompatible format metadata', async function () {
+    const toolkit = new OmegaEditToolkit({ autoStart: false })
+    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'omega-edit-ai-'))
+    const invalidFormatPath = path.join(tempDir, 'invalid-format.json')
+    const invalidVersionPath = path.join(tempDir, 'invalid-version.json')
+
+    try {
+      await fs.promises.writeFile(
+        invalidFormatPath,
+        JSON.stringify({
+          format: 'not-omega-edit',
+          version: 1,
+          changes: [],
+        })
+      )
+      await fs.promises.writeFile(
+        invalidVersionPath,
+        JSON.stringify({
+          format: 'omega-edit.change-log',
+          version: 2,
+          changes: [],
+        })
+      )
+
+      await assert.rejects(
+        () =>
+          toolkit.applyChangeLog({
+            sessionId: 'session',
+            dryRun: true,
+            inputPath: invalidFormatPath,
+          }),
+        /Unsupported change log format/
+      )
+
+      await assert.rejects(
+        () =>
+          toolkit.applyChangeLog({
+            sessionId: 'session',
+            dryRun: true,
+            inputPath: invalidVersionPath,
+          }),
+        /Unsupported change log version/
+      )
+    } finally {
+      fs.rmSync(tempDir, { recursive: true, force: true })
+    }
+
+    const wrappedDocument = await toolkit.applyChangeLog({
+      sessionId: 'session',
+      dryRun: true,
+      changes: {
+        format: 'omega-edit.change-log',
+        version: 1,
+        changeCount: 0,
+        sourceChangeCount: 0,
+        foldedChangeCount: 0,
+        changes: [],
+      },
+    })
+    assert.equal(wrappedDocument.applied, false)
+    assert.equal(wrappedDocument.changeCount, 0)
+
+    const legacyArray = await toolkit.applyChangeLog({
+      sessionId: 'session',
+      dryRun: true,
+      changes: [],
+    })
+    assert.equal(legacyArray.applied, false)
+    assert.equal(legacyArray.changeCount, 0)
+  })
+
+  it('rejects inconsistent change-log serial and group metadata', async function () {
+    const toolkit = new OmegaEditToolkit({ autoStart: false })
+
+    await assert.rejects(
+      () =>
+        toolkit.applyChangeLog({
+          sessionId: 'session',
+          dryRun: true,
+          changes: [
+            {
+              serial: 1,
+              kind: 'INSERT',
+              offset: 0,
+              length: 0,
+              data: '41',
+            },
+            {
+              serial: 3,
+              kind: 'INSERT',
+              offset: 1,
+              length: 0,
+              data: '42',
+            },
+          ],
+        }),
+      /serial metadata must be contiguous/
+    )
+
+    await assert.rejects(
+      () =>
+        toolkit.applyChangeLog({
+          sessionId: 'session',
+          dryRun: true,
+          changes: [
+            {
+              kind: 'INSERT',
+              offset: 0,
+              length: 0,
+              data: '41',
+              groupId: 'batch-a',
+            },
+            {
+              kind: 'INSERT',
+              offset: 1,
+              length: 0,
+              data: '42',
+              groupId: 'batch-b',
+            },
+            {
+              kind: 'INSERT',
+              offset: 2,
+              length: 0,
+              data: '43',
+              groupId: 'batch-a',
+            },
+          ],
+        }),
+      /groupId "batch-a" is not contiguous/
+    )
+  })
+
   it('supports bounded reads, search, preview, patching, and undo/redo', async function () {
     const port = await omegaEditClient.findFirstAvailablePort(19000, 19999)
     assert.ok(port, 'expected an available port for OmegaEdit')
@@ -185,9 +317,9 @@ describe('@omega-edit/ai toolkit', function () {
 
       const checkpoint = await toolkit.createCheckpoint(createdSessionId)
       assert.ok(checkpoint.checkpointCount >= 1)
-      const restored = await toolkit.restoreCheckpoint(createdSessionId)
-      assert.equal(restored.restored, true)
-      assert.ok(restored.checkpointCount >= 0)
+      const rolledBack = await toolkit.rollbackCheckpoint(createdSessionId)
+      assert.equal(rolledBack.rolledBack, true)
+      assert.ok(rolledBack.checkpointCount >= 0)
     } finally {
       if (createdSessionId) {
         await toolkit.destroySession(createdSessionId)

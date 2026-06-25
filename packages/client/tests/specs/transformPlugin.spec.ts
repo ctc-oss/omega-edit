@@ -20,10 +20,13 @@
 import {
   TransformPluginOperation,
   applyTransformPlugin,
+  beginSessionTransaction,
   createSessionFromBytes,
   destroySession,
+  endSessionTransaction,
   findFirstAvailablePort,
   getClient,
+  getChangeCount,
   getComputedFileSize,
   getSegment,
   listTransformPlugins,
@@ -32,6 +35,7 @@ import {
   stopServiceOnPort,
 } from '@omega-edit/client'
 import omegaEditServer from '@omega-edit/server'
+import { status as GrpcStatus } from '@grpc/grpc-js'
 import * as fs from 'fs'
 import * as path from 'path'
 import waitPort from 'wait-port'
@@ -116,6 +120,7 @@ describe('Transform plugin gRPC integration', () => {
       expect(plugins.map((plugin) => plugin.id)).to.include.members([
         'omega.example.base64',
         'omega.example.bitwise',
+        'omega.example.case_change',
         'omega.example.character_transcode',
         'omega.example.common_checksums',
         'omega.example.decimal_codecs',
@@ -138,6 +143,13 @@ describe('Transform plugin gRPC integration', () => {
         '{"operator":"xor","byte":"0xFF"}'
       )
       expect(bitwisePlugin?.argsSchema).to.include('"operator"')
+      const caseChangePlugin = plugins.find(
+        (plugin) => plugin.id === 'omega.example.case_change'
+      )
+      expect(caseChangePlugin?.help).to.include('ASCII alphabetic bytes')
+      expect(caseChangePlugin?.example).to.equal('{"case":"lower"}')
+      expect(caseChangePlugin?.defaultArgs).to.equal('{"case":"upper"}')
+      expect(caseChangePlugin?.argsSchema).to.include('"upper"')
       const base64Plugin = plugins.find(
         (plugin) => plugin.id === 'omega.example.base64'
       )
@@ -173,6 +185,142 @@ describe('Transform plugin gRPC integration', () => {
       } catch (err) {
         expect((err as Error).message).to.include('INVALID_ARGUMENT')
       }
+
+      let transactionOpen = false
+      try {
+        await beginSessionTransaction(sessionId)
+        transactionOpen = true
+        await applyTransformPlugin(
+          sessionId,
+          'omega.example.bitwise',
+          0,
+          3,
+          JSON.stringify({ operator: 'xor', byte: '0x01' })
+        )
+        expect.fail(
+          'applyTransformPlugin should reject while a transaction is open'
+        )
+      } catch (err) {
+        const wrapped = err as Error & {
+          cause?: { code?: number; details?: string }
+        }
+        expect(wrapped.message).to.include('FAILED_PRECONDITION')
+        expect(wrapped.cause?.code).to.equal(GrpcStatus.FAILED_PRECONDITION)
+        expect(wrapped.message).to.include(
+          'transform cannot run while a session transaction is open'
+        )
+      } finally {
+        if (transactionOpen) {
+          transactionOpen = false
+          await endSessionTransaction(sessionId)
+        }
+      }
+
+      const identityBitwiseChangeCount = await getChangeCount(sessionId)
+      const xorIdentityResponse = await applyTransformPlugin(
+        sessionId,
+        'omega.example.bitwise',
+        0,
+        3,
+        JSON.stringify({ operator: 'xor', byte: '0x00' })
+      )
+      expect(xorIdentityResponse.operation).to.equal(
+        TransformPluginOperation.REPLACE
+      )
+      expect(xorIdentityResponse.contentChanged).to.equal(false)
+      expect(xorIdentityResponse.replacementLength).to.equal(0)
+      expect(xorIdentityResponse.computedFileSize).to.equal(3)
+      expect(await getChangeCount(sessionId)).to.equal(
+        identityBitwiseChangeCount
+      )
+      expect(
+        Buffer.from(await getSegment(sessionId, 0, 3)).toString('utf8')
+      ).to.equal('abc')
+
+      const andIdentityResponse = await applyTransformPlugin(
+        sessionId,
+        'omega.example.bitwise',
+        0,
+        3,
+        JSON.stringify({ operator: 'and', byte: '0xFF' })
+      )
+      expect(andIdentityResponse.operation).to.equal(
+        TransformPluginOperation.REPLACE
+      )
+      expect(andIdentityResponse.contentChanged).to.equal(false)
+      expect(andIdentityResponse.replacementLength).to.equal(0)
+      expect(await getChangeCount(sessionId)).to.equal(
+        identityBitwiseChangeCount
+      )
+      expect(
+        Buffer.from(await getSegment(sessionId, 0, 3)).toString('utf8')
+      ).to.equal('abc')
+
+      const orIdentityResponse = await applyTransformPlugin(
+        sessionId,
+        'omega.example.bitwise',
+        0,
+        3,
+        JSON.stringify({ operator: 'or', mask: ['0x00', '0x00'] })
+      )
+      expect(orIdentityResponse.operation).to.equal(
+        TransformPluginOperation.REPLACE
+      )
+      expect(orIdentityResponse.contentChanged).to.equal(false)
+      expect(orIdentityResponse.replacementLength).to.equal(0)
+      expect(await getChangeCount(sessionId)).to.equal(
+        identityBitwiseChangeCount
+      )
+      expect(
+        Buffer.from(await getSegment(sessionId, 0, 3)).toString('utf8')
+      ).to.equal('abc')
+
+      const upperResponse = await applyTransformPlugin(
+        sessionId,
+        'omega.example.case_change',
+        0,
+        3,
+        JSON.stringify({ case: 'upper' })
+      )
+      expect(upperResponse.operation).to.equal(TransformPluginOperation.REPLACE)
+      expect(upperResponse.contentChanged).to.equal(true)
+      expect(upperResponse.replacementLength).to.equal(3)
+      expect(upperResponse.computedFileSize).to.equal(3)
+      expect(
+        Buffer.from(await getSegment(sessionId, 0, 3)).toString('utf8')
+      ).to.equal('ABC')
+
+      const uppercaseChangeCount = await getChangeCount(sessionId)
+      const upperNoopResponse = await applyTransformPlugin(
+        sessionId,
+        'omega.example.case_change',
+        0,
+        3,
+        JSON.stringify({ case: 'upper' })
+      )
+      expect(upperNoopResponse.operation).to.equal(
+        TransformPluginOperation.REPLACE
+      )
+      expect(upperNoopResponse.contentChanged).to.equal(false)
+      expect(upperNoopResponse.replacementLength).to.equal(0)
+      expect(await getChangeCount(sessionId)).to.equal(uppercaseChangeCount)
+      expect(
+        Buffer.from(await getSegment(sessionId, 0, 3)).toString('utf8')
+      ).to.equal('ABC')
+
+      const lowerResponse = await applyTransformPlugin(
+        sessionId,
+        'omega.example.case_change',
+        0,
+        3,
+        JSON.stringify({ case: 'lower' })
+      )
+      expect(lowerResponse.operation).to.equal(TransformPluginOperation.REPLACE)
+      expect(lowerResponse.contentChanged).to.equal(true)
+      expect(lowerResponse.replacementLength).to.equal(3)
+      expect(
+        Buffer.from(await getSegment(sessionId, 0, 3)).toString('utf8')
+      ).to.equal('abc')
 
       const encodeResponse = await applyTransformPlugin(
         sessionId,
@@ -273,6 +421,7 @@ describe('Transform plugin gRPC integration', () => {
         Buffer.from(await getSegment(sessionId, 0, 5)).toString('utf8')
       ).to.equal('abcbc')
 
+      const checksumChangeCount = await getChangeCount(sessionId)
       const checksumResponse = await applyTransformPlugin(
         sessionId,
         'omega.example.common_checksums',
@@ -290,6 +439,7 @@ describe('Transform plugin gRPC integration', () => {
         '0xEB'
       )
       expect(await getComputedFileSize(sessionId)).to.equal(5)
+      expect(await getChangeCount(sessionId)).to.equal(checksumChangeCount)
 
       const hashResponse = await applyTransformPlugin(
         sessionId,

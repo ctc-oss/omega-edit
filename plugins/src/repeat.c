@@ -36,7 +36,7 @@ OMEGA_TRANSFORM_PLUGIN_EXPORT int omega_transform_plugin_apply(const omega_trans
     if (request_ptr->input_length > INT64_MAX / 2) { return -1; }
     const int64_t replacement_length = request_ptr->input_length * 2;
     response_ptr->replacement_length = replacement_length;
-    if (replacement_length == 0) { return 0; }
+    if (replacement_length == 0) { return omega_transform_plugin_sdk_set_no_content_change(response_ptr); }
     response_ptr->replacement_bytes = (omega_byte_t *) omega_transform_plugin_sdk_alloc(request_ptr,
                                                                                        (size_t) replacement_length);
     if (!response_ptr->replacement_bytes) { return -1; }

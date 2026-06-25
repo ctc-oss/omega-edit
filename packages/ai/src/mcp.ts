@@ -288,9 +288,9 @@ function buildTools(toolkit: OmegaEditToolkit): ToolDefinition[] {
       },
     },
     {
-      name: 'omega_edit_restore_checkpoint',
+      name: 'omega_edit_rollback_checkpoint',
       description:
-        'Restore the most recent OmegaEdit checkpoint by dropping the current checkpoint model.',
+        'Roll back the most recent OmegaEdit checkpoint by dropping the current checkpoint model.',
       inputSchema: {
         type: 'object',
         properties: {
@@ -299,7 +299,7 @@ function buildTools(toolkit: OmegaEditToolkit): ToolDefinition[] {
         required: ['sessionId'],
       },
       run: async (argumentsObject) => {
-        return await toolkit.restoreCheckpoint(
+        return await toolkit.rollbackCheckpoint(
           getString(argumentsObject, 'sessionId', true)!
         )
       },

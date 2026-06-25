@@ -22,6 +22,11 @@
     value: string
   }
 
+  interface TransformPluginGroup {
+    label: string
+    plugins: WebviewTransformPlugin[]
+  }
+
   interface TransformOptionGroup {
     label: string
     options: TransformOptionChoice[]
@@ -131,6 +136,7 @@
   const selectedPlugin = $derived(
     plugins.find((plugin) => plugin.id === selectedPluginId)
   )
+  const groupedTransformPlugins = $derived(groupTransformPlugins(plugins))
   const selectedActionValue = $derived(
     selectedFileAction
       ? `${FILE_ACTION_PREFIX}${selectedFileAction}`
@@ -327,6 +333,50 @@
       default:
         return strings.transform.operationTransform
     }
+  }
+
+  function transformPluginSortKey(plugin: WebviewTransformPlugin): string {
+    return plugin.name || plugin.id
+  }
+
+  function sortTransformPlugins(
+    entries: WebviewTransformPlugin[]
+  ): WebviewTransformPlugin[] {
+    return [...entries].sort((left, right) => {
+      const byName = transformPluginSortKey(left).localeCompare(
+        transformPluginSortKey(right),
+        undefined,
+        { sensitivity: 'base' }
+      )
+      return byName || left.id.localeCompare(right.id)
+    })
+  }
+
+  function isMutatingTransform(plugin: WebviewTransformPlugin): boolean {
+    return plugin.operation !== 2
+  }
+
+  function groupTransformPlugins(
+    entries: WebviewTransformPlugin[]
+  ): TransformPluginGroup[] {
+    const groups = [
+      {
+        label: strings.transform.calculationsGroup,
+        plugins: sortTransformPlugins(
+          entries.filter((plugin) => !isMutatingTransform(plugin))
+        ),
+      },
+      {
+        label: strings.transform.transformsGroup,
+        plugins: sortTransformPlugins(
+          entries.filter((plugin) => isMutatingTransform(plugin))
+        ),
+      },
+    ].filter((group) => group.plugins.length > 0)
+
+    return groups.sort((left, right) =>
+      left.label.localeCompare(right.label, undefined, { sensitivity: 'base' })
+    )
   }
 
   function transformActionValue(pluginId: string): string {
@@ -1185,8 +1235,8 @@
         {strings.transform.replaceRangeWithFile}
       </option>
     </optgroup>
-    <optgroup label={strings.transform.transformsGroup}>
-      {#if plugins.length === 0}
+    {#if plugins.length === 0}
+      <optgroup label={strings.transform.transformsGroup}>
         <option value="" disabled>
           {pluginsLoading
             ? strings.transform.loading
@@ -1194,18 +1244,22 @@
               ? strings.transform.noTransforms
               : strings.transform.loadTransforms}
         </option>
-      {:else}
-        {#each plugins as plugin (plugin.id)}
-          <option
-            value={transformActionValue(plugin.id)}
-            title={plugin.description || plugin.id}
-            disabled={!canTransformSelection}
-          >
-            {plugin.name || plugin.id}
-          </option>
-        {/each}
-      {/if}
-    </optgroup>
+      </optgroup>
+    {:else}
+      {#each groupedTransformPlugins as group (group.label)}
+        <optgroup label={group.label}>
+          {#each group.plugins as plugin (plugin.id)}
+            <option
+              value={transformActionValue(plugin.id)}
+              title={plugin.description || plugin.id}
+              disabled={!canTransformSelection}
+            >
+              {plugin.name || plugin.id}
+            </option>
+          {/each}
+        </optgroup>
+      {/each}
+    {/if}
   </select>
   {#if results.length > 0}
     <details bind:this={resultHistoryMenu} class="transform-result-history">

@@ -63,7 +63,7 @@ oe export-range --session <session-id> --offset 0 --length 128 --output ./header
 
 # Create checkpoints and broadcast/apply change logs
 oe create-checkpoint --session <session-id>
-oe restore-checkpoint --session <session-id>
+oe rollback-checkpoint --session <session-id>
 oe export-change-log --session <session-id> --output ./changes.json --overwrite
 oe apply-change-log --session <session-id> --input ./changes.json
 
@@ -121,7 +121,7 @@ Available tools:
 - `omega_edit_destroy_session`
 - `omega_edit_session_status`
 - `omega_edit_create_checkpoint`
-- `omega_edit_restore_checkpoint`
+- `omega_edit_rollback_checkpoint`
 - `omega_edit_export_change_log`
 - `omega_edit_apply_change_log`
 - `omega_edit_read_range`

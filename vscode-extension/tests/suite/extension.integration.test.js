@@ -63,7 +63,7 @@ suite('OmegaEdit VS Code extension', () => {
     assert.equal(typeof extensionApi.setExternalHighlights, 'function')
     assert.equal(typeof extensionApi.clearExternalHighlights, 'function')
     assert.equal(typeof extensionApi.createCheckpoint, 'function')
-    assert.equal(typeof extensionApi.restoreCheckpoint, 'function')
+    assert.equal(typeof extensionApi.rollbackCheckpoint, 'function')
     assert.equal(typeof extensionApi.exportChangeLog, 'function')
     assert.equal(typeof extensionApi.applyChangeLog, 'function')
     assert.equal(typeof extensionApi.onDidChangeEditorState, 'function')
@@ -399,6 +399,71 @@ suite('OmegaEdit VS Code extension', () => {
     await fs.rm(tmpDir, { recursive: true, force: true })
   })
 
+  test('rejects change logs with inconsistent metadata before applying', async () => {
+    const tmpDir = await fs.mkdtemp(
+      path.join(os.tmpdir(), 'omega-edit-vscode-invalid-change-log-')
+    )
+    const samplePath = path.join(tmpDir, 'sample.bin')
+    const scriptPath = path.join(tmpDir, 'invalid-changes.json')
+    await fs.writeFile(samplePath, Buffer.from('abc', 'utf8'))
+    await fs.writeFile(
+      scriptPath,
+      JSON.stringify({
+        format: 'omega-edit.change-log',
+        version: 1,
+        changeCount: 2,
+        sourceChangeCount: 2,
+        foldedChangeCount: 0,
+        changes: [
+          {
+            serial: 1,
+            kind: 'INSERT',
+            offset: 0,
+            length: 0,
+            data: Buffer.from('A', 'utf8').toString('hex'),
+            groupId: 'batch-a',
+          },
+          {
+            serial: 3,
+            kind: 'INSERT',
+            offset: 1,
+            length: 0,
+            data: Buffer.from('B', 'utf8').toString('hex'),
+            groupId: 'batch-a',
+          },
+        ],
+      })
+    )
+
+    const provider = new HexEditorProvider({ subscriptions: [] }, testPort)
+    const panel = createMockWebviewPanel()
+    const document = await provider.openCustomDocument(
+      vscode.Uri.file(samplePath),
+      { backupId: undefined, untitledDocumentData: undefined },
+      new vscode.CancellationTokenSource().token
+    )
+
+    await provider.resolveCustomEditor(
+      document,
+      panel,
+      new vscode.CancellationTokenSource().token
+    )
+    const session = provider.getSessionForTesting(document.uri)
+    assert.ok(session, 'Expected a live session for invalid change-log test')
+
+    const result = await provider.applyChangeLog({
+      uri: document.uri,
+      sourceUri: vscode.Uri.file(scriptPath),
+    })
+
+    assert.equal(result?.cancelled, true)
+    assert.equal(result?.changeCount, 0)
+    await assertSessionText(session.sessionId, 'abc')
+
+    await panel.fireDidDispose()
+    await fs.rm(tmpDir, { recursive: true, force: true })
+  })
+
   test('reports search matches and keeps undo/redo disabled state in sync', async () => {
     const tmpDir = await fs.mkdtemp(
       path.join(os.tmpdir(), 'omega-edit-vscode-state-')
@@ -631,7 +696,61 @@ suite('OmegaEdit VS Code extension', () => {
     await fs.rm(tmpDir, { recursive: true, force: true })
   })
 
-  test('does not record identity transform edits in undo history', async () => {
+  test('reports calculation actions without content changes', async () => {
+    const tmpDir = await fs.mkdtemp(
+      path.join(os.tmpdir(), 'omega-edit-vscode-transform-calculation-')
+    )
+    const samplePath = path.join(tmpDir, 'transform-calculation.bin')
+    await fs.writeFile(samplePath, Buffer.from('abc', 'utf8'))
+
+    const provider = new HexEditorProvider({ subscriptions: [] }, testPort)
+    const panel = createMockWebviewPanel()
+    const document = await provider.openCustomDocument(
+      vscode.Uri.file(samplePath),
+      { backupId: undefined, untitledDocumentData: undefined },
+      new vscode.CancellationTokenSource().token
+    )
+
+    await provider.resolveCustomEditor(
+      document,
+      panel,
+      new vscode.CancellationTokenSource().token
+    )
+
+    const session = provider.getSessionForTesting(document.uri)
+    assert.ok(
+      session,
+      'Expected a live session for the calculation action test'
+    )
+    const cleanEditState = lastMessageOfType(panel.messages, 'editState')
+
+    await provider.dispatchWebviewMessageForTesting(document.uri, {
+      type: 'applyTransform',
+      pluginId: 'omega.example.common_checksums',
+      offset: 0,
+      length: 3,
+      optionsJson: JSON.stringify({ algorithm: 'sum8' }),
+    })
+
+    await assertSessionText(session.sessionId, 'abc')
+    const transformComplete = lastMessageOfType(
+      panel.messages,
+      'transformComplete'
+    )
+    assert.ok(transformComplete, 'Expected calculation action completion')
+    assert.equal(transformComplete.contentChanged, false)
+    assert.equal(transformComplete.resultLabel, 'sum8')
+    assert.equal(transformComplete.resultText, '0x26')
+    assert.deepEqual(
+      lastMessageOfType(panel.messages, 'editState'),
+      cleanEditState
+    )
+
+    await panel.fireDidDispose()
+    await fs.rm(tmpDir, { recursive: true, force: true })
+  })
+
+  test('does not record no-op transforms in undo history', async () => {
     const tmpDir = await fs.mkdtemp(
       path.join(os.tmpdir(), 'omega-edit-vscode-transform-identity-')
     )
@@ -664,15 +783,16 @@ suite('OmegaEdit VS Code extension', () => {
       pluginId: 'omega.example.bitwise',
       offset: 0,
       length: 3,
-      optionsJson: JSON.stringify({ operator: 'and', byte: '0xFF' }),
+      optionsJson: JSON.stringify({ operator: 'xor', byte: '0x00' }),
     })
 
     await assertSessionText(session.sessionId, 'abc')
-    let transformComplete = lastMessageOfType(
+    const xorTransformComplete = lastMessageOfType(
       panel.messages,
       'transformComplete'
     )
-    assert.equal(transformComplete.contentChanged, false)
+    assert.ok(xorTransformComplete, 'Expected XOR identity completion')
+    assert.equal(xorTransformComplete.contentChanged, false)
     assert.deepEqual(
       lastMessageOfType(panel.messages, 'editState'),
       cleanEditState
@@ -680,48 +800,138 @@ suite('OmegaEdit VS Code extension', () => {
 
     await provider.dispatchWebviewMessageForTesting(document.uri, {
       type: 'applyTransform',
-      pluginId: 'omega.example.base64',
+      pluginId: 'omega.example.bitwise',
       offset: 0,
       length: 3,
+      optionsJson: JSON.stringify({ operator: 'and', byte: '0xFF' }),
     })
 
-    await assertSessionText(session.sessionId, 'YWJj')
-    const transformedEditState = lastMessageOfType(panel.messages, 'editState')
-    assert.deepEqual(transformedEditState, {
-      type: 'editState',
-      canUndo: true,
-      canRedo: false,
-      undoCount: 1,
-      redoCount: 0,
-      isDirty: true,
-      savedChangeDepth: 0,
-    })
+    await assertSessionText(session.sessionId, 'abc')
+    const andTransformComplete = lastMessageOfType(
+      panel.messages,
+      'transformComplete'
+    )
+    assert.ok(andTransformComplete, 'Expected AND identity completion')
+    assert.equal(andTransformComplete.contentChanged, false)
+    assert.deepEqual(
+      lastMessageOfType(panel.messages, 'editState'),
+      cleanEditState
+    )
 
     await provider.dispatchWebviewMessageForTesting(document.uri, {
       type: 'applyTransform',
       pluginId: 'omega.example.bitwise',
       offset: 0,
-      length: 4,
-      optionsJson: JSON.stringify({ operator: 'and', byte: '0xFF' }),
+      length: 3,
+      optionsJson: JSON.stringify({ operator: 'or', byte: '0x00' }),
     })
 
-    await assertSessionText(session.sessionId, 'YWJj')
-    transformComplete = lastMessageOfType(panel.messages, 'transformComplete')
-    assert.equal(transformComplete.contentChanged, false)
+    await assertSessionText(session.sessionId, 'abc')
+    const orTransformComplete = lastMessageOfType(
+      panel.messages,
+      'transformComplete'
+    )
+    assert.ok(orTransformComplete, 'Expected OR identity completion')
+    assert.equal(orTransformComplete.contentChanged, false)
     assert.deepEqual(
       lastMessageOfType(panel.messages, 'editState'),
-      transformedEditState
+      cleanEditState
     )
 
     await provider.dispatchWebviewMessageForTesting(document.uri, {
-      type: 'undo',
+      type: 'applyTransform',
+      pluginId: 'omega.example.case_change',
+      offset: 0,
+      length: 3,
+      optionsJson: JSON.stringify({ case: 'upper' }),
     })
-    await assertSessionText(session.sessionId, 'abc')
+
+    await assertSessionText(session.sessionId, 'ABC')
+    const upperTransformComplete = lastMessageOfType(
+      panel.messages,
+      'transformComplete'
+    )
+    assert.ok(upperTransformComplete, 'Expected uppercase completion')
+    assert.equal(upperTransformComplete.contentChanged, true)
+    const uppercaseEditState = lastMessageOfType(panel.messages, 'editState')
+    assert.notDeepEqual(uppercaseEditState, cleanEditState)
 
     await provider.dispatchWebviewMessageForTesting(document.uri, {
-      type: 'redo',
+      type: 'applyTransform',
+      pluginId: 'omega.example.case_change',
+      offset: 0,
+      length: 3,
+      optionsJson: JSON.stringify({ case: 'upper' }),
     })
-    await assertSessionText(session.sessionId, 'YWJj')
+
+    await assertSessionText(session.sessionId, 'ABC')
+    const upperNoopTransformComplete = lastMessageOfType(
+      panel.messages,
+      'transformComplete'
+    )
+    assert.ok(upperNoopTransformComplete, 'Expected uppercase no-op completion')
+    assert.equal(upperNoopTransformComplete.contentChanged, false)
+    assert.deepEqual(
+      lastMessageOfType(panel.messages, 'editState'),
+      uppercaseEditState
+    )
+
+    await panel.fireDidDispose()
+    await fs.rm(tmpDir, { recursive: true, force: true })
+  })
+
+  test('does not record large no-op transforms in undo history', async () => {
+    const tmpDir = await fs.mkdtemp(
+      path.join(os.tmpdir(), 'omega-edit-vscode-transform-large-identity-')
+    )
+    const samplePath = path.join(tmpDir, 'transform-large-identity.bin')
+    const largeLength = 1024 * 1024 + 1
+    await fs.writeFile(samplePath, Buffer.alloc(largeLength, 'A'))
+
+    const provider = new HexEditorProvider({ subscriptions: [] }, testPort)
+    const panel = createMockWebviewPanel()
+    const document = await provider.openCustomDocument(
+      vscode.Uri.file(samplePath),
+      { backupId: undefined, untitledDocumentData: undefined },
+      new vscode.CancellationTokenSource().token
+    )
+
+    await provider.resolveCustomEditor(
+      document,
+      panel,
+      new vscode.CancellationTokenSource().token
+    )
+
+    const session = provider.getSessionForTesting(document.uri)
+    assert.ok(
+      session,
+      'Expected a live session for the large identity transform test'
+    )
+    const cleanEditState = lastMessageOfType(panel.messages, 'editState')
+
+    await provider.dispatchWebviewMessageForTesting(document.uri, {
+      type: 'applyTransform',
+      pluginId: 'omega.example.case_change',
+      offset: 0,
+      length: largeLength,
+      optionsJson: JSON.stringify({ case: 'upper' }),
+    })
+
+    assert.equal(await getComputedFileSize(session.sessionId), largeLength)
+    assert.deepEqual(
+      Buffer.from(await getSegment(session.sessionId, largeLength - 4, 4)),
+      Buffer.from('AAAA')
+    )
+    const transformComplete = lastMessageOfType(
+      panel.messages,
+      'transformComplete'
+    )
+    assert.ok(transformComplete, 'Expected large uppercase no-op completion')
+    assert.equal(transformComplete.contentChanged, false)
+    assert.deepEqual(
+      lastMessageOfType(panel.messages, 'editState'),
+      cleanEditState
+    )
 
     await panel.fireDidDispose()
     await fs.rm(tmpDir, { recursive: true, force: true })

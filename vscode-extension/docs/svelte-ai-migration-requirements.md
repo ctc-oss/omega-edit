@@ -56,7 +56,7 @@ The migration must preserve these user-visible and integration features:
 - Transform plugin discovery, option help, JSON Schema validation, and apply
   flow.
 - Change log export and application.
-- Checkpoint creation, last-checkpoint restore, and session rollback.
+- Checkpoint creation, last-checkpoint rollback, and session rollback.
 - Integration and unit test coverage for the custom editor lifecycle.
 
 ## Svelte/Vite Requirements

@@ -94,6 +94,7 @@ set(OMEGA_EDIT_TRANSFORM_PLUGIN_TARGETS)
 foreach (plugin_src
         src/base64.c
         src/bitwise.c
+        src/case_change.c
         src/character_transcode.cpp
         src/common_checksums.cpp
         src/decimal_codecs.cpp
