@@ -24,7 +24,7 @@ Each plugin advertises one operation mode:
 
 | Mode | Behavior |
 | --- | --- |
-| `OMEGA_TRANSFORM_PLUGIN_OPERATION_REPLACE` | Produces replacement bytes for the selected range. Content changes if the selected range or replacement is non-empty. |
+| `OMEGA_TRANSFORM_PLUGIN_OPERATION_REPLACE` | Produces replacement bytes for the selected range. Content changes unless the response explicitly reports no content change. |
 | `OMEGA_TRANSFORM_PLUGIN_OPERATION_INSPECT` | Leaves content unchanged and returns result bytes, such as a checksum or hash. |
 | `OMEGA_TRANSFORM_PLUGIN_OPERATION_REPLACE_AND_INSPECT` | Produces replacement bytes and an inspection result. |
 
@@ -100,6 +100,8 @@ Important rules:
 - Validate null pointers and negative lengths.
 - Allocate all response memory through `request_ptr->alloc` or the SDK helpers.
 - Do not free response memory yourself after assigning it to the response.
+- Use `OMEGA_TRANSFORM_PLUGIN_RESPONSE_NO_CONTENT_CHANGE` for successful replace operations
+  that intentionally leave the selected content untouched.
 - Treat `options_json` as optional; it may be null.
 - Keep plugin entry points thread-safe. The server serializes access to the registry,
   but plugin code should not rely on mutable global state unless it protects it.
@@ -121,6 +123,7 @@ Useful helpers:
 | `omega_transform_plugin_sdk_copy_bytes` | Copies byte ranges into response-owned memory. |
 | `omega_transform_plugin_sdk_copy_cstring` | Copies C strings into response-owned memory. |
 | `omega_transform_plugin_sdk_set_replacement` | Fills replacement bytes and length. |
+| `omega_transform_plugin_sdk_set_no_content_change` | Marks a successful replace operation as having no content changes. |
 | `omega_transform_plugin_sdk_set_text_result` | Fills text result bytes, label, and MIME type. |
 
 ## Minimal Plugin
@@ -333,6 +336,7 @@ The repository ships small examples in `plugins/src/`:
 | --- | --- | --- | --- |
 | `omega.example.base64` | `base64.c` | Replace | Base64 encode/decode with a `direction` option. Decoding tolerates ASCII whitespace; other invalid bytes fail. |
 | `omega.example.bitwise` | `bitwise.c` | Replace | One-for-one binary-safe AND/OR/XOR transform with `operator`, `byte`, and `mask` options; defaults to XOR with `0xFF`. |
+| `omega.example.case_change` | `case_change.c` | Replace | ASCII upper/lower case conversion with no-content-change reporting when the range is already in the requested case. |
 | `omega.example.character_transcode` | `character_transcode.cpp` | Replace | Transcoding between UTF-8/16/32, ASCII, ISO-8859-1, Windows-1252, and common single-byte EBCDIC pages. |
 | `omega.example.common_checksums` | `common_checksums.cpp` | Inspect | CRC, Adler, Fletcher, internet checksum, LRC/BCC, sum, FNV, Murmur3, and xxHash variants. |
 | `omega.example.decimal_codecs` | `decimal_codecs.cpp` | Replace | BCD, packed decimal/COMP-3, zoned decimal, and signed overpunch encode/decode helpers. |

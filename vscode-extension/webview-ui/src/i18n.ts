@@ -21,8 +21,8 @@ export const strings = {
     sessionActions: 'Session actions',
     createCheckpoint: 'Checkpoint',
     createCheckpointTitle: 'Create an OmegaEdit checkpoint',
-    restoreCheckpoint: 'Restore',
-    restoreCheckpointTitle: 'Restore the last OmegaEdit checkpoint',
+    rollbackCheckpoint: 'Roll back',
+    rollbackCheckpointTitle: 'Roll back the last OmegaEdit checkpoint',
     exportChangeLog: 'Export Log',
     exportChangeLogTitle: 'Export the OmegaEdit change log',
     applyChangeLog: 'Apply Log',
@@ -50,6 +50,7 @@ export const strings = {
     label: 'Action',
     choose: 'Select action...',
     chooseTitle: 'Choose an action for the current file',
+    calculationsGroup: 'Calculations',
     transformsGroup: 'Transforms',
     fileSplicingGroup: 'File Splicing',
     loadTransforms: 'Load transforms...',
@@ -142,13 +143,13 @@ export const strings = {
     operationTransform: 'transform',
     applying: (name: string) => `Applying ${name}...`,
     creatingCheckpoint: 'Creating checkpoint...',
-    restoringCheckpoint: 'Restoring checkpoint...',
+    rollingBackCheckpoint: 'Rolling back checkpoint...',
     exportingChangeLog: 'Exporting change log...',
     applyingChangeLog: 'Applying change log...',
     checkpointCreated: (count: number) =>
       `Checkpoint created (${count.toLocaleString()} total)`,
-    checkpointRestored: (count: number) =>
-      `Checkpoint restored (${count.toLocaleString()} remaining)`,
+    checkpointRolledBack: (count: number) =>
+      `Checkpoint rolled back (${count.toLocaleString()} remaining)`,
     changeLogExported: (count: number) =>
       `Exported ${count.toLocaleString()} change${count === 1 ? '' : 's'}`,
     changeLogApplied: (count: number) =>
@@ -186,6 +187,8 @@ export const strings = {
     transformed: (from: number, to: number) =>
       `Transformed ${from.toLocaleString()} byte${from === 1 ? '' : 's'} into ${to.toLocaleString()} byte${to === 1 ? '' : 's'}`,
     completed: 'Transform completed',
+    calculationCompleted: 'Calculation completed',
+    noContentChange: 'Transform completed without content changes',
   },
   search: {
     label: 'Find bytes',

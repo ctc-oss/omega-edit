@@ -279,12 +279,40 @@ static omega_byte_t omega_bitmask_apply_byte(omega_byte_t value, omega_byte_t ma
     return value;
 }
 
+static int omega_bitmask_mask_is_identity(const omega_bitmask_options_t *mask_ptr) {
+    if (!mask_ptr || mask_ptr->length == 0) { return 0; }
+
+    omega_byte_t identity_byte;
+    switch (mask_ptr->operation) {
+        case OMEGA_BITMASK_AND:
+            identity_byte = 0xFF;
+            break;
+        case OMEGA_BITMASK_OR:
+            identity_byte = 0x00;
+            break;
+        case OMEGA_BITMASK_XOR:
+            identity_byte = 0x00;
+            break;
+        default:
+            return 0;
+    }
+
+    for (size_t i = 0; i < mask_ptr->length; ++i) {
+        if (mask_ptr->bytes[i] != identity_byte) { return 0; }
+    }
+    return 1;
+}
+
 static int omega_bitmask_apply_replace(const omega_transform_plugin_request_t *request_ptr,
                                        omega_transform_plugin_response_t *response_ptr,
                                        const omega_bitmask_options_t *mask_ptr) {
     if (!request_ptr || !response_ptr || !request_ptr->alloc || !mask_ptr || mask_ptr->length == 0 ||
         request_ptr->input_length < 0 || (request_ptr->input_length > 0 && !request_ptr->input_bytes)) {
         return -1;
+    }
+
+    if (request_ptr->input_length == 0 || omega_bitmask_mask_is_identity(mask_ptr)) {
+        return omega_transform_plugin_sdk_set_no_content_change(response_ptr);
     }
 
     omega_byte_t *bytes = omega_transform_plugin_sdk_copy_bytes(request_ptr, request_ptr->input_bytes,

@@ -25,7 +25,7 @@ const {
   OMEGA_EDIT_SEARCH_NEXT_COMMAND,
   OMEGA_EDIT_SEARCH_PREVIOUS_COMMAND,
   OMEGA_EDIT_SET_EXTERNAL_HIGHLIGHTS_COMMAND,
-  OMEGA_EDIT_RESTORE_CHECKPOINT_COMMAND,
+  OMEGA_EDIT_ROLLBACK_CHECKPOINT_COMMAND,
   OMEGA_EDIT_TOGGLE_INSERT_DIRECTION_COMMAND,
   OMEGA_EDIT_UNDO_COMMAND,
   OMEGA_EDIT_VIEW_TYPE,
@@ -40,7 +40,7 @@ const {
 test('package.json matches shared extension constants', () => {
   assert.equal(packageJson.main, './out/extension.js')
   assert.equal(packageJson.types, './out/api.d.ts')
-  assert.equal(OMEGA_EDIT_EXTENSION_API_VERSION, 1)
+  assert.equal(OMEGA_EDIT_EXTENSION_API_VERSION, 2)
   assert.equal(packageJson.name, OMEGA_EDIT_EXTENSION_NAME)
   assert.equal(packageJson.publisher, OMEGA_EDIT_EXTENSION_PUBLISHER)
   assert.equal(
@@ -66,7 +66,7 @@ test('package.json matches shared extension constants', () => {
     `onCommand:${OMEGA_EDIT_EXPORT_CHANGE_LOG_COMMAND}`,
     `onCommand:${OMEGA_EDIT_APPLY_CHANGE_LOG_COMMAND}`,
     `onCommand:${OMEGA_EDIT_ROLLBACK_SESSION_COMMAND}`,
-    `onCommand:${OMEGA_EDIT_RESTORE_CHECKPOINT_COMMAND}`,
+    `onCommand:${OMEGA_EDIT_ROLLBACK_CHECKPOINT_COMMAND}`,
     `onCommand:${OMEGA_EDIT_CREATE_CHECKPOINT_COMMAND}`,
     `onCommand:${OMEGA_EDIT_GET_EDITOR_STATE_COMMAND}`,
     `onCommand:${OMEGA_EDIT_SET_EXTERNAL_HIGHLIGHTS_COMMAND}`,
@@ -158,7 +158,7 @@ test('package.json matches shared extension constants', () => {
   )
   assert.equal(
     packageJson.contributes.commands[11].command,
-    OMEGA_EDIT_RESTORE_CHECKPOINT_COMMAND
+    OMEGA_EDIT_ROLLBACK_CHECKPOINT_COMMAND
   )
   assert.equal(
     packageJson.contributes.commands[11].enablement,
@@ -515,7 +515,7 @@ test('compiled extension entrypoints exist after build', () => {
   assert.match(providerJs, /clear/)
   assert.match(providerJs, /rollbackSession/)
   assert.match(providerJs, /revertSessionChanges/)
-  assert.match(providerJs, /restoreLastCheckpoint/)
+  assert.match(providerJs, /rollbackLastCheckpoint/)
   assert.match(providerJs, /createSessionCheckpoint/)
   assert.match(providerJs, /postClipboardSelection/)
   assert.match(providerJs, /case\s+['"]copySelection['"]/)
@@ -815,6 +815,7 @@ test('compiled extension entrypoints exist after build', () => {
   assert.match(svelteAppSource, /case 'transformComplete'/)
   assert.match(svelteAppSource, /case 'fileActionComplete'/)
   assert.match(svelteAppSource, /describeTransformComplete/)
+  assert.match(svelteAppSource, /strings\.transform\.calculationCompleted/)
   assert.match(svelteAppSource, /describeFileActionComplete/)
   assert.match(svelteAppSource, /createTransformResult\(message\)/)
   assert.match(svelteAppSource, /rememberTransformResult/)
@@ -1307,7 +1308,7 @@ test('compiled extension entrypoints exist after build', () => {
   assert.match(extensionJs, /searchPreviousActive/)
   assert.match(extensionJs, /refreshActiveTransformPlugins/)
   assert.match(extensionJs, /OMEGA_EDIT_ROLLBACK_SESSION_COMMAND/)
-  assert.match(extensionJs, /OMEGA_EDIT_RESTORE_CHECKPOINT_COMMAND/)
+  assert.match(extensionJs, /OMEGA_EDIT_ROLLBACK_CHECKPOINT_COMMAND/)
   assert.match(extensionJs, /OMEGA_EDIT_CREATE_CHECKPOINT_COMMAND/)
   assert.match(extensionJs, /OMEGA_EDIT_GET_EDITOR_STATE_COMMAND/)
   assert.match(extensionJs, /OMEGA_EDIT_SET_EXTERNAL_HIGHLIGHTS_COMMAND/)
@@ -1326,7 +1327,7 @@ test('compiled extension entrypoints exist after build', () => {
   assert.match(extensionJs, /redoActive/)
   assert.match(extensionJs, /setInsertDirection/)
   assert.match(extensionJs, /rollbackActiveSession/)
-  assert.match(extensionJs, /restoreCheckpoint/)
+  assert.match(extensionJs, /rollbackCheckpoint/)
   assert.match(extensionJs, /createCheckpoint/)
   assert.match(extensionJs, /getDefaultTransformPluginDirectories/)
   assert.match(extensionJs, /findRepositoryRoot/)

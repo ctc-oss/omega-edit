@@ -31,7 +31,7 @@ runs:
 
     - name: Setup Python for plugin dependencies
       if: inputs.runner-os == 'Windows' || inputs.runner-os == 'macOS'
-      uses: actions/setup-python@v5
+      uses: actions/setup-python@v6
       with:
         python-version: '3.12'
 
@@ -52,7 +52,7 @@ runs:
 
     - name: Cache transform plugin Conan packages
       if: inputs.runner-os == 'Windows' || inputs.runner-os == 'macOS'
-      uses: actions/cache@v4
+      uses: actions/cache@v6
       with:
         path: ~/.conan2
         key: plugin-conan-v2-${{ inputs.runner-os }}-${{ runner.arch }}-${{ inputs.os-name }}-${{ hashFiles('plugins/conanfile.py') }}
@@ -174,7 +174,7 @@ runs:
         echo "libpath=${libpath}" >> $GITHUB_ENV
 
     - name: Upload Native Library (${{ inputs.os-name }}-${{ env.libname }})
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v7
       with:
         name: ${{ inputs.os-name }}-${{ env.libname }}
         path: ${{ env.libpath }}

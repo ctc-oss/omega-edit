@@ -30,9 +30,10 @@ TEST_CASE("Packaged Transform Plugins", "[TransformPlugin]") {
     const auto registry_ptr = omega_transform_plugin_registry_create();
     REQUIRE(registry_ptr);
     REQUIRE(0 < omega_transform_plugin_registry_register_directory(registry_ptr, PLUGIN_DIR.string().c_str()));
-    REQUIRE(12 <= omega_transform_plugin_registry_get_count(registry_ptr));
+    REQUIRE(13 <= omega_transform_plugin_registry_get_count(registry_ptr));
     REQUIRE(nullptr != omega_transform_plugin_registry_find_info(registry_ptr, "omega.example.base64"));
     REQUIRE(nullptr != omega_transform_plugin_registry_find_info(registry_ptr, "omega.example.bitwise"));
+    REQUIRE(nullptr != omega_transform_plugin_registry_find_info(registry_ptr, "omega.example.case_change"));
     REQUIRE(nullptr != omega_transform_plugin_registry_find_info(registry_ptr, "omega.example.character_transcode"));
     REQUIRE(nullptr != omega_transform_plugin_registry_find_info(registry_ptr, "omega.example.common_checksums"));
     REQUIRE(nullptr != omega_transform_plugin_registry_find_info(registry_ptr, "omega.example.decimal_codecs"));
@@ -77,6 +78,13 @@ TEST_CASE("Packaged Transform Plugins", "[TransformPlugin]") {
                                                                   common_checksums_info->args_schema));
     REQUIRE(-1 == omega_transform_plugin_options_match_args_schema("{\"algorithm\":\"not-a-checksum\"}",
                                                                    common_checksums_info->args_schema));
+    const auto case_change_info = omega_transform_plugin_registry_find_info(registry_ptr, "omega.example.case_change");
+    REQUIRE("Case Change" == std::string(case_change_info->name));
+    REQUIRE("{\"case\":\"upper\"}" == std::string(case_change_info->default_args));
+    REQUIRE(0 == omega_transform_plugin_options_match_args_schema("{\"case\":\"lower\"}",
+                                                                  case_change_info->args_schema));
+    REQUIRE(-1 == omega_transform_plugin_options_match_args_schema("{\"case\":\"title\"}",
+                                                                   case_change_info->args_schema));
     const auto zlib_info = omega_transform_plugin_registry_find_info(registry_ptr, "omega.example.zlib");
     REQUIRE("Zlib" == std::string(zlib_info->name));
     REQUIRE(std::string(zlib_info->help).find("Compression level") != std::string::npos);
@@ -118,6 +126,96 @@ TEST_CASE("Packaged Transform Plugins", "[TransformPlugin]") {
     REQUIRE("sum8" == std::string(response.result_label));
     REQUIRE("ABCBCD" == omega_session_get_segment_string(session_ptr, 0,
                                                          omega_session_get_computed_file_size(session_ptr)));
+    omega_transform_plugin_response_clear(&response);
+
+    const auto identity_bitwise_change_count = omega_session_get_num_changes(session_ptr);
+    REQUIRE(0 == omega_transform_plugin_registry_apply_to_session(
+                         registry_ptr, "omega.example.bitwise", session_ptr, 0, 6,
+                         "{\"operator\":\"xor\",\"byte\":\"0x00\"}",
+                         &response));
+    REQUIRE(0 == response.replacement_length);
+    REQUIRE((response.flags & OMEGA_TRANSFORM_PLUGIN_RESPONSE_NO_CONTENT_CHANGE) != 0U);
+    REQUIRE("ABCBCD" == omega_session_get_segment_string(session_ptr, 0,
+                                                         omega_session_get_computed_file_size(session_ptr)));
+    REQUIRE(identity_bitwise_change_count == omega_session_get_num_changes(session_ptr));
+    omega_transform_plugin_response_clear(&response);
+
+    REQUIRE(0 == omega_transform_plugin_registry_apply_to_session(
+                         registry_ptr, "omega.example.bitwise", session_ptr, 0, 6,
+                         "{\"operator\":\"and\",\"byte\":\"0xFF\"}",
+                         &response));
+    REQUIRE(0 == response.replacement_length);
+    REQUIRE((response.flags & OMEGA_TRANSFORM_PLUGIN_RESPONSE_NO_CONTENT_CHANGE) != 0U);
+    REQUIRE("ABCBCD" == omega_session_get_segment_string(session_ptr, 0,
+                                                         omega_session_get_computed_file_size(session_ptr)));
+    REQUIRE(identity_bitwise_change_count == omega_session_get_num_changes(session_ptr));
+    omega_transform_plugin_response_clear(&response);
+
+    REQUIRE(0 == omega_transform_plugin_registry_apply_to_session(
+                         registry_ptr, "omega.example.bitwise", session_ptr, 0, 6,
+                         "{\"operator\":\"or\",\"mask\":[\"0x00\",\"0x00\"]}",
+                         &response));
+    REQUIRE(0 == response.replacement_length);
+    REQUIRE((response.flags & OMEGA_TRANSFORM_PLUGIN_RESPONSE_NO_CONTENT_CHANGE) != 0U);
+    REQUIRE("ABCBCD" == omega_session_get_segment_string(session_ptr, 0,
+                                                         omega_session_get_computed_file_size(session_ptr)));
+    REQUIRE(identity_bitwise_change_count == omega_session_get_num_changes(session_ptr));
+    omega_transform_plugin_response_clear(&response);
+
+    const auto case_session_ptr = omega_edit_create_session(nullptr, nullptr, nullptr, NO_EVENTS, nullptr);
+    REQUIRE(case_session_ptr);
+    REQUIRE(0 < omega_edit_insert_string(case_session_ptr, 0, "abC!09z"));
+    REQUIRE(0 == omega_transform_plugin_registry_apply_to_session(registry_ptr, "omega.example.case_change",
+                                                                  case_session_ptr, 0, 7,
+                                                                  "{\"case\":\"upper\"}", &response));
+    REQUIRE(7 == response.replacement_length);
+    REQUIRE("ABC!09Z" == omega_session_get_segment_string(case_session_ptr, 0,
+                                                          omega_session_get_computed_file_size(case_session_ptr)));
+    omega_transform_plugin_response_clear(&response);
+
+    const auto uppercase_change_count = omega_session_get_num_changes(case_session_ptr);
+    REQUIRE(0 == omega_transform_plugin_registry_apply_to_session(registry_ptr, "omega.example.case_change",
+                                                                  case_session_ptr, 0, 7,
+                                                                  "{\"case\":\"upper\"}", &response));
+    REQUIRE(0 == response.replacement_length);
+    REQUIRE((response.flags & OMEGA_TRANSFORM_PLUGIN_RESPONSE_NO_CONTENT_CHANGE) != 0U);
+    REQUIRE(uppercase_change_count == omega_session_get_num_changes(case_session_ptr));
+    omega_transform_plugin_response_clear(&response);
+
+    REQUIRE(0 == omega_transform_plugin_registry_apply_to_session(registry_ptr, "omega.example.case_change",
+                                                                  case_session_ptr, 0, 7,
+                                                                  "{\"case\":\"lower\"}", &response));
+    REQUIRE(7 == response.replacement_length);
+    REQUIRE("abc!09z" == omega_session_get_segment_string(case_session_ptr, 0,
+                                                          omega_session_get_computed_file_size(case_session_ptr)));
+    omega_transform_plugin_response_clear(&response);
+    omega_edit_destroy_session(case_session_ptr);
+
+    const auto empty_transform_change_count = omega_session_get_num_changes(session_ptr);
+    REQUIRE(0 == omega_transform_plugin_registry_apply_to_session(
+                         registry_ptr, "omega.example.repeat", session_ptr,
+                         omega_session_get_computed_file_size(session_ptr), 0, nullptr, &response));
+    REQUIRE(0 == response.replacement_length);
+    REQUIRE((response.flags & OMEGA_TRANSFORM_PLUGIN_RESPONSE_NO_CONTENT_CHANGE) != 0U);
+    REQUIRE(empty_transform_change_count == omega_session_get_num_changes(session_ptr));
+    omega_transform_plugin_response_clear(&response);
+
+    REQUIRE(0 == omega_transform_plugin_registry_apply_to_session(
+                         registry_ptr, "omega.example.base64", session_ptr,
+                         omega_session_get_computed_file_size(session_ptr), 0,
+                         "{\"direction\":\"encode\"}", &response));
+    REQUIRE(0 == response.replacement_length);
+    REQUIRE((response.flags & OMEGA_TRANSFORM_PLUGIN_RESPONSE_NO_CONTENT_CHANGE) != 0U);
+    REQUIRE(empty_transform_change_count == omega_session_get_num_changes(session_ptr));
+    omega_transform_plugin_response_clear(&response);
+
+    REQUIRE(0 == omega_transform_plugin_registry_apply_to_session(
+                         registry_ptr, "omega.example.bitwise", session_ptr,
+                         omega_session_get_computed_file_size(session_ptr), 0,
+                         "{\"operator\":\"xor\",\"byte\":\"0xFF\"}", &response));
+    REQUIRE(0 == response.replacement_length);
+    REQUIRE((response.flags & OMEGA_TRANSFORM_PLUGIN_RESPONSE_NO_CONTENT_CHANGE) != 0U);
+    REQUIRE(empty_transform_change_count == omega_session_get_num_changes(session_ptr));
     omega_transform_plugin_response_clear(&response);
 
     REQUIRE(0 == omega_transform_plugin_registry_apply_to_session(registry_ptr, "omega.example.bitwise", session_ptr,

@@ -33,7 +33,7 @@
     "onCommand:omegaEdit.exportChangeLog",
     "onCommand:omegaEdit.applyChangeLog",
     "onCommand:omegaEdit.rollbackSession",
-    "onCommand:omegaEdit.restoreCheckpoint",
+    "onCommand:omegaEdit.rollbackCheckpoint",
     "onCommand:omegaEdit.createCheckpoint",
     "onCommand:omegaEdit.getEditorState",
     "onCommand:omegaEdit.setExternalHighlights",
@@ -150,8 +150,8 @@
         "enablement": "omegaEdit.hexEditorActive && omegaEdit.hasPendingChanges && !omegaEdit.transformInFlight"
       },
       {
-        "command": "omegaEdit.restoreCheckpoint",
-        "title": "%omegaEdit.command.restoreCheckpoint.title%",
+        "command": "omegaEdit.rollbackCheckpoint",
+        "title": "%omegaEdit.command.rollbackCheckpoint.title%",
         "enablement": "omegaEdit.hexEditorActive && !omegaEdit.transformInFlight"
       },
       {
@@ -233,7 +233,7 @@
           "when": "omegaEdit.hexEditorActive && omegaEdit.hasPendingChanges && !omegaEdit.transformInFlight"
         },
         {
-          "command": "omegaEdit.restoreCheckpoint",
+          "command": "omegaEdit.rollbackCheckpoint",
           "when": "omegaEdit.hexEditorActive && !omegaEdit.transformInFlight"
         },
         {

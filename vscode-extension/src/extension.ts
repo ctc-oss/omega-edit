@@ -46,7 +46,7 @@ import {
   OMEGA_EDIT_SEARCH_NEXT_COMMAND,
   OMEGA_EDIT_SEARCH_PREVIOUS_COMMAND,
   OMEGA_EDIT_SET_EXTERNAL_HIGHLIGHTS_COMMAND,
-  OMEGA_EDIT_RESTORE_CHECKPOINT_COMMAND,
+  OMEGA_EDIT_ROLLBACK_CHECKPOINT_COMMAND,
   OMEGA_EDIT_TOGGLE_INSERT_DIRECTION_COMMAND,
   OMEGA_EDIT_UNDO_COMMAND,
   OMEGA_EDIT_VIEW_TYPE,
@@ -557,8 +557,8 @@ function createOmegaEditExtensionApi(
     async createCheckpoint(options) {
       return provider.createCheckpoint(options)
     },
-    async restoreCheckpoint(options) {
-      return provider.restoreCheckpoint(options)
+    async rollbackCheckpoint(options) {
+      return provider.rollbackCheckpoint(options)
     },
     async exportChangeLog(options) {
       return provider.exportChangeLog(options)
@@ -803,9 +803,9 @@ export async function activate(
 
   context.subscriptions.push(
     vscode.commands.registerCommand(
-      OMEGA_EDIT_RESTORE_CHECKPOINT_COMMAND,
+      OMEGA_EDIT_ROLLBACK_CHECKPOINT_COMMAND,
       async (options?: unknown) => {
-        await provider.restoreCheckpoint(options)
+        await provider.rollbackCheckpoint(options)
       }
     )
   )

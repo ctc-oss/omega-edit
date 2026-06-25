@@ -63,10 +63,12 @@ import {
   profileSession,
   replaceSessionCheckpointed,
   redo,
+  runSessionTransaction,
   saveSession,
   SessionEventKind,
   startServerHeartbeatLoop,
   type TransformProgress,
+  TransformPluginOperation,
   type TransformPluginInfo,
   type ServerHeartbeatLoop,
   undo,
@@ -144,10 +146,12 @@ const SERVER_HEALTH_WARN_LATENCY_MS = 75
 const SERVER_HEALTH_ERROR_LATENCY_MS = 250
 const MAX_TRANSFORM_RESULT_TEXT_LENGTH = 240
 const MAX_TRANSFORM_RESULT_PREVIEW_BYTES = 4 * 1024
-const MAX_TRANSFORM_NOOP_COMPARE_BYTES = 1024 * 1024
 const MAX_FILE_SPLICE_BYTES = 32 * 1024 * 1024
 const MAX_CHANGE_LOG_BYTES = MAX_FILE_SPLICE_BYTES * 3
 const MAX_CHANGE_LOG_ENTRIES = 100_000
+const CHANGE_LOG_FORMAT = 'omega-edit.change-log'
+const CHANGE_LOG_VERSION = 1
+const GRPC_NOT_FOUND = 5
 const CONTEXT_HEX_EDITOR_ACTIVE = 'omegaEdit.hexEditorActive'
 const CONTEXT_CAN_UNDO = 'omegaEdit.canUndo'
 const CONTEXT_CAN_REDO = 'omegaEdit.canRedo'
@@ -242,7 +246,7 @@ function isMutationWebviewMessage(message: WebviewToHostMessage): boolean {
     case 'replaceRangeWithFile':
     case 'replaceAllMatches':
     case 'createCheckpoint':
-    case 'restoreCheckpoint':
+    case 'rollbackCheckpoint':
     case 'applyChangeLog':
     case 'undo':
     case 'redo':
@@ -589,13 +593,6 @@ function transformResultToText(bytes: Uint8Array): string {
   return truncateTransformResult(Buffer.from(preview).toString('utf8') + suffix)
 }
 
-function bytesEqual(left: Uint8Array, right: Uint8Array): boolean {
-  return (
-    left.byteLength === right.byteLength &&
-    Buffer.from(left).equals(Buffer.from(right))
-  )
-}
-
 function serializeTransformPlugin(plugin: TransformPluginInfo): {
   id: string
   name: string
@@ -649,13 +646,24 @@ function changeDetailsToChangeRecord(
 }
 
 function isMissingChangeDetailsError(error: unknown): boolean {
-  const message = error instanceof Error ? error.message : String(error)
-  return message.includes('NOT_FOUND') || message.includes('change not found')
+  return hasGrpcStatusCode(error, GRPC_NOT_FOUND)
+}
+
+function hasGrpcStatusCode(error: unknown, code: number): boolean {
+  let current: unknown = error
+  while (isRecord(current)) {
+    if (current.code === code) {
+      return true
+    }
+    current = current.cause
+  }
+  return false
 }
 
 async function collectChangeLogRecords(
   sessionId: string,
-  sourceChangeCount: number
+  sourceChangeCount: number,
+  onProgress?: (processedSerial: number) => void
 ): Promise<ChangeRecord[]> {
   const changes: ChangeRecord[] = []
   for (let serial = 1; serial <= sourceChangeCount; serial += 1) {
@@ -667,6 +675,8 @@ async function collectChangeLogRecords(
       if (!isMissingChangeDetailsError(error)) {
         throw error
       }
+    } finally {
+      onProgress?.(serial)
     }
   }
   return changes
@@ -681,37 +691,63 @@ function safeChangeRecord(value: unknown): ChangeRecord | undefined {
   if (offset === undefined) {
     return undefined
   }
-  const serial = safeNonNegativeInteger(value.serial) ?? 0
+  let serial = 0
+  if (value.serial !== undefined) {
+    const safeSerial = safeNonNegativeInteger(value.serial)
+    if (safeSerial === undefined || safeSerial <= 0) {
+      return undefined
+    }
+    serial = safeSerial
+  }
+  const groupId = safeString(value.groupId, MAX_LABEL_LENGTH)
+  if (value.groupId !== undefined && !groupId) {
+    return undefined
+  }
 
   switch (value.kind) {
     case 'INSERT': {
       const data = safeHexString(value.data, MAX_FILE_SPLICE_BYTES)
-      return data
-        ? { serial, kind: 'INSERT', offset, length: 0, data }
-        : undefined
+      if (!data) {
+        return undefined
+      }
+      return groupId
+        ? { serial, kind: 'INSERT', offset, length: 0, data, groupId }
+        : { serial, kind: 'INSERT', offset, length: 0, data }
     }
     case 'DELETE': {
       const length = safeNonNegativeInteger(value.length)
-      return length && length > 0
-        ? { serial, kind: 'DELETE', offset, length, data: '' }
-        : undefined
+      if (!length || length <= 0) {
+        return undefined
+      }
+      return groupId
+        ? { serial, kind: 'DELETE', offset, length, data: '', groupId }
+        : { serial, kind: 'DELETE', offset, length, data: '' }
     }
     case 'OVERWRITE': {
       const data = safeHexString(value.data, MAX_FILE_SPLICE_BYTES)
-      return data
+      if (!data) {
+        return undefined
+      }
+      return groupId
         ? {
             serial,
             kind: 'OVERWRITE',
             offset,
             length: data.length / 2,
             data,
+            groupId,
           }
-        : undefined
+        : {
+            serial,
+            kind: 'OVERWRITE',
+            offset,
+            length: data.length / 2,
+            data,
+          }
     }
     case 'REPLACE': {
       const length = safeNonNegativeInteger(value.length)
       const data = safeHexString(value.data, MAX_FILE_SPLICE_BYTES, true)
-      const groupId = safeString(value.groupId, MAX_LABEL_LENGTH)
       if (length === undefined || data === undefined) {
         return undefined
       }
@@ -721,6 +757,53 @@ function safeChangeRecord(value: unknown): ChangeRecord | undefined {
     }
     default:
       return undefined
+  }
+}
+
+function validateChangeRecordMetadata(
+  changes: ChangeRecord[],
+  entries: unknown[]
+): void {
+  const serialEntryCount = entries.filter(
+    (entry) => isRecord(entry) && entry.serial !== undefined
+  ).length
+  if (serialEntryCount > 0 && serialEntryCount !== changes.length) {
+    throw new Error('Change log serial metadata must be present on every entry')
+  }
+
+  for (let index = 0; index < changes.length; index += 1) {
+    if (serialEntryCount > 0 && changes[index].serial !== index + 1) {
+      throw new Error(
+        `Change log serial metadata must be contiguous; entry ${index} has serial ${
+          changes[index].serial
+        }, expected ${index + 1}`
+      )
+    }
+  }
+
+  const closedGroups = new Set<string>()
+  let activeGroup: string | undefined
+  for (const [index, change] of changes.entries()) {
+    const groupId = change.groupId
+    if (!groupId) {
+      if (activeGroup) {
+        closedGroups.add(activeGroup)
+        activeGroup = undefined
+      }
+      continue
+    }
+
+    if (groupId !== activeGroup) {
+      if (closedGroups.has(groupId)) {
+        throw new Error(
+          `Change log groupId "${groupId}" is not contiguous at entry ${index}`
+        )
+      }
+      if (activeGroup) {
+        closedGroups.add(activeGroup)
+      }
+      activeGroup = groupId
+    }
   }
 }
 
@@ -739,11 +822,18 @@ function parseChangeLog(content: Uint8Array): ChangeRecord[] {
     throw new Error(`Invalid change log JSON: ${message}`)
   }
 
-  const entries = Array.isArray(parsed)
-    ? parsed
-    : isRecord(parsed) && Array.isArray(parsed.changes)
-      ? parsed.changes
-      : undefined
+  let entries: unknown[] | undefined
+  if (Array.isArray(parsed)) {
+    entries = parsed
+  } else if (isRecord(parsed)) {
+    if (parsed.format !== CHANGE_LOG_FORMAT) {
+      throw new Error('Unsupported change log format')
+    }
+    if (parsed.version !== CHANGE_LOG_VERSION) {
+      throw new Error('Unsupported change log version')
+    }
+    entries = Array.isArray(parsed.changes) ? parsed.changes : undefined
+  }
 
   if (!entries) {
     throw new Error('Change log must be a JSON array or an object with changes')
@@ -754,13 +844,15 @@ function parseChangeLog(content: Uint8Array): ChangeRecord[] {
     )
   }
 
-  return entries.map((entry, index) => {
+  const changes = entries.map((entry, index) => {
     const change = safeChangeRecord(entry)
     if (!change) {
       throw new Error(`Invalid change record at index ${index}`)
     }
     return change
   })
+  validateChangeRecordMetadata(changes, entries)
+  return changes
 }
 
 function backupIdToFilePath(backupId: string | undefined): string | undefined {
@@ -1478,18 +1570,45 @@ export class HexEditorProvider
       )
     }
 
-    const changes = await collectChangeLogRecords(
-      session.sessionId,
-      sourceChangeCount
-    )
+    let changes: ChangeRecord[] = []
+    if (sourceChangeCount > 0) {
+      changes = await vscode.window.withProgress(
+        {
+          location: vscode.ProgressLocation.Notification,
+          title: vscode.l10n.t('Exporting {count} change log entries…', {
+            count: sourceChangeCount,
+          }),
+          cancellable: false,
+        },
+        async (progress) => {
+          let previousSerial = 0
+          return await collectChangeLogRecords(
+            session.sessionId,
+            sourceChangeCount,
+            (serial) => {
+              const increment =
+                ((serial - previousSerial) / sourceChangeCount) * 100
+              previousSerial = serial
+              progress.report({
+                increment,
+                message: vscode.l10n.t('{current} of {total}', {
+                  current: serial,
+                  total: sourceChangeCount,
+                }),
+              })
+            }
+          )
+        }
+      )
+    }
     const changeCount = changes.length
     const foldedChangeCount = sourceChangeCount - changeCount
 
     const content = Buffer.from(
       JSON.stringify(
         {
-          format: 'omega-edit.change-log',
-          version: 1,
+          format: CHANGE_LOG_FORMAT,
+          version: CHANGE_LOG_VERSION,
           changeCount,
           sourceChangeCount,
           foldedChangeCount,
@@ -1591,6 +1710,7 @@ export class HexEditorProvider
         cancelled: true,
       }
     }
+    let appliedChangeCount = 0
     await vscode.window.withProgress(
       {
         location: vscode.ProgressLocation.Notification,
@@ -1599,24 +1719,27 @@ export class HexEditorProvider
         }),
         cancellable: false,
       },
-      () => this.applyChangeLogEntries(session, changes)
+      async () => {
+        appliedChangeCount = await this.applyChangeLogEntries(session, changes)
+      }
     )
     this.postSessionActionComplete(session, {
       action: 'applyChangeLog',
-      changeCount: changes.length,
+      changeCount: appliedChangeCount,
       message: vscode.l10n.t('Applied {count} change(s)', {
-        count: changes.length,
+        count: appliedChangeCount,
       }),
     })
     void vscode.window.showInformationMessage(
       vscode.l10n.t('Applied {count} OmegaEdit change(s)', {
-        count: changes.length,
+        count: appliedChangeCount,
       })
     )
     return {
       state: this.buildEditorState(session),
       uri: scriptUri,
-      changeCount: changes.length,
+      changeCount: appliedChangeCount,
+      sourceChangeCount: changes.length,
     }
   }
 
@@ -1951,27 +2074,38 @@ export class HexEditorProvider
       return
     }
 
-    const count = await this.createSessionCheckpoint(session)
+    const result = await this.createSessionCheckpoint(session)
     this.postSessionActionComplete(session, {
       action: 'createCheckpoint',
-      checkpointCount: count,
-      message: vscode.l10n.t('OmegaEdit checkpoint created ({count} total)', {
-        count,
-      }),
+      checkpointCount: result.checkpointCount,
+      cancelled: !result.created,
+      message: result.created
+        ? vscode.l10n.t('OmegaEdit checkpoint created ({count} total)', {
+            count: result.checkpointCount,
+          })
+        : vscode.l10n.t('No OmegaEdit changes to checkpoint'),
     })
-    void vscode.window.showInformationMessage(
-      vscode.l10n.t('OmegaEdit checkpoint created ({count} total)', { count })
-    )
+    if (result.created) {
+      void vscode.window.showInformationMessage(
+        vscode.l10n.t('OmegaEdit checkpoint created ({count} total)', {
+          count: result.checkpointCount,
+        })
+      )
+    } else {
+      void vscode.window.showInformationMessage(
+        vscode.l10n.t('No OmegaEdit changes to checkpoint')
+      )
+    }
     return {
       state: this.buildEditorState(session),
-      checkpointCount: count,
+      checkpointCount: result.checkpointCount,
     }
   }
 
-  async restoreCheckpoint(options?: unknown): Promise<
+  async rollbackCheckpoint(options?: unknown): Promise<
     | {
         state: WebviewEditorState
-        restored: boolean
+        rolledBack: boolean
         checkpointCount: number
       }
     | undefined
@@ -1985,24 +2119,24 @@ export class HexEditorProvider
       return
     }
 
-    const restored = await this.restoreLastCheckpoint(session, true)
+    const rolledBack = await this.rollbackLastCheckpoint(session, true)
     const checkpointCount = await this.getCheckpointCount(session)
     this.postSessionActionComplete(session, {
-      action: 'restoreCheckpoint',
+      action: 'rollbackCheckpoint',
       checkpointCount,
-      cancelled: !restored,
-      message: restored
-        ? vscode.l10n.t('Restored last OmegaEdit checkpoint')
-        : vscode.l10n.t('No OmegaEdit checkpoint to restore'),
+      cancelled: !rolledBack,
+      message: rolledBack
+        ? vscode.l10n.t('Rolled back last OmegaEdit checkpoint')
+        : vscode.l10n.t('No OmegaEdit checkpoint to roll back'),
     })
-    if (restored) {
+    if (rolledBack) {
       void vscode.window.showInformationMessage(
-        vscode.l10n.t('Restored last OmegaEdit checkpoint')
+        vscode.l10n.t('Rolled back last OmegaEdit checkpoint')
       )
     }
     return {
       state: this.buildEditorState(session),
-      restored,
+      rolledBack,
       checkpointCount,
     }
   }
@@ -2528,34 +2662,22 @@ export class HexEditorProvider
         optionsJson
       )
 
-      let contentChanged = response.contentChanged
       if (response.contentChanged) {
-        const canCompareNoOp =
-          response.offset === clampedOffset &&
-          response.length === originalLength &&
-          originalLength <= MAX_TRANSFORM_NOOP_COMPARE_BYTES &&
-          response.replacementLength <= MAX_TRANSFORM_NOOP_COMPARE_BYTES
-        const originalBytes =
-          canCompareNoOp && originalLength > 0
-            ? await getSegment(session.sessionId, clampedOffset, originalLength)
-            : new Uint8Array()
         const replacement =
-          canCompareNoOp && response.replacementLength > 0
+          response.replacementLength > 0 &&
+          response.replacementLength <= MAX_FILE_SPLICE_BYTES
             ? await getSegment(
                 session.sessionId,
                 response.offset,
                 response.replacementLength
               )
             : new Uint8Array()
-        const isNoOpReplace =
-          canCompareNoOp && bytesEqual(originalBytes, replacement)
 
-        if (isNoOpReplace) {
-          await this.waitForSessionSync(session, sessionSyncVersion)
-          const undoSyncVersion = session.sessionSyncVersion
-          await undo(session.sessionId)
-          await this.waitForSessionSync(session, undoSyncVersion)
-          contentChanged = false
+        if (
+          response.replacementLength > MAX_FILE_SPLICE_BYTES &&
+          replacement.byteLength === 0
+        ) {
+          session.history.recordLocalMutation()
         } else {
           session.history.recordLocalChange({
             serial: session.history.getChangeLog().length + 1,
@@ -2567,11 +2689,11 @@ export class HexEditorProvider
                 ? Buffer.from(replacement).toString('hex')
                 : '',
           })
-          this.postEditState(session)
-          this.notifyDocumentChanged(session)
-          await this.waitForSessionSync(session, sessionSyncVersion)
-          this.clearSearchState(session)
         }
+        this.postEditState(session)
+        this.notifyDocumentChanged(session)
+        await this.waitForSessionSync(session, sessionSyncVersion)
+        this.clearSearchState(session)
       }
 
       this.postWebviewMessage(session, {
@@ -2580,13 +2702,22 @@ export class HexEditorProvider
         offset: response.offset,
         length: response.length,
         operation: response.operation,
-        contentChanged,
+        contentChanged: response.contentChanged,
         replacementLength: response.replacementLength,
         computedFileSize: response.computedFileSize,
         resultLabel: response.resultLabel ?? '',
         resultMimeType: response.resultMimeType ?? '',
         resultText: transformResultToText(response.result),
       })
+      if (!response.contentChanged) {
+        const message =
+          response.operation === TransformPluginOperation.INSPECT
+            ? vscode.l10n.t('OmegaEdit calculation completed')
+            : vscode.l10n.t(
+                'OmegaEdit action completed without content changes'
+              )
+        void vscode.window.showInformationMessage(message)
+      }
     } catch (error) {
       failureMessage = error instanceof Error ? error.message : String(error)
       throw error
@@ -2788,9 +2919,25 @@ export class HexEditorProvider
 
   private async createSessionCheckpoint(
     session: EditorSession
-  ): Promise<number> {
+  ): Promise<{ checkpointCount: number; created: boolean }> {
     if (!this.ensureSessionCanMutate(session, true)) {
-      return this.getCheckpointCount(session)
+      return {
+        checkpointCount: await this.getCheckpointCount(session),
+        created: false,
+      }
+    }
+
+    const wasDirty =
+      session.history.getEditState().isDirty || !!session.restoredFromBackup
+    if (!wasDirty) {
+      const checkpointCount = await this.getCheckpointCount(session)
+      this.postTransformStatus(
+        session,
+        false,
+        undefined,
+        vscode.l10n.t('No changes to checkpoint')
+      )
+      return { checkpointCount, created: false }
     }
 
     this.postTransformStatus(
@@ -2801,8 +2948,6 @@ export class HexEditorProvider
     )
     let failureMessage: string | undefined
     try {
-      const wasDirty =
-        session.history.getEditState().isDirty || !!session.restoredFromBackup
       const sessionSyncVersion = session.sessionSyncVersion
       const count = await createCheckpoint(session.sessionId)
       await this.waitForSessionSync(session, sessionSyncVersion)
@@ -2813,7 +2958,7 @@ export class HexEditorProvider
         undefined,
         vscode.l10n.t('Checkpoint created')
       )
-      return count
+      return { checkpointCount: count, created: true }
     } catch (error) {
       failureMessage = error instanceof Error ? error.message : String(error)
       throw error
@@ -2824,7 +2969,7 @@ export class HexEditorProvider
     }
   }
 
-  private async restoreLastCheckpoint(
+  private async rollbackLastCheckpoint(
     session: EditorSession,
     markDirty: boolean
   ): Promise<boolean> {
@@ -2835,7 +2980,7 @@ export class HexEditorProvider
     const checkpointCount = await this.getCheckpointCount(session)
     if (checkpointCount <= 0) {
       void vscode.window.showWarningMessage(
-        vscode.l10n.t('No OmegaEdit checkpoint to restore')
+        vscode.l10n.t('No OmegaEdit checkpoint to roll back')
       )
       return false
     }
@@ -2844,7 +2989,7 @@ export class HexEditorProvider
       session,
       true,
       undefined,
-      vscode.l10n.t('Restoring checkpoint...')
+      vscode.l10n.t('Rolling back checkpoint...')
     )
     let failureMessage: string | undefined
     try {
@@ -3267,86 +3412,111 @@ export class HexEditorProvider
   private async applyChangeLogEntries(
     session: EditorSession,
     changes: ChangeRecord[]
-  ): Promise<void> {
+  ): Promise<number> {
     if (!this.ensureSessionCanMutate(session, true)) {
-      return
+      return 0
+    }
+    if (changes.length === 0) {
+      return 0
     }
 
-    for (const change of changes) {
-      const sessionSyncVersion = session.sessionSyncVersion
-      let shouldWaitForSync = true
-      switch (change.kind) {
-        case 'INSERT': {
-          const serial = await insert(
-            session.sessionId,
-            change.offset,
-            Buffer.from(change.data, 'hex')
-          )
-          session.history.recordLocalChange({
-            serial,
-            kind: 'INSERT',
-            offset: change.offset,
-            length: 0,
-            data: change.data,
-          })
-          this.postEditState(session)
-          this.notifyDocumentChanged(session)
-          break
-        }
-        case 'DELETE': {
-          const serial = await del(
-            session.sessionId,
-            change.offset,
-            change.length
-          )
-          session.history.recordLocalChange({
-            serial,
-            kind: 'DELETE',
-            offset: change.offset,
-            length: change.length,
-            data: '',
-          })
-          this.postEditState(session)
-          this.notifyDocumentChanged(session)
-          break
-        }
-        case 'OVERWRITE': {
-          const buf = Buffer.from(change.data, 'hex')
-          const serial = await overwrite(session.sessionId, change.offset, buf)
-          session.history.recordLocalChange({
-            serial,
-            kind: 'OVERWRITE',
-            offset: change.offset,
-            length: buf.length,
-            data: change.data,
-          })
-          this.postEditState(session)
-          this.notifyDocumentChanged(session)
-          break
-        }
-        case 'REPLACE':
-          shouldWaitForSync = await this.applyReplace(
-            session,
-            change.offset,
-            change.length,
-            change.data,
-            change.groupId
-          )
-          break
+    const sessionSyncVersion = session.sessionSyncVersion
+    const appliedChanges: ChangeRecord[] = []
+    const recordAppliedChanges = async () => {
+      if (appliedChanges.length === 0) {
+        return
       }
-      if (shouldWaitForSync) {
-        await this.waitForSessionSync(session, sessionSyncVersion)
+
+      session.history.recordLocalChanges(appliedChanges)
+      this.postEditState(session)
+      this.notifyDocumentChanged(session)
+      await this.waitForSessionSync(session, sessionSyncVersion)
+      this.clearSearchState(session)
+    }
+
+    try {
+      await runSessionTransaction(session.sessionId, async () => {
+        for (const change of changes) {
+          const appliedChange = await this.applyChangeLogEntry(session, change)
+          if (appliedChange) {
+            appliedChanges.push(appliedChange)
+          }
+        }
+      })
+    } catch (error) {
+      await recordAppliedChanges()
+      throw error
+    }
+
+    await recordAppliedChanges()
+    return appliedChanges.length
+  }
+
+  private async applyChangeLogEntry(
+    session: EditorSession,
+    change: ChangeRecord
+  ): Promise<ChangeRecord | undefined> {
+    switch (change.kind) {
+      case 'INSERT': {
+        const serial = await insert(
+          session.sessionId,
+          change.offset,
+          Buffer.from(change.data, 'hex')
+        )
+        return {
+          serial,
+          kind: 'INSERT',
+          offset: change.offset,
+          length: 0,
+          data: change.data,
+          ...(change.groupId ? { groupId: change.groupId } : {}),
+        }
       }
+      case 'DELETE': {
+        const serial = await del(
+          session.sessionId,
+          change.offset,
+          change.length
+        )
+        return {
+          serial,
+          kind: 'DELETE',
+          offset: change.offset,
+          length: change.length,
+          data: '',
+          ...(change.groupId ? { groupId: change.groupId } : {}),
+        }
+      }
+      case 'OVERWRITE': {
+        const buf = Buffer.from(change.data, 'hex')
+        const serial = await overwrite(session.sessionId, change.offset, buf)
+        return {
+          serial,
+          kind: 'OVERWRITE',
+          offset: change.offset,
+          length: buf.length,
+          data: change.data,
+          ...(change.groupId ? { groupId: change.groupId } : {}),
+        }
+      }
+      case 'REPLACE':
+        return await this.applyReplaceChange(
+          session,
+          change.offset,
+          change.length,
+          change.data,
+          change.groupId
+        )
     }
   }
 
-  private async applyReplace(
+  private async applyReplaceChange(
     session: EditorSession,
     offset: number,
     length: number,
     dataHex: string,
     groupId?: string
-  ): Promise<boolean> {
+  ): Promise<ChangeRecord | undefined> {
     const originalSegment =
       length > 0
         ? await getSegment(session.sessionId, offset, length)
@@ -3359,15 +3529,37 @@ export class HexEditorProvider
       replacementSegment
     )
 
-    if (changeSerial > 0) {
-      session.history.recordLocalChange({
-        serial: changeSerial,
-        kind: 'REPLACE',
-        offset,
-        length,
-        data: dataHex,
-        groupId,
-      })
+    if (changeSerial <= 0) {
+      return undefined
+    }
+
+    return {
+      serial: changeSerial,
+      kind: 'REPLACE',
+      offset,
+      length,
+      data: dataHex,
+      groupId,
+    }
+  }
+
+  private async applyReplace(
+    session: EditorSession,
+    offset: number,
+    length: number,
+    dataHex: string,
+    groupId?: string
+  ): Promise<boolean> {
+    const change = await this.applyReplaceChange(
+      session,
+      offset,
+      length,
+      dataHex,
+      groupId
+    )
+
+    if (change) {
+      session.history.recordLocalChange(change)
       this.postEditState(session)
       this.notifyDocumentChanged(session)
       return true
@@ -3736,8 +3928,8 @@ export class HexEditorProvider
           break
         }
 
-        case 'restoreCheckpoint': {
-          await this.restoreCheckpoint({ uri: session.document.uri })
+        case 'rollbackCheckpoint': {
+          await this.rollbackCheckpoint({ uri: session.document.uri })
           break
         }
 

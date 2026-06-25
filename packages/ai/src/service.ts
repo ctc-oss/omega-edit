@@ -33,6 +33,7 @@ import {
   replace,
   replaceSession as replaceWholeSession,
   resetClient,
+  runSessionTransaction,
   saveSession,
   searchSession,
   startServer,
@@ -65,7 +66,7 @@ import {
   ReadRangeResult,
   ReplaceSessionRequest,
   ReplaceSessionResult,
-  RestoreCheckpointResult,
+  RollbackCheckpointResult,
   SearchRequest,
   SearchResult,
   SessionStatus,
@@ -78,6 +79,7 @@ const MAX_CHANGE_LOG_ENTRY_BYTES = 32 * 1024 * 1024
 const MAX_CHANGE_LOG_BYTES = MAX_CHANGE_LOG_ENTRY_BYTES * 3
 const CHANGE_LOG_FORMAT = 'omega-edit.change-log'
 const CHANGE_LOG_VERSION = 1
+const GRPC_NOT_FOUND = 5
 
 const changeKindNames = new Map<number, string>(
   Object.entries(ChangeKind)
@@ -106,11 +108,18 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 }
 
 function normalizeChangeLogEntries(value: unknown): ChangeLogEntry[] {
-  const entries = Array.isArray(value)
-    ? value
-    : isRecord(value) && Array.isArray(value.changes)
-      ? value.changes
-      : undefined
+  let entries: unknown[] | undefined
+  if (Array.isArray(value)) {
+    entries = value
+  } else if (isRecord(value)) {
+    if (value.format !== CHANGE_LOG_FORMAT) {
+      throw new Error('Unsupported change log format')
+    }
+    if (value.version !== CHANGE_LOG_VERSION) {
+      throw new Error('Unsupported change log version')
+    }
+    entries = Array.isArray(value.changes) ? value.changes : undefined
+  }
 
   if (!entries) {
     throw new Error('Change log must be a JSON array or an object with changes')
@@ -121,7 +130,11 @@ function normalizeChangeLogEntries(value: unknown): ChangeLogEntry[] {
     )
   }
 
-  return entries.map((entry, index) => normalizeChangeLogEntry(entry, index))
+  const normalized = entries.map((entry, index) =>
+    normalizeChangeLogEntry(entry, index)
+  )
+  validateChangeLogMetadata(normalized)
+  return normalized
 }
 
 function normalizeChangeLogEntry(
@@ -167,17 +180,73 @@ function normalizeChangeLogEntry(
     length,
     data: Buffer.from(dataBytes).toString('hex'),
   }
-  if (
-    typeof serial === 'number' &&
-    Number.isSafeInteger(serial) &&
-    serial >= 0
-  ) {
+  if (serial !== undefined) {
+    if (
+      typeof serial !== 'number' ||
+      !Number.isSafeInteger(serial) ||
+      serial <= 0
+    ) {
+      throw new Error(
+        `Change log entry ${index} serial must be a positive safe integer`
+      )
+    }
     normalized.serial = serial
   }
-  if (typeof groupId === 'string' && groupId.trim()) {
+  if (groupId !== undefined) {
+    if (typeof groupId !== 'string' || !groupId.trim()) {
+      throw new Error(`Change log entry ${index} groupId must be a string`)
+    }
     normalized.groupId = groupId.trim()
   }
   return normalized
+}
+
+function validateChangeLogMetadata(entries: ChangeLogEntry[]): void {
+  const serializedEntries = entries.filter(
+    (entry) => entry.serial !== undefined
+  )
+  if (
+    serializedEntries.length > 0 &&
+    serializedEntries.length !== entries.length
+  ) {
+    throw new Error('Change log serial metadata must be present on every entry')
+  }
+
+  for (let index = 0; index < entries.length; index += 1) {
+    const serial = entries[index].serial
+    if (serial !== undefined && serial !== index + 1) {
+      throw new Error(
+        `Change log serial metadata must be contiguous; entry ${index} has serial ${serial}, expected ${
+          index + 1
+        }`
+      )
+    }
+  }
+
+  const closedGroups = new Set<string>()
+  let activeGroup: string | undefined
+  for (const [index, entry] of entries.entries()) {
+    const groupId = entry.groupId
+    if (!groupId) {
+      if (activeGroup) {
+        closedGroups.add(activeGroup)
+        activeGroup = undefined
+      }
+      continue
+    }
+
+    if (groupId !== activeGroup) {
+      if (closedGroups.has(groupId)) {
+        throw new Error(
+          `Change log groupId "${groupId}" is not contiguous at entry ${index}`
+        )
+      }
+      if (activeGroup) {
+        closedGroups.add(activeGroup)
+      }
+      activeGroup = groupId
+    }
+  }
 }
 
 async function readChangeLogFile(inputPath: string): Promise<ChangeLogEntry[]> {
@@ -219,8 +288,18 @@ function changeDetailsToLogEntry(
 }
 
 function isMissingChangeDetailsError(error: unknown): boolean {
-  const message = error instanceof Error ? error.message : String(error)
-  return message.includes('NOT_FOUND') || message.includes('change not found')
+  return hasGrpcStatusCode(error, GRPC_NOT_FOUND)
+}
+
+function hasGrpcStatusCode(error: unknown, code: number): boolean {
+  let current: unknown = error
+  while (isRecord(current)) {
+    if (current.code === code) {
+      return true
+    }
+    current = current.cause
+  }
+  return false
 }
 
 async function collectChangeLogEntries(
@@ -438,20 +517,22 @@ export class OmegaEditToolkit {
     }
   }
 
-  async restoreCheckpoint(sessionId: string): Promise<RestoreCheckpointResult> {
+  async rollbackCheckpoint(
+    sessionId: string
+  ): Promise<RollbackCheckpointResult> {
     await this.ensureServerRunning()
     const existingCount = await this.getCheckpointCount(sessionId)
     if (existingCount <= 0) {
       return {
         sessionId,
-        restored: false,
+        rolledBack: false,
         checkpointCount: 0,
       }
     }
 
     return {
       sessionId,
-      restored: true,
+      rolledBack: true,
       checkpointCount: await destroyClientCheckpoint(sessionId),
     }
   }
@@ -509,22 +590,31 @@ export class OmegaEditToolkit {
 
     await this.ensureServerRunning()
 
-    for (const change of changes) {
-      const data = Buffer.from(change.data, 'hex')
-      switch (change.kind) {
-        case 'INSERT':
-          await insert(request.sessionId, change.offset, data)
-          break
-        case 'DELETE':
-          await del(request.sessionId, change.offset, change.length)
-          break
-        case 'OVERWRITE':
-          await overwrite(request.sessionId, change.offset, data)
-          break
-        case 'REPLACE':
-          await replace(request.sessionId, change.offset, change.length, data)
-          break
-      }
+    if (changes.length > 0) {
+      await runSessionTransaction(request.sessionId, async () => {
+        for (const change of changes) {
+          const data = Buffer.from(change.data, 'hex')
+          switch (change.kind) {
+            case 'INSERT':
+              await insert(request.sessionId, change.offset, data)
+              break
+            case 'DELETE':
+              await del(request.sessionId, change.offset, change.length)
+              break
+            case 'OVERWRITE':
+              await overwrite(request.sessionId, change.offset, data)
+              break
+            case 'REPLACE':
+              await replace(
+                request.sessionId,
+                change.offset,
+                change.length,
+                data
+              )
+              break
+          }
+        }
+      })
     }
 
     return {

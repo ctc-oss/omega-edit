@@ -31,7 +31,7 @@ runs:
   using: "composite"
   steps:
     - name: Checkout
-      uses: actions/checkout@v6
+      uses: actions/checkout@v7
 
     - name: Setup Node.js
       uses: actions/setup-node@v6
@@ -48,7 +48,7 @@ runs:
       uses: lukka/get-cmake@latest
 
     - name: Setup Python
-      uses: actions/setup-python@v5
+      uses: actions/setup-python@v6
       with:
         python-version: '3.12'
 
@@ -97,7 +97,7 @@ runs:
         echo "TARGET_MACOS_ARCH=$macos_arch" >> "$GITHUB_ENV"
 
     - name: Cache Conan packages
-      uses: actions/cache@v4
+      uses: actions/cache@v6
       with:
         path: ~/.conan2
         key: conan-v2-${{ inputs.runner-os }}-${{ runner.arch }}-${{ inputs.os-name }}-${{ inputs.platform }}-${{ hashFiles('server/cpp/conanfile.py', 'plugins/conanfile.py') }}

@@ -539,6 +539,10 @@ namespace {
         return length >= 0 && (length == 0 || bytes != nullptr);
     }
 
+    auto plugin_response_has_no_content_change_(const omega_transform_plugin_response_t &response) -> bool {
+        return (response.flags & OMEGA_TRANSFORM_PLUGIN_RESPONSE_NO_CONTENT_CHANGE) != 0U;
+    }
+
     auto int64_to_size_(int64_t value, size_t &out) -> bool {
         if (value < 0) { return false; }
         if (static_cast<uint64_t>(value) > static_cast<uint64_t>((std::numeric_limits<size_t>::max)())) {
@@ -989,21 +993,36 @@ int omega_transform_plugin_registry_apply_to_session_with_progress(
         omega_transform_plugin_response_clear(&plugin_response);
         return -1;
     }
+    if (plugin_response_has_no_content_change_(plugin_response) &&
+        (plugin_response.replacement_bytes != nullptr || plugin_response.replacement_length != 0)) {
+        release_unclaimed_plugin_allocations_(allocator_state, plugin_response);
+        omega_transform_plugin_response_clear(&plugin_response);
+        return -1;
+    }
 
     if (operation == OMEGA_TRANSFORM_PLUGIN_OPERATION_REPLACE ||
         operation == OMEGA_TRANSFORM_PLUGIN_OPERATION_REPLACE_AND_INSPECT) {
+        const auto no_content_change = plugin_response_has_no_content_change_(plugin_response);
+        if (!no_content_change && requested_length == 0 && plugin_response.replacement_length == 0) {
+            release_unclaimed_plugin_allocations_(allocator_state, plugin_response);
+            omega_transform_plugin_response_clear(&plugin_response);
+            return -1;
+        }
         const auto use_checkpoint =
                 plugin_response.replacement_length > static_cast<int64_t>(OMEGA_MEMORY_BUFFER_LIMIT);
-        const auto rc = use_checkpoint
-                                ? omega_edit_replace_bytes_checkpointed(session_ptr, offset, requested_length,
-                                                                        plugin_response.replacement_bytes,
-                                                                        plugin_response.replacement_length)
-                                : (omega_edit_replace_bytes(session_ptr, offset, requested_length,
-                                                            plugin_response.replacement_bytes,
-                                                            plugin_response.replacement_length) > 0 ||
-                                   (requested_length == 0 && plugin_response.replacement_length == 0)
-                                           ? 0
-                                           : -1);
+        int rc = 0;
+        if (no_content_change) {
+            rc = 0;
+        } else if (use_checkpoint) {
+            rc = omega_edit_replace_bytes_checkpointed(session_ptr, offset, requested_length,
+                                                       plugin_response.replacement_bytes,
+                                                       plugin_response.replacement_length);
+        } else {
+            const auto change_serial = omega_edit_replace_bytes(session_ptr, offset, requested_length,
+                                                                plugin_response.replacement_bytes,
+                                                                plugin_response.replacement_length);
+            rc = change_serial > 0 ? 0 : -1;
+        }
         if (rc != 0) {
             release_unclaimed_plugin_allocations_(allocator_state, plugin_response);
             omega_transform_plugin_response_clear(&plugin_response);

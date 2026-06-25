@@ -1332,14 +1332,14 @@
     postToHost({ type: 'createCheckpoint' })
   }
 
-  function restoreCheckpoint(): void {
+  function rollbackCheckpoint(): void {
     if (transformInFlight) {
       return
     }
 
     transformInFlight = true
-    transformFeedback = strings.transform.restoringCheckpoint
-    postToHost({ type: 'restoreCheckpoint' })
+    transformFeedback = strings.transform.rollingBackCheckpoint
+    postToHost({ type: 'rollbackCheckpoint' })
   }
 
   function exportChangeLog(): void {
@@ -1374,7 +1374,10 @@
         message.replacementLength ?? 0
       )
     }
-    return strings.transform.completed
+    if (message.operation === 2) {
+      return strings.transform.calculationCompleted
+    }
+    return strings.transform.noContentChange
   }
 
   function describeTransformStatus(message: TransformStatusMessage): string {
@@ -1423,28 +1426,6 @@
           message.length,
           message.byteCount
         )
-    }
-  }
-
-  function describeSessionActionComplete(
-    message: SessionActionCompleteMessage
-  ): string {
-    if (message.message) {
-      return message.message
-    }
-    if (message.cancelled) {
-      return strings.transform.fileActionCancelled
-    }
-
-    switch (message.action) {
-      case 'createCheckpoint':
-        return strings.transform.checkpointCreated(message.checkpointCount ?? 0)
-      case 'restoreCheckpoint':
-        return strings.transform.checkpointRestored(message.checkpointCount ?? 0)
-      case 'exportChangeLog':
-        return strings.transform.changeLogExported(message.changeCount ?? 0)
-      case 'applyChangeLog':
-        return strings.transform.changeLogApplied(message.changeCount ?? 0)
     }
   }
 
@@ -2105,7 +2086,9 @@
         break
       case 'fileActionComplete':
         transformInFlight = false
-        transformFeedback = describeFileActionComplete(message)
+        transformFeedback = message.cancelled
+          ? ''
+          : describeFileActionComplete(message)
         if (!message.cancelled) {
           if (message.action === 'insertFile' && message.byteCount > 0) {
             clearSearchResults()
@@ -2126,10 +2109,10 @@
         break
       case 'sessionActionComplete':
         transformInFlight = false
-        transformFeedback = describeSessionActionComplete(message)
+        transformFeedback = ''
         if (
           !message.cancelled &&
-          (message.action === 'restoreCheckpoint' ||
+          (message.action === 'rollbackCheckpoint' ||
             message.action === 'applyChangeLog')
         ) {
           clearSearchResults()
@@ -2241,7 +2224,7 @@
     onReplaceRangeWithFile={replaceRangeWithFile}
     onOpenTransformResult={openTransformResult}
     onCreateCheckpoint={createCheckpoint}
-    onRestoreCheckpoint={restoreCheckpoint}
+    onRollbackCheckpoint={rollbackCheckpoint}
     onExportChangeLog={exportChangeLog}
     onApplyChangeLog={applyChangeLog}
   />

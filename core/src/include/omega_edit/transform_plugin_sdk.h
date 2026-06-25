@@ -89,10 +89,21 @@ static inline int omega_transform_plugin_sdk_report_phase(
     return omega_transform_plugin_sdk_report_progress(request_ptr, &progress);
 }
 
+static inline int omega_transform_plugin_sdk_set_no_content_change(omega_transform_plugin_response_t *response_ptr) {
+    if (!response_ptr) { return -1; }
+    response_ptr->replacement_bytes = NULL;
+    response_ptr->replacement_length = 0;
+    response_ptr->flags |= OMEGA_TRANSFORM_PLUGIN_RESPONSE_NO_CONTENT_CHANGE;
+    return 0;
+}
+
 static inline int omega_transform_plugin_sdk_set_replacement(
         const omega_transform_plugin_request_t *request_ptr, omega_transform_plugin_response_t *response_ptr,
         const omega_byte_t *bytes, int64_t length) {
     if (!request_ptr || !response_ptr || length < 0 || (length > 0 && !bytes)) { return -1; }
+    if (length == 0 && request_ptr->input_length == 0) {
+        return omega_transform_plugin_sdk_set_no_content_change(response_ptr);
+    }
     response_ptr->replacement_length = length;
     if (length == 0) { return 0; }
     response_ptr->replacement_bytes = omega_transform_plugin_sdk_copy_bytes(request_ptr, bytes, length);

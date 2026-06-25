@@ -114,7 +114,7 @@ For an installed package instead of a source checkout, use the Codex MCP format 
 
 ## Transform Plugins
 
-OmegaEdit can discover native transform plugins from `.so`, `.dylib`, and `.dll` files. Plugins can replace a selected range, expand or shrink content, or inspect a range and return a result such as a checksum or hash. The separately packaged examples include bitwise transforms, binary/text codecs, zlib compression, character transcoding, decimal field helpers, record/text escaping, TLV/varint inspectors, and MD5/SHA/BLAKE/CRC/checksum-style inspection. See the [Transform Plugins guide](https://github.com/ctc-oss/omega-edit/wiki/Transform-Plugins) for the ABI, SDK helpers, plugin package layout, server registration options, and exemplar plugins.
+OmegaEdit can discover native transform plugins from `.so`, `.dylib`, and `.dll` files. Plugins can replace a selected range, expand or shrink content, or inspect a range and return a result such as a checksum or hash. The separately packaged examples include bitwise transforms, ASCII case changes, binary/text codecs, zlib compression, character transcoding, decimal field helpers, record/text escaping, TLV/varint inspectors, and MD5/SHA/BLAKE/CRC/checksum-style inspection. See the [Transform Plugins guide](https://github.com/ctc-oss/omega-edit/wiki/Transform-Plugins) for the ABI, SDK helpers, plugin package layout, server registration options, and exemplar plugins.
 
 ## User documentation
 

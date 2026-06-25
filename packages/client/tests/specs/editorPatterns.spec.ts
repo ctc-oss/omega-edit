@@ -136,6 +136,137 @@ describe('Editor Patterns', () => {
     })
   })
 
+  it('should keep untracked local mutations out of the change log', async () => {
+    const history = new EditorHistoryController()
+    const calls: string[] = []
+    const executor = {
+      async undoLocal() {
+        calls.push('undoLocal')
+      },
+      async redoLocal() {
+        calls.push('redoLocal')
+      },
+      async undoCheckpoint() {
+        calls.push('undoCheckpoint')
+      },
+      async redoCheckpoint() {
+        calls.push('redoCheckpoint')
+      },
+    }
+
+    history.recordLocalChange({
+      serial: 1,
+      kind: 'INSERT',
+      offset: 0,
+      length: 0,
+      data: '41',
+    })
+    history.recordLocalMutation()
+
+    expect(history.getChangeLog()).to.deep.equal([
+      {
+        serial: 1,
+        kind: 'INSERT',
+        offset: 0,
+        length: 0,
+        data: '41',
+      },
+    ])
+    expect(history.getEditState()).to.deep.include({
+      canUndo: true,
+      canRedo: false,
+      undoCount: 2,
+      redoCount: 0,
+    })
+
+    await history.undo(executor)
+    expect(calls).to.deep.equal(['undoLocal'])
+    expect(history.getChangeLog()).to.have.length(1)
+    expect(history.getEditState()).to.deep.include({
+      canUndo: true,
+      canRedo: true,
+      undoCount: 1,
+      redoCount: 1,
+    })
+
+    await history.redo(executor)
+    expect(calls).to.deep.equal(['undoLocal', 'redoLocal'])
+    expect(history.getChangeLog()).to.have.length(1)
+    expect(history.getEditState()).to.deep.include({
+      canUndo: true,
+      canRedo: false,
+      undoCount: 2,
+      redoCount: 0,
+    })
+  })
+
+  it('should undo multi-record local transactions as a single unit', async () => {
+    const history = new EditorHistoryController()
+    const calls: string[] = []
+    const executor = {
+      async undoLocal() {
+        calls.push('undoLocal')
+      },
+      async redoLocal() {
+        calls.push('redoLocal')
+      },
+      async undoCheckpoint() {
+        calls.push('undoCheckpoint')
+      },
+      async redoCheckpoint() {
+        calls.push('redoCheckpoint')
+      },
+    }
+    const entries = [
+      {
+        serial: 1,
+        kind: 'INSERT' as const,
+        offset: 0,
+        length: 0,
+        data: '41',
+        groupId: 'import-a',
+      },
+      {
+        serial: 2,
+        kind: 'OVERWRITE' as const,
+        offset: 4,
+        length: 1,
+        data: '42',
+        groupId: 'import-b',
+      },
+    ]
+
+    history.recordLocalChanges(entries)
+
+    expect(history.getEditState()).to.deep.include({
+      canUndo: true,
+      canRedo: false,
+      undoCount: 1,
+      redoCount: 0,
+    })
+    expect(history.getChangeLog()).to.deep.equal(entries)
+
+    await history.undo(executor)
+    expect(calls).to.deep.equal(['undoLocal'])
+    expect(history.getEditState()).to.deep.include({
+      canUndo: false,
+      canRedo: true,
+      undoCount: 0,
+      redoCount: 1,
+    })
+    expect(history.getChangeLog()).to.deep.equal([])
+
+    await history.redo(executor)
+    expect(calls).to.deep.equal(['undoLocal', 'redoLocal'])
+    expect(history.getChangeLog()).to.deep.equal(entries)
+    expect(history.getEditState()).to.deep.include({
+      canUndo: true,
+      canRedo: false,
+      undoCount: 1,
+      redoCount: 0,
+    })
+  })
+
   it('should preserve large-search mode until the next explicit search and choose bounded vs checkpointed replace-all on demand', async () => {
     const searchCalls: Array<{
       offset: number

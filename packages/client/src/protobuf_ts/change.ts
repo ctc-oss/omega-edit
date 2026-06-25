@@ -29,6 +29,7 @@ import {
 } from './generated/omega_edit/v1/omega_edit'
 import { debugLog, getLogger } from '../logger'
 import { getClient } from '../client'
+import { makeWrappedError } from './utils'
 
 export const ChangeKind = {
   UNSPECIFIED: ProtoChangeKind.UNSPECIFIED,
@@ -373,7 +374,7 @@ export async function getChangeDetails(
             stack: err.stack,
           },
         })
-        return reject(new Error('getChangeDetails failed: ' + err))
+        return reject(makeWrappedError('getChangeDetails', err))
       }
 
       if (!response) {

@@ -1757,6 +1757,8 @@ grpc::Status EditorServiceImpl::ApplyTransformPlugin(
     }
     const auto remaining = file_size_before - offset;
     const auto effective_length = (length == 0 || length > remaining) ? remaining : length;
+    const auto change_count_before = omega_session_get_num_changes(session);
+    const auto checkpoint_count_before = omega_session_get_num_checkpoints(session);
 
     omega_transform_plugin_operation_t operation = OMEGA_TRANSFORM_PLUGIN_OPERATION_INSPECT;
     const std::string operation_id = next_transform_operation_id();
@@ -1826,14 +1828,19 @@ grpc::Status EditorServiceImpl::ApplyTransformPlugin(
 
     const bool operation_replaces = operation == OMEGA_TRANSFORM_PLUGIN_OPERATION_REPLACE ||
                                     operation == OMEGA_TRANSFORM_PLUGIN_OPERATION_REPLACE_AND_INSPECT;
+    const auto change_count_after = omega_session_get_num_changes(session);
+    const auto checkpoint_count_after = omega_session_get_num_checkpoints(session);
+    const auto computed_file_size_after = omega_session_get_computed_file_size(session);
     response->set_session_id(request->session_id());
     response->set_plugin_id(request->plugin_id());
     response->set_offset(offset);
     response->set_length(effective_length);
     response->set_operation(to_proto_transform_plugin_operation(operation));
     response->set_content_changed(operation_replaces &&
-                                  (effective_length > 0 || plugin_response.response.replacement_length > 0));
-    response->set_computed_file_size(omega_session_get_computed_file_size(session));
+                                  (change_count_after != change_count_before ||
+                                   checkpoint_count_after != checkpoint_count_before ||
+                                   computed_file_size_after != file_size_before));
+    response->set_computed_file_size(computed_file_size_after);
     response->set_replacement_length(plugin_response.response.replacement_length);
     if (plugin_response.response.result_label) {
         response->set_result_label(plugin_response.response.result_label);

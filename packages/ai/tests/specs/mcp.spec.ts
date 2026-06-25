@@ -144,8 +144,8 @@ describe('@omega-edit/ai mcp server', function () {
         'expected omega_edit_create_checkpoint in tool list'
       )
       assert.ok(
-        tools.some((tool) => tool.name === 'omega_edit_restore_checkpoint'),
-        'expected omega_edit_restore_checkpoint in tool list'
+        tools.some((tool) => tool.name === 'omega_edit_rollback_checkpoint'),
+        'expected omega_edit_rollback_checkpoint in tool list'
       )
       assert.ok(
         tools.some((tool) => tool.name === 'omega_edit_export_change_log'),
