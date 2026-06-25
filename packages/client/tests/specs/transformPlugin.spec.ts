@@ -211,7 +211,6 @@ describe('Transform plugin gRPC integration', () => {
         )
       } finally {
         if (transactionOpen) {
-          transactionOpen = false
           await endSessionTransaction(sessionId)
         }
       }
