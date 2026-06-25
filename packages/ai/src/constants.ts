@@ -1,5 +1,4 @@
-export const DEFAULT_HOST = '127.0.0.1'
-export const DEFAULT_PORT = 9000
+export { DEFAULT_HOST, DEFAULT_PORT } from '@omega-edit/client'
 export const DEFAULT_PROTOCOL_VERSION = '2025-11-25'
 export const TOOLING_VERSION = process.env.npm_package_version || '1.0.1'
 

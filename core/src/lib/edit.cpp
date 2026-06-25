@@ -68,6 +68,7 @@ using omega_edit::internal::valid_nonnegative_range_;
 
 namespace {
     constexpr int64_t OMEGA_IO_BUFFER_SIZE = 65536;
+    constexpr int OMEGA_OUTPUT_PATH_SUFFIX_ATTEMPTS = 1000000;
 
     inline int64_t next_change_serial_(const omega_session_t *session_ptr) {
         const auto change_count = omega_session_get_num_changes(session_ptr);
@@ -186,7 +187,7 @@ namespace {
             return nullptr;
         }
 
-        for (int suffix = 1; suffix < 1000; ++suffix) {
+        for (int suffix = 1; suffix < OMEGA_OUTPUT_PATH_SUFFIX_ATTEMPTS; ++suffix) {
             const auto count = dirname[0] != '\0'
                                ? snprintf(reserved_path, reserved_path_size, "%s%c%s-%d%s",
                                           dirname, omega_util_directory_separator(), basename, suffix, extension)

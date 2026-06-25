@@ -1,8 +1,9 @@
 #!/usr/bin/env node
 
 import { parseArgs } from 'node:util'
-import { OmegaEditToolkit } from './service'
 import { parseInputData } from './codec'
+import { DEFAULT_HOST, DEFAULT_PORT } from './constants'
+import { OmegaEditToolkit } from './service'
 import { InputEncoding, PatchKind } from './types'
 
 type CommandResult = object
@@ -51,8 +52,8 @@ function usage(): string {
     '  export-range --session <id> --offset <n> --length <n> --output <path> [--overwrite]',
     '',
     'Common options:',
-    '  --host <host>          OmegaEdit server host (default 127.0.0.1)',
-    '  --port <port>          OmegaEdit server port (default 9000)',
+    `  --host <host>          OmegaEdit server host (default ${DEFAULT_HOST})`,
+    `  --port <port>          OmegaEdit server port (default ${DEFAULT_PORT})`,
     '  --no-autostart         Refuse to auto-start OmegaEdit when not already running',
   ].join('\n')
 }

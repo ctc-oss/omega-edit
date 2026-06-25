@@ -13,9 +13,15 @@
     | 'exportRange'
     | 'insertFile'
     | 'replaceRangeWithFile'
+  type SessionActionId =
+    | 'createCheckpoint'
+    | 'rollbackCheckpoint'
+    | 'exportChangeLog'
+    | 'applyChangeLog'
 
   const TRANSFORM_ACTION_PREFIX = 'transform:'
   const FILE_ACTION_PREFIX = 'file:'
+  const SESSION_ACTION_PREFIX = 'session:'
 
   interface TransformOptionChoice {
     label: string
@@ -80,6 +86,10 @@
     onInsertFile: (offset: number) => void
     onReplaceRangeWithFile: (offset: number, length: number) => void
     onOpenTransformResult: (resultId: string) => void
+    onCreateCheckpoint: () => void
+    onRollbackCheckpoint: () => void
+    onExportChangeLog: () => void
+    onApplyChangeLog: () => void
   }
 
   interface TransformResultHistoryItem {
@@ -120,6 +130,10 @@
     onInsertFile,
     onReplaceRangeWithFile,
     onOpenTransformResult,
+    onCreateCheckpoint,
+    onRollbackCheckpoint,
+    onExportChangeLog,
+    onApplyChangeLog,
   }: Props = $props()
 
   let selectedPluginId = $state('')
@@ -189,7 +203,7 @@
   )
   const latestResult = $derived(results[0])
   const resultHistorySummary = $derived(
-    statusMessage || latestResult?.summary || strings.transform.resultHistoryLabel
+    latestResult?.summary || strings.transform.resultHistoryLabel
   )
 
   $effect(() => {
@@ -387,6 +401,10 @@
     return `${FILE_ACTION_PREFIX}${action}`
   }
 
+  function sessionActionValue(action: SessionActionId): string {
+    return `${SESSION_ACTION_PREFIX}${action}`
+  }
+
   function parseFileActionValue(value: string): FileSpliceActionId | undefined {
     if (!value.startsWith(FILE_ACTION_PREFIX)) {
       return undefined
@@ -395,6 +413,19 @@
     return action === 'exportRange' ||
       action === 'insertFile' ||
       action === 'replaceRangeWithFile'
+      ? action
+      : undefined
+  }
+
+  function parseSessionActionValue(value: string): SessionActionId | undefined {
+    if (!value.startsWith(SESSION_ACTION_PREFIX)) {
+      return undefined
+    }
+    const action = value.slice(SESSION_ACTION_PREFIX.length)
+    return action === 'createCheckpoint' ||
+      action === 'rollbackCheckpoint' ||
+      action === 'exportChangeLog' ||
+      action === 'applyChangeLog'
       ? action
       : undefined
   }
@@ -1090,9 +1121,34 @@
     applyButton?.focus()
   }
 
+  function runSessionAction(action: SessionActionId): void {
+    selectedPluginId = ''
+    selectedFileAction = ''
+    dialogOpen = false
+    switch (action) {
+      case 'createCheckpoint':
+        onCreateCheckpoint()
+        break
+      case 'rollbackCheckpoint':
+        onRollbackCheckpoint()
+        break
+      case 'exportChangeLog':
+        onExportChangeLog()
+        break
+      case 'applyChangeLog':
+        onApplyChangeLog()
+        break
+    }
+  }
+
   function handleSelectChange(event: Event): void {
     const select = event.currentTarget
     if (!(select instanceof HTMLSelectElement)) {
+      return
+    }
+    const sessionAction = parseSessionActionValue(select.value)
+    if (sessionAction) {
+      runSessionAction(sessionAction)
       return
     }
     const fileAction = parseFileActionValue(select.value)
@@ -1218,6 +1274,20 @@
     onchange={handleSelectChange}
   >
     <option value="">{strings.transform.choose}</option>
+    <optgroup label={strings.transform.sessionGroup}>
+      <option value={sessionActionValue('createCheckpoint')}>
+        {strings.transform.createCheckpoint}
+      </option>
+      <option value={sessionActionValue('rollbackCheckpoint')}>
+        {strings.transform.rollbackCheckpoint}
+      </option>
+      <option value={sessionActionValue('exportChangeLog')}>
+        {strings.transform.exportChangeLog}
+      </option>
+      <option value={sessionActionValue('applyChangeLog')}>
+        {strings.transform.applyChangeLog}
+      </option>
+    </optgroup>
     <optgroup label={strings.transform.fileSplicingGroup}>
       <option
         value={fileActionValue('exportRange')}

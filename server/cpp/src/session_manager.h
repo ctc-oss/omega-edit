@@ -161,13 +161,19 @@ struct SessionEventSubscriptionInfo {
     int32_t interest;
 };
 
+/// Viewport event subscription state
+struct ViewportEventSubscriptionInfo {
+    std::shared_ptr<EventQueue<ViewportEventData>> event_queue;
+    int32_t interest;
+};
+
 /// Information about a viewport managed by the session manager
 struct ViewportInfo {
     omega_viewport_t *viewport{};
     std::string session_id;
     std::string viewport_id;
-    std::shared_ptr<EventQueue<ViewportEventData>> event_queue;
-    int32_t event_interest;
+    std::mutex viewport_subscription_mutex;
+    std::vector<ViewportEventSubscriptionInfo> viewport_subscriptions;
 };
 
 /// Information about a session managed by the session manager
@@ -303,10 +309,11 @@ public:
     void unsubscribe_session_events(const std::string &session_id);
     void unsubscribe_session_events(const std::string &session_id,
                                     const std::shared_ptr<EventQueue<SessionEventData>> &queue);
-    std::shared_ptr<EventQueue<ViewportEventData>> subscribe_viewport_events(const std::string &session_id,
-                                                                              const std::string &viewport_id,
-                                                                              int32_t interest);
+    std::shared_ptr<EventQueue<ViewportEventData>>
+    subscribe_viewport_events(const std::string &session_id, const std::string &viewport_id, int32_t interest);
     void unsubscribe_viewport_events(const std::string &session_id, const std::string &viewport_id);
+    void unsubscribe_viewport_events(const std::string &session_id, const std::string &viewport_id,
+                                     const std::shared_ptr<EventQueue<ViewportEventData>> &queue);
 
     // Session activity tracking
     void touch_session(const std::string &session_id);

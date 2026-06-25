@@ -20,25 +20,6 @@
   "categories": [
     "Other"
   ],
-  "activationEvents": [
-    "onCustomEditor:omegaEdit.hexEditor",
-    "onCommand:omegaEdit.openInHexEditor",
-    "onCommand:omegaEdit.goToOffset",
-    "onCommand:omegaEdit.searchNext",
-    "onCommand:omegaEdit.searchPrevious",
-    "onCommand:omegaEdit.undo",
-    "onCommand:omegaEdit.redo",
-    "onCommand:omegaEdit.toggleInsertDirection",
-    "onCommand:omegaEdit.refreshTransformPlugins",
-    "onCommand:omegaEdit.exportChangeLog",
-    "onCommand:omegaEdit.applyChangeLog",
-    "onCommand:omegaEdit.rollbackSession",
-    "onCommand:omegaEdit.rollbackCheckpoint",
-    "onCommand:omegaEdit.createCheckpoint",
-    "onCommand:omegaEdit.getEditorState",
-    "onCommand:omegaEdit.setExternalHighlights",
-    "onCommand:omegaEdit.clearExternalHighlights"
-  ],
   "main": "./out/extension.js",
   "types": "./out/api.d.ts",
   "contributes": {

@@ -53,25 +53,7 @@ test('package.json matches shared extension constants', () => {
   )
   assert.equal(packageJson.displayName, '%omegaEdit.displayName%')
   assert.equal(packageNls['omegaEdit.displayName'], 'Ωedit™ Data Editor')
-  assert.deepEqual(packageJson.activationEvents, [
-    `onCustomEditor:${OMEGA_EDIT_VIEW_TYPE}`,
-    `onCommand:${OMEGA_EDIT_OPEN_IN_HEX_EDITOR_COMMAND}`,
-    `onCommand:${OMEGA_EDIT_GO_TO_OFFSET_COMMAND}`,
-    `onCommand:${OMEGA_EDIT_SEARCH_NEXT_COMMAND}`,
-    `onCommand:${OMEGA_EDIT_SEARCH_PREVIOUS_COMMAND}`,
-    `onCommand:${OMEGA_EDIT_UNDO_COMMAND}`,
-    `onCommand:${OMEGA_EDIT_REDO_COMMAND}`,
-    `onCommand:${OMEGA_EDIT_TOGGLE_INSERT_DIRECTION_COMMAND}`,
-    `onCommand:${OMEGA_EDIT_REFRESH_TRANSFORM_PLUGINS_COMMAND}`,
-    `onCommand:${OMEGA_EDIT_EXPORT_CHANGE_LOG_COMMAND}`,
-    `onCommand:${OMEGA_EDIT_APPLY_CHANGE_LOG_COMMAND}`,
-    `onCommand:${OMEGA_EDIT_ROLLBACK_SESSION_COMMAND}`,
-    `onCommand:${OMEGA_EDIT_ROLLBACK_CHECKPOINT_COMMAND}`,
-    `onCommand:${OMEGA_EDIT_CREATE_CHECKPOINT_COMMAND}`,
-    `onCommand:${OMEGA_EDIT_GET_EDITOR_STATE_COMMAND}`,
-    `onCommand:${OMEGA_EDIT_SET_EXTERNAL_HIGHLIGHTS_COMMAND}`,
-    `onCommand:${OMEGA_EDIT_CLEAR_EXTERNAL_HIGHLIGHTS_COMMAND}`,
-  ])
+  assert.equal(Object.hasOwn(packageJson, 'activationEvents'), false)
   assert.equal(
     packageJson.contributes.customEditors[0].viewType,
     OMEGA_EDIT_VIEW_TYPE
@@ -493,6 +475,7 @@ test('compiled extension entrypoints exist after build', () => {
   assert.match(providerJs, /countCharacters/)
   assert.match(providerJs, /listTransformPlugins/)
   assert.match(providerJs, /applyTransformPlugin/)
+  assert.match(providerJs, /formatTransformCompletionMessage/)
   assert.match(providerJs, /omegaEdit\.hexEditorActive/)
   assert.match(providerJs, /omegaEdit\.canUndo/)
   assert.match(providerJs, /omegaEdit\.canRedo/)
@@ -1123,6 +1106,14 @@ test('compiled extension entrypoints exist after build', () => {
   assert.match(transformPanelSource, /class="transform-raw-options"/)
   assert.match(transformPanelSource, /<optgroup label=\{group\.label\}>/)
   assert.match(transformPanelSource, /class="transform-result-history"/)
+  assert.match(
+    transformPanelSource,
+    /latestResult\?\.summary \|\| strings\.transform\.resultHistoryLabel/
+  )
+  assert.doesNotMatch(
+    transformPanelSource,
+    /statusMessage \|\| latestResult\?\.summary/
+  )
   assert.match(transformPanelSource, /onOpenTransformResult/)
   assert.match(transformPanelSource, /class="help-example"/)
   assert.match(transformPanelSource, /JSON\.parse\(rawOptionsJson\)/)

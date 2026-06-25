@@ -94,7 +94,6 @@ button:focus-visible {
 }
 
 .toolbar-group,
-.session-actions,
 .segmented {
   display: flex;
   align-items: center;
@@ -109,15 +108,6 @@ button:focus-visible {
 .toolbar-group {
   flex: 1 1 auto;
   justify-content: flex-end;
-}
-
-.session-actions {
-  flex: 0 1 auto;
-}
-
-.session-actions button {
-  min-width: 0;
-  white-space: nowrap;
 }
 
 .top-panels {
@@ -206,6 +196,21 @@ button:focus-visible {
 }
 
 .direction-toggle.backward {
+  color: var(--vscode-button-foreground);
+  background: var(--vscode-button-background);
+  border-color: var(--vscode-focusBorder);
+}
+
+.toolbar-toggle {
+  flex: 0 0 auto;
+  min-width: 42px;
+  color: var(--vscode-descriptionForeground);
+  background: var(--vscode-input-background);
+  border-color: var(--vscode-input-border, var(--vscode-editorGroup-border));
+  white-space: nowrap;
+}
+
+.toolbar-toggle.active {
   color: var(--vscode-button-foreground);
   background: var(--vscode-button-background);
   border-color: var(--vscode-focusBorder);
@@ -442,6 +447,8 @@ button:focus-visible {
 .transform-result-history-menu button.active {
   color: var(--vscode-list-activeSelectionForeground, var(--vscode-foreground));
   background: var(--vscode-list-activeSelectionBackground);
+  border-color: var(--vscode-editorCursor-foreground);
+  box-shadow: inset 0 0 0 1px var(--vscode-editorCursor-foreground);
 }
 
 .transform-result-history-name,

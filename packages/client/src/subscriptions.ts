@@ -143,14 +143,19 @@ async function subscribeToEvents<TEvent extends SubscribableEvent>(
     : await options.subscribeWithClient(request)
 
   let cancelled = false
+  let eventTask = Promise.resolve()
 
   stream.on('data', (event: TEvent) => {
     if (cancelled) {
       return
     }
 
-    void Promise.resolve()
-      .then(async () => await options.onEvent(event))
+    eventTask = eventTask
+      .then(async () => {
+        if (!cancelled) {
+          await options.onEvent(event)
+        }
+      })
       .catch(async (error) => {
         await invokeSubscriptionErrorHandler(
           options.onError,
@@ -222,14 +227,11 @@ export async function manageSessionViewportSubscriptions(
   })
 
   const applyViewportId = async (viewportId: string): Promise<void> => {
-    activeViewportId = viewportId
-    viewportSubscription?.cancel()
-    viewportSubscription = undefined
-
     if (cancelled) {
       return
     }
 
+    const previousViewportSubscription = viewportSubscription
     const nextViewportSubscription = await subscribeViewportEvents({
       viewportId,
       interest: options.viewportInterest,
@@ -238,12 +240,14 @@ export async function manageSessionViewportSubscriptions(
       subscribe: options.subscribeViewport,
     })
 
-    if (cancelled || activeViewportId !== viewportId) {
+    if (cancelled) {
       nextViewportSubscription.cancel()
       return
     }
 
     viewportSubscription = nextViewportSubscription
+    activeViewportId = viewportId
+    previousViewportSubscription?.cancel()
   }
 
   const queueViewportUpdate = async (viewportId: string): Promise<void> => {

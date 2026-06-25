@@ -29,7 +29,7 @@ import {
 } from './generated/omega_edit/v1/omega_edit'
 import { debugLog, getLogger } from '../logger'
 import { getClient } from '../client'
-import { makeWrappedError } from './utils'
+import { callUnary, makeWrappedError } from './utils'
 
 export const ChangeKind = {
   UNSPECIFIED: ProtoChangeKind.UNSPECIFIED,
@@ -90,7 +90,7 @@ async function submitChange(
   const client = await getClient()
 
   return new Promise<number>((resolve, reject) => {
-    client.submitChange(request, (err, response) => {
+    callUnary(client, client.submitChange, request, (err, response) => {
       if (err) {
         if (stats) {
           ++stats.error_count
@@ -204,7 +204,7 @@ export async function undo(
   const client = await getClient()
 
   return new Promise<number>((resolve, reject) => {
-    client.undoLastChange(request, (err, response) => {
+    callUnary(client, client.undoLastChange, request, (err, response) => {
       if (err) {
         if (stats) {
           ++stats.error_count
@@ -258,7 +258,7 @@ export async function redo(
   const client = await getClient()
 
   return new Promise<number>((resolve, reject) => {
-    client.redoLastUndo(request, (err, response) => {
+    callUnary(client, client.redoLastUndo, request, (err, response) => {
       if (err) {
         if (stats) {
           ++stats.error_count
@@ -312,7 +312,7 @@ export async function clear(
   const client = await getClient()
 
   return new Promise<string>((resolve, reject) => {
-    client.clearChanges(request, (err, response) => {
+    callUnary(client, client.clearChanges, request, (err, response) => {
       if (err) {
         if (stats) {
           ++stats.error_count
@@ -363,7 +363,7 @@ export async function getChangeDetails(
   const client = await getClient()
 
   return new Promise<GetChangeDetailsResponse>((resolve, reject) => {
-    client.getChangeDetails(request, (err, response) => {
+    callUnary(client, client.getChangeDetails, request, (err, response) => {
       if (err) {
         log.error({
           fn: 'protobufTs.getChangeDetails',
@@ -399,7 +399,7 @@ export async function getLastChange(
   const client = await getClient()
 
   return new Promise<GetLastChangeResponse>((resolve, reject) => {
-    client.getLastChange(request, (err, response) => {
+    callUnary(client, client.getLastChange, request, (err, response) => {
       if (err) {
         log.error({
           fn: 'protobufTs.getLastChange',
@@ -435,7 +435,7 @@ export async function getLastUndo(
   const client = await getClient()
 
   return new Promise<GetLastUndoResponse>((resolve, reject) => {
-    client.getLastUndo(request, (err, response) => {
+    callUnary(client, client.getLastUndo, request, (err, response) => {
       if (err) {
         log.error({
           fn: 'protobufTs.getLastUndo',
@@ -472,7 +472,7 @@ export async function getChangeCount(sessionId: string): Promise<number> {
   const client = await getClient()
 
   return new Promise<number>((resolve, reject) => {
-    client.getCount(request, (err, response) => {
+    callUnary(client, client.getCount, request, (err, response) => {
       if (err) {
         log.error({
           fn: 'protobufTs.getChangeCount',
@@ -509,7 +509,7 @@ export async function getUndoCount(sessionId: string): Promise<number> {
   const client = await getClient()
 
   return new Promise<number>((resolve, reject) => {
-    client.getCount(request, (err, response) => {
+    callUnary(client, client.getCount, request, (err, response) => {
       if (err) {
         log.error({
           fn: 'protobufTs.getUndoCount',
@@ -551,7 +551,7 @@ export async function getChangeTransactionCount(
   const client = await getClient()
 
   return new Promise<number>((resolve, reject) => {
-    client.getCount(request, (err, response) => {
+    callUnary(client, client.getCount, request, (err, response) => {
       if (err) {
         log.error({
           fn: 'protobufTs.getChangeTransactionCount',
@@ -595,7 +595,7 @@ export async function getUndoTransactionCount(
   const client = await getClient()
 
   return new Promise<number>((resolve, reject) => {
-    client.getCount(request, (err, response) => {
+    callUnary(client, client.getCount, request, (err, response) => {
       if (err) {
         log.error({
           fn: 'protobufTs.getUndoTransactionCount',

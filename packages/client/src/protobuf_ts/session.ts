@@ -51,6 +51,7 @@ import { getClient } from '../client'
 import {
   getSingleId,
   getUnsubscribeTimeoutMs,
+  callUnary,
   makeWrappedError,
   requireResponse,
 } from './utils'
@@ -75,7 +76,7 @@ export async function createSession(
   const client = await getClient()
 
   return new Promise<CreateSessionResponse>((resolve, reject) => {
-    client.createSession(request, (err, response) => {
+    callUnary(client, client.createSession, request, (err, response) => {
       if (err) {
         log.error({
           fn: 'protobufTs.createSession',
@@ -111,7 +112,7 @@ export async function destroySession(sessionId: string): Promise<string> {
   const client = await getClient()
 
   return new Promise<string>((resolve, reject) => {
-    client.destroySession(request, (err, response) => {
+    callUnary(client, client.destroySession, request, (err, response) => {
       if (err) {
         log.error({
           fn: 'protobufTs.destroySession',
@@ -152,7 +153,7 @@ export async function createCheckpoint(
   const client = await getClient()
 
   return new Promise<CreateCheckpointResponse>((resolve, reject) => {
-    client.createCheckpoint(request, (err, response) => {
+    callUnary(client, client.createCheckpoint, request, (err, response) => {
       if (err) {
         log.error({
           fn: 'protobufTs.createCheckpoint',
@@ -196,35 +197,40 @@ export async function destroyLastCheckpoint(
   const client = await getClient()
 
   return new Promise<DestroyLastCheckpointResponse>((resolve, reject) => {
-    client.destroyLastCheckpoint(request, (err, response) => {
-      if (err) {
-        log.error({
-          fn: 'protobufTs.destroyLastCheckpoint',
-          rqst: request,
-          err: {
-            msg: err.message,
-            details: err.details,
-            code: err.code,
-            stack: err.stack,
-          },
-        })
-        return reject(makeWrappedError('destroyLastCheckpoint', err))
-      }
+    callUnary(
+      client,
+      client.destroyLastCheckpoint,
+      request,
+      (err, response) => {
+        if (err) {
+          log.error({
+            fn: 'protobufTs.destroyLastCheckpoint',
+            rqst: request,
+            err: {
+              msg: err.message,
+              details: err.details,
+              code: err.code,
+              stack: err.stack,
+            },
+          })
+          return reject(makeWrappedError('destroyLastCheckpoint', err))
+        }
 
-      try {
-        const required = requireResponse(
-          response as DestroyLastCheckpointResponse | undefined,
-          'destroyLastCheckpoint'
-        )
-        debugLog(log, () => ({
-          fn: 'protobufTs.destroyLastCheckpoint',
-          resp: required,
-        }))
-        return resolve(required)
-      } catch (error) {
-        return reject(makeWrappedError('destroyLastCheckpoint', error))
+        try {
+          const required = requireResponse(
+            response as DestroyLastCheckpointResponse | undefined,
+            'destroyLastCheckpoint'
+          )
+          debugLog(log, () => ({
+            fn: 'protobufTs.destroyLastCheckpoint',
+            resp: required,
+          }))
+          return resolve(required)
+        } catch (error) {
+          return reject(makeWrappedError('destroyLastCheckpoint', error))
+        }
       }
-    })
+    )
   })
 }
 
@@ -248,7 +254,7 @@ export async function saveSession(
   const client = await getClient()
 
   return new Promise<SaveSessionResponse>((resolve, reject) => {
-    client.saveSession(request, (err, response) => {
+    callUnary(client, client.saveSession, request, (err, response) => {
       if (err) {
         log.error({
           fn: 'protobufTs.saveSession',
@@ -284,7 +290,7 @@ export async function getComputedFileSize(sessionId: string): Promise<number> {
   const client = await getClient()
 
   return new Promise<number>((resolve, reject) => {
-    client.getComputedFileSize(request, (err, response) => {
+    callUnary(client, client.getComputedFileSize, request, (err, response) => {
       if (err) {
         log.error({
           fn: 'protobufTs.getComputedFileSize',
@@ -329,7 +335,7 @@ export async function getCounts(
   const client = await getClient()
 
   return new Promise<SingleCount[]>((resolve, reject) => {
-    client.getCount(request, (err, response) => {
+    callUnary(client, client.getCount, request, (err, response) => {
       if (err) {
         log.error({
           fn: 'protobufTs.getCounts',
@@ -368,7 +374,7 @@ export async function pauseSessionChanges(sessionId: string): Promise<string> {
   const client = await getClient()
 
   return new Promise<string>((resolve, reject) => {
-    client.pauseSessionChanges(request, (err, response) => {
+    callUnary(client, client.pauseSessionChanges, request, (err, response) => {
       if (err) {
         log.error({
           fn: 'protobufTs.pauseSessionChanges',
@@ -409,32 +415,37 @@ export async function beginSessionTransaction(
   const client = await getClient()
 
   return new Promise<string>((resolve, reject) => {
-    client.sessionBeginTransaction(request, (err, response) => {
-      if (err) {
-        log.error({
-          fn: 'protobufTs.beginSessionTransaction',
-          rqst: request,
-          err: {
-            msg: err.message,
-            details: err.details,
-            code: err.code,
-            stack: err.stack,
-          },
-        })
-        return reject(makeWrappedError('beginSessionTransaction', err))
-      }
+    callUnary(
+      client,
+      client.sessionBeginTransaction,
+      request,
+      (err, response) => {
+        if (err) {
+          log.error({
+            fn: 'protobufTs.beginSessionTransaction',
+            rqst: request,
+            err: {
+              msg: err.message,
+              details: err.details,
+              code: err.code,
+              stack: err.stack,
+            },
+          })
+          return reject(makeWrappedError('beginSessionTransaction', err))
+        }
 
-      try {
-        const id = getSingleId(response, 'beginSessionTransaction')
-        debugLog(log, () => ({
-          fn: 'protobufTs.beginSessionTransaction',
-          resp: response,
-        }))
-        return resolve(id)
-      } catch (error) {
-        return reject(makeWrappedError('beginSessionTransaction', error))
+        try {
+          const id = getSingleId(response, 'beginSessionTransaction')
+          debugLog(log, () => ({
+            fn: 'protobufTs.beginSessionTransaction',
+            resp: response,
+          }))
+          return resolve(id)
+        } catch (error) {
+          return reject(makeWrappedError('beginSessionTransaction', error))
+        }
       }
-    })
+    )
   })
 }
 
@@ -450,32 +461,37 @@ export async function endSessionTransaction(
   const client = await getClient()
 
   return new Promise<string>((resolve, reject) => {
-    client.sessionEndTransaction(request, (err, response) => {
-      if (err) {
-        log.error({
-          fn: 'protobufTs.endSessionTransaction',
-          rqst: request,
-          err: {
-            msg: err.message,
-            details: err.details,
-            code: err.code,
-            stack: err.stack,
-          },
-        })
-        return reject(makeWrappedError('endSessionTransaction', err))
-      }
+    callUnary(
+      client,
+      client.sessionEndTransaction,
+      request,
+      (err, response) => {
+        if (err) {
+          log.error({
+            fn: 'protobufTs.endSessionTransaction',
+            rqst: request,
+            err: {
+              msg: err.message,
+              details: err.details,
+              code: err.code,
+              stack: err.stack,
+            },
+          })
+          return reject(makeWrappedError('endSessionTransaction', err))
+        }
 
-      try {
-        const id = getSingleId(response, 'endSessionTransaction')
-        debugLog(log, () => ({
-          fn: 'protobufTs.endSessionTransaction',
-          resp: response,
-        }))
-        return resolve(id)
-      } catch (error) {
-        return reject(makeWrappedError('endSessionTransaction', error))
+        try {
+          const id = getSingleId(response, 'endSessionTransaction')
+          debugLog(log, () => ({
+            fn: 'protobufTs.endSessionTransaction',
+            resp: response,
+          }))
+          return resolve(id)
+        } catch (error) {
+          return reject(makeWrappedError('endSessionTransaction', error))
+        }
       }
-    })
+    )
   })
 }
 
@@ -489,7 +505,7 @@ export async function resumeSessionChanges(sessionId: string): Promise<string> {
   const client = await getClient()
 
   return new Promise<string>((resolve, reject) => {
-    client.resumeSessionChanges(request, (err, response) => {
+    callUnary(client, client.resumeSessionChanges, request, (err, response) => {
       if (err) {
         log.error({
           fn: 'protobufTs.resumeSessionChanges',
@@ -548,32 +564,37 @@ export async function unsubscribeSession(sessionId: string): Promise<string> {
       reject(reason)
     }
 
-    const call = client.unsubscribeToSessionEvents(request, (err, response) => {
-      if (err) {
-        log.error({
-          fn: 'protobufTs.unsubscribeSession',
-          rqst: request,
-          err: {
-            msg: err.message,
-            details: err.details,
-            code: err.code,
-            stack: err.stack,
-          },
-        })
-        return settleReject(makeWrappedError('unsubscribeSession', err))
-      }
+    const call = callUnary(
+      client,
+      client.unsubscribeToSessionEvents,
+      request,
+      (err, response) => {
+        if (err) {
+          log.error({
+            fn: 'protobufTs.unsubscribeSession',
+            rqst: request,
+            err: {
+              msg: err.message,
+              details: err.details,
+              code: err.code,
+              stack: err.stack,
+            },
+          })
+          return settleReject(makeWrappedError('unsubscribeSession', err))
+        }
 
-      try {
-        const id = getSingleId(response, 'unsubscribeSession')
-        debugLog(log, () => ({
-          fn: 'protobufTs.unsubscribeSession',
-          resp: response,
-        }))
-        return settleResolve(id)
-      } catch (error) {
-        return settleReject(makeWrappedError('unsubscribeSession', error))
+        try {
+          const id = getSingleId(response, 'unsubscribeSession')
+          debugLog(log, () => ({
+            fn: 'protobufTs.unsubscribeSession',
+            resp: response,
+          }))
+          return settleResolve(id)
+        } catch (error) {
+          return settleReject(makeWrappedError('unsubscribeSession', error))
+        }
       }
-    })
+    )
 
     call.on('error', (err) => {
       if (!err.message.includes('Call cancelled')) {
@@ -599,7 +620,7 @@ export async function getSegment(
   const client = await getClient()
 
   return new Promise<Uint8Array>((resolve, reject) => {
-    client.getSegment(request, (err, response) => {
+    callUnary(client, client.getSegment, request, (err, response) => {
       if (err) {
         log.error({
           fn: 'protobufTs.getSegment',
@@ -677,35 +698,40 @@ export async function notifyChangedViewports(
   const client = await getClient()
 
   return new Promise<number>((resolve, reject) => {
-    client.notifyChangedViewports(request, (err, response) => {
-      if (err) {
-        log.error({
-          fn: 'protobufTs.notifyChangedViewports',
-          rqst: request,
-          err: {
-            msg: err.message,
-            details: err.details,
-            code: err.code,
-            stack: err.stack,
-          },
-        })
-        return reject(makeWrappedError('notifyChangedViewports', err))
-      }
+    callUnary(
+      client,
+      client.notifyChangedViewports,
+      request,
+      (err, response) => {
+        if (err) {
+          log.error({
+            fn: 'protobufTs.notifyChangedViewports',
+            rqst: request,
+            err: {
+              msg: err.message,
+              details: err.details,
+              code: err.code,
+              stack: err.stack,
+            },
+          })
+          return reject(makeWrappedError('notifyChangedViewports', err))
+        }
 
-      try {
-        const required = requireResponse(
-          response as NotifyChangedViewportsResponse | undefined,
-          'notifyChangedViewports'
-        )
-        debugLog(log, () => ({
-          fn: 'protobufTs.notifyChangedViewports',
-          resp: required,
-        }))
-        return resolve(required.count)
-      } catch (error) {
-        return reject(makeWrappedError('notifyChangedViewports', error))
+        try {
+          const required = requireResponse(
+            response as NotifyChangedViewportsResponse | undefined,
+            'notifyChangedViewports'
+          )
+          debugLog(log, () => ({
+            fn: 'protobufTs.notifyChangedViewports',
+            resp: required,
+          }))
+          return resolve(required.count)
+        } catch (error) {
+          return reject(makeWrappedError('notifyChangedViewports', error))
+        }
       }
-    })
+    )
   })
 }
 
@@ -768,7 +794,7 @@ export async function applyTransformPlugin(
   const client = await getClient()
 
   return new Promise<ApplyTransformPluginResponse>((resolve, reject) => {
-    client.applyTransformPlugin(request, (err, response) => {
+    callUnary(client, client.applyTransformPlugin, request, (err, response) => {
       if (err) {
         log.error({
           fn: 'protobufTs.applyTransformPlugin',
@@ -815,35 +841,40 @@ export async function profileSession(
   const client = await getClient()
 
   return new Promise<number[]>((resolve, reject) => {
-    client.getByteFrequencyProfile(request, (err, response) => {
-      if (err) {
-        log.error({
-          fn: 'protobufTs.profileSession',
-          rqst: request,
-          err: {
-            msg: err.message,
-            details: err.details,
-            code: err.code,
-            stack: err.stack,
-          },
-        })
-        return reject(makeWrappedError('profileSession', err))
-      }
+    callUnary(
+      client,
+      client.getByteFrequencyProfile,
+      request,
+      (err, response) => {
+        if (err) {
+          log.error({
+            fn: 'protobufTs.profileSession',
+            rqst: request,
+            err: {
+              msg: err.message,
+              details: err.details,
+              code: err.code,
+              stack: err.stack,
+            },
+          })
+          return reject(makeWrappedError('profileSession', err))
+        }
 
-      try {
-        const required = requireResponse(
-          response as GetByteFrequencyProfileResponse | undefined,
-          'profileSession'
-        )
-        debugLog(log, () => ({
-          fn: 'protobufTs.profileSession',
-          resp: required,
-        }))
-        return resolve(required.frequency)
-      } catch (error) {
-        return reject(makeWrappedError('profileSession', error))
+        try {
+          const required = requireResponse(
+            response as GetByteFrequencyProfileResponse | undefined,
+            'profileSession'
+          )
+          debugLog(log, () => ({
+            fn: 'protobufTs.profileSession',
+            resp: required,
+          }))
+          return resolve(required.frequency)
+        } catch (error) {
+          return reject(makeWrappedError('profileSession', error))
+        }
       }
-    })
+    )
   })
 }
 
@@ -864,7 +895,7 @@ export async function getByteOrderMark(
   const client = await getClient()
 
   return new Promise<GetByteOrderMarkResponse>((resolve, reject) => {
-    client.getByteOrderMark(request, (err, response) => {
+    callUnary(client, client.getByteOrderMark, request, (err, response) => {
       if (err) {
         log.error({
           fn: 'protobufTs.getByteOrderMark',
@@ -911,7 +942,7 @@ export async function getContentType(
   const client = await getClient()
 
   return new Promise<GetContentTypeResponse>((resolve, reject) => {
-    client.getContentType(request, (err, response) => {
+    callUnary(client, client.getContentType, request, (err, response) => {
       if (err) {
         log.error({
           fn: 'protobufTs.getContentType',
@@ -960,7 +991,7 @@ export async function getLanguage(
   const client = await getClient()
 
   return new Promise<GetLanguageResponse>((resolve, reject) => {
-    client.getLanguage(request, (err, response) => {
+    callUnary(client, client.getLanguage, request, (err, response) => {
       if (err) {
         log.error({
           fn: 'protobufTs.getLanguage',
@@ -1009,7 +1040,7 @@ export async function countCharacters(
   const client = await getClient()
 
   return new Promise<GetCharacterCountsResponse>((resolve, reject) => {
-    client.getCharacterCounts(request, (err, response) => {
+    callUnary(client, client.getCharacterCounts, request, (err, response) => {
       if (err) {
         log.error({
           fn: 'protobufTs.countCharacters',
@@ -1075,7 +1106,7 @@ export async function searchSession(
   const client = await getClient()
 
   return new Promise<number[]>((resolve, reject) => {
-    client.searchSession(request, (err, response) => {
+    callUnary(client, client.searchSession, request, (err, response) => {
       if (err) {
         log.error({
           fn: 'protobufTs.searchSession',
@@ -1154,35 +1185,40 @@ export async function replaceSessionCheckpointed(
   const client = await getClient()
 
   return new Promise<ReplaceSessionCheckpointedResponse>((resolve, reject) => {
-    client.replaceSessionCheckpointed(request, (err, response) => {
-      if (err) {
-        log.error({
-          fn: 'protobufTs.replaceSessionCheckpointed',
-          rqst: request,
-          err: {
-            msg: err.message,
-            details: err.details,
-            code: err.code,
-            stack: err.stack,
-          },
-        })
-        return reject(makeWrappedError('replaceSessionCheckpointed', err))
-      }
+    callUnary(
+      client,
+      client.replaceSessionCheckpointed,
+      request,
+      (err, response) => {
+        if (err) {
+          log.error({
+            fn: 'protobufTs.replaceSessionCheckpointed',
+            rqst: request,
+            err: {
+              msg: err.message,
+              details: err.details,
+              code: err.code,
+              stack: err.stack,
+            },
+          })
+          return reject(makeWrappedError('replaceSessionCheckpointed', err))
+        }
 
-      try {
-        const required = requireResponse(
-          response as ReplaceSessionCheckpointedResponse | undefined,
-          'replaceSessionCheckpointed'
-        )
-        debugLog(log, () => ({
-          fn: 'protobufTs.replaceSessionCheckpointed',
-          resp: required,
-        }))
-        return resolve(required)
-      } catch (error) {
-        return reject(makeWrappedError('replaceSessionCheckpointed', error))
+        try {
+          const required = requireResponse(
+            response as ReplaceSessionCheckpointedResponse | undefined,
+            'replaceSessionCheckpointed'
+          )
+          debugLog(log, () => ({
+            fn: 'protobufTs.replaceSessionCheckpointed',
+            resp: required,
+          }))
+          return resolve(required)
+        } catch (error) {
+          return reject(makeWrappedError('replaceSessionCheckpointed', error))
+        }
       }
-    })
+    )
   })
 }
 
@@ -1248,7 +1284,7 @@ export async function replaceSession(
   const client = await getClient()
 
   return new Promise<ReplaceSessionResponse>((resolve, reject) => {
-    client.replaceSession(request, (err, response) => {
+    callUnary(client, client.replaceSession, request, (err, response) => {
       if (err) {
         log.error({
           fn: 'protobufTs.replaceSession',

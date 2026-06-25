@@ -27,6 +27,7 @@ const clientPackage =
 const {
   SessionEvent,
   ViewportEvent,
+  manageSessionViewportSubscriptions,
   subscribeSessionEvents,
   subscribeViewportEvents,
 } = clientPackage
@@ -43,6 +44,20 @@ class FakeReadableStream<TEvent> extends EventEmitter {
 
 function flushAsyncCallbacks(): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, 0))
+}
+
+function deferred(): {
+  promise: Promise<void>
+  resolve(): void
+} {
+  let resolvePromise: () => void = () => {}
+  const promise = new Promise<void>((resolve) => {
+    resolvePromise = resolve
+  })
+  return {
+    promise,
+    resolve: resolvePromise,
+  }
 }
 
 describe('Managed Subscriptions', () => {
@@ -133,6 +148,101 @@ describe('Managed Subscriptions', () => {
     await flushAsyncCallbacks()
 
     expect(errors).to.deep.equal(['handler failed', 'viewport stream failed'])
+  })
+
+  it('should deliver event callbacks sequentially', async () => {
+    const stream = new FakeReadableStream<InstanceType<typeof SessionEvent>>()
+    const releaseFirstEvent = deferred()
+    const order: string[] = []
+
+    await subscribeSessionEvents({
+      sessionId: 'session-id',
+      onEvent: async (event) => {
+        const serial = event.getSerial()
+        order.push(`start-${serial}`)
+        if (serial === 1) {
+          await releaseFirstEvent.promise
+        }
+        order.push(`done-${serial}`)
+      },
+      subscribe: async () => stream,
+    })
+
+    stream.emit(
+      'data',
+      new SessionEvent({
+        sessionId: 'session-id',
+        sessionEventKind: 2,
+        computedFileSize: 10,
+        changeCount: 1,
+        undoCount: 0,
+        serial: 1,
+      })
+    )
+    stream.emit(
+      'data',
+      new SessionEvent({
+        sessionId: 'session-id',
+        sessionEventKind: 2,
+        computedFileSize: 10,
+        changeCount: 2,
+        undoCount: 0,
+        serial: 2,
+      })
+    )
+    await flushAsyncCallbacks()
+
+    expect(order).to.deep.equal(['start-1'])
+
+    releaseFirstEvent.resolve()
+    await flushAsyncCallbacks()
+
+    expect(order).to.deep.equal(['start-1', 'done-1', 'start-2', 'done-2'])
+  })
+
+  it('should keep the active viewport subscription when replacement subscribe fails', async () => {
+    const sessionStream = new FakeReadableStream<
+      InstanceType<typeof SessionEvent>
+    >()
+    const originalViewportStream = new FakeReadableStream<
+      InstanceType<typeof ViewportEvent>
+    >()
+    const viewportRequests: string[] = []
+
+    const manager = await manageSessionViewportSubscriptions({
+      sessionId: 'session-id',
+      viewportId: 'viewport-original',
+      onSessionEvent: () => {},
+      onViewportEvent: () => {},
+      subscribeSession: async () => sessionStream,
+      subscribeViewport: async (request) => {
+        const viewportId = request.getId()
+        viewportRequests.push(viewportId)
+        if (viewportId === 'viewport-original') {
+          return originalViewportStream
+        }
+        throw new Error('replacement subscribe failed')
+      },
+    })
+
+    let caughtError: Error | undefined
+    try {
+      await manager.setViewportId('viewport-next')
+    } catch (error) {
+      caughtError = error as Error
+    }
+
+    expect(caughtError?.message).to.equal('replacement subscribe failed')
+    expect(viewportRequests).to.deep.equal([
+      'viewport-original',
+      'viewport-next',
+    ])
+    expect(originalViewportStream.cancelCount).to.equal(0)
+
+    manager.cancel()
+
+    expect(originalViewportStream.cancelCount).to.equal(1)
+    expect(sessionStream.cancelCount).to.equal(1)
   })
 
   it('should ignore late data events after cancellation', async () => {

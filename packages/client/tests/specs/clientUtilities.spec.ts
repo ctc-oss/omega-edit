@@ -41,6 +41,8 @@ const grpcClientModule = require('../../dist/cjs/omega_edit_grpc_pb.js') as {
 }
 const {
   delay,
+  DEFAULT_HOST,
+  DEFAULT_PORT,
   findFirstAvailablePort,
   pidIsRunning,
   resetClient,
@@ -78,6 +80,11 @@ describe('Client Utilities', () => {
     } else {
       process.env.OMEGA_EDIT_SERVER_SOCKET = originalServerSocket
     }
+  })
+
+  it('should export shared default server connection constants', () => {
+    expect(DEFAULT_HOST).to.equal('127.0.0.1')
+    expect(DEFAULT_PORT).to.equal(9000)
   })
 
   const removeDirWithRetry = async (dirPath: string) => {

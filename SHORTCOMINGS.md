@@ -1,13 +1,15 @@
 # OmegaEdit — Shortcomings, Bugs, Gaps & Missed Opportunities
 
 Living backlog of issues found while reviewing the `codex/checkpoint-change-log-actions`
-work and the surrounding transform / change-log / checkpoint code. Grouped by theme,
-roughly prioritized within each group. File:line references point at the offending code.
+work, the follow-up audit, and the surrounding transform / change-log / checkpoint code.
+Grouped by theme, roughly prioritized within each group. File:line references point at the
+offending code.
 
 Status notes:
 - `Fixed` means the current `codex/fix-transform-content-changed` branch addresses the
   item directly.
 - `Partially fixed` means the branch reduces the risk but leaves a larger design gap.
+- `New` means the item is validated against the current tree but has not been addressed.
 
 ---
 
@@ -128,8 +130,9 @@ This is the reported bug. Root causes are spread across all three layers.
     (`showInformationMessage`) instead of (or in addition to) the inline strip.
     Note the host already fires a toast for some actions, so the two paths are inconsistent:
     some actions toast + strip, some strip-only. Pick one rule and apply it uniformly.
-    **Status: Fixed.** Session action completions now rely on host toasts and no longer
-    populate the transform/results feedback strip.
+    **Status: Fixed.** Session action completions now rely on host toasts and no longer
+    populate the transform/results feedback strip; the Recent Transform Results control is
+    result-history only and no longer borrows transient status text.
 
 14. **Inconsistent "rollback" vs "restore" vocabulary across the codebase.**
     The checkpoint path previously mixed rollback and restore vocabulary for closely-related
@@ -247,3 +250,253 @@ This is the reported bug. Root causes are spread across all three layers.
 - **G5 — Transactional `applyChangeLog`** (begin/end transaction or checkpoint-guarded) for atomicity.
 - **G6 — gRPC status-code based error handling.** **Status: Fixed.** Missing change-detail
   handling now follows preserved gRPC status codes instead of message text.
+
+---
+
+## H. Concurrency / lock ordering
+
+28. **Session event subscription lock order can deadlock against core callbacks.**
+    `server/cpp/src/session_manager.cpp:417-460` builds session event notifications while
+    taking `session_subscription_mutex`. Core mutations call into the session event callback
+    while the handler already holds `core_mutex` through `lock_session`, so that path is
+    effectively `core_mutex -> session_subscription_mutex`. Subscription management takes the
+    reverse order: `subscribe_session_events` takes `session_subscription_mutex` and then
+    `core_mutex` to update event interest (`session_manager.cpp:963-982`), and the targeted
+    unsubscribe path does the same (`session_manager.cpp:1011-1034`). A concurrent edit event
+    plus subscribe/unsubscribe can therefore park each thread on the other's lock. The session
+    event path needs one consistent lock order, or the core event-interest update needs to be
+    split so subscription bookkeeping is never held while acquiring `core_mutex`.
+    **Status: New.**
+
+29. **Transform progress publishing relies on an implicit core lock.**
+    `server/cpp/src/session_manager.cpp:777-816` reads `omega_session_get_computed_file_size`,
+    `omega_session_get_num_changes`, and `omega_session_get_num_undone_changes` from
+    `info->session` without taking `core_mutex`. Today `ApplyTransformPlugin` calls it while a
+    `LockedSession` is alive (`editor_service.cpp:1742-1865`), but the method is exposed on
+    `SessionManager` with no contract enforcing that precondition. A future caller could race
+    session mutation or destruction and make progress reporting touch the non-thread-safe core
+    session outside its guard.
+    **Status: New.**
+
+---
+
+## I. Session / subscription lifecycle
+
+30. **Managed checkpoint root can be left behind on per-session directory creation failure.**
+    `create_managed_checkpoint_directory` creates and stores `managed_server_root_`, then creates
+    a per-session checkpoint directory under it (`session_manager.cpp:361-395`). If the server
+    root succeeds but the per-session directory creation fails, `create_session` erases the
+    pending session and returns (`session_manager.cpp:580-586`) without calling
+    `cleanup_managed_server_root_if_empty`. That can strand an empty managed root until a later
+    cleanup pass or process exit.
+    **Status: Fixed.** Session creation now attempts managed-root cleanup after erasing the
+    pending session when per-session checkpoint directory creation fails.
+
+31. **Viewport recreation drops the old subscription before the new one is confirmed.**
+    `packages/client/src/subscriptions.ts:224-247` cancels the current viewport subscription
+    before `subscribeViewportEvents` for the replacement viewport has succeeded. The caller
+    already documents the consequence in `editor_scoped_session.ts:232-242`: if
+    `setViewportId` fails, the newly-created viewport is destroyed, but the old viewport stream
+    has already been cancelled and the editor is left without active viewport events until
+    another recreation succeeds. The handoff should keep the old subscription live until the new
+    stream is confirmed.
+    **Status: Fixed.** Client viewport subscription handoff now keeps the active stream alive
+    until the replacement stream subscribes successfully.
+
+32. **Explicit viewport unsubscribe clears but does not close the active queue.**
+    `SessionManager::unsubscribe_viewport_events` clears the viewport event queue and disables
+    core interest, but leaves the queue open (`session_manager.cpp:1060-1075`). The streaming RPC
+    only exits when the client context is cancelled or the queue closes
+    (`editor_service.cpp:2071-2116`), while the explicit `UnsubscribeToViewportEvents` RPC just
+    calls that clear-only path (`editor_service.cpp:2127-2135`). A client that uses explicit
+    unsubscribe while a stream is still open can leave the old stream blocked, and a later
+    resubscribe reuses the same queue so multiple readers can compete for events.
+    **Status: Fixed.** Viewport event streams now use per-subscription queues; explicit
+    unsubscribe closes active viewport queues, while stream cleanup removes only the queue for
+    that stream.
+
+33. **Subscription callbacks have no backpressure or sequential delivery contract.**
+    `packages/client/src/subscriptions.ts:147-161` schedules every incoming event handler through
+    a detached promise. Errors are routed to `onError`, so they are not silently swallowed, but
+    async `onEvent` work is not awaited before the next event is dispatched. Callers that do
+    asynchronous model or UI work can observe overlapping callbacks and out-of-order completion
+    even though the underlying stream delivered events in order.
+    **Status: Fixed.** Subscription event callbacks now run through a per-stream promise chain,
+    preserving delivery order and avoiding overlapping async handler execution.
+
+---
+
+## J. Validation / configuration hygiene
+
+34. **Caller-provided IDs and paths are only minimally validated.**
+    Desired session IDs and viewport IDs are accepted so long as they do not contain the `:`
+    separator (`session_manager.cpp:552-563`, `session_manager.cpp:848-866`), and most other
+    RPCs accept `session_id` strings directly for map lookups and error messages. The client
+    wrappers also pass `filePath`, `sessionIdDesired`, and `checkpointDirectory` through with no
+    shared maximum length, NUL-character, printable/opaque-ID, or log-safe policy. Generated IDs
+    are bounded, but caller-supplied IDs and paths can still be excessively large or log-hostile,
+    and tightening creation-time validation would contain that shape for all later operations.
+    **Status: New.**
+
+35. **Default server host/port constants are duplicated across packages.**
+    `packages/client/src/server.ts:47-48`, `packages/client/src/protobuf_ts/client.ts:36-37`,
+    and `packages/ai/src/constants.ts:1-2` each define `127.0.0.1:9000` independently. A future
+    default change can silently diverge between the legacy client, protobuf-ts client, and AI
+    tooling unless the defaults move to one shared source.
+    **Status: Fixed.** Default server host/port values now live in the shared client constants
+    module; the legacy client, protobuf-ts client, and AI tooling consume that single source.
+
+36. **Change-log JSON import is byte-bounded but not structure-bounded.**
+    `packages/ai/src/service.ts:254-268` caps change-log file size and entry count, then parses
+    the full file with `JSON.parse` before validating shape. A deeply nested but byte-small JSON
+    document can still spend parser/normalizer CPU or trip runtime recursion limits before the
+    normal entry caps are enforced. A streaming parser, nesting-depth guard, or pre-parse
+    structural limit would make the import boundary less fragile.
+    **Status: Fixed.** Change-log file imports now reject JSON nesting deeper than the supported
+    limit before calling `JSON.parse`.
+
+37. **Unary protobuf-ts RPCs have connection readiness deadlines but no per-call deadlines.**
+    `packages/client/src/protobuf_ts/client.ts:70-84` applies a 10-second deadline to
+    `waitForReady`, but the individual unary wrappers in `protobuf_ts/session.ts`,
+    `protobuf_ts/change.ts`, and `protobuf_ts/viewport.ts` call methods such as `saveSession`,
+    `replaceSession`, and `getSegment` without per-call gRPC deadlines or cancellation handles.
+    Once a client is considered ready, a hung server-side unary can keep the returned promise
+    pending indefinitely.
+    **Status: Fixed.** Hand-written protobuf-ts unary wrappers now pass a default deadline, with
+    `OMEGA_EDIT_UNARY_RPC_TIMEOUT_MS=0` available to disable it when needed.
+
+---
+
+## K. Core memory / lifetime correctness
+
+38. **`omega_data_t` ownership is external and implicitly copyable.**
+    `core/src/lib/impl_/data_def.hpp:31-34` defines `omega_data_t` as a trivially copyable union
+    whose active storage is inferred from a separate length/capacity value stored in the owning
+    `omega_change_t` or `omega_segment_t`. Accidental value copies of `omega_change_t`,
+    `omega_segment_t`, or the union itself duplicate the raw pointer without duplicating ownership
+    state, while destruction is manual through `omega_data_destroy_`. The current code avoids many
+    obvious copies, but the type does not make ownership or non-copyability explicit, leaving a
+    latent double-free/aliasing trap for future maintenance.
+    **Status: New.**
+
+39. **Reverse change visitors leak their iterator allocation.**
+    `core/src/lib/visit.cpp:77-84` allocates `change_iter.riter_ptr` for reverse iteration, but
+    `omega_visit_change_destroy_context` deletes only `change_iter.iter_ptr`
+    (`core/src/lib/visit.cpp:132-137`). A reverse visit context therefore leaks one
+    `omega_changes_t::const_reverse_iterator` each time it is destroyed.
+    **Status: Fixed.** Reverse visit contexts now delete `riter_ptr`; forward contexts continue
+    deleting `iter_ptr`.
+
+40. **Internal change destruction casts away const ownership.**
+    Change history is stored as `std::shared_ptr<const omega_change_t>`, but cleanup paths in
+    `core/src/lib/edit.cpp:588-599` use `const_cast` to call `omega_data_destroy_` on change data.
+    The implementation currently creates non-const heap objects before storing them as const
+    shared pointers, so this works by convention, but the type system advertises immutable changes
+    while destruction still mutates their internals. Internal ownership should stay mutable or move
+    byte ownership into a self-destroying RAII member.
+    **Status: New.**
+
+41. **C API allocation failures can escape through C entry points inconsistently.**
+    `omega_data_create_` throws `std::bad_array_new_length` for unrepresentable capacities
+    (`core/src/lib/impl_/data_def.hpp:45-48`) and other paths allocate with throwing `new[]`.
+    Some entry points, such as `omega_segment_create`, catch allocation failures and return
+    `nullptr`, while edit/change creation helpers in `core/src/lib/edit.cpp` do not consistently
+    translate allocation exceptions into C-style error returns. The public C API should not rely
+    on C++ exceptions escaping safely across callers.
+    **Status: New.**
+
+42. **`omega_session_get_file_path` returns an internal string pointer without a lifetime contract.**
+    `core/src/lib/session.cpp:105` returns `models_.back()->file_path.c_str()` directly. The
+    header says only that callers receive the file path, not that the pointer is borrowed and can
+    be invalidated by later session mutation, save/checkpoint model changes, or session
+    destruction. Either the documentation needs a clear borrowed-pointer lifetime note or the API
+    should return caller-owned storage.
+    **Status: Fixed.** The public header now documents the returned path as a session-owned
+    borrowed pointer with mutation/destruction lifetime limits.
+
+---
+
+## L. Transform plugin hardening / performance
+
+43. **Plugin option regex validation recompiles unbounded patterns.**
+    `core/src/lib/transform.cpp:503-508` reads a `pattern` string from a plugin argument schema
+    and constructs `std::regex(pattern_text)` during each validation. There is no pattern length
+    cap, compiled-regex cache, or timeout/backtracking guard. A plugin schema with a pathological
+    pattern can make option validation unexpectedly expensive, and repeated transforms pay the
+    regex compilation cost every time.
+    **Status: Partially fixed.** Schema regex validation now rejects oversized patterns and caches
+    compiled regex objects across validation calls; interruptible evaluation/backtracking limits
+    remain open.
+
+44. **File-backed plugin allocation tracking is process-global.**
+    Large plugin allocations are tracked through the process-wide
+    `g_file_backed_allocations` map and `g_file_backed_allocations_mutex`
+    (`core/src/lib/transform.cpp:659-661`). This serializes allocation bookkeeping across all
+    sessions and plugins, so unrelated transforms on different sessions still contend on one
+    global lock. Per-operation or per-registry ownership would reduce contention and make cleanup
+    boundaries clearer.
+    **Status: New.**
+
+---
+
+## M. API design / portability
+
+45. **Event interest masks use signed integers and `ALL_EVENTS (~0)`.**
+    `core/src/include/omega_edit/fwd_defs.h:64-67` defines `ALL_EVENTS` as `~0`, while session
+    and viewport interest APIs store masks in `int32_t`. The current event values fit below the
+    sign bit, but the all-events sentinel relies on signed representation and differs from the
+    TypeScript `ALL_EVENTS = ~NO_EVENTS` expression's 32-bit JavaScript behavior. A `uint32_t`
+    mask or explicit all-events constant would make the ABI clearer.
+    **Status: New.**
+
+46. **Edit APIs mix serial-returning and status-code-returning conventions.**
+    Core mutators such as `omega_edit_insert`, `omega_edit_delete`, and `omega_edit_replace`
+    return a positive change serial on success, `0` for no-op/rejected-without-error cases, and
+    `-1` for invalid arguments. Batch/checkpoint helpers such as
+    `omega_edit_replace_bytes_checkpointed`, `omega_edit_apply_script`, and
+    `omega_edit_replace_all_bytes` return `0` on success and non-zero on failure. Callers cannot
+    use one success predicate across editing APIs, and mistakes can invert success handling.
+    **Status: New.**
+
+47. **C-string and byte edit APIs encode different length semantics.**
+    The C-string helpers infer a length with `strlen` when the length argument is zero, while the
+    `_bytes` variants treat length zero as an explicit no-op. The current header documents the
+    difference, but the overload-like API shape remains easy to misuse for buffers that may contain
+    embedded NUL bytes or for callers expecting zero length to mean the same thing everywhere.
+    **Status: New.**
+
+48. **Search/replace and viewport APIs rely on long positional argument lists and `int` booleans.**
+    `omega_edit_replace_matches` / `omega_edit_replace_matches_bytes` take a long sequence of
+    positional range, matching, ordering, output-count, and mode arguments, while viewport creation
+    and modification use `int is_floating` rather than a boolean or options struct. These signatures
+    are hard to read at call sites and make argument swaps or non-boolean values easy to miss.
+    **Status: New.**
+
+49. **Viewport dirty state is encoded as a negative capacity sentinel.**
+    `core/src/lib/viewport.cpp:117` negates `data_segment.capacity` to mark viewport data dirty,
+    and `omega_viewport_get_capacity` hides that by returning `std::abs(...)`. This couples a
+    state flag to a conceptually non-negative size field and requires every data-segment user to
+    remember the convention. A separate dirty flag would be more type-safe and less surprising.
+    **Status: New.**
+
+50. **Output path collision handling stops after 999 suffixes.**
+    `core/src/lib/edit.cpp:189-206` and `core/src/lib/filesystem.cpp:313-321` try numeric suffixes
+    only from 1 through 999 before returning `EEXIST`/`nullptr`. Busy output directories or stale
+    temp/checkpoint files can exhaust that small namespace even though a timestamp, UUID, or wider
+    suffix range would still produce a valid path.
+    **Status: Fixed.** Output and available-filename helpers now search a much wider suffix range
+    before reporting collision exhaustion.
+
+---
+
+## N. Build / dependency hygiene
+
+51. **Deprecated or aging generator dependencies remain in the workspace.**
+    Root `package.json` still carries `@types/glob` even though modern `glob` ships its own types,
+    and `packages/client/package.json` still depends on `grpc-tools` for protobuf generation while
+    the runtime stack has otherwise moved to `@grpc/grpc-js`/protobuf-ts. These are not immediate
+    runtime bugs, but they keep extra native tooling and deprecated type packages in the install
+    surface.
+    **Status: Fixed.** Removed the direct root `@types/glob` dependency/resolution and moved
+    protobuf generation from `grpc-tools` to the pinned `@protobuf-ts/protoc` compiler used with
+    `@protobuf-ts/plugin`.

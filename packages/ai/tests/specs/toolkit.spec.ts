@@ -34,6 +34,7 @@ describe('@omega-edit/ai toolkit', function () {
     const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'omega-edit-ai-'))
     const invalidFormatPath = path.join(tempDir, 'invalid-format.json')
     const invalidVersionPath = path.join(tempDir, 'invalid-version.json')
+    const deeplyNestedPath = path.join(tempDir, 'deeply-nested.json')
 
     try {
       await fs.promises.writeFile(
@@ -51,6 +52,10 @@ describe('@omega-edit/ai toolkit', function () {
           version: 2,
           changes: [],
         })
+      )
+      await fs.promises.writeFile(
+        deeplyNestedPath,
+        `${'['.repeat(257)}${']'.repeat(257)}`
       )
 
       await assert.rejects(
@@ -71,6 +76,16 @@ describe('@omega-edit/ai toolkit', function () {
             inputPath: invalidVersionPath,
           }),
         /Unsupported change log version/
+      )
+
+      await assert.rejects(
+        () =>
+          toolkit.applyChangeLog({
+            sessionId: 'session',
+            dryRun: true,
+            inputPath: deeplyNestedPath,
+          }),
+        /Change log JSON nesting exceeds/
       )
     } finally {
       fs.rmSync(tempDir, { recursive: true, force: true })

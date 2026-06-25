@@ -66,7 +66,7 @@ function writePluginWrapper(pluginEntry) {
   return wrapperPath
 }
 
-const grpcToolsEntry = require.resolve('grpc-tools/bin/protoc.js', {
+const protocEntry = require.resolve('@protobuf-ts/protoc/protoc.js', {
   paths: [clientRoot, repoRoot],
 })
 const biomePackageJson = require.resolve('@biomejs/biome/package.json', {
@@ -85,7 +85,7 @@ const protobufTsPluginEntry = path.join(
 )
 
 ensureExists(protoFile, 'proto file')
-ensureExists(grpcToolsEntry, 'grpc-tools protoc entry')
+ensureExists(protocEntry, '@protobuf-ts/protoc entry')
 ensureExists(biomeEntry, 'biome entry')
 ensureExists(protobufTsPluginEntry, 'protobuf-ts plugin entry')
 
@@ -95,9 +95,11 @@ fs.mkdirSync(generatedRoot, { recursive: true })
 const pluginWrapper = writePluginWrapper(protobufTsPluginEntry)
 
 const args = [
-  grpcToolsEntry,
+  protocEntry,
   '-I',
   protoRoot,
+  '-I',
+  protobufTsPluginRoot,
   `--plugin=protoc-gen-ts=${pluginWrapper}`,
   '--ts_out',
   generatedRoot,

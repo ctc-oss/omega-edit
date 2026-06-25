@@ -48,6 +48,9 @@
 #endif
 
 namespace {
+    constexpr size_t OMEGA_SCHEMA_REGEX_CACHE_LIMIT = 128;
+    constexpr size_t OMEGA_SCHEMA_REGEX_MAX_PATTERN_BYTES = 4096;
+
     struct dynamic_library_t {
 #ifdef _WIN32
         HMODULE handle{};
@@ -109,6 +112,34 @@ namespace {
         omega_transform_plugin_apply_fn apply{};
         std::string path;
     };
+
+    std::mutex g_schema_regex_cache_mutex;
+    std::unordered_map<std::string, std::shared_ptr<const std::regex>> g_schema_regex_cache;
+
+    auto get_schema_regex_(const std::string &pattern_text) -> std::shared_ptr<const std::regex> {
+        if (pattern_text.size() > OMEGA_SCHEMA_REGEX_MAX_PATTERN_BYTES) { return nullptr; }
+        {
+            std::lock_guard<std::mutex> lock(g_schema_regex_cache_mutex);
+            const auto iter = g_schema_regex_cache.find(pattern_text);
+            if (iter != g_schema_regex_cache.end()) { return iter->second; }
+        }
+
+        std::shared_ptr<const std::regex> compiled;
+        try {
+            compiled = std::make_shared<const std::regex>(pattern_text);
+        } catch (const std::regex_error &) { return nullptr; }
+
+        std::lock_guard<std::mutex> lock(g_schema_regex_cache_mutex);
+        if (g_schema_regex_cache.size() >= OMEGA_SCHEMA_REGEX_CACHE_LIMIT) { g_schema_regex_cache.clear(); }
+        const auto [iter, inserted] = g_schema_regex_cache.emplace(pattern_text, compiled);
+        (void) inserted;
+        return iter->second;
+    }
+
+    auto schema_regex_matches_(const std::string &value, const std::string &pattern_text) -> bool {
+        const auto regex = get_schema_regex_(pattern_text);
+        return regex && std::regex_match(value, *regex);
+    }
 
     struct json_value_t {
         enum class kind_t { null_value, object, array, string, number, boolean };
@@ -501,11 +532,7 @@ namespace {
             if (const auto *pattern = json_object_member_(schema, "pattern")) {
                 std::string pattern_text;
                 if (!json_string_value_(*pattern, pattern_text)) { return false; }
-                try {
-                    if (!std::regex_match(value.string_value, std::regex(pattern_text))) { return false; }
-                } catch (const std::regex_error &) {
-                    return false;
-                }
+                if (!schema_regex_matches_(value.string_value, pattern_text)) { return false; }
             }
         }
 

@@ -17,20 +17,85 @@
  * limitations under the License.
  */
 
+import type * as grpc from '@grpc/grpc-js'
+
+const DEFAULT_UNARY_RPC_TIMEOUT_MS = 300_000
 const DEFAULT_UNSUBSCRIBE_TIMEOUT_MS = 10_000
 
-export function getUnsubscribeTimeoutMs(): number {
-  const raw = process.env.OMEGA_EDIT_UNSUBSCRIBE_TIMEOUT_MS
+export type UnaryCallback<Response> = (
+  err: grpc.ServiceError | null,
+  response?: Response
+) => void
+
+type UnaryMethod<Request, Response> = {
+  (
+    request: Request,
+    options: grpc.CallOptions,
+    callback: UnaryCallback<Response>
+  ): grpc.ClientUnaryCall
+  (request: Request, callback: UnaryCallback<Response>): grpc.ClientUnaryCall
+  length: number
+}
+
+type UnaryInvoker<Request, Response> = {
+  call(
+    client: object,
+    request: Request,
+    options: grpc.CallOptions,
+    callback: UnaryCallback<Response>
+  ): grpc.ClientUnaryCall
+  call(
+    client: object,
+    request: Request,
+    callback: UnaryCallback<Response>
+  ): grpc.ClientUnaryCall
+}
+
+function getNonNegativeEnvNumber(name: string, fallback: number): number {
+  const raw = process.env[name]
   if (!raw) {
-    return DEFAULT_UNSUBSCRIBE_TIMEOUT_MS
+    return fallback
   }
 
   const parsed = Number(raw)
   if (!Number.isFinite(parsed) || parsed < 0) {
-    return DEFAULT_UNSUBSCRIBE_TIMEOUT_MS
+    return fallback
   }
 
   return parsed
+}
+
+export function getUnaryCallOptions(): grpc.CallOptions {
+  const timeoutMs = getNonNegativeEnvNumber(
+    'OMEGA_EDIT_UNARY_RPC_TIMEOUT_MS',
+    DEFAULT_UNARY_RPC_TIMEOUT_MS
+  )
+  if (timeoutMs === 0) {
+    return {}
+  }
+  return {
+    deadline: new Date(Date.now() + timeoutMs),
+  }
+}
+
+export function callUnary<Request, Response>(
+  client: object,
+  method: UnaryMethod<Request, Response>,
+  request: Request,
+  callback: UnaryCallback<Response>
+): grpc.ClientUnaryCall {
+  const invoker = method as unknown as UnaryInvoker<Request, Response>
+  if (method.length <= 2) {
+    return invoker.call(client, request, callback)
+  }
+  return invoker.call(client, request, getUnaryCallOptions(), callback)
+}
+
+export function getUnsubscribeTimeoutMs(): number {
+  return getNonNegativeEnvNumber(
+    'OMEGA_EDIT_UNSUBSCRIBE_TIMEOUT_MS',
+    DEFAULT_UNSUBSCRIBE_TIMEOUT_MS
+  )
 }
 
 export function getSingleId(

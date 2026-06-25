@@ -318,6 +318,29 @@ function truncateTransformResult(value: string): string {
   return `${value.slice(0, MAX_TRANSFORM_RESULT_TEXT_LENGTH - 1)}...`
 }
 
+function formatTransformCompletionMessage(response: {
+  operation: TransformPluginOperation
+  contentChanged: boolean
+  length: number
+  replacementLength: number
+}): string {
+  if (response.contentChanged) {
+    return vscode.l10n.t(
+      'OmegaEdit transformed {from} byte(s) into {to} byte(s)',
+      {
+        from: response.length,
+        to: response.replacementLength,
+      }
+    )
+  }
+
+  if (response.operation === TransformPluginOperation.INSPECT) {
+    return vscode.l10n.t('OmegaEdit calculation completed')
+  }
+
+  return vscode.l10n.t('OmegaEdit action completed without content changes')
+}
+
 function formatStatusByteCount(value: number): string {
   return value.toLocaleString()
 }
@@ -2709,15 +2732,9 @@ export class HexEditorProvider
         resultMimeType: response.resultMimeType ?? '',
         resultText: transformResultToText(response.result),
       })
-      if (!response.contentChanged) {
-        const message =
-          response.operation === TransformPluginOperation.INSPECT
-            ? vscode.l10n.t('OmegaEdit calculation completed')
-            : vscode.l10n.t(
-                'OmegaEdit action completed without content changes'
-              )
-        void vscode.window.showInformationMessage(message)
-      }
+      void vscode.window.showInformationMessage(
+        formatTransformCompletionMessage(response)
+      )
     } catch (error) {
       failureMessage = error instanceof Error ? error.message : String(error)
       throw error

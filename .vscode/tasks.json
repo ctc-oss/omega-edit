@@ -4,7 +4,7 @@
     {
       "label": "compile:vscode-extension",
       "type": "shell",
-      "command": "npm run compile",
+      "command": "npm run compile:extension",
       "options": {
         "cwd": "${workspaceFolder}/vscode-extension"
       },
@@ -22,7 +22,7 @@
         "--disable-extensions",
         "--disable-workspace-trust",
         "--skip-welcome",
-        "--extensionDevelopmentPath=${workspaceFolder}\\examples\\vscode-extension",
+        "--extensionDevelopmentPath=${workspaceFolder}/vscode-extension",
         "${workspaceFolder}"
       ],
       "group": "test",

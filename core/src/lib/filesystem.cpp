@@ -42,6 +42,8 @@
 namespace fs = std::filesystem;
 
 namespace {
+    constexpr int OMEGA_AVAILABLE_FILENAME_SUFFIX_ATTEMPTS = 1000000;
+
     auto try_clone_file_(const fs::path &src_path, const fs::path &dst_path, int mode) -> bool {
 #if defined(__APPLE__)
         if (0 == clonefile(src_path.c_str(), dst_path.c_str(), 0)) { return true; }
@@ -311,10 +313,7 @@ char *omega_util_available_filename(char const *path, char *buffer) {
     const std::string extension(extension_cstr);
     const std::string basename(basename_cstr);
     do {
-        if (++i >= 1000) {
-            // stop after 999 filenames exist
-            return nullptr;
-        }
+        if (++i >= OMEGA_AVAILABLE_FILENAME_SUFFIX_ATTEMPTS) { return nullptr; }
         auto const filename_str = fs::path(dirname)
                 .append(basename + "-" + std::to_string(i) + extension)
                 .string();

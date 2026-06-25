@@ -27,7 +27,12 @@ import {
 } from './generated/omega_edit/v1/omega_edit'
 import { debugLog, getLogger } from '../logger'
 import { getClient } from '../client'
-import { getSingleId, getUnsubscribeTimeoutMs, makeWrappedError } from './utils'
+import {
+  getSingleId,
+  getUnsubscribeTimeoutMs,
+  callUnary,
+  makeWrappedError,
+} from './utils'
 
 function getFirstCount(response: GetCountResponse, fn: string): number {
   const count = response.counts[0]?.count
@@ -60,7 +65,7 @@ export async function createViewport(
   const client = await getClient()
 
   return new Promise<CreateViewportResponse>((resolve, reject) => {
-    client.createViewport(request, (err, response) => {
+    callUnary(client, client.createViewport, request, (err, response) => {
       if (err) {
         log.error({
           fn: 'protobufTs.createViewport',
@@ -103,7 +108,7 @@ export async function modifyViewport(
   const client = await getClient()
 
   return new Promise<GetViewportDataResponse>((resolve, reject) => {
-    client.modifyViewport(request, (err, response) => {
+    callUnary(client, client.modifyViewport, request, (err, response) => {
       if (err) {
         log.error({
           fn: 'protobufTs.modifyViewport',
@@ -135,7 +140,7 @@ export async function destroyViewport(viewportId: string): Promise<string> {
   const client = await getClient()
 
   return new Promise<string>((resolve, reject) => {
-    client.destroyViewport(request, (err, response) => {
+    callUnary(client, client.destroyViewport, request, (err, response) => {
       if (err) {
         log.error({
           fn: 'protobufTs.destroyViewport',
@@ -173,7 +178,7 @@ export async function getViewportCount(sessionId: string): Promise<number> {
   const client = await getClient()
 
   return new Promise<number>((resolve, reject) => {
-    client.getCount(request, (err, response) => {
+    callUnary(client, client.getCount, request, (err, response) => {
       if (err) {
         log.error({
           fn: 'protobufTs.getViewportCount',
@@ -210,7 +215,7 @@ export async function getViewportData(
   const client = await getClient()
 
   return new Promise<GetViewportDataResponse>((resolve, reject) => {
-    client.getViewportData(request, (err, response) => {
+    callUnary(client, client.getViewportData, request, (err, response) => {
       if (err) {
         log.error({
           fn: 'protobufTs.getViewportData',
@@ -248,7 +253,7 @@ export async function viewportHasChanges(viewportId: string): Promise<boolean> {
   const client = await getClient()
 
   return new Promise<boolean>((resolve, reject) => {
-    client.viewportHasChanges(request, (err, response) => {
+    callUnary(client, client.viewportHasChanges, request, (err, response) => {
       if (err) {
         log.error({
           fn: 'protobufTs.viewportHasChanges',
@@ -286,7 +291,7 @@ export async function pauseViewportEvents(sessionId: string): Promise<string> {
   const client = await getClient()
 
   return new Promise<string>((resolve, reject) => {
-    client.pauseViewportEvents(request, (err, response) => {
+    callUnary(client, client.pauseViewportEvents, request, (err, response) => {
       if (err) {
         log.error({
           fn: 'protobufTs.pauseViewportEvents',
@@ -324,7 +329,7 @@ export async function resumeViewportEvents(sessionId: string): Promise<string> {
   const client = await getClient()
 
   return new Promise<string>((resolve, reject) => {
-    client.resumeViewportEvents(request, (err, response) => {
+    callUnary(client, client.resumeViewportEvents, request, (err, response) => {
       if (err) {
         log.error({
           fn: 'protobufTs.resumeViewportEvents',
