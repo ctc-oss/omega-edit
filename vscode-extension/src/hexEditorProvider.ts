@@ -30,6 +30,7 @@
 import {
   ALL_EVENTS,
   applyTransformPlugin,
+  ChangeKind,
   clear,
   countCharacters,
   CountKind,
@@ -43,6 +44,8 @@ import {
   EditorSearchController,
   ScopedEditorSessionHandle,
   getByteOrderMark,
+  getChangeCount,
+  getChangeDetails,
   getClientVersion,
   getContentType,
   getCounts,
@@ -78,7 +81,6 @@ import {
 import {
   MAX_ANALYSIS_PROFILE_BYTES,
   MAX_LABEL_LENGTH,
-  MAX_WEBVIEW_HEX_BYTES,
   type BytesPerRow,
   type InsertDirection,
   type WebviewEditMode,
@@ -143,9 +145,9 @@ const SERVER_HEALTH_ERROR_LATENCY_MS = 250
 const MAX_TRANSFORM_RESULT_TEXT_LENGTH = 240
 const MAX_TRANSFORM_RESULT_PREVIEW_BYTES = 4 * 1024
 const MAX_TRANSFORM_NOOP_COMPARE_BYTES = 1024 * 1024
-const MAX_CHANGE_SCRIPT_BYTES = 32 * 1024 * 1024
-const MAX_FILE_SPLICE_BYTES = MAX_CHANGE_SCRIPT_BYTES
-const MAX_CHANGE_SCRIPT_ENTRIES = 100_000
+const MAX_FILE_SPLICE_BYTES = 32 * 1024 * 1024
+const MAX_CHANGE_LOG_BYTES = MAX_FILE_SPLICE_BYTES * 3
+const MAX_CHANGE_LOG_ENTRIES = 100_000
 const CONTEXT_HEX_EDITOR_ACTIVE = 'omegaEdit.hexEditorActive'
 const CONTEXT_CAN_UNDO = 'omegaEdit.canUndo'
 const CONTEXT_CAN_REDO = 'omegaEdit.canRedo'
@@ -239,6 +241,9 @@ function isMutationWebviewMessage(message: WebviewToHostMessage): boolean {
     case 'insertFile':
     case 'replaceRangeWithFile':
     case 'replaceAllMatches':
+    case 'createCheckpoint':
+    case 'restoreCheckpoint':
+    case 'applyChangeLog':
     case 'undo':
     case 'redo':
     case 'revert':
@@ -265,6 +270,13 @@ function parseCommandUri(value: unknown): vscode.Uri | undefined {
   } catch {
     return undefined
   }
+}
+
+function parseCommandOptionUri(
+  options: unknown,
+  key: 'sourceUri' | 'targetUri'
+): vscode.Uri | undefined {
+  return isRecord(options) ? parseCommandUri(options[key]) : undefined
 }
 
 function classifyServerHealthLatency(
@@ -610,6 +622,56 @@ function serializeTransformPlugin(plugin: TransformPluginInfo): {
   }
 }
 
+const changeKindNames = new Map<number, ChangeRecord['kind']>([
+  [ChangeKind.INSERT, 'INSERT'],
+  [ChangeKind.DELETE, 'DELETE'],
+  [ChangeKind.OVERWRITE, 'OVERWRITE'],
+])
+
+function changeDetailsToChangeRecord(
+  change: Awaited<ReturnType<typeof getChangeDetails>>
+): ChangeRecord {
+  const kind = changeKindNames.get(change.getKind())
+  if (!kind) {
+    throw new Error(`Unsupported change kind: ${change.getKind()}`)
+  }
+
+  return {
+    serial: change.getSerial(),
+    kind,
+    offset: change.getOffset(),
+    length: kind === 'INSERT' ? 0 : change.getLength(),
+    data:
+      kind === 'DELETE'
+        ? ''
+        : Buffer.from(change.getData_asU8()).toString('hex'),
+  }
+}
+
+function isMissingChangeDetailsError(error: unknown): boolean {
+  const message = error instanceof Error ? error.message : String(error)
+  return message.includes('NOT_FOUND') || message.includes('change not found')
+}
+
+async function collectChangeLogRecords(
+  sessionId: string,
+  sourceChangeCount: number
+): Promise<ChangeRecord[]> {
+  const changes: ChangeRecord[] = []
+  for (let serial = 1; serial <= sourceChangeCount; serial += 1) {
+    try {
+      changes.push(
+        changeDetailsToChangeRecord(await getChangeDetails(sessionId, serial))
+      )
+    } catch (error) {
+      if (!isMissingChangeDetailsError(error)) {
+        throw error
+      }
+    }
+  }
+  return changes
+}
+
 function safeChangeRecord(value: unknown): ChangeRecord | undefined {
   if (!isRecord(value)) {
     return undefined
@@ -623,7 +685,7 @@ function safeChangeRecord(value: unknown): ChangeRecord | undefined {
 
   switch (value.kind) {
     case 'INSERT': {
-      const data = safeHexString(value.data, MAX_WEBVIEW_HEX_BYTES)
+      const data = safeHexString(value.data, MAX_FILE_SPLICE_BYTES)
       return data
         ? { serial, kind: 'INSERT', offset, length: 0, data }
         : undefined
@@ -635,7 +697,7 @@ function safeChangeRecord(value: unknown): ChangeRecord | undefined {
         : undefined
     }
     case 'OVERWRITE': {
-      const data = safeHexString(value.data, MAX_WEBVIEW_HEX_BYTES)
+      const data = safeHexString(value.data, MAX_FILE_SPLICE_BYTES)
       return data
         ? {
             serial,
@@ -648,7 +710,7 @@ function safeChangeRecord(value: unknown): ChangeRecord | undefined {
     }
     case 'REPLACE': {
       const length = safeNonNegativeInteger(value.length)
-      const data = safeHexString(value.data, MAX_WEBVIEW_HEX_BYTES, true)
+      const data = safeHexString(value.data, MAX_FILE_SPLICE_BYTES, true)
       const groupId = safeString(value.groupId, MAX_LABEL_LENGTH)
       if (length === undefined || data === undefined) {
         return undefined
@@ -662,10 +724,10 @@ function safeChangeRecord(value: unknown): ChangeRecord | undefined {
   }
 }
 
-function parseChangeScript(content: Uint8Array): ChangeRecord[] {
-  if (content.byteLength > MAX_CHANGE_SCRIPT_BYTES) {
+function parseChangeLog(content: Uint8Array): ChangeRecord[] {
+  if (content.byteLength > MAX_CHANGE_LOG_BYTES) {
     throw new Error(
-      `Change script is too large (${content.byteLength.toLocaleString()} bytes)`
+      `Change log is too large (${content.byteLength.toLocaleString()} bytes)`
     )
   }
 
@@ -674,19 +736,25 @@ function parseChangeScript(content: Uint8Array): ChangeRecord[] {
     parsed = JSON.parse(new TextDecoder().decode(content))
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error)
-    throw new Error(`Invalid change script JSON: ${message}`)
+    throw new Error(`Invalid change log JSON: ${message}`)
   }
 
-  if (!Array.isArray(parsed)) {
-    throw new Error('Change script must be a JSON array')
+  const entries = Array.isArray(parsed)
+    ? parsed
+    : isRecord(parsed) && Array.isArray(parsed.changes)
+      ? parsed.changes
+      : undefined
+
+  if (!entries) {
+    throw new Error('Change log must be a JSON array or an object with changes')
   }
-  if (parsed.length > MAX_CHANGE_SCRIPT_ENTRIES) {
+  if (entries.length > MAX_CHANGE_LOG_ENTRIES) {
     throw new Error(
-      `Change script has too many entries (${parsed.length.toLocaleString()})`
+      `Change log has too many entries (${entries.length.toLocaleString()})`
     )
   }
 
-  return parsed.map((entry, index) => {
+  return entries.map((entry, index) => {
     const change = safeChangeRecord(entry)
     if (!change) {
       throw new Error(`Invalid change record at index ${index}`)
@@ -1354,87 +1422,202 @@ export class HexEditorProvider
     }
   }
 
-  async exportActiveChangeScript(targetUri?: vscode.Uri): Promise<void> {
-    if (!this.activeSession) {
+  async exportChangeLog(options?: unknown): Promise<
+    | {
+        state: WebviewEditorState
+        uri?: vscode.Uri
+        changeCount: number
+        sourceChangeCount?: number
+        foldedChangeCount?: number
+        cancelled?: boolean
+      }
+    | undefined
+  > {
+    const session = this.resolveCommandSession(options)
+    if (!session) {
       void vscode.window.showWarningMessage(openEditorFirstMessage())
       return
     }
 
-    const session = this.activeSession
+    const sourceChangeCount = await getChangeCount(session.sessionId)
     const scriptUri =
-      targetUri ??
+      parseCommandOptionUri(options, 'targetUri') ??
       (await vscode.window.showSaveDialog({
         defaultUri: vscode.Uri.file(
-          `${session.filePath}.omega-edit-changes.json`
+          `${session.filePath}.omega-edit-change-log.json`
         ),
         filters: { JSON: ['json'] },
+        saveLabel: vscode.l10n.t('Export Change Log'),
+        title: vscode.l10n.t('Export OmegaEdit change log'),
       }))
 
     if (!scriptUri) {
-      return
+      this.postSessionActionComplete(session, {
+        action: 'exportChangeLog',
+        changeCount: sourceChangeCount,
+        cancelled: true,
+        message: vscode.l10n.t('Change log export cancelled'),
+      })
+      return {
+        state: this.buildEditorState(session),
+        changeCount: sourceChangeCount,
+        sourceChangeCount,
+        cancelled: true,
+      }
     }
 
+    if (sourceChangeCount > MAX_CHANGE_LOG_ENTRIES) {
+      throw new Error(
+        vscode.l10n.t(
+          'Change log has too many entries ({count}); export is limited to {limit}.',
+          {
+            count: sourceChangeCount.toLocaleString(),
+            limit: MAX_CHANGE_LOG_ENTRIES.toLocaleString(),
+          }
+        )
+      )
+    }
+
+    const changes = await collectChangeLogRecords(
+      session.sessionId,
+      sourceChangeCount
+    )
+    const changeCount = changes.length
+    const foldedChangeCount = sourceChangeCount - changeCount
+
     const content = Buffer.from(
-      JSON.stringify(session.history.getChangeLog(), null, 2),
+      JSON.stringify(
+        {
+          format: 'omega-edit.change-log',
+          version: 1,
+          changeCount,
+          sourceChangeCount,
+          foldedChangeCount,
+          changes,
+        },
+        null,
+        2
+      ),
       'utf8'
     )
     await vscode.workspace.fs.writeFile(scriptUri, content)
+    this.postSessionActionComplete(session, {
+      action: 'exportChangeLog',
+      changeCount,
+      message: vscode.l10n.t('Exported {count} change(s)', {
+        count: changeCount,
+      }),
+    })
     void vscode.window.showInformationMessage(
-      vscode.l10n.t('Change script saved to {path}', {
+      vscode.l10n.t('OmegaEdit change log saved to {path}', {
         path: scriptUri.fsPath,
       })
     )
+    return {
+      state: this.buildEditorState(session),
+      uri: scriptUri,
+      changeCount,
+      sourceChangeCount,
+      foldedChangeCount,
+    }
   }
 
-  async replayActiveChangeScript(sourceUri?: vscode.Uri): Promise<void> {
-    if (!this.activeSession) {
+  async applyChangeLog(options?: unknown): Promise<
+    | {
+        state: WebviewEditorState
+        uri?: vscode.Uri
+        changeCount: number
+        sourceChangeCount?: number
+        foldedChangeCount?: number
+        cancelled?: boolean
+      }
+    | undefined
+  > {
+    const session = this.resolveCommandSession(options)
+    if (!session) {
       void vscode.window.showWarningMessage(openEditorFirstMessage())
       return
     }
-    const session = this.activeSession
     if (!this.ensureSessionCanMutate(session, true)) {
       return
     }
 
     const scriptUri =
-      sourceUri ??
+      parseCommandOptionUri(options, 'sourceUri') ??
       (
         await vscode.window.showOpenDialog({
           canSelectMany: false,
           filters: { JSON: ['json'] },
+          openLabel: vscode.l10n.t('Apply Change Log'),
+          title: vscode.l10n.t('Apply OmegaEdit change log'),
         })
       )?.[0]
 
     if (!scriptUri) {
-      return
+      this.postSessionActionComplete(session, {
+        action: 'applyChangeLog',
+        changeCount: 0,
+        cancelled: true,
+        message: vscode.l10n.t('Change log apply cancelled'),
+      })
+      return {
+        state: this.buildEditorState(session),
+        changeCount: 0,
+        cancelled: true,
+      }
     }
 
     const content = await vscode.workspace.fs.readFile(scriptUri)
     let changes: ChangeRecord[]
     try {
-      changes = parseChangeScript(content)
+      changes = parseChangeLog(content)
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error)
+      this.postSessionActionComplete(session, {
+        action: 'applyChangeLog',
+        changeCount: 0,
+        cancelled: true,
+        message,
+      })
       void vscode.window.showErrorMessage(
-        vscode.l10n.t('Invalid OmegaEdit change script: {message}', {
+        vscode.l10n.t('Invalid OmegaEdit change log: {message}', {
           message,
         })
       )
-      return
+      return {
+        state: this.buildEditorState(session),
+        uri: scriptUri,
+        changeCount: 0,
+        cancelled: true,
+      }
     }
     await vscode.window.withProgress(
       {
         location: vscode.ProgressLocation.Notification,
-        title: vscode.l10n.t('Replaying {count} change(s)…', {
+        title: vscode.l10n.t('Applying {count} change log entries…', {
           count: changes.length,
         }),
         cancellable: false,
       },
-      () => this.replayChanges(session, changes)
+      () => this.applyChangeLogEntries(session, changes)
     )
+    this.postSessionActionComplete(session, {
+      action: 'applyChangeLog',
+      changeCount: changes.length,
+      message: vscode.l10n.t('Applied {count} change(s)', {
+        count: changes.length,
+      }),
+    })
     void vscode.window.showInformationMessage(
-      vscode.l10n.t('Replayed {count} change(s)', { count: changes.length })
+      vscode.l10n.t('Applied {count} OmegaEdit change(s)', {
+        count: changes.length,
+      })
     )
+    return {
+      state: this.buildEditorState(session),
+      uri: scriptUri,
+      changeCount: changes.length,
+    }
   }
 
   private async pickFileSpliceBytes(
@@ -1494,6 +1677,19 @@ export class HexEditorProvider
   ): void {
     this.postWebviewMessage(session, {
       type: 'fileActionComplete',
+      ...message,
+    })
+  }
+
+  private postSessionActionComplete(
+    session: EditorSession,
+    message: Omit<
+      Extract<HostToWebviewMessage, { type: 'sessionActionComplete' }>,
+      'type'
+    >
+  ): void {
+    this.postWebviewMessage(session, {
+      type: 'sessionActionComplete',
       ...message,
     })
   }
@@ -1739,35 +1935,75 @@ export class HexEditorProvider
     }
   }
 
-  async createActiveCheckpoint(): Promise<void> {
-    if (!this.activeSession) {
+  async createCheckpoint(options?: unknown): Promise<
+    | {
+        state: WebviewEditorState
+        checkpointCount: number
+      }
+    | undefined
+  > {
+    const session = this.resolveCommandSession(options)
+    if (!session) {
       void vscode.window.showWarningMessage(openEditorFirstMessage())
       return
     }
-    if (!this.ensureSessionCanMutate(this.activeSession, true)) {
+    if (!this.ensureSessionCanMutate(session, true)) {
       return
     }
 
-    const count = await this.createSessionCheckpoint(this.activeSession)
+    const count = await this.createSessionCheckpoint(session)
+    this.postSessionActionComplete(session, {
+      action: 'createCheckpoint',
+      checkpointCount: count,
+      message: vscode.l10n.t('OmegaEdit checkpoint created ({count} total)', {
+        count,
+      }),
+    })
     void vscode.window.showInformationMessage(
       vscode.l10n.t('OmegaEdit checkpoint created ({count} total)', { count })
     )
+    return {
+      state: this.buildEditorState(session),
+      checkpointCount: count,
+    }
   }
 
-  async rollbackActiveCheckpoint(): Promise<void> {
-    if (!this.activeSession) {
+  async restoreCheckpoint(options?: unknown): Promise<
+    | {
+        state: WebviewEditorState
+        restored: boolean
+        checkpointCount: number
+      }
+    | undefined
+  > {
+    const session = this.resolveCommandSession(options)
+    if (!session) {
       void vscode.window.showWarningMessage(openEditorFirstMessage())
       return
     }
-    if (!this.ensureSessionCanMutate(this.activeSession, true)) {
+    if (!this.ensureSessionCanMutate(session, true)) {
       return
     }
 
-    const rolledBack = await this.rollbackCheckpoint(this.activeSession, true)
-    if (rolledBack) {
+    const restored = await this.restoreLastCheckpoint(session, true)
+    const checkpointCount = await this.getCheckpointCount(session)
+    this.postSessionActionComplete(session, {
+      action: 'restoreCheckpoint',
+      checkpointCount,
+      cancelled: !restored,
+      message: restored
+        ? vscode.l10n.t('Restored last OmegaEdit checkpoint')
+        : vscode.l10n.t('No OmegaEdit checkpoint to restore'),
+    })
+    if (restored) {
       void vscode.window.showInformationMessage(
-        vscode.l10n.t('Rolled back last OmegaEdit checkpoint')
+        vscode.l10n.t('Restored last OmegaEdit checkpoint')
       )
+    }
+    return {
+      state: this.buildEditorState(session),
+      restored,
+      checkpointCount,
     }
   }
 
@@ -2588,7 +2824,7 @@ export class HexEditorProvider
     }
   }
 
-  private async rollbackCheckpoint(
+  private async restoreLastCheckpoint(
     session: EditorSession,
     markDirty: boolean
   ): Promise<boolean> {
@@ -2599,7 +2835,7 @@ export class HexEditorProvider
     const checkpointCount = await this.getCheckpointCount(session)
     if (checkpointCount <= 0) {
       void vscode.window.showWarningMessage(
-        vscode.l10n.t('No OmegaEdit checkpoint to roll back')
+        vscode.l10n.t('No OmegaEdit checkpoint to restore')
       )
       return false
     }
@@ -2608,7 +2844,7 @@ export class HexEditorProvider
       session,
       true,
       undefined,
-      vscode.l10n.t('Rolling back checkpoint...')
+      vscode.l10n.t('Restoring checkpoint...')
     )
     let failureMessage: string | undefined
     try {
@@ -3028,7 +3264,7 @@ export class HexEditorProvider
     })
   }
 
-  private async replayChanges(
+  private async applyChangeLogEntries(
     session: EditorSession,
     changes: ChangeRecord[]
   ): Promise<void> {
@@ -3492,6 +3728,26 @@ export class HexEditorProvider
 
         case 'replaceRangeWithFile': {
           await this.replaceRangeWithFile(session, msg.offset, msg.length)
+          break
+        }
+
+        case 'createCheckpoint': {
+          await this.createCheckpoint({ uri: session.document.uri })
+          break
+        }
+
+        case 'restoreCheckpoint': {
+          await this.restoreCheckpoint({ uri: session.document.uri })
+          break
+        }
+
+        case 'exportChangeLog': {
+          await this.exportChangeLog({ uri: session.document.uri })
+          break
+        }
+
+        case 'applyChangeLog': {
+          await this.applyChangeLog({ uri: session.document.uri })
           break
         }
 

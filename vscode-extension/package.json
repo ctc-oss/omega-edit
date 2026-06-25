@@ -30,10 +30,10 @@
     "onCommand:omegaEdit.redo",
     "onCommand:omegaEdit.toggleInsertDirection",
     "onCommand:omegaEdit.refreshTransformPlugins",
-    "onCommand:omegaEdit.exportChangeScript",
-    "onCommand:omegaEdit.replayChangeScript",
+    "onCommand:omegaEdit.exportChangeLog",
+    "onCommand:omegaEdit.applyChangeLog",
     "onCommand:omegaEdit.rollbackSession",
-    "onCommand:omegaEdit.rollbackCheckpoint",
+    "onCommand:omegaEdit.restoreCheckpoint",
     "onCommand:omegaEdit.createCheckpoint",
     "onCommand:omegaEdit.getEditorState",
     "onCommand:omegaEdit.setExternalHighlights",
@@ -135,13 +135,13 @@
         "enablement": "omegaEdit.hexEditorActive"
       },
       {
-        "command": "omegaEdit.exportChangeScript",
-        "title": "%omegaEdit.command.exportChangeScript.title%",
-        "enablement": "omegaEdit.hexEditorActive && omegaEdit.hasPendingChanges"
+        "command": "omegaEdit.exportChangeLog",
+        "title": "%omegaEdit.command.exportChangeLog.title%",
+        "enablement": "omegaEdit.hexEditorActive && !omegaEdit.transformInFlight"
       },
       {
-        "command": "omegaEdit.replayChangeScript",
-        "title": "%omegaEdit.command.replayChangeScript.title%",
+        "command": "omegaEdit.applyChangeLog",
+        "title": "%omegaEdit.command.applyChangeLog.title%",
         "enablement": "omegaEdit.hexEditorActive && !omegaEdit.transformInFlight"
       },
       {
@@ -150,8 +150,8 @@
         "enablement": "omegaEdit.hexEditorActive && omegaEdit.hasPendingChanges && !omegaEdit.transformInFlight"
       },
       {
-        "command": "omegaEdit.rollbackCheckpoint",
-        "title": "%omegaEdit.command.rollbackCheckpoint.title%",
+        "command": "omegaEdit.restoreCheckpoint",
+        "title": "%omegaEdit.command.restoreCheckpoint.title%",
         "enablement": "omegaEdit.hexEditorActive && !omegaEdit.transformInFlight"
       },
       {
@@ -221,11 +221,19 @@
           "when": "omegaEdit.hexEditorActive"
         },
         {
+          "command": "omegaEdit.exportChangeLog",
+          "when": "omegaEdit.hexEditorActive && !omegaEdit.transformInFlight"
+        },
+        {
+          "command": "omegaEdit.applyChangeLog",
+          "when": "omegaEdit.hexEditorActive && !omegaEdit.transformInFlight"
+        },
+        {
           "command": "omegaEdit.rollbackSession",
           "when": "omegaEdit.hexEditorActive && omegaEdit.hasPendingChanges && !omegaEdit.transformInFlight"
         },
         {
-          "command": "omegaEdit.rollbackCheckpoint",
+          "command": "omegaEdit.restoreCheckpoint",
           "when": "omegaEdit.hexEditorActive && !omegaEdit.transformInFlight"
         },
         {

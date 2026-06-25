@@ -50,6 +50,10 @@
     onInsertFile: (offset: number) => void
     onReplaceRangeWithFile: (offset: number, length: number) => void
     onOpenTransformResult: (resultId: string) => void
+    onCreateCheckpoint: () => void
+    onRestoreCheckpoint: () => void
+    onExportChangeLog: () => void
+    onApplyChangeLog: () => void
   }
 
   let {
@@ -79,6 +83,10 @@
     onInsertFile,
     onReplaceRangeWithFile,
     onOpenTransformResult,
+    onCreateCheckpoint,
+    onRestoreCheckpoint,
+    onExportChangeLog,
+    onApplyChangeLog,
   }: Props = $props()
 
   const rowOptions: BytesPerRow[] = [8, 16, 32]
@@ -146,6 +154,41 @@
   </button>
 
   <OffsetJump {fileSize} {offsetRadix} {onGoToOffset} />
+
+  <div class="session-actions" aria-label={strings.toolbar.sessionActions}>
+    <button
+      type="button"
+      disabled={transformInFlight}
+      title={strings.toolbar.createCheckpointTitle}
+      onclick={onCreateCheckpoint}
+    >
+      {strings.toolbar.createCheckpoint}
+    </button>
+    <button
+      type="button"
+      disabled={transformInFlight}
+      title={strings.toolbar.restoreCheckpointTitle}
+      onclick={onRestoreCheckpoint}
+    >
+      {strings.toolbar.restoreCheckpoint}
+    </button>
+    <button
+      type="button"
+      disabled={transformInFlight}
+      title={strings.toolbar.exportChangeLogTitle}
+      onclick={onExportChangeLog}
+    >
+      {strings.toolbar.exportChangeLog}
+    </button>
+    <button
+      type="button"
+      disabled={transformInFlight}
+      title={strings.toolbar.applyChangeLogTitle}
+      onclick={onApplyChangeLog}
+    >
+      {strings.toolbar.applyChangeLog}
+    </button>
+  </div>
 
   <div class="toolbar-group">
     <TransformPanel

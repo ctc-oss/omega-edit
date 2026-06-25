@@ -94,6 +94,7 @@ button:focus-visible {
 }
 
 .toolbar-group,
+.session-actions,
 .segmented {
   display: flex;
   align-items: center;
@@ -108,6 +109,15 @@ button:focus-visible {
 .toolbar-group {
   flex: 1 1 auto;
   justify-content: flex-end;
+}
+
+.session-actions {
+  flex: 0 1 auto;
+}
+
+.session-actions button {
+  min-width: 0;
+  white-space: nowrap;
 }
 
 .top-panels {

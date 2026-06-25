@@ -13,12 +13,12 @@ const {
 const { getHexEditorProviderForTesting } = require('../../out/extension.js')
 const { HexEditorProvider } = require('../../out/hexEditorProvider.js')
 const {
+  OMEGA_EDIT_APPLY_CHANGE_LOG_COMMAND,
   OMEGA_EDIT_CLEAR_EXTERNAL_HIGHLIGHTS_COMMAND,
-  OMEGA_EDIT_EXPORT_CHANGE_SCRIPT_COMMAND,
+  OMEGA_EDIT_EXPORT_CHANGE_LOG_COMMAND,
   OMEGA_EDIT_GET_EDITOR_STATE_COMMAND,
   OMEGA_EDIT_GO_TO_OFFSET_COMMAND,
   OMEGA_EDIT_OPEN_IN_HEX_EDITOR_COMMAND,
-  OMEGA_EDIT_REPLAY_CHANGE_SCRIPT_COMMAND,
   OMEGA_EDIT_ROLLBACK_SESSION_COMMAND,
   OMEGA_EDIT_SET_EXTERNAL_HIGHLIGHTS_COMMAND,
   OMEGA_EDIT_VIEW_TYPE,
@@ -62,6 +62,10 @@ suite('OmegaEdit VS Code extension', () => {
     assert.equal(typeof extensionApi.getEditorState, 'function')
     assert.equal(typeof extensionApi.setExternalHighlights, 'function')
     assert.equal(typeof extensionApi.clearExternalHighlights, 'function')
+    assert.equal(typeof extensionApi.createCheckpoint, 'function')
+    assert.equal(typeof extensionApi.restoreCheckpoint, 'function')
+    assert.equal(typeof extensionApi.exportChangeLog, 'function')
+    assert.equal(typeof extensionApi.applyChangeLog, 'function')
     assert.equal(typeof extensionApi.onDidChangeEditorState, 'function')
   })
 
@@ -73,8 +77,8 @@ suite('OmegaEdit VS Code extension', () => {
     const commands = await vscode.commands.getCommands(true)
     assert.ok(commands.includes(OMEGA_EDIT_OPEN_IN_HEX_EDITOR_COMMAND))
     assert.ok(commands.includes(OMEGA_EDIT_GO_TO_OFFSET_COMMAND))
-    assert.ok(commands.includes(OMEGA_EDIT_EXPORT_CHANGE_SCRIPT_COMMAND))
-    assert.ok(commands.includes(OMEGA_EDIT_REPLAY_CHANGE_SCRIPT_COMMAND))
+    assert.ok(commands.includes(OMEGA_EDIT_EXPORT_CHANGE_LOG_COMMAND))
+    assert.ok(commands.includes(OMEGA_EDIT_APPLY_CHANGE_LOG_COMMAND))
     assert.ok(commands.includes(OMEGA_EDIT_ROLLBACK_SESSION_COMMAND))
     assert.ok(commands.includes(OMEGA_EDIT_GET_EDITOR_STATE_COMMAND))
     assert.ok(commands.includes(OMEGA_EDIT_SET_EXTERNAL_HIGHLIGHTS_COMMAND))
@@ -267,7 +271,7 @@ suite('OmegaEdit VS Code extension', () => {
     assert.ok(activeTab, 'Expected the OmegaEdit custom editor tab to open')
   })
 
-  test('exports and replays a JSON change script that reproduces the saved file', async () => {
+  test('exports and applies a JSON change log that reproduces the saved file', async () => {
     const tmpDir = await fs.mkdtemp(
       path.join(os.tmpdir(), 'omega-edit-vscode-')
     )
@@ -322,22 +326,39 @@ suite('OmegaEdit VS Code extension', () => {
       data: Buffer.from('ZZ', 'utf8').toString('hex'),
     })
     await assertSessionText(session1.sessionId, 'A12DxyZZ')
-    await provider1.exportActiveChangeScript(vscode.Uri.file(scriptPath))
+    await provider1.dispatchWebviewMessageForTesting(document1.uri, {
+      type: 'applyTransform',
+      pluginId: 'omega.example.base64',
+      offset: 0,
+      length: 8,
+    })
+    await assertSessionText(session1.sessionId, 'QTEyRHh5Wlo=')
+    await provider1.exportChangeLog({
+      uri: document1.uri,
+      targetUri: vscode.Uri.file(scriptPath),
+    })
     await provider1.dispatchWebviewMessageForTesting(document1.uri, {
       type: 'save',
     })
 
     const script = JSON.parse(await fs.readFile(scriptPath, 'utf8'))
-    assert.ok(Array.isArray(script), 'Expected export to produce a JSON array')
+    assert.equal(script.format, 'omega-edit.change-log')
+    assert.equal(script.version, 1)
+    assert.equal(script.sourceChangeCount, script.changeCount)
+    assert.equal(script.foldedChangeCount, 0)
     assert.ok(
-      script.length > 0,
-      'Expected the exported change script to capture at least one change'
+      Array.isArray(script.changes),
+      'Expected export to produce a change-log document'
     )
     assert.ok(
-      script.every((change) =>
-        ['DELETE', 'INSERT', 'OVERWRITE', 'REPLACE'].includes(change.kind)
+      script.changes.length > 0,
+      'Expected the exported change log to capture at least one change'
+    )
+    assert.ok(
+      script.changes.every((change) =>
+        ['DELETE', 'INSERT', 'OVERWRITE'].includes(change.kind)
       ),
-      'Expected exported change kinds to stay within the supported replay operations'
+      'Expected exported change kinds to stay within OmegaEdit byte operations'
     )
 
     const provider2 = new HexEditorProvider({ subscriptions: [] }, testPort)
@@ -354,7 +375,10 @@ suite('OmegaEdit VS Code extension', () => {
       new vscode.CancellationTokenSource().token
     )
 
-    await provider2.replayActiveChangeScript(vscode.Uri.file(scriptPath))
+    await provider2.applyChangeLog({
+      uri: document2.uri,
+      sourceUri: vscode.Uri.file(scriptPath),
+    })
 
     const session2 = provider2.getSessionForTesting(document2.uri)
     assert.ok(
@@ -367,7 +391,7 @@ suite('OmegaEdit VS Code extension', () => {
 
     const saved = await fs.readFile(sourcePath, 'utf8')
     const replayed = await fs.readFile(replayPath, 'utf8')
-    assert.equal(saved, 'A12DxyZZ')
+    assert.equal(saved, 'QTEyRHh5Wlo=')
     assert.equal(replayed, saved)
 
     await panel1.fireDidDispose()
@@ -1275,7 +1299,10 @@ suite('OmegaEdit VS Code extension', () => {
     })
     await delay(OBSERVE_STEP_DELAY_MS)
 
-    await provider.exportActiveChangeScript(vscode.Uri.file(scriptPath))
+    await provider.exportChangeLog({
+      uri: sourceUri,
+      targetUri: vscode.Uri.file(scriptPath),
+    })
     await delay(OBSERVE_STEP_DELAY_MS)
 
     await provider.dispatchWebviewMessageForTesting(sourceUri, { type: 'save' })
@@ -1293,7 +1320,10 @@ suite('OmegaEdit VS Code extension', () => {
     )
     await delay(OBSERVE_STEP_DELAY_MS)
 
-    await provider.replayActiveChangeScript(vscode.Uri.file(scriptPath))
+    await provider.applyChangeLog({
+      uri: replayUri,
+      sourceUri: vscode.Uri.file(scriptPath),
+    })
     await delay(OBSERVE_STEP_DELAY_MS)
 
     await provider.dispatchWebviewMessageForTesting(replayUri, { type: 'save' })

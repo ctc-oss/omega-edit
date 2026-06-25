@@ -18,6 +18,15 @@ export const strings = {
     backwardInsert: 'Backward',
     forwardInsertTitle: 'Insert direction: Forward. Click for backward insert.',
     backwardInsertTitle: 'Insert direction: Backward. Click for forward insert.',
+    sessionActions: 'Session actions',
+    createCheckpoint: 'Checkpoint',
+    createCheckpointTitle: 'Create an OmegaEdit checkpoint',
+    restoreCheckpoint: 'Restore',
+    restoreCheckpointTitle: 'Restore the last OmegaEdit checkpoint',
+    exportChangeLog: 'Export Log',
+    exportChangeLogTitle: 'Export the OmegaEdit change log',
+    applyChangeLog: 'Apply Log',
+    applyChangeLogTitle: 'Apply an OmegaEdit change log',
   },
   navigation: {
     offsetLabel: 'Offset',
@@ -132,6 +141,18 @@ export const strings = {
     operationReplaceInspect: 'replace + inspect',
     operationTransform: 'transform',
     applying: (name: string) => `Applying ${name}...`,
+    creatingCheckpoint: 'Creating checkpoint...',
+    restoringCheckpoint: 'Restoring checkpoint...',
+    exportingChangeLog: 'Exporting change log...',
+    applyingChangeLog: 'Applying change log...',
+    checkpointCreated: (count: number) =>
+      `Checkpoint created (${count.toLocaleString()} total)`,
+    checkpointRestored: (count: number) =>
+      `Checkpoint restored (${count.toLocaleString()} remaining)`,
+    changeLogExported: (count: number) =>
+      `Exported ${count.toLocaleString()} change${count === 1 ? '' : 's'}`,
+    changeLogApplied: (count: number) =>
+      `Applied ${count.toLocaleString()} change${count === 1 ? '' : 's'}`,
     exportingRange: 'Exporting range...',
     insertingFile: 'Selecting file to insert...',
     replacingWithFile: 'Selecting replacement file...',
