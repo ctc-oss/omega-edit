@@ -224,6 +224,19 @@ int omega_util_compare_modification_times(const char *path1, const char *path2) 
     return 0;
 }
 
+int omega_util_get_modification_time(const char *path, int64_t *modification_time_out) {
+    if (!path || !*path || !modification_time_out) { return -1; }
+
+    try {
+        const auto file_time = fs::last_write_time(fs::path(path)).time_since_epoch();
+        *modification_time_out = std::chrono::duration_cast<std::chrono::nanoseconds>(file_time).count();
+    } catch (const fs::filesystem_error &ex) {
+        LOG_ERROR("Error getting modification time for '" << path << "': " << ex.what());
+        return -2;
+    }
+    return 0;
+}
+
 const char *omega_util_get_current_dir(char *buffer) {
     static thread_local char buff[FILENAME_MAX]{};
     if (!buffer) { buffer = buff; }
@@ -395,8 +408,13 @@ int omega_util_touch(const char *file_name, int create) {
         return -2;
     } else {
         try {
-            // Update the modification time of the file to the current time
-            fs::last_write_time(file_name, fs::file_time_type::clock::now());
+            const auto previous_time = fs::last_write_time(file_name);
+            auto next_time = fs::file_time_type::clock::now();
+            if (next_time <= previous_time) { next_time = previous_time + std::chrono::seconds(1); }
+            fs::last_write_time(file_name, next_time);
+            if (fs::last_write_time(file_name) <= previous_time) {
+                fs::last_write_time(file_name, previous_time + std::chrono::seconds(1));
+            }
         } catch (const fs::filesystem_error &ex) {
             // Update failed, so try touching the file by appending to it
             std::ofstream ofs(file_name, std::ios::app);

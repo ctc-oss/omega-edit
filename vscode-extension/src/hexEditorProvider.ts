@@ -54,6 +54,7 @@ import {
   getServerInfo,
   getViewportData,
   IOFlags,
+  SaveStatus,
   type IServerInfo,
   insert,
   listTransformPlugins,
@@ -167,6 +168,30 @@ function openEditorFirstMessage(): string {
 
 function omegaEditErrorMessage(message: string): string {
   return vscode.l10n.t('OmegaEdit error: {message}', { message })
+}
+
+function describeSaveStatus(status: number): string {
+  if (status === SaveStatus.MODIFIED) {
+    return vscode.l10n.t('original file was modified outside OmegaEdit')
+  }
+  return vscode.l10n.t('status {status}', { status })
+}
+
+async function saveSessionOrThrow(
+  sessionId: string,
+  filePath: string,
+  flags: number
+): Promise<void> {
+  const response = await saveSession(sessionId, filePath, flags)
+  const status = response.getSaveStatus()
+  if (status !== SaveStatus.SUCCESS) {
+    throw new Error(
+      vscode.l10n.t('OmegaEdit save failed for {path}: {reason}', {
+        path: filePath,
+        reason: describeSaveStatus(status),
+      })
+    )
+  }
 }
 
 function transformMutationBlockedMessage(): string {
@@ -1377,7 +1402,11 @@ export class HexEditorProvider
     if (!session) {
       return
     }
-    await saveSession(session.sessionId, session.filePath, IOFlags.OVERWRITE)
+    await saveSessionOrThrow(
+      session.sessionId,
+      session.filePath,
+      IOFlags.OVERWRITE
+    )
     session.restoredFromBackup = false
     session.history.markSaved()
     this.postEditState(session)
@@ -1397,7 +1426,11 @@ export class HexEditorProvider
         vscode.l10n.t('OmegaEdit Data Editor can only save to local files')
       )
     }
-    await saveSession(session.sessionId, destination.fsPath, IOFlags.OVERWRITE)
+    await saveSessionOrThrow(
+      session.sessionId,
+      destination.fsPath,
+      IOFlags.OVERWRITE
+    )
     session.restoredFromBackup = false
     session.history.markSaved()
     this.postEditState(session)
@@ -1425,7 +1458,7 @@ export class HexEditorProvider
       await vscode.workspace.fs.createDirectory(
         vscode.Uri.joinPath(context.destination, '..')
       )
-      await saveSession(
+      await saveSessionOrThrow(
         session.sessionId,
         context.destination.fsPath,
         IOFlags.OVERWRITE

@@ -49,6 +49,8 @@ struct omega_session_struct {
     const void *pending_session_event_ptr_{};  ///< Deferred event payload to flush at batch end
     std::string checkpoint_directory_{};       ///< Path to checkpoint directory
     std::string checkpoint_file_name_{};       ///< Name of session checkpoint file
+    int64_t original_file_modification_time_{};///< Last synchronized modification time for the original file
+    bool original_file_modification_time_valid_{};///< True when original_file_modification_time_ can be compared
 };
 
 namespace omega_edit::internal {

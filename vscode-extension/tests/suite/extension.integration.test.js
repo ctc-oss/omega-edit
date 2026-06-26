@@ -968,6 +968,7 @@ suite('OmegaEdit VS Code extension', () => {
       uri,
       OMEGA_EDIT_VIEW_TYPE
     )
+    await waitForOmegaEditTab(uri)
     const session = await waitForSession(provider, uri)
     assert.ok(session, 'Expected a live session for the command undo test')
 
@@ -979,15 +980,24 @@ suite('OmegaEdit VS Code extension', () => {
     })
 
     await assertSessionText(session.sessionId, 'YWJj')
+    await waitForOmegaEditTab(uri, { dirty: true })
 
     await vscode.commands.executeCommand('undo')
     await assertSessionText(session.sessionId, 'abc')
+    await waitForOmegaEditTab(uri, { dirty: false })
 
     await vscode.commands.executeCommand('redo')
     await assertSessionText(session.sessionId, 'YWJj')
+    await waitForOmegaEditTab(uri, { dirty: true })
 
-    await vscode.commands.executeCommand('workbench.action.closeActiveEditor')
-    await fs.rm(tmpDir, { recursive: true, force: true })
+    try {
+      await vscode.commands.executeCommand('undo')
+      await assertSessionText(session.sessionId, 'abc')
+      await waitForOmegaEditTab(uri, { dirty: false })
+    } finally {
+      await vscode.commands.executeCommand('workbench.action.closeActiveEditor')
+      await fs.rm(tmpDir, { recursive: true, force: true })
+    }
   })
 
   test('exposes compact editor state and generic external highlights', async () => {
@@ -1130,6 +1140,7 @@ suite('OmegaEdit VS Code extension', () => {
         uri,
         OMEGA_EDIT_VIEW_TYPE
       )
+      await waitForOmegaEditTab(uri)
       const session = await waitForSession(provider, uri)
       assert.ok(session, 'Expected a live session for the command revert test')
 
@@ -1152,6 +1163,7 @@ suite('OmegaEdit VS Code extension', () => {
         isDirty: true,
         savedChangeDepth: 0,
       })
+      await waitForOmegaEditTab(uri, { dirty: true })
 
       await vscode.commands.executeCommand('workbench.action.files.revert')
       await assertSessionText(session.sessionId, 'abc')
@@ -1163,6 +1175,7 @@ suite('OmegaEdit VS Code extension', () => {
         isDirty: false,
         savedChangeDepth: 0,
       })
+      await waitForOmegaEditTab(uri, { dirty: false })
 
       await provider.dispatchWebviewMessageForTesting(uri, {
         type: 'insert',
@@ -1178,6 +1191,7 @@ suite('OmegaEdit VS Code extension', () => {
         isDirty: true,
         savedChangeDepth: 0,
       })
+      await waitForOmegaEditTab(uri, { dirty: true })
 
       await vscode.commands.executeCommand('workbench.action.files.save')
       assert.equal(await fs.readFile(samplePath, 'utf8'), 'abc!')
@@ -1189,6 +1203,7 @@ suite('OmegaEdit VS Code extension', () => {
         isDirty: false,
         savedChangeDepth: 1,
       })
+      await waitForOmegaEditTab(uri, { dirty: false })
 
       await vscode.commands.executeCommand(OMEGA_EDIT_ROLLBACK_SESSION_COMMAND)
       await assertSessionText(session.sessionId, 'abc')
@@ -1202,10 +1217,12 @@ suite('OmegaEdit VS Code extension', () => {
         isDirty: false,
         savedChangeDepth: 0,
       })
+      await waitForOmegaEditTab(uri, { dirty: true })
 
       await vscode.commands.executeCommand('workbench.action.files.save')
       assert.equal(await fs.readFile(samplePath, 'utf8'), 'abc')
       assert.equal(session.restoredFromBackup, false)
+      await waitForOmegaEditTab(uri, { dirty: false })
     } finally {
       await vscode.commands.executeCommand('workbench.action.closeActiveEditor')
       await fs.rm(tmpDir, { recursive: true, force: true })
@@ -1573,6 +1590,27 @@ async function waitForTab(predicate, timeoutMs = 30000, intervalMs = 200) {
   }
 
   return undefined
+}
+
+async function waitForOmegaEditTab(uri, options = {}) {
+  const tab = await waitForTab((candidate) => {
+    if (
+      !(candidate?.input instanceof vscode.TabInputCustom) ||
+      candidate.input.viewType !== OMEGA_EDIT_VIEW_TYPE ||
+      candidate.input.uri.fsPath !== uri.fsPath
+    ) {
+      return false
+    }
+
+    return options.dirty === undefined || candidate.isDirty === options.dirty
+  })
+  assert.ok(
+    tab,
+    options.dirty === undefined
+      ? `Expected active OmegaEdit tab for ${uri.fsPath}`
+      : `Expected active OmegaEdit tab for ${uri.fsPath} with dirty=${options.dirty}`
+  )
+  return tab
 }
 
 function delay(ms) {

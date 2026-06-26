@@ -116,7 +116,9 @@ namespace {
     }
 
     auto create_session_with_backing_file_(FILE *file_ptr, const char *file_path, const char *checkpoint_file_name,
-                                           const std::string &checkpoint_directory, omega_session_event_cbk_t cbk,
+                                           const std::string &checkpoint_directory,
+                                           int64_t original_file_modification_time,
+                                           bool original_file_modification_time_valid, omega_session_event_cbk_t cbk,
                                            void *user_data_ptr, int32_t event_interest) -> omega_session_t * {
         int64_t file_size = 0;
         if (file_ptr != nullptr) {
@@ -132,6 +134,8 @@ namespace {
         session_ptr->user_data_ptr = user_data_ptr;
         session_ptr->event_interest_ = event_interest;
         session_ptr->num_changes_adjustment_ = 0;
+        session_ptr->original_file_modification_time_ = original_file_modification_time;
+        session_ptr->original_file_modification_time_valid_ = original_file_modification_time_valid;
         session_ptr->models_.push_back(std::make_unique<omega_model_t>());
         if (file_ptr != nullptr) {
             session_ptr->models_.back()->file_ptr = file_ptr;
@@ -202,6 +206,31 @@ namespace {
 
         errno = EEXIST;
         return nullptr;
+    }
+
+    auto original_file_modified_since_last_sync_(omega_session_t *session_ptr, const char *file_path) -> bool {
+        if (!session_ptr || !file_path || !*file_path || !session_ptr->original_file_modification_time_valid_) {
+            return false;
+        }
+
+        int64_t modification_time = 0;
+        if (0 != omega_util_get_modification_time(file_path, &modification_time)) { return false; }
+        return modification_time > session_ptr->original_file_modification_time_;
+    }
+
+    auto refresh_original_file_modification_time_(omega_session_t *session_ptr, const char *file_path) -> int {
+        if (!session_ptr || !file_path || !*file_path) { return -1; }
+
+        int64_t modification_time = 0;
+        const auto result = omega_util_get_modification_time(file_path, &modification_time);
+        if (result != 0) {
+            session_ptr->original_file_modification_time_valid_ = false;
+            return result;
+        }
+
+        session_ptr->original_file_modification_time_ = modification_time;
+        session_ptr->original_file_modification_time_valid_ = true;
+        return 0;
     }
 
     void initialize_model_segments_(omega_model_segments_t &model_segments, int64_t length) {
@@ -1376,6 +1405,8 @@ omega_session_t *omega_edit_create_session(const char *file_path, omega_session_
     if (!resolve_checkpoint_directory_(file_path, checkpoint_directory, checkpoint_directory_str)) { return nullptr; }
     FILE *file_ptr = nullptr;
     char checkpoint_filename[FILENAME_MAX + 1];
+    int64_t original_file_modification_time = 0;
+    bool original_file_modification_time_valid = false;
     if ((file_path != nullptr) && file_path[0] != '\0') {
         if (FILENAME_MAX <= snprintf(static_cast<char *>(checkpoint_filename), FILENAME_MAX,
                                      "%s%c.OmegaEdit-orig.XXXXXX", checkpoint_directory_str.c_str(),
@@ -1397,14 +1428,21 @@ omega_session_t *omega_edit_create_session(const char *file_path, omega_session_
             omega_util_remove_file(checkpoint_filename);
             return nullptr;
         }
+        if (0 != omega_util_get_modification_time(file_path, &original_file_modification_time)) {
+            LOG_ERROR("failed to read original file modification time for '" << file_path << "'");
+            omega_util_remove_file(checkpoint_filename);
+            return nullptr;
+        }
+        original_file_modification_time_valid = true;
         file_ptr = FOPEN(checkpoint_filename, "rb");
         if (file_ptr == nullptr) {
             omega_util_remove_file(checkpoint_filename);
             return nullptr;
         }
     }
-    return create_session_with_backing_file_(file_ptr, file_path, checkpoint_filename, checkpoint_directory_str, cbk,
-                                             user_data_ptr, event_interest);
+    return create_session_with_backing_file_(file_ptr, file_path, checkpoint_filename, checkpoint_directory_str,
+                                             original_file_modification_time,
+                                             original_file_modification_time_valid, cbk, user_data_ptr, event_interest);
 }
 
 omega_session_t *omega_edit_create_session_from_bytes(const omega_byte_t *data_ptr, int64_t length,
@@ -1448,8 +1486,8 @@ omega_session_t *omega_edit_create_session_from_bytes(const omega_byte_t *data_p
         return nullptr;
     }
 
-    return create_session_with_backing_file_(file_ptr, nullptr, checkpoint_filename, checkpoint_directory_str, cbk,
-                                             user_data_ptr, event_interest);
+    return create_session_with_backing_file_(file_ptr, nullptr, checkpoint_filename, checkpoint_directory_str, 0, false,
+                                             cbk, user_data_ptr, event_interest);
 }
 
 void omega_edit_destroy_session(omega_session_t *session_ptr) {
@@ -1919,7 +1957,6 @@ int omega_edit_save_segment(omega_session_t *session_ptr, const char *file_path,
     const auto force_overwrite = io_flags & omega_io_flags_t::IO_FLG_FORCE_OVERWRITE;
     const auto overwrite = force_overwrite || io_flags & omega_io_flags_t::IO_FLG_OVERWRITE;
     const auto *const session_file_path = omega_session_get_file_path(session_ptr);
-    const auto *const checkpoint_file = session_ptr->checkpoint_file_name_.c_str();
     const auto mode = omega_util_compute_mode(0666);// S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH
     if (saved_file_path != nullptr) { saved_file_path[0] = '\0'; }
 
@@ -1928,7 +1965,7 @@ int omega_edit_save_segment(omega_session_t *session_ptr, const char *file_path,
              (omega_util_paths_equivalent(file_path, session_file_path) != 0));
 
     if (overwrite_original && (force_overwrite == 0) &&
-        1 == omega_util_compare_modification_times(session_file_path, checkpoint_file)) {
+        original_file_modified_since_last_sync_(session_ptr, session_file_path)) {
         LOG_ERROR("original file '" << session_file_path
                                     << "' has been modified since the session was created, save failed (use "
                                        "IO_FLG_FORCE_OVERWRITE to override)");
@@ -2079,13 +2116,12 @@ int omega_edit_save_segment(omega_session_t *session_ptr, const char *file_path,
     cleanup_output = false;
     output_path = overwrite ? file_path : output_path;
     if (overwrite_original) {
-        if (0 != omega_util_touch(checkpoint_file, 0)) {
-            LOG_ERROR("failed to touch checkpoint file: " << checkpoint_file);
+        if (0 != refresh_original_file_modification_time_(session_ptr, file_path)) {
+            LOG_ERROR("failed to refresh original file modification time: " << file_path);
 #ifndef OMEGA_BUILD_WINDOWS// Windows files may not have their modified times updated without elevated privileges
             return -13;
 #endif
         }
-        assert(0 <= omega_util_compare_modification_times(checkpoint_file, file_path));
     }
 
     if (saved_file_path != nullptr) { omega_util_normalize_path(output_path, saved_file_path); }

@@ -121,6 +121,14 @@ int omega_util_compare_files(const char *path1, const char *path2);
 int omega_util_compare_modification_times(const char *path1, const char *path2);
 
 /**
+ * Get a file modification time value that can be compared with later values from the same function
+ * @param path file path
+ * @param modification_time_out pointer to receive the modification time value
+ * @return 0 on success, or a negative value on failure
+ */
+int omega_util_get_modification_time(const char *path, int64_t *modification_time_out);
+
+/**
  * Given a file name, return the associated basename (filename without the directory) and if a matching suffix is given, the returned basename will have the suffix removed
  * @param path file path
  * @param buffer pointer to memory to hold the base name (allocated to at least FILENAME_MAX) or could be NULL, in which case an internal static buffer will be used
