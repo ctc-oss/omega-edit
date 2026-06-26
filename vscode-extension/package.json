@@ -66,6 +66,16 @@
           ],
           "description": "%omegaEdit.configuration.bytesPerRow.description%"
         },
+        "omegaEdit.language": {
+          "type": "string",
+          "default": "auto",
+          "enum": [
+            "auto",
+            "en",
+            "es"
+          ],
+          "description": "%omegaEdit.configuration.language.description%"
+        },
         "omegaEdit.transformPluginDirectories": {
           "type": "array",
           "default": [],

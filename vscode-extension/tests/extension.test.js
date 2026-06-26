@@ -179,6 +179,19 @@ test('package.json matches shared extension constants', () => {
     'OmegaEdit: Clear External Highlights'
   )
   assert.deepEqual(
+    packageJson.contributes.configuration.properties['omegaEdit.language'].enum,
+    ['auto', 'en', 'es']
+  )
+  assert.equal(
+    packageJson.contributes.configuration.properties['omegaEdit.language']
+      .default,
+    'auto'
+  )
+  assert.equal(
+    packageNls['omegaEdit.configuration.language.description'],
+    "Language for the Svelte data editor UI. Use auto to follow VS Code's display language."
+  )
+  assert.deepEqual(
     packageJson.contributes.configuration.properties[
       'omegaEdit.transformPluginDirectories'
     ].default,
@@ -369,6 +382,10 @@ test('compiled extension entrypoints exist after build', () => {
   )
   const svelteAppSource = fs.readFileSync(
     path.resolve(__dirname, '../webview-ui/src/App.svelte'),
+    'utf8'
+  )
+  const svelteMainSource = fs.readFileSync(
+    path.resolve(__dirname, '../webview-ui/src/main.ts'),
     'utf8'
   )
   const i18nSource = fs.readFileSync(
@@ -595,8 +612,15 @@ test('compiled extension entrypoints exist after build', () => {
   assert.match(svelteHostJs, /webview\.js/)
   assert.match(svelteHostJs, /webview\.css/)
   assert.match(svelteHostJs, /vscode\.l10n\.t/)
+  assert.match(svelteHostJs, /getConfiguration\(['"]omegaEdit['"]\)/)
+  assert.match(svelteHostJs, /config\.get\(['"]language['"]/)
+  assert.match(svelteHostJs, /vscode\.env\.language/)
+  assert.match(svelteHostJs, /data-locale/)
   assert.match(svelteHostJs, /escapeHtmlText/)
   assert.match(svelteHostJs, /Loading OmegaEdit Data Editor/)
+  assert.match(svelteMainSource, /setLanguage\(target\.dataset\.locale/)
+  assert.match(svelteMainSource, /document\.documentElement\.lang/)
+  assert.match(svelteMainSource, /document\.documentElement\.dir/)
   assert.match(viteConfigSource, /cssCodeSplit:\s*false/)
   assert.doesNotMatch(svelteHostJs, /Svelte Preview/)
   assert.doesNotMatch(svelteBundleJs, /OmegaEdit Svelte Preview/)
@@ -1013,6 +1037,12 @@ test('compiled extension entrypoints exist after build', () => {
   assert.match(previewGridSource, /class:searchHit/)
   assert.match(previewGridSource, /class="text-byte"/)
   assert.match(previewGridSource, /formatAscii\(byte\)/)
+  assert.match(i18nSource, /const englishStrings =/)
+  assert.match(i18nSource, /const localeOverrides/)
+  assert.match(i18nSource, /export function resolveLanguage/)
+  assert.match(i18nSource, /export function setLanguage/)
+  assert.match(i18nSource, /export function formatNumber/)
+  assert.match(i18nSource, /es: \{/)
   assert.match(i18nSource, /byteHoverTitle/)
   assert.match(i18nSource, /HEX Byte/)
   assert.match(
@@ -1289,6 +1319,8 @@ test('compiled extension entrypoints exist after build', () => {
     'utf8'
   )
   assert.match(extensionJs, /transformPluginDirectories/)
+  assert.match(extensionJs, /omegaEdit\.language/)
+  assert.match(extensionJs, /refreshLanguage/)
   assert.match(extensionJs, /OMEGA_EDIT_UNDO_COMMAND/)
   assert.match(extensionJs, /OMEGA_EDIT_REDO_COMMAND/)
   assert.match(extensionJs, /OMEGA_EDIT_TOGGLE_INSERT_DIRECTION_COMMAND/)

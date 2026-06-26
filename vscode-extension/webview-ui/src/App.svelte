@@ -5,7 +5,7 @@
   import SearchPanel from './components/SearchPanel.svelte'
   import Toolbar from './components/Toolbar.svelte'
   import TransformResultPanel from './components/TransformResultPanel.svelte'
-  import { strings } from './i18n'
+  import { formatNumber, strings } from './i18n'
   import {
     MAX_ANALYSIS_PROFILE_BYTES,
     normalizeBytesPerRow,
@@ -1234,7 +1234,7 @@
 
   function formatSearchOffset(offset: number): string {
     return offsetRadix === 'dec'
-      ? offset.toLocaleString()
+      ? formatNumber(offset)
       : `0x${offset.toString(16).toUpperCase()}`
   }
 
@@ -1395,9 +1395,9 @@
 
     const prefix = message.message || message.phase || strings.transform.completed
     if (typeof message.processedBytes === 'number') {
-      const processed = message.processedBytes.toLocaleString()
+      const processed = formatNumber(message.processedBytes)
       if (typeof message.totalBytes === 'number' && message.totalBytes > 0) {
-        const total = message.totalBytes.toLocaleString()
+        const total = formatNumber(message.totalBytes)
         const percent =
           typeof message.percent === 'number'
             ? ` (${message.percent.toFixed(1)}%)`

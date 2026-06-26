@@ -1,6 +1,6 @@
 <script lang="ts">
   import { tick } from 'svelte'
-  import { strings } from '../i18n'
+  import { formatNumber, strings } from '../i18n'
   import {
     MAX_TRANSFORM_OPTIONS_LENGTH,
     type WebviewTransformPlugin,
@@ -222,7 +222,7 @@
 
   function formatOffset(offset: number): string {
     return offsetRadix === 'dec'
-      ? offset.toLocaleString()
+      ? formatNumber(offset)
       : `0x${offset.toString(16).toUpperCase()}`
   }
 

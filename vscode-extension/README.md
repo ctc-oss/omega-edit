@@ -104,6 +104,7 @@ This mode decision is made only when the user runs an explicit search. If a repl
 | `omegaEdit.serverPort`  | `9000`  | TCP gRPC server port; setting this explicitly opts out of the default macOS/Linux Unix socket transport |
 | `omegaEdit.logLevel`    | `info`  | Client log level (`trace` / `debug` / `info` / `warn` / `error` / `fatal`) |
 | `omegaEdit.bytesPerRow` | `16`    | Bytes displayed per row (8 / 16 / 32)                                      |
+| `omegaEdit.language`    | `auto`  | Svelte data editor UI language (`auto` follows VS Code; explicit options include `en` and `es`) |
 | `omegaEdit.transformPluginDirectories` | `[]` | Native transform plugin directories; local build plugin folders are auto-detected when this is empty |
 
 ## Keyboard Shortcuts
@@ -234,9 +235,22 @@ instance, and host/build metadata, while live server metrics remain in Analysis
 > Structure > Server. The inspector is collapsible, inspector values highlight
 their participating bytes in both grid panes, offsets can be shown in hex or
 decimal, and the Analysis side pane supports reorderable and collapsible
-sections. The webview derives visible rows from the editor pane height, clamps
-virtual scrolling at file boundaries, and keeps UI strings in an i18n string
-table.
+sections. The webview derives visible rows from the editor pane height and
+clamps virtual scrolling at file boundaries.
+
+The Svelte webview localizes visible UI through
+`webview-ui/src/i18n.ts`. The `omegaEdit.language` setting defaults to `auto`,
+which follows VS Code's active display language from `vscode.env.language`.
+Setting it to an explicit supported language such as `en` or `es` overrides the
+webview language and makes localization easy to test without changing VS Code's
+global display language. The selected language is passed into the webview HTML,
+which sets the document `lang`, text direction, and selected string table before
+Svelte mounts. English is the complete fallback locale, and locale entries such
+as the initial `es` table may override only the strings they translate. New
+Svelte UI should continue to read labels, titles, validation text, and
+locale-sensitive decimal number formatting from the i18n helpers instead of
+adding visible literals directly in components. VS Code contribution strings
+remain in `package.nls.json`.
 
 Generic parser/debugger integrations can call `omegaEdit.getEditorState`,
 `omegaEdit.setExternalHighlights`, and `omegaEdit.clearExternalHighlights` to

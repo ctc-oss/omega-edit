@@ -996,6 +996,13 @@ button.dialog-backdrop:focus-visible {
   padding: 2px 7px;
 }
 
+.profiler-toggle:not(.profiler-collapsed-toggle) {
+  inline-size: 30px;
+  padding: 2px 0;
+  font-weight: 600;
+  line-height: 1;
+}
+
 .profiler-panel.collapsed .profiler-header {
   position: relative;
   justify-content: center;
@@ -1739,6 +1746,14 @@ button.dialog-backdrop:focus-visible {
   min-width: 52px;
   min-height: 24px;
   padding: 2px 7px;
+}
+
+.inspector-toggle:not(.inspector-collapsed-toggle) {
+  inline-size: 30px;
+  min-width: 30px;
+  padding: 2px 0;
+  font-weight: 600;
+  line-height: 1;
 }
 
 .inspector-collapsed-toggle {

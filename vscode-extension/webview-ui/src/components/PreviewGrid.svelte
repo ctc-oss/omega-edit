@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount, tick } from 'svelte'
-  import { strings } from '../i18n'
+  import { formatNumber, strings } from '../i18n'
   import type { BytesPerRow, WebviewExternalHighlight } from '../protocol'
 
   const FALLBACK_VISIBLE_ROWS = 16
@@ -150,7 +150,7 @@
 
   function formatOffset(offset: number): string {
     return offsetRadix === 'dec'
-      ? offset.toLocaleString()
+      ? formatNumber(offset)
       : `0x${offset.toString(16).toUpperCase().padStart(8, '0')}`
   }
 
@@ -173,7 +173,7 @@
         : strings.grid.textByteTitle,
       formatOffset(byteOffset),
       hex,
-      byte.toLocaleString(),
+      formatNumber(byte),
       formatBinary(byte),
       formatTooltipText(byte),
       byteClassLabel(byte),

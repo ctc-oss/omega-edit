@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { strings } from '../i18n'
+  import { formatNumber, strings } from '../i18n'
 
   interface Props {
     fileSize?: number
@@ -53,7 +53,7 @@
 
   function formatOffset(offset: number): string {
     return offsetRadix === 'dec'
-      ? offset.toLocaleString()
+      ? formatNumber(offset)
       : `0x${offset.toString(16).toUpperCase()}`
   }
 

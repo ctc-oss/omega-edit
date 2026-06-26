@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { strings } from '../i18n'
+  import { formatNumber, strings } from '../i18n'
   import type {
     HostToWebviewMessage,
     ServerHealthMessage,
@@ -199,7 +199,7 @@
     topProfileBytes.map((entry) => ({
       label: formatByteLabel(entry.byte),
       percent: (entry.count / topProfileMaxCount) * 100,
-      value: `${entry.count.toLocaleString()} | ${formatPercent(
+      value: `${formatNumber(entry.count)} | ${formatPercent(
         byteTotal > 0 ? (entry.count / byteTotal) * 100 : 0
       )}`,
       colorClass: frequencyBarClass(entry.byte, entry.count).trim(),
@@ -207,8 +207,8 @@
   )
   const structureRows = $derived(buildStructureRows())
   const historyRows = $derived([
-    { label: strings.profiler.undo, value: undoCount.toLocaleString() },
-    { label: strings.profiler.redo, value: redoCount.toLocaleString() },
+    { label: strings.profiler.undo, value: formatNumber(undoCount) },
+    { label: strings.profiler.redo, value: formatNumber(redoCount) },
     { label: strings.profiler.canUndo, value: yesNo(canUndo) },
     { label: strings.profiler.canRedo, value: yesNo(canRedo) },
   ])
@@ -441,7 +441,7 @@
     if (value < 100) {
       return `${value.toFixed(1)} ms`
     }
-    return `${Math.round(value).toLocaleString()} ms`
+    return `${formatNumber(Math.round(value))} ms`
   }
 
   function formatByteSize(value: number): string {
@@ -468,7 +468,7 @@
 
   function formatOffset(offset: number): string {
     return offsetRadix === 'dec'
-      ? offset.toLocaleString()
+      ? formatNumber(offset)
       : `0x${offset.toString(16).toUpperCase()}`
   }
 
@@ -497,7 +497,7 @@
     if (!entry || total <= 0) {
       return '-'
     }
-    return `${formatByteLabel(entry.byte)} x ${entry.count.toLocaleString()} (${formatPercent(
+    return `${formatByteLabel(entry.byte)} x ${formatNumber(entry.count)} (${formatPercent(
       (entry.count / total) * 100
     )})`
   }
@@ -579,7 +579,7 @@
       ([label, count]) => ({
         label,
         percent: (count / total) * 100,
-        value: `${count.toLocaleString()} | ${formatPercent(
+        value: `${formatNumber(count)} | ${formatPercent(
           (count / total) * 100
         )}`,
         colorClass: classColorClass(label),
@@ -674,7 +674,7 @@
       { label: strings.profiler.offset, value: formatOffset(visibleOffset) },
       { label: strings.profiler.buffered, value: formatByteSize(viewportLength) },
       { label: strings.profiler.visible, value: formatByteSize(visibleByteCount) },
-      { label: strings.profiler.rows, value: visibleRows.toLocaleString() },
+      { label: strings.profiler.rows, value: formatNumber(visibleRows) },
       {
         label: strings.profiler.capacity,
         value: formatByteSize(viewportProfile?.capacity ?? 0),
@@ -692,7 +692,7 @@
       },
       {
         label: strings.profiler.changes,
-        value: (viewportProfile?.changeCount ?? 0).toLocaleString(),
+        value: formatNumber(viewportProfile?.changeCount ?? 0),
       },
       {
         label: strings.profiler.sync,
@@ -762,15 +762,15 @@
 
     return [
       { label: strings.profiler.scope, value: dataProfile.scopeLabel },
-      { label: strings.profiler.bytes, value: byteTotal.toLocaleString() },
+      { label: strings.profiler.bytes, value: formatNumber(byteTotal) },
       {
         label: strings.profiler.dosEol,
-        value: (dataProfile.byteProfile[256] ?? 0).toLocaleString(),
+        value: formatNumber(dataProfile.byteProfile[256] ?? 0),
       },
       { label: strings.profiler.modeByte, value: formatModeByte(modeByte, byteTotal) },
       {
         label: strings.profiler.ascii,
-        value: `${dataProfile.numAscii.toLocaleString()} / ${formatPercent(
+        value: `${formatNumber(dataProfile.numAscii)} / ${formatPercent(
           asciiPercent
         )}`,
       },
@@ -779,27 +779,27 @@
       { label: strings.profiler.bom, value: characterCount.byteOrderMark || '-' },
       {
         label: strings.profiler.bomBytes,
-        value: characterCount.byteOrderMarkBytes.toLocaleString(),
+        value: formatNumber(characterCount.byteOrderMarkBytes),
       },
       {
         label: strings.profiler.oneByteChars,
-        value: characterCount.singleByteCount.toLocaleString(),
+        value: formatNumber(characterCount.singleByteCount),
       },
       {
         label: strings.profiler.twoByteChars,
-        value: characterCount.doubleByteCount.toLocaleString(),
+        value: formatNumber(characterCount.doubleByteCount),
       },
       {
         label: strings.profiler.threeByteChars,
-        value: characterCount.tripleByteCount.toLocaleString(),
+        value: formatNumber(characterCount.tripleByteCount),
       },
       {
         label: strings.profiler.fourByteChars,
-        value: characterCount.quadByteCount.toLocaleString(),
+        value: formatNumber(characterCount.quadByteCount),
       },
       {
         label: strings.profiler.invalid,
-        value: characterCount.invalidBytes.toLocaleString(),
+        value: formatNumber(characterCount.invalidBytes),
       },
       { label: strings.profiler.profile, value: formatDuration(dataProfile.durationMs) },
     ]
@@ -815,11 +815,11 @@
     return [
       {
         label: strings.profiler.bytes,
-        value: structureAnalysis.count.toLocaleString(),
+        value: formatNumber(structureAnalysis.count),
       },
       {
         label: strings.profiler.unique,
-        value: `${structureAnalysis.unique.toLocaleString()} / 256`,
+        value: `${formatNumber(structureAnalysis.unique)} / 256`,
       },
       { label: strings.profiler.density, value: formatPercent(density) },
       {
@@ -851,7 +851,7 @@
             ? '-'
             : `0x${toHex2(
                 structureAnalysis.longestRunByte
-              )} x ${structureAnalysis.longestRunLength.toLocaleString()}`,
+              )} x ${formatNumber(structureAnalysis.longestRunLength)}`,
       },
     ]
   }
@@ -1037,6 +1037,7 @@
         type="button"
         class="profiler-toggle profiler-collapsed-toggle"
         aria-expanded={expanded}
+        aria-label={strings.profiler.expand}
         title={strings.profiler.expand}
         onclick={onToggleExpanded}
       >
@@ -1048,10 +1049,11 @@
         type="button"
         class="profiler-toggle"
         aria-expanded={expanded}
+        aria-label={strings.profiler.collapse}
         title={strings.profiler.collapse}
         onclick={onToggleExpanded}
       >
-        {strings.profiler.hide}
+        {strings.profiler.collapseSymbol}
       </button>
       <span class="analysis-title">{strings.profiler.title}</span>
       <span class="analysis-tabs" role="tablist" aria-label={strings.profiler.views}>
@@ -1333,7 +1335,7 @@
                         <div>{formatByteLabel(hoveredFrequency.byte)}</div>
                         <div>
                           {strings.profiler.count}
-                          {hoveredFrequency.count.toLocaleString()} |
+                          {formatNumber(hoveredFrequency.count)} |
                           {hoveredFrequency.percent}
                         </div>
                       </div>

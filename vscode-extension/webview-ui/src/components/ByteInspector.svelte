@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { strings } from '../i18n'
+  import { formatNumber, strings } from '../i18n'
 
   interface InspectorField {
     key: string
@@ -61,10 +61,6 @@
   const selectionLength = $derived(
     hasSelection ? selectionEnd - selectionStart + 1 : 0
   )
-  const toggleLabel = $derived(
-    expanded ? strings.inspector.hide : strings.inspector.show
-  )
-
   function setEndian(useLittleEndian: boolean): void {
     if (littleEndian !== useLittleEndian) {
       onToggleEndian()
@@ -73,7 +69,7 @@
 
   function formatOffset(offset: number): string {
     return offsetRadix === 'dec'
-      ? offset.toLocaleString()
+      ? formatNumber(offset)
       : `0x${offset.toString(16).toUpperCase()}`
   }
 
@@ -540,11 +536,14 @@
       class="inspector-toggle"
       class:inspector-collapsed-toggle={!expanded}
       aria-expanded={expanded}
+      aria-label={
+        expanded ? strings.inspector.collapse : strings.inspector.expand
+      }
       title={expanded ? strings.inspector.collapse : strings.inspector.expand}
       onclick={onToggleExpanded}
     >
       {#if expanded}
-        {toggleLabel}
+        {strings.inspector.collapseSymbol}
       {:else}
         <span>{strings.inspector.show}</span>
         <span class="inspector-collapsed-label">
