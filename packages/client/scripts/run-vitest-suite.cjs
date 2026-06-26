@@ -124,10 +124,6 @@ if (!skipPrereqs) {
 const selectedSuite = suiteConfig[suite]
 const vitestArgs = ['run', '--config', selectedSuite.config]
 
-if (suite === 'coverage') {
-  runVitest(['run', '--config', suiteConfig.lifecycle.config], env)
-}
-
 if (selectedSuite.coverage) {
   vitestArgs.push('--coverage')
 }

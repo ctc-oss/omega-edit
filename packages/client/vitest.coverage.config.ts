@@ -7,22 +7,26 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url))
 export default defineConfig({
   resolve: {
     alias: {
-      '@omega-edit/client': path.resolve(__dirname, 'src/index.ts'),
+      '@omega-edit/client': path.resolve(__dirname, 'dist/esm/index.js'),
     },
   },
   test: {
     coverage: {
       all: true,
+      excludeAfterRemap: true,
       exclude: [
+        'dist/**/*.d.ts',
+        'dist/**/client_version.js',
+        'dist/**/protobuf_ts/generated/**',
+        'dist/**/shims/**',
         'src/**/*.d.ts',
         'src/client_version.ts',
         'src/protobuf_ts/generated/**',
         'src/shims/**',
-        'dist/**',
         'tests/**',
         'scripts/**',
       ],
-      include: ['src/**/*.ts'],
+      include: ['dist/**/*.js'],
       provider: 'v8',
       reporter: ['lcov', 'text'],
       reportsDirectory: 'coverage',
@@ -34,7 +38,6 @@ export default defineConfig({
       },
     },
     environment: 'node',
-    exclude: ['tests/specs/server.spec.ts'],
     fileParallelism: false,
     globalSetup: ['./tests/vitest-global-setup.ts'],
     globals: true,
