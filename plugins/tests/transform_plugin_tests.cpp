@@ -171,23 +171,36 @@ TEST_CASE("Packaged Transform Plugins", "[TransformPlugin]") {
     REQUIRE(7 == response.replacement_length);
     REQUIRE("ABC!09Z" == omega_session_get_segment_string(case_session_ptr, 0,
                                                           omega_session_get_computed_file_size(case_session_ptr)));
+    const auto *case_transform_change = omega_session_get_last_change(case_session_ptr);
+    REQUIRE(case_transform_change);
+    REQUIRE('T' == omega_change_get_kind_as_char(case_transform_change));
+    REQUIRE("omega.example.case_change" == std::string(omega_change_get_transform_id(case_transform_change)));
+    REQUIRE("{\"case\":\"upper\"}" == std::string(omega_change_get_transform_options_json(case_transform_change)));
+    REQUIRE(7 == omega_change_get_transform_replacement_length(case_transform_change));
+    REQUIRE(7 == omega_change_get_transform_computed_file_size_before(case_transform_change));
+    REQUIRE(7 == omega_change_get_transform_computed_file_size_after(case_transform_change));
     omega_transform_plugin_response_clear(&response);
 
     const auto uppercase_change_count = omega_session_get_num_changes(case_session_ptr);
-    REQUIRE(0 == omega_transform_plugin_registry_apply_to_session(registry_ptr, "omega.example.case_change",
-                                                                  case_session_ptr, 0, 7,
-                                                                  "{\"case\":\"upper\"}", &response));
+    int64_t no_change_serial = -1;
+    REQUIRE(0 == omega_transform_plugin_registry_apply_to_session_with_progress_and_serial(
+                         registry_ptr, "omega.example.case_change", case_session_ptr, 0, 7, "{\"case\":\"upper\"}",
+                         nullptr, nullptr, &response, &no_change_serial));
+    REQUIRE(0 == no_change_serial);
     REQUIRE(0 == response.replacement_length);
     REQUIRE((response.flags & OMEGA_TRANSFORM_PLUGIN_RESPONSE_NO_CONTENT_CHANGE) != 0U);
     REQUIRE(uppercase_change_count == omega_session_get_num_changes(case_session_ptr));
     omega_transform_plugin_response_clear(&response);
 
-    REQUIRE(0 == omega_transform_plugin_registry_apply_to_session(registry_ptr, "omega.example.case_change",
-                                                                  case_session_ptr, 0, 7,
-                                                                  "{\"case\":\"lower\"}", &response));
+    int64_t lower_serial = 0;
+    REQUIRE(0 == omega_transform_plugin_registry_apply_to_session_with_progress_and_serial(
+                         registry_ptr, "omega.example.case_change", case_session_ptr, 0, 7, "{\"case\":\"lower\"}",
+                         nullptr, nullptr, &response, &lower_serial));
+    REQUIRE(0 < lower_serial);
     REQUIRE(7 == response.replacement_length);
     REQUIRE("abc!09z" == omega_session_get_segment_string(case_session_ptr, 0,
                                                           omega_session_get_computed_file_size(case_session_ptr)));
+    REQUIRE(lower_serial == omega_change_get_serial(omega_session_get_last_change(case_session_ptr)));
     omega_transform_plugin_response_clear(&response);
     omega_edit_destroy_session(case_session_ptr);
 

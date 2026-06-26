@@ -273,6 +273,8 @@ enum ChangeKind {
   CHANGE_KIND_INSERT = 2;
   // Overwrite bytes at `offset` with `data`.
   CHANGE_KIND_OVERWRITE = 3;
+  // Transform bytes through a checkpoint-backed operation.
+  CHANGE_KIND_TRANSFORM = 4;
 }
 
 // Session-level event kinds.  Values are powers of two so they can be OR'd
@@ -710,6 +712,7 @@ message GetChangeDetailsResponse {
   int64 offset = 4;        // Byte offset.
   int64 length = 5;        // Number of bytes affected.
   optional bytes data = 6; // Payload bytes (for insert/overwrite).
+  optional TransformChangeDetails transform = 7; // Transform metadata (for transform changes).
 }
 
 // Request to retrieve the most recent change in a session.
@@ -725,6 +728,7 @@ message GetLastChangeResponse {
   int64 offset = 4;        // Byte offset.
   int64 length = 5;        // Number of bytes affected.
   optional bytes data = 6; // Payload bytes (for insert/overwrite).
+  optional TransformChangeDetails transform = 7; // Transform metadata (for transform changes).
 }
 
 // Request to retrieve the most recent undone change in a session.
@@ -740,6 +744,16 @@ message GetLastUndoResponse {
   int64 offset = 4;        // Byte offset.
   int64 length = 5;        // Number of bytes affected.
   optional bytes data = 6; // Payload bytes (for insert/overwrite).
+  optional TransformChangeDetails transform = 7; // Transform metadata (for transform changes).
+}
+
+// Metadata for a checkpoint-backed transform change.
+message TransformChangeDetails {
+  string transform_id = 1;                    // Stable transform or plugin identifier.
+  optional string options_json = 2;           // Plugin-specific transform options.
+  int64 replacement_length = 3;               // Number of bytes materialized into the checkpoint.
+  int64 computed_file_size_before = 4;        // Session size before the transform.
+  int64 computed_file_size_after = 5;         // Session size after the transform.
 }
 
 // ===========================================================================
@@ -997,6 +1011,7 @@ message ApplyTransformPluginResponse {
   optional string result_label = 9;          // Plugin-provided result label.
   optional string result_mime_type = 10;     // Plugin-provided result MIME type.
   bytes result = 11;                         // Plugin-provided inspection bytes.
+  optional int64 serial = 12;                // Transform change serial when content changed.
 }
 
 // Progress reported by a session-level transform event.
@@ -1009,6 +1024,7 @@ message TransformProgress {
   string phase = 6;                  // Machine-readable phase label.
   string message = 7;                // Human-readable progress message.
   bool indeterminate = 8;            // True when determinate progress is unavailable.
+  optional int64 serial = 9;         // Transform change serial when available.
 }
 
 // Request to compute a byte-frequency histogram.

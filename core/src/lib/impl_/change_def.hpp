@@ -18,17 +18,26 @@
 #include "../../include/omega_edit/fwd_defs.h"
 #include "data_def.hpp"
 #include <cstdint>
+#include <memory>
+#include <string>
 
 namespace omega_edit::internal {
 
-enum class change_kind_t {
-    CHANGE_DELETE = 0, CHANGE_INSERT = 1, CHANGE_OVERWRITE = 2
-};
+    enum class change_kind_t { CHANGE_DELETE = 0, CHANGE_INSERT = 1, CHANGE_OVERWRITE = 2, CHANGE_TRANSFORM = 3 };
 
 }// namespace omega_edit::internal
 
 #define OMEGA_CHANGE_KIND_MASK 0x03
 #define OMEGA_CHANGE_TRANSACTION_BIT 0x04
+
+struct omega_transform_change_data_struct {
+    std::string transform_id{};
+    std::string options_json{};
+    std::string checkpoint_file_path{};
+    int64_t replacement_length{};
+    int64_t computed_file_size_before{};
+    int64_t computed_file_size_after{};
+};
 
 struct omega_change_struct {
     int64_t serial{};   ///< Serial number of the change (increasing)
@@ -36,26 +45,27 @@ struct omega_change_struct {
     int64_t length{};   ///< Number of bytes at the time of the change
     omega_data_t data{};///< Bytes to insert or overwrite
     uint8_t kind{};     ///< Change kind
+    std::unique_ptr<omega_transform_change_data_struct> transform_data{};
 };
 
 namespace omega_edit::internal {
 
-/**
+    /**
  * @brief Get the kind of change
  * @param change_ptr change to get the kind from
  * @return change kind
  */
-inline change_kind_t omega_change_get_kind_(const omega_change_t *change_ptr) {
-    return static_cast<change_kind_t>(change_ptr->kind & OMEGA_CHANGE_KIND_MASK);
-}
+    inline change_kind_t omega_change_get_kind_(const omega_change_t *change_ptr) {
+        return static_cast<change_kind_t>(change_ptr->kind & OMEGA_CHANGE_KIND_MASK);
+    }
 
-inline bool omega_change_get_transaction_bit_(const omega_change_t *change_ptr) {
-    return change_ptr->kind & OMEGA_CHANGE_TRANSACTION_BIT;
-}
+    inline bool omega_change_get_transaction_bit_(const omega_change_t *change_ptr) {
+        return change_ptr->kind & OMEGA_CHANGE_TRANSACTION_BIT;
+    }
 
-inline void omega_change_toggle_transaction_bit_(omega_change_t *change_ptr) {
-    change_ptr->kind ^= OMEGA_CHANGE_TRANSACTION_BIT;// Toggle the transaction bit
-}
+    inline void omega_change_toggle_transaction_bit_(omega_change_t *change_ptr) {
+        change_ptr->kind ^= OMEGA_CHANGE_TRANSACTION_BIT;// Toggle the transaction bit
+    }
 
 }// namespace omega_edit::internal
 

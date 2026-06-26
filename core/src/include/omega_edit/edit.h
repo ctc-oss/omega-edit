@@ -322,6 +322,26 @@ int omega_edit_replace_bytes_checkpointed(omega_session_t *session_ptr, int64_t 
                                           const omega_byte_t *bytes, int64_t insert_length);
 
 /**
+ * Materialize a transform result through a checkpoint-backed model and record a lightweight transform change.
+ *
+ * The replacement bytes are written into the checkpoint and are not retained in the change log. The returned serial
+ * identifies a transform entry with the transform id, options JSON, affected range, replacement length, and computed
+ * file sizes.
+ *
+ * @param session_ptr session to make the change in
+ * @param offset location offset to make the change
+ * @param delete_length number of original bytes to remove
+ * @param bytes replacement bytes, or null if `insert_length` is zero
+ * @param insert_length explicit number of replacement bytes to insert
+ * @param transform_id stable transform identifier
+ * @param options_json optional transform options JSON
+ * @return positive transform change serial if successful, non-positive otherwise
+ */
+int64_t omega_edit_replace_bytes_as_transform(omega_session_t *session_ptr, int64_t offset, int64_t delete_length,
+                                              const omega_byte_t *bytes, int64_t insert_length,
+                                              const char *transform_id, const char *options_json);
+
+/**
  * Replace a span of bytes at the given offset with a new C string.
  * @param session_ptr session to make the change in
  * @param offset location offset to make the change

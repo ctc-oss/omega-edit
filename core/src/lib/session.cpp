@@ -63,21 +63,17 @@ int64_t omega_session_get_computed_file_size(const omega_session_t *session_ptr)
     int64_t last_segment_end = 0;
     if (!session_ptr->models_.back()->model_segments.empty() &&
         !safe_add_int64_(session_ptr->models_.back()->model_segments.back()->computed_offset,
-                         session_ptr->models_.back()->model_segments.back()->computed_length,
-                         last_segment_end)) {
+                         session_ptr->models_.back()->model_segments.back()->computed_length, last_segment_end)) {
         return -1;
     }
-    const auto computed_file_size =
-            session_ptr->models_.back()->model_segments.empty()
-                ? 0
-                : last_segment_end;
+    const auto computed_file_size = session_ptr->models_.back()->model_segments.empty() ? 0 : last_segment_end;
     return computed_file_size;
 }
 
 int64_t omega_session_get_num_changes(const omega_session_t *session_ptr) {
     if (!session_ptr) { return 0; }
     assert(session_ptr->models_.back());
-    return (int64_t) session_ptr->models_.back()->changes.size() + session_ptr->num_changes_adjustment_;
+    return (int64_t) session_ptr->models_.back()->changes.size() + session_ptr->models_.back()->change_serial_base;
 }
 
 int64_t omega_session_get_num_undone_changes(const omega_session_t *session_ptr) {
@@ -96,8 +92,8 @@ const omega_change_t *omega_session_get_last_undo(const omega_session_t *session
     if (!session_ptr) { return nullptr; }
     assert(session_ptr->models_.back());
     return session_ptr->models_.back()->changes_undone.empty()
-               ? nullptr
-               : session_ptr->models_.back()->changes_undone.back().get();
+                   ? nullptr
+                   : session_ptr->models_.back()->changes_undone.back().get();
 }
 
 const char *omega_session_get_file_path(const omega_session_t *session_ptr) {
@@ -125,16 +121,18 @@ const omega_change_t *omega_session_get_change(const omega_session_t *session_pt
     if (!session_ptr) { return nullptr; }
     assert(session_ptr->models_.back());
     if (0 < change_serial) {
-        // Positive serials are active changes (adjusted for checkpointed changes)
-        const auto index = change_serial - 1 - session_ptr->num_changes_adjustment_;
-        if (index >= 0 && static_cast<size_t>(index) < session_ptr->models_.back()->changes.size()) {
-            return session_ptr->models_.back()->changes[index].get();
+        for (const auto &model : session_ptr->models_) {
+            const auto index = change_serial - 1 - model->change_serial_base;
+            if (index >= 0 && static_cast<size_t>(index) < model->changes.size()) {
+                return model->changes[index].get();
+            }
         }
     } else if (change_serial < 0) {
         // Negative serials are undone changes
-        for (auto iter = session_ptr->models_.back()->changes_undone.crbegin();
-             iter != session_ptr->models_.back()->changes_undone.crend(); ++iter) {
-            if (omega_change_get_serial(iter->get()) == change_serial) { return iter->get(); }
+        for (const auto &model : session_ptr->models_) {
+            for (auto iter = model->changes_undone.crbegin(); iter != model->changes_undone.crend(); ++iter) {
+                if (omega_change_get_serial(iter->get()) == change_serial) { return iter->get(); }
+            }
         }
     }
     return nullptr;
@@ -276,7 +274,7 @@ int64_t omega_session_get_num_checkpoints(const omega_session_t *session_ptr) {
 }
 
 void omega_edit::internal::omega_session_begin_event_batch_(omega_session_t *session_ptr,
-                                                           omega_session_event_t session_event) {
+                                                            omega_session_event_t session_event) {
     if (!session_ptr) { return; }
     session_ptr->batched_session_event_kind_ = session_event;
     session_ptr->pending_session_event_kind_ = SESSION_EVT_UNDEFINED;
@@ -290,9 +288,7 @@ void omega_edit::internal::omega_session_end_event_batch_(omega_session_t *sessi
     session_ptr->batched_session_event_kind_ = SESSION_EVT_UNDEFINED;
     session_ptr->pending_session_event_kind_ = SESSION_EVT_UNDEFINED;
     session_ptr->pending_session_event_ptr_ = nullptr;
-    if (pending_event != SESSION_EVT_UNDEFINED) {
-        omega_session_notify(session_ptr, pending_event, pending_ptr);
-    }
+    if (pending_event != SESSION_EVT_UNDEFINED) { omega_session_notify(session_ptr, pending_event, pending_ptr); }
 }
 
 void omega_session_notify(const omega_session_t *session_ptr, omega_session_event_t session_event,
@@ -301,9 +297,8 @@ void omega_session_notify(const omega_session_t *session_ptr, omega_session_even
     auto *mutable_session_ptr = const_cast<omega_session_t *>(session_ptr);
     const auto should_batch_transaction_edit =
             session_event == SESSION_EVT_EDIT && omega_session_get_transaction_state(session_ptr) != 0;
-    const auto should_batch_explicit_event =
-            session_event == mutable_session_ptr->batched_session_event_kind_ &&
-            mutable_session_ptr->batched_session_event_kind_ != SESSION_EVT_UNDEFINED;
+    const auto should_batch_explicit_event = session_event == mutable_session_ptr->batched_session_event_kind_ &&
+                                             mutable_session_ptr->batched_session_event_kind_ != SESSION_EVT_UNDEFINED;
     if (should_batch_transaction_edit || should_batch_explicit_event) {
         mutable_session_ptr->pending_session_event_kind_ = session_event;
         mutable_session_ptr->pending_session_event_ptr_ = event_ptr;
@@ -343,7 +338,10 @@ int omega_session_byte_frequency_profile(const omega_session_t *session_ptr,
         int64_t dos_eol_count = 0;
         while (length) {
             const auto rc = omega_session_get_segment(session_ptr, segment_ptr, offset);
-            if (rc != 0) { omega_segment_destroy(segment_ptr); return rc; }
+            if (rc != 0) {
+                omega_segment_destroy(segment_ptr);
+                return rc;
+            }
             const auto profile_length = std::min(length, omega_segment_get_length(segment_ptr));
             const auto segment_data = omega_segment_get_data(segment_ptr);
             for (auto i = 0; i < profile_length; ++i) {
@@ -375,7 +373,10 @@ int omega_session_character_counts(const omega_session_t *session_ptr, omega_cha
     const auto segment_ptr = omega_segment_create(std::min(length, static_cast<int64_t>(BUFSIZ)));
     while (length) {
         const auto rc = omega_session_get_segment(session_ptr, segment_ptr, offset);
-        if (rc != 0) { omega_segment_destroy(segment_ptr); return rc; }
+        if (rc != 0) {
+            omega_segment_destroy(segment_ptr);
+            return rc;
+        }
         const auto segment_data = omega_segment_get_data(segment_ptr);
         const auto count_length = std::min(length, omega_segment_get_length(segment_ptr));
         omega_util_count_characters(segment_data, count_length, counts_ptr);

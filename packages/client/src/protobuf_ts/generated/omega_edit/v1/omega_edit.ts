@@ -863,6 +863,10 @@ export interface GetChangeDetailsResponse {
    * @generated from protobuf field: optional bytes data = 6
    */
   data?: Uint8Array // Payload bytes (for insert/overwrite).
+  /**
+   * @generated from protobuf field: optional omega_edit.v1.TransformChangeDetails transform = 7
+   */
+  transform?: TransformChangeDetails // Transform metadata (for transform changes).
 }
 /**
  * Request to retrieve the most recent change in a session.
@@ -905,6 +909,10 @@ export interface GetLastChangeResponse {
    * @generated from protobuf field: optional bytes data = 6
    */
   data?: Uint8Array // Payload bytes (for insert/overwrite).
+  /**
+   * @generated from protobuf field: optional omega_edit.v1.TransformChangeDetails transform = 7
+   */
+  transform?: TransformChangeDetails // Transform metadata (for transform changes).
 }
 /**
  * Request to retrieve the most recent undone change in a session.
@@ -947,6 +955,37 @@ export interface GetLastUndoResponse {
    * @generated from protobuf field: optional bytes data = 6
    */
   data?: Uint8Array // Payload bytes (for insert/overwrite).
+  /**
+   * @generated from protobuf field: optional omega_edit.v1.TransformChangeDetails transform = 7
+   */
+  transform?: TransformChangeDetails // Transform metadata (for transform changes).
+}
+/**
+ * Metadata for a checkpoint-backed transform change.
+ *
+ * @generated from protobuf message omega_edit.v1.TransformChangeDetails
+ */
+export interface TransformChangeDetails {
+  /**
+   * @generated from protobuf field: string transform_id = 1
+   */
+  transformId: string // Stable transform or plugin identifier.
+  /**
+   * @generated from protobuf field: optional string options_json = 2
+   */
+  optionsJson?: string // Plugin-specific transform options.
+  /**
+   * @generated from protobuf field: int64 replacement_length = 3
+   */
+  replacementLength: number // Number of bytes materialized into the checkpoint.
+  /**
+   * @generated from protobuf field: int64 computed_file_size_before = 4
+   */
+  computedFileSizeBefore: number // Session size before the transform.
+  /**
+   * @generated from protobuf field: int64 computed_file_size_after = 5
+   */
+  computedFileSizeAfter: number // Session size after the transform.
 }
 // ===========================================================================
 // Request / Response messages — Data inspection
@@ -1653,6 +1692,10 @@ export interface ApplyTransformPluginResponse {
    * @generated from protobuf field: bytes result = 11
    */
   result: Uint8Array // Plugin-provided inspection bytes.
+  /**
+   * @generated from protobuf field: optional int64 serial = 12
+   */
+  serial?: number // Transform change serial when content changed.
 }
 /**
  * Progress reported by a session-level transform event.
@@ -1692,6 +1735,10 @@ export interface TransformProgress {
    * @generated from protobuf field: bool indeterminate = 8
    */
   indeterminate: boolean // True when determinate progress is unavailable.
+  /**
+   * @generated from protobuf field: optional int64 serial = 9
+   */
+  serial?: number // Transform change serial when available.
 }
 /**
  * Request to compute a byte-frequency histogram.
@@ -2019,6 +2066,12 @@ export enum ChangeKind {
    * @generated from protobuf enum value: CHANGE_KIND_OVERWRITE = 3;
    */
   OVERWRITE = 3,
+  /**
+   * Transform bytes through a checkpoint-backed operation.
+   *
+   * @generated from protobuf enum value: CHANGE_KIND_TRANSFORM = 4;
+   */
+  TRANSFORM = 4,
 }
 /**
  * Session-level event kinds.  Values are powers of two so they can be OR'd
@@ -6451,6 +6504,12 @@ class GetChangeDetailsResponse$Type extends MessageType<GetChangeDetailsResponse
         opt: true,
         T: 12 /*ScalarType.BYTES*/,
       },
+      {
+        no: 7,
+        name: 'transform',
+        kind: 'message',
+        T: () => TransformChangeDetails,
+      },
     ])
   }
   create(
@@ -6495,6 +6554,14 @@ class GetChangeDetailsResponse$Type extends MessageType<GetChangeDetailsResponse
         case /* optional bytes data */ 6:
           message.data = reader.bytes()
           break
+        case /* optional omega_edit.v1.TransformChangeDetails transform */ 7:
+          message.transform = TransformChangeDetails.internalBinaryRead(
+            reader,
+            reader.uint32(),
+            options,
+            message.transform
+          )
+          break
         default:
           let u = options.readUnknownField
           if (u === 'throw')
@@ -6536,6 +6603,13 @@ class GetChangeDetailsResponse$Type extends MessageType<GetChangeDetailsResponse
     /* optional bytes data = 6; */
     if (message.data !== undefined)
       writer.tag(6, WireType.LengthDelimited).bytes(message.data)
+    /* optional omega_edit.v1.TransformChangeDetails transform = 7; */
+    if (message.transform)
+      TransformChangeDetails.internalBinaryWrite(
+        message.transform,
+        writer.tag(7, WireType.LengthDelimited).fork(),
+        options
+      ).join()
     let u = options.writeUnknownFields
     if (u !== false)
       (u == true ? UnknownFieldHandler.onWrite : u)(
@@ -6658,6 +6732,12 @@ class GetLastChangeResponse$Type extends MessageType<GetLastChangeResponse> {
         opt: true,
         T: 12 /*ScalarType.BYTES*/,
       },
+      {
+        no: 7,
+        name: 'transform',
+        kind: 'message',
+        T: () => TransformChangeDetails,
+      },
     ])
   }
   create(value?: PartialMessage<GetLastChangeResponse>): GetLastChangeResponse {
@@ -6700,6 +6780,14 @@ class GetLastChangeResponse$Type extends MessageType<GetLastChangeResponse> {
         case /* optional bytes data */ 6:
           message.data = reader.bytes()
           break
+        case /* optional omega_edit.v1.TransformChangeDetails transform */ 7:
+          message.transform = TransformChangeDetails.internalBinaryRead(
+            reader,
+            reader.uint32(),
+            options,
+            message.transform
+          )
+          break
         default:
           let u = options.readUnknownField
           if (u === 'throw')
@@ -6741,6 +6829,13 @@ class GetLastChangeResponse$Type extends MessageType<GetLastChangeResponse> {
     /* optional bytes data = 6; */
     if (message.data !== undefined)
       writer.tag(6, WireType.LengthDelimited).bytes(message.data)
+    /* optional omega_edit.v1.TransformChangeDetails transform = 7; */
+    if (message.transform)
+      TransformChangeDetails.internalBinaryWrite(
+        message.transform,
+        writer.tag(7, WireType.LengthDelimited).fork(),
+        options
+      ).join()
     let u = options.writeUnknownFields
     if (u !== false)
       (u == true ? UnknownFieldHandler.onWrite : u)(
@@ -6863,6 +6958,12 @@ class GetLastUndoResponse$Type extends MessageType<GetLastUndoResponse> {
         opt: true,
         T: 12 /*ScalarType.BYTES*/,
       },
+      {
+        no: 7,
+        name: 'transform',
+        kind: 'message',
+        T: () => TransformChangeDetails,
+      },
     ])
   }
   create(value?: PartialMessage<GetLastUndoResponse>): GetLastUndoResponse {
@@ -6905,6 +7006,14 @@ class GetLastUndoResponse$Type extends MessageType<GetLastUndoResponse> {
         case /* optional bytes data */ 6:
           message.data = reader.bytes()
           break
+        case /* optional omega_edit.v1.TransformChangeDetails transform */ 7:
+          message.transform = TransformChangeDetails.internalBinaryRead(
+            reader,
+            reader.uint32(),
+            options,
+            message.transform
+          )
+          break
         default:
           let u = options.readUnknownField
           if (u === 'throw')
@@ -6946,6 +7055,13 @@ class GetLastUndoResponse$Type extends MessageType<GetLastUndoResponse> {
     /* optional bytes data = 6; */
     if (message.data !== undefined)
       writer.tag(6, WireType.LengthDelimited).bytes(message.data)
+    /* optional omega_edit.v1.TransformChangeDetails transform = 7; */
+    if (message.transform)
+      TransformChangeDetails.internalBinaryWrite(
+        message.transform,
+        writer.tag(7, WireType.LengthDelimited).fork(),
+        options
+      ).join()
     let u = options.writeUnknownFields
     if (u !== false)
       (u == true ? UnknownFieldHandler.onWrite : u)(
@@ -6960,6 +7076,137 @@ class GetLastUndoResponse$Type extends MessageType<GetLastUndoResponse> {
  * @generated MessageType for protobuf message omega_edit.v1.GetLastUndoResponse
  */
 export const GetLastUndoResponse = new GetLastUndoResponse$Type()
+// @generated message type with reflection information, may provide speed optimized methods
+class TransformChangeDetails$Type extends MessageType<TransformChangeDetails> {
+  constructor() {
+    super('omega_edit.v1.TransformChangeDetails', [
+      {
+        no: 1,
+        name: 'transform_id',
+        kind: 'scalar',
+        T: 9 /*ScalarType.STRING*/,
+      },
+      {
+        no: 2,
+        name: 'options_json',
+        kind: 'scalar',
+        opt: true,
+        T: 9 /*ScalarType.STRING*/,
+      },
+      {
+        no: 3,
+        name: 'replacement_length',
+        kind: 'scalar',
+        T: 3 /*ScalarType.INT64*/,
+        L: 2 /*LongType.NUMBER*/,
+      },
+      {
+        no: 4,
+        name: 'computed_file_size_before',
+        kind: 'scalar',
+        T: 3 /*ScalarType.INT64*/,
+        L: 2 /*LongType.NUMBER*/,
+      },
+      {
+        no: 5,
+        name: 'computed_file_size_after',
+        kind: 'scalar',
+        T: 3 /*ScalarType.INT64*/,
+        L: 2 /*LongType.NUMBER*/,
+      },
+    ])
+  }
+  create(
+    value?: PartialMessage<TransformChangeDetails>
+  ): TransformChangeDetails {
+    const message = globalThis.Object.create(this.messagePrototype!)
+    message.transformId = ''
+    message.replacementLength = 0
+    message.computedFileSizeBefore = 0
+    message.computedFileSizeAfter = 0
+    if (value !== undefined)
+      reflectionMergePartial<TransformChangeDetails>(this, message, value)
+    return message
+  }
+  internalBinaryRead(
+    reader: IBinaryReader,
+    length: number,
+    options: BinaryReadOptions,
+    target?: TransformChangeDetails
+  ): TransformChangeDetails {
+    let message = target ?? this.create(),
+      end = reader.pos + length
+    while (reader.pos < end) {
+      let [fieldNo, wireType] = reader.tag()
+      switch (fieldNo) {
+        case /* string transform_id */ 1:
+          message.transformId = reader.string()
+          break
+        case /* optional string options_json */ 2:
+          message.optionsJson = reader.string()
+          break
+        case /* int64 replacement_length */ 3:
+          message.replacementLength = reader.int64().toNumber()
+          break
+        case /* int64 computed_file_size_before */ 4:
+          message.computedFileSizeBefore = reader.int64().toNumber()
+          break
+        case /* int64 computed_file_size_after */ 5:
+          message.computedFileSizeAfter = reader.int64().toNumber()
+          break
+        default:
+          let u = options.readUnknownField
+          if (u === 'throw')
+            throw new globalThis.Error(
+              `Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`
+            )
+          let d = reader.skip(wireType)
+          if (u !== false)
+            (u === true ? UnknownFieldHandler.onRead : u)(
+              this.typeName,
+              message,
+              fieldNo,
+              wireType,
+              d
+            )
+      }
+    }
+    return message
+  }
+  internalBinaryWrite(
+    message: TransformChangeDetails,
+    writer: IBinaryWriter,
+    options: BinaryWriteOptions
+  ): IBinaryWriter {
+    /* string transform_id = 1; */
+    if (message.transformId !== '')
+      writer.tag(1, WireType.LengthDelimited).string(message.transformId)
+    /* optional string options_json = 2; */
+    if (message.optionsJson !== undefined)
+      writer.tag(2, WireType.LengthDelimited).string(message.optionsJson)
+    /* int64 replacement_length = 3; */
+    if (message.replacementLength !== 0)
+      writer.tag(3, WireType.Varint).int64(message.replacementLength)
+    /* int64 computed_file_size_before = 4; */
+    if (message.computedFileSizeBefore !== 0)
+      writer.tag(4, WireType.Varint).int64(message.computedFileSizeBefore)
+    /* int64 computed_file_size_after = 5; */
+    if (message.computedFileSizeAfter !== 0)
+      writer.tag(5, WireType.Varint).int64(message.computedFileSizeAfter)
+    let u = options.writeUnknownFields
+    if (u !== false)
+      (u == true ? UnknownFieldHandler.onWrite : u)(
+        this.typeName,
+        message,
+        writer
+      )
+    return writer
+  }
+}
+/**
+ * @generated MessageType for protobuf message omega_edit.v1.TransformChangeDetails
+ */
+export const TransformChangeDetails = new TransformChangeDetails$Type()
 // @generated message type with reflection information, may provide speed optimized methods
 class GetComputedFileSizeRequest$Type extends MessageType<GetComputedFileSizeRequest> {
   constructor() {
@@ -10171,6 +10418,14 @@ class ApplyTransformPluginResponse$Type extends MessageType<ApplyTransformPlugin
         T: 9 /*ScalarType.STRING*/,
       },
       { no: 11, name: 'result', kind: 'scalar', T: 12 /*ScalarType.BYTES*/ },
+      {
+        no: 12,
+        name: 'serial',
+        kind: 'scalar',
+        opt: true,
+        T: 3 /*ScalarType.INT64*/,
+        L: 2 /*LongType.NUMBER*/,
+      },
     ])
   }
   create(
@@ -10234,6 +10489,9 @@ class ApplyTransformPluginResponse$Type extends MessageType<ApplyTransformPlugin
         case /* bytes result */ 11:
           message.result = reader.bytes()
           break
+        case /* optional int64 serial */ 12:
+          message.serial = reader.int64().toNumber()
+          break
         default:
           let u = options.readUnknownField
           if (u === 'throw')
@@ -10291,6 +10549,9 @@ class ApplyTransformPluginResponse$Type extends MessageType<ApplyTransformPlugin
     /* bytes result = 11; */
     if (message.result.length)
       writer.tag(11, WireType.LengthDelimited).bytes(message.result)
+    /* optional int64 serial = 12; */
+    if (message.serial !== undefined)
+      writer.tag(12, WireType.Varint).int64(message.serial)
     let u = options.writeUnknownFields
     if (u !== false)
       (u == true ? UnknownFieldHandler.onWrite : u)(
@@ -10348,6 +10609,14 @@ class TransformProgress$Type extends MessageType<TransformProgress> {
         kind: 'scalar',
         T: 8 /*ScalarType.BOOL*/,
       },
+      {
+        no: 9,
+        name: 'serial',
+        kind: 'scalar',
+        opt: true,
+        T: 3 /*ScalarType.INT64*/,
+        L: 2 /*LongType.NUMBER*/,
+      },
     ])
   }
   create(value?: PartialMessage<TransformProgress>): TransformProgress {
@@ -10395,6 +10664,9 @@ class TransformProgress$Type extends MessageType<TransformProgress> {
           break
         case /* bool indeterminate */ 8:
           message.indeterminate = reader.bool()
+          break
+        case /* optional int64 serial */ 9:
+          message.serial = reader.int64().toNumber()
           break
         default:
           let u = options.readUnknownField
@@ -10444,6 +10716,9 @@ class TransformProgress$Type extends MessageType<TransformProgress> {
     /* bool indeterminate = 8; */
     if (message.indeterminate !== false)
       writer.tag(8, WireType.Varint).bool(message.indeterminate)
+    /* optional int64 serial = 9; */
+    if (message.serial !== undefined)
+      writer.tag(9, WireType.Varint).int64(message.serial)
     let u = options.writeUnknownFields
     if (u !== false)
       (u == true ? UnknownFieldHandler.onWrite : u)(

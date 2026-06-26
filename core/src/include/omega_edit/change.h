@@ -56,9 +56,10 @@ int64_t omega_change_get_length(const omega_change_t *change_ptr);
 int64_t omega_change_get_serial(const omega_change_t *change_ptr);
 
 /**
- * Given a change, return a character representing the kind of change ('D', 'I', and 'O')
+ * Given a change, return a character representing the kind of change ('D', 'I', 'O', and 'T')
  * @param change_ptr change to get the kind from
- * @return 'D' if the change is a delete, 'I' if the change is an insert and 'O' if the change is an overwrite
+ * @return 'D' if the change is a delete, 'I' if the change is an insert, 'O' if the change is an overwrite, and 'T'
+ * if the change is a transform
  */
 char omega_change_get_kind_as_char(const omega_change_t *change_ptr);
 
@@ -75,6 +76,48 @@ int omega_change_get_transaction_bit(const omega_change_t *change_ptr);
  * @return pointer to the byte data
  */
 const omega_byte_t *omega_change_get_bytes(const omega_change_t *change_ptr);
+
+/**
+ * Given a change, return a non-zero value if this is a transform change.
+ * @param change_ptr change to inspect
+ * @return non-zero if the change is a transform, zero otherwise
+ */
+int omega_change_is_transform(const omega_change_t *change_ptr);
+
+/**
+ * Given a transform change, return the transform identifier.
+ * @param change_ptr transform change to inspect
+ * @return transform identifier, or NULL if this is not a transform change
+ */
+const char *omega_change_get_transform_id(const omega_change_t *change_ptr);
+
+/**
+ * Given a transform change, return the transform options JSON.
+ * @param change_ptr transform change to inspect
+ * @return options JSON, or NULL when not available
+ */
+const char *omega_change_get_transform_options_json(const omega_change_t *change_ptr);
+
+/**
+ * Given a transform change, return the replacement byte length produced by the transform.
+ * @param change_ptr transform change to inspect
+ * @return replacement byte length, or -1 if this is not a transform change
+ */
+int64_t omega_change_get_transform_replacement_length(const omega_change_t *change_ptr);
+
+/**
+ * Given a transform change, return the computed file size before the transform.
+ * @param change_ptr transform change to inspect
+ * @return computed file size before the transform, or -1 if this is not a transform change
+ */
+int64_t omega_change_get_transform_computed_file_size_before(const omega_change_t *change_ptr);
+
+/**
+ * Given a transform change, return the computed file size after the transform.
+ * @param change_ptr transform change to inspect
+ * @return computed file size after the transform, or -1 if this is not a transform change
+ */
+int64_t omega_change_get_transform_computed_file_size_after(const omega_change_t *change_ptr);
 
 /**
  * Given a change, determine if this change is undone

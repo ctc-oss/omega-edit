@@ -30,6 +30,7 @@ using omega_changes_t = std::vector<const_omega_change_ptr_t>;
 struct omega_model_struct {
     FILE *file_ptr{};                       ///< File being edited (open for read)
     std::string file_path{};                ///< File path being edited
+    int64_t change_serial_base{};           ///< Number of active changes before this model
     omega_changes_t changes{};              ///< Collection of changes for this session, ordered by time
     omega_changes_t changes_undone{};       ///< Undone changes that are eligible for being redone
     omega_model_segments_t model_segments{};///< Model segment vector

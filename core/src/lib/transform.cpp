@@ -199,8 +199,8 @@ namespace {
             }
         }
 
-        auto parse_literal(const char *literal, json_value_t::kind_t kind, json_value_t &value, bool bool_value)
-                -> bool {
+        auto parse_literal(const char *literal, json_value_t::kind_t kind, json_value_t &value,
+                           bool bool_value) -> bool {
             const auto length = std::strlen(literal);
             if (std::strncmp(input_ + pos_, literal, length) != 0) { return false; }
             pos_ += length;
@@ -414,7 +414,7 @@ namespace {
                 return true;
             case json_value_t::kind_t::object:
                 if (left.object_value.size() != right.object_value.size()) { return false; }
-                for (const auto &[key, left_value]: left.object_value) {
+                for (const auto &[key, left_value] : left.object_value) {
                     const auto right_iter = right.object_value.find(key);
                     if (right_iter == right.object_value.end()) { return false; }
                     if (!json_values_equal_(left_value, right_iter->second)) { return false; }
@@ -446,7 +446,7 @@ namespace {
         if (one_of) {
             if (one_of->kind != json_value_t::kind_t::array) { return false; }
             auto matches = 0;
-            for (const auto &candidate: one_of->array_value) {
+            for (const auto &candidate : one_of->array_value) {
                 if (validate_schema_value_(value, candidate)) { ++matches; }
             }
             if (matches != 1) { return false; }
@@ -458,7 +458,7 @@ namespace {
         if (const auto *enum_values = json_object_member_(schema, "enum")) {
             if (enum_values->kind != json_value_t::kind_t::array) { return false; }
             auto matches = false;
-            for (const auto &candidate: enum_values->array_value) {
+            for (const auto &candidate : enum_values->array_value) {
                 if (json_values_equal_(value, candidate)) {
                     matches = true;
                     break;
@@ -484,9 +484,10 @@ namespace {
         if (const auto *required = json_object_member_(schema, "required")) {
             if (required->kind != json_value_t::kind_t::array) { return false; }
             if (value.kind != json_value_t::kind_t::object) { return false; }
-            for (const auto &required_key: required->array_value) {
+            for (const auto &required_key : required->array_value) {
                 std::string key;
-                if (!json_string_value_(required_key, key) || value.object_value.find(key) == value.object_value.end()) {
+                if (!json_string_value_(required_key, key) ||
+                    value.object_value.find(key) == value.object_value.end()) {
                     return false;
                 }
             }
@@ -502,7 +503,7 @@ namespace {
             }
 
             if (properties) {
-                for (const auto &[key, member]: value.object_value) {
+                for (const auto &[key, member] : value.object_value) {
                     const auto property_iter = properties->object_value.find(key);
                     if (property_iter == properties->object_value.end()) {
                         if (!additional_properties) { return false; }
@@ -522,7 +523,7 @@ namespace {
                 return false;
             }
             if (const auto *items = json_object_member_(schema, "items")) {
-                for (const auto &item: value.array_value) {
+                for (const auto &item : value.array_value) {
                     if (!validate_schema_value_(item, *items)) { return false; }
                 }
             }
@@ -616,13 +617,13 @@ namespace {
             if (!path_.empty()) { omega_util_remove_file(path_.c_str()); }
         }
 
-        static auto create(const char *directory, const char *prefix, size_t size)
-                -> std::shared_ptr<file_backed_buffer_t> {
+        static auto create(const char *directory, const char *prefix,
+                           size_t size) -> std::shared_ptr<file_backed_buffer_t> {
             if (size == 0) { return nullptr; }
             const auto *const dir = (directory && *directory) ? directory : ".";
             char path[FILENAME_MAX + 1];
-            const auto count = snprintf(path, sizeof(path), "%s%c.%s.XXXXXX", dir,
-                                        omega_util_directory_separator(), prefix);
+            const auto count =
+                    snprintf(path, sizeof(path), "%s%c.%s.XXXXXX", dir, omega_util_directory_separator(), prefix);
             if (count < 0 || static_cast<size_t>(count) >= sizeof(path)) { return nullptr; }
 
             const auto fd = omega_util_mkstemp(path, 0600);
@@ -634,10 +635,9 @@ namespace {
 
 #ifdef _WIN32
             _close(fd);
-            buffer->file_handle_ = CreateFileA(path, GENERIC_READ | GENERIC_WRITE, FILE_SHARE_READ, nullptr,
-                                               OPEN_EXISTING,
-                                               FILE_ATTRIBUTE_TEMPORARY | FILE_ATTRIBUTE_NOT_CONTENT_INDEXED,
-                                               nullptr);
+            buffer->file_handle_ =
+                    CreateFileA(path, GENERIC_READ | GENERIC_WRITE, FILE_SHARE_READ, nullptr, OPEN_EXISTING,
+                                FILE_ATTRIBUTE_TEMPORARY | FILE_ATTRIBUTE_NOT_CONTENT_INDEXED, nullptr);
             if (buffer->file_handle_ == INVALID_HANDLE_VALUE) { return nullptr; }
             LARGE_INTEGER file_size;
             file_size.QuadPart = static_cast<LONGLONG>(size);
@@ -646,10 +646,9 @@ namespace {
                 return nullptr;
             }
             const auto mapped_size = static_cast<uint64_t>(size);
-            buffer->mapping_handle_ =
-                    CreateFileMappingA(buffer->file_handle_, nullptr, PAGE_READWRITE,
-                                       static_cast<DWORD>(mapped_size >> 32U),
-                                       static_cast<DWORD>(mapped_size & 0xFFFFFFFFU), nullptr);
+            buffer->mapping_handle_ = CreateFileMappingA(buffer->file_handle_, nullptr, PAGE_READWRITE,
+                                                         static_cast<DWORD>(mapped_size >> 32U),
+                                                         static_cast<DWORD>(mapped_size & 0xFFFFFFFFU), nullptr);
             if (buffer->mapping_handle_ == nullptr) { return nullptr; }
             buffer->data_ = static_cast<omega_byte_t *>(
                     MapViewOfFile(buffer->mapping_handle_, FILE_MAP_ALL_ACCESS, 0, 0, size));
@@ -711,8 +710,7 @@ namespace {
         void *ptr = nullptr;
         if (requested_size > TRANSFORM_PLUGIN_FILE_BACKED_ALLOC_LIMIT_BYTES && state) {
             auto file_backed =
-                    file_backed_buffer_t::create(state->checkpoint_directory, "OmegaEdit-xform-alloc",
-                                                 requested_size);
+                    file_backed_buffer_t::create(state->checkpoint_directory, "OmegaEdit-xform-alloc", requested_size);
             if (file_backed) {
                 ptr = file_backed->data();
                 std::lock_guard<std::mutex> lock(g_file_backed_allocations_mutex);
@@ -727,13 +725,13 @@ namespace {
     }
 
     auto response_owns_allocation_(const omega_transform_plugin_response_t &response, void *ptr) -> bool {
-        return ptr == response.replacement_bytes || ptr == response.result_bytes ||
-               ptr == response.result_label || ptr == response.result_mime_type;
+        return ptr == response.replacement_bytes || ptr == response.result_bytes || ptr == response.result_label ||
+               ptr == response.result_mime_type;
     }
 
     void release_unclaimed_plugin_allocations_(plugin_allocator_state_t &state,
                                                const omega_transform_plugin_response_t &response) {
-        for (auto *ptr: state.allocations) {
+        for (auto *ptr : state.allocations) {
             if (!response_owns_allocation_(response, ptr)) { release_plugin_allocation_(ptr); }
         }
         state.allocations.clear();
@@ -799,9 +797,8 @@ namespace {
         } else {
             size_t requested_size = 0;
             if (!int64_to_size_(requested_length, requested_size)) { return -1; }
-            input.file_backed =
-                    file_backed_buffer_t::create(omega_session_get_checkpoint_directory(session_ptr),
-                                                 "OmegaEdit-xform-input", requested_size);
+            input.file_backed = file_backed_buffer_t::create(omega_session_get_checkpoint_directory(session_ptr),
+                                                             "OmegaEdit-xform-input", requested_size);
             if (!input.file_backed) { return -1; }
             destination = input.file_backed->data();
         }
@@ -809,10 +806,9 @@ namespace {
         session_range_reader_t reader{session_ptr, offset, requested_length, 0, progress, progress_user_data_ptr};
         int64_t copied_length = 0;
         while (copied_length < requested_length) {
-            const auto chunk_length = std::min(TRANSFORM_PLUGIN_STREAM_CHUNK_BYTES,
-                                               requested_length - copied_length);
-            const auto read_length = read_session_range_chunk_(copied_length, destination + copied_length,
-                                                               chunk_length, &reader);
+            const auto chunk_length = std::min(TRANSFORM_PLUGIN_STREAM_CHUNK_BYTES, requested_length - copied_length);
+            const auto read_length =
+                    read_session_range_chunk_(copied_length, destination + copied_length, chunk_length, &reader);
             if (read_length <= 0) { return -1; }
             copied_length += read_length;
         }
@@ -855,20 +851,19 @@ namespace {
                 omega_transform_plugin_progress_t progress{};
                 progress.processed_bytes = processed;
                 progress.total_bytes = reader->length;
-                progress.percent = reader->length > 0
-                                           ? (static_cast<double>(processed) / static_cast<double>(reader->length)) *
-                                                     100.0
-                                           : 100.0;
+                progress.percent =
+                        reader->length > 0
+                                ? (static_cast<double>(processed) / static_cast<double>(reader->length)) * 100.0
+                                : 100.0;
                 progress.phase = "reading";
                 progress.flags = OMEGA_TRANSFORM_PROGRESS_HAS_PROCESSED_BYTES |
-                                 OMEGA_TRANSFORM_PROGRESS_HAS_TOTAL_BYTES |
-                                 OMEGA_TRANSFORM_PROGRESS_HAS_PERCENT;
+                                 OMEGA_TRANSFORM_PROGRESS_HAS_TOTAL_BYTES | OMEGA_TRANSFORM_PROGRESS_HAS_PERCENT;
                 if (reader->progress(&progress, reader->progress_user_data_ptr) != 0) { return -1; }
             }
         }
         return segment_length;
     }
-}
+}// namespace
 
 struct omega_transform_plugin_registry_struct {
     std::vector<std::unique_ptr<loaded_plugin_t>> plugins;
@@ -878,12 +873,10 @@ omega_transform_plugin_registry_t *omega_transform_plugin_registry_create(void) 
     return new omega_transform_plugin_registry_t();
 }
 
-void omega_transform_plugin_registry_destroy(omega_transform_plugin_registry_t *registry_ptr) {
-    delete registry_ptr;
-}
+void omega_transform_plugin_registry_destroy(omega_transform_plugin_registry_t *registry_ptr) { delete registry_ptr; }
 
 int omega_transform_plugin_registry_register_plugin(omega_transform_plugin_registry_t *registry_ptr,
-                                                   const char *plugin_path) {
+                                                    const char *plugin_path) {
     if (!registry_ptr || !plugin_path || !*plugin_path) { return -1; }
 
     auto plugin = std::make_unique<loaded_plugin_t>();
@@ -893,13 +886,12 @@ int omega_transform_plugin_registry_register_plugin(omega_transform_plugin_regis
 
     const auto get_info = reinterpret_cast<omega_transform_plugin_get_info_fn>(
             plugin->library.symbol("omega_transform_plugin_get_info"));
-    plugin->apply = reinterpret_cast<omega_transform_plugin_apply_fn>(
-            plugin->library.symbol("omega_transform_plugin_apply"));
+    plugin->apply =
+            reinterpret_cast<omega_transform_plugin_apply_fn>(plugin->library.symbol("omega_transform_plugin_apply"));
     if (!get_info || !plugin->apply) { return -1; }
     if (0 != get_info(&plugin->info)) { return -1; }
     if (plugin->info.abi_version == 0 || plugin->info.abi_version > OMEGA_TRANSFORM_PLUGIN_ABI_VERSION ||
-        !plugin->info.id || !*plugin->info.id ||
-        !plugin_operation_is_valid_(plugin->info.operation)) {
+        !plugin->info.id || !*plugin->info.id || !plugin_operation_is_valid_(plugin->info.operation)) {
         return -1;
     }
     if (omega_transform_plugin_registry_find_info(registry_ptr, plugin->info.id) != nullptr) { return -1; }
@@ -909,21 +901,19 @@ int omega_transform_plugin_registry_register_plugin(omega_transform_plugin_regis
 }
 
 int omega_transform_plugin_registry_register_directory(omega_transform_plugin_registry_t *registry_ptr,
-                                                      const char *plugin_directory) {
+                                                       const char *plugin_directory) {
     if (!registry_ptr || !plugin_directory || !*plugin_directory) { return -1; }
     const std::filesystem::path directory(plugin_directory);
 
     int loaded_count = 0;
     try {
         if (!std::filesystem::is_directory(directory)) { return -1; }
-        for (const auto &entry: std::filesystem::directory_iterator(directory)) {
+        for (const auto &entry : std::filesystem::directory_iterator(directory)) {
             if (!entry.is_regular_file() || !plugin_extension_is_supported_(entry.path())) { continue; }
             const auto path = entry.path().string();
             if (0 == omega_transform_plugin_registry_register_plugin(registry_ptr, path.c_str())) { ++loaded_count; }
         }
-    } catch (const std::filesystem::filesystem_error &) {
-        return loaded_count > 0 ? loaded_count : -1;
-    }
+    } catch (const std::filesystem::filesystem_error &) { return loaded_count > 0 ? loaded_count : -1; }
     return loaded_count;
 }
 
@@ -936,37 +926,45 @@ int omega_transform_plugin_options_match_args_schema(const char *options_json, c
     return options_match_args_schema_(options_json, args_schema) ? 0 : -1;
 }
 
-const omega_transform_plugin_info_t *omega_transform_plugin_registry_get_info(
-        const omega_transform_plugin_registry_t *registry_ptr, int64_t index) {
+const omega_transform_plugin_info_t *
+omega_transform_plugin_registry_get_info(const omega_transform_plugin_registry_t *registry_ptr, int64_t index) {
     if (!registry_ptr || index < 0 || index >= static_cast<int64_t>(registry_ptr->plugins.size())) { return nullptr; }
     return &registry_ptr->plugins[static_cast<size_t>(index)]->info;
 }
 
-const omega_transform_plugin_info_t *omega_transform_plugin_registry_find_info(
-        const omega_transform_plugin_registry_t *registry_ptr, const char *plugin_id) {
+const omega_transform_plugin_info_t *
+omega_transform_plugin_registry_find_info(const omega_transform_plugin_registry_t *registry_ptr,
+                                          const char *plugin_id) {
     if (!registry_ptr || !plugin_id || !*plugin_id) { return nullptr; }
-    const auto iter = std::find_if(registry_ptr->plugins.cbegin(), registry_ptr->plugins.cend(),
-                                   [plugin_id](const auto &plugin) { return plugin->info.id == std::string(plugin_id); });
+    const auto iter =
+            std::find_if(registry_ptr->plugins.cbegin(), registry_ptr->plugins.cend(),
+                         [plugin_id](const auto &plugin) { return plugin->info.id == std::string(plugin_id); });
     return iter != registry_ptr->plugins.cend() ? &(*iter)->info : nullptr;
 }
 
 int omega_transform_plugin_registry_apply_to_session(omega_transform_plugin_registry_t *registry_ptr,
-                                                    const char *plugin_id, omega_session_t *session_ptr,
-                                                    int64_t offset, int64_t length, const char *options_json,
-                                                    omega_transform_plugin_response_t *response_ptr) {
-    return omega_transform_plugin_registry_apply_to_session_with_progress(registry_ptr, plugin_id, session_ptr, offset,
-                                                                         length, options_json, nullptr, nullptr,
-                                                                         response_ptr);
+                                                     const char *plugin_id, omega_session_t *session_ptr,
+                                                     int64_t offset, int64_t length, const char *options_json,
+                                                     omega_transform_plugin_response_t *response_ptr) {
+    return omega_transform_plugin_registry_apply_to_session_with_progress(
+            registry_ptr, plugin_id, session_ptr, offset, length, options_json, nullptr, nullptr, response_ptr);
 }
 
 int omega_transform_plugin_registry_apply_to_session_with_progress(
-        omega_transform_plugin_registry_t *registry_ptr,
-        const char *plugin_id, omega_session_t *session_ptr,
-        int64_t offset, int64_t length, const char *options_json,
-        omega_transform_plugin_progress_cbk_t progress,
-        void *progress_user_data_ptr,
-        omega_transform_plugin_response_t *response_ptr) {
+        omega_transform_plugin_registry_t *registry_ptr, const char *plugin_id, omega_session_t *session_ptr,
+        int64_t offset, int64_t length, const char *options_json, omega_transform_plugin_progress_cbk_t progress,
+        void *progress_user_data_ptr, omega_transform_plugin_response_t *response_ptr) {
+    return omega_transform_plugin_registry_apply_to_session_with_progress_and_serial(
+            registry_ptr, plugin_id, session_ptr, offset, length, options_json, progress, progress_user_data_ptr,
+            response_ptr, nullptr);
+}
+
+int omega_transform_plugin_registry_apply_to_session_with_progress_and_serial(
+        omega_transform_plugin_registry_t *registry_ptr, const char *plugin_id, omega_session_t *session_ptr,
+        int64_t offset, int64_t length, const char *options_json, omega_transform_plugin_progress_cbk_t progress,
+        void *progress_user_data_ptr, omega_transform_plugin_response_t *response_ptr, int64_t *change_serial_out) {
     if (response_ptr) { omega_transform_plugin_response_clear(response_ptr); }
+    if (change_serial_out) { *change_serial_out = 0; }
     if (!registry_ptr || !plugin_id || !*plugin_id || !session_ptr || offset < 0 || length < 0) { return -1; }
 
     // The registry owns plugin lookup/lifetime, but omega_session_t itself is not thread-safe.
@@ -977,8 +975,8 @@ int omega_transform_plugin_registry_apply_to_session_with_progress(
     if (0 != omega_transform_plugin_options_match_args_schema(options_json, (*iter)->info.args_schema)) { return -1; }
 
     const auto computed_file_size = omega_session_get_computed_file_size(session_ptr);
-    const auto requested_length = length == 0 ? computed_file_size - offset
-                                              : std::min(length, computed_file_size - offset);
+    const auto requested_length =
+            length == 0 ? computed_file_size - offset : std::min(length, computed_file_size - offset);
     if (requested_length < 0) { return -1; }
 
     const auto operation = (*iter)->info.operation;
@@ -1035,25 +1033,18 @@ int omega_transform_plugin_registry_apply_to_session_with_progress(
             omega_transform_plugin_response_clear(&plugin_response);
             return -1;
         }
-        const auto use_checkpoint =
-                plugin_response.replacement_length > static_cast<int64_t>(OMEGA_MEMORY_BUFFER_LIMIT);
-        int rc = 0;
         if (no_content_change) {
-            rc = 0;
-        } else if (use_checkpoint) {
-            rc = omega_edit_replace_bytes_checkpointed(session_ptr, offset, requested_length,
-                                                       plugin_response.replacement_bytes,
-                                                       plugin_response.replacement_length);
+            if (change_serial_out) { *change_serial_out = 0; }
         } else {
-            const auto change_serial = omega_edit_replace_bytes(session_ptr, offset, requested_length,
-                                                                plugin_response.replacement_bytes,
-                                                                plugin_response.replacement_length);
-            rc = change_serial > 0 ? 0 : -1;
-        }
-        if (rc != 0) {
-            release_unclaimed_plugin_allocations_(allocator_state, plugin_response);
-            omega_transform_plugin_response_clear(&plugin_response);
-            return -1;
+            const auto change_serial = omega_edit_replace_bytes_as_transform(
+                    session_ptr, offset, requested_length, plugin_response.replacement_bytes,
+                    plugin_response.replacement_length, plugin_id, options_json);
+            if (change_serial <= 0) {
+                release_unclaimed_plugin_allocations_(allocator_state, plugin_response);
+                omega_transform_plugin_response_clear(&plugin_response);
+                return -1;
+            }
+            if (change_serial_out) { *change_serial_out = change_serial; }
         }
     }
 
