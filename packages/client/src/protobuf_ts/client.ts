@@ -20,7 +20,11 @@
 import * as grpc from '@grpc/grpc-js'
 import { EditorClient } from '../omega_edit_grpc_pb'
 import { getLogger } from '../logger'
-import { WINDOWS_UNIX_SOCKET_UNSUPPORTED_MESSAGE } from '../constants'
+import {
+  DEFAULT_HOST,
+  DEFAULT_PORT,
+  WINDOWS_UNIX_SOCKET_UNSUPPORTED_MESSAGE,
+} from '../constants'
 
 export interface ClientConnectionOptions {
   serverUri?: string
@@ -33,8 +37,6 @@ const pendingInit_ = new Map<string, Promise<ConnectedClient>>()
 let currentClientUri_: string | undefined
 let currentRequestKey_: string | undefined
 
-const DEFAULT_PORT = 9000
-const DEFAULT_HOST = '127.0.0.1'
 const DEFAULT_DEADLINE_SECONDS = 10
 
 interface ConnectedClient {

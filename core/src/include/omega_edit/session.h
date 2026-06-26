@@ -60,7 +60,8 @@ int omega_session_byte_frequency_profile_dos_eol_index();
 /**
  * Given a session, return the file path being edited (if known)
  * @param session_ptr session to return the file path from
- * @return file path, or null if not known
+ * @return borrowed file path pointer, or null if not known.  The returned pointer is owned by the session and remains
+ * valid only until the next session mutation or session destruction.
  */
 const char *omega_session_get_file_path(const omega_session_t *session_ptr);
 

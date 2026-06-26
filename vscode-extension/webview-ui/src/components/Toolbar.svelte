@@ -31,6 +31,7 @@
     transformFeedback?: string
     transformResults?: TransformResultHistoryItem[]
     activeTransformResultId?: string
+    searchPanelVisible?: boolean
     selectedOffset?: number
     selectionStart?: number
     selectionEnd?: number
@@ -50,6 +51,7 @@
     onInsertFile: (offset: number) => void
     onReplaceRangeWithFile: (offset: number, length: number) => void
     onOpenTransformResult: (resultId: string) => void
+    onToggleSearchPanel: () => void
     onCreateCheckpoint: () => void
     onRollbackCheckpoint: () => void
     onExportChangeLog: () => void
@@ -69,6 +71,7 @@
     transformFeedback = '',
     transformResults = [],
     activeTransformResultId = '',
+    searchPanelVisible = true,
     selectedOffset = -1,
     selectionStart = -1,
     selectionEnd = -1,
@@ -83,6 +86,7 @@
     onInsertFile,
     onReplaceRangeWithFile,
     onOpenTransformResult,
+    onToggleSearchPanel,
     onCreateCheckpoint,
     onRollbackCheckpoint,
     onExportChangeLog,
@@ -153,42 +157,22 @@
     {/if}
   </button>
 
-  <OffsetJump {fileSize} {offsetRadix} {onGoToOffset} />
+  <button
+    type="button"
+    class="toolbar-toggle"
+    class:active={searchPanelVisible}
+    aria-pressed={searchPanelVisible}
+    title={
+      searchPanelVisible
+        ? strings.toolbar.hideSearchPanelTitle
+        : strings.toolbar.showSearchPanelTitle
+    }
+    onclick={onToggleSearchPanel}
+  >
+    {strings.toolbar.searchPanel}
+  </button>
 
-  <div class="session-actions" aria-label={strings.toolbar.sessionActions}>
-    <button
-      type="button"
-      disabled={transformInFlight}
-      title={strings.toolbar.createCheckpointTitle}
-      onclick={onCreateCheckpoint}
-    >
-      {strings.toolbar.createCheckpoint}
-    </button>
-    <button
-      type="button"
-      disabled={transformInFlight}
-      title={strings.toolbar.rollbackCheckpointTitle}
-      onclick={onRollbackCheckpoint}
-    >
-      {strings.toolbar.rollbackCheckpoint}
-    </button>
-    <button
-      type="button"
-      disabled={transformInFlight}
-      title={strings.toolbar.exportChangeLogTitle}
-      onclick={onExportChangeLog}
-    >
-      {strings.toolbar.exportChangeLog}
-    </button>
-    <button
-      type="button"
-      disabled={transformInFlight}
-      title={strings.toolbar.applyChangeLogTitle}
-      onclick={onApplyChangeLog}
-    >
-      {strings.toolbar.applyChangeLog}
-    </button>
-  </div>
+  <OffsetJump {fileSize} {offsetRadix} {onGoToOffset} />
 
   <div class="toolbar-group">
     <TransformPanel
@@ -212,6 +196,10 @@
       {onInsertFile}
       {onReplaceRangeWithFile}
       {onOpenTransformResult}
+      {onCreateCheckpoint}
+      {onRollbackCheckpoint}
+      {onExportChangeLog}
+      {onApplyChangeLog}
     />
   </div>
 </div>

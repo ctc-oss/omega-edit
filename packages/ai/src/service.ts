@@ -77,6 +77,7 @@ import {
 const MAX_CHANGE_LOG_ENTRIES = 100_000
 const MAX_CHANGE_LOG_ENTRY_BYTES = 32 * 1024 * 1024
 const MAX_CHANGE_LOG_BYTES = MAX_CHANGE_LOG_ENTRY_BYTES * 3
+const MAX_CHANGE_LOG_JSON_NESTING = 256
 const CHANGE_LOG_FORMAT = 'omega-edit.change-log'
 const CHANGE_LOG_VERSION = 1
 const GRPC_NOT_FOUND = 5
@@ -105,6 +106,38 @@ function assertNonNegativeInteger(name: string, value: number): void {
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
+}
+
+function assertJsonNestingLimit(text: string): void {
+  let depth = 0
+  let inString = false
+  let escaped = false
+
+  for (const ch of text) {
+    if (inString) {
+      if (escaped) {
+        escaped = false
+      } else if (ch === '\\') {
+        escaped = true
+      } else if (ch === '"') {
+        inString = false
+      }
+      continue
+    }
+
+    if (ch === '"') {
+      inString = true
+    } else if (ch === '{' || ch === '[') {
+      ++depth
+      if (depth > MAX_CHANGE_LOG_JSON_NESTING) {
+        throw new Error(
+          `Change log JSON nesting exceeds ${MAX_CHANGE_LOG_JSON_NESTING} levels`
+        )
+      }
+    } else if (ch === '}' || ch === ']') {
+      depth = Math.max(0, depth - 1)
+    }
+  }
 }
 
 function normalizeChangeLogEntries(value: unknown): ChangeLogEntry[] {
@@ -258,6 +291,7 @@ async function readChangeLogFile(inputPath: string): Promise<ChangeLogEntry[]> {
   }
 
   const text = await fs.readFile(inputPath, 'utf8')
+  assertJsonNestingLimit(text)
   let parsed: unknown
   try {
     parsed = JSON.parse(text)

@@ -33,7 +33,11 @@ import {
   ServerControlKind,
   ServerControlStatus,
 } from './protobuf_ts/generated/omega_edit/v1/omega_edit'
-import { WINDOWS_UNIX_SOCKET_UNSUPPORTED_MESSAGE } from './constants'
+import {
+  DEFAULT_HOST,
+  DEFAULT_PORT,
+  WINDOWS_UNIX_SOCKET_UNSUPPORTED_MESSAGE,
+} from './constants'
 import { execFile, type ChildProcess } from 'child_process'
 import { promisify } from 'util'
 import {
@@ -44,8 +48,6 @@ import {
 // Convert execFile to a promise-based function
 const execFilePromise = promisify(execFile)
 
-const DEFAULT_PORT = 9000 // default port for the server
-const DEFAULT_HOST = '127.0.0.1' // default host for the server
 const KILL_YIELD_MS = 1000 // max time to yield after killing a service
 const FILE_EXISTENCE_POLL_INTERVAL_MS = 100 // chosen as a low-overhead compromise across platforms
 const omegaEditServer =

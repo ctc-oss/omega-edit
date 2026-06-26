@@ -122,6 +122,7 @@
   let inspectorHighlightStart = $state(-1)
   let inspectorHighlightEnd = $state(-1)
   let inspectorExpanded = $state(true)
+  let searchPanelVisible = $state(restoredState?.searchPanelVisible ?? true)
   let profilerExpanded = $state(restoredState?.profilerExpanded ?? true)
   let profilerMode = $state<AnalysisMode>('profile')
   let analysisSectionOrder = $state<AnalysisSectionOrder>(
@@ -323,6 +324,7 @@
       bytesPerRow: BytesPerRow
       offsetRadix: 'hex' | 'dec'
       insertDirection: InsertDirection
+      searchPanelVisible: boolean
       profilerExpanded: boolean
       analysisSectionOrder: AnalysisSectionOrder
     }> = {}
@@ -331,6 +333,7 @@
       bytesPerRow,
       offsetRadix,
       insertDirection,
+      searchPanelVisible,
       profilerExpanded,
       analysisSectionOrder,
       ...overrides,
@@ -1217,6 +1220,11 @@
 
   function toggleInspectorExpanded(): void {
     inspectorExpanded = !inspectorExpanded
+  }
+
+  function toggleSearchPanelVisible(): void {
+    searchPanelVisible = !searchPanelVisible
+    savePreviewState({ searchPanelVisible })
   }
 
   function setOffsetRadix(radix: 'hex' | 'dec'): void {
@@ -2209,6 +2217,7 @@
     {transformFeedback}
     transformResults={transformResultHistory}
     activeTransformResultId={transformResult?.id}
+    {searchPanelVisible}
     {selectedOffset}
     {selectionStart}
     {selectionEnd}
@@ -2223,6 +2232,7 @@
     onInsertFile={insertFile}
     onReplaceRangeWithFile={replaceRangeWithFile}
     onOpenTransformResult={openTransformResult}
+    onToggleSearchPanel={toggleSearchPanelVisible}
     onCreateCheckpoint={createCheckpoint}
     onRollbackCheckpoint={rollbackCheckpoint}
     onExportChangeLog={exportChangeLog}
@@ -2230,28 +2240,30 @@
   />
 
   <div class="top-panels">
-    <SearchPanel
-      query={searchQuery}
-      replacement={replacementQuery}
-      isHex={searchHex}
-      caseInsensitive={searchCaseInsensitive}
-      isReverse={searchReverse}
-      invalid={searchInputInvalid}
-      replacementInvalid={replacementInputInvalid}
-      canNavigate={searchCanNavigate}
-      canReplace={searchCanReplace}
-      summary={searchResultSummary}
-      replaceSummary={replaceMessage}
-      onQueryChange={setSearchQuery}
-      onReplacementChange={setReplacementQuery}
-      onHexChange={setSearchHex}
-      onCaseInsensitiveChange={setSearchCaseInsensitive}
-      onReverseChange={(enabled) => (searchReverse = enabled)}
-      onSearch={runSearch}
-      onNavigate={navigateSearch}
-      onReplace={replaceCurrentMatch}
-      onReplaceAll={replaceAllMatches}
-    />
+    {#if searchPanelVisible}
+      <SearchPanel
+        query={searchQuery}
+        replacement={replacementQuery}
+        isHex={searchHex}
+        caseInsensitive={searchCaseInsensitive}
+        isReverse={searchReverse}
+        invalid={searchInputInvalid}
+        replacementInvalid={replacementInputInvalid}
+        canNavigate={searchCanNavigate}
+        canReplace={searchCanReplace}
+        summary={searchResultSummary}
+        replaceSummary={replaceMessage}
+        onQueryChange={setSearchQuery}
+        onReplacementChange={setReplacementQuery}
+        onHexChange={setSearchHex}
+        onCaseInsensitiveChange={setSearchCaseInsensitive}
+        onReverseChange={(enabled) => (searchReverse = enabled)}
+        onSearch={runSearch}
+        onNavigate={navigateSearch}
+        onReplace={replaceCurrentMatch}
+        onReplaceAll={replaceAllMatches}
+      />
+    {/if}
 
     {#if transformResult}
       <TransformResultPanel

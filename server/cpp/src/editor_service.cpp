@@ -2112,7 +2112,7 @@ grpc::Status EditorServiceImpl::SubscribeToViewportEvents(
 
     // Unsubscribe so the event queue stops accumulating events after the
     // client disconnects (prevents unbounded memory growth).
-    session_manager_.unsubscribe_viewport_events(sid, vid);
+    session_manager_.unsubscribe_viewport_events(sid, vid, queue);
     return grpc::Status::OK;
 }
 

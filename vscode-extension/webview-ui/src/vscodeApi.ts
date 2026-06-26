@@ -4,6 +4,7 @@ export interface PersistedPreviewState {
   bytesPerRow?: number
   offsetRadix?: 'hex' | 'dec'
   insertDirection?: 'forward' | 'backward'
+  searchPanelVisible?: boolean
   profilerExpanded?: boolean
   analysisSectionOrder?: Record<string, string[]>
 }
