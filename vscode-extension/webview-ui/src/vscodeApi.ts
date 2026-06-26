@@ -1,4 +1,12 @@
-import type { WebviewToHostMessage } from './protocol'
+import type { WebviewExternalHighlight, WebviewToHostMessage } from './protocol'
+
+export interface PersistedViewportSnapshot {
+  fileSize: number
+  visibleOffset: number
+  viewportOffset: number
+  viewportData: number[]
+  externalHighlights?: WebviewExternalHighlight[]
+}
 
 export interface PersistedPreviewState {
   bytesPerRow?: number
@@ -7,6 +15,7 @@ export interface PersistedPreviewState {
   searchPanelVisible?: boolean
   profilerExpanded?: boolean
   analysisSectionOrder?: Record<string, string[]>
+  viewportSnapshot?: PersistedViewportSnapshot
 }
 
 const vscode = acquireVsCodeApi<PersistedPreviewState>()
