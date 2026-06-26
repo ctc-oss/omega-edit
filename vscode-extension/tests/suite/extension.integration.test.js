@@ -356,10 +356,22 @@ suite('OmegaEdit VS Code extension', () => {
     )
     assert.ok(
       script.changes.every((change) =>
-        ['DELETE', 'INSERT', 'OVERWRITE'].includes(change.kind)
+        ['DELETE', 'INSERT', 'OVERWRITE', 'TRANSFORM'].includes(change.kind)
       ),
-      'Expected exported change kinds to stay within OmegaEdit byte operations'
+      'Expected exported change kinds to stay within OmegaEdit operations'
     )
+    const transformChange = script.changes.find(
+      (change) => change.kind === 'TRANSFORM'
+    )
+    assert.ok(transformChange, 'Expected the base64 transform to be exported')
+    assert.equal(transformChange.transformId, 'omega.example.base64')
+    assert.equal(transformChange.offset, 0)
+    assert.equal(transformChange.length, 8)
+    assert.equal(transformChange.data, '')
+    assert.equal(transformChange.replacementLength, 12)
+    assert.equal(transformChange.computedFileSizeBefore, 8)
+    assert.equal(transformChange.computedFileSizeAfter, 12)
+    assert.equal(Object.hasOwn(transformChange, 'optionsJson'), false)
 
     const provider2 = new HexEditorProvider({ subscriptions: [] }, testPort)
     const panel2 = createMockWebviewPanel()

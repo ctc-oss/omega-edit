@@ -22,6 +22,7 @@ export type EditorChangeRecordKind =
   | 'DELETE'
   | 'OVERWRITE'
   | 'REPLACE'
+  | 'TRANSFORM'
 
 export interface EditorChangeRecord {
   serial: number
@@ -29,6 +30,11 @@ export interface EditorChangeRecord {
   offset: number
   length: number
   data: string
+  transformId?: string
+  optionsJson?: string
+  replacementLength?: number
+  computedFileSizeBefore?: number
+  computedFileSizeAfter?: number
   groupId?: string
 }
 

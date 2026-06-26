@@ -178,12 +178,25 @@ function normalizeChangeLogEntry(
     throw new Error(`Change log entry ${index} must be an object`)
   }
 
-  const { kind, offset, length, serial, data, groupId } = entry
+  const {
+    kind,
+    offset,
+    length,
+    serial,
+    data,
+    groupId,
+    transformId,
+    optionsJson,
+    replacementLength,
+    computedFileSizeBefore,
+    computedFileSizeAfter,
+  } = entry
   if (
     kind !== 'INSERT' &&
     kind !== 'DELETE' &&
     kind !== 'OVERWRITE' &&
-    kind !== 'REPLACE'
+    kind !== 'REPLACE' &&
+    kind !== 'TRANSFORM'
   ) {
     throw new Error(`Change log entry ${index} has an unsupported kind`)
   }
@@ -196,8 +209,16 @@ function normalizeChangeLogEntry(
   assertNonNegativeInteger(`change log entry ${index} offset`, offset)
   assertNonNegativeInteger(`change log entry ${index} length`, length)
 
+  if (kind === 'TRANSFORM' && data !== undefined && data !== '') {
+    throw new Error(`Change log entry ${index} TRANSFORM does not carry data`)
+  }
+
   const dataBytes =
-    typeof data === 'string' ? parseInputData(data, 'hex') : new Uint8Array(0)
+    kind === 'TRANSFORM'
+      ? new Uint8Array(0)
+      : typeof data === 'string'
+        ? parseInputData(data, 'hex')
+        : new Uint8Array(0)
   if ((kind === 'INSERT' || kind === 'OVERWRITE') && dataBytes.length === 0) {
     throw new Error(`Change log entry ${index} ${kind} requires data`)
   }
@@ -212,6 +233,52 @@ function normalizeChangeLogEntry(
     offset,
     length,
     data: Buffer.from(dataBytes).toString('hex'),
+  }
+  if (kind === 'TRANSFORM') {
+    if (typeof transformId !== 'string' || !transformId.trim()) {
+      throw new Error(
+        `Change log entry ${index} TRANSFORM requires transformId`
+      )
+    }
+    normalized.transformId = transformId.trim()
+
+    if (optionsJson !== undefined) {
+      if (typeof optionsJson !== 'string') {
+        throw new Error(
+          `Change log entry ${index} optionsJson must be a string`
+        )
+      }
+      if (Buffer.byteLength(optionsJson, 'utf8') > MAX_CHANGE_LOG_ENTRY_BYTES) {
+        throw new Error(
+          `Change log entry ${index} optionsJson exceeds ${MAX_CHANGE_LOG_ENTRY_BYTES.toLocaleString()} bytes`
+        )
+      }
+      normalized.optionsJson = optionsJson
+    }
+
+    for (const [key, value] of Object.entries({
+      replacementLength,
+      computedFileSizeBefore,
+      computedFileSizeAfter,
+    }) as Array<
+      [
+        (
+          | 'replacementLength'
+          | 'computedFileSizeBefore'
+          | 'computedFileSizeAfter'
+        ),
+        unknown,
+      ]
+    >) {
+      if (value === undefined) {
+        continue
+      }
+      if (typeof value !== 'number') {
+        throw new Error(`Change log entry ${index} ${key} must be a number`)
+      }
+      assertNonNegativeInteger(`change log entry ${index} ${key}`, value)
+      normalized[key] = value
+    }
   }
   if (serial !== undefined) {
     if (
@@ -306,8 +373,35 @@ function changeDetailsToLogEntry(
   change: Awaited<ReturnType<typeof getChangeDetails>>
 ): ChangeLogEntry {
   const kind = changeKindNames.get(change.getKind())
-  if (kind !== 'INSERT' && kind !== 'DELETE' && kind !== 'OVERWRITE') {
+  if (
+    kind !== 'INSERT' &&
+    kind !== 'DELETE' &&
+    kind !== 'OVERWRITE' &&
+    kind !== 'TRANSFORM'
+  ) {
     throw new Error(`Unsupported change kind: ${kind ?? change.getKind()}`)
+  }
+
+  if (kind === 'TRANSFORM') {
+    const transform = change.getTransform()
+    if (!transform?.transformId) {
+      throw new Error('Transform change is missing transform metadata')
+    }
+
+    return {
+      serial: change.getSerial(),
+      kind,
+      offset: change.getOffset(),
+      length: change.getLength(),
+      data: '',
+      transformId: transform.transformId,
+      ...(transform.optionsJson !== undefined
+        ? { optionsJson: transform.optionsJson }
+        : {}),
+      replacementLength: transform.replacementLength,
+      computedFileSizeBefore: transform.computedFileSizeBefore,
+      computedFileSizeAfter: transform.computedFileSizeAfter,
+    }
   }
 
   return {
@@ -625,30 +719,59 @@ export class OmegaEditToolkit {
     await this.ensureServerRunning()
 
     if (changes.length > 0) {
-      await runSessionTransaction(request.sessionId, async () => {
-        for (const change of changes) {
-          const data = Buffer.from(change.data, 'hex')
-          switch (change.kind) {
-            case 'INSERT':
-              await insert(request.sessionId, change.offset, data)
-              break
-            case 'DELETE':
-              await del(request.sessionId, change.offset, change.length)
-              break
-            case 'OVERWRITE':
-              await overwrite(request.sessionId, change.offset, data)
-              break
-            case 'REPLACE':
-              await replace(
-                request.sessionId,
-                change.offset,
-                change.length,
-                data
-              )
-              break
-          }
+      const applyChange = async (change: ChangeLogEntry) => {
+        const data = Buffer.from(change.data, 'hex')
+        switch (change.kind) {
+          case 'INSERT':
+            await insert(request.sessionId, change.offset, data)
+            break
+          case 'DELETE':
+            await del(request.sessionId, change.offset, change.length)
+            break
+          case 'OVERWRITE':
+            await overwrite(request.sessionId, change.offset, data)
+            break
+          case 'REPLACE':
+            await replace(request.sessionId, change.offset, change.length, data)
+            break
+          case 'TRANSFORM':
+            if (!change.transformId) {
+              throw new Error('TRANSFORM change requires transformId')
+            }
+            await applyClientTransformPlugin(
+              request.sessionId,
+              change.transformId,
+              change.offset,
+              change.length,
+              change.optionsJson
+            )
+            break
         }
-      })
+      }
+      let pendingBatch: ChangeLogEntry[] = []
+      const flushBatch = async () => {
+        if (pendingBatch.length === 0) {
+          return
+        }
+
+        const batch = pendingBatch
+        pendingBatch = []
+        await runSessionTransaction(request.sessionId, async () => {
+          for (const change of batch) {
+            await applyChange(change)
+          }
+        })
+      }
+
+      for (const change of changes) {
+        if (change.kind === 'TRANSFORM') {
+          await flushBatch()
+          await applyChange(change)
+        } else {
+          pendingBatch.push(change)
+        }
+      }
+      await flushBatch()
     }
 
     return {
