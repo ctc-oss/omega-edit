@@ -28,7 +28,6 @@ const suiteConfig = {
   },
   coverage: {
     config: 'vitest.client.config.ts',
-    coverage: true,
   },
   lifecycle: {
     config: 'vitest.lifecycle.config.ts',
@@ -62,9 +61,15 @@ function parseArgs(argv) {
     process.exit(1)
   }
 
+  let skipPrereqs = false
   let transport
   for (let index = 0; index < rest.length; index += 1) {
     const arg = rest[index]
+    if (arg === '--skip-prereqs') {
+      skipPrereqs = true
+      continue
+    }
+
     if (arg === '--transport') {
       transport = rest[index + 1]
       if (!transport || !['tcp', 'uds'].includes(transport)) {
@@ -81,10 +86,10 @@ function parseArgs(argv) {
     process.exit(1)
   }
 
-  return { suite, transport }
+  return { skipPrereqs, suite, transport }
 }
 
-const { suite, transport } = parseArgs(process.argv.slice(2))
+const { skipPrereqs, suite, transport } = parseArgs(process.argv.slice(2))
 const env = {
   ...process.env,
 }
@@ -93,11 +98,13 @@ if (transport) {
   env.OMEGA_EDIT_TEST_TRANSPORT = transport
 }
 
-runCommand(
-  process.execPath,
-  [path.join(__dirname, 'ensure-test-prereqs.cjs')],
-  env
-)
+if (!skipPrereqs) {
+  runCommand(
+    process.execPath,
+    [path.join(__dirname, 'ensure-test-prereqs.cjs')],
+    env
+  )
+}
 
 const vitestCommand = process.platform === 'win32' ? 'vitest.cmd' : 'vitest'
 const selectedSuite = suiteConfig[suite]
@@ -109,10 +116,6 @@ if (suite === 'coverage') {
     ['run', '--config', suiteConfig.lifecycle.config],
     env
   )
-}
-
-if (selectedSuite.coverage) {
-  vitestArgs.push('--coverage')
 }
 
 runCommand(vitestCommand, vitestArgs, env)

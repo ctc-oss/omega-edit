@@ -138,11 +138,19 @@ describe('Undo/Redo', () => {
     expect(await getUndoCount(session_id)).to.equal(4)
 
     // Try undo when there is nothing left to undo
-    undo(session_id, stats).catch((e) => {
-      expect(e).to.be.an('error').with.property('message', 'Error: undo failed')
-      expect(stats.undo_count).to.equal(4)
-      expect(stats.error_count).to.equal(1)
-    })
+    await undo(session_id, stats).then(
+      () =>
+        expect.fail('undo should reject when there is nothing left to undo'),
+      (e) => {
+        expect(e)
+          .to.be.an('error')
+          .with.property('message')
+          .to.be.a('string')
+          .and.satisfy((msg) => msg.startsWith('undo failed'))
+        expect(stats.undo_count).to.equal(4)
+        expect(stats.error_count).to.equal(1)
+      }
+    )
     file_size = await getComputedFileSize(session_id)
     expect(file_size).to.equal(0)
     expect(await getSegment(session_id, 0, file_size)).to.be.empty
@@ -184,11 +192,19 @@ describe('Undo/Redo', () => {
     expect(segment).deep.equals(Buffer.from('0123456789'))
 
     // Try redo when there is noting left to redo
-    redo(session_id, stats).catch((e) => {
-      expect(e).to.be.an('error').with.property('message', 'Error: redo failed')
-      expect(stats.redo_count).to.equal(2)
-      expect(stats.error_count).to.equal(2)
-    })
+    await redo(session_id, stats).then(
+      () =>
+        expect.fail('redo should reject when there is nothing left to redo'),
+      (e) => {
+        expect(e)
+          .to.be.an('error')
+          .with.property('message')
+          .to.be.a('string')
+          .and.satisfy((msg) => msg.startsWith('redo failed'))
+        expect(stats.redo_count).to.equal(2)
+        expect(stats.error_count).to.equal(2)
+      }
+    )
     expect(await getChangeCount(session_id)).to.equal(3)
     expect(await getUndoCount(session_id)).to.equal(0)
 
