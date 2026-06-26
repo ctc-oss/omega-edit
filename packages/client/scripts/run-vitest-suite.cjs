@@ -23,30 +23,20 @@ const { spawnSync } = require('child_process')
 const packageRoot = path.resolve(__dirname, '..')
 
 const suiteConfig = {
-  client: [
-    '--timeout',
-    '100000',
-    '--slow',
-    '50000',
-    '--file',
-    'tests/client-suite.ts',
-    '--exclude',
-    './tests/specs/server.spec.ts',
-    './tests/specs/*.spec.ts',
-    '--exit',
-  ],
-  lifecycle: [
-    '--timeout',
-    '50000',
-    '--slow',
-    '35000',
-    './tests/specs/server.spec.ts',
-    '--exit',
-  ],
+  client: {
+    config: 'vitest.client.config.ts',
+  },
+  coverage: {
+    config: 'vitest.client.config.ts',
+    coverage: true,
+  },
+  lifecycle: {
+    config: 'vitest.lifecycle.config.ts',
+  },
 }
 
-function runNodeScript(scriptPath, args = [], env = process.env) {
-  const result = spawnSync(process.execPath, [scriptPath, ...args], {
+function runCommand(command, args, env = process.env) {
+  const result = spawnSync(command, args, {
     cwd: packageRoot,
     env,
     stdio: 'inherit',
@@ -77,6 +67,12 @@ function parseArgs(argv) {
     const arg = rest[index]
     if (arg === '--transport') {
       transport = rest[index + 1]
+      if (!transport || !['tcp', 'uds'].includes(transport)) {
+        console.error(
+          `Unknown transport "${transport}". Expected one of: tcp, uds`
+        )
+        process.exit(1)
+      }
       index += 1
       continue
     }
@@ -97,14 +93,26 @@ if (transport) {
   env.OMEGA_EDIT_TEST_TRANSPORT = transport
 }
 
-runNodeScript(path.join(__dirname, 'ensure-test-prereqs.cjs'), [], env)
-
-runNodeScript(
-  require.resolve('mocha/bin/mocha.js'),
-  [
-    '--node-option',
-    'import=./tests/register-ts-node-esm.mjs',
-    ...suiteConfig[suite],
-  ],
+runCommand(
+  process.execPath,
+  [path.join(__dirname, 'ensure-test-prereqs.cjs')],
   env
 )
+
+const vitestCommand = process.platform === 'win32' ? 'vitest.cmd' : 'vitest'
+const selectedSuite = suiteConfig[suite]
+const vitestArgs = ['run', '--config', selectedSuite.config]
+
+if (suite === 'coverage') {
+  runCommand(
+    vitestCommand,
+    ['run', '--config', suiteConfig.lifecycle.config],
+    env
+  )
+}
+
+if (selectedSuite.coverage) {
+  vitestArgs.push('--coverage')
+}
+
+runCommand(vitestCommand, vitestArgs, env)

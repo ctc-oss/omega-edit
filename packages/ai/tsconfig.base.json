@@ -21,5 +21,5 @@
     "inlineSources": true,
     "skipLibCheck": true
   },
-  "exclude": ["node_modules", "tests", "**/*.d.ts", "dist"]
+  "exclude": ["node_modules", "tests", "**/*.d.ts", "dist", "vitest*.config.ts"]
 }

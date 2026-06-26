@@ -30,7 +30,7 @@ import {
 } from '@omega-edit/client'
 import * as fs from 'fs'
 import * as path from 'path'
-import { initChai, testHost, testPort, testTransport } from './specs/common.js'
+import { testHost, testPort, testTransport } from './specs/common.js'
 import { getModuleCompat } from './specs/moduleCompat.js'
 
 const { __dirname } = getModuleCompat(import.meta.url)
@@ -54,11 +54,9 @@ function getSocketPath(rootPath: string): string {
 }
 
 /**
- * Mocha test fixture to set up the logger and start the server
- * @remarks used by mocha
+ * Vitest fixture to set up the logger and start the server.
  */
-export async function mochaGlobalSetup(): Promise<number | undefined> {
-  await initChai()
+export async function vitestGlobalSetup(): Promise<number | undefined> {
   const pidFile = getPidFile(rootPath, testPort)
   const socketPath = getSocketPath(rootPath)
   const logFile = path.join(rootPath, 'client-tests.log')
@@ -66,20 +64,20 @@ export async function mochaGlobalSetup(): Promise<number | undefined> {
   const logger = createSimpleFileLogger(logFile, level)
 
   logger.info({
-    fn: 'mochaGlobalSetup',
+    fn: 'vitestGlobalSetup',
     msg: 'logger built',
     level: level,
     logfile: logFile,
   })
   setLogger(logger)
   getLogger().debug({
-    fn: 'mochaGlobalSetup',
+    fn: 'vitestGlobalSetup',
     msg: 'starting server',
     port: testPort,
     pidfile: pidFile,
   })
 
-  await mochaGlobalTeardown()
+  await vitestGlobalTeardown()
 
   let pid: number | undefined
   if (testTransport === 'uds') {
@@ -111,7 +109,7 @@ export async function mochaGlobalSetup(): Promise<number | undefined> {
 
   if (pid) {
     getLogger().debug({
-      fn: 'mochaGlobalSetup',
+      fn: 'vitestGlobalSetup',
       msg: 'server started',
       port: testPort,
       pid: pid,
@@ -119,7 +117,7 @@ export async function mochaGlobalSetup(): Promise<number | undefined> {
     })
   } else {
     getLogger().error({
-      fn: 'mochaGlobalSetup',
+      fn: 'vitestGlobalSetup',
       msg: 'failed to start server',
       port: testPort,
       pidfile: pidFile,
@@ -129,14 +127,13 @@ export async function mochaGlobalSetup(): Promise<number | undefined> {
 }
 
 /**
- * Mocha test fixture to stop the server
- * @remarks used by mocha
+ * Vitest fixture to stop the server.
  */
-export async function mochaGlobalTeardown(): Promise<boolean> {
+export async function vitestGlobalTeardown(): Promise<boolean> {
   const pidFile = getPidFile(rootPath, testPort)
   const socketPath = getSocketPath(rootPath)
   const logMetadata = {
-    fn: 'mochaGlobalTeardown',
+    fn: 'vitestGlobalTeardown',
     port: testPort,
     pidFile,
   }
@@ -187,7 +184,7 @@ export async function mochaGlobalTeardown(): Promise<boolean> {
       }
     } else {
       getLogger().debug({
-        fn: 'mochaGlobalTeardown',
+        fn: 'vitestGlobalTeardown',
         msg: 'stale pid file found',
         port: testPort,
       })
@@ -222,7 +219,7 @@ export async function mochaGlobalTeardown(): Promise<boolean> {
     }
   } else {
     getLogger().debug({
-      fn: 'mochaGlobalTeardown',
+      fn: 'vitestGlobalTeardown',
       msg: 'no pid file found',
       port: testPort,
       pidfile: pidFile,

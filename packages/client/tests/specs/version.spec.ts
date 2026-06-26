@@ -26,7 +26,7 @@ import {
 } from '@omega-edit/client'
 
 describe('Version', () => {
-  beforeEach('Ensure the client is ready', async () => {
+  beforeEach(async () => {
     expect(await getClient(testPort)).to.not.be.undefined
   })
 

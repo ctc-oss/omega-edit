@@ -24,7 +24,7 @@
     "moduleResolution": "bundler",
     "noEmit": true,
     "rootDir": ".",
-    "types": ["node", "mocha"]
+    "types": ["node", "vitest/globals"]
   },
   "include": ["tests/**/*.ts"],
   "exclude": ["node_modules", "dist", "out"]

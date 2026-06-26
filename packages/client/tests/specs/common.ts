@@ -26,16 +26,12 @@ import {
   SessionEventKind,
   ViewportEventKind,
 } from '@omega-edit/client'
+import { expect as vitestExpect } from 'vitest'
 
-let chaiInitialized = false
+export const expect = vitestExpect
 
-export let expect!: Chai.ExpectStatic
-
-export async function initChai(): Promise<void> {
-  if (chaiInitialized) return
-  const { expect: importedExpect } = await import('chai')
-  expect = importedExpect
-  chaiInitialized = true
+export async function initExpect(): Promise<void> {
+  return Promise.resolve()
 }
 
 export let session_callbacks = new Map()
