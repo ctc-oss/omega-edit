@@ -27,7 +27,8 @@ const suiteConfig = {
     config: 'vitest.client.config.ts',
   },
   coverage: {
-    config: 'vitest.client.config.ts',
+    config: 'vitest.coverage.config.ts',
+    coverage: true,
   },
   lifecycle: {
     config: 'vitest.lifecycle.config.ts',
@@ -50,6 +51,20 @@ function runCommand(command, args, env = process.env) {
   if (result.status !== 0) {
     process.exit(result.status ?? 1)
   }
+}
+
+function getVitestCliPath() {
+  const vitestPackageJsonPath = require.resolve('vitest/package.json')
+  const vitestPackageJson = require(vitestPackageJsonPath)
+
+  return path.join(
+    path.dirname(vitestPackageJsonPath),
+    vitestPackageJson.bin.vitest
+  )
+}
+
+function runVitest(args, env) {
+  runCommand(process.execPath, [getVitestCliPath(), ...args], env)
 }
 
 function parseArgs(argv) {
@@ -106,16 +121,15 @@ if (!skipPrereqs) {
   )
 }
 
-const vitestCommand = process.platform === 'win32' ? 'vitest.cmd' : 'vitest'
 const selectedSuite = suiteConfig[suite]
 const vitestArgs = ['run', '--config', selectedSuite.config]
 
 if (suite === 'coverage') {
-  runCommand(
-    vitestCommand,
-    ['run', '--config', suiteConfig.lifecycle.config],
-    env
-  )
+  runVitest(['run', '--config', suiteConfig.lifecycle.config], env)
 }
 
-runCommand(vitestCommand, vitestArgs, env)
+if (selectedSuite.coverage) {
+  vitestArgs.push('--coverage')
+}
+
+runVitest(vitestArgs, env)
