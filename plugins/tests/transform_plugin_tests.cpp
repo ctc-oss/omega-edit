@@ -481,6 +481,19 @@ TEST_CASE("Packaged Transform Plugins", "[TransformPlugin]") {
     omega_transform_plugin_response_clear(&response);
     omega_edit_destroy_session(helper_session_ptr);
 
+    const auto odd_helper_session_ptr = omega_edit_create_session(nullptr, nullptr, nullptr, NO_EVENTS, nullptr);
+    REQUIRE(odd_helper_session_ptr);
+    const omega_byte_t odd_endian_bytes[] = {1, 2, 3, 4, 5};
+    REQUIRE(0 < omega_edit_insert_bytes(odd_helper_session_ptr, 0, odd_endian_bytes, 5));
+    REQUIRE(0 == omega_transform_plugin_registry_apply_to_session(registry_ptr, "omega.example.endian_swap",
+                                                                  odd_helper_session_ptr, 0, 5, "{\"width\":2}",
+                                                                  &response));
+    REQUIRE(std::string({2, 1, 4, 3, 5}) ==
+            omega_session_get_segment_string(odd_helper_session_ptr, 0,
+                                             omega_session_get_computed_file_size(odd_helper_session_ptr)));
+    omega_transform_plugin_response_clear(&response);
+    omega_edit_destroy_session(odd_helper_session_ptr);
+
     const auto decimal_session_ptr = omega_edit_create_session(nullptr, nullptr, nullptr, NO_EVENTS, nullptr);
     REQUIRE(decimal_session_ptr);
     REQUIRE(0 < omega_edit_insert_string(decimal_session_ptr, 0, "123"));

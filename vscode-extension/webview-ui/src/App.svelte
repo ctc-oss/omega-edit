@@ -17,7 +17,12 @@
     type WebviewExternalHighlight,
     type WebviewTransformPlugin,
   } from './protocol'
-  import { getPreviewState, postToHost, setPreviewState } from './vscodeApi'
+  import {
+    getPreviewState,
+    postToHost,
+    setPreviewState,
+    type PersistedViewportSnapshot,
+  } from './vscodeApi'
 
   const DEFAULT_VISIBLE_ROWS = 16
   const INTERNAL_HEX_CLIPBOARD_FORMAT = 'application/x-omega-edit-hex'
@@ -70,11 +75,17 @@
     label: string
     value: string
     mimeType: string
+    offset: number
+    rangeEndOffset: number
+    byteLength: number
+    createdAtLabel: string
+    historyLabel: string
+  }
+
+  interface DisplayTransformResultState extends TransformResultState {
     rangeStart: string
     rangeEnd: string
     length: string
-    createdAtLabel: string
-    historyLabel: string
   }
 
   const DEFAULT_ANALYSIS_SECTION_ORDER: AnalysisSectionOrder = {
@@ -98,16 +109,21 @@
   let { initialBytesPerRow = 16 }: Props = $props()
 
   const restoredState = getPreviewState()
+  const restoredViewportSnapshot = normalizeViewportSnapshot(
+    restoredState?.viewportSnapshot
+  )
 
   let bytesPerRow = $state<BytesPerRow>(
     normalizeBytesPerRow(
       restoredState?.bytesPerRow ?? untrack(() => initialBytesPerRow)
     )
   )
-  let fileSize = $state(0)
-  let visibleOffset = $state(0)
-  let viewportOffset = $state(0)
-  let viewportData = $state<number[]>([])
+  let fileSize = $state(restoredViewportSnapshot?.fileSize ?? 0)
+  let visibleOffset = $state(restoredViewportSnapshot?.visibleOffset ?? 0)
+  let viewportOffset = $state(restoredViewportSnapshot?.viewportOffset ?? 0)
+  let viewportData = $state<number[]>(
+    restoredViewportSnapshot?.viewportData ?? []
+  )
   let visibleRows = $state(DEFAULT_VISIBLE_ROWS)
   let pendingVisibleOffset = $state<number | undefined>(undefined)
   let pendingSearchReveal = $state<PendingSearchReveal | undefined>(undefined)
@@ -140,8 +156,13 @@
   let transformResult = $state<TransformResultState | undefined>(undefined)
   let transformResultHistory = $state<TransformResultState[]>([])
   let transformResultSequence = $state(0)
-  let externalHighlights = $state<WebviewExternalHighlight[]>([])
-  let preparingFile = $state(true)
+  let externalHighlights = $state<WebviewExternalHighlight[]>(
+    restoredViewportSnapshot?.externalHighlights ?? []
+  )
+  let viewportSnapshot = $state<PersistedViewportSnapshot | undefined>(
+    restoredViewportSnapshot
+  )
+  let preparingFile = $state(!restoredViewportSnapshot)
   let canUndo = $state(false)
   let canRedo = $state(false)
   let undoCount = $state(0)
@@ -284,6 +305,12 @@
   const profilerSelectedBytes = $derived(
     selectedVisibleBytes.length === selectionLength ? selectedVisibleBytes : []
   )
+  const displayTransformResult = $derived(
+    transformResult ? formatTransformResult(transformResult) : undefined
+  )
+  const displayTransformResultHistory = $derived(
+    transformResultHistory.map(formatTransformResult)
+  )
 
   let analysisProfileRequestTimer: ReturnType<typeof setTimeout> | undefined
 
@@ -327,6 +354,7 @@
       searchPanelVisible: boolean
       profilerExpanded: boolean
       analysisSectionOrder: AnalysisSectionOrder
+      viewportSnapshot: PersistedViewportSnapshot | undefined
     }> = {}
   ): void {
     setPreviewState({
@@ -336,8 +364,83 @@
       searchPanelVisible,
       profilerExpanded,
       analysisSectionOrder,
+      viewportSnapshot,
       ...overrides,
     })
+  }
+
+  function normalizeViewportSnapshot(
+    rawSnapshot: unknown
+  ): PersistedViewportSnapshot | undefined {
+    if (!rawSnapshot || typeof rawSnapshot !== 'object') {
+      return undefined
+    }
+
+    const snapshot = rawSnapshot as Record<string, unknown>
+    const nextFileSize = safeInteger(snapshot.fileSize)
+    const nextVisibleOffset = safeInteger(snapshot.visibleOffset)
+    const nextViewportOffset = safeInteger(snapshot.viewportOffset)
+    const nextViewportData = normalizeByteArray(snapshot.viewportData)
+
+    if (
+      nextFileSize === undefined ||
+      nextVisibleOffset === undefined ||
+      nextViewportOffset === undefined ||
+      !nextViewportData
+    ) {
+      return undefined
+    }
+
+    return {
+      fileSize: nextFileSize,
+      visibleOffset: Math.min(nextVisibleOffset, Math.max(0, nextFileSize)),
+      viewportOffset: Math.min(nextViewportOffset, Math.max(0, nextFileSize)),
+      viewportData: nextViewportData,
+      externalHighlights: normalizeExternalHighlights(
+        snapshot.externalHighlights
+      ),
+    }
+  }
+
+  function safeInteger(value: unknown): number | undefined {
+    return typeof value === 'number' &&
+      Number.isSafeInteger(value) &&
+      value >= 0
+      ? value
+      : undefined
+  }
+
+  function normalizeByteArray(value: unknown): number[] | undefined {
+    if (!Array.isArray(value)) {
+      return undefined
+    }
+
+    const bytes: number[] = []
+    for (const byte of value) {
+      if (
+        typeof byte !== 'number' ||
+        !Number.isInteger(byte) ||
+        byte < 0 ||
+        byte > 0xff
+      ) {
+        return undefined
+      }
+      bytes.push(byte)
+    }
+    return bytes
+  }
+
+  function normalizeExternalHighlights(
+    value: unknown
+  ): WebviewExternalHighlight[] {
+    if (!Array.isArray(value)) {
+      return []
+    }
+
+    return value.filter(
+      (highlight): highlight is WebviewExternalHighlight =>
+        Boolean(highlight) && typeof highlight === 'object'
+    ) as WebviewExternalHighlight[]
   }
 
   function normalizeAnalysisSectionOrder(
@@ -1467,8 +1570,6 @@
     const timestamp = Date.now()
     const title = transformPluginTitle(message.pluginId)
     const label = message.resultLabel || strings.transform.resultDefault
-    const rangeStart = formatSearchOffset(message.offset)
-    const rangeEndLabel = formatSearchOffset(rangeEnd)
     const createdAtLabel = formatTransformResultTime(timestamp)
     transformResultSequence += 1
 
@@ -1479,15 +1580,29 @@
       label,
       value: message.resultText,
       mimeType: message.resultMimeType,
-      rangeStart,
-      rangeEnd: rangeEndLabel,
-      length: strings.transform.bytes(displayLength),
+      offset: message.offset,
+      rangeEndOffset: rangeEnd,
+      byteLength: displayLength,
       createdAtLabel,
+      historyLabel: '',
+    }
+  }
+
+  function formatTransformResult(
+    result: TransformResultState
+  ): DisplayTransformResultState {
+    const rangeStart = formatSearchOffset(result.offset)
+    const rangeEnd = formatSearchOffset(result.rangeEndOffset)
+    return {
+      ...result,
+      rangeStart,
+      rangeEnd,
+      length: strings.transform.bytes(result.byteLength),
       historyLabel: strings.transform.resultHistoryItem(
-        label,
+        result.label,
         rangeStart,
-        rangeEndLabel,
-        createdAtLabel
+        rangeEnd,
+        result.createdAtLabel
       ),
     }
   }
@@ -1534,6 +1649,21 @@
       target instanceof HTMLTextAreaElement ||
       target instanceof HTMLSelectElement
     )
+  }
+
+  function historyShortcut(event: KeyboardEvent): 'undo' | 'redo' | undefined {
+    if ((!event.ctrlKey && !event.metaKey) || event.altKey) {
+      return undefined
+    }
+
+    const key = event.key.toLowerCase()
+    if (key === 'z') {
+      return event.shiftKey ? 'redo' : 'undo'
+    }
+    if (key === 'y' && !event.shiftKey) {
+      return 'redo'
+    }
+    return undefined
   }
 
   function normalizeHexInput(
@@ -1972,6 +2102,14 @@
           selectionAnchor = -1
           selectedOffset = nextOffset
         }
+        viewportSnapshot = {
+          fileSize: message.fileSize,
+          visibleOffset,
+          viewportOffset: message.offset,
+          viewportData: message.data,
+          externalHighlights: message.externalHighlights,
+        }
+        savePreviewState()
         applyPendingSearchReveal()
         break
       }
@@ -2133,6 +2271,13 @@
         break
       case 'externalHighlights':
         externalHighlights = message.highlights
+        if (viewportSnapshot) {
+          viewportSnapshot = {
+            ...viewportSnapshot,
+            externalHighlights: message.highlights,
+          }
+          savePreviewState()
+        }
         break
       case 'editMode':
         setInspectorEditMode(message.editMode)
@@ -2163,6 +2308,17 @@
       handleHostMessage(event.data)
     }
     const keyListener = (event: KeyboardEvent) => {
+      const historyAction = historyShortcut(event)
+      if (historyAction && !isEditableTarget(event.target)) {
+        event.preventDefault()
+        if (transformInFlight) {
+          clipboardMessage = strings.transform.inFlight
+          replaceMessage = strings.transform.inFlight
+          return
+        }
+        postToHost({ type: historyAction })
+        return
+      }
       if (
         event.defaultPrevented ||
         event.key !== 'Insert' ||
@@ -2215,8 +2371,8 @@
     {transformInFlight}
     {transformPluginError}
     {transformFeedback}
-    transformResults={transformResultHistory}
-    activeTransformResultId={transformResult?.id}
+    transformResults={displayTransformResultHistory}
+    activeTransformResultId={displayTransformResult?.id}
     {searchPanelVisible}
     {selectedOffset}
     {selectionStart}
@@ -2265,16 +2421,16 @@
       />
     {/if}
 
-    {#if transformResult}
+    {#if displayTransformResult}
       <TransformResultPanel
-        title={transformResult.title}
-        summary={transformResult.summary}
-        label={transformResult.label}
-        value={transformResult.value}
-        mimeType={transformResult.mimeType}
-        rangeStart={transformResult.rangeStart}
-        rangeEnd={transformResult.rangeEnd}
-        length={transformResult.length}
+        title={displayTransformResult.title}
+        summary={displayTransformResult.summary}
+        label={displayTransformResult.label}
+        value={displayTransformResult.value}
+        mimeType={displayTransformResult.mimeType}
+        rangeStart={displayTransformResult.rangeStart}
+        rangeEnd={displayTransformResult.rangeEnd}
+        length={displayTransformResult.length}
         onDismiss={dismissTransformResult}
       />
     {/if}

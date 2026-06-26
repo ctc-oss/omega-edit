@@ -127,6 +127,9 @@ interface EditorSession {
   externalHighlights: WebviewExternalHighlight[]
   transformPlugins: WebviewTransformPlugin[]
   transformInFlight: boolean
+  pendingHistoryOperation?: 'undo' | 'redo'
+  pendingHistoryCount?: number
+  historyCommandTask?: Promise<void>
   contentType?: string
   language?: string
 }
@@ -1073,20 +1076,14 @@ export class HexEditorProvider
     if (!this.activeSession) {
       return
     }
-    if (!this.ensureSessionCanMutate(this.activeSession, true)) {
-      return
-    }
-    await vscode.commands.executeCommand('undo')
+    await this.enqueueHistoryCommand(this.activeSession, 'undo', true)
   }
 
   public async redoActive(): Promise<void> {
     if (!this.activeSession) {
       return
     }
-    if (!this.ensureSessionCanMutate(this.activeSession, true)) {
-      return
-    }
-    await vscode.commands.executeCommand('redo')
+    await this.enqueueHistoryCommand(this.activeSession, 'redo', true)
   }
 
   public searchNextActive(): void {
@@ -1532,6 +1529,14 @@ export class HexEditorProvider
         bytesPerRow
       )
       session.capacity = this.getViewportCapacity(bytesPerRow)
+      this.postTransformStatus(
+        session,
+        session.transformInFlight,
+        undefined,
+        session.transformInFlight
+          ? transformMutationBlockedMessage()
+          : undefined
+      )
       this.sendViewportData(session)
       this.postEditState(session)
     }
@@ -1547,6 +1552,14 @@ export class HexEditorProvider
       session.panel.webview.html = this.renderWebviewHtml(
         session.panel.webview,
         session.bytesPerRow
+      )
+      this.postTransformStatus(
+        session,
+        session.transformInFlight,
+        undefined,
+        session.transformInFlight
+          ? transformMutationBlockedMessage()
+          : undefined
       )
       this.sendViewportData(session)
       this.postEditState(session)
@@ -2735,6 +2748,8 @@ export class HexEditorProvider
         this.clearSearchState(session)
       }
 
+      await this.sendViewportData(session)
+
       this.postWebviewMessage(session, {
         type: 'transformComplete',
         pluginId: response.pluginId,
@@ -3434,6 +3449,73 @@ export class HexEditorProvider
     this.postEditState(session)
   }
 
+  private enqueueHistoryCommand(
+    session: EditorSession,
+    operation: 'undo' | 'redo',
+    showWarning = false
+  ): Promise<void> {
+    if (!this.ensureSessionCanMutate(session, showWarning)) {
+      return Promise.resolve()
+    }
+
+    if (session.pendingHistoryOperation !== operation) {
+      session.pendingHistoryOperation = operation
+      session.pendingHistoryCount = 0
+    }
+    session.pendingHistoryCount = (session.pendingHistoryCount ?? 0) + 1
+
+    if (!session.historyCommandTask) {
+      session.historyCommandTask = this.processHistoryCommandQueue(session)
+        .catch((error) => {
+          const message = error instanceof Error ? error.message : String(error)
+          void vscode.window.showErrorMessage(omegaEditErrorMessage(message))
+        })
+        .finally(() => {
+          session.historyCommandTask = undefined
+          session.pendingHistoryOperation = undefined
+          session.pendingHistoryCount = 0
+        })
+    }
+
+    return session.historyCommandTask
+  }
+
+  private async processHistoryCommandQueue(
+    session: EditorSession
+  ): Promise<void> {
+    while (
+      !session.scope.isDisposed &&
+      !session.disposed &&
+      session.pendingHistoryOperation &&
+      (session.pendingHistoryCount ?? 0) > 0
+    ) {
+      if (this.activeSession !== session) {
+        session.pendingHistoryOperation = undefined
+        session.pendingHistoryCount = 0
+        return
+      }
+
+      const operation = session.pendingHistoryOperation
+      session.pendingHistoryCount = Math.max(
+        0,
+        (session.pendingHistoryCount ?? 0) - 1
+      )
+
+      const editState = session.history.getEditState()
+      if (operation === 'undo') {
+        if (!editState.canUndo) {
+          continue
+        }
+        await vscode.commands.executeCommand('undo')
+      } else {
+        if (!editState.canRedo) {
+          continue
+        }
+        await vscode.commands.executeCommand('redo')
+      }
+    }
+  }
+
   private notifyDocumentChanged(session: EditorSession): void {
     this._onDidChangeCustomDocument.fire({
       document: session.document,
@@ -3800,6 +3882,14 @@ export class HexEditorProvider
 
         case 'setViewportMetrics': {
           const visibleRows = Math.max(1, Math.floor(msg.visibleRows))
+          if (session.transformInFlight) {
+            this.postTransformStatus(
+              session,
+              true,
+              undefined,
+              transformMutationBlockedMessage()
+            )
+          }
           if (visibleRows !== session.visibleRows) {
             session.visibleRows = visibleRows
             await this.scrollTo(session, session.offset)
@@ -4054,12 +4144,12 @@ export class HexEditorProvider
           // stack; VS Code then calls our registered undo() callback, which
           // calls session.history.undo() and keeps VS Code's dirty state in
           // sync (including clearing dirty when back at the saved baseline).
-          await vscode.commands.executeCommand('undo')
+          await this.enqueueHistoryCommand(session, 'undo')
           break
         }
 
         case 'redo': {
-          await vscode.commands.executeCommand('redo')
+          await this.enqueueHistoryCommand(session, 'redo')
           break
         }
 
