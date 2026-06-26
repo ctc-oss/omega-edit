@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onDestroy, onMount } from 'svelte'
-  import { strings } from '../i18n'
+  import { formatNumber, strings } from '../i18n'
   import type { BytesPerRow } from '../protocol'
 
   const MIN_THUMB_HEIGHT = 24
@@ -70,7 +70,7 @@
         : 100
   )
   const progressLabel = $derived(
-    `${progress.toLocaleString(undefined, {
+    `${formatNumber(progress, {
       maximumFractionDigits: progress >= 99.95 ? 0 : 1,
     })}%`
   )
@@ -88,7 +88,7 @@
 
   function formatOffset(offset: number): string {
     return offsetRadix === 'dec'
-      ? offset.toLocaleString()
+      ? formatNumber(offset)
       : `0x${offset.toString(16).toUpperCase()}`
   }
 

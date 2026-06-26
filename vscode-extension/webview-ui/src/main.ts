@@ -1,14 +1,21 @@
 import App from './App.svelte'
 import './styles.css'
 import { mount } from 'svelte'
-import { strings } from './i18n'
+import { setLanguage, strings, textDirectionForLanguage } from './i18n'
 import { normalizeBytesPerRow } from './protocol'
+
+const initialLanguage = document.documentElement.lang || navigator.language
+setLanguage(initialLanguage)
 
 const target = document.getElementById('app')
 
 if (!target) {
   throw new Error(strings.app.missingMountPoint)
 }
+
+const activeLanguage = setLanguage(target.dataset.locale || initialLanguage)
+document.documentElement.lang = activeLanguage
+document.documentElement.dir = textDirectionForLanguage(activeLanguage)
 
 const initialBytesPerRow = normalizeBytesPerRow(
   Number.parseInt(target.dataset.bytesPerRow ?? '', 10)

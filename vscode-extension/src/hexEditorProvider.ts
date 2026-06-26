@@ -1537,6 +1537,22 @@ export class HexEditorProvider
     }
   }
 
+  /** Re-render open webviews after the UI language setting changes. */
+  refreshLanguage(): void {
+    for (const session of this.sessions.values()) {
+      session.panel.webview.options = {
+        ...session.panel.webview.options,
+        localResourceRoots: this.getLocalResourceRoots(),
+      }
+      session.panel.webview.html = this.renderWebviewHtml(
+        session.panel.webview,
+        session.bytesPerRow
+      )
+      this.sendViewportData(session)
+      this.postEditState(session)
+    }
+  }
+
   async exportChangeLog(options?: unknown): Promise<
     | {
         state: WebviewEditorState

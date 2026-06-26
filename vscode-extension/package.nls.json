@@ -6,6 +6,7 @@
   "omegaEdit.configuration.serverPort.description": "TCP port for the OmegaEdit gRPC server; explicitly setting it opts out of Unix socket transport on macOS/Linux",
   "omegaEdit.configuration.logLevel.description": "Log level for the OmegaEdit client",
   "omegaEdit.configuration.bytesPerRow.description": "Number of bytes displayed per row in the hex view",
+  "omegaEdit.configuration.language.description": "Language for the Svelte data editor UI. Use auto to follow VS Code's display language.",
   "omegaEdit.configuration.transformPluginDirectories.description": "Directories containing OmegaEdit transform plugin shared libraries",
   "omegaEdit.command.openInHexEditor.title": "OmegaEdit: Open in Data Editor",
   "omegaEdit.command.goToOffset.title": "OmegaEdit: Go to Offset",

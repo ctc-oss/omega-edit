@@ -17,6 +17,9 @@ import * as vscode from 'vscode'
 import { type BytesPerRow, normalizeBytesPerRow } from './webviewProtocol'
 
 const SVELTE_WEBVIEW_OUT_DIR = ['out', 'svelte-webview'] as const
+const AUTO_WEBVIEW_LANGUAGE = 'auto'
+const SUPPORTED_WEBVIEW_LANGUAGES = new Set(['en', 'es'])
+const RTL_LANGUAGES = new Set(['ar', 'fa', 'he', 'ps', 'ur'])
 
 function escapeHtmlAttribute(value: string): string {
   return value
@@ -35,6 +38,32 @@ function escapeHtmlText(value: string): string {
 
 function nonce(): string {
   return crypto.randomBytes(16).toString('base64')
+}
+
+function textDirectionForLanguage(language: string): 'ltr' | 'rtl' {
+  const [baseLanguage] = language
+    .trim()
+    .replace(/_/g, '-')
+    .toLowerCase()
+    .split('-')
+  return RTL_LANGUAGES.has(baseLanguage) ? 'rtl' : 'ltr'
+}
+
+function normalizeLanguage(language: string): string {
+  return language.trim().replace(/_/g, '-').toLowerCase()
+}
+
+function resolveWebviewLanguage(): string {
+  const config = vscode.workspace.getConfiguration('omegaEdit')
+  const configuredLanguage = normalizeLanguage(
+    config.get<string>('language', AUTO_WEBVIEW_LANGUAGE)
+  )
+  if (configuredLanguage === AUTO_WEBVIEW_LANGUAGE) {
+    return vscode.env.language || 'en'
+  }
+  return SUPPORTED_WEBVIEW_LANGUAGES.has(configuredLanguage)
+    ? configuredLanguage
+    : vscode.env.language || 'en'
 }
 
 export function getSvelteWebviewLocalResourceRoot(
@@ -58,13 +87,16 @@ export function getSvelteWebviewContent(
   const cspSource = escapeHtmlAttribute(webview.cspSource)
   const scriptNonce = nonce()
   const normalizedBytesPerRow = normalizeBytesPerRow(bytesPerRow)
+  const language = resolveWebviewLanguage()
+  const escapedLanguage = escapeHtmlAttribute(language)
+  const textDirection = textDirectionForLanguage(language)
   const title = escapeHtmlText(vscode.l10n.t('OmegaEdit Data Editor'))
   const loading = escapeHtmlText(
     vscode.l10n.t('Loading OmegaEdit Data Editor...')
   )
 
   return `<!DOCTYPE html>
-<html lang="en">
+<html lang="${escapedLanguage}" dir="${textDirection}">
 <head>
   <meta charset="UTF-8">
   <meta
@@ -76,7 +108,7 @@ export function getSvelteWebviewContent(
   <title>${title}</title>
 </head>
 <body>
-  <div id="app" data-bytes-per-row="${normalizedBytesPerRow}">
+  <div id="app" data-bytes-per-row="${normalizedBytesPerRow}" data-locale="${escapedLanguage}">
     <p class="bootstrap-status">${loading}</p>
   </div>
   <script nonce="${scriptNonce}" type="module" src="${scriptUri.toString()}"></script>

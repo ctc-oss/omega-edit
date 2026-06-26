@@ -304,8 +304,15 @@ from the OmegaEdit host/server path.
 - The data inspector is collapsible and offsets can be displayed in either hex
   or decimal.
 - Svelte-visible strings live in `webview-ui/src/i18n.ts`; VS Code contribution
-  strings live in `package.nls.json`.
+  strings live in `package.nls.json`. The Svelte webview selects its string
+  table from `omegaEdit.language`, using the host-provided
+  `vscode.env.language` when that setting is `auto`. It sets document `lang`
+  and text direction before mounting and falls back to English for untranslated
+  entries. Keep explicit language options narrow to languages present in the
+  webview locale table so localization remains easy to test.
 - New UI work should not add visible literals directly to Svelte components.
+  Use the i18n helpers for labels, titles, validation text, and
+  locale-sensitive decimal number formatting.
 - Svelte components in the migrated webview use Svelte 5 runes (`$props`,
   `$state`, `$derived`, and `$effect`) as the standard reactivity model. New
   Svelte work should not add legacy `export let` props, `$:` reactive

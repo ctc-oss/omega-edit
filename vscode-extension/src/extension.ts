@@ -846,6 +846,9 @@ export async function activate(
       if (event.affectsConfiguration('omegaEdit.bytesPerRow')) {
         provider.refreshBytesPerRow()
       }
+      if (event.affectsConfiguration('omegaEdit.language')) {
+        provider.refreshLanguage()
+      }
     })
   )
 

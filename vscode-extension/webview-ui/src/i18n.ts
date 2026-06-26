@@ -1,4 +1,25 @@
-export const strings = {
+const DEFAULT_LANGUAGE = 'en'
+const RTL_LANGUAGES = new Set(['ar', 'fa', 'he', 'ps', 'ur'])
+
+let activeLanguage = DEFAULT_LANGUAGE
+
+export function formatNumber(
+  value: number,
+  options?: Intl.NumberFormatOptions
+): string {
+  return value.toLocaleString(activeLanguage, options)
+}
+
+export function textDirectionForLanguage(language: string): 'ltr' | 'rtl' {
+  const [baseLanguage] = normalizeLanguageTag(language).split('-')
+  return RTL_LANGUAGES.has(baseLanguage) ? 'rtl' : 'ltr'
+}
+
+function normalizeLanguageTag(language: string): string {
+  return language.trim().replaceAll('_', '-').toLowerCase()
+}
+
+const englishStrings = {
   app: {
     missingMountPoint: 'Missing Svelte webview mount point',
     failedToStart: (message: string) =>
@@ -90,7 +111,7 @@ export const strings = {
     start: 'Start',
     end: 'End',
     length: 'Length',
-    bytes: (count: number) => `${count.toLocaleString()} byte${count === 1 ? '' : 's'}`,
+    bytes: (count: number) => `${formatNumber(count)} byte${count === 1 ? '' : 's'}`,
     rangeOffsetTitle: 'Enter an offset for this transform range',
     invalidRangeOffset: 'Enter valid start and end offsets',
     noFileRange: 'No file bytes are available to transform',
@@ -146,23 +167,23 @@ export const strings = {
     exportingChangeLog: 'Exporting change log...',
     applyingChangeLog: 'Applying change log...',
     checkpointCreated: (count: number) =>
-      `Checkpoint created (${count.toLocaleString()} total)`,
+      `Checkpoint created (${formatNumber(count)} total)`,
     checkpointRolledBack: (count: number) =>
-      `Checkpoint rolled back (${count.toLocaleString()} remaining)`,
+      `Checkpoint rolled back (${formatNumber(count)} remaining)`,
     changeLogExported: (count: number) =>
-      `Exported ${count.toLocaleString()} change${count === 1 ? '' : 's'}`,
+      `Exported ${formatNumber(count)} change${count === 1 ? '' : 's'}`,
     changeLogApplied: (count: number) =>
-      `Applied ${count.toLocaleString()} change${count === 1 ? '' : 's'}`,
+      `Applied ${formatNumber(count)} change${count === 1 ? '' : 's'}`,
     exportingRange: 'Exporting range...',
     insertingFile: 'Selecting file to insert...',
     replacingWithFile: 'Selecting replacement file...',
     fileActionCancelled: 'File action cancelled',
     exportedRange: (count: number) =>
-      `Exported ${count.toLocaleString()} byte${count === 1 ? '' : 's'}`,
+      `Exported ${formatNumber(count)} byte${count === 1 ? '' : 's'}`,
     insertedFile: (count: number) =>
-      `Inserted ${count.toLocaleString()} byte${count === 1 ? '' : 's'}`,
+      `Inserted ${formatNumber(count)} byte${count === 1 ? '' : 's'}`,
     replacedRangeWithFile: (from: number, to: number) =>
-      `Replaced ${from.toLocaleString()} byte${from === 1 ? '' : 's'} with ${to.toLocaleString()} byte${to === 1 ? '' : 's'}`,
+      `Replaced ${formatNumber(from)} byte${from === 1 ? '' : 's'} with ${formatNumber(to)} byte${to === 1 ? '' : 's'}`,
     resultTitle: 'Transform result',
     resultDefault: 'Result',
     resultAvailable: (label: string) => `${label} available`,
@@ -184,7 +205,7 @@ export const strings = {
     dismissResult: 'Dismiss transform result',
     dismissResultSymbol: 'x',
     transformed: (from: number, to: number) =>
-      `Transformed ${from.toLocaleString()} byte${from === 1 ? '' : 's'} into ${to.toLocaleString()} byte${to === 1 ? '' : 's'}`,
+      `Transformed ${formatNumber(from)} byte${from === 1 ? '' : 's'} into ${formatNumber(to)} byte${to === 1 ? '' : 's'}`,
     completed: 'Transform completed',
     calculationCompleted: 'Calculation completed',
     noContentChange: 'Transform completed without content changes',
@@ -216,13 +237,13 @@ export const strings = {
     searchComplete: 'Search complete',
     noMatch: 'No match',
     largeMatchSummary: (limit: number, offset: string) =>
-      `${limit.toLocaleString()}+ matches @ ${offset}`,
+      `${formatNumber(limit)}+ matches @ ${offset}`,
     boundedMatchSummary: (index: number, total: number, offset: string) =>
       `${index + 1} / ${total} @ ${offset}`,
     replaceSummary: (count: number) =>
       count === 1
         ? 'Replaced 1 match'
-        : `Replaced ${count.toLocaleString()} matches`,
+        : `Replaced ${formatNumber(count)} matches`,
     replacingAll: 'Replacing matches...',
   },
   grid: {
@@ -262,12 +283,12 @@ export const strings = {
     label: 'Selected byte inspector',
     title: 'Inspector',
     show: 'Show',
-    hide: 'Hide',
+    collapseSymbol: 'X',
     expand: 'Expand inspector',
     collapse: 'Collapse inspector',
     selection: 'Selection',
     noSelection: 'No selection',
-    byte: (count: number) => `${count.toLocaleString()} byte${count === 1 ? '' : 's'}`,
+    byte: (count: number) => `${formatNumber(count)} byte${count === 1 ? '' : 's'}`,
     copying: 'Copying...',
     copied: 'Copied',
     cut: 'Cut',
@@ -324,7 +345,7 @@ export const strings = {
     overwroteBytes: (count: number) =>
       count === 1
         ? 'Overwrote 1 byte'
-        : `Overwrote ${count.toLocaleString()} bytes`,
+        : `Overwrote ${formatNumber(count)} bytes`,
     copiedSelection: (count: number, format: 'hex' | 'utf8') =>
       `Copied ${strings.inspector.byte(count)} as ${
         format === 'hex' ? strings.inspector.asHex : strings.inspector.asText
@@ -333,11 +354,11 @@ export const strings = {
     deletedBytes: (count: number) =>
       count === 1
         ? 'Deleted 1 byte'
-        : `Deleted ${count.toLocaleString()} bytes`,
+        : `Deleted ${formatNumber(count)} bytes`,
     pastedBytes: (count: number) =>
       count === 1
         ? 'Pasted 1 byte'
-        : `Pasted ${count.toLocaleString()} bytes`,
+        : `Pasted ${formatNumber(count)} bytes`,
   },
   profiler: {
     label: 'OmegaEdit profiler',
@@ -346,7 +367,7 @@ export const strings = {
     profile: 'Profile',
     structure: 'Structure',
     show: 'Show',
-    hide: 'Hide',
+    collapseSymbol: 'X',
     expand: 'Expand profiler',
     collapse: 'Collapse profiler',
     expandSection: (title: string) => `Expand ${title}`,
@@ -377,7 +398,7 @@ export const strings = {
     profileCapped: (length: string, requestedLength: string) =>
       `Profile capped at ${length} of ${requestedLength}.`,
     frequencyByte: (label: string, count: number) =>
-      `${label} count ${count.toLocaleString()}`,
+      `${label} count ${formatNumber(count)}`,
     count: 'Count',
     linear: 'Linear',
     log: 'Log',
@@ -430,4 +451,253 @@ export const strings = {
   status: {
     hexPending: (label: string) => `Hex edit: ${label}`,
   },
+}
+
+export type WebviewStrings = typeof englishStrings
+type LocaleStringOverrides = {
+  [Section in keyof WebviewStrings]?: Partial<WebviewStrings[Section]>
+}
+
+// Locale overrides may be partial; missing strings fall back to English.
+const localeOverrides: Record<string, LocaleStringOverrides> = {
+  es: {
+    app: {
+      missingMountPoint: 'Falta el punto de montaje de la vista web de Svelte',
+      failedToStart: (message: string) =>
+        `No se pudo iniciar la vista web del editor: ${message}`,
+    },
+    toolbar: {
+      label: 'Barra de herramientas del editor OmegaEdit',
+      bytesPerRow: 'Bytes por fila',
+      bytesPerRowTitle: (count: number) =>
+        `Mostrar ${formatNumber(count)} bytes por fila`,
+      offsetRadix: 'Base del desplazamiento',
+      hexOffsets: 'Hex',
+      decOffsets: 'Dec',
+      hexOffsetsTitle: 'Mostrar desplazamientos en hexadecimal',
+      decOffsetsTitle: 'Mostrar desplazamientos en decimal',
+      insertDirection: 'Direccion de insercion',
+      forwardInsert: 'Adelante',
+      backwardInsert: 'Atras',
+      forwardInsertTitle:
+        'Direccion de insercion: adelante. Haz clic para insertar hacia atras.',
+      backwardInsertTitle:
+        'Direccion de insercion: atras. Haz clic para insertar hacia adelante.',
+      searchPanel: 'Buscar',
+      showSearchPanelTitle: 'Mostrar buscar y reemplazar',
+      hideSearchPanelTitle: 'Ocultar buscar y reemplazar',
+    },
+    navigation: {
+      offsetLabel: 'Desplazamiento',
+      offsetTitleHex: 'Ir al desplazamiento hexadecimal',
+      offsetTitleDec: 'Ir al desplazamiento decimal',
+      go: 'Ir',
+      goTitle: 'Ir al desplazamiento',
+      offsetRequired: 'Introduce un desplazamiento',
+      invalidHexOffset: 'Desplazamiento hexadecimal no valido',
+      invalidDecimalOffset: 'Desplazamiento decimal no valido',
+      noFile: 'No hay archivo cargado',
+      offsetOutOfRange: (maxOffset: string) => `Max ${maxOffset}`,
+      scrollbarLabel: 'Navegacion del archivo',
+      scrollbarDisabled: 'El archivo cabe en la vista',
+      scrollbarValue: (offset: string, progress: string) =>
+        `${offset} (${progress})`,
+    },
+    transform: {
+      label: 'Accion',
+      choose: 'Seleccionar accion...',
+      chooseTitle: 'Elegir una accion para el archivo actual',
+      calculationsGroup: 'Calculos',
+      transformsGroup: 'Transformaciones',
+      fileSplicingGroup: 'Union de archivos',
+      sessionGroup: 'Sesion',
+      createCheckpoint: 'Punto de control',
+      rollbackCheckpoint: 'Revertir',
+      exportChangeLog: 'Exportar registro',
+      applyChangeLog: 'Aplicar registro',
+      loading: 'Cargando transformaciones...',
+      selectRange: 'Selecciona bytes primero',
+      selectRangeFirst: 'Selecciona uno o mas bytes para transformar',
+      options: 'Opciones',
+      apply: 'Aplicar',
+      cancel: 'Cancelar',
+      closeDialog: 'Cerrar opciones de transformacion',
+      resultTitle: 'Resultado de transformacion',
+      resultDefault: 'Resultado',
+      copyResult: 'Copiar',
+      resultCopied: 'Copiado',
+      resultCopyFailed: 'No se pudo copiar',
+      dismissResult: 'Descartar resultado de transformacion',
+      completed: 'Transformacion completada',
+      calculationCompleted: 'Calculo completado',
+      noContentChange:
+        'La transformacion termino sin cambios en el contenido',
+    },
+    search: {
+      label: 'Buscar bytes',
+      placeholder: 'Buscar texto o hexadecimal',
+      replacePlaceholder: 'Reemplazar con texto o hexadecimal',
+      hex: 'Hex',
+      ignoreCase: 'Ignorar mayusculas',
+      forward: 'Adelante',
+      reverse: 'Atras',
+      directionTitle: 'Direccion de busqueda',
+      find: 'Buscar',
+      previous: 'Buscar anterior',
+      next: 'Buscar siguiente',
+      previousTitle: 'Coincidencia anterior',
+      nextTitle: 'Coincidencia siguiente',
+      replace: 'Reemplazar',
+      replaceAll: 'Reemplazar todo',
+      noSearch: 'Sin busqueda',
+      invalidHex: 'Hexadecimal no valido',
+      invalidSearch: 'Busqueda no valida',
+      invalidReplacementHex: 'Reemplazo hexadecimal no valido',
+      ready: 'Listo',
+      searching: 'Buscando...',
+      noMatches: 'Sin coincidencias',
+      searchComplete: 'Busqueda completada',
+      noMatch: 'Sin coincidencia',
+      boundedMatchSummary: (index: number, total: number, offset: string) =>
+        `${formatNumber(index + 1)} / ${formatNumber(total)} @ ${offset}`,
+      replaceSummary: (count: number) =>
+        count === 1
+          ? 'Se reemplazo 1 coincidencia'
+          : `Se reemplazaron ${formatNumber(count)} coincidencias`,
+      replacingAll: 'Reemplazando coincidencias...',
+    },
+    grid: {
+      offset: 'Desplazamiento',
+      waitingForData: 'Esperando datos',
+      preparingFile: 'Preparando archivo...',
+      readOnly: 'Solo lectura',
+      insertTitle: 'Modo insertar',
+      overwriteTitle: 'Modo sobrescribir',
+      notPrintable: 'No imprimible',
+      printableByte: 'ASCII imprimible',
+      controlByte: 'Byte de control',
+      highBitByte: 'Byte de bit alto',
+    },
+    inspector: {
+      label: 'Inspector de byte seleccionado',
+      title: 'Inspector',
+      show: 'Mostrar',
+      expand: 'Expandir inspector',
+      collapse: 'Contraer inspector',
+      selection: 'Seleccion',
+      noSelection: 'Sin seleccion',
+      byte: (count: number) => `${formatNumber(count)} byte${count === 1 ? '' : 's'}`,
+      copying: 'Copiando...',
+      copied: 'Copiado',
+      cut: 'Cortar',
+      insert: 'Insertar',
+      overwrite: 'Sobrescribir',
+      apply: 'Aplicar',
+      asHex: 'hex',
+      asText: 'texto',
+      byteOrder: 'Orden de bytes',
+      emptyValue: 'Introduce un valor',
+      invalidValue: 'Valor no valido',
+      outOfRange: 'Fuera de rango',
+    },
+    profiler: {
+      label: 'Perfilador OmegaEdit',
+      title: 'Analizador',
+      views: 'Vistas de analisis',
+      profile: 'Perfil',
+      structure: 'Estructura',
+      show: 'Mostrar',
+      expand: 'Expandir perfilador',
+      collapse: 'Contraer perfilador',
+      viewport: 'Vista',
+      byteClasses: 'Clases de bytes',
+      dataProfile: 'Perfil de datos',
+      frequency: 'Frecuencia',
+      history: 'Historial',
+      timing: 'Tiempos',
+      server: 'Servidor',
+      details: 'Detalles',
+      status: 'Estado',
+      pending: 'Pendiente',
+      ok: 'OK',
+      warn: 'Aviso',
+      error: 'Error',
+      down: 'Inactivo',
+      selection: 'Seleccion',
+      noBytes: 'No hay bytes en el alcance.',
+      noProfileData: 'No hay datos de perfil en el alcance.',
+      count: 'Conteo',
+      offset: 'Desplazamiento',
+      visible: 'Visible',
+      rows: 'Filas',
+      capacity: 'Capacidad',
+      bytes: 'Bytes',
+      language: 'Idioma',
+      yes: 'Si',
+      no: 'No',
+    },
+    status: {
+      hexPending: (label: string) => `Edicion hex: ${label}`,
+    },
+  },
+} satisfies Record<string, LocaleStringOverrides>
+
+function createStringTable(): WebviewStrings {
+  return {
+    app: { ...englishStrings.app },
+    toolbar: { ...englishStrings.toolbar },
+    navigation: { ...englishStrings.navigation },
+    transform: { ...englishStrings.transform },
+    search: { ...englishStrings.search },
+    grid: { ...englishStrings.grid },
+    inspector: { ...englishStrings.inspector },
+    profiler: { ...englishStrings.profiler },
+    status: { ...englishStrings.status },
+  }
+}
+
+export const strings: WebviewStrings = createStringTable()
+
+function applyLocaleOverrides(overrides?: LocaleStringOverrides): void {
+  Object.assign(strings.app, englishStrings.app, overrides?.app)
+  Object.assign(strings.toolbar, englishStrings.toolbar, overrides?.toolbar)
+  Object.assign(
+    strings.navigation,
+    englishStrings.navigation,
+    overrides?.navigation
+  )
+  Object.assign(strings.transform, englishStrings.transform, overrides?.transform)
+  Object.assign(strings.search, englishStrings.search, overrides?.search)
+  Object.assign(strings.grid, englishStrings.grid, overrides?.grid)
+  Object.assign(strings.inspector, englishStrings.inspector, overrides?.inspector)
+  Object.assign(strings.profiler, englishStrings.profiler, overrides?.profiler)
+  Object.assign(strings.status, englishStrings.status, overrides?.status)
+}
+
+export function resolveLanguage(language: string | undefined): string {
+  const normalized = normalizeLanguageTag(language ?? '')
+  if (!normalized || normalized === DEFAULT_LANGUAGE) {
+    return DEFAULT_LANGUAGE
+  }
+  if (Object.prototype.hasOwnProperty.call(localeOverrides, normalized)) {
+    return normalized
+  }
+  const [baseLanguage] = normalized.split('-')
+  return Object.prototype.hasOwnProperty.call(localeOverrides, baseLanguage)
+    ? baseLanguage
+    : DEFAULT_LANGUAGE
+}
+
+export function setLanguage(language: string | undefined): string {
+  activeLanguage = resolveLanguage(language)
+  applyLocaleOverrides(localeOverrides[activeLanguage])
+  return activeLanguage
+}
+
+export function getLanguage(): string {
+  return activeLanguage
+}
+
+export function getSupportedLanguages(): string[] {
+  return [DEFAULT_LANGUAGE, ...Object.keys(localeOverrides)]
 }
