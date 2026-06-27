@@ -21,6 +21,8 @@
 #include "impl_/viewport_def.hpp"
 #include <cassert>
 #include <cstdlib>
+#include <new>
+#include <utility>
 
 using omega_edit::internal::omega_data_create_;
 using omega_edit::internal::omega_data_destroy_;
@@ -110,12 +112,16 @@ int omega_viewport_modify(omega_viewport_t *viewport_ptr, int64_t offset, int64_
         // only change settings if they are different
         if (viewport_ptr->data_segment.offset != offset || omega_viewport_get_capacity(viewport_ptr) != capacity ||
             viewport_ptr->data_segment.is_floating != (bool) is_floating) {
+            omega_data_t replacement_data{};
+            try {
+                omega_data_create_(&replacement_data, capacity);
+            } catch (const std::bad_alloc &) { return -1; }
             omega_data_destroy_(&viewport_ptr->data_segment.data, omega_viewport_get_capacity(viewport_ptr));
+            viewport_ptr->data_segment.data = std::move(replacement_data);
             viewport_ptr->data_segment.offset = offset;
             viewport_ptr->data_segment.is_floating = (bool) is_floating;
             viewport_ptr->data_segment.offset_adjustment = 0;
             viewport_ptr->data_segment.capacity = -1 * capacity;// Negative capacity indicates dirty read
-            omega_data_create_(&viewport_ptr->data_segment.data, capacity);
             omega_viewport_notify(viewport_ptr, VIEWPORT_EVT_MODIFY, nullptr);
         }
         return 0;

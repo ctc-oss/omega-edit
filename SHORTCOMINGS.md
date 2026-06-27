@@ -417,7 +417,9 @@ This is the reported bug. Root causes are spread across all three layers.
     state, while destruction is manual through `omega_data_destroy_`. The current code avoids many
     obvious copies, but the type does not make ownership or non-copyability explicit, leaving a
     latent double-free/aliasing trap for future maintenance.
-    **Status: New.**
+    **Status: Fixed.** `omega_data_t` is now a move-only RAII owner with explicit borrowed-buffer
+    support for scratch views. Owned byte storage releases in the member destructor/reset path, so
+    future accidental value copies fail at compile time instead of duplicating raw ownership.
 
 39. **Reverse change visitors leak their iterator allocation.**
     `core/src/lib/visit.cpp:77-84` allocates `change_iter.riter_ptr` for reverse iteration, but
@@ -434,7 +436,9 @@ This is the reported bug. Root causes are spread across all three layers.
     shared pointers, so this works by convention, but the type system advertises immutable changes
     while destruction still mutates their internals. Internal ownership should stay mutable or move
     byte ownership into a self-destroying RAII member.
-    **Status: New.**
+    **Status: Fixed.** Internal change pointers now keep mutable ownership, and byte storage lives
+    in self-destroying `omega_data_t` members. Cleanup paths no longer cast away const to release
+    insert/overwrite bytes.
 
 41. **C API allocation failures can escape through C entry points inconsistently.**
     `omega_data_create_` throws `std::bad_array_new_length` for unrepresentable capacities
@@ -443,7 +447,10 @@ This is the reported bug. Root causes are spread across all three layers.
     `nullptr`, while edit/change creation helpers in `core/src/lib/edit.cpp` do not consistently
     translate allocation exceptions into C-style error returns. The public C API should not rely
     on C++ exceptions escaping safely across callers.
-    **Status: New.**
+    **Status: Fixed.** Core C entry points and helpers that allocate change data, sessions,
+    viewports, segments, search contexts, checkpoint models, undo bookkeeping, and fixed-size I/O
+    buffers now translate allocation failures into `nullptr`/negative C-style returns and clean up
+    partially-created files/contexts.
 
 42. **`omega_session_get_file_path` returns an internal string pointer without a lifetime contract.**
     `core/src/lib/session.cpp:105` returns `models_.back()->file_path.c_str()` directly. The

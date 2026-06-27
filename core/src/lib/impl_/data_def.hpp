@@ -18,55 +18,135 @@
 #include "../../include/omega_edit/byte.h"
 #include <cstddef>
 #include <cstdint>
+#include <cstring>
 #include <limits>
 #include <new>
+#include <utility>
 
 #define DATA_T_SIZE (8)
 
-/**
- * Union to hold consecutive bytes of data.  If the length of the data is less than 8, the data will be stored directly
- * in the sm_bytes field.  If the length is greater than 7, the data will be stored in allocated space on the heap
- * whose address will be stored in the bytes field.
- */
-using omega_data_t = union omega_data_union {
-    omega_byte_t *bytes_ptr{};///< Hold bytes of length greater than 7
-    omega_byte_t sm_bytes[DATA_T_SIZE]; ///< Hold bytes of length less than 8
-};
+class omega_data_t {
+public:
+    omega_data_t() noexcept = default;
 
-static_assert(DATA_T_SIZE == sizeof(omega_data_t), "size of omega_data_t is expected to be 8 bytes");
+    ~omega_data_t() { reset(); }
+
+    omega_data_t(const omega_data_t &) = delete;
+    auto operator=(const omega_data_t &) -> omega_data_t & = delete;
+
+    omega_data_t(omega_data_t &&other) noexcept { move_from(std::move(other)); }
+
+    auto operator=(omega_data_t &&other) noexcept -> omega_data_t & {
+        if (this != &other) {
+            reset();
+            move_from(std::move(other));
+        }
+        return *this;
+    }
+
+    auto data() noexcept -> omega_byte_t * {
+        if (borrowed_ || uses_heap_(capacity_)) { return storage_.bytes_ptr; }
+        return capacity_ >= 0 ? storage_.sm_bytes : nullptr;
+    }
+
+    auto data() const noexcept -> const omega_byte_t * {
+        if (borrowed_ || uses_heap_(capacity_)) { return storage_.bytes_ptr; }
+        return capacity_ >= 0 ? storage_.sm_bytes : nullptr;
+    }
+
+    auto capacity() const noexcept -> int64_t { return capacity_; }
+
+    void create(int64_t capacity) {
+        validate_capacity_(capacity);
+        reset();
+        capacity_ = capacity;
+        borrowed_ = false;
+
+        if (uses_heap_(capacity_)) {
+            storage_.bytes_ptr = new omega_byte_t[static_cast<size_t>(capacity_) + 1U];
+        } else {
+            std::memset(storage_.sm_bytes, 0, sizeof(storage_.sm_bytes));
+        }
+        data()[capacity_] = '\0';
+    }
+
+    void borrow(omega_byte_t *bytes_ptr, int64_t capacity) {
+        validate_capacity_(capacity);
+        if (capacity > 0 && bytes_ptr == nullptr) { throw std::bad_array_new_length(); }
+        reset();
+        storage_.bytes_ptr = bytes_ptr;
+        capacity_ = capacity;
+        borrowed_ = true;
+    }
+
+    void reset() noexcept {
+        if (!borrowed_ && uses_heap_(capacity_) && storage_.bytes_ptr != nullptr) { delete[] storage_.bytes_ptr; }
+        storage_.bytes_ptr = nullptr;
+        capacity_ = -1;
+        borrowed_ = false;
+    }
+
+private:
+    union storage_t {
+        omega_byte_t *bytes_ptr;
+        omega_byte_t sm_bytes[DATA_T_SIZE];
+
+        storage_t() noexcept : bytes_ptr(nullptr) {}
+    };
+
+    static auto uses_heap_(int64_t capacity) noexcept -> bool {
+        return static_cast<int64_t>(DATA_T_SIZE) - 1 < capacity;
+    }
+
+    static void validate_capacity_(int64_t capacity) {
+        if (capacity < 0 || capacity == (std::numeric_limits<int64_t>::max)() ||
+            static_cast<uint64_t>(capacity) > static_cast<uint64_t>((std::numeric_limits<size_t>::max)() - 1U)) {
+            throw std::bad_array_new_length();
+        }
+    }
+
+    void move_from(omega_data_t &&other) noexcept {
+        capacity_ = other.capacity_;
+        borrowed_ = other.borrowed_;
+        if (other.borrowed_ || uses_heap_(other.capacity_)) {
+            storage_.bytes_ptr = other.storage_.bytes_ptr;
+        } else if (other.capacity_ >= 0) {
+            std::memcpy(storage_.sm_bytes, other.storage_.sm_bytes, static_cast<size_t>(other.capacity_) + 1U);
+        } else {
+            storage_.bytes_ptr = nullptr;
+        }
+        other.storage_.bytes_ptr = nullptr;
+        other.capacity_ = -1;
+        other.borrowed_ = false;
+    }
+
+    storage_t storage_{};
+    int64_t capacity_{-1};
+    bool borrowed_{false};
+};
 
 namespace omega_edit::internal {
 
-inline omega_byte_t *omega_data_get_data_(omega_data_t *data_ptr, int64_t capacity) {
-    return (capacity < static_cast<int64_t>(sizeof(omega_data_t))) ? data_ptr->sm_bytes : data_ptr->bytes_ptr;
-}
-
-inline const omega_byte_t *omega_data_get_data_const_(const omega_data_t *data_ptr, int64_t capacity) {
-    return (capacity < static_cast<int64_t>(sizeof(omega_data_t))) ? data_ptr->sm_bytes : data_ptr->bytes_ptr;
-}
-
-inline void omega_data_create_(omega_data_t *data_ptr, int64_t capacity) {
-    if (capacity < 0 || capacity == (std::numeric_limits<int64_t>::max)() ||
-        static_cast<uint64_t>(capacity) > static_cast<uint64_t>((std::numeric_limits<size_t>::max)() - 1U)) {
-        throw std::bad_array_new_length();
+    inline omega_byte_t *omega_data_get_data_(omega_data_t *data_ptr, int64_t capacity) {
+        (void) capacity;
+        return data_ptr ? data_ptr->data() : nullptr;
     }
-    if (static_cast<int64_t>(sizeof(omega_data_t)) - 1 < capacity) {
-        // allocate space for the data segment
-        data_ptr->bytes_ptr = new omega_byte_t[static_cast<size_t>(capacity) + 1U];
-    } else {
-        // data segment is small enough to fit in the 8 byte union
-        data_ptr->bytes_ptr = nullptr;
-    }
-    // data segment allocation is its capacity plus one, so we can null-terminate it
-    omega_data_get_data_(data_ptr, capacity)[capacity] = '\0';
-}
 
-inline void omega_data_destroy_(omega_data_t *data_ptr, int64_t capacity) {
-    if (data_ptr->bytes_ptr && static_cast<int64_t>(sizeof(omega_data_t)) - 1 < capacity) {
-        delete[] data_ptr->bytes_ptr;
+    inline const omega_byte_t *omega_data_get_data_const_(const omega_data_t *data_ptr, int64_t capacity) {
+        (void) capacity;
+        return data_ptr ? data_ptr->data() : nullptr;
     }
-    data_ptr->bytes_ptr = nullptr;
-}
+
+    inline void omega_data_create_(omega_data_t *data_ptr, int64_t capacity) { data_ptr->create(capacity); }
+
+    inline void omega_data_borrow_(omega_data_t *data_ptr, omega_byte_t *bytes_ptr, int64_t capacity) {
+        data_ptr->borrow(bytes_ptr, capacity);
+    }
+
+    inline void omega_data_destroy_(omega_data_t *data_ptr, int64_t capacity) {
+        (void) capacity;
+        if (data_ptr) { data_ptr->reset(); }
+    }
 
 }// namespace omega_edit::internal
 

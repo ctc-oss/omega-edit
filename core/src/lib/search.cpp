@@ -27,7 +27,10 @@
 #include <cctype>
 #include <cstring>
 #include <memory>
+#include <new>
+#include <utility>
 
+using omega_edit::internal::omega_data_borrow_;
 using omega_edit::internal::omega_data_create_;
 using omega_edit::internal::omega_data_destroy_;
 using omega_edit::internal::omega_data_get_data_;
@@ -50,37 +53,35 @@ omega_search_context_t *omega_search_create_context_bytes(omega_session_t *sessi
     if (computed_file_size < 0 || session_offset > computed_file_size) { return nullptr; }
     const auto session_length_computed = session_length ? session_length : computed_file_size - session_offset;
     int64_t session_end = 0;
-    if (session_length_computed < 0 ||
-        !safe_add_int64_(session_offset, session_length_computed, session_end) ||
+    if (session_length_computed < 0 || !safe_add_int64_(session_offset, session_length_computed, session_end) ||
         session_end > computed_file_size) {
         return nullptr;
     }
     if (pattern_length < OMEGA_SEARCH_PATTERN_LENGTH_LIMIT && pattern_length <= session_length_computed) {
-        const auto match_context_ptr = std::make_shared<omega_search_context_t>();
-        assert(match_context_ptr);
-        match_context_ptr->session_ptr = session_ptr;
-        match_context_ptr->pattern_length = pattern_length;
-        match_context_ptr->session_offset = session_offset;
-        match_context_ptr->session_length = session_length_computed;
-        match_context_ptr->match_offset = session_end;
-        match_context_ptr->byte_transform = case_insensitive ? &to_lower_ : nullptr;
-        omega_data_create_(&match_context_ptr->pattern, pattern_length);
-        const auto pattern_data_ptr = omega_data_get_data_(&match_context_ptr->pattern, pattern_length);
-        memcpy(pattern_data_ptr, pattern, pattern_length);
-        if (match_context_ptr->byte_transform) {
-            omega_util_apply_byte_transform(pattern_data_ptr, pattern_length, match_context_ptr->byte_transform,
-                                            nullptr);
-        }
-        pattern_data_ptr[pattern_length] = '\0';
-        // create a skip table for patterns with lengths greater than 1 byte
-        match_context_ptr->skip_table_ptr =
-                omega_find_create_skip_table(pattern_data_ptr, pattern_length, is_reverse_search);
-        if (!match_context_ptr->skip_table_ptr) {
-            omega_data_destroy_(&match_context_ptr->pattern, pattern_length);
-            return nullptr;
-        }
-        session_ptr->search_contexts_.push_back(match_context_ptr);
-        return match_context_ptr.get();
+        try {
+            const auto match_context_ptr = std::make_shared<omega_search_context_t>();
+            assert(match_context_ptr);
+            match_context_ptr->session_ptr = session_ptr;
+            match_context_ptr->pattern_length = pattern_length;
+            match_context_ptr->session_offset = session_offset;
+            match_context_ptr->session_length = session_length_computed;
+            match_context_ptr->match_offset = session_end;
+            match_context_ptr->byte_transform = case_insensitive ? &to_lower_ : nullptr;
+            omega_data_create_(&match_context_ptr->pattern, pattern_length);
+            const auto pattern_data_ptr = omega_data_get_data_(&match_context_ptr->pattern, pattern_length);
+            memcpy(pattern_data_ptr, pattern, pattern_length);
+            if (match_context_ptr->byte_transform) {
+                omega_util_apply_byte_transform(pattern_data_ptr, pattern_length, match_context_ptr->byte_transform,
+                                                nullptr);
+            }
+            pattern_data_ptr[pattern_length] = '\0';
+            // create a skip table for patterns with lengths greater than 1 byte
+            match_context_ptr->skip_table_ptr =
+                    omega_find_create_skip_table(pattern_data_ptr, pattern_length, is_reverse_search);
+            if (!match_context_ptr->skip_table_ptr) { return nullptr; }
+            session_ptr->search_contexts_.push_back(match_context_ptr);
+            return match_context_ptr.get();
+        } catch (const std::bad_alloc &) { return nullptr; }
     }
     return nullptr;
 }
@@ -156,7 +157,7 @@ int omega_search_next_match(omega_search_context_t *search_context_ptr, int64_t 
     } else {
         search_length = is_begin ? search_context_ptr->session_length
                                  : search_context_ptr->session_length -
-                                   (search_context_ptr->match_offset - search_context_ptr->session_offset);
+                                           (search_context_ptr->match_offset - search_context_ptr->session_offset);
     }
 
     // Only start searching if the pattern length is less than the search length.
@@ -176,20 +177,24 @@ int omega_search_next_match(omega_search_context_t *search_context_ptr, int64_t 
 
         // Reuse scratch buffer if available and large enough.
         if (search_context_ptr->scratch_capacity < data_segment.capacity) {
-            omega_data_t scratch_buffer{};
-            omega_data_create_(&scratch_buffer, data_segment.capacity);
-            omega_data_destroy_(&search_context_ptr->scratch_buffer, search_context_ptr->scratch_capacity);
-            search_context_ptr->scratch_buffer = scratch_buffer;
+            try {
+                omega_data_t scratch_buffer{};
+                omega_data_create_(&scratch_buffer, data_segment.capacity);
+                omega_data_destroy_(&search_context_ptr->scratch_buffer, search_context_ptr->scratch_capacity);
+                search_context_ptr->scratch_buffer = std::move(scratch_buffer);
+            } catch (const std::bad_alloc &) { return 0; }
             search_context_ptr->scratch_capacity = data_segment.capacity;
         }
-        data_segment.data = search_context_ptr->scratch_buffer;
+        omega_data_borrow_(
+                &data_segment.data,
+                omega_data_get_data_(&search_context_ptr->scratch_buffer, search_context_ptr->scratch_capacity),
+                data_segment.capacity);
 
         // Determine the offset to start the search from. It depends on the direction of the search and
         // whether we are beginning a new search or continuing an old one.
         if (is_reverse) {
             int64_t session_end = 0;
-            if (!safe_add_int64_(search_context_ptr->session_offset, search_context_ptr->session_length,
-                                 session_end)) {
+            if (!safe_add_int64_(search_context_ptr->session_offset, search_context_ptr->session_length, session_end)) {
                 return 0;
             }
             if (is_begin) {
@@ -207,8 +212,7 @@ int omega_search_next_match(omega_search_context_t *search_context_ptr, int64_t 
             if (!is_begin && !safe_add_int64_(search_context_ptr->match_offset, advance_context, next_offset)) {
                 return 0;
             }
-            data_segment.offset =
-                    is_begin ? search_context_ptr->session_offset : next_offset;
+            data_segment.offset = is_begin ? search_context_ptr->session_offset : next_offset;
         }
 
         // Loop until a match is found, or we have searched the entire segment.
@@ -230,16 +234,13 @@ int omega_search_next_match(omega_search_context_t *search_context_ptr, int64_t 
                                          pattern, search_context_ptr->pattern_length)) {
                 // If a match is found, update the match offset in the search context.
                 const auto found_offset = static_cast<int64_t>(found - segment_data_ptr);
-                if (!safe_add_int64_(data_segment.offset, found_offset, search_context_ptr->match_offset)) {
-                    return 0;
-                }
+                if (!safe_add_int64_(data_segment.offset, found_offset, search_context_ptr->match_offset)) { return 0; }
                 return 1;
             }
 
             // If no match was found, move the search window by the stride size.
             search_length -= stride_size;
-            if (!safe_add_int64_(data_segment.offset, is_reverse ? -stride_size : stride_size,
-                                 data_segment.offset)) {
+            if (!safe_add_int64_(data_segment.offset, is_reverse ? -stride_size : stride_size, data_segment.offset)) {
                 break;
             }
 
