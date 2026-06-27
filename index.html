@@ -281,11 +281,13 @@
 <li><a class="reference internal" href="#_CPPv432omega_session_set_event_interestP15omega_session_t7int32_t"><code class="docutils literal notranslate"><span class="pre">omega_session_set_event_interest()</span></code></a></li>
 <li><a class="reference internal" href="#_CPPv431omega_session_get_user_data_ptrPK15omega_session_t"><code class="docutils literal notranslate"><span class="pre">omega_session_get_user_data_ptr()</span></code></a></li>
 <li><a class="reference internal" href="#_CPPv425omega_session_get_segmentPK15omega_session_tP15omega_segment_t7int64_t"><code class="docutils literal notranslate"><span class="pre">omega_session_get_segment()</span></code></a></li>
+<li><a class="reference internal" href="#_CPPv434omega_session_get_original_segmentPK15omega_session_tP15omega_segment_t7int64_t"><code class="docutils literal notranslate"><span class="pre">omega_session_get_original_segment()</span></code></a></li>
 <li><a class="reference internal" href="#_CPPv431omega_session_get_num_viewportsPK15omega_session_t"><code class="docutils literal notranslate"><span class="pre">omega_session_get_num_viewports()</span></code></a></li>
 <li><a class="reference internal" href="#_CPPv437omega_session_get_num_search_contextsPK15omega_session_t"><code class="docutils literal notranslate"><span class="pre">omega_session_get_num_search_contexts()</span></code></a></li>
 <li><a class="reference internal" href="#_CPPv429omega_session_get_num_changesPK15omega_session_t"><code class="docutils literal notranslate"><span class="pre">omega_session_get_num_changes()</span></code></a></li>
 <li><a class="reference internal" href="#_CPPv436omega_session_get_num_undone_changesPK15omega_session_t"><code class="docutils literal notranslate"><span class="pre">omega_session_get_num_undone_changes()</span></code></a></li>
 <li><a class="reference internal" href="#_CPPv436omega_session_get_computed_file_sizePK15omega_session_t"><code class="docutils literal notranslate"><span class="pre">omega_session_get_computed_file_size()</span></code></a></li>
+<li><a class="reference internal" href="#_CPPv436omega_session_get_original_file_sizePK15omega_session_t"><code class="docutils literal notranslate"><span class="pre">omega_session_get_original_file_size()</span></code></a></li>
 <li><a class="reference internal" href="#_CPPv429omega_session_get_last_changePK15omega_session_t"><code class="docutils literal notranslate"><span class="pre">omega_session_get_last_change()</span></code></a></li>
 <li><a class="reference internal" href="#_CPPv427omega_session_get_last_undoPK15omega_session_t"><code class="docutils literal notranslate"><span class="pre">omega_session_get_last_undo()</span></code></a></li>
 <li><a class="reference internal" href="#_CPPv424omega_session_get_changePK15omega_session_t7int64_t"><code class="docutils literal notranslate"><span class="pre">omega_session_get_change()</span></code></a></li>
@@ -2531,6 +2533,24 @@
 </dd></dl>
 
 <dl class="cpp function">
+<dt class="sig sig-object cpp" id="_CPPv434omega_session_get_original_segmentPK15omega_session_tP15omega_segment_t7int64_t">
+<span id="_CPPv334omega_session_get_original_segmentPK15omega_session_tP15omega_segment_t7int64_t"></span><span id="_CPPv234omega_session_get_original_segmentPK15omega_session_tP15omega_segment_t7int64_t"></span><span id="omega_session_get_original_segment__omega_session_tCP.omega_segment_tP.int64_t"></span><span class="target" id="session_8h_1a6a47750651a5303ce0654eb679c07a79"></span><span class="kt"><span class="pre">int</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">omega_session_get_original_segment</span></span></span><span class="sig-paren">(</span><span class="k"><span class="pre">const</span></span><span class="w"> </span><a class="reference internal" href="#_CPPv415omega_session_t" title="omega_session_t"><span class="n"><span class="pre">omega_session_t</span></span></a><span class="w"> </span><span class="p"><span class="pre">*</span></span><span class="n sig-param"><span class="pre">session_ptr</span></span>, <a class="reference internal" href="#_CPPv415omega_segment_t" title="omega_segment_t"><span class="n"><span class="pre">omega_segment_t</span></span></a><span class="w"> </span><span class="p"><span class="pre">*</span></span><span class="n sig-param"><span class="pre">data_segment_ptr</span></span>, <span class="n"><span class="pre">int64_t</span></span><span class="w"> </span><span class="n sig-param"><span class="pre">offset</span></span><span class="sig-paren">)</span><a class="headerlink" href="#_CPPv434omega_session_get_original_segmentPK15omega_session_tP15omega_segment_t7int64_t" title="Link to this definition"></a><br /></dt>
+<dd><p>Given a session, populate a segment from the immutable original session content. </p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>session_ptr</strong> – session whose original content should be read </p></li>
+<li><p><strong>data_segment_ptr</strong> – data segment to populate </p></li>
+<li><p><strong>offset</strong> – original-content byte offset to read from </p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>0 if the segment is populated successfully and non-zero otherwise </p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="cpp function">
 <dt class="sig sig-object cpp" id="_CPPv431omega_session_get_num_viewportsPK15omega_session_t">
 <span id="_CPPv331omega_session_get_num_viewportsPK15omega_session_t"></span><span id="_CPPv231omega_session_get_num_viewportsPK15omega_session_t"></span><span id="omega_session_get_num_viewports__omega_session_tCP"></span><span class="target" id="session_8h_1afaad6d456aad875a4edf598c4ab380b7"></span><span class="n"><span class="pre">int64_t</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">omega_session_get_num_viewports</span></span></span><span class="sig-paren">(</span><span class="k"><span class="pre">const</span></span><span class="w"> </span><a class="reference internal" href="#_CPPv415omega_session_t" title="omega_session_t"><span class="n"><span class="pre">omega_session_t</span></span></a><span class="w"> </span><span class="p"><span class="pre">*</span></span><span class="n sig-param"><span class="pre">session_ptr</span></span><span class="sig-paren">)</span><a class="headerlink" href="#_CPPv431omega_session_get_num_viewportsPK15omega_session_t" title="Link to this definition"></a><br /></dt>
 <dd><p>Given a session, return the number of active viewports </p>
@@ -2596,6 +2616,20 @@
 </dd>
 <dt class="field-even">Returns<span class="colon">:</span></dt>
 <dd class="field-even"><p>computed file size in bytes, or -1 on failure </p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="cpp function">
+<dt class="sig sig-object cpp" id="_CPPv436omega_session_get_original_file_sizePK15omega_session_t">
+<span id="_CPPv336omega_session_get_original_file_sizePK15omega_session_t"></span><span id="_CPPv236omega_session_get_original_file_sizePK15omega_session_t"></span><span id="omega_session_get_original_file_size__omega_session_tCP"></span><span class="target" id="session_8h_1a6472897d908b13ff8ba79fb1ce12a8dd"></span><span class="n"><span class="pre">int64_t</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">omega_session_get_original_file_size</span></span></span><span class="sig-paren">(</span><span class="k"><span class="pre">const</span></span><span class="w"> </span><a class="reference internal" href="#_CPPv415omega_session_t" title="omega_session_t"><span class="n"><span class="pre">omega_session_t</span></span></a><span class="w"> </span><span class="p"><span class="pre">*</span></span><span class="n sig-param"><span class="pre">session_ptr</span></span><span class="sig-paren">)</span><a class="headerlink" href="#_CPPv436omega_session_get_original_file_sizePK15omega_session_t" title="Link to this definition"></a><br /></dt>
+<dd><p>Given a session, return the original file size in bytes </p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>session_ptr</strong> – session to inspect </p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>original file size in bytes, or -1 on failure </p>
 </dd>
 </dl>
 </dd></dl>
