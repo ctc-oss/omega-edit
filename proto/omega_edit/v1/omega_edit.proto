@@ -702,8 +702,12 @@ message NotifyChangedViewportsResponse {
 
 // Request to retrieve details of a specific change by serial number.
 message GetChangeDetailsRequest {
-  string session_id = 1;     // Session ID.
-  optional int64 serial = 2; // Serial number of the change.
+  string session_id = 1;                   // Session ID.
+  SessionEventKind session_event_kind = 2; // Compatibility field; ignored by the server.
+  int64 computed_file_size = 3;            // Compatibility field; ignored by the server.
+  int64 change_count = 4;                  // Compatibility field; ignored by the server.
+  int64 undo_count = 5;                    // Compatibility field; ignored by the server.
+  optional int64 serial = 6;               // Serial number of the change.
 }
 
 // Response with full details of a single change.

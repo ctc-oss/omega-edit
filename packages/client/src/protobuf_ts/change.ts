@@ -353,6 +353,10 @@ export async function getChangeDetails(
   const log = getLogger()
   const request = {
     sessionId,
+    sessionEventKind: 0,
+    computedFileSize: 0,
+    changeCount: 0,
+    undoCount: 0,
     serial,
   }
   debugLog(log, () => ({ fn: 'protobufTs.getChangeDetails', rqst: request }))

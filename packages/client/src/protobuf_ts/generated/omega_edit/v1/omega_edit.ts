@@ -813,7 +813,23 @@ export interface GetChangeDetailsRequest {
    */
   sessionId: string // Session ID.
   /**
-   * @generated from protobuf field: optional int64 serial = 2
+   * @generated from protobuf field: omega_edit.v1.SessionEventKind session_event_kind = 2
+   */
+  sessionEventKind: SessionEventKind // Compatibility field; ignored by the server.
+  /**
+   * @generated from protobuf field: int64 computed_file_size = 3
+   */
+  computedFileSize: number // Compatibility field; ignored by the server.
+  /**
+   * @generated from protobuf field: int64 change_count = 4
+   */
+  changeCount: number // Compatibility field; ignored by the server.
+  /**
+   * @generated from protobuf field: int64 undo_count = 5
+   */
+  undoCount: number // Compatibility field; ignored by the server.
+  /**
+   * @generated from protobuf field: optional int64 serial = 6
    */
   serial?: number // Serial number of the change.
 }
@@ -6433,6 +6449,37 @@ class GetChangeDetailsRequest$Type extends MessageType<GetChangeDetailsRequest> 
       { no: 1, name: 'session_id', kind: 'scalar', T: 9 /*ScalarType.STRING*/ },
       {
         no: 2,
+        name: 'session_event_kind',
+        kind: 'enum',
+        T: () => [
+          'omega_edit.v1.SessionEventKind',
+          SessionEventKind,
+          'SESSION_EVENT_KIND_',
+        ],
+      },
+      {
+        no: 3,
+        name: 'computed_file_size',
+        kind: 'scalar',
+        T: 3 /*ScalarType.INT64*/,
+        L: 2 /*LongType.NUMBER*/,
+      },
+      {
+        no: 4,
+        name: 'change_count',
+        kind: 'scalar',
+        T: 3 /*ScalarType.INT64*/,
+        L: 2 /*LongType.NUMBER*/,
+      },
+      {
+        no: 5,
+        name: 'undo_count',
+        kind: 'scalar',
+        T: 3 /*ScalarType.INT64*/,
+        L: 2 /*LongType.NUMBER*/,
+      },
+      {
+        no: 6,
         name: 'serial',
         kind: 'scalar',
         opt: true,
@@ -6446,6 +6493,10 @@ class GetChangeDetailsRequest$Type extends MessageType<GetChangeDetailsRequest> 
   ): GetChangeDetailsRequest {
     const message = globalThis.Object.create(this.messagePrototype!)
     message.sessionId = ''
+    message.sessionEventKind = 0
+    message.computedFileSize = 0
+    message.changeCount = 0
+    message.undoCount = 0
     if (value !== undefined)
       reflectionMergePartial<GetChangeDetailsRequest>(this, message, value)
     return message
@@ -6464,7 +6515,19 @@ class GetChangeDetailsRequest$Type extends MessageType<GetChangeDetailsRequest> 
         case /* string session_id */ 1:
           message.sessionId = reader.string()
           break
-        case /* optional int64 serial */ 2:
+        case /* omega_edit.v1.SessionEventKind session_event_kind */ 2:
+          message.sessionEventKind = reader.int32()
+          break
+        case /* int64 computed_file_size */ 3:
+          message.computedFileSize = reader.int64().toNumber()
+          break
+        case /* int64 change_count */ 4:
+          message.changeCount = reader.int64().toNumber()
+          break
+        case /* int64 undo_count */ 5:
+          message.undoCount = reader.int64().toNumber()
+          break
+        case /* optional int64 serial */ 6:
           message.serial = reader.int64().toNumber()
           break
         default:
@@ -6494,9 +6557,21 @@ class GetChangeDetailsRequest$Type extends MessageType<GetChangeDetailsRequest> 
     /* string session_id = 1; */
     if (message.sessionId !== '')
       writer.tag(1, WireType.LengthDelimited).string(message.sessionId)
-    /* optional int64 serial = 2; */
+    /* omega_edit.v1.SessionEventKind session_event_kind = 2; */
+    if (message.sessionEventKind !== 0)
+      writer.tag(2, WireType.Varint).int32(message.sessionEventKind)
+    /* int64 computed_file_size = 3; */
+    if (message.computedFileSize !== 0)
+      writer.tag(3, WireType.Varint).int64(message.computedFileSize)
+    /* int64 change_count = 4; */
+    if (message.changeCount !== 0)
+      writer.tag(4, WireType.Varint).int64(message.changeCount)
+    /* int64 undo_count = 5; */
+    if (message.undoCount !== 0)
+      writer.tag(5, WireType.Varint).int64(message.undoCount)
+    /* optional int64 serial = 6; */
     if (message.serial !== undefined)
-      writer.tag(2, WireType.Varint).int64(message.serial)
+      writer.tag(6, WireType.Varint).int64(message.serial)
     let u = options.writeUnknownFields
     if (u !== false)
       (u == true ? UnknownFieldHandler.onWrite : u)(
