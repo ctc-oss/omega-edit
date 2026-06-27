@@ -756,6 +756,50 @@ async function collectChangeLogRecords(
   return changes
 }
 
+async function rollbackSessionToChangeCount(
+  sessionId: string,
+  targetChangeCount: number
+): Promise<boolean> {
+  let currentChangeCount = await getChangeCount(sessionId)
+  let rolledBack = false
+  while (currentChangeCount > targetChangeCount) {
+    await undo(sessionId)
+    rolledBack = true
+    const nextChangeCount = await getChangeCount(sessionId)
+    if (nextChangeCount >= currentChangeCount) {
+      throw new Error(
+        `Rollback did not reduce change count from ${currentChangeCount}`
+      )
+    }
+    currentChangeCount = nextChangeCount
+  }
+
+  if (currentChangeCount !== targetChangeCount) {
+    throw new Error(
+      `Rollback ended at change count ${currentChangeCount}, expected ${targetChangeCount}`
+    )
+  }
+
+  return rolledBack
+}
+
+function changeLogApplyErrorWithRollbackFailure(
+  applyError: unknown,
+  rollbackError: unknown
+): Error {
+  const applyMessage =
+    applyError instanceof Error ? applyError.message : String(applyError)
+  const rollbackMessage =
+    rollbackError instanceof Error
+      ? rollbackError.message
+      : String(rollbackError)
+  const error = new Error(
+    `Failed to apply change log and rollback failed: ${applyMessage}; rollback error: ${rollbackMessage}`
+  )
+  ;(error as Error & { cause?: unknown }).cause = applyError
+  return error
+}
+
 function safeChangeRecord(value: unknown): ChangeRecord | undefined {
   if (!isRecord(value)) {
     return undefined
@@ -2817,6 +2861,7 @@ export class HexEditorProvider
       const originalLength =
         length === 0 ? remainingLength : Math.min(length, remainingLength)
       const sessionSyncVersion = session.sessionSyncVersion
+      const computedFileSizeBefore = session.fileSize
       const response = await applyTransformPlugin(
         session.sessionId,
         pluginId,
@@ -2826,33 +2871,21 @@ export class HexEditorProvider
       )
 
       if (response.contentChanged) {
-        const replacement =
-          response.replacementLength > 0 &&
-          response.replacementLength <= MAX_FILE_SPLICE_BYTES
-            ? await getSegment(
-                session.sessionId,
-                response.offset,
-                response.replacementLength
-              )
-            : new Uint8Array()
-
-        if (
-          response.replacementLength > MAX_FILE_SPLICE_BYTES &&
-          replacement.byteLength === 0
-        ) {
-          session.history.recordLocalMutation()
-        } else {
-          session.history.recordLocalChange({
-            serial: session.history.getChangeLog().length + 1,
-            kind: 'REPLACE',
-            offset: response.offset,
-            length: response.length,
-            data:
-              replacement.byteLength > 0
-                ? Buffer.from(replacement).toString('hex')
-                : '',
-          })
+        if (response.serial === undefined) {
+          throw new Error('Transform did not return a change serial')
         }
+        session.history.recordLocalChange({
+          serial: response.serial,
+          kind: 'TRANSFORM',
+          offset: response.offset,
+          length: response.length,
+          data: '',
+          transformId: response.pluginId,
+          ...(optionsJson !== undefined ? { optionsJson } : {}),
+          replacementLength: response.replacementLength,
+          computedFileSizeBefore,
+          computedFileSizeAfter: response.computedFileSize,
+        })
         this.postEditState(session)
         this.notifyDocumentChanged(session)
         await this.waitForSessionSync(session, sessionSyncVersion)
@@ -3646,6 +3679,7 @@ export class HexEditorProvider
       return 0
     }
 
+    const startChangeCount = await getChangeCount(session.sessionId)
     const sessionSyncVersion = session.sessionSyncVersion
     const appliedChanges: ChangeRecord[] = []
     const recordAppliedChanges = async () => {
@@ -3692,7 +3726,20 @@ export class HexEditorProvider
       }
       await flushBatch()
     } catch (error) {
-      await recordAppliedChanges()
+      try {
+        const rolledBack = await rollbackSessionToChangeCount(
+          session.sessionId,
+          startChangeCount
+        )
+        if (rolledBack) {
+          await this.waitForSessionSync(session, sessionSyncVersion)
+          await this.sendViewportData(session)
+          this.clearSearchState(session)
+          this.postEditState(session)
+        }
+      } catch (rollbackError) {
+        throw changeLogApplyErrorWithRollbackFailure(error, rollbackError)
+      }
       throw error
     }
 

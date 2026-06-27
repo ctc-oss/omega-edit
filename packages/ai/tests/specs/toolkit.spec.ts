@@ -342,6 +342,56 @@ describe('@omega-edit/ai toolkit', () => {
     }
   })
 
+  it('rolls back a partially applied change log when a later entry fails', async function () {
+    const port = await omegaEditClient.findFirstAvailablePort(19000, 19999)
+    assert.ok(port, 'expected an available port for OmegaEdit')
+
+    const toolkit = new OmegaEditToolkit({ port: port!, autoStart: true })
+    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'omega-edit-ai-'))
+    const inputPath = path.join(tempDir, 'input.bin')
+    fs.writeFileSync(inputPath, Buffer.from('abcdef', 'utf8'))
+
+    let createdSessionId = ''
+
+    try {
+      const created = await toolkit.createSession(inputPath)
+      createdSessionId = created.sessionId
+
+      await assert.rejects(
+        () =>
+          toolkit.applyChangeLog({
+            sessionId: createdSessionId,
+            changes: [
+              {
+                kind: 'INSERT',
+                offset: 1,
+                length: 0,
+                data: Buffer.from('ZZ', 'utf8').toString('hex'),
+              },
+              {
+                kind: 'DELETE',
+                offset: 1000,
+                length: 1,
+                data: '',
+              },
+            ],
+          }),
+        /delete failed|change operation failed|invalid change arguments/i
+      )
+
+      const range = await toolkit.readRange(createdSessionId, 0, 6)
+      assert.equal(range.data.utf8, 'abcdef')
+      const status = await toolkit.sessionStatus(createdSessionId)
+      assert.equal(status.changeCount, 0)
+    } finally {
+      if (createdSessionId) {
+        await toolkit.destroySession(createdSessionId).catch(() => undefined)
+      }
+      await toolkit.stopServer().catch(() => undefined)
+      fs.rmSync(tempDir, { recursive: true, force: true })
+    }
+  })
+
   it('reports server-detected content types through profileRange', async function () {
     const port = await omegaEditClient.findFirstAvailablePort(19000, 19999)
     assert.ok(port, 'expected an available port for OmegaEdit')

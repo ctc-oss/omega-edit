@@ -492,6 +492,8 @@ test('compiled extension entrypoints exist after build', () => {
   assert.match(providerJs, /countCharacters/)
   assert.match(providerJs, /listTransformPlugins/)
   assert.match(providerJs, /applyTransformPlugin/)
+  assert.match(providerJs, /kind:\s*['"]TRANSFORM['"]/)
+  assert.match(providerJs, /transformId:\s*response\.pluginId/)
   assert.match(providerJs, /formatTransformCompletionMessage/)
   assert.match(providerJs, /omegaEdit\.hexEditorActive/)
   assert.match(providerJs, /omegaEdit\.canUndo/)
