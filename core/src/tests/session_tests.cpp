@@ -406,6 +406,7 @@ TEST_CASE("Transactions", "[TransactionTests]") {
     REQUIRE(0 != omega_session_begin_transaction(session_ptr));
     REQUIRE(0 == omega_session_end_transaction(session_ptr));
     REQUIRE(0 == omega_session_get_transaction_state(session_ptr));
+    omega_edit_destroy_session(session_ptr);
 }
 
 TEST_CASE("Transaction Lifecycle Events", "[TransactionTests]") {

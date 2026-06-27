@@ -1006,6 +1006,7 @@ TEST_CASE("Search-Reverse", "[SearchTests]") {
     REQUIRE(0 == matches[0]);
     matches.clear();
     omega_search_destroy_context(search_context_ptr);
+    omega_edit_destroy_session(session_ptr);
 }
 
 TEST_CASE("File Viewing", "[InitTests]") {
