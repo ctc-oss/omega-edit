@@ -21,6 +21,7 @@ const {
   OMEGA_EDIT_OPEN_IN_HEX_EDITOR_COMMAND,
   OMEGA_EDIT_REFRESH_TRANSFORM_PLUGINS_COMMAND,
   OMEGA_EDIT_REDO_COMMAND,
+  OMEGA_EDIT_RESTORE_CHECKPOINT_COMMAND,
   OMEGA_EDIT_ROLLBACK_SESSION_COMMAND,
   OMEGA_EDIT_SEARCH_NEXT_COMMAND,
   OMEGA_EDIT_SEARCH_PREVIOUS_COMMAND,
@@ -40,7 +41,7 @@ const {
 test('package.json matches shared extension constants', () => {
   assert.equal(packageJson.main, './out/extension.js')
   assert.equal(packageJson.types, './out/api.d.ts')
-  assert.equal(OMEGA_EDIT_EXTENSION_API_VERSION, 2)
+  assert.equal(OMEGA_EDIT_EXTENSION_API_VERSION, 3)
   assert.equal(packageJson.name, OMEGA_EDIT_EXTENSION_NAME)
   assert.equal(packageJson.publisher, OMEGA_EDIT_EXTENSION_PUBLISHER)
   assert.equal(
@@ -148,14 +149,22 @@ test('package.json matches shared extension constants', () => {
   )
   assert.equal(
     packageJson.contributes.commands[12].command,
-    OMEGA_EDIT_CREATE_CHECKPOINT_COMMAND
+    OMEGA_EDIT_RESTORE_CHECKPOINT_COMMAND
   )
   assert.equal(
     packageJson.contributes.commands[12].enablement,
     'omegaEdit.hexEditorActive && !omegaEdit.transformInFlight'
   )
+  assert.equal(
+    packageJson.contributes.commands[13].command,
+    OMEGA_EDIT_CREATE_CHECKPOINT_COMMAND
+  )
+  assert.equal(
+    packageJson.contributes.commands[13].enablement,
+    'omegaEdit.hexEditorActive && !omegaEdit.transformInFlight'
+  )
   assert.deepEqual(
-    packageJson.contributes.commands.slice(13).map((entry) => entry.command),
+    packageJson.contributes.commands.slice(14).map((entry) => entry.command),
     [
       OMEGA_EDIT_GET_EDITOR_STATE_COMMAND,
       OMEGA_EDIT_SET_EXTERNAL_HIGHLIGHTS_COMMAND,
@@ -514,6 +523,7 @@ test('compiled extension entrypoints exist after build', () => {
   assert.match(providerJs, /revertCustomDocument/)
   assert.match(providerJs, /createCheckpoint/)
   assert.match(providerJs, /destroyLastCheckpoint/)
+  assert.match(providerJs, /restoreLastCheckpoint/)
   assert.match(providerJs, /clear/)
   assert.match(providerJs, /rollbackSession/)
   assert.match(providerJs, /revertSessionChanges/)
@@ -1353,6 +1363,7 @@ test('compiled extension entrypoints exist after build', () => {
   assert.match(extensionJs, /setInsertDirection/)
   assert.match(extensionJs, /rollbackActiveSession/)
   assert.match(extensionJs, /rollbackCheckpoint/)
+  assert.match(extensionJs, /restoreCheckpoint/)
   assert.match(extensionJs, /createCheckpoint/)
   assert.match(extensionJs, /getDefaultTransformPluginDirectories/)
   assert.match(extensionJs, /findRepositoryRoot/)

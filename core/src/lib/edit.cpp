@@ -941,6 +941,25 @@ namespace {
         return -1;
     }
 
+    size_t checkpoint_snapshot_change_count_(const omega_model_t *model_ptr) {
+        if (!model_ptr || model_ptr->changes.empty()) { return 0; }
+        const auto &first_change_ptr = model_ptr->changes.front();
+        if (omega_change_get_kind_(first_change_ptr.get()) != change_kind_t::CHANGE_TRANSFORM ||
+            !first_change_ptr->transform_data) {
+            return 0;
+        }
+        return first_change_ptr->transform_data->checkpoint_file_path == model_ptr->file_path ? 1U : 0U;
+    }
+
+    void notify_checkpoint_restore_(omega_session_t *session_ptr) {
+        for (const auto &viewport_ptr : session_ptr->viewports_) {
+            viewport_ptr->data_segment.capacity =
+                    -1 * std::abs(viewport_ptr->data_segment.capacity);// indicate dirty read
+            omega_viewport_notify(viewport_ptr.get(), VIEWPORT_EVT_CHANGES, nullptr);
+        }
+        omega_session_notify(session_ptr, SESSION_EVT_RESTORE_CHECKPOINT, nullptr);
+    }
+
     inline auto determine_change_transaction_bit_(omega_session_t *session_ptr) -> bool {
         switch (omega_session_get_transaction_state(session_ptr)) {
             case 0:
@@ -2455,4 +2474,21 @@ int omega_edit_destroy_last_checkpoint(omega_session_t *session_ptr) {
         return 0;
     }
     return -1;
+}
+
+int omega_edit_restore_last_checkpoint(omega_session_t *session_ptr) {
+    if (!session_ptr || omega_session_get_num_checkpoints(session_ptr) <= 0) { return -1; }
+
+    auto *const model_ptr = session_ptr->models_.back().get();
+    const auto keep_count = checkpoint_snapshot_change_count_(model_ptr);
+    if (model_ptr->changes.size() > keep_count) {
+        model_ptr->changes.erase(model_ptr->changes.begin() + static_cast<std::ptrdiff_t>(keep_count),
+                                 model_ptr->changes.end());
+    }
+    free_model_changes_undone_(model_ptr);
+    if (0 != rebuild_model_to_change_count_(session_ptr, static_cast<int64_t>(keep_count))) { return -1; }
+
+    session_ptr->num_changes_adjustment_ = session_ptr->models_.back()->change_serial_base;
+    notify_checkpoint_restore_(session_ptr);
+    return 0;
 }

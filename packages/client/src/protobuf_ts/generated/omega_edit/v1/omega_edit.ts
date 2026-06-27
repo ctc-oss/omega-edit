@@ -1650,6 +1650,40 @@ export interface DestroyLastCheckpointResponse {
   remainingCheckpoints: number // Remaining checkpoint count after revert.
 }
 /**
+ * Request to restore the most recent checkpoint snapshot without discarding it.
+ *
+ * @generated from protobuf message omega_edit.v1.RestoreLastCheckpointRequest
+ */
+export interface RestoreLastCheckpointRequest {
+  /**
+   * @generated from protobuf field: string session_id = 1
+   */
+  sessionId: string // Session to restore.
+}
+/**
+ * Result of restoring the most recent checkpoint snapshot.
+ *
+ * @generated from protobuf message omega_edit.v1.RestoreLastCheckpointResponse
+ */
+export interface RestoreLastCheckpointResponse {
+  /**
+   * @generated from protobuf field: string session_id = 1
+   */
+  sessionId: string // Session that was restored.
+  /**
+   * @generated from protobuf field: int64 checkpoint_count = 2
+   */
+  checkpointCount: number // Checkpoint count after restore.
+  /**
+   * @generated from protobuf field: int64 change_count = 3
+   */
+  changeCount: number // Session change count after restore.
+  /**
+   * @generated from protobuf field: int64 discarded_change_count = 4
+   */
+  discardedChangeCount: number // Number of active changes discarded.
+}
+/**
  * Metadata advertised by a registered transform plugin.
  *
  * @generated from protobuf message omega_edit.v1.TransformPluginInfo
@@ -2291,6 +2325,12 @@ export enum SessionEventKind {
    * @generated from protobuf enum value: SESSION_EVENT_KIND_TRANSFORM_FAILED = 131072;
    */
   TRANSFORM_FAILED = 131072,
+  /**
+   * A checkpoint snapshot was restored.
+   *
+   * @generated from protobuf enum value: SESSION_EVENT_KIND_RESTORE_CHECKPOINT = 262144;
+   */
+  RESTORE_CHECKPOINT = 262144,
 }
 /**
  * Viewport-level event kinds.  Values are powers of two so they can be OR'd
@@ -10577,6 +10617,196 @@ class DestroyLastCheckpointResponse$Type extends MessageType<DestroyLastCheckpoi
 export const DestroyLastCheckpointResponse =
   new DestroyLastCheckpointResponse$Type()
 // @generated message type with reflection information, may provide speed optimized methods
+class RestoreLastCheckpointRequest$Type extends MessageType<RestoreLastCheckpointRequest> {
+  constructor() {
+    super('omega_edit.v1.RestoreLastCheckpointRequest', [
+      { no: 1, name: 'session_id', kind: 'scalar', T: 9 /*ScalarType.STRING*/ },
+    ])
+  }
+  create(
+    value?: PartialMessage<RestoreLastCheckpointRequest>
+  ): RestoreLastCheckpointRequest {
+    const message = globalThis.Object.create(this.messagePrototype!)
+    message.sessionId = ''
+    if (value !== undefined)
+      reflectionMergePartial<RestoreLastCheckpointRequest>(this, message, value)
+    return message
+  }
+  internalBinaryRead(
+    reader: IBinaryReader,
+    length: number,
+    options: BinaryReadOptions,
+    target?: RestoreLastCheckpointRequest
+  ): RestoreLastCheckpointRequest {
+    let message = target ?? this.create(),
+      end = reader.pos + length
+    while (reader.pos < end) {
+      let [fieldNo, wireType] = reader.tag()
+      switch (fieldNo) {
+        case /* string session_id */ 1:
+          message.sessionId = reader.string()
+          break
+        default:
+          let u = options.readUnknownField
+          if (u === 'throw')
+            throw new globalThis.Error(
+              `Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`
+            )
+          let d = reader.skip(wireType)
+          if (u !== false)
+            (u === true ? UnknownFieldHandler.onRead : u)(
+              this.typeName,
+              message,
+              fieldNo,
+              wireType,
+              d
+            )
+      }
+    }
+    return message
+  }
+  internalBinaryWrite(
+    message: RestoreLastCheckpointRequest,
+    writer: IBinaryWriter,
+    options: BinaryWriteOptions
+  ): IBinaryWriter {
+    /* string session_id = 1; */
+    if (message.sessionId !== '')
+      writer.tag(1, WireType.LengthDelimited).string(message.sessionId)
+    let u = options.writeUnknownFields
+    if (u !== false)
+      (u == true ? UnknownFieldHandler.onWrite : u)(
+        this.typeName,
+        message,
+        writer
+      )
+    return writer
+  }
+}
+/**
+ * @generated MessageType for protobuf message omega_edit.v1.RestoreLastCheckpointRequest
+ */
+export const RestoreLastCheckpointRequest =
+  new RestoreLastCheckpointRequest$Type()
+// @generated message type with reflection information, may provide speed optimized methods
+class RestoreLastCheckpointResponse$Type extends MessageType<RestoreLastCheckpointResponse> {
+  constructor() {
+    super('omega_edit.v1.RestoreLastCheckpointResponse', [
+      { no: 1, name: 'session_id', kind: 'scalar', T: 9 /*ScalarType.STRING*/ },
+      {
+        no: 2,
+        name: 'checkpoint_count',
+        kind: 'scalar',
+        T: 3 /*ScalarType.INT64*/,
+        L: 2 /*LongType.NUMBER*/,
+      },
+      {
+        no: 3,
+        name: 'change_count',
+        kind: 'scalar',
+        T: 3 /*ScalarType.INT64*/,
+        L: 2 /*LongType.NUMBER*/,
+      },
+      {
+        no: 4,
+        name: 'discarded_change_count',
+        kind: 'scalar',
+        T: 3 /*ScalarType.INT64*/,
+        L: 2 /*LongType.NUMBER*/,
+      },
+    ])
+  }
+  create(
+    value?: PartialMessage<RestoreLastCheckpointResponse>
+  ): RestoreLastCheckpointResponse {
+    const message = globalThis.Object.create(this.messagePrototype!)
+    message.sessionId = ''
+    message.checkpointCount = 0
+    message.changeCount = 0
+    message.discardedChangeCount = 0
+    if (value !== undefined)
+      reflectionMergePartial<RestoreLastCheckpointResponse>(
+        this,
+        message,
+        value
+      )
+    return message
+  }
+  internalBinaryRead(
+    reader: IBinaryReader,
+    length: number,
+    options: BinaryReadOptions,
+    target?: RestoreLastCheckpointResponse
+  ): RestoreLastCheckpointResponse {
+    let message = target ?? this.create(),
+      end = reader.pos + length
+    while (reader.pos < end) {
+      let [fieldNo, wireType] = reader.tag()
+      switch (fieldNo) {
+        case /* string session_id */ 1:
+          message.sessionId = reader.string()
+          break
+        case /* int64 checkpoint_count */ 2:
+          message.checkpointCount = reader.int64().toNumber()
+          break
+        case /* int64 change_count */ 3:
+          message.changeCount = reader.int64().toNumber()
+          break
+        case /* int64 discarded_change_count */ 4:
+          message.discardedChangeCount = reader.int64().toNumber()
+          break
+        default:
+          let u = options.readUnknownField
+          if (u === 'throw')
+            throw new globalThis.Error(
+              `Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`
+            )
+          let d = reader.skip(wireType)
+          if (u !== false)
+            (u === true ? UnknownFieldHandler.onRead : u)(
+              this.typeName,
+              message,
+              fieldNo,
+              wireType,
+              d
+            )
+      }
+    }
+    return message
+  }
+  internalBinaryWrite(
+    message: RestoreLastCheckpointResponse,
+    writer: IBinaryWriter,
+    options: BinaryWriteOptions
+  ): IBinaryWriter {
+    /* string session_id = 1; */
+    if (message.sessionId !== '')
+      writer.tag(1, WireType.LengthDelimited).string(message.sessionId)
+    /* int64 checkpoint_count = 2; */
+    if (message.checkpointCount !== 0)
+      writer.tag(2, WireType.Varint).int64(message.checkpointCount)
+    /* int64 change_count = 3; */
+    if (message.changeCount !== 0)
+      writer.tag(3, WireType.Varint).int64(message.changeCount)
+    /* int64 discarded_change_count = 4; */
+    if (message.discardedChangeCount !== 0)
+      writer.tag(4, WireType.Varint).int64(message.discardedChangeCount)
+    let u = options.writeUnknownFields
+    if (u !== false)
+      (u == true ? UnknownFieldHandler.onWrite : u)(
+        this.typeName,
+        message,
+        writer
+      )
+    return writer
+  }
+}
+/**
+ * @generated MessageType for protobuf message omega_edit.v1.RestoreLastCheckpointResponse
+ */
+export const RestoreLastCheckpointResponse =
+  new RestoreLastCheckpointResponse$Type()
+// @generated message type with reflection information, may provide speed optimized methods
 class TransformPluginInfo$Type extends MessageType<TransformPluginInfo> {
   constructor() {
     super('omega_edit.v1.TransformPluginInfo', [
@@ -12969,6 +13199,12 @@ export const EditorService = new ServiceType('omega_edit.v1.EditorService', [
     options: {},
     I: DestroyLastCheckpointRequest,
     O: DestroyLastCheckpointResponse,
+  },
+  {
+    name: 'RestoreLastCheckpoint',
+    options: {},
+    I: RestoreLastCheckpointRequest,
+    O: RestoreLastCheckpointResponse,
   },
   {
     name: 'ListTransformPlugins',

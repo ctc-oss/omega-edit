@@ -25,6 +25,8 @@ jobs:
         with:
           fetch-depth: 0
       - uses: bufbuild/buf-setup-action@v1
+        with:
+          github_token: ${{ github.token }}
       - name: Detect intentional major prerelease proto-breaking window
         id: proto_breaking_policy
         run: |
@@ -57,6 +59,8 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - uses: bufbuild/buf-setup-action@v1
+        with:
+          github_token: ${{ github.token }}
       - name: Push to BSR
         env:
           BUF_TOKEN: ${{ secrets.BUF_TOKEN }}

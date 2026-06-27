@@ -10,7 +10,7 @@ export const OMEGA_EDIT_EXTENSION_PUBLISHER = 'ctc-oss'
 export const OMEGA_EDIT_EXTENSION_NAME = 'omega-edit-data-editor'
 export const OMEGA_EDIT_EXTENSION_ID =
   `${OMEGA_EDIT_EXTENSION_PUBLISHER}.${OMEGA_EDIT_EXTENSION_NAME}` as const
-export const OMEGA_EDIT_EXTENSION_API_VERSION = 2
+export const OMEGA_EDIT_EXTENSION_API_VERSION = 3
 
 export type OmegaEditExternalHighlightKind = ExternalHighlightKind
 export type OmegaEditExternalHighlight = WebviewExternalHighlight
@@ -61,6 +61,14 @@ export interface OmegaEditRollbackCheckpointResult {
   state?: OmegaEditEditorState
   rolledBack: boolean
   checkpointCount: number
+}
+
+export interface OmegaEditRestoreCheckpointResult {
+  state?: OmegaEditEditorState
+  restored: boolean
+  checkpointCount: number
+  changeCount: number
+  discardedChangeCount: number
 }
 
 export interface OmegaEditChangeLogDigest {
@@ -127,6 +135,9 @@ export interface OmegaEditExtensionApi {
   rollbackCheckpoint(
     options?: vscode.Uri | string | OmegaEditCheckpointOptions
   ): Promise<OmegaEditRollbackCheckpointResult | undefined>
+  restoreCheckpoint(
+    options?: vscode.Uri | string | OmegaEditCheckpointOptions
+  ): Promise<OmegaEditRestoreCheckpointResult | undefined>
   exportChangeLog(
     options?: vscode.Uri | string | OmegaEditChangeLogExportOptions
   ): Promise<OmegaEditChangeLogResult | undefined>

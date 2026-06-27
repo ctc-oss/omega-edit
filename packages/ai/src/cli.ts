@@ -36,6 +36,7 @@ function usage(): string {
     '  session-status --session <id>',
     '  create-checkpoint --session <id>',
     '  rollback-checkpoint --session <id>  # roll back the most recent checkpoint',
+    '  restore-checkpoint --session <id>   # restore content to the most recent checkpoint',
     '  export-change-log --session <id> [--output <path>] [--overwrite]',
     '  apply-change-log --session <id> --input <path> [--dry-run]',
     '  diff-session --session <id>',
@@ -269,6 +270,22 @@ async function runCommand(
         allowPositionals: false,
       })
       return await getToolkit(parsed.values).rollbackCheckpoint(
+        requireStringOption(
+          parsed.values.session as string | undefined,
+          'session'
+        )
+      )
+    }
+    case 'restore-checkpoint': {
+      const parsed = parseArgs({
+        args,
+        options: {
+          ...commonOptions,
+          session: { type: 'string' as const },
+        },
+        allowPositionals: false,
+      })
+      return await getToolkit(parsed.values).restoreCheckpoint(
         requireStringOption(
           parsed.values.session as string | undefined,
           'session'

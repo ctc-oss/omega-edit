@@ -210,6 +210,11 @@ service EditorService {
   rpc DestroyLastCheckpoint(DestroyLastCheckpointRequest)
       returns (DestroyLastCheckpointResponse);
 
+  // Restore session content to the most recent checkpoint snapshot while
+  // keeping that checkpoint available.
+  rpc RestoreLastCheckpoint(RestoreLastCheckpointRequest)
+      returns (RestoreLastCheckpointResponse);
+
   // List transform plugins registered with the native server.
   rpc ListTransformPlugins(ListTransformPluginsRequest) returns (ListTransformPluginsResponse);
 
@@ -324,6 +329,8 @@ enum SessionEventKind {
   SESSION_EVENT_KIND_TRANSFORM_COMPLETED = 65536;
   // A transform failed.
   SESSION_EVENT_KIND_TRANSFORM_FAILED = 131072;
+  // A checkpoint snapshot was restored.
+  SESSION_EVENT_KIND_RESTORE_CHECKPOINT = 262144;
 }
 
 // Viewport-level event kinds.  Values are powers of two so they can be OR'd
@@ -1008,6 +1015,19 @@ message DestroyLastCheckpointRequest {
 message DestroyLastCheckpointResponse {
   string session_id = 1;             // Session that was reverted.
   int64 remaining_checkpoints = 2;   // Remaining checkpoint count after revert.
+}
+
+// Request to restore the most recent checkpoint snapshot without discarding it.
+message RestoreLastCheckpointRequest {
+  string session_id = 1; // Session to restore.
+}
+
+// Result of restoring the most recent checkpoint snapshot.
+message RestoreLastCheckpointResponse {
+  string session_id = 1;                // Session that was restored.
+  int64 checkpoint_count = 2;           // Checkpoint count after restore.
+  int64 change_count = 3;               // Session change count after restore.
+  int64 discarded_change_count = 4;     // Number of active changes discarded.
 }
 
 // Transform plugin operation mode.
