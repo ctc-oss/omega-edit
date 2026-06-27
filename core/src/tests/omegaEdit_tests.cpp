@@ -43,9 +43,9 @@ using Catch::Matchers::Equals;
 
 
 TEST_CASE("Size Tests", "[SizeTests]") {
-    REQUIRE(1 == sizeof(omega_byte_t)); //must always be 1-byte
+    REQUIRE(1 == sizeof(omega_byte_t));//must always be 1-byte
     REQUIRE(4 == sizeof(int));
-    REQUIRE(8 == sizeof(int64_t)); //explicit 8-bytes
+    REQUIRE(8 == sizeof(int64_t));//explicit 8-bytes
     REQUIRE(8 == sizeof(long long));
     REQUIRE(8 == sizeof(size_t));
     REQUIRE(8 == sizeof(void *));
@@ -54,7 +54,7 @@ TEST_CASE("Size Tests", "[SizeTests]") {
 TEST_CASE("Exported Constants", "[Constants]") {
     REQUIRE(omega_session_byte_frequency_profile_dos_eol_index() == OMEGA_EDIT_PROFILE_DOS_EOL);
     REQUIRE(omega_session_byte_frequency_profile_size() == OMEGA_EDIT_BYTE_FREQUENCY_PROFILE_SIZE);
-    REQUIRE(sizeof(omega_byte_frequency_profile_t)/sizeof(int64_t) == omega_session_byte_frequency_profile_size());
+    REQUIRE(sizeof(omega_byte_frequency_profile_t) / sizeof(int64_t) == omega_session_byte_frequency_profile_size());
 }
 
 TEST_CASE("Bit Manipulation", "[BitManip]") {
@@ -90,10 +90,8 @@ TEST_CASE("Apply Script", "[EditScript]") {
     static const omega_byte_t comma_space[] = ", ";
 
     const omega_edit_script_op_t ops[] = {
-            {0, 0, OMEGA_EDIT_SCRIPT_INSERT, hello_world, 11},
-            {6, 5, OMEGA_EDIT_SCRIPT_REPLACE, omega_edit, 9},
-            {0, 5, OMEGA_EDIT_SCRIPT_OVERWRITE, hello_upper, 5},
-            {5, 1, OMEGA_EDIT_SCRIPT_DELETE, nullptr, 0},
+            {0, 0, OMEGA_EDIT_SCRIPT_INSERT, hello_world, 11},   {6, 5, OMEGA_EDIT_SCRIPT_REPLACE, omega_edit, 9},
+            {0, 5, OMEGA_EDIT_SCRIPT_OVERWRITE, hello_upper, 5}, {5, 1, OMEGA_EDIT_SCRIPT_DELETE, nullptr, 0},
             {5, 0, OMEGA_EDIT_SCRIPT_INSERT, comma_space, 2},
     };
 
@@ -120,6 +118,20 @@ TEST_CASE("Apply Builtin Transform", "[EditTransform]") {
     REQUIRE(0 == omega_edit_apply_builtin_transform(session_ptr, lower_transform, 0, 3));
     REQUIRE("abc xyz 09!" ==
             omega_session_get_segment_string(session_ptr, 0, omega_session_get_computed_file_size(session_ptr)));
+    auto change_ptr = omega_session_get_last_change(session_ptr);
+    REQUIRE(change_ptr);
+    REQUIRE('T' == omega_change_get_kind_as_char(change_ptr));
+    REQUIRE(2 == omega_change_get_serial(change_ptr));
+    REQUIRE(0 == omega_change_get_offset(change_ptr));
+    REQUIRE(3 == omega_change_get_length(change_ptr));
+    REQUIRE(std::string("builtin:ascii-to-lower") == omega_change_get_transform_id(change_ptr));
+    REQUIRE(3 == omega_change_get_transform_replacement_length(change_ptr));
+    REQUIRE(-2 == omega_edit_undo_last_change(session_ptr));
+    REQUIRE("Abc xyz 09!" ==
+            omega_session_get_segment_string(session_ptr, 0, omega_session_get_computed_file_size(session_ptr)));
+    REQUIRE(2 == omega_edit_redo_last_undo(session_ptr));
+    REQUIRE("abc xyz 09!" ==
+            omega_session_get_segment_string(session_ptr, 0, omega_session_get_computed_file_size(session_ptr)));
 
     const omega_edit_transform_t upper_transform{OMEGA_EDIT_TRANSFORM_ASCII_TO_UPPER, 0};
     REQUIRE(0 == omega_edit_apply_builtin_transform(session_ptr, upper_transform, 4, 3));
@@ -135,9 +147,8 @@ TEST_CASE("Apply Builtin Transform", "[EditTransform]") {
 
 TEST_CASE("Apply Builtin Bitwise Transform", "[EditTransform]") {
     const omega_byte_t input[] = {0x0F, 0xF0, 0x55};
-    const auto session_ptr =
-            omega_edit_create_session_from_bytes(input, static_cast<int64_t>(sizeof(input)), nullptr, nullptr,
-                                                 NO_EVENTS, nullptr);
+    const auto session_ptr = omega_edit_create_session_from_bytes(input, static_cast<int64_t>(sizeof(input)), nullptr,
+                                                                  nullptr, NO_EVENTS, nullptr);
     REQUIRE(session_ptr);
 
     const omega_edit_transform_t xor_transform{OMEGA_EDIT_TRANSFORM_BITWISE_XOR, 0xFF};
@@ -177,47 +188,47 @@ TEST_CASE("Model Tests", "[ModelTests]") {
     omega_util_remove_file(MAKE_PATH("test_dir/model-test.actual.1.dat"));
     omega_util_remove_directory(MAKE_PATH("test_dir"));
     REQUIRE(0 == omega_edit_save(session_ptr, MAKE_PATH("test_dir/model-test.actual.1.dat"),
-        omega_io_flags_t::IO_FLG_NONE, saved_filename));
+                                 omega_io_flags_t::IO_FLG_NONE, saved_filename));
     REQUIRE(0 == omega_util_compare_files(MAKE_PATH("model-test.expected.1.dat"),
-        MAKE_PATH("test_dir/model-test.actual.1.dat")));
+                                          MAKE_PATH("test_dir/model-test.actual.1.dat")));
     omega_util_remove_file(MAKE_PATH("model-test.actual.1.dat"));
     REQUIRE(0 == omega_util_remove_file(MAKE_PATH("test_dir/model-test.actual.1.dat")));
     REQUIRE(0 == omega_util_remove_directory(MAKE_PATH("test_dir")));
     REQUIRE(0 == omega_edit_save(session_ptr, MAKE_PATH("model-test.actual.1.dat"), omega_io_flags_t::IO_FLG_NONE,
-        saved_filename));
+                                 saved_filename));
     REQUIRE(0 != omega_util_compare_files(MAKE_PATH("model-test.dat"), MAKE_PATH("model-test.actual.1.dat")));
     REQUIRE(0 ==
-        omega_util_compare_files(MAKE_PATH("model-test.expected.1.dat"), MAKE_PATH("model-test.actual.1.dat")));
+            omega_util_compare_files(MAKE_PATH("model-test.expected.1.dat"), MAKE_PATH("model-test.actual.1.dat")));
     REQUIRE(omega_util_paths_equivalent(MAKE_PATH("model-test.actual.1.dat"), saved_filename));
     omega_util_remove_file(MAKE_PATH("model-test.actual.1-1.dat"));
     REQUIRE(0 == omega_edit_save(session_ptr, MAKE_PATH("model-test.actual.1.dat"), omega_io_flags_t::IO_FLG_NONE,
-        saved_filename));
+                                 saved_filename));
     REQUIRE(0 ==
-        omega_util_compare_files(MAKE_PATH("model-test.actual.1.dat"), MAKE_PATH("model-test.actual.1-1.dat")));
+            omega_util_compare_files(MAKE_PATH("model-test.actual.1.dat"), MAKE_PATH("model-test.actual.1-1.dat")));
     REQUIRE(omega_util_paths_equivalent(MAKE_PATH("model-test.actual.1-1.dat"), saved_filename));
     omega_util_remove_file(MAKE_PATH("model-test.actual.1-2.dat"));
     REQUIRE(0 == omega_edit_save(session_ptr, MAKE_PATH("model-test.actual.1.dat"), omega_io_flags_t::IO_FLG_NONE,
-        saved_filename));
+                                 saved_filename));
     REQUIRE(0 ==
-        omega_util_compare_files(MAKE_PATH("model-test.actual.1.dat"), MAKE_PATH("model-test.actual.1-2.dat")));
+            omega_util_compare_files(MAKE_PATH("model-test.actual.1.dat"), MAKE_PATH("model-test.actual.1-2.dat")));
     REQUIRE(omega_util_paths_equivalent(MAKE_PATH("model-test.actual.1-2.dat"), saved_filename));
     REQUIRE(0 < omega_edit_insert_bytes(session_ptr, 10, reinterpret_cast<const omega_byte_t *>("0"), 1));
     file_size += 1;
     REQUIRE(omega_session_get_computed_file_size(session_ptr) == file_size);
     omega_util_remove_file(MAKE_PATH("model-test.actual.2.dat"));
     REQUIRE(0 == omega_edit_save(session_ptr, MAKE_PATH("model-test.actual.2.dat"), omega_io_flags_t::IO_FLG_NONE,
-        saved_filename));
+                                 saved_filename));
     REQUIRE(0 ==
-        omega_util_compare_files(MAKE_PATH("model-test.expected.2.dat"), MAKE_PATH("model-test.actual.2.dat")));
+            omega_util_compare_files(MAKE_PATH("model-test.expected.2.dat"), MAKE_PATH("model-test.actual.2.dat")));
     REQUIRE(omega_util_paths_equivalent(MAKE_PATH("model-test.actual.2.dat"), saved_filename));
     REQUIRE(0 < omega_edit_insert_bytes(session_ptr, 5, reinterpret_cast<const omega_byte_t *>("xxx"), 3));
     file_size += 3;
     REQUIRE(omega_session_get_computed_file_size(session_ptr) == file_size);
     REQUIRE(0 == omega_edit_save(session_ptr, MAKE_PATH("model-test.actual.3.dat"), omega_io_flags_t::IO_FLG_OVERWRITE,
-        saved_filename));
+                                 saved_filename));
     REQUIRE(omega_util_paths_equivalent(MAKE_PATH("model-test.actual.3.dat"), saved_filename));
     REQUIRE(0 ==
-        omega_util_compare_files(MAKE_PATH("model-test.expected.3.dat"), MAKE_PATH("model-test.actual.3.dat")));
+            omega_util_compare_files(MAKE_PATH("model-test.expected.3.dat"), MAKE_PATH("model-test.actual.3.dat")));
     auto num_changes = file_info.num_changes;
     REQUIRE(num_changes * -1 == omega_edit_undo_last_change(session_ptr));
     REQUIRE(1 == omega_session_get_num_undone_changes(session_ptr));
@@ -230,9 +241,9 @@ TEST_CASE("Model Tests", "[ModelTests]") {
     file_size -= 3;
     REQUIRE(omega_session_get_computed_file_size(session_ptr) == file_size);
     REQUIRE(0 == omega_edit_save(session_ptr, MAKE_PATH("model-test.actual.4.dat"), omega_io_flags_t::IO_FLG_OVERWRITE,
-        saved_filename));
+                                 saved_filename));
     REQUIRE(0 ==
-        omega_util_compare_files(MAKE_PATH("model-test.expected.4.dat"), MAKE_PATH("model-test.actual.4.dat")));
+            omega_util_compare_files(MAKE_PATH("model-test.expected.4.dat"), MAKE_PATH("model-test.actual.4.dat")));
     REQUIRE(omega_util_paths_equivalent(MAKE_PATH("model-test.actual.4.dat"), saved_filename));
     REQUIRE(1 == omega_session_get_num_undone_changes(session_ptr));
     REQUIRE(0 < omega_edit_overwrite_string(session_ptr, 0, "-"));
@@ -251,14 +262,14 @@ TEST_CASE("Model Tests", "[ModelTests]") {
     REQUIRE('O' == omega_change_get_kind_as_char(last_change));
     REQUIRE(1 == omega_change_get_length(last_change));
     REQUIRE(0 == omega_edit_save(session_ptr, MAKE_PATH("model-test.actual.5.dat"), omega_io_flags_t::IO_FLG_OVERWRITE,
-        nullptr));
+                                 nullptr));
     REQUIRE(0 ==
-        omega_util_compare_files(MAKE_PATH("model-test.expected.5.dat"), MAKE_PATH("model-test.actual.5.dat")));
+            omega_util_compare_files(MAKE_PATH("model-test.expected.5.dat"), MAKE_PATH("model-test.actual.5.dat")));
     REQUIRE(0 < omega_edit_delete(session_ptr, 0, omega_session_get_computed_file_size(session_ptr)));
     REQUIRE(0 == omega_session_get_computed_file_size(session_ptr));
     while (file_info.num_changes) { omega_edit_undo_last_change(session_ptr); }
     REQUIRE(0 == omega_edit_save(session_ptr, MAKE_PATH("model-test.actual.6.dat"), omega_io_flags_t::IO_FLG_OVERWRITE,
-        nullptr));
+                                 nullptr));
     REQUIRE(file_info.num_changes == omega_session_get_num_changes(session_ptr));
     REQUIRE(0 == omega_util_compare_files(MAKE_PATH("model-test.dat"), MAKE_PATH("model-test.actual.6.dat")));
     omega_edit_destroy_session(session_ptr);
@@ -342,7 +353,7 @@ TEST_CASE("Character Counts", "[CharCounts]") {
     auto session_ptr = omega_edit_create_session(MAKE_PATH("utf-8_1.dat"), nullptr, nullptr, NO_EVENTS, nullptr);
     REQUIRE(session_ptr);
     REQUIRE(0 == omega_session_character_counts(session_ptr, char_counts_ptr, 0, 0,
-        omega_session_detect_BOM(session_ptr, 0)));
+                                                omega_session_detect_BOM(session_ptr, 0)));
     REQUIRE(BOM_NONE == omega_character_counts_get_BOM(char_counts_ptr));
     REQUIRE(0 == omega_character_counts_bom_bytes(char_counts_ptr));
     REQUIRE(5 == omega_character_counts_single_byte_chars(char_counts_ptr));
@@ -355,7 +366,7 @@ TEST_CASE("Character Counts", "[CharCounts]") {
     session_ptr = omega_edit_create_session(MAKE_PATH("utf-8bom_1.dat"), nullptr, nullptr, NO_EVENTS, nullptr);
     REQUIRE(session_ptr);
     REQUIRE(0 == omega_session_character_counts(session_ptr, char_counts_ptr, 0, 0,
-        omega_session_detect_BOM(session_ptr, 0)));
+                                                omega_session_detect_BOM(session_ptr, 0)));
     REQUIRE(BOM_UTF8 == omega_character_counts_get_BOM(char_counts_ptr));
     REQUIRE(3 == omega_character_counts_bom_bytes(char_counts_ptr));
     REQUIRE(5 == omega_character_counts_single_byte_chars(char_counts_ptr));
@@ -367,21 +378,21 @@ TEST_CASE("Character Counts", "[CharCounts]") {
     // Force invalid bytes by not including the full sequence of a triple-byte character (e.g., ™).
     // Removing the last 2 bytes removes the trailing newline and the last byte of the 3-byte ™ character.
     REQUIRE(0 == omega_session_character_counts(session_ptr, char_counts_ptr, 0,
-        omega_session_get_computed_file_size(session_ptr) - 2,
-        omega_session_detect_BOM(session_ptr, 0)));
+                                                omega_session_get_computed_file_size(session_ptr) - 2,
+                                                omega_session_detect_BOM(session_ptr, 0)));
     REQUIRE(BOM_UTF8 == omega_character_counts_get_BOM(char_counts_ptr));
     REQUIRE(3 == omega_character_counts_bom_bytes(char_counts_ptr));
-    REQUIRE(4 == omega_character_counts_single_byte_chars(char_counts_ptr)); // minus the newline
+    REQUIRE(4 == omega_character_counts_single_byte_chars(char_counts_ptr));// minus the newline
     REQUIRE(1 == omega_character_counts_double_byte_chars(char_counts_ptr));
     REQUIRE(0 == omega_character_counts_triple_byte_chars(char_counts_ptr));
     REQUIRE(0 == omega_character_counts_quad_byte_chars(char_counts_ptr));
-    REQUIRE(2 == omega_character_counts_invalid_bytes(char_counts_ptr)); // first 2 bytes of the 3-byte ™ character
+    REQUIRE(2 == omega_character_counts_invalid_bytes(char_counts_ptr));// first 2 bytes of the 3-byte ™ character
     omega_edit_destroy_session(session_ptr);
 
     session_ptr = omega_edit_create_session(MAKE_PATH("utf-16le_1.dat"), nullptr, nullptr, NO_EVENTS, nullptr);
     REQUIRE(session_ptr);
     REQUIRE(0 == omega_session_character_counts(session_ptr, char_counts_ptr, 0, 0,
-        omega_session_detect_BOM(session_ptr, 0)));
+                                                omega_session_detect_BOM(session_ptr, 0)));
     REQUIRE(BOM_UTF16LE == omega_character_counts_get_BOM(char_counts_ptr));
     REQUIRE(2 == omega_character_counts_bom_bytes(char_counts_ptr));
     REQUIRE(5 == omega_character_counts_single_byte_chars(char_counts_ptr));
@@ -394,7 +405,7 @@ TEST_CASE("Character Counts", "[CharCounts]") {
     session_ptr = omega_edit_create_session(MAKE_PATH("utf-16be_1.dat"), nullptr, nullptr, NO_EVENTS, nullptr);
     REQUIRE(session_ptr);
     REQUIRE(0 == omega_session_character_counts(session_ptr, char_counts_ptr, 0, 0,
-        omega_session_detect_BOM(session_ptr, 0)));
+                                                omega_session_detect_BOM(session_ptr, 0)));
     REQUIRE(BOM_UTF16BE == omega_character_counts_get_BOM(char_counts_ptr));
     REQUIRE(2 == omega_character_counts_bom_bytes(char_counts_ptr));
     REQUIRE(5 == omega_character_counts_single_byte_chars(char_counts_ptr));
@@ -407,7 +418,7 @@ TEST_CASE("Character Counts", "[CharCounts]") {
     session_ptr = omega_edit_create_session(MAKE_PATH("utf-32le_1.dat"), nullptr, nullptr, NO_EVENTS, nullptr);
     REQUIRE(session_ptr);
     REQUIRE(0 == omega_session_character_counts(session_ptr, char_counts_ptr, 0, 0,
-        omega_session_detect_BOM(session_ptr, 0)));
+                                                omega_session_detect_BOM(session_ptr, 0)));
     REQUIRE(BOM_UTF32LE == omega_character_counts_get_BOM(char_counts_ptr));
     REQUIRE(4 == omega_character_counts_bom_bytes(char_counts_ptr));
     REQUIRE(5 == omega_character_counts_single_byte_chars(char_counts_ptr));
@@ -420,7 +431,7 @@ TEST_CASE("Character Counts", "[CharCounts]") {
     session_ptr = omega_edit_create_session(MAKE_PATH("utf-32be_1.dat"), nullptr, nullptr, NO_EVENTS, nullptr);
     REQUIRE(session_ptr);
     REQUIRE(0 == omega_session_character_counts(session_ptr, char_counts_ptr, 0, 0,
-        omega_session_detect_BOM(session_ptr, 0)));
+                                                omega_session_detect_BOM(session_ptr, 0)));
     REQUIRE(BOM_UTF32BE == omega_character_counts_get_BOM(char_counts_ptr));
     REQUIRE(4 == omega_character_counts_bom_bytes(char_counts_ptr));
     REQUIRE(5 == omega_character_counts_single_byte_chars(char_counts_ptr));
@@ -433,7 +444,7 @@ TEST_CASE("Character Counts", "[CharCounts]") {
     session_ptr = omega_edit_create_session(MAKE_PATH("ascii_1.dat"), nullptr, nullptr, NO_EVENTS, nullptr);
     REQUIRE(session_ptr);
     REQUIRE(0 == omega_session_character_counts(session_ptr, char_counts_ptr, 0, 0,
-        omega_session_detect_BOM(session_ptr, 0)));
+                                                omega_session_detect_BOM(session_ptr, 0)));
     REQUIRE(BOM_NONE == omega_character_counts_get_BOM(char_counts_ptr));
     REQUIRE(0 == omega_character_counts_bom_bytes(char_counts_ptr));
     REQUIRE(14 == omega_character_counts_single_byte_chars(char_counts_ptr));
@@ -446,7 +457,7 @@ TEST_CASE("Character Counts", "[CharCounts]") {
     session_ptr = omega_edit_create_session(MAKE_PATH("ascii-dos_1.dat"), nullptr, nullptr, NO_EVENTS, nullptr);
     REQUIRE(session_ptr);
     REQUIRE(0 == omega_session_character_counts(session_ptr, char_counts_ptr, 0, 0,
-        omega_session_detect_BOM(session_ptr, 0)));
+                                                omega_session_detect_BOM(session_ptr, 0)));
     REQUIRE(BOM_NONE == omega_character_counts_get_BOM(char_counts_ptr));
     REQUIRE(0 == omega_character_counts_bom_bytes(char_counts_ptr));
     REQUIRE(15 == omega_character_counts_single_byte_chars(char_counts_ptr));
@@ -459,7 +470,7 @@ TEST_CASE("Character Counts", "[CharCounts]") {
     session_ptr = omega_edit_create_session(nullptr, nullptr, nullptr, NO_EVENTS, nullptr);
     REQUIRE(session_ptr);
     REQUIRE(0 == omega_session_character_counts(session_ptr, char_counts_ptr, 0, 0,
-        omega_session_detect_BOM(session_ptr, 0)));
+                                                omega_session_detect_BOM(session_ptr, 0)));
     REQUIRE(BOM_NONE == omega_character_counts_get_BOM(char_counts_ptr));
     REQUIRE(0 == omega_character_counts_bom_bytes(char_counts_ptr));
     REQUIRE(0 == omega_character_counts_single_byte_chars(char_counts_ptr));
@@ -483,7 +494,7 @@ TEST_CASE("Hanoi insert", "[ModelTests]") {
     // Hanoi test
     int64_t change_serial;
     REQUIRE(0 <
-        (change_serial = omega_edit_insert_bytes(session_ptr, 0, reinterpret_cast<const omega_byte_t *>("00"), 2)));
+            (change_serial = omega_edit_insert_bytes(session_ptr, 0, reinterpret_cast<const omega_byte_t *>("00"), 2)));
     auto change_ptr = omega_session_get_change(session_ptr, change_serial);
     REQUIRE(change_ptr);
     REQUIRE('I' == omega_change_get_kind_as_char(change_ptr));
@@ -549,10 +560,10 @@ TEST_CASE("Hanoi insert", "[ModelTests]") {
     REQUIRE(0 == omega_session_get_num_undone_changes(session_ptr));
     REQUIRE(0 == omega_check_model(session_ptr));
     REQUIRE(0 == omega_edit_save(session_ptr, MAKE_PATH("model-test.actual.7.dat"), omega_io_flags_t::IO_FLG_OVERWRITE,
-        nullptr));
+                                 nullptr));
     REQUIRE(file_info.num_changes == omega_session_get_num_changes(session_ptr));
     REQUIRE(0 ==
-        omega_util_compare_files(MAKE_PATH("model-test.expected.7.dat"), MAKE_PATH("model-test.actual.7.dat")));
+            omega_util_compare_files(MAKE_PATH("model-test.expected.7.dat"), MAKE_PATH("model-test.actual.7.dat")));
     omega_edit_clear_changes(session_ptr);
     REQUIRE(0 == omega_session_get_num_changes(session_ptr));
     omega_edit_insert_string(session_ptr, 0, "\rUnix EOL\n Mac EOL\n DOS EOL\r\n \r");
@@ -585,7 +596,7 @@ TEST_CASE("Check initialization", "[InitTests]") {
             REQUIRE(nullptr == omega_session_get_change(session_ptr, 0));
             int64_t rc;
             REQUIRE(0 <
-                (rc = omega_edit_insert_bytes(session_ptr, 10, reinterpret_cast<const omega_byte_t *>("++++"), 4)));
+                    (rc = omega_edit_insert_bytes(session_ptr, 10, reinterpret_cast<const omega_byte_t *>("++++"), 4)));
             REQUIRE(nullptr != omega_session_get_last_change(session_ptr));
             REQUIRE(!omega_change_is_undone(omega_session_get_last_change(session_ptr)));
             auto change_ptr = omega_session_get_change(session_ptr, rc);
@@ -658,7 +669,7 @@ TEST_CASE("Check initialization", "[InitTests]") {
             REQUIRE(omega_session_get_num_changes(session_ptr) == num_changes_before_undo - 1);
             REQUIRE(71 == omega_session_get_computed_file_size(session_ptr));
             REQUIRE(0 == omega_edit_save(session_ptr, MAKE_PATH("test1.dat.out"), omega_io_flags_t::IO_FLG_OVERWRITE,
-                nullptr));
+                                         nullptr));
             REQUIRE(6 == omega_session_get_num_changes(session_ptr));
             REQUIRE(-6 == omega_edit_undo_last_change(session_ptr));
             REQUIRE(5 == omega_session_get_num_changes(session_ptr));
@@ -667,16 +678,14 @@ TEST_CASE("Check initialization", "[InitTests]") {
             REQUIRE(0 == omega_session_get_num_changes(session_ptr));
             REQUIRE(0 == omega_session_get_num_undone_changes(session_ptr));
             REQUIRE(0 == omega_edit_save(session_ptr, MAKE_PATH("test1.reset.dat"), omega_io_flags_t::IO_FLG_OVERWRITE,
-                nullptr));
+                                         nullptr));
             REQUIRE(0 == omega_util_compare_files(MAKE_PATH("test1.dat"), MAKE_PATH("test1.reset.dat")));
             omega_edit_destroy_session(session_ptr);
         }
     }
 }
 
-enum class display_mode_t {
-    BIT_MODE, BYTE_MODE, CHAR_MODE
-};
+enum class display_mode_t { BIT_MODE, BYTE_MODE, CHAR_MODE };
 
 struct view_mode_t {
     display_mode_t display_mode = display_mode_t::CHAR_MODE;
@@ -686,11 +695,11 @@ static inline void vpt_change_cbk(const omega_viewport_t *viewport_ptr, omega_vi
                                   const void *viewport_event_ptr) {
     if (viewport_event_ptr) {
         clog << "Change serial: "
-                << omega_change_get_serial(reinterpret_cast<const omega_change_t *>(viewport_event_ptr)) << endl;
+             << omega_change_get_serial(reinterpret_cast<const omega_change_t *>(viewport_event_ptr)) << endl;
     }
     clog << dec << "capacity: " << omega_viewport_get_capacity(viewport_ptr)
-            << " length: " << omega_viewport_get_length(viewport_ptr)
-            << " offset: " << omega_viewport_get_offset(viewport_ptr) << endl;
+         << " length: " << omega_viewport_get_length(viewport_ptr)
+         << " offset: " << omega_viewport_get_offset(viewport_ptr) << endl;
     if (omega_viewport_get_user_data_ptr(viewport_ptr)) {
         auto const *view_mode_ptr = (const view_mode_t *) omega_viewport_get_user_data_ptr(viewport_ptr);
         switch (view_mode_ptr->display_mode) {
@@ -704,7 +713,7 @@ static inline void vpt_change_cbk(const omega_viewport_t *viewport_ptr, omega_vi
                 clog << omega_viewport_get_string(viewport_ptr);
                 clog << "]\n";
                 break;
-            default: // flow through
+            default:// flow through
             case display_mode_t::BYTE_MODE:
                 clog << "BYTE MODE [";
                 write_pretty_bytes(omega_viewport_get_data(viewport_ptr), omega_viewport_get_length(viewport_ptr));
@@ -752,7 +761,7 @@ TEST_CASE("Search-Forward", "[SearchTests]") {
     REQUIRE(NO_EVENTS == omega_viewport_get_event_interest(vpt));
     REQUIRE(0 == omega_viewport_get_following_byte_count(vpt));
     REQUIRE(0 != omega_viewport_has_changes(vpt));
-    REQUIRE(0 == omega_session_notify_changed_viewports(session_ptr)); // no event interest, so no notifications
+    REQUIRE(0 == omega_session_notify_changed_viewports(session_ptr));// no event interest, so no notifications
     REQUIRE(ALL_EVENTS == omega_viewport_set_event_interest(vpt, ALL_EVENTS));
     REQUIRE(ALL_EVENTS == omega_viewport_get_event_interest(vpt));
     REQUIRE(vpt_change_cbk == omega_viewport_get_event_cbk(vpt));
@@ -777,7 +786,7 @@ TEST_CASE("Search-Forward", "[SearchTests]") {
     REQUIRE(needle_length == omega_search_context_get_pattern_length(match_context));
     REQUIRE(0 == omega_search_context_get_session_offset(match_context));
     REQUIRE(omega_session_get_computed_file_size(session_ptr) ==
-        omega_search_context_get_session_length(match_context));
+            omega_search_context_get_session_length(match_context));
     REQUIRE(1 == omega_session_get_num_search_contexts(session_ptr));
     while (omega_search_next_match(match_context, 1)) { ++needles_found; }
     REQUIRE(5 == needles_found);
@@ -789,25 +798,25 @@ TEST_CASE("Search-Forward", "[SearchTests]") {
     REQUIRE(-3 == omega_edit_undo_last_change(session_ptr));
     REQUIRE(-3 == omega_change_get_serial(omega_session_get_last_undo(session_ptr)));
     REQUIRE('I' == omega_change_get_kind_as_char(omega_session_get_change(
-        session_ptr, omega_change_get_serial(omega_session_get_last_undo(session_ptr)))));
+                           session_ptr, omega_change_get_serial(omega_session_get_last_undo(session_ptr)))));
     REQUIRE(nullptr != omega_change_get_bytes(omega_session_get_change(
-        session_ptr, omega_change_get_serial(omega_session_get_last_undo(session_ptr)))));
+                               session_ptr, omega_change_get_serial(omega_session_get_last_undo(session_ptr)))));
     REQUIRE(!omega_change_get_string(
-            omega_session_get_change(session_ptr,
-                omega_change_get_serial(omega_session_get_last_undo(session_ptr))))
-        .empty());
+                     omega_session_get_change(session_ptr,
+                                              omega_change_get_serial(omega_session_get_last_undo(session_ptr))))
+                     .empty());
     REQUIRE(omega_session_get_num_undone_changes(session_ptr) == 1);
     REQUIRE(-2 == omega_edit_undo_last_change(session_ptr));
     REQUIRE(omega_change_is_undone(omega_session_get_last_undo(session_ptr)));
     REQUIRE(-2 == omega_change_get_serial(omega_session_get_last_undo(session_ptr)));
     REQUIRE('D' == omega_change_get_kind_as_char(omega_session_get_change(
-        session_ptr, omega_change_get_serial(omega_session_get_last_undo(session_ptr)))));
+                           session_ptr, omega_change_get_serial(omega_session_get_last_undo(session_ptr)))));
     REQUIRE(nullptr == omega_change_get_bytes(omega_session_get_change(
-        session_ptr, omega_change_get_serial(omega_session_get_last_undo(session_ptr)))));
+                               session_ptr, omega_change_get_serial(omega_session_get_last_undo(session_ptr)))));
     REQUIRE(omega_change_get_string(
-            omega_session_get_change(session_ptr,
-                omega_change_get_serial(omega_session_get_last_undo(session_ptr))))
-        .empty());
+                    omega_session_get_change(session_ptr,
+                                             omega_change_get_serial(omega_session_get_last_undo(session_ptr))))
+                    .empty());
     REQUIRE(omega_session_get_num_undone_changes(session_ptr) == 2);
     REQUIRE(0 < omega_edit_overwrite_string(session_ptr, 16, needle));
     REQUIRE(omega_session_get_num_undone_changes(session_ptr) == 0);
@@ -865,8 +874,8 @@ TEST_CASE("Search-Forward", "[SearchTests]") {
             REQUIRE(pattern_offset == omega_segment_get_offset(segment_peek));
             REQUIRE(0 == omega_util_strnicmp("needle", (const char *) omega_segment_get_data(segment_peek), 6));
             REQUIRE(omega_session_get_segment_string(session_ptr, pattern_offset,
-                    omega_segment_get_capacity(segment_peek)) ==
-                (const char *) omega_segment_get_data(segment_peek));
+                                                     omega_segment_get_capacity(segment_peek)) ==
+                    (const char *) omega_segment_get_data(segment_peek));
             omega_session_pause_viewport_event_callbacks(session_ptr);
             omega_edit_delete(session_ptr, pattern_offset, pattern_length);
             omega_session_resume_viewport_event_callbacks(session_ptr);
@@ -874,11 +883,11 @@ TEST_CASE("Search-Forward", "[SearchTests]") {
             omega_session_get_segment(session_ptr, segment_peek, pattern_offset);
             clog << " needle after: " << omega_segment_get_data(segment_peek) << std::endl;
             REQUIRE(0 == omega_util_strnicmp((const char *) replace.c_str(),
-                (const char *) omega_segment_get_data(segment_peek),
-                static_cast<uint64_t>(replace.length())));
+                                             (const char *) omega_segment_get_data(segment_peek),
+                                             static_cast<uint64_t>(replace.length())));
             REQUIRE(omega_session_get_segment_string(session_ptr, pattern_offset,
-                    omega_segment_get_capacity(segment_peek)) ==
-                (const char *) omega_segment_get_data(segment_peek));
+                                                     omega_segment_get_capacity(segment_peek)) ==
+                    (const char *) omega_segment_get_data(segment_peek));
             ++needles_found;
         } while (omega_search_next_match(match_context, advance_context));
     }
@@ -895,10 +904,10 @@ TEST_CASE("Search-Forward", "[SearchTests]") {
     REQUIRE(12 == needles_found);
     omega_search_destroy_context(match_context);
     REQUIRE(0 == omega_edit_save(session_ptr, MAKE_PATH("search-test.actual.1.dat"), omega_io_flags_t::IO_FLG_OVERWRITE,
-        nullptr));
+                                 nullptr));
     omega_edit_destroy_session(session_ptr);
     REQUIRE(0 ==
-        omega_util_compare_files(MAKE_PATH("search-test.expected.1.dat"), MAKE_PATH("search-test.actual.1.dat")));
+            omega_util_compare_files(MAKE_PATH("search-test.expected.1.dat"), MAKE_PATH("search-test.actual.1.dat")));
     session_ptr = omega_edit_create_session(nullptr, nullptr, nullptr, NO_EVENTS, nullptr);
     REQUIRE(session_ptr);
     std::string as = "bbbbabbbbaabbbba";
@@ -1062,11 +1071,12 @@ TEST_CASE("Large sparse file viewports use 64-bit file offsets", "[.][LargeFile]
     }
 
     const auto expected_size = marker_offset + static_cast<int64_t>(sizeof(marker) - 1);
-    const auto session_ptr = omega_edit_create_session(file_name, nullptr, nullptr, NO_EVENTS, checkpoint_dir_str.c_str());
+    const auto session_ptr =
+            omega_edit_create_session(file_name, nullptr, nullptr, NO_EVENTS, checkpoint_dir_str.c_str());
     REQUIRE(session_ptr);
     REQUIRE(expected_size == omega_session_get_computed_file_size(session_ptr));
     std::vector<fs::path> original_markers;
-    for (const auto &entry: fs::directory_iterator(checkpoint_dir)) {
+    for (const auto &entry : fs::directory_iterator(checkpoint_dir)) {
         if (entry.path().filename().string().rfind(".OmegaEdit-orig.", 0) == 0) {
             original_markers.push_back(entry.path());
         }

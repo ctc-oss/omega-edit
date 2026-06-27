@@ -363,6 +363,9 @@ export async function applyTransformPlugin(
       'applyTransformPlugin replacement length',
       response.replacementLength
     )
+    if (response.serial !== undefined) {
+      requireSafeIntegerOutput('applyTransformPlugin serial', response.serial)
+    }
     return response
   })
 }

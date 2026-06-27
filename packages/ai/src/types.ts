@@ -1,6 +1,11 @@
 export type InputEncoding = 'utf8' | 'hex' | 'base64'
 export type PatchKind = 'insert' | 'overwrite' | 'delete' | 'replace'
-export type ChangeLogEntryKind = 'INSERT' | 'DELETE' | 'OVERWRITE' | 'REPLACE'
+export type ChangeLogEntryKind =
+  | 'INSERT'
+  | 'DELETE'
+  | 'OVERWRITE'
+  | 'REPLACE'
+  | 'TRANSFORM'
 
 export interface ToolkitOptions {
   host?: string
@@ -40,6 +45,11 @@ export interface ChangeLogEntry {
   offset: number
   length: number
   data: string
+  transformId?: string
+  optionsJson?: string
+  replacementLength?: number
+  computedFileSizeBefore?: number
+  computedFileSizeAfter?: number
   groupId?: string
 }
 

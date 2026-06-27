@@ -48,6 +48,7 @@ export const ChangeKind = {
   DELETE: RawProtoChangeKind.DELETE,
   INSERT: RawProtoChangeKind.INSERT,
   OVERWRITE: RawProtoChangeKind.OVERWRITE,
+  TRANSFORM: RawProtoChangeKind.TRANSFORM,
 }
 
 export { EditStats }

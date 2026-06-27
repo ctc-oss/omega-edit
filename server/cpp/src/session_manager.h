@@ -38,10 +38,10 @@ namespace grpc_server {
 
 /// Configurable service limits to bound server-side resource usage.
 struct ResourceLimits {
-    size_t session_event_queue_capacity{1024};   ///< 0 = unbounded
-    size_t viewport_event_queue_capacity{256};   ///< 0 = unbounded
-    int64_t max_change_bytes{64 * 1024 * 1024};  ///< 0 = unbounded
-    size_t max_viewports_per_session{256};       ///< 0 = unbounded
+    size_t session_event_queue_capacity{1024};  ///< 0 = unbounded
+    size_t viewport_event_queue_capacity{256};  ///< 0 = unbounded
+    int64_t max_change_bytes{64 * 1024 * 1024}; ///< 0 = unbounded
+    size_t max_viewports_per_session{256};      ///< 0 = unbounded
 };
 
 struct TransformProgressData {
@@ -55,7 +55,9 @@ struct TransformProgressData {
     bool has_processed_bytes{false};
     bool has_total_bytes{false};
     bool has_percent{false};
+    bool has_serial{false};
     bool indeterminate{false};
+    int64_t serial{0};
 };
 
 /// Session event data for streaming
@@ -82,19 +84,14 @@ struct ViewportEventData {
 };
 
 /// Thread-safe event queue
-template <typename T>
-class EventQueue {
+template <typename T> class EventQueue {
 public:
     explicit EventQueue(size_t max_size = 0, std::string label = "event queue")
         : max_size_(max_size), label_(std::move(label)) {}
 
-    void push(const T &event) {
-        push_impl(event);
-    }
+    void push(const T &event) { push_impl(event); }
 
-    void push(T &&event) {
-        push_impl(std::move(event));
-    }
+    void push(T &&event) { push_impl(std::move(event)); }
 
     bool pop(T &event, std::chrono::milliseconds timeout) {
         std::unique_lock<std::mutex> lock(mutex_);
@@ -124,8 +121,7 @@ public:
     size_t dropped_count() const { return dropped_count_.load(std::memory_order_relaxed); }
 
 private:
-    template <typename U>
-    void push_impl(U &&event) {
+    template <typename U> void push_impl(U &&event) {
         {
             std::lock_guard<std::mutex> lock(mutex_);
             if (closed_) { return; }
@@ -142,9 +138,7 @@ private:
         cv_.notify_one();
     }
 
-    static bool should_log_drops(size_t dropped_count) {
-        return (dropped_count & (dropped_count - 1)) == 0;
-    }
+    static bool should_log_drops(size_t dropped_count) { return (dropped_count & (dropped_count - 1)) == 0; }
 
     size_t max_size_;
     std::string label_;
@@ -216,9 +210,9 @@ struct LockedViewport {
 /// Error codes returned by SessionManager::create_session
 enum class SessionCreateError {
     SUCCESS,
-    INVALID_ID,    ///< desired_id contains the reserved ':' character
+    INVALID_ID,     ///< desired_id contains the reserved ':' character
     ALREADY_EXISTS, ///< a session with the given id already exists
-    CORE_ERROR,    ///< the underlying omega_edit API failed to create the session
+    CORE_ERROR,     ///< the underlying omega_edit API failed to create the session
 };
 
 /// Error codes returned by SessionManager::create_viewport
@@ -280,8 +274,7 @@ public:
     // Session lifecycle
     std::string create_session(const std::string &file_path, const std::string &desired_id,
                                const std::string &checkpoint_directory, const std::string *initial_data,
-                               int64_t &file_size_out,
-                               std::string &checkpoint_dir_out,
+                               int64_t &file_size_out, std::string &checkpoint_dir_out,
                                SessionCreateError *error_out = nullptr);
     bool destroy_session(const std::string &session_id);
     bool detach_session(const std::string &session_id);
@@ -290,15 +283,13 @@ public:
     SessionOperationGuard try_begin_mutation(const std::string &session_id);
     SessionOperationGuard try_begin_transform(const std::string &session_id);
     bool session_transform_in_progress(const std::string &session_id) const;
-    bool publish_transform_progress(const std::string &session_id,
-                                    int32_t event_kind,
+    bool publish_transform_progress(const std::string &session_id, int32_t event_kind,
                                     const TransformProgressData &progress);
     int64_t session_count() const;
 
     // Viewport lifecycle
     std::string create_viewport(const std::string &session_id, int64_t offset, int64_t capacity, bool is_floating,
-                                const std::string &desired_viewport_id,
-                                ViewportCreateError *error_out = nullptr);
+                                const std::string &desired_viewport_id, ViewportCreateError *error_out = nullptr);
     bool destroy_viewport(const std::string &session_id, const std::string &viewport_id);
     omega_viewport_t *get_viewport(const std::string &session_id, const std::string &viewport_id);
     LockedViewport lock_viewport(const std::string &session_id, const std::string &viewport_id);
@@ -317,15 +308,12 @@ public:
 
     // Session activity tracking
     void touch_session(const std::string &session_id);
-    template <typename SessionIdRange>
-    void touch_sessions(const SessionIdRange &session_ids) {
+    template <typename SessionIdRange> void touch_sessions(const SessionIdRange &session_ids) {
         std::lock_guard<std::mutex> lock(mutex_);
         const auto now = std::chrono::steady_clock::now();
         for (const auto &sid : session_ids) {
             auto it = sessions_.find(sid);
-            if (it != sessions_.end()) {
-                it->second->last_activity = now;
-            }
+            if (it != sessions_.end()) { it->second->last_activity = now; }
         }
     }
     std::vector<std::string> get_idle_session_ids(std::chrono::milliseconds timeout) const;

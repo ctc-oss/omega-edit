@@ -54,6 +54,7 @@ import {
   getServerInfo,
   getViewportData,
   IOFlags,
+  SaveStatus,
   type IServerInfo,
   insert,
   listTransformPlugins,
@@ -167,6 +168,30 @@ function openEditorFirstMessage(): string {
 
 function omegaEditErrorMessage(message: string): string {
   return vscode.l10n.t('OmegaEdit error: {message}', { message })
+}
+
+function describeSaveStatus(status: number): string {
+  if (status === SaveStatus.MODIFIED) {
+    return vscode.l10n.t('original file was modified outside OmegaEdit')
+  }
+  return vscode.l10n.t('status {status}', { status })
+}
+
+async function saveSessionOrThrow(
+  sessionId: string,
+  filePath: string,
+  flags: number
+): Promise<void> {
+  const response = await saveSession(sessionId, filePath, flags)
+  const status = response.getSaveStatus()
+  if (status !== SaveStatus.SUCCESS) {
+    throw new Error(
+      vscode.l10n.t('OmegaEdit save failed for {path}: {reason}', {
+        path: filePath,
+        reason: describeSaveStatus(status),
+      })
+    )
+  }
 }
 
 function transformMutationBlockedMessage(): string {
@@ -649,6 +674,7 @@ const changeKindNames = new Map<number, ChangeRecord['kind']>([
   [ChangeKind.INSERT, 'INSERT'],
   [ChangeKind.DELETE, 'DELETE'],
   [ChangeKind.OVERWRITE, 'OVERWRITE'],
+  [ChangeKind.TRANSFORM, 'TRANSFORM'],
 ])
 
 function changeDetailsToChangeRecord(
@@ -657,6 +683,28 @@ function changeDetailsToChangeRecord(
   const kind = changeKindNames.get(change.getKind())
   if (!kind) {
     throw new Error(`Unsupported change kind: ${change.getKind()}`)
+  }
+
+  if (kind === 'TRANSFORM') {
+    const transform = change.getTransform()
+    if (!transform?.transformId) {
+      throw new Error('Transform change is missing transform metadata')
+    }
+
+    return {
+      serial: change.getSerial(),
+      kind,
+      offset: change.getOffset(),
+      length: change.getLength(),
+      data: '',
+      transformId: transform.transformId,
+      ...(transform.optionsJson !== undefined
+        ? { optionsJson: transform.optionsJson }
+        : {}),
+      replacementLength: transform.replacementLength,
+      computedFileSizeBefore: transform.computedFileSizeBefore,
+      computedFileSizeAfter: transform.computedFileSizeAfter,
+    }
   }
 
   return {
@@ -780,6 +828,61 @@ function safeChangeRecord(value: unknown): ChangeRecord | undefined {
       return groupId
         ? { serial, kind: 'REPLACE', offset, length, data, groupId }
         : { serial, kind: 'REPLACE', offset, length, data }
+    }
+    case 'TRANSFORM': {
+      const length = safeNonNegativeInteger(value.length)
+      const transformId = safeString(value.transformId, MAX_LABEL_LENGTH)
+      const optionsJson =
+        value.optionsJson === undefined
+          ? undefined
+          : safeString(value.optionsJson, MAX_FILE_SPLICE_BYTES, true)
+      if (
+        length === undefined ||
+        !transformId ||
+        (value.optionsJson !== undefined && optionsJson === undefined) ||
+        (value.data !== undefined && value.data !== '')
+      ) {
+        return undefined
+      }
+
+      const record: ChangeRecord = groupId
+        ? {
+            serial,
+            kind: 'TRANSFORM',
+            offset,
+            length,
+            data: '',
+            transformId,
+            groupId,
+          }
+        : {
+            serial,
+            kind: 'TRANSFORM',
+            offset,
+            length,
+            data: '',
+            transformId,
+          }
+      if (optionsJson !== undefined) {
+        record.optionsJson = optionsJson
+      }
+
+      for (const key of [
+        'replacementLength',
+        'computedFileSizeBefore',
+        'computedFileSizeAfter',
+      ] as const) {
+        if (value[key] === undefined) {
+          continue
+        }
+        const safeValue = safeNonNegativeInteger(value[key])
+        if (safeValue === undefined) {
+          return undefined
+        }
+        record[key] = safeValue
+      }
+
+      return record
     }
     default:
       return undefined
@@ -1299,7 +1402,11 @@ export class HexEditorProvider
     if (!session) {
       return
     }
-    await saveSession(session.sessionId, session.filePath, IOFlags.OVERWRITE)
+    await saveSessionOrThrow(
+      session.sessionId,
+      session.filePath,
+      IOFlags.OVERWRITE
+    )
     session.restoredFromBackup = false
     session.history.markSaved()
     this.postEditState(session)
@@ -1319,7 +1426,11 @@ export class HexEditorProvider
         vscode.l10n.t('OmegaEdit Data Editor can only save to local files')
       )
     }
-    await saveSession(session.sessionId, destination.fsPath, IOFlags.OVERWRITE)
+    await saveSessionOrThrow(
+      session.sessionId,
+      destination.fsPath,
+      IOFlags.OVERWRITE
+    )
     session.restoredFromBackup = false
     session.history.markSaved()
     this.postEditState(session)
@@ -1347,7 +1458,7 @@ export class HexEditorProvider
       await vscode.workspace.fs.createDirectory(
         vscode.Uri.joinPath(context.destination, '..')
       )
-      await saveSession(
+      await saveSessionOrThrow(
         session.sessionId,
         context.destination.fsPath,
         IOFlags.OVERWRITE
@@ -3549,15 +3660,37 @@ export class HexEditorProvider
       this.clearSearchState(session)
     }
 
-    try {
+    const applyOne = async (change: ChangeRecord) => {
+      const appliedChange = await this.applyChangeLogEntry(session, change)
+      if (appliedChange) {
+        appliedChanges.push(appliedChange)
+      }
+    }
+    let pendingBatch: ChangeRecord[] = []
+    const flushBatch = async () => {
+      if (pendingBatch.length === 0) {
+        return
+      }
+
+      const batch = pendingBatch
+      pendingBatch = []
       await runSessionTransaction(session.sessionId, async () => {
-        for (const change of changes) {
-          const appliedChange = await this.applyChangeLogEntry(session, change)
-          if (appliedChange) {
-            appliedChanges.push(appliedChange)
-          }
+        for (const change of batch) {
+          await applyOne(change)
         }
       })
+    }
+
+    try {
+      for (const change of changes) {
+        if (change.kind === 'TRANSFORM') {
+          await flushBatch()
+          await applyOne(change)
+        } else {
+          pendingBatch.push(change)
+        }
+      }
+      await flushBatch()
     } catch (error) {
       await recordAppliedChanges()
       throw error
@@ -3622,6 +3755,43 @@ export class HexEditorProvider
           change.data,
           change.groupId
         )
+      case 'TRANSFORM': {
+        if (!change.transformId) {
+          throw new Error('Transform change is missing transformId')
+        }
+
+        const response = await applyTransformPlugin(
+          session.sessionId,
+          change.transformId,
+          change.offset,
+          change.length,
+          change.optionsJson
+        )
+        if (!response.contentChanged) {
+          return undefined
+        }
+        if (response.serial === undefined) {
+          throw new Error('Transform did not return a change serial')
+        }
+
+        return {
+          serial: response.serial,
+          kind: 'TRANSFORM',
+          offset: response.offset,
+          length: response.length,
+          data: '',
+          transformId: response.pluginId,
+          ...(change.optionsJson !== undefined
+            ? { optionsJson: change.optionsJson }
+            : {}),
+          replacementLength: response.replacementLength,
+          ...(change.computedFileSizeBefore !== undefined
+            ? { computedFileSizeBefore: change.computedFileSizeBefore }
+            : {}),
+          computedFileSizeAfter: response.computedFileSize,
+          ...(change.groupId ? { groupId: change.groupId } : {}),
+        }
+      }
     }
   }
 

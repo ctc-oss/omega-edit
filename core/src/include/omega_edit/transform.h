@@ -81,9 +81,7 @@ typedef enum {
     OMEGA_TRANSFORM_PROGRESS_INDETERMINATE = 1 << 3
 } omega_transform_progress_flags_t;
 
-typedef enum {
-    OMEGA_TRANSFORM_PLUGIN_RESPONSE_NO_CONTENT_CHANGE = 1
-} omega_transform_plugin_response_flags_t;
+typedef enum { OMEGA_TRANSFORM_PLUGIN_RESPONSE_NO_CONTENT_CHANGE = 1 } omega_transform_plugin_response_flags_t;
 
 typedef struct {
     int64_t processed_bytes;
@@ -147,33 +145,35 @@ omega_transform_plugin_registry_t *omega_transform_plugin_registry_create(void);
 void omega_transform_plugin_registry_destroy(omega_transform_plugin_registry_t *registry_ptr);
 
 int omega_transform_plugin_registry_register_plugin(omega_transform_plugin_registry_t *registry_ptr,
-                                                   const char *plugin_path);
+                                                    const char *plugin_path);
 
 int omega_transform_plugin_registry_register_directory(omega_transform_plugin_registry_t *registry_ptr,
-                                                      const char *plugin_directory);
+                                                       const char *plugin_directory);
 
 int64_t omega_transform_plugin_registry_get_count(const omega_transform_plugin_registry_t *registry_ptr);
 
 int omega_transform_plugin_options_match_args_schema(const char *options_json, const char *args_schema);
 
-const omega_transform_plugin_info_t *omega_transform_plugin_registry_get_info(
-        const omega_transform_plugin_registry_t *registry_ptr, int64_t index);
+const omega_transform_plugin_info_t *
+omega_transform_plugin_registry_get_info(const omega_transform_plugin_registry_t *registry_ptr, int64_t index);
 
-const omega_transform_plugin_info_t *omega_transform_plugin_registry_find_info(
-        const omega_transform_plugin_registry_t *registry_ptr, const char *plugin_id);
+const omega_transform_plugin_info_t *
+omega_transform_plugin_registry_find_info(const omega_transform_plugin_registry_t *registry_ptr, const char *plugin_id);
 
 int omega_transform_plugin_registry_apply_to_session(omega_transform_plugin_registry_t *registry_ptr,
-                                                    const char *plugin_id, omega_session_t *session_ptr,
-                                                    int64_t offset, int64_t length, const char *options_json,
-                                                    omega_transform_plugin_response_t *response_ptr);
+                                                     const char *plugin_id, omega_session_t *session_ptr,
+                                                     int64_t offset, int64_t length, const char *options_json,
+                                                     omega_transform_plugin_response_t *response_ptr);
 
 int omega_transform_plugin_registry_apply_to_session_with_progress(
-        omega_transform_plugin_registry_t *registry_ptr,
-        const char *plugin_id, omega_session_t *session_ptr,
-        int64_t offset, int64_t length, const char *options_json,
-        omega_transform_plugin_progress_cbk_t progress,
-        void *progress_user_data_ptr,
-        omega_transform_plugin_response_t *response_ptr);
+        omega_transform_plugin_registry_t *registry_ptr, const char *plugin_id, omega_session_t *session_ptr,
+        int64_t offset, int64_t length, const char *options_json, omega_transform_plugin_progress_cbk_t progress,
+        void *progress_user_data_ptr, omega_transform_plugin_response_t *response_ptr);
+
+int omega_transform_plugin_registry_apply_to_session_with_progress_and_serial(
+        omega_transform_plugin_registry_t *registry_ptr, const char *plugin_id, omega_session_t *session_ptr,
+        int64_t offset, int64_t length, const char *options_json, omega_transform_plugin_progress_cbk_t progress,
+        void *progress_user_data_ptr, omega_transform_plugin_response_t *response_ptr, int64_t *change_serial_out);
 
 /**
  * Release response-owned replacement/result buffers and reset all fields to zero/null.

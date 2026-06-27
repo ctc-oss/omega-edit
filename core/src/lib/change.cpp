@@ -23,7 +23,6 @@ using omega_edit::internal::omega_change_get_transaction_bit_;
 using omega_edit::internal::omega_data_get_data_const_;
 
 static_assert(sizeof(omega_change_t) == sizeof(omega_change_struct), "omega_change_t size mismatch");
-static_assert(sizeof(omega_change_t) == 40);
 
 int64_t omega_change_get_offset(const omega_change_t *change_ptr) {
     if (!change_ptr) { return -1; }
@@ -42,9 +41,10 @@ int64_t omega_change_get_serial(const omega_change_t *change_ptr) {
 
 static inline const omega_byte_t *change_bytes_(const omega_change_t *change_ptr) {
     if (!change_ptr) { return nullptr; }
-    return (omega_change_get_kind_(change_ptr) != change_kind_t::CHANGE_DELETE)
-           ? omega_data_get_data_const_(&change_ptr->data, change_ptr->length)
-           : nullptr;
+    const auto kind = omega_change_get_kind_(change_ptr);
+    return (kind == change_kind_t::CHANGE_INSERT || kind == change_kind_t::CHANGE_OVERWRITE)
+                   ? omega_data_get_data_const_(&change_ptr->data, change_ptr->length)
+                   : nullptr;
 }
 
 const omega_byte_t *omega_change_get_bytes(const omega_change_t *change_ptr) {
@@ -61,6 +61,8 @@ char omega_change_get_kind_as_char(const omega_change_t *change_ptr) {
             return 'I';
         case change_kind_t::CHANGE_OVERWRITE:
             return 'O';
+        case change_kind_t::CHANGE_TRANSFORM:
+            return 'T';
         default:
             ABORT(LOG_ERROR("Unhandled change kind"););
     }
@@ -74,4 +76,37 @@ int omega_change_get_transaction_bit(const omega_change_t *change_ptr) {
 int omega_change_is_undone(const omega_change_t *change_ptr) {
     if (!change_ptr) { return 0; }
     return (0 < omega_change_get_serial(change_ptr)) ? 0 : 1;
+}
+
+int omega_change_is_transform(const omega_change_t *change_ptr) {
+    if (!change_ptr) { return 0; }
+    return omega_change_get_kind_(change_ptr) == change_kind_t::CHANGE_TRANSFORM ? 1 : 0;
+}
+
+const char *omega_change_get_transform_id(const omega_change_t *change_ptr) {
+    if (!omega_change_is_transform(change_ptr) || !change_ptr->transform_data) { return nullptr; }
+    return change_ptr->transform_data->transform_id.c_str();
+}
+
+const char *omega_change_get_transform_options_json(const omega_change_t *change_ptr) {
+    if (!omega_change_is_transform(change_ptr) || !change_ptr->transform_data ||
+        change_ptr->transform_data->options_json.empty()) {
+        return nullptr;
+    }
+    return change_ptr->transform_data->options_json.c_str();
+}
+
+int64_t omega_change_get_transform_replacement_length(const omega_change_t *change_ptr) {
+    if (!omega_change_is_transform(change_ptr) || !change_ptr->transform_data) { return -1; }
+    return change_ptr->transform_data->replacement_length;
+}
+
+int64_t omega_change_get_transform_computed_file_size_before(const omega_change_t *change_ptr) {
+    if (!omega_change_is_transform(change_ptr) || !change_ptr->transform_data) { return -1; }
+    return change_ptr->transform_data->computed_file_size_before;
+}
+
+int64_t omega_change_get_transform_computed_file_size_after(const omega_change_t *change_ptr) {
+    if (!omega_change_is_transform(change_ptr) || !change_ptr->transform_data) { return -1; }
+    return change_ptr->transform_data->computed_file_size_after;
 }

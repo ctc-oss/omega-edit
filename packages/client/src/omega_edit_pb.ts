@@ -417,6 +417,10 @@ export class ChangeDetailsResponse {
     return this.getData()
   }
 
+  getTransform(): RawGetChangeDetailsResponse['transform'] {
+    return this.response_.transform
+  }
+
   toObject(): RawGetChangeDetailsResponse {
     return {
       ...this.response_,
@@ -424,6 +428,7 @@ export class ChangeDetailsResponse {
       offset: this.getOffset(),
       length: this.getLength(),
       data: this.getData(),
+      transform: this.getTransform(),
     }
   }
 }

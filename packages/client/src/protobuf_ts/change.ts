@@ -36,6 +36,7 @@ export const ChangeKind = {
   DELETE: ProtoChangeKind.DELETE,
   INSERT: ProtoChangeKind.INSERT,
   OVERWRITE: ProtoChangeKind.OVERWRITE,
+  TRANSFORM: ProtoChangeKind.TRANSFORM,
 } as const
 
 export interface IEditStats {
