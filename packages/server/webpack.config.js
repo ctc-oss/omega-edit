@@ -104,7 +104,7 @@ function findTransformPluginDirectory(platformId) {
   ].filter(Boolean)
 
   for (const candidate of candidates) {
-    const platformCandidate = platformId ? path.join(candidate, platformId) : ''
+    const platformCandidate = path.join(candidate, platformId)
     if (directoryHasTransformPlugin(platformCandidate)) {
       return platformCandidate
     }
