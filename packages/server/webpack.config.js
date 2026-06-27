@@ -27,6 +27,47 @@ const serverBinaryName = isWin
   ? 'omega-edit-grpc-server.exe'
   : 'omega-edit-grpc-server'
 
+function getTransformPluginPlatformId() {
+  const arch = process.arch
+  if (process.platform === 'linux' && (arch === 'x64' || arch === 'arm64')) {
+    return `linux-${arch}`
+  }
+  if (process.platform === 'darwin' && (arch === 'x64' || arch === 'arm64')) {
+    return `macos-${arch}`
+  }
+  if (process.platform === 'win32' && arch === 'x64') {
+    return 'windows-x64'
+  }
+  return null
+}
+
+function getTransformPluginExtensions() {
+  if (process.platform === 'win32') return ['.dll']
+  if (process.platform === 'darwin') return ['.dylib', '.so']
+  return ['.so']
+}
+
+function directoryHasTransformPlugin(directory) {
+  if (!directory || !fs.existsSync(directory)) return false
+  if (!fs.statSync(directory).isDirectory()) return false
+
+  const extensions = getTransformPluginExtensions()
+  return fs
+    .readdirSync(directory)
+    .some(
+      (file) =>
+        file.startsWith('omega_transform_') &&
+        extensions.some((extension) => file.endsWith(extension))
+    )
+}
+
+function splitPathList(value) {
+  return (value || '')
+    .split(path.delimiter)
+    .map((directory) => directory.trim())
+    .filter(Boolean)
+}
+
 // Look for the C++ server binary in several possible locations
 function findServerBinary() {
   const searchPaths = [
@@ -44,6 +85,76 @@ function findServerBinary() {
     if (fs.existsSync(p)) return p
   }
   return null
+}
+
+function findTransformPluginDirectory(platformId) {
+  const candidates = [
+    ...splitPathList(process.env.OMEGA_EDIT_TRANSFORM_PLUGIN_DIRS),
+    ...splitPathList(process.env.OMEGA_EDIT_TRANSFORM_PLUGINS_DIR),
+    ...splitPathList(process.env.OMEGA_EDIT_TEST_PLUGIN_DIR),
+    path.resolve('../../.codex-tmp/native-core-build/core/src/tests/plugins'),
+    path.resolve('../../_build_core/plugins/plugins'),
+    path.resolve('../../_build_core/core/src/tests/plugins'),
+    path.resolve('../../_build/plugins/plugins'),
+    path.resolve('../../build/core/src/tests/plugins'),
+    path.resolve('../../build-coverage/core/src/tests/plugins'),
+    path.resolve('../../build-shared-Debug/core/src/tests/plugins'),
+    path.resolve('../../build-shared-Release/core/src/tests/plugins'),
+    path.resolve('../../build-shared-RelWithDebInfo/core/src/tests/plugins'),
+  ].filter(Boolean)
+
+  for (const candidate of candidates) {
+    const platformCandidate = path.join(candidate, platformId)
+    if (directoryHasTransformPlugin(platformCandidate)) {
+      return platformCandidate
+    }
+    if (directoryHasTransformPlugin(candidate)) {
+      return candidate
+    }
+  }
+  return null
+}
+
+function copyTransformPlugins(outputPath) {
+  const platformId = getTransformPluginPlatformId()
+  if (!platformId) return
+
+  const sourceDir = findTransformPluginDirectory(platformId)
+  if (!sourceDir) {
+    const message =
+      'Transform plugin binaries not found. Set OMEGA_EDIT_TRANSFORM_PLUGINS_DIR or build the plugins first.'
+    if (process.env.CI) {
+      throw new Error(message)
+    }
+    console.warn(`WARNING: ${message}`)
+    return
+  }
+
+  const extensions = getTransformPluginExtensions()
+  const destDir = path.resolve(outputPath, 'transform-plugins', platformId)
+  fs.rmSync(destDir, { recursive: true, force: true })
+  fs.mkdirSync(destDir, { recursive: true })
+
+  const plugins = fs
+    .readdirSync(sourceDir)
+    .filter(
+      (file) =>
+        file.startsWith('omega_transform_') &&
+        extensions.some((extension) => file.endsWith(extension))
+    )
+    .sort()
+
+  for (const plugin of plugins) {
+    const src = path.join(sourceDir, plugin)
+    const dest = path.join(destDir, plugin)
+    fs.copyFileSync(src, dest)
+    if (!plugin.endsWith('.dll')) {
+      fs.chmodSync(dest, 0o755)
+    }
+  }
+  console.log(
+    `Copied ${plugins.length} transform plugin(s): ${sourceDir} -> ${destDir}`
+  )
 }
 
 // Find the omega_edit shared library
@@ -196,6 +307,7 @@ module.exports = {
           }
           // NOTE: shared library is optional; when the C++ server is statically
           // linked against the core library, no shared lib is needed at runtime.
+          copyTransformPlugins(compiler.options.output.path)
         })
       },
     },

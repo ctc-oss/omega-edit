@@ -123,6 +123,141 @@ function getPlatformBinaryName(): string {
   return `omega-edit-grpc-server-${platformStr}${ext}`
 }
 
+function getTransformPluginPlatformId(): string | undefined {
+  const platform = os.platform()
+  const arch = os.arch()
+
+  if (platform === 'linux' && (arch === 'x64' || arch === 'arm64')) {
+    return `linux-${arch}`
+  }
+  if (platform === 'darwin' && (arch === 'x64' || arch === 'arm64')) {
+    return `macos-${arch}`
+  }
+  if (platform === 'win32' && arch === 'x64') {
+    return 'windows-x64'
+  }
+  return undefined
+}
+
+function getTransformPluginExtensions(): string[] {
+  if (os.platform() === 'win32') return ['.dll']
+  if (os.platform() === 'darwin') return ['.dylib', '.so']
+  return ['.so']
+}
+
+function directoryExists(directory: string): boolean {
+  try {
+    return fs.statSync(directory).isDirectory()
+  } catch {
+    return false
+  }
+}
+
+function directoryHasTransformPlugin(directory: string): boolean {
+  if (!directoryExists(directory)) return false
+
+  const extensions = getTransformPluginExtensions()
+  return fs.readdirSync(directory).some((file) => {
+    return (
+      file.startsWith('omega_transform_') &&
+      extensions.some((extension) => file.endsWith(extension))
+    )
+  })
+}
+
+function normalizeWindowsPath(directory: string): string {
+  if (os.platform() !== 'win32') return directory
+
+  const msysPath = directory.match(/^\/([a-zA-Z])\/(.*)$/)
+  return msysPath
+    ? `${msysPath[1]}:\\${msysPath[2].replace(/\//g, '\\')}`
+    : directory
+}
+
+function splitPathList(value: string | undefined): string[] {
+  return (value ?? '')
+    .split(path.delimiter)
+    .map((directory) => normalizeWindowsPath(directory.trim()))
+    .filter(Boolean)
+}
+
+function findRepositoryRoot(startDir: string): string {
+  const candidates = [
+    path.resolve(startDir, '..'),
+    path.resolve(startDir, '..', '..'),
+    path.resolve(startDir, '..', '..', '..'),
+  ]
+
+  return (
+    candidates.find(
+      (candidate) =>
+        directoryExists(path.join(candidate, 'packages', 'server')) &&
+        directoryExists(path.join(candidate, 'server', 'cpp'))
+    ) ?? path.resolve(startDir, '..')
+  )
+}
+
+function getDefaultTransformPluginDirectories(binDir: string): string[] {
+  const platformId = getTransformPluginPlatformId()
+  const outDir = path.dirname(binDir)
+  const repoRoot = findRepositoryRoot(outDir)
+  const envCandidates = [
+    ...splitPathList(process.env.OMEGA_EDIT_TRANSFORM_PLUGIN_DIRS),
+    ...splitPathList(process.env.OMEGA_EDIT_TRANSFORM_PLUGINS_DIR),
+    ...splitPathList(process.env.OMEGA_EDIT_TEST_PLUGIN_DIR),
+  ]
+  const candidates = [
+    ...envCandidates,
+    platformId ? path.join(outDir, 'transform-plugins', platformId) : '',
+    path.join(
+      repoRoot,
+      '.codex-tmp',
+      'native-core-build',
+      'core',
+      'src',
+      'tests',
+      'plugins'
+    ),
+    path.join(repoRoot, '_build_core', 'plugins', 'plugins'),
+    path.join(repoRoot, '_build_core', 'core', 'src', 'tests', 'plugins'),
+    path.join(repoRoot, '_build', 'plugins', 'plugins'),
+    path.join(repoRoot, 'build', 'core', 'src', 'tests', 'plugins'),
+    path.join(repoRoot, 'build-coverage', 'core', 'src', 'tests', 'plugins'),
+    path.join(
+      repoRoot,
+      'build-shared-Debug',
+      'core',
+      'src',
+      'tests',
+      'plugins'
+    ),
+    path.join(
+      repoRoot,
+      'build-shared-Release',
+      'core',
+      'src',
+      'tests',
+      'plugins'
+    ),
+    path.join(
+      repoRoot,
+      'build-shared-RelWithDebInfo',
+      'core',
+      'src',
+      'tests',
+      'plugins'
+    ),
+  ].filter(Boolean)
+
+  const expandedCandidates = candidates.flatMap((candidate) =>
+    platformId ? [path.join(candidate, platformId), candidate] : [candidate]
+  )
+
+  return Array.from(new Set(expandedCandidates)).filter(
+    directoryHasTransformPlugin
+  )
+}
+
 /**
  * Find the C++ server binary path.
  * First checks the CPP_SERVER_BINARY environment variable for a local dev override.
@@ -200,44 +335,56 @@ function findServerBinary(binDir: string): string {
 /**
  * Convert HeartbeatOptions to native CLI flags understood by the C++ server.
  */
-function heartbeatToArgs(opts?: HeartbeatOptions): string[] {
-  if (!opts) return []
+function heartbeatToArgs(
+  opts?: HeartbeatOptions,
+  defaultTransformPluginDirectories: string[] = []
+): string[] {
+  if (!opts && defaultTransformPluginDirectories.length === 0) return []
   const args: string[] = []
-  if (opts.sessionTimeoutMs !== undefined) {
+  if (opts?.sessionTimeoutMs !== undefined) {
     args.push(`--session-timeout=${opts.sessionTimeoutMs}`)
   }
-  if (opts.cleanupIntervalMs !== undefined) {
+  if (opts?.cleanupIntervalMs !== undefined) {
     args.push(`--cleanup-interval=${opts.cleanupIntervalMs}`)
   }
-  if (opts.shutdownWhenNoSessions) {
+  if (opts?.shutdownWhenNoSessions) {
     args.push('--shutdown-when-no-sessions')
   }
-  if (opts.sessionEventQueueCapacity !== undefined) {
+  if (opts?.sessionEventQueueCapacity !== undefined) {
     args.push(
       `--session-event-queue-capacity=${opts.sessionEventQueueCapacity}`
     )
   }
-  if (opts.viewportEventQueueCapacity !== undefined) {
+  if (opts?.viewportEventQueueCapacity !== undefined) {
     args.push(
       `--viewport-event-queue-capacity=${opts.viewportEventQueueCapacity}`
     )
   }
-  if (opts.maxChangeBytes !== undefined) {
+  if (opts?.maxChangeBytes !== undefined) {
     args.push(`--max-change-bytes=${opts.maxChangeBytes}`)
   }
-  if (opts.maxViewportsPerSession !== undefined) {
+  if (opts?.maxViewportsPerSession !== undefined) {
     args.push(`--max-viewports-per-session=${opts.maxViewportsPerSession}`)
   }
-  if (opts.logConfigFile !== undefined) {
+  if (opts?.logConfigFile !== undefined) {
     args.push(`--log-config=${opts.logConfigFile}`)
   }
-  if (opts.logFile !== undefined) {
+  if (opts?.logFile !== undefined) {
     args.push(`--log-file=${opts.logFile}`)
   }
-  if (opts.logLevel !== undefined) {
+  if (opts?.logLevel !== undefined) {
     args.push(`--log-level=${opts.logLevel}`)
   }
-  for (const directory of opts.transformPluginDirectories ?? []) {
+  const configuredTransformPluginDirectories =
+    opts?.transformPluginDirectories?.filter(
+      (directory) =>
+        typeof directory === 'string' && directory.trim().length > 0
+    ) ?? []
+  const transformPluginDirectories =
+    configuredTransformPluginDirectories.length > 0
+      ? configuredTransformPluginDirectories
+      : defaultTransformPluginDirectories
+  for (const directory of transformPluginDirectories) {
     args.push(`--transform-plugin-dir=${directory}`)
   }
   return args
@@ -255,8 +402,13 @@ async function executeServer(
 ): Promise<ChildProcess> {
   const binDir = getBinFolderPath(path.resolve(__dirname))
   const serverBinary = findServerBinary(binDir)
+  const defaultTransformPluginDirectories =
+    getDefaultTransformPluginDirectories(binDir)
 
-  const serverArgs = [...args, ...heartbeatToArgs(heartbeat)]
+  const serverArgs = [
+    ...args,
+    ...heartbeatToArgs(heartbeat, defaultTransformPluginDirectories),
+  ]
 
   if (!serverBinary.endsWith('.exe')) {
     fs.chmodSync(serverBinary, 0o755)

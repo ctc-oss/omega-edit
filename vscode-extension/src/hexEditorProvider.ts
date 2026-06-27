@@ -31,6 +31,7 @@ import {
   ALL_EVENTS,
   applyTransformPlugin,
   ChangeKind,
+  checkSessionModel,
   clear,
   countCharacters,
   CountKind,
@@ -52,6 +53,7 @@ import {
   getLanguage,
   getSegment,
   getServerInfo,
+  getSessionFingerprint,
   getViewportData,
   IOFlags,
   SaveStatus,
@@ -66,6 +68,7 @@ import {
   redo,
   runSessionTransaction,
   saveSession,
+  SessionFingerprintContent,
   SessionEventKind,
   startServerHeartbeatLoop,
   type TransformProgress,
@@ -144,6 +147,27 @@ interface AnalysisProfileRequest {
   isCapped: boolean
 }
 
+interface CollectedChangeLogRecords {
+  changes: ChangeRecord[]
+  unavailableChangeSerials: number[]
+}
+
+interface ChangeLogDigest {
+  algorithm: string
+  value: string
+}
+
+interface ChangeLogFingerprint {
+  byteLength: number
+  digest: ChangeLogDigest
+}
+
+interface ParsedChangeLog {
+  changes: ChangeRecord[]
+  before?: ChangeLogFingerprint
+  after?: ChangeLogFingerprint
+}
+
 const SESSION_SYNC_TIMEOUT_MS = 2000
 const VIEWPORT_BUFFER_BYTES = 8 * 1024
 const SERVER_HEALTH_WARN_LATENCY_MS = 75
@@ -154,7 +178,8 @@ const MAX_FILE_SPLICE_BYTES = 32 * 1024 * 1024
 const MAX_CHANGE_LOG_BYTES = MAX_FILE_SPLICE_BYTES * 3
 const MAX_CHANGE_LOG_ENTRIES = 100_000
 const CHANGE_LOG_FORMAT = 'omega-edit.change-log'
-const CHANGE_LOG_VERSION = 1
+const CHANGE_LOG_VERSION = 2
+const DEFAULT_CHANGE_LOG_DIGEST_ALGORITHM = 'sha256'
 const GRPC_NOT_FOUND = 5
 const CONTEXT_HEX_EDITOR_ACTIVE = 'omegaEdit.hexEditorActive'
 const CONTEXT_CAN_UNDO = 'omegaEdit.canUndo'
@@ -738,8 +763,9 @@ async function collectChangeLogRecords(
   sessionId: string,
   sourceChangeCount: number,
   onProgress?: (processedSerial: number) => void
-): Promise<ChangeRecord[]> {
+): Promise<CollectedChangeLogRecords> {
   const changes: ChangeRecord[] = []
+  const unavailableChangeSerials: number[] = []
   for (let serial = 1; serial <= sourceChangeCount; serial += 1) {
     try {
       changes.push(
@@ -749,11 +775,12 @@ async function collectChangeLogRecords(
       if (!isMissingChangeDetailsError(error)) {
         throw error
       }
+      unavailableChangeSerials.push(serial)
     } finally {
       onProgress?.(serial)
     }
   }
-  return changes
+  return { changes, unavailableChangeSerials }
 }
 
 async function rollbackSessionToChangeCount(
@@ -980,7 +1007,208 @@ function validateChangeRecordMetadata(
   }
 }
 
-function parseChangeLog(content: Uint8Array): ChangeRecord[] {
+function readChangeLogDocumentCount(
+  document: Record<string, unknown>,
+  key: string
+): number {
+  const value = safeNonNegativeInteger(document[key])
+  if (value === undefined) {
+    throw new Error(`Change log ${key} must be a non-negative safe integer`)
+  }
+  return value
+}
+
+function normalizeUnavailableChangeSerials(
+  value: unknown,
+  sourceChangeCount: number
+): number[] {
+  if (!Array.isArray(value)) {
+    throw new Error('Change log unavailableChangeSerials must be an array')
+  }
+
+  const seen = new Set<number>()
+  return value.map((serial, index) => {
+    const serialNumber = typeof serial === 'number' ? serial : Number.NaN
+    if (!Number.isSafeInteger(serialNumber) || serialNumber <= 0) {
+      throw new Error(
+        `Change log unavailableChangeSerials[${index}] must be a positive safe integer`
+      )
+    }
+    if (serialNumber > sourceChangeCount) {
+      throw new Error(
+        `Change log unavailableChangeSerials[${index}] exceeds sourceChangeCount`
+      )
+    }
+    if (seen.has(serialNumber)) {
+      throw new Error(
+        `Change log unavailableChangeSerials[${index}] duplicates serial ${serialNumber}`
+      )
+    }
+    seen.add(serialNumber)
+    return serialNumber
+  })
+}
+
+function normalizeChangeLogFingerprint(
+  value: unknown,
+  key: 'before' | 'after'
+): ChangeLogFingerprint {
+  if (!isRecord(value)) {
+    throw new Error(`Change log ${key} fingerprint must be an object`)
+  }
+
+  const byteLength = safeNonNegativeInteger(value.byteLength)
+  if (byteLength === undefined) {
+    throw new Error(
+      `Change log ${key}.byteLength must be a non-negative safe integer`
+    )
+  }
+
+  if (!isRecord(value.digest)) {
+    throw new Error(`Change log ${key}.digest must be an object`)
+  }
+
+  const algorithm = value.digest.algorithm
+  if (typeof algorithm !== 'string' || !algorithm.trim()) {
+    throw new Error(`Change log ${key}.digest.algorithm must be a string`)
+  }
+
+  const digestValue = value.digest.value
+  if (typeof digestValue !== 'string' || !digestValue.trim()) {
+    throw new Error(`Change log ${key}.digest.value must be a string`)
+  }
+
+  return {
+    byteLength,
+    digest: {
+      algorithm: algorithm.trim().toLowerCase(),
+      value: digestValue.trim().toLowerCase(),
+    },
+  }
+}
+
+function describeUnavailableSerials(serials: number[]): string {
+  const preview = serials.slice(0, 10).join(', ')
+  const suffix = serials.length > 10 ? ', ...' : ''
+  return preview ? ` (serials: ${preview}${suffix})` : ''
+}
+
+function assertCompleteChangeLog(
+  action: 'export' | 'apply',
+  unavailableChangeSerials: number[]
+): void {
+  if (unavailableChangeSerials.length === 0) {
+    return
+  }
+
+  throw new Error(
+    `${
+      action === 'export'
+        ? 'Change log export is incomplete: the server no longer has details for every reported change'
+        : 'Change log is incomplete: unavailable change details cannot be replayed safely'
+    }${describeUnavailableSerials(unavailableChangeSerials)}`
+  )
+}
+
+async function getChangeLogFingerprint(
+  sessionId: string,
+  content: SessionFingerprintContent,
+  algorithm = DEFAULT_CHANGE_LOG_DIGEST_ALGORITHM
+): Promise<ChangeLogFingerprint> {
+  const response = await getSessionFingerprint(sessionId, content, algorithm)
+  if (!response.fingerprint?.digest) {
+    throw new Error('Server fingerprint response is missing digest metadata')
+  }
+
+  return {
+    byteLength: response.fingerprint.byteLength,
+    digest: {
+      algorithm: response.fingerprint.digest.algorithm.toLowerCase(),
+      value: response.fingerprint.digest.value.toLowerCase(),
+    },
+  }
+}
+
+function fingerprintLabel(fingerprint: ChangeLogFingerprint): string {
+  return `${fingerprint.byteLength} bytes ${fingerprint.digest.algorithm}:${fingerprint.digest.value}`
+}
+
+function fingerprintsMatch(
+  actual: ChangeLogFingerprint,
+  expected: ChangeLogFingerprint
+): boolean {
+  return (
+    actual.byteLength === expected.byteLength &&
+    actual.digest.algorithm === expected.digest.algorithm &&
+    actual.digest.value === expected.digest.value
+  )
+}
+
+async function assertCurrentSessionFingerprint(
+  sessionId: string,
+  expected: ChangeLogFingerprint,
+  phase: 'before' | 'after'
+): Promise<void> {
+  const actual = await getChangeLogFingerprint(
+    sessionId,
+    SessionFingerprintContent.COMPUTED,
+    expected.digest.algorithm
+  )
+  if (fingerprintsMatch(actual, expected)) {
+    return
+  }
+
+  const preposition = phase === 'before' ? 'before applying' : 'after applying'
+  throw new Error(
+    `Change log ${phase} fingerprint mismatch ${preposition}: expected ${fingerprintLabel(
+      expected
+    )}, actual ${fingerprintLabel(actual)}`
+  )
+}
+
+function validateChangeLogDocumentMetadata(
+  document: Record<string, unknown>,
+  changes: ChangeRecord[]
+): void {
+  if (typeof document.complete !== 'boolean') {
+    throw new Error('Change log complete must be a boolean')
+  }
+
+  const changeCount = readChangeLogDocumentCount(document, 'changeCount')
+  const sourceChangeCount = readChangeLogDocumentCount(
+    document,
+    'sourceChangeCount'
+  )
+  const unavailableChangeCount = readChangeLogDocumentCount(
+    document,
+    'unavailableChangeCount'
+  )
+  if (changeCount !== changes.length) {
+    throw new Error('Change log changeCount must match changes length')
+  }
+  if (sourceChangeCount < changeCount) {
+    throw new Error('Change log sourceChangeCount must cover changeCount')
+  }
+
+  const unavailableChangeSerials = normalizeUnavailableChangeSerials(
+    document.unavailableChangeSerials,
+    sourceChangeCount
+  )
+  if (unavailableChangeCount !== unavailableChangeSerials.length) {
+    throw new Error(
+      'Change log unavailableChangeCount must match unavailableChangeSerials length'
+    )
+  }
+  if (document.complete !== (unavailableChangeCount === 0)) {
+    throw new Error(
+      'Change log complete must match unavailable change metadata'
+    )
+  }
+
+  assertCompleteChangeLog('apply', unavailableChangeSerials)
+}
+
+function parseChangeLog(content: Uint8Array): ParsedChangeLog {
   if (content.byteLength > MAX_CHANGE_LOG_BYTES) {
     throw new Error(
       `Change log is too large (${content.byteLength.toLocaleString()} bytes)`
@@ -996,20 +1224,22 @@ function parseChangeLog(content: Uint8Array): ChangeRecord[] {
   }
 
   let entries: unknown[] | undefined
-  if (Array.isArray(parsed)) {
-    entries = parsed
-  } else if (isRecord(parsed)) {
+  let document: Record<string, unknown> | undefined
+  if (isRecord(parsed)) {
     if (parsed.format !== CHANGE_LOG_FORMAT) {
       throw new Error('Unsupported change log format')
     }
     if (parsed.version !== CHANGE_LOG_VERSION) {
       throw new Error('Unsupported change log version')
     }
+    document = parsed
     entries = Array.isArray(parsed.changes) ? parsed.changes : undefined
   }
 
   if (!entries) {
-    throw new Error('Change log must be a JSON array or an object with changes')
+    throw new Error(
+      'Change log must be a versioned omega-edit.change-log document'
+    )
   }
   if (entries.length > MAX_CHANGE_LOG_ENTRIES) {
     throw new Error(
@@ -1025,7 +1255,15 @@ function parseChangeLog(content: Uint8Array): ChangeRecord[] {
     return change
   })
   validateChangeRecordMetadata(changes, entries)
-  return changes
+  if (document) {
+    validateChangeLogDocumentMetadata(document, changes)
+    return {
+      changes,
+      before: normalizeChangeLogFingerprint(document.before, 'before'),
+      after: normalizeChangeLogFingerprint(document.after, 'after'),
+    }
+  }
+  return { changes }
 }
 
 function backupIdToFilePath(backupId: string | undefined): string | undefined {
@@ -1727,7 +1965,11 @@ export class HexEditorProvider
         uri?: vscode.Uri
         changeCount: number
         sourceChangeCount?: number
-        foldedChangeCount?: number
+        complete?: boolean
+        before?: ChangeLogFingerprint
+        after?: ChangeLogFingerprint
+        unavailableChangeCount?: number
+        unavailableChangeSerials?: number[]
         cancelled?: boolean
       }
     | undefined
@@ -1738,6 +1980,20 @@ export class HexEditorProvider
       return
     }
 
+    const modelCheck = await checkSessionModel(session.sessionId)
+    if (!modelCheck.valid) {
+      throw new Error(
+        vscode.l10n.t(
+          'Change log export refused: OmegaEdit model integrity check failed with status {status}.',
+          { status: modelCheck.status }
+        )
+      )
+    }
+
+    const before = await getChangeLogFingerprint(
+      session.sessionId,
+      SessionFingerprintContent.ORIGINAL
+    )
     const sourceChangeCount = await getChangeCount(session.sessionId)
     const scriptUri =
       parseCommandOptionUri(options, 'targetUri') ??
@@ -1778,8 +2034,9 @@ export class HexEditorProvider
     }
 
     let changes: ChangeRecord[] = []
+    let unavailableChangeSerials: number[] = []
     if (sourceChangeCount > 0) {
-      changes = await vscode.window.withProgress(
+      const collected = await vscode.window.withProgress(
         {
           location: vscode.ProgressLocation.Notification,
           title: vscode.l10n.t('Exporting {count} change log entries…', {
@@ -1807,18 +2064,30 @@ export class HexEditorProvider
           )
         }
       )
+      changes = collected.changes
+      unavailableChangeSerials = collected.unavailableChangeSerials
     }
+    assertCompleteChangeLog('export', unavailableChangeSerials)
+    const after = await getChangeLogFingerprint(
+      session.sessionId,
+      SessionFingerprintContent.COMPUTED,
+      before.digest.algorithm
+    )
     const changeCount = changes.length
-    const foldedChangeCount = sourceChangeCount - changeCount
+    const unavailableChangeCount = unavailableChangeSerials.length
 
     const content = Buffer.from(
       JSON.stringify(
         {
           format: CHANGE_LOG_FORMAT,
           version: CHANGE_LOG_VERSION,
+          complete: unavailableChangeCount === 0,
+          before,
+          after,
           changeCount,
           sourceChangeCount,
-          foldedChangeCount,
+          unavailableChangeCount,
+          unavailableChangeSerials,
           changes,
         },
         null,
@@ -1844,7 +2113,11 @@ export class HexEditorProvider
       uri: scriptUri,
       changeCount,
       sourceChangeCount,
-      foldedChangeCount,
+      complete: unavailableChangeCount === 0,
+      before,
+      after,
+      unavailableChangeCount,
+      unavailableChangeSerials,
     }
   }
 
@@ -1854,7 +2127,6 @@ export class HexEditorProvider
         uri?: vscode.Uri
         changeCount: number
         sourceChangeCount?: number
-        foldedChangeCount?: number
         cancelled?: boolean
       }
     | undefined
@@ -1894,9 +2166,9 @@ export class HexEditorProvider
     }
 
     const content = await vscode.workspace.fs.readFile(scriptUri)
-    let changes: ChangeRecord[]
+    let parsed: ParsedChangeLog
     try {
-      changes = parseChangeLog(content)
+      parsed = parseChangeLog(content)
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error)
       this.postSessionActionComplete(session, {
@@ -1917,6 +2189,15 @@ export class HexEditorProvider
         cancelled: true,
       }
     }
+    const { changes } = parsed
+    if (parsed.before) {
+      await assertCurrentSessionFingerprint(
+        session.sessionId,
+        parsed.before,
+        'before'
+      )
+    }
+
     let appliedChangeCount = 0
     await vscode.window.withProgress(
       {
@@ -1927,7 +2208,11 @@ export class HexEditorProvider
         cancellable: false,
       },
       async () => {
-        appliedChangeCount = await this.applyChangeLogEntries(session, changes)
+        appliedChangeCount = await this.applyChangeLogEntries(
+          session,
+          changes,
+          parsed.after
+        )
       }
     )
     this.postSessionActionComplete(session, {
@@ -3670,12 +3955,13 @@ export class HexEditorProvider
 
   private async applyChangeLogEntries(
     session: EditorSession,
-    changes: ChangeRecord[]
+    changes: ChangeRecord[],
+    expectedAfter?: ChangeLogFingerprint
   ): Promise<number> {
     if (!this.ensureSessionCanMutate(session, true)) {
       return 0
     }
-    if (changes.length === 0) {
+    if (changes.length === 0 && !expectedAfter) {
       return 0
     }
 
@@ -3716,15 +4002,24 @@ export class HexEditorProvider
     }
 
     try {
-      for (const change of changes) {
-        if (change.kind === 'TRANSFORM') {
-          await flushBatch()
-          await applyOne(change)
-        } else {
-          pendingBatch.push(change)
+      if (changes.length > 0) {
+        for (const change of changes) {
+          if (change.kind === 'TRANSFORM') {
+            await flushBatch()
+            await applyOne(change)
+          } else {
+            pendingBatch.push(change)
+          }
         }
+        await flushBatch()
       }
-      await flushBatch()
+      if (expectedAfter) {
+        await assertCurrentSessionFingerprint(
+          session.sessionId,
+          expectedAfter,
+          'after'
+        )
+      }
     } catch (error) {
       try {
         const rolledBack = await rollbackSessionToChangeCount(

@@ -815,19 +815,19 @@ export interface GetChangeDetailsRequest {
   /**
    * @generated from protobuf field: omega_edit.v1.SessionEventKind session_event_kind = 2
    */
-  sessionEventKind: SessionEventKind // Event kind.
+  sessionEventKind: SessionEventKind // Compatibility field; ignored by the server.
   /**
    * @generated from protobuf field: int64 computed_file_size = 3
    */
-  computedFileSize: number // Computed file size after the event.
+  computedFileSize: number // Compatibility field; ignored by the server.
   /**
    * @generated from protobuf field: int64 change_count = 4
    */
-  changeCount: number // Change count after the event.
+  changeCount: number // Compatibility field; ignored by the server.
   /**
    * @generated from protobuf field: int64 undo_count = 5
    */
-  undoCount: number // Undo count after the event.
+  undoCount: number // Compatibility field; ignored by the server.
   /**
    * @generated from protobuf field: optional int64 serial = 6
    */
@@ -1193,6 +1193,104 @@ export interface GetCountResponse {
    * @generated from protobuf field: repeated omega_edit.v1.SingleCount counts = 2
    */
   counts: SingleCount[]
+}
+/**
+ * Request to run the native model-integrity check for a session.
+ *
+ * @generated from protobuf message omega_edit.v1.CheckSessionModelRequest
+ */
+export interface CheckSessionModelRequest {
+  /**
+   * @generated from protobuf field: string session_id = 1
+   */
+  sessionId: string // Session to check.
+}
+/**
+ * Result of the native model-integrity check.
+ *
+ * @generated from protobuf message omega_edit.v1.CheckSessionModelResponse
+ */
+export interface CheckSessionModelResponse {
+  /**
+   * @generated from protobuf field: string session_id = 1
+   */
+  sessionId: string // Session that was checked.
+  /**
+   * @generated from protobuf field: bool valid = 2
+   */
+  valid: boolean // True when omega_check_model returned 0.
+  /**
+   * @generated from protobuf field: int32 status = 3
+   */
+  status: number // Raw omega_check_model return code.
+}
+/**
+ * Digest metadata for a content fingerprint.
+ *
+ * @generated from protobuf message omega_edit.v1.ContentDigest
+ */
+export interface ContentDigest {
+  /**
+   * @generated from protobuf field: string algorithm = 1
+   */
+  algorithm: string // Digest algorithm identifier, e.g. "sha256".
+  /**
+   * @generated from protobuf field: string value = 2
+   */
+  value: string // Lowercase hexadecimal digest value.
+}
+/**
+ * Size and digest for a session content snapshot.
+ *
+ * @generated from protobuf message omega_edit.v1.SessionContentFingerprint
+ */
+export interface SessionContentFingerprint {
+  /**
+   * @generated from protobuf field: int64 byte_length = 1
+   */
+  byteLength: number // Content size in bytes.
+  /**
+   * @generated from protobuf field: omega_edit.v1.ContentDigest digest = 2
+   */
+  digest?: ContentDigest // Digest of the content bytes.
+}
+/**
+ * Request a server-side fingerprint for original or computed session content.
+ *
+ * @generated from protobuf message omega_edit.v1.GetSessionFingerprintRequest
+ */
+export interface GetSessionFingerprintRequest {
+  /**
+   * @generated from protobuf field: string session_id = 1
+   */
+  sessionId: string // Session to fingerprint.
+  /**
+   * @generated from protobuf field: omega_edit.v1.SessionFingerprintContent content = 2
+   */
+  content: SessionFingerprintContent // Original or computed content.
+  /**
+   * @generated from protobuf field: optional string algorithm = 3
+   */
+  algorithm?: string // Digest algorithm; defaults to "sha256".
+}
+/**
+ * Server-side content fingerprint result.
+ *
+ * @generated from protobuf message omega_edit.v1.GetSessionFingerprintResponse
+ */
+export interface GetSessionFingerprintResponse {
+  /**
+   * @generated from protobuf field: string session_id = 1
+   */
+  sessionId: string // Session that was fingerprinted.
+  /**
+   * @generated from protobuf field: omega_edit.v1.SessionFingerprintContent content = 2
+   */
+  content: SessionFingerprintContent // Content that was fingerprinted.
+  /**
+   * @generated from protobuf field: omega_edit.v1.SessionContentFingerprint fingerprint = 3
+   */
+  fingerprint?: SessionContentFingerprint // Size and digest.
 }
 /**
  * Request the total number of active sessions.
@@ -2354,6 +2452,29 @@ export enum ServerControlStatus {
    * @generated from protobuf enum value: SERVER_CONTROL_STATUS_DRAINING = 2;
    */
   DRAINING = 2,
+}
+/**
+ * Which session content should be fingerprinted.
+ *
+ * @generated from protobuf enum omega_edit.v1.SessionFingerprintContent
+ */
+export enum SessionFingerprintContent {
+  /**
+   * @generated from protobuf enum value: SESSION_FINGERPRINT_CONTENT_UNSPECIFIED = 0;
+   */
+  UNSPECIFIED = 0,
+  /**
+   * Content captured when the session was created.
+   *
+   * @generated from protobuf enum value: SESSION_FINGERPRINT_CONTENT_ORIGINAL = 1;
+   */
+  ORIGINAL = 1,
+  /**
+   * Current logical content after edits.
+   *
+   * @generated from protobuf enum value: SESSION_FINGERPRINT_CONTENT_COMPUTED = 2;
+   */
+  COMPUTED = 2,
 }
 /**
  * Transform plugin operation mode.
@@ -8265,6 +8386,550 @@ class GetCountResponse$Type extends MessageType<GetCountResponse> {
  */
 export const GetCountResponse = new GetCountResponse$Type()
 // @generated message type with reflection information, may provide speed optimized methods
+class CheckSessionModelRequest$Type extends MessageType<CheckSessionModelRequest> {
+  constructor() {
+    super('omega_edit.v1.CheckSessionModelRequest', [
+      { no: 1, name: 'session_id', kind: 'scalar', T: 9 /*ScalarType.STRING*/ },
+    ])
+  }
+  create(
+    value?: PartialMessage<CheckSessionModelRequest>
+  ): CheckSessionModelRequest {
+    const message = globalThis.Object.create(this.messagePrototype!)
+    message.sessionId = ''
+    if (value !== undefined)
+      reflectionMergePartial<CheckSessionModelRequest>(this, message, value)
+    return message
+  }
+  internalBinaryRead(
+    reader: IBinaryReader,
+    length: number,
+    options: BinaryReadOptions,
+    target?: CheckSessionModelRequest
+  ): CheckSessionModelRequest {
+    let message = target ?? this.create(),
+      end = reader.pos + length
+    while (reader.pos < end) {
+      let [fieldNo, wireType] = reader.tag()
+      switch (fieldNo) {
+        case /* string session_id */ 1:
+          message.sessionId = reader.string()
+          break
+        default:
+          let u = options.readUnknownField
+          if (u === 'throw')
+            throw new globalThis.Error(
+              `Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`
+            )
+          let d = reader.skip(wireType)
+          if (u !== false)
+            (u === true ? UnknownFieldHandler.onRead : u)(
+              this.typeName,
+              message,
+              fieldNo,
+              wireType,
+              d
+            )
+      }
+    }
+    return message
+  }
+  internalBinaryWrite(
+    message: CheckSessionModelRequest,
+    writer: IBinaryWriter,
+    options: BinaryWriteOptions
+  ): IBinaryWriter {
+    /* string session_id = 1; */
+    if (message.sessionId !== '')
+      writer.tag(1, WireType.LengthDelimited).string(message.sessionId)
+    let u = options.writeUnknownFields
+    if (u !== false)
+      (u == true ? UnknownFieldHandler.onWrite : u)(
+        this.typeName,
+        message,
+        writer
+      )
+    return writer
+  }
+}
+/**
+ * @generated MessageType for protobuf message omega_edit.v1.CheckSessionModelRequest
+ */
+export const CheckSessionModelRequest = new CheckSessionModelRequest$Type()
+// @generated message type with reflection information, may provide speed optimized methods
+class CheckSessionModelResponse$Type extends MessageType<CheckSessionModelResponse> {
+  constructor() {
+    super('omega_edit.v1.CheckSessionModelResponse', [
+      { no: 1, name: 'session_id', kind: 'scalar', T: 9 /*ScalarType.STRING*/ },
+      { no: 2, name: 'valid', kind: 'scalar', T: 8 /*ScalarType.BOOL*/ },
+      { no: 3, name: 'status', kind: 'scalar', T: 5 /*ScalarType.INT32*/ },
+    ])
+  }
+  create(
+    value?: PartialMessage<CheckSessionModelResponse>
+  ): CheckSessionModelResponse {
+    const message = globalThis.Object.create(this.messagePrototype!)
+    message.sessionId = ''
+    message.valid = false
+    message.status = 0
+    if (value !== undefined)
+      reflectionMergePartial<CheckSessionModelResponse>(this, message, value)
+    return message
+  }
+  internalBinaryRead(
+    reader: IBinaryReader,
+    length: number,
+    options: BinaryReadOptions,
+    target?: CheckSessionModelResponse
+  ): CheckSessionModelResponse {
+    let message = target ?? this.create(),
+      end = reader.pos + length
+    while (reader.pos < end) {
+      let [fieldNo, wireType] = reader.tag()
+      switch (fieldNo) {
+        case /* string session_id */ 1:
+          message.sessionId = reader.string()
+          break
+        case /* bool valid */ 2:
+          message.valid = reader.bool()
+          break
+        case /* int32 status */ 3:
+          message.status = reader.int32()
+          break
+        default:
+          let u = options.readUnknownField
+          if (u === 'throw')
+            throw new globalThis.Error(
+              `Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`
+            )
+          let d = reader.skip(wireType)
+          if (u !== false)
+            (u === true ? UnknownFieldHandler.onRead : u)(
+              this.typeName,
+              message,
+              fieldNo,
+              wireType,
+              d
+            )
+      }
+    }
+    return message
+  }
+  internalBinaryWrite(
+    message: CheckSessionModelResponse,
+    writer: IBinaryWriter,
+    options: BinaryWriteOptions
+  ): IBinaryWriter {
+    /* string session_id = 1; */
+    if (message.sessionId !== '')
+      writer.tag(1, WireType.LengthDelimited).string(message.sessionId)
+    /* bool valid = 2; */
+    if (message.valid !== false)
+      writer.tag(2, WireType.Varint).bool(message.valid)
+    /* int32 status = 3; */
+    if (message.status !== 0)
+      writer.tag(3, WireType.Varint).int32(message.status)
+    let u = options.writeUnknownFields
+    if (u !== false)
+      (u == true ? UnknownFieldHandler.onWrite : u)(
+        this.typeName,
+        message,
+        writer
+      )
+    return writer
+  }
+}
+/**
+ * @generated MessageType for protobuf message omega_edit.v1.CheckSessionModelResponse
+ */
+export const CheckSessionModelResponse = new CheckSessionModelResponse$Type()
+// @generated message type with reflection information, may provide speed optimized methods
+class ContentDigest$Type extends MessageType<ContentDigest> {
+  constructor() {
+    super('omega_edit.v1.ContentDigest', [
+      { no: 1, name: 'algorithm', kind: 'scalar', T: 9 /*ScalarType.STRING*/ },
+      { no: 2, name: 'value', kind: 'scalar', T: 9 /*ScalarType.STRING*/ },
+    ])
+  }
+  create(value?: PartialMessage<ContentDigest>): ContentDigest {
+    const message = globalThis.Object.create(this.messagePrototype!)
+    message.algorithm = ''
+    message.value = ''
+    if (value !== undefined)
+      reflectionMergePartial<ContentDigest>(this, message, value)
+    return message
+  }
+  internalBinaryRead(
+    reader: IBinaryReader,
+    length: number,
+    options: BinaryReadOptions,
+    target?: ContentDigest
+  ): ContentDigest {
+    let message = target ?? this.create(),
+      end = reader.pos + length
+    while (reader.pos < end) {
+      let [fieldNo, wireType] = reader.tag()
+      switch (fieldNo) {
+        case /* string algorithm */ 1:
+          message.algorithm = reader.string()
+          break
+        case /* string value */ 2:
+          message.value = reader.string()
+          break
+        default:
+          let u = options.readUnknownField
+          if (u === 'throw')
+            throw new globalThis.Error(
+              `Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`
+            )
+          let d = reader.skip(wireType)
+          if (u !== false)
+            (u === true ? UnknownFieldHandler.onRead : u)(
+              this.typeName,
+              message,
+              fieldNo,
+              wireType,
+              d
+            )
+      }
+    }
+    return message
+  }
+  internalBinaryWrite(
+    message: ContentDigest,
+    writer: IBinaryWriter,
+    options: BinaryWriteOptions
+  ): IBinaryWriter {
+    /* string algorithm = 1; */
+    if (message.algorithm !== '')
+      writer.tag(1, WireType.LengthDelimited).string(message.algorithm)
+    /* string value = 2; */
+    if (message.value !== '')
+      writer.tag(2, WireType.LengthDelimited).string(message.value)
+    let u = options.writeUnknownFields
+    if (u !== false)
+      (u == true ? UnknownFieldHandler.onWrite : u)(
+        this.typeName,
+        message,
+        writer
+      )
+    return writer
+  }
+}
+/**
+ * @generated MessageType for protobuf message omega_edit.v1.ContentDigest
+ */
+export const ContentDigest = new ContentDigest$Type()
+// @generated message type with reflection information, may provide speed optimized methods
+class SessionContentFingerprint$Type extends MessageType<SessionContentFingerprint> {
+  constructor() {
+    super('omega_edit.v1.SessionContentFingerprint', [
+      {
+        no: 1,
+        name: 'byte_length',
+        kind: 'scalar',
+        T: 3 /*ScalarType.INT64*/,
+        L: 2 /*LongType.NUMBER*/,
+      },
+      { no: 2, name: 'digest', kind: 'message', T: () => ContentDigest },
+    ])
+  }
+  create(
+    value?: PartialMessage<SessionContentFingerprint>
+  ): SessionContentFingerprint {
+    const message = globalThis.Object.create(this.messagePrototype!)
+    message.byteLength = 0
+    if (value !== undefined)
+      reflectionMergePartial<SessionContentFingerprint>(this, message, value)
+    return message
+  }
+  internalBinaryRead(
+    reader: IBinaryReader,
+    length: number,
+    options: BinaryReadOptions,
+    target?: SessionContentFingerprint
+  ): SessionContentFingerprint {
+    let message = target ?? this.create(),
+      end = reader.pos + length
+    while (reader.pos < end) {
+      let [fieldNo, wireType] = reader.tag()
+      switch (fieldNo) {
+        case /* int64 byte_length */ 1:
+          message.byteLength = reader.int64().toNumber()
+          break
+        case /* omega_edit.v1.ContentDigest digest */ 2:
+          message.digest = ContentDigest.internalBinaryRead(
+            reader,
+            reader.uint32(),
+            options,
+            message.digest
+          )
+          break
+        default:
+          let u = options.readUnknownField
+          if (u === 'throw')
+            throw new globalThis.Error(
+              `Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`
+            )
+          let d = reader.skip(wireType)
+          if (u !== false)
+            (u === true ? UnknownFieldHandler.onRead : u)(
+              this.typeName,
+              message,
+              fieldNo,
+              wireType,
+              d
+            )
+      }
+    }
+    return message
+  }
+  internalBinaryWrite(
+    message: SessionContentFingerprint,
+    writer: IBinaryWriter,
+    options: BinaryWriteOptions
+  ): IBinaryWriter {
+    /* int64 byte_length = 1; */
+    if (message.byteLength !== 0)
+      writer.tag(1, WireType.Varint).int64(message.byteLength)
+    /* omega_edit.v1.ContentDigest digest = 2; */
+    if (message.digest)
+      ContentDigest.internalBinaryWrite(
+        message.digest,
+        writer.tag(2, WireType.LengthDelimited).fork(),
+        options
+      ).join()
+    let u = options.writeUnknownFields
+    if (u !== false)
+      (u == true ? UnknownFieldHandler.onWrite : u)(
+        this.typeName,
+        message,
+        writer
+      )
+    return writer
+  }
+}
+/**
+ * @generated MessageType for protobuf message omega_edit.v1.SessionContentFingerprint
+ */
+export const SessionContentFingerprint = new SessionContentFingerprint$Type()
+// @generated message type with reflection information, may provide speed optimized methods
+class GetSessionFingerprintRequest$Type extends MessageType<GetSessionFingerprintRequest> {
+  constructor() {
+    super('omega_edit.v1.GetSessionFingerprintRequest', [
+      { no: 1, name: 'session_id', kind: 'scalar', T: 9 /*ScalarType.STRING*/ },
+      {
+        no: 2,
+        name: 'content',
+        kind: 'enum',
+        T: () => [
+          'omega_edit.v1.SessionFingerprintContent',
+          SessionFingerprintContent,
+          'SESSION_FINGERPRINT_CONTENT_',
+        ],
+      },
+      {
+        no: 3,
+        name: 'algorithm',
+        kind: 'scalar',
+        opt: true,
+        T: 9 /*ScalarType.STRING*/,
+      },
+    ])
+  }
+  create(
+    value?: PartialMessage<GetSessionFingerprintRequest>
+  ): GetSessionFingerprintRequest {
+    const message = globalThis.Object.create(this.messagePrototype!)
+    message.sessionId = ''
+    message.content = 0
+    if (value !== undefined)
+      reflectionMergePartial<GetSessionFingerprintRequest>(this, message, value)
+    return message
+  }
+  internalBinaryRead(
+    reader: IBinaryReader,
+    length: number,
+    options: BinaryReadOptions,
+    target?: GetSessionFingerprintRequest
+  ): GetSessionFingerprintRequest {
+    let message = target ?? this.create(),
+      end = reader.pos + length
+    while (reader.pos < end) {
+      let [fieldNo, wireType] = reader.tag()
+      switch (fieldNo) {
+        case /* string session_id */ 1:
+          message.sessionId = reader.string()
+          break
+        case /* omega_edit.v1.SessionFingerprintContent content */ 2:
+          message.content = reader.int32()
+          break
+        case /* optional string algorithm */ 3:
+          message.algorithm = reader.string()
+          break
+        default:
+          let u = options.readUnknownField
+          if (u === 'throw')
+            throw new globalThis.Error(
+              `Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`
+            )
+          let d = reader.skip(wireType)
+          if (u !== false)
+            (u === true ? UnknownFieldHandler.onRead : u)(
+              this.typeName,
+              message,
+              fieldNo,
+              wireType,
+              d
+            )
+      }
+    }
+    return message
+  }
+  internalBinaryWrite(
+    message: GetSessionFingerprintRequest,
+    writer: IBinaryWriter,
+    options: BinaryWriteOptions
+  ): IBinaryWriter {
+    /* string session_id = 1; */
+    if (message.sessionId !== '')
+      writer.tag(1, WireType.LengthDelimited).string(message.sessionId)
+    /* omega_edit.v1.SessionFingerprintContent content = 2; */
+    if (message.content !== 0)
+      writer.tag(2, WireType.Varint).int32(message.content)
+    /* optional string algorithm = 3; */
+    if (message.algorithm !== undefined)
+      writer.tag(3, WireType.LengthDelimited).string(message.algorithm)
+    let u = options.writeUnknownFields
+    if (u !== false)
+      (u == true ? UnknownFieldHandler.onWrite : u)(
+        this.typeName,
+        message,
+        writer
+      )
+    return writer
+  }
+}
+/**
+ * @generated MessageType for protobuf message omega_edit.v1.GetSessionFingerprintRequest
+ */
+export const GetSessionFingerprintRequest =
+  new GetSessionFingerprintRequest$Type()
+// @generated message type with reflection information, may provide speed optimized methods
+class GetSessionFingerprintResponse$Type extends MessageType<GetSessionFingerprintResponse> {
+  constructor() {
+    super('omega_edit.v1.GetSessionFingerprintResponse', [
+      { no: 1, name: 'session_id', kind: 'scalar', T: 9 /*ScalarType.STRING*/ },
+      {
+        no: 2,
+        name: 'content',
+        kind: 'enum',
+        T: () => [
+          'omega_edit.v1.SessionFingerprintContent',
+          SessionFingerprintContent,
+          'SESSION_FINGERPRINT_CONTENT_',
+        ],
+      },
+      {
+        no: 3,
+        name: 'fingerprint',
+        kind: 'message',
+        T: () => SessionContentFingerprint,
+      },
+    ])
+  }
+  create(
+    value?: PartialMessage<GetSessionFingerprintResponse>
+  ): GetSessionFingerprintResponse {
+    const message = globalThis.Object.create(this.messagePrototype!)
+    message.sessionId = ''
+    message.content = 0
+    if (value !== undefined)
+      reflectionMergePartial<GetSessionFingerprintResponse>(
+        this,
+        message,
+        value
+      )
+    return message
+  }
+  internalBinaryRead(
+    reader: IBinaryReader,
+    length: number,
+    options: BinaryReadOptions,
+    target?: GetSessionFingerprintResponse
+  ): GetSessionFingerprintResponse {
+    let message = target ?? this.create(),
+      end = reader.pos + length
+    while (reader.pos < end) {
+      let [fieldNo, wireType] = reader.tag()
+      switch (fieldNo) {
+        case /* string session_id */ 1:
+          message.sessionId = reader.string()
+          break
+        case /* omega_edit.v1.SessionFingerprintContent content */ 2:
+          message.content = reader.int32()
+          break
+        case /* omega_edit.v1.SessionContentFingerprint fingerprint */ 3:
+          message.fingerprint = SessionContentFingerprint.internalBinaryRead(
+            reader,
+            reader.uint32(),
+            options,
+            message.fingerprint
+          )
+          break
+        default:
+          let u = options.readUnknownField
+          if (u === 'throw')
+            throw new globalThis.Error(
+              `Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`
+            )
+          let d = reader.skip(wireType)
+          if (u !== false)
+            (u === true ? UnknownFieldHandler.onRead : u)(
+              this.typeName,
+              message,
+              fieldNo,
+              wireType,
+              d
+            )
+      }
+    }
+    return message
+  }
+  internalBinaryWrite(
+    message: GetSessionFingerprintResponse,
+    writer: IBinaryWriter,
+    options: BinaryWriteOptions
+  ): IBinaryWriter {
+    /* string session_id = 1; */
+    if (message.sessionId !== '')
+      writer.tag(1, WireType.LengthDelimited).string(message.sessionId)
+    /* omega_edit.v1.SessionFingerprintContent content = 2; */
+    if (message.content !== 0)
+      writer.tag(2, WireType.Varint).int32(message.content)
+    /* omega_edit.v1.SessionContentFingerprint fingerprint = 3; */
+    if (message.fingerprint)
+      SessionContentFingerprint.internalBinaryWrite(
+        message.fingerprint,
+        writer.tag(3, WireType.LengthDelimited).fork(),
+        options
+      ).join()
+    let u = options.writeUnknownFields
+    if (u !== false)
+      (u == true ? UnknownFieldHandler.onWrite : u)(
+        this.typeName,
+        message,
+        writer
+      )
+    return writer
+  }
+}
+/**
+ * @generated MessageType for protobuf message omega_edit.v1.GetSessionFingerprintResponse
+ */
+export const GetSessionFingerprintResponse =
+  new GetSessionFingerprintResponse$Type()
+// @generated message type with reflection information, may provide speed optimized methods
 class GetSessionCountRequest$Type extends MessageType<GetSessionCountRequest> {
   constructor() {
     super('omega_edit.v1.GetSessionCountRequest', [])
@@ -12251,6 +12916,18 @@ export const EditorService = new ServiceType('omega_edit.v1.EditorService', [
     O: GetLanguageResponse,
   },
   { name: 'GetCount', options: {}, I: GetCountRequest, O: GetCountResponse },
+  {
+    name: 'CheckSessionModel',
+    options: {},
+    I: CheckSessionModelRequest,
+    O: CheckSessionModelResponse,
+  },
+  {
+    name: 'GetSessionFingerprint',
+    options: {},
+    I: GetSessionFingerprintRequest,
+    O: GetSessionFingerprintResponse,
+  },
   {
     name: 'GetSessionCount',
     options: {},

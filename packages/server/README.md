@@ -148,7 +148,11 @@ The native binary supports:
 | `--log-config` | Read log file/level from a logback-style XML config |
 | `--transform-plugin-dir` | Register transform plugins from a directory; repeat for multiple directories |
 
-Transform plugin directories can also be supplied with `OMEGA_EDIT_TRANSFORM_PLUGIN_DIRS`.
+The package includes the first-party transform plugins for the current platform and
+registers them automatically when no explicit transform plugin directories are supplied.
+Custom transform plugin directories can also be supplied with `transformPluginDirectories`,
+`--transform-plugin-dir`, `OMEGA_EDIT_TRANSFORM_PLUGIN_DIRS`, or
+`OMEGA_EDIT_TRANSFORM_PLUGINS_DIR`.
 Use the platform path-list separator (`:` on Unix-like systems, `;` on Windows).
 See the [Transform Plugins guide](https://github.com/ctc-oss/omega-edit/wiki/Transform-Plugins) for the native ABI,
 SDK helpers, plugin package layout, and exemplar plugins, including base64
