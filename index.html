@@ -138,6 +138,7 @@
 <li><a class="reference internal" href="#_CPPv426omega_edit_apply_transformP15omega_session_t27omega_util_byte_transform_tPv7int64_t7int64_t"><code class="docutils literal notranslate"><span class="pre">omega_edit_apply_transform()</span></code></a></li>
 <li><a class="reference internal" href="#_CPPv428omega_edit_create_checkpointP15omega_session_t"><code class="docutils literal notranslate"><span class="pre">omega_edit_create_checkpoint()</span></code></a></li>
 <li><a class="reference internal" href="#_CPPv434omega_edit_destroy_last_checkpointP15omega_session_t"><code class="docutils literal notranslate"><span class="pre">omega_edit_destroy_last_checkpoint()</span></code></a></li>
+<li><a class="reference internal" href="#_CPPv434omega_edit_restore_last_checkpointP15omega_session_t"><code class="docutils literal notranslate"><span class="pre">omega_edit_restore_last_checkpoint()</span></code></a></li>
 <li><a class="reference internal" href="#_CPPv422omega_edit_script_op_t"><code class="docutils literal notranslate"><span class="pre">omega_edit_script_op_t</span></code></a><ul>
 <li><a class="reference internal" href="#_CPPv4N22omega_edit_script_op_t6offsetE"><code class="docutils literal notranslate"><span class="pre">offset</span></code></a></li>
 <li><a class="reference internal" href="#_CPPv4N22omega_edit_script_op_t6lengthE"><code class="docutils literal notranslate"><span class="pre">length</span></code></a></li>
@@ -215,6 +216,7 @@
 <li><a class="reference internal" href="#_CPPv4N21omega_session_event_t30SESSION_EVT_TRANSFORM_PROGRESSE"><code class="docutils literal notranslate"><span class="pre">SESSION_EVT_TRANSFORM_PROGRESS</span></code></a></li>
 <li><a class="reference internal" href="#_CPPv4N21omega_session_event_t31SESSION_EVT_TRANSFORM_COMPLETEDE"><code class="docutils literal notranslate"><span class="pre">SESSION_EVT_TRANSFORM_COMPLETED</span></code></a></li>
 <li><a class="reference internal" href="#_CPPv4N21omega_session_event_t28SESSION_EVT_TRANSFORM_FAILEDE"><code class="docutils literal notranslate"><span class="pre">SESSION_EVT_TRANSFORM_FAILED</span></code></a></li>
+<li><a class="reference internal" href="#_CPPv4N21omega_session_event_t30SESSION_EVT_RESTORE_CHECKPOINTE"><code class="docutils literal notranslate"><span class="pre">SESSION_EVT_RESTORE_CHECKPOINT</span></code></a></li>
 </ul>
 </li>
 <li><a class="reference internal" href="#_CPPv422omega_viewport_event_t"><code class="docutils literal notranslate"><span class="pre">omega_viewport_event_t</span></code></a><ul>
@@ -1432,6 +1434,21 @@
 </dl>
 </dd></dl>
 
+<dl class="cpp function">
+<dt class="sig sig-object cpp" id="_CPPv434omega_edit_restore_last_checkpointP15omega_session_t">
+<span id="_CPPv334omega_edit_restore_last_checkpointP15omega_session_t"></span><span id="_CPPv234omega_edit_restore_last_checkpointP15omega_session_t"></span><span id="omega_edit_restore_last_checkpoint__omega_session_tP"></span><span class="target" id="edit_8h_1a4b457a9b8befe3c80032dc9369869124"></span><span class="kt"><span class="pre">int</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">omega_edit_restore_last_checkpoint</span></span></span><span class="sig-paren">(</span><a class="reference internal" href="#_CPPv415omega_session_t" title="omega_session_t"><span class="n"><span class="pre">omega_session_t</span></span></a><span class="w"> </span><span class="p"><span class="pre">*</span></span><span class="n sig-param"><span class="pre">session_ptr</span></span><span class="sig-paren">)</span><a class="headerlink" href="#_CPPv434omega_edit_restore_last_checkpointP15omega_session_t" title="Link to this definition"></a><br /></dt>
+<dd><p>Restores the current session content to the most recent checkpoint snapshot.</p>
+<p>Unlike omega_edit_destroy_last_checkpoint, this keeps the checkpoint model in place and discards only the edits made after that checkpoint snapshot. </p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>session_ptr</strong> – session to restore </p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>zero on success, non-zero otherwise </p>
+</dd>
+</dl>
+</dd></dl>
+
 </div>
 <dl class="cpp struct">
 <dt class="sig sig-object cpp" id="_CPPv422omega_edit_script_op_t">
@@ -2064,6 +2081,11 @@
 <dl class="cpp enumerator">
 <dt class="sig sig-object cpp" id="_CPPv4N21omega_session_event_t28SESSION_EVT_TRANSFORM_FAILEDE">
 <span id="_CPPv3N21omega_session_event_t28SESSION_EVT_TRANSFORM_FAILEDE"></span><span id="_CPPv2N21omega_session_event_t28SESSION_EVT_TRANSFORM_FAILEDE"></span><span class="target" id="fwd__defs_8h_1a8888e0eb94bb6f32496c4ebf23ab37e7af6c6e7bc15ce4812f8786e5bcc9e9790"></span><span class="k"><span class="pre">enumerator</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">SESSION_EVT_TRANSFORM_FAILED</span></span></span><a class="headerlink" href="#_CPPv4N21omega_session_event_t28SESSION_EVT_TRANSFORM_FAILEDE" title="Link to this definition"></a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp enumerator">
+<dt class="sig sig-object cpp" id="_CPPv4N21omega_session_event_t30SESSION_EVT_RESTORE_CHECKPOINTE">
+<span id="_CPPv3N21omega_session_event_t30SESSION_EVT_RESTORE_CHECKPOINTE"></span><span id="_CPPv2N21omega_session_event_t30SESSION_EVT_RESTORE_CHECKPOINTE"></span><span class="target" id="fwd__defs_8h_1a8888e0eb94bb6f32496c4ebf23ab37e7af301e2c3a442ea12f31ecbdbd9980da5"></span><span class="k"><span class="pre">enumerator</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">SESSION_EVT_RESTORE_CHECKPOINT</span></span></span><a class="headerlink" href="#_CPPv4N21omega_session_event_t30SESSION_EVT_RESTORE_CHECKPOINTE" title="Link to this definition"></a><br /></dt>
 <dd></dd></dl>
 
 </dd></dl>
