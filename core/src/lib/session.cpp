@@ -16,6 +16,7 @@
 #include "impl_/change_def.hpp"
 #include "impl_/character_counts_def.h"
 #include "impl_/internal_fun.hpp"
+#include "impl_/macros.h"
 #include "impl_/model_def.hpp"
 #include "impl_/safe_math.hpp"
 #include "impl_/segment_def.hpp"
@@ -24,10 +25,12 @@
 #include "omega_edit/fwd_defs.h"
 #include "omega_edit/segment.h"
 #include "omega_edit/viewport.h"
+#include <algorithm>
 #include <cassert>
 #include <cstring>
 
 using omega_edit::internal::omega_change_get_transaction_bit_;
+using omega_edit::internal::omega_data_get_data_;
 using omega_edit::internal::omega_session_end_event_batch_;
 using omega_edit::internal::populate_data_segment_;
 using omega_edit::internal::safe_add_int64_;
@@ -45,6 +48,38 @@ int omega_session_get_segment(const omega_session_t *session_ptr, omega_segment_
     if (!session_ptr || !data_segment_ptr || offset < 0 || data_segment_ptr->capacity < 0) { return -1; }
     data_segment_ptr->offset = offset;
     return populate_data_segment_(session_ptr, data_segment_ptr);
+}
+
+int64_t omega_session_get_original_file_size(const omega_session_t *session_ptr) {
+    if (!session_ptr || session_ptr->models_.empty() || !session_ptr->models_.front()) { return -1; }
+    auto *file_ptr = session_ptr->models_.front()->file_ptr;
+    if (file_ptr == nullptr) { return 0; }
+    if (0 != FSEEK(file_ptr, 0L, SEEK_END)) { return -1; }
+    const auto file_size = FTELL(file_ptr);
+    return file_size < 0 ? -1 : file_size;
+}
+
+int omega_session_get_original_segment(const omega_session_t *session_ptr, omega_segment_t *data_segment_ptr,
+                                       int64_t offset) {
+    if (!session_ptr || !data_segment_ptr || offset < 0 || data_segment_ptr->capacity < 0) { return -1; }
+    data_segment_ptr->offset = offset;
+    data_segment_ptr->length = 0;
+
+    const auto original_file_size = omega_session_get_original_file_size(session_ptr);
+    if (original_file_size < 0 || offset > original_file_size) { return -1; }
+    if (data_segment_ptr->capacity == 0 || offset == original_file_size) { return 0; }
+
+    const auto read_length = (std::min)(data_segment_ptr->capacity, original_file_size - offset);
+    auto *file_ptr = session_ptr->models_.front()->file_ptr;
+    if (file_ptr == nullptr) { return read_length == 0 ? 0 : -1; }
+    if (0 != FSEEK(file_ptr, offset, SEEK_SET)) { return -1; }
+
+    auto *data = omega_data_get_data_(&data_segment_ptr->data, data_segment_ptr->capacity);
+    const auto actual = static_cast<int64_t>(fread(data, sizeof(omega_byte_t), read_length, file_ptr));
+    if (actual != read_length) { return -1; }
+    data_segment_ptr->length = actual;
+    data[data_segment_ptr->length] = '\0';
+    return 0;
 }
 
 int64_t omega_session_get_num_viewports(const omega_session_t *session_ptr) {
@@ -333,7 +368,7 @@ int omega_session_byte_frequency_profile(const omega_session_t *session_ptr,
     }
     memset(profile_ptr, 0, sizeof(omega_byte_frequency_profile_t));
     if (0 < length) {
-        const auto segment_ptr = omega_segment_create(std::min(length, static_cast<int64_t>(BUFSIZ)));
+        const auto segment_ptr = omega_segment_create((std::min)(length, static_cast<int64_t>(BUFSIZ)));
         omega_byte_t last_profiled_byte = 0;
         int64_t dos_eol_count = 0;
         while (length) {
@@ -342,7 +377,7 @@ int omega_session_byte_frequency_profile(const omega_session_t *session_ptr,
                 omega_segment_destroy(segment_ptr);
                 return rc;
             }
-            const auto profile_length = std::min(length, omega_segment_get_length(segment_ptr));
+            const auto profile_length = (std::min)(length, omega_segment_get_length(segment_ptr));
             const auto segment_data = omega_segment_get_data(segment_ptr);
             for (auto i = 0; i < profile_length; ++i) {
                 if (last_profiled_byte == '\r' && segment_data[i] == '\n') { ++dos_eol_count; }
@@ -370,7 +405,7 @@ int omega_session_character_counts(const omega_session_t *session_ptr, omega_cha
         return -1;
     }
     omega_character_counts_set_BOM(omega_character_counts_reset(counts_ptr), bom);
-    const auto segment_ptr = omega_segment_create(std::min(length, static_cast<int64_t>(BUFSIZ)));
+    const auto segment_ptr = omega_segment_create((std::min)(length, static_cast<int64_t>(BUFSIZ)));
     while (length) {
         const auto rc = omega_session_get_segment(session_ptr, segment_ptr, offset);
         if (rc != 0) {
@@ -378,7 +413,7 @@ int omega_session_character_counts(const omega_session_t *session_ptr, omega_cha
             return rc;
         }
         const auto segment_data = omega_segment_get_data(segment_ptr);
-        const auto count_length = std::min(length, omega_segment_get_length(segment_ptr));
+        const auto count_length = (std::min)(length, omega_segment_get_length(segment_ptr));
         omega_util_count_characters(segment_data, count_length, counts_ptr);
         if (!safe_add_int64_(offset, count_length, offset)) {
             omega_segment_destroy(segment_ptr);

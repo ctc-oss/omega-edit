@@ -53,29 +53,47 @@ export interface ChangeLogEntry {
   groupId?: string
 }
 
+export interface ChangeLogDigest {
+  algorithm: string
+  value: string
+}
+
+export interface ChangeLogFingerprint {
+  byteLength: number
+  digest: ChangeLogDigest
+}
+
 export interface ChangeLogDocument {
   format: 'omega-edit.change-log'
-  version: 1
+  version: 2
+  complete: boolean
+  before: ChangeLogFingerprint
+  after: ChangeLogFingerprint
   changeCount: number
   sourceChangeCount: number
-  foldedChangeCount: number
+  unavailableChangeCount: number
+  unavailableChangeSerials: number[]
   changes: ChangeLogEntry[]
 }
 
 export interface ChangeLogResult {
   sessionId: string
   format: 'omega-edit.change-log'
-  version: 1
+  version: 2
+  complete: boolean
+  before: ChangeLogFingerprint
+  after: ChangeLogFingerprint
   changeCount: number
   sourceChangeCount: number
-  foldedChangeCount: number
+  unavailableChangeCount: number
+  unavailableChangeSerials: number[]
   changes: ChangeLogEntry[]
   outputPath?: string
 }
 
 export interface ApplyChangeLogRequest {
   sessionId: string
-  changes?: ChangeLogEntry[] | ChangeLogDocument
+  changes?: ChangeLogDocument
   inputPath?: string
   dryRun?: boolean
 }
@@ -84,6 +102,7 @@ export interface ApplyChangeLogResult {
   sessionId: string
   applied: boolean
   changeCount: number
+  inputChangeCount: number
   inputPath?: string
 }
 

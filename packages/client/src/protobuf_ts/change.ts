@@ -20,7 +20,6 @@
 import {
   ChangeKind as ProtoChangeKind,
   CountKind,
-  SessionEventKind,
   type GetCountResponse,
   type GetChangeDetailsResponse,
   type GetLastChangeResponse,
@@ -354,7 +353,7 @@ export async function getChangeDetails(
   const log = getLogger()
   const request = {
     sessionId,
-    sessionEventKind: SessionEventKind.UNSPECIFIED,
+    sessionEventKind: 0,
     computedFileSize: 0,
     changeCount: 0,
     undoCount: 0,

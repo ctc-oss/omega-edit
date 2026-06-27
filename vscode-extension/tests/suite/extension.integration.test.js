@@ -33,6 +33,13 @@ const OBSERVE_FINAL_DELAY_MS = parseDelay(
   process.env.OMEGA_EDIT_OBSERVE_FINAL_DELAY_MS,
   10000
 )
+const ABC_SHA256_FINGERPRINT = {
+  byteLength: 3,
+  digest: {
+    algorithm: 'sha256',
+    value: 'ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad',
+  },
+}
 
 suite('OmegaEdit VS Code extension', () => {
   let testPort
@@ -343,9 +350,18 @@ suite('OmegaEdit VS Code extension', () => {
 
     const script = JSON.parse(await fs.readFile(scriptPath, 'utf8'))
     assert.equal(script.format, 'omega-edit.change-log')
-    assert.equal(script.version, 1)
+    assert.equal(script.version, 2)
+    assert.equal(script.complete, true)
+    assert.equal(script.before.byteLength, 8)
+    assert.equal(script.before.digest.algorithm, 'sha256')
+    assert.match(script.before.digest.value, /^[0-9a-f]+$/)
+    assert.equal(script.after.byteLength, 12)
+    assert.equal(script.after.digest.algorithm, 'sha256')
+    assert.match(script.after.digest.value, /^[0-9a-f]+$/)
+    assert.notEqual(script.before.digest.value, script.after.digest.value)
     assert.equal(script.sourceChangeCount, script.changeCount)
-    assert.equal(script.foldedChangeCount, 0)
+    assert.equal(script.unavailableChangeCount, 0)
+    assert.deepEqual(script.unavailableChangeSerials, [])
     assert.ok(
       Array.isArray(script.changes),
       'Expected export to produce a change-log document'
@@ -422,10 +438,14 @@ suite('OmegaEdit VS Code extension', () => {
       scriptPath,
       JSON.stringify({
         format: 'omega-edit.change-log',
-        version: 1,
+        version: 2,
+        complete: true,
+        before: ABC_SHA256_FINGERPRINT,
+        after: ABC_SHA256_FINGERPRINT,
         changeCount: 2,
         sourceChangeCount: 2,
-        foldedChangeCount: 0,
+        unavailableChangeCount: 0,
+        unavailableChangeSerials: [],
         changes: [
           {
             serial: 1,
@@ -470,6 +490,31 @@ suite('OmegaEdit VS Code extension', () => {
 
     assert.equal(result?.cancelled, true)
     assert.equal(result?.changeCount, 0)
+    await assertSessionText(session.sessionId, 'abc')
+
+    await fs.writeFile(
+      scriptPath,
+      JSON.stringify({
+        format: 'omega-edit.change-log',
+        version: 2,
+        complete: false,
+        before: ABC_SHA256_FINGERPRINT,
+        after: ABC_SHA256_FINGERPRINT,
+        changeCount: 0,
+        sourceChangeCount: 1,
+        unavailableChangeCount: 1,
+        unavailableChangeSerials: [1],
+        changes: [],
+      })
+    )
+
+    const incompleteResult = await provider.applyChangeLog({
+      uri: document.uri,
+      sourceUri: vscode.Uri.file(scriptPath),
+    })
+
+    assert.equal(incompleteResult?.cancelled, true)
+    assert.equal(incompleteResult?.changeCount, 0)
     await assertSessionText(session.sessionId, 'abc')
 
     await panel.fireDidDispose()

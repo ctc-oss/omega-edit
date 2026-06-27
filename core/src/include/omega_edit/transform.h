@@ -175,6 +175,15 @@ int omega_transform_plugin_registry_apply_to_session_with_progress_and_serial(
         int64_t offset, int64_t length, const char *options_json, omega_transform_plugin_progress_cbk_t progress,
         void *progress_user_data_ptr, omega_transform_plugin_response_t *response_ptr, int64_t *change_serial_out);
 
+int omega_transform_plugin_registry_inspect_reader(omega_transform_plugin_registry_t *registry_ptr,
+                                                   const char *plugin_id, int64_t session_offset,
+                                                   int64_t session_length, const char *options_json,
+                                                   const char *checkpoint_directory, omega_transform_plugin_read_t read,
+                                                   void *reader_user_data_ptr, int64_t preferred_chunk_size,
+                                                   omega_transform_plugin_progress_cbk_t progress,
+                                                   void *progress_user_data_ptr,
+                                                   omega_transform_plugin_response_t *response_ptr);
+
 /**
  * Release response-owned replacement/result buffers and reset all fields to zero/null.
  */

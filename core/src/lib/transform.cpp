@@ -1053,6 +1053,60 @@ int omega_transform_plugin_registry_apply_to_session_with_progress_and_serial(
     return 0;
 }
 
+int omega_transform_plugin_registry_inspect_reader(omega_transform_plugin_registry_t *registry_ptr,
+                                                   const char *plugin_id, int64_t session_offset,
+                                                   int64_t session_length, const char *options_json,
+                                                   const char *checkpoint_directory, omega_transform_plugin_read_t read,
+                                                   void *reader_user_data_ptr, int64_t preferred_chunk_size,
+                                                   omega_transform_plugin_progress_cbk_t progress,
+                                                   void *progress_user_data_ptr,
+                                                   omega_transform_plugin_response_t *response_ptr) {
+    if (response_ptr) { omega_transform_plugin_response_clear(response_ptr); }
+    if (!registry_ptr || !plugin_id || !*plugin_id || session_offset < 0 || session_length < 0 || !read) { return -1; }
+
+    auto iter = std::find_if(registry_ptr->plugins.begin(), registry_ptr->plugins.end(),
+                             [plugin_id](const auto &plugin) { return plugin->info.id == std::string(plugin_id); });
+    if (iter == registry_ptr->plugins.end()) { return -1; }
+    if ((*iter)->info.operation != OMEGA_TRANSFORM_PLUGIN_OPERATION_INSPECT) { return -1; }
+    if (((*iter)->info.flags & OMEGA_TRANSFORM_PLUGIN_FLAG_STREAMING) == 0U) { return -1; }
+    if (0 != omega_transform_plugin_options_match_args_schema(options_json, (*iter)->info.args_schema)) { return -1; }
+
+    plugin_allocator_state_t allocator_state{checkpoint_directory, {}};
+
+    omega_transform_plugin_request_t request{};
+    request.input_length = 0;
+    request.session_offset = session_offset;
+    request.session_length = session_length;
+    request.options_json = options_json;
+    request.alloc = plugin_alloc_;
+    request.allocator_user_data_ptr = &allocator_state;
+    request.read = read;
+    request.reader_user_data_ptr = reader_user_data_ptr;
+    request.preferred_chunk_size = preferred_chunk_size > 0
+                                           ? std::min(preferred_chunk_size, TRANSFORM_PLUGIN_STREAM_CHUNK_BYTES)
+                                           : TRANSFORM_PLUGIN_STREAM_CHUNK_BYTES;
+    request.progress = progress;
+    request.progress_user_data_ptr = progress_user_data_ptr;
+
+    omega_transform_plugin_response_t plugin_response{};
+    if (0 != (*iter)->apply(&request, &plugin_response)) {
+        release_unclaimed_plugin_allocations_(allocator_state, plugin_response);
+        omega_transform_plugin_response_clear(&plugin_response);
+        return -1;
+    }
+    if (!plugin_buffer_is_valid_(plugin_response.replacement_bytes, plugin_response.replacement_length) ||
+        !plugin_buffer_is_valid_(plugin_response.result_bytes, plugin_response.result_length) ||
+        plugin_response.replacement_bytes != nullptr || plugin_response.replacement_length != 0) {
+        release_unclaimed_plugin_allocations_(allocator_state, plugin_response);
+        omega_transform_plugin_response_clear(&plugin_response);
+        return -1;
+    }
+
+    release_unclaimed_plugin_allocations_(allocator_state, plugin_response);
+    move_plugin_response_(response_ptr, plugin_response);
+    return 0;
+}
+
 void omega_transform_plugin_response_clear(omega_transform_plugin_response_t *response_ptr) {
     if (!response_ptr) { return; }
     release_plugin_allocation_(response_ptr->replacement_bytes);

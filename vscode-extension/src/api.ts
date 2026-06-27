@@ -63,12 +63,26 @@ export interface OmegaEditRollbackCheckpointResult {
   checkpointCount: number
 }
 
+export interface OmegaEditChangeLogDigest {
+  algorithm: string
+  value: string
+}
+
+export interface OmegaEditChangeLogFingerprint {
+  byteLength: number
+  digest: OmegaEditChangeLogDigest
+}
+
 export interface OmegaEditChangeLogResult {
   state?: OmegaEditEditorState
   uri?: vscode.Uri
   changeCount: number
   sourceChangeCount?: number
-  foldedChangeCount?: number
+  complete?: boolean
+  before?: OmegaEditChangeLogFingerprint
+  after?: OmegaEditChangeLogFingerprint
+  unavailableChangeCount?: number
+  unavailableChangeSerials?: number[]
   cancelled?: boolean
 }
 
