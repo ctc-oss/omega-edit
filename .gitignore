@@ -35,6 +35,10 @@ package-lock.json
 # IDE files
 .idea/
 
+# Agent scratch files
+.claude/
+.codex-tmp/
+
 # Ignore addon files
 **/*.node
 

@@ -449,6 +449,50 @@ async function collectChangeLogEntries(
   return changes
 }
 
+async function rollbackSessionToChangeCount(
+  sessionId: string,
+  targetChangeCount: number
+): Promise<boolean> {
+  let currentChangeCount = await getChangeCount(sessionId)
+  let rolledBack = false
+  while (currentChangeCount > targetChangeCount) {
+    await undo(sessionId)
+    rolledBack = true
+    const nextChangeCount = await getChangeCount(sessionId)
+    if (nextChangeCount >= currentChangeCount) {
+      throw new Error(
+        `Rollback did not reduce change count from ${currentChangeCount}`
+      )
+    }
+    currentChangeCount = nextChangeCount
+  }
+
+  if (currentChangeCount !== targetChangeCount) {
+    throw new Error(
+      `Rollback ended at change count ${currentChangeCount}, expected ${targetChangeCount}`
+    )
+  }
+
+  return rolledBack
+}
+
+function changeLogApplyErrorWithRollbackFailure(
+  applyError: unknown,
+  rollbackError: unknown
+): Error {
+  const applyMessage =
+    applyError instanceof Error ? applyError.message : String(applyError)
+  const rollbackMessage =
+    rollbackError instanceof Error
+      ? rollbackError.message
+      : String(rollbackError)
+  const error = new Error(
+    `Failed to apply change log and rollback failed: ${applyMessage}; rollback error: ${rollbackMessage}`
+  )
+  ;(error as Error & { cause?: unknown }).cause = applyError
+  return error
+}
+
 function createChangeLogDocument(
   changes: ChangeLogEntry[],
   sourceChangeCount: number
@@ -719,6 +763,7 @@ export class OmegaEditToolkit {
     await this.ensureServerRunning()
 
     if (changes.length > 0) {
+      const startChangeCount = await getChangeCount(request.sessionId)
       const applyChange = async (change: ChangeLogEntry) => {
         const data = Buffer.from(change.data, 'hex')
         switch (change.kind) {
@@ -748,30 +793,42 @@ export class OmegaEditToolkit {
             break
         }
       }
-      let pendingBatch: ChangeLogEntry[] = []
-      const flushBatch = async () => {
-        if (pendingBatch.length === 0) {
-          return
-        }
-
-        const batch = pendingBatch
-        pendingBatch = []
-        await runSessionTransaction(request.sessionId, async () => {
-          for (const change of batch) {
-            await applyChange(change)
+      try {
+        let pendingBatch: ChangeLogEntry[] = []
+        const flushBatch = async () => {
+          if (pendingBatch.length === 0) {
+            return
           }
-        })
-      }
 
-      for (const change of changes) {
-        if (change.kind === 'TRANSFORM') {
-          await flushBatch()
-          await applyChange(change)
-        } else {
-          pendingBatch.push(change)
+          const batch = pendingBatch
+          pendingBatch = []
+          await runSessionTransaction(request.sessionId, async () => {
+            for (const change of batch) {
+              await applyChange(change)
+            }
+          })
         }
+
+        for (const change of changes) {
+          if (change.kind === 'TRANSFORM') {
+            await flushBatch()
+            await applyChange(change)
+          } else {
+            pendingBatch.push(change)
+          }
+        }
+        await flushBatch()
+      } catch (error) {
+        try {
+          await rollbackSessionToChangeCount(
+            request.sessionId,
+            startChangeCount
+          )
+        } catch (rollbackError) {
+          throw changeLogApplyErrorWithRollbackFailure(error, rollbackError)
+        }
+        throw error
       }
-      await flushBatch()
     }
 
     return {

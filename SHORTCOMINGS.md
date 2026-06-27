@@ -55,13 +55,16 @@ This is the reported bug. Root causes are spread across all three layers.
    `vscode-extension/src/hexEditorProvider.ts:2324-2333` records the transform result as a
    `REPLACE` change record with raw replacement bytes. The plugin id and options are dropped.
    See gap G1 below (first-class Transform change kind).
+   **Status: Fixed.** Direct VS Code transform application now records a lightweight
+   `TRANSFORM` history entry with plugin id, options, replacement length, and size metadata
+   instead of materializing replacement bytes as a generic `REPLACE`.
 
 5. **Whole-replacement is buffered in memory as hex.**
    The extension reads the entire replacement back via `getSegment` and stores it hex-encoded
    in the in-memory change log (2× the byte size). For large transforms this is a latent OOM
    and conflicts with the large-file promise. (Same hex-doubling appears in the AI change log.)
-   **Status: Partially fixed.** Large transform replacements are no longer read back into
-   local VS Code history above the splice cap; general hex/in-memory change-log storage remains.
+   **Status: Partially fixed.** Direct VS Code transforms no longer read replacements back into
+   local history at all; general hex/in-memory change-log storage remains.
 
 6. **No surfaced reason when a transform genuinely does nothing.**
    When `content_changed` is false there is no message explaining *why* (schema mismatch vs.
@@ -89,21 +92,27 @@ This is the reported bug. Root causes are spread across all three layers.
    and no record of how far it got. Should wrap in a begin/end transaction (core supports
    transaction state — see `omega_session_get_transaction_state` usage in the server) or, at
    minimum, checkpoint before and restore on failure.
-   **Status: Partially fixed.** AI change-log apply now runs non-empty logs inside a server
-   transaction; explicit checkpoint rollback / applied-count reporting on failure is still open.
+   **Status: Partially fixed.** AI change-log apply now runs normal edit batches inside server
+   transactions and rolls back to the starting change count if a later entry fails. A dedicated
+   discard-redo rollback primitive / applied-count reporting on failure is still open.
 
 9. **`applyChangeLog` is not atomic (extension).**
    `vscode-extension/src/hexEditorProvider.ts` `applyChangeLogEntries` has the same
    sequential, non-transactional shape.
-   **Status: Partially fixed.** Extension import now applies non-empty logs inside one server
-   transaction and records the applied entries as one local undo/redo transaction; explicit
-   rollback on mid-apply failure is still open.
+   **Status: Partially fixed.** Extension import now applies normal edit batches inside server
+   transactions, records successful imports as one local undo/redo transaction, and rolls back
+   to the starting change count on mid-apply failure. A dedicated discard-redo rollback
+   primitive remains open.
 
 10. **Transforms are not atomic/first-class.** (User-requested flag — see G1.)
     A transform that internally expands/shrinks/replaces is recorded as one opaque `REPLACE`
     instead of a reversible, replayable `Transform` operation. Undo works by byte-replacement,
     not by re-running/inverting the transform, so the change log cannot reproduce the transform
     on a *different* file (the whole point of a portable change log).
+    **Status: Partially fixed.** Core/proto/server/client/export/import paths now carry
+    `TRANSFORM` metadata, and direct VS Code transforms now record that metadata locally.
+    Transform replay still depends on the target having the same plugin semantics and rollback
+    still uses undo-to-start-count compensation rather than a dedicated atomic import primitive.
 
 11. **Checkpoint rollback names must not promise snapshot restore semantics.**
     The checkpoint operation calls `destroyLastCheckpoint`; there is no snapshot/restore
@@ -231,8 +240,8 @@ This is the reported bug. Root causes are spread across all three layers.
 27. **`applyChangeLog` round-trip test only covers the happy path.**
     `packages/ai/tests/specs/toolkit.spec.ts` exercises a single OVERWRITE. No test for
     multi-entry logs, REPLACE entries, partial-failure/atomicity, or the entry/byte caps.
-    **Status: Partially fixed.** Added malformed wrapped-change-log import coverage; multi-entry,
-    REPLACE, partial-failure, and cap tests remain open.
+    **Status: Partially fixed.** Added malformed wrapped-change-log import coverage and a
+    partial-failure rollback regression; multi-entry, REPLACE, and cap tests remain open.
 
 ---
 
@@ -266,7 +275,9 @@ This is the reported bug. Root causes are spread across all three layers.
     plus subscribe/unsubscribe can therefore park each thread on the other's lock. The session
     event path needs one consistent lock order, or the core event-interest update needs to be
     split so subscription bookkeeping is never held while acquiring `core_mutex`.
-    **Status: New.**
+    **Status: Fixed.** Session event callbacks now copy matching subscriber queues while holding
+    only the subscription mutex and push after releasing it; subscription management releases
+    the subscription mutex before taking `core_mutex`.
 
 29. **Transform progress publishing relies on an implicit core lock.**
     `server/cpp/src/session_manager.cpp:777-816` reads `omega_session_get_computed_file_size`,
@@ -276,7 +287,9 @@ This is the reported bug. Root causes are spread across all three layers.
     `SessionManager` with no contract enforcing that precondition. A future caller could race
     session mutation or destruction and make progress reporting touch the non-thread-safe core
     session outside its guard.
-    **Status: New.**
+    **Status: Fixed.** Transform progress publishing no longer reads core session state; progress
+    events carry lifecycle/progress payloads only, while normal core session events provide
+    authoritative size/change counters.
 
 ---
 

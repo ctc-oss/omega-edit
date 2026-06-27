@@ -742,9 +742,13 @@ bool SessionManager::publish_transform_progress(const std::string &session_id, i
     SessionEventData evt;
     evt.session_id = info->session_id;
     evt.session_event_kind = event_kind;
-    evt.computed_file_size = omega_session_get_computed_file_size(info->session);
-    evt.change_count = omega_session_get_num_changes(info->session);
-    evt.undo_count = omega_session_get_num_undone_changes(info->session);
+    // Transform progress callbacks run while the non-thread-safe core session is
+    // usually already locked by the mutating RPC. Progress events are lifecycle
+    // notifications; authoritative session size/change counters are delivered by
+    // normal core session events.
+    evt.computed_file_size = 0;
+    evt.change_count = 0;
+    evt.undo_count = 0;
     evt.serial = 0;
     evt.transform_progress = progress;
     evt.has_transform_progress = true;
