@@ -118,6 +118,14 @@ export interface RollbackCheckpointResult {
   checkpointCount: number
 }
 
+export interface RestoreCheckpointResult {
+  sessionId: string
+  restored: boolean
+  checkpointCount: number
+  changeCount: number
+  discardedChangeCount: number
+}
+
 export interface ReadRangeResult {
   sessionId: string
   offset: number

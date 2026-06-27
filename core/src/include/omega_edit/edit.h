@@ -524,6 +524,16 @@ int omega_edit_create_checkpoint(omega_session_t *session_ptr);
  */
 int omega_edit_destroy_last_checkpoint(omega_session_t *session_ptr);
 
+/**
+ * Restores the current session content to the most recent checkpoint snapshot.
+ *
+ * Unlike omega_edit_destroy_last_checkpoint, this keeps the checkpoint model in
+ * place and discards only the edits made after that checkpoint snapshot.
+ * @param session_ptr session to restore
+ * @return zero on success, non-zero otherwise
+ */
+int omega_edit_restore_last_checkpoint(omega_session_t *session_ptr);
+
 #ifdef __cplusplus
 }
 #endif

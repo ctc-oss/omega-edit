@@ -6,8 +6,7 @@ Grouped by theme, roughly prioritized within each group. File:line references po
 offending code.
 
 Status notes:
-- `Fixed` means the current `codex/fix-transform-content-changed` branch addresses the
-  item directly.
+- `Fixed` means the current follow-up branch addresses the item directly.
 - `Partially fixed` means the branch reduces the risk but leaves a larger design gap.
 - `New` means the item is validated against the current tree but has not been addressed.
 
@@ -110,8 +109,10 @@ This is the reported bug. Root causes are spread across all three layers.
     on a *different* file (the whole point of a portable change log).
     **Status: Partially fixed.** Core/proto/server/client/export/import paths now carry
     `TRANSFORM` metadata, and direct VS Code transforms now record that metadata locally.
-    Transform replay still depends on the target having the same plugin semantics and rollback
-    still uses undo-to-start-count compensation rather than a dedicated atomic import primitive.
+    Import now replays transforms through the server and verifies the replayed size/replacement
+    metadata before reporting success. Transform replay still depends on the target having the
+    same plugin semantics, and rollback still uses undo-to-start-count compensation rather than
+    a dedicated native import primitive.
 
 11. **Checkpoint rollback names must not promise snapshot restore semantics.**
     The checkpoint operation calls `destroyLastCheckpoint`; there is no snapshot/restore
@@ -146,8 +147,8 @@ This is the reported bug. Root causes are spread across all three layers.
     The checkpoint path previously mixed rollback and restore vocabulary for closely-related
     concepts, confusing users and future maintainers.
     **Status: Fixed.** The checkpoint command/API/protocol/tooling path now consistently uses
-    rollback terminology; remaining restore wording is limited to unrelated backup restore and
-    future true snapshot-restore work.
+    rollback terminology for drop-last-checkpoint behavior; restore terminology is reserved for
+    the true snapshot-restore API.
 
 15. **Cancelled actions are reported as success-ish.**
     `exportChangeLog` cancel returns `{ cancelled: true }` but still posts a
@@ -259,8 +260,10 @@ This is the reported bug. Root causes are spread across all three layers.
 27. **`applyChangeLog` round-trip test only covers the happy path.**
     `packages/ai/tests/specs/toolkit.spec.ts` exercises a single OVERWRITE. No test for
     multi-entry logs, REPLACE entries, partial-failure/atomicity, or the entry/byte caps.
-    **Status: Partially fixed.** Added malformed wrapped-change-log import coverage and a
-    partial-failure rollback regression; multi-entry, REPLACE, and cap tests remain open.
+    **Status: Partially fixed.** Added malformed wrapped-change-log import coverage, a
+    partial-failure rollback regression, multi-entry/REPLACE atomicity coverage, transform
+    replay-metadata mismatch coverage, and true checkpoint-restore coverage. Cap-removal and
+    streaming-import coverage remain open.
 
 ---
 
@@ -273,6 +276,9 @@ This is the reported bug. Root causes are spread across all three layers.
   Requires: core/proto change-kind support, server to record transform-as-change, client wrapper,
   AI + extension change-log encode/decode, and undo-by-inverse-or-rerun semantics.
 - **G2 — True checkpoint restore** (snapshot + restore-to), distinct from drop-last-checkpoint.
+  **Status: Fixed.** Core/proto/server/client/AI/VS Code now expose restore-to-latest-checkpoint
+  semantics that keep the checkpoint snapshot, discard later edits/redo, refresh viewports, and
+  emit a distinct restore event.
 - **G3 — Streaming / file-backed change logs** to drop the in-memory and entry-count caps.
   **Status: Partially fixed.** File-backed export streams entries and the former hard caps are
   gone; streaming import/chunked payloads still need a format/API decision.

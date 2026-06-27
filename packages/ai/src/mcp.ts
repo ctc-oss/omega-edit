@@ -305,6 +305,23 @@ function buildTools(toolkit: OmegaEditToolkit): ToolDefinition[] {
       },
     },
     {
+      name: 'omega_edit_restore_checkpoint',
+      description:
+        'Restore session content to the most recent OmegaEdit checkpoint without dropping that checkpoint.',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          sessionId: { type: 'string' },
+        },
+        required: ['sessionId'],
+      },
+      run: async (argumentsObject) => {
+        return await toolkit.restoreCheckpoint(
+          getString(argumentsObject, 'sessionId', true)!
+        )
+      },
+    },
+    {
       name: 'omega_edit_export_change_log',
       description:
         'Export the OmegaEdit change log for a session as JSON entries, optionally writing the same change-log document to a file.',

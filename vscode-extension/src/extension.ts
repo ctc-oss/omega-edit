@@ -42,6 +42,7 @@ import {
   OMEGA_EDIT_OPEN_IN_HEX_EDITOR_COMMAND,
   OMEGA_EDIT_REFRESH_TRANSFORM_PLUGINS_COMMAND,
   OMEGA_EDIT_REDO_COMMAND,
+  OMEGA_EDIT_RESTORE_CHECKPOINT_COMMAND,
   OMEGA_EDIT_ROLLBACK_SESSION_COMMAND,
   OMEGA_EDIT_SEARCH_NEXT_COMMAND,
   OMEGA_EDIT_SEARCH_PREVIOUS_COMMAND,
@@ -560,6 +561,9 @@ function createOmegaEditExtensionApi(
     async rollbackCheckpoint(options) {
       return provider.rollbackCheckpoint(options)
     },
+    async restoreCheckpoint(options) {
+      return provider.restoreCheckpoint(options)
+    },
     async exportChangeLog(options) {
       return provider.exportChangeLog(options)
     },
@@ -806,6 +810,15 @@ export async function activate(
       OMEGA_EDIT_ROLLBACK_CHECKPOINT_COMMAND,
       async (options?: unknown) => {
         await provider.rollbackCheckpoint(options)
+      }
+    )
+  )
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand(
+      OMEGA_EDIT_RESTORE_CHECKPOINT_COMMAND,
+      async (options?: unknown) => {
+        await provider.restoreCheckpoint(options)
       }
     )
   )

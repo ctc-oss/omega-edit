@@ -1741,6 +1741,34 @@ grpc::Status EditorServiceImpl::DestroyLastCheckpoint(grpc::ServerContext * /*co
     return grpc::Status::OK;
 }
 
+grpc::Status EditorServiceImpl::RestoreLastCheckpoint(grpc::ServerContext * /*context*/,
+                                                      const ::omega_edit::v1::RestoreLastCheckpointRequest *request,
+                                                      ::omega_edit::v1::RestoreLastCheckpointResponse *response) {
+    auto mutation_guard = session_manager_.try_begin_mutation(request->session_id());
+    if (!mutation_guard) {
+        return status_for_session_operation_start(mutation_guard.result(), "restore checkpoint", request->session_id());
+    }
+
+    auto locked_session = session_manager_.lock_session(request->session_id());
+    if (!locked_session) {
+        return grpc::Status(grpc::StatusCode::NOT_FOUND, "session not found: " + request->session_id());
+    }
+    auto *session = locked_session.session();
+
+    const auto before_change_count = omega_session_get_num_changes(session);
+    if (0 != omega_edit_restore_last_checkpoint(session)) {
+        return grpc::Status(grpc::StatusCode::FAILED_PRECONDITION, "no checkpoint available to restore");
+    }
+
+    const auto after_change_count = omega_session_get_num_changes(session);
+    response->set_session_id(request->session_id());
+    response->set_checkpoint_count(omega_session_get_num_checkpoints(session));
+    response->set_change_count(after_change_count);
+    response->set_discarded_change_count(
+            before_change_count > after_change_count ? before_change_count - after_change_count : 0);
+    return grpc::Status::OK;
+}
+
 grpc::Status EditorServiceImpl::CreateCheckpoint(grpc::ServerContext * /*context*/,
                                                  const ::omega_edit::v1::CreateCheckpointRequest *request,
                                                  ::omega_edit::v1::CreateCheckpointResponse *response) {

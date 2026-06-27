@@ -1453,6 +1453,16 @@
     postToHost({ type: 'rollbackCheckpoint' })
   }
 
+  function restoreCheckpoint(): void {
+    if (transformInFlight) {
+      return
+    }
+
+    transformInFlight = true
+    transformFeedback = strings.transform.restoringCheckpoint
+    postToHost({ type: 'restoreCheckpoint' })
+  }
+
   function exportChangeLog(): void {
     if (transformInFlight) {
       return
@@ -2259,6 +2269,7 @@
         if (
           !message.cancelled &&
           (message.action === 'rollbackCheckpoint' ||
+            message.action === 'restoreCheckpoint' ||
             message.action === 'applyChangeLog')
         ) {
           clearSearchResults()
@@ -2391,6 +2402,7 @@
     onToggleSearchPanel={toggleSearchPanelVisible}
     onCreateCheckpoint={createCheckpoint}
     onRollbackCheckpoint={rollbackCheckpoint}
+    onRestoreCheckpoint={restoreCheckpoint}
     onExportChangeLog={exportChangeLog}
     onApplyChangeLog={applyChangeLog}
   />

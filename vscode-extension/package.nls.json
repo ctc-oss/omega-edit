@@ -20,6 +20,7 @@
   "omegaEdit.command.applyChangeLog.title": "OmegaEdit: Apply Change Log",
   "omegaEdit.command.rollbackSession.title": "OmegaEdit: Roll Back Session",
   "omegaEdit.command.rollbackCheckpoint.title": "OmegaEdit: Roll Back Last Checkpoint",
+  "omegaEdit.command.restoreCheckpoint.title": "OmegaEdit: Restore Last Checkpoint",
   "omegaEdit.command.createCheckpoint.title": "OmegaEdit: Create Checkpoint",
   "omegaEdit.command.getEditorState.title": "OmegaEdit: Get Editor State",
   "omegaEdit.command.setExternalHighlights.title": "OmegaEdit: Set External Highlights",
