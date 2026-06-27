@@ -1,4 +1,5 @@
 import { strict as assert } from 'assert'
+import { createHash } from 'crypto'
 import * as fs from 'fs'
 import { createServer } from 'net'
 import * as os from 'os'
@@ -22,6 +23,17 @@ const ABCDEF_SHA256_FINGERPRINT = {
     algorithm: 'sha256',
     value: 'bef57ec7f53a6d40beb640a780a639c83bc29ac8a9816f1fc6c5c6dcd93c4721',
   },
+}
+
+function makeUtf8Fingerprint(text: string) {
+  const data = Buffer.from(text, 'utf8')
+  return {
+    byteLength: data.byteLength,
+    digest: {
+      algorithm: 'sha256',
+      value: createHash('sha256').update(data).digest('hex'),
+    },
+  }
 }
 
 function makeChangeLogDocument(
@@ -472,6 +484,18 @@ describe('@omega-edit/ai toolkit', () => {
 
       const checkpoint = await toolkit.createCheckpoint(createdSessionId)
       assert.ok(checkpoint.checkpointCount >= 1)
+      await toolkit.applyPatch({
+        sessionId: createdSessionId,
+        kind: 'insert',
+        offset: 6,
+        data: parseInputData('!', 'utf8'),
+      })
+      const restored = await toolkit.restoreCheckpoint(createdSessionId)
+      assert.equal(restored.restored, true)
+      assert.equal(restored.checkpointCount, checkpoint.checkpointCount)
+      assert.ok(restored.discardedChangeCount >= 1)
+      const afterRestore = await toolkit.readRange(createdSessionId, 0, 6)
+      assert.equal(afterRestore.data.utf8, 'aZcdef')
       const rolledBack = await toolkit.rollbackCheckpoint(createdSessionId)
       assert.equal(rolledBack.rolledBack, true)
       assert.ok(rolledBack.checkpointCount >= 0)
@@ -734,6 +758,132 @@ describe('@omega-edit/ai toolkit', () => {
         await firstToolkit.destroySession(firstSessionId).catch(() => undefined)
       }
       await firstToolkit.stopServer().catch(() => undefined)
+      fs.rmSync(tempDir, { recursive: true, force: true })
+    }
+  })
+
+  it('applies multi-entry change logs with replace entries atomically', async function () {
+    const port = await omegaEditClient.findFirstAvailablePort(19000, 19999)
+    assert.ok(port, 'expected an available port for OmegaEdit')
+
+    const toolkit = new OmegaEditToolkit({ port: port!, autoStart: true })
+    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'omega-edit-ai-'))
+    const inputPath = path.join(tempDir, 'input.bin')
+    fs.writeFileSync(inputPath, Buffer.from('abcdef', 'utf8'))
+
+    let createdSessionId = ''
+
+    try {
+      const created = await toolkit.createSession(inputPath)
+      createdSessionId = created.sessionId
+
+      const result = await toolkit.applyChangeLog({
+        sessionId: createdSessionId,
+        changes: makeChangeLogDocument(
+          [
+            {
+              serial: 1,
+              kind: 'INSERT',
+              offset: 1,
+              length: 0,
+              data: Buffer.from('12', 'utf8').toString('hex'),
+            },
+            {
+              serial: 2,
+              kind: 'REPLACE',
+              offset: 4,
+              length: 2,
+              data: Buffer.from('ZZ', 'utf8').toString('hex'),
+            },
+            {
+              serial: 3,
+              kind: 'OVERWRITE',
+              offset: 7,
+              length: 1,
+              data: Buffer.from('!', 'utf8').toString('hex'),
+            },
+          ],
+          {
+            before: ABCDEF_SHA256_FINGERPRINT,
+            after: makeUtf8Fingerprint('a12bZZe!'),
+          }
+        ),
+      })
+      assert.equal(result.applied, true)
+      assert.equal(result.changeCount, 3)
+      assert.equal(result.inputChangeCount, 3)
+
+      const range = await toolkit.readRange(createdSessionId, 0, 8)
+      assert.equal(range.data.utf8, 'a12bZZe!')
+      const status = await toolkit.sessionStatus(createdSessionId)
+      assert.equal(status.changeCount, 3)
+    } finally {
+      if (createdSessionId) {
+        await toolkit.destroySession(createdSessionId).catch(() => undefined)
+      }
+      await toolkit.stopServer().catch(() => undefined)
+      fs.rmSync(tempDir, { recursive: true, force: true })
+    }
+  })
+
+  it('rejects transform change logs when replay metadata differs', async function () {
+    const port = await omegaEditClient.findFirstAvailablePort(19000, 19999)
+    assert.ok(port, 'expected an available port for OmegaEdit')
+
+    const toolkit = new OmegaEditToolkit({ port: port!, autoStart: true })
+    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'omega-edit-ai-'))
+    const sourcePath = path.join(tempDir, 'source.bin')
+    const replayPath = path.join(tempDir, 'replay.bin')
+    const changeLogPath = path.join(tempDir, 'changes.json')
+    fs.writeFileSync(sourcePath, Buffer.from('ABCDEFGH', 'utf8'))
+    fs.writeFileSync(replayPath, Buffer.from('ABCDEFGH', 'utf8'))
+
+    let sourceSessionId = ''
+    let replaySessionId = ''
+
+    try {
+      const source = await toolkit.createSession(sourcePath)
+      sourceSessionId = source.sessionId
+      await toolkit.applyTransformPlugin({
+        sessionId: sourceSessionId,
+        pluginId: 'omega.example.base64',
+        offset: 0,
+        length: 8,
+      })
+      await toolkit.exportChangeLog(sourceSessionId, changeLogPath, true)
+
+      const tamperedLog = JSON.parse(
+        await fs.promises.readFile(changeLogPath, 'utf8')
+      )
+      const transformChange = tamperedLog.changes.find(
+        (change: ChangeLogEntry) => change.kind === 'TRANSFORM'
+      )
+      assert.ok(transformChange, 'expected exported transform change')
+      transformChange.replacementLength = '999'
+
+      const replay = await toolkit.createSession(replayPath)
+      replaySessionId = replay.sessionId
+      await assert.rejects(
+        () =>
+          toolkit.applyChangeLog({
+            sessionId: replaySessionId,
+            changes: tamperedLog,
+          }),
+        /replacement length mismatch/
+      )
+
+      const replayedRange = await toolkit.readRange(replaySessionId, 0, 8)
+      assert.equal(replayedRange.data.utf8, 'ABCDEFGH')
+      const status = await toolkit.sessionStatus(replaySessionId)
+      assert.equal(status.changeCount, 0)
+    } finally {
+      if (sourceSessionId) {
+        await toolkit.destroySession(sourceSessionId).catch(() => undefined)
+      }
+      if (replaySessionId) {
+        await toolkit.destroySession(replaySessionId).catch(() => undefined)
+      }
+      await toolkit.stopServer().catch(() => undefined)
       fs.rmSync(tempDir, { recursive: true, force: true })
     }
   })

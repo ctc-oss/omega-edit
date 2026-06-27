@@ -14,6 +14,8 @@ export const OMEGA_EDIT_APPLY_CHANGE_LOG_COMMAND = 'omegaEdit.applyChangeLog'
 export const OMEGA_EDIT_ROLLBACK_SESSION_COMMAND = 'omegaEdit.rollbackSession'
 export const OMEGA_EDIT_ROLLBACK_CHECKPOINT_COMMAND =
   'omegaEdit.rollbackCheckpoint'
+export const OMEGA_EDIT_RESTORE_CHECKPOINT_COMMAND =
+  'omegaEdit.restoreCheckpoint'
 export const OMEGA_EDIT_CREATE_CHECKPOINT_COMMAND = 'omegaEdit.createCheckpoint'
 export const OMEGA_EDIT_GET_EDITOR_STATE_COMMAND = 'omegaEdit.getEditorState'
 export const OMEGA_EDIT_SET_EXTERNAL_HIGHLIGHTS_COMMAND =

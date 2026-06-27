@@ -16,6 +16,7 @@
   type SessionActionId =
     | 'createCheckpoint'
     | 'rollbackCheckpoint'
+    | 'restoreCheckpoint'
     | 'exportChangeLog'
     | 'applyChangeLog'
 
@@ -88,6 +89,7 @@
     onOpenTransformResult: (resultId: string) => void
     onCreateCheckpoint: () => void
     onRollbackCheckpoint: () => void
+    onRestoreCheckpoint: () => void
     onExportChangeLog: () => void
     onApplyChangeLog: () => void
   }
@@ -132,6 +134,7 @@
     onOpenTransformResult,
     onCreateCheckpoint,
     onRollbackCheckpoint,
+    onRestoreCheckpoint,
     onExportChangeLog,
     onApplyChangeLog,
   }: Props = $props()
@@ -424,6 +427,7 @@
     const action = value.slice(SESSION_ACTION_PREFIX.length)
     return action === 'createCheckpoint' ||
       action === 'rollbackCheckpoint' ||
+      action === 'restoreCheckpoint' ||
       action === 'exportChangeLog' ||
       action === 'applyChangeLog'
       ? action
@@ -1132,6 +1136,9 @@
       case 'rollbackCheckpoint':
         onRollbackCheckpoint()
         break
+      case 'restoreCheckpoint':
+        onRestoreCheckpoint()
+        break
       case 'exportChangeLog':
         onExportChangeLog()
         break
@@ -1280,6 +1287,9 @@
       </option>
       <option value={sessionActionValue('rollbackCheckpoint')}>
         {strings.transform.rollbackCheckpoint}
+      </option>
+      <option value={sessionActionValue('restoreCheckpoint')}>
+        {strings.transform.restoreCheckpoint}
       </option>
       <option value={sessionActionValue('exportChangeLog')}>
         {strings.transform.exportChangeLog}

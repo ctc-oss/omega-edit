@@ -146,6 +146,11 @@
         "enablement": "omegaEdit.hexEditorActive && !omegaEdit.transformInFlight"
       },
       {
+        "command": "omegaEdit.restoreCheckpoint",
+        "title": "%omegaEdit.command.restoreCheckpoint.title%",
+        "enablement": "omegaEdit.hexEditorActive && !omegaEdit.transformInFlight"
+      },
+      {
         "command": "omegaEdit.createCheckpoint",
         "title": "%omegaEdit.command.createCheckpoint.title%",
         "enablement": "omegaEdit.hexEditorActive && !omegaEdit.transformInFlight"
@@ -225,6 +230,10 @@
         },
         {
           "command": "omegaEdit.rollbackCheckpoint",
+          "when": "omegaEdit.hexEditorActive && !omegaEdit.transformInFlight"
+        },
+        {
+          "command": "omegaEdit.restoreCheckpoint",
           "when": "omegaEdit.hexEditorActive && !omegaEdit.transformInFlight"
         },
         {

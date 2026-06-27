@@ -39,6 +39,8 @@ import type { ApplyTransformPluginResponse } from './omega_edit'
 import type { ApplyTransformPluginRequest } from './omega_edit'
 import type { ListTransformPluginsResponse } from './omega_edit'
 import type { ListTransformPluginsRequest } from './omega_edit'
+import type { RestoreLastCheckpointResponse } from './omega_edit'
+import type { RestoreLastCheckpointRequest } from './omega_edit'
 import type { DestroyLastCheckpointResponse } from './omega_edit'
 import type { DestroyLastCheckpointRequest } from './omega_edit'
 import type { CreateCheckpointResponse } from './omega_edit'
@@ -1551,6 +1553,44 @@ export interface IEditorServiceClient {
     callback: (
       err: grpc.ServiceError | null,
       value?: DestroyLastCheckpointResponse
+    ) => void
+  ): grpc.ClientUnaryCall
+  /**
+   * Restore session content to the most recent checkpoint snapshot while
+   * keeping that checkpoint available.
+   *
+   * @generated from protobuf rpc: RestoreLastCheckpoint
+   */
+  restoreLastCheckpoint(
+    input: RestoreLastCheckpointRequest,
+    metadata: grpc.Metadata,
+    options: grpc.CallOptions,
+    callback: (
+      err: grpc.ServiceError | null,
+      value?: RestoreLastCheckpointResponse
+    ) => void
+  ): grpc.ClientUnaryCall
+  restoreLastCheckpoint(
+    input: RestoreLastCheckpointRequest,
+    metadata: grpc.Metadata,
+    callback: (
+      err: grpc.ServiceError | null,
+      value?: RestoreLastCheckpointResponse
+    ) => void
+  ): grpc.ClientUnaryCall
+  restoreLastCheckpoint(
+    input: RestoreLastCheckpointRequest,
+    options: grpc.CallOptions,
+    callback: (
+      err: grpc.ServiceError | null,
+      value?: RestoreLastCheckpointResponse
+    ) => void
+  ): grpc.ClientUnaryCall
+  restoreLastCheckpoint(
+    input: RestoreLastCheckpointRequest,
+    callback: (
+      err: grpc.ServiceError | null,
+      value?: RestoreLastCheckpointResponse
     ) => void
   ): grpc.ClientUnaryCall
   /**
@@ -3403,6 +3443,48 @@ export class EditorServiceClient
     )
   }
   /**
+   * Restore session content to the most recent checkpoint snapshot while
+   * keeping that checkpoint available.
+   *
+   * @generated from protobuf rpc: RestoreLastCheckpoint
+   */
+  restoreLastCheckpoint(
+    input: RestoreLastCheckpointRequest,
+    metadata:
+      | grpc.Metadata
+      | grpc.CallOptions
+      | ((
+          err: grpc.ServiceError | null,
+          value?: RestoreLastCheckpointResponse
+        ) => void),
+    options?:
+      | grpc.CallOptions
+      | ((
+          err: grpc.ServiceError | null,
+          value?: RestoreLastCheckpointResponse
+        ) => void),
+    callback?: (
+      err: grpc.ServiceError | null,
+      value?: RestoreLastCheckpointResponse
+    ) => void
+  ): grpc.ClientUnaryCall {
+    const method = EditorService.methods[37]
+    return this.makeUnaryRequest<
+      RestoreLastCheckpointRequest,
+      RestoreLastCheckpointResponse
+    >(
+      `/${EditorService.typeName}/${method.name}`,
+      (value: RestoreLastCheckpointRequest): Buffer =>
+        Buffer.from(method.I.toBinary(value, this._binaryOptions)),
+      (value: Buffer): RestoreLastCheckpointResponse =>
+        method.O.fromBinary(value, this._binaryOptions),
+      input,
+      metadata as any,
+      options as any,
+      callback as any
+    )
+  }
+  /**
    * List transform plugins registered with the native server.
    *
    * @generated from protobuf rpc: ListTransformPlugins
@@ -3427,7 +3509,7 @@ export class EditorServiceClient
       value?: ListTransformPluginsResponse
     ) => void
   ): grpc.ClientUnaryCall {
-    const method = EditorService.methods[37]
+    const method = EditorService.methods[38]
     return this.makeUnaryRequest<
       ListTransformPluginsRequest,
       ListTransformPluginsResponse
@@ -3469,7 +3551,7 @@ export class EditorServiceClient
       value?: ApplyTransformPluginResponse
     ) => void
   ): grpc.ClientUnaryCall {
-    const method = EditorService.methods[38]
+    const method = EditorService.methods[39]
     return this.makeUnaryRequest<
       ApplyTransformPluginRequest,
       ApplyTransformPluginResponse
@@ -3511,7 +3593,7 @@ export class EditorServiceClient
       value?: GetByteFrequencyProfileResponse
     ) => void
   ): grpc.ClientUnaryCall {
-    const method = EditorService.methods[39]
+    const method = EditorService.methods[40]
     return this.makeUnaryRequest<
       GetByteFrequencyProfileRequest,
       GetByteFrequencyProfileResponse
@@ -3553,7 +3635,7 @@ export class EditorServiceClient
       value?: GetCharacterCountsResponse
     ) => void
   ): grpc.ClientUnaryCall {
-    const method = EditorService.methods[40]
+    const method = EditorService.methods[41]
     return this.makeUnaryRequest<
       GetCharacterCountsRequest,
       GetCharacterCountsResponse
@@ -3598,7 +3680,7 @@ export class EditorServiceClient
       value?: ServerControlResponse
     ) => void
   ): grpc.ClientUnaryCall {
-    const method = EditorService.methods[41]
+    const method = EditorService.methods[42]
     return this.makeUnaryRequest<ServerControlRequest, ServerControlResponse>(
       `/${EditorService.typeName}/${method.name}`,
       (value: ServerControlRequest): Buffer =>
@@ -3631,7 +3713,7 @@ export class EditorServiceClient
       value?: GetHeartbeatResponse
     ) => void
   ): grpc.ClientUnaryCall {
-    const method = EditorService.methods[42]
+    const method = EditorService.methods[43]
     return this.makeUnaryRequest<GetHeartbeatRequest, GetHeartbeatResponse>(
       `/${EditorService.typeName}/${method.name}`,
       (value: GetHeartbeatRequest): Buffer =>
@@ -3660,7 +3742,7 @@ export class EditorServiceClient
     metadata?: grpc.Metadata | grpc.CallOptions,
     options?: grpc.CallOptions
   ): grpc.ClientReadableStream<SubscribeToSessionEventsResponse> {
-    const method = EditorService.methods[43]
+    const method = EditorService.methods[44]
     return this.makeServerStreamRequest<
       SubscribeToSessionEventsRequest,
       SubscribeToSessionEventsResponse
@@ -3686,7 +3768,7 @@ export class EditorServiceClient
     metadata?: grpc.Metadata | grpc.CallOptions,
     options?: grpc.CallOptions
   ): grpc.ClientReadableStream<SubscribeToViewportEventsResponse> {
-    const method = EditorService.methods[44]
+    const method = EditorService.methods[45]
     return this.makeServerStreamRequest<
       SubscribeToViewportEventsRequest,
       SubscribeToViewportEventsResponse
@@ -3726,7 +3808,7 @@ export class EditorServiceClient
       value?: UnsubscribeToSessionEventsResponse
     ) => void
   ): grpc.ClientUnaryCall {
-    const method = EditorService.methods[45]
+    const method = EditorService.methods[46]
     return this.makeUnaryRequest<
       UnsubscribeToSessionEventsRequest,
       UnsubscribeToSessionEventsResponse
@@ -3767,7 +3849,7 @@ export class EditorServiceClient
       value?: UnsubscribeToViewportEventsResponse
     ) => void
   ): grpc.ClientUnaryCall {
-    const method = EditorService.methods[46]
+    const method = EditorService.methods[47]
     return this.makeUnaryRequest<
       UnsubscribeToViewportEventsRequest,
       UnsubscribeToViewportEventsResponse

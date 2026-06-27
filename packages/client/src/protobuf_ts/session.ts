@@ -42,6 +42,7 @@ import {
   type ReplaceSessionResponse,
   type ReplaceSessionCheckpointedRequest,
   type ReplaceSessionCheckpointedResponse,
+  type RestoreLastCheckpointResponse,
   type SaveSessionRequest,
   type SaveSessionResponse,
   type SearchSessionRequest,
@@ -1314,6 +1315,55 @@ export async function replaceSessionCheckpointed(
           return resolve(required)
         } catch (error) {
           return reject(makeWrappedError('replaceSessionCheckpointed', error))
+        }
+      }
+    )
+  })
+}
+
+export async function restoreLastCheckpoint(
+  sessionId: string
+): Promise<RestoreLastCheckpointResponse> {
+  const log = getLogger()
+  const request = { sessionId }
+  debugLog(log, () => ({
+    fn: 'protobufTs.restoreLastCheckpoint',
+    rqst: request,
+  }))
+  const client = await getClient()
+
+  return new Promise<RestoreLastCheckpointResponse>((resolve, reject) => {
+    callUnary(
+      client,
+      client.restoreLastCheckpoint,
+      request,
+      (err, response) => {
+        if (err) {
+          log.error({
+            fn: 'protobufTs.restoreLastCheckpoint',
+            rqst: request,
+            err: {
+              msg: err.message,
+              details: err.details,
+              code: err.code,
+              stack: err.stack,
+            },
+          })
+          return reject(makeWrappedError('restoreLastCheckpoint', err))
+        }
+
+        try {
+          const required = requireResponse(
+            response as RestoreLastCheckpointResponse | undefined,
+            'restoreLastCheckpoint'
+          )
+          debugLog(log, () => ({
+            fn: 'protobufTs.restoreLastCheckpoint',
+            resp: required,
+          }))
+          return resolve(required)
+        } catch (error) {
+          return reject(makeWrappedError('restoreLastCheckpoint', error))
         }
       }
     )
