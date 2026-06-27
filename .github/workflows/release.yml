@@ -527,6 +527,7 @@ jobs:
         run: yarn workspace @omega-edit/server package
         env:
           CPP_SERVER_BINARIES_DIR: ${{ github.workspace }}/_server_binaries
+          OMEGA_EDIT_TRANSFORM_PLUGINS_DIR: ${{ github.workspace }}/_transform_plugins
 
       - name: Build local client release tarball
         run: yarn workspace @omega-edit/client package
