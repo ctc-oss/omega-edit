@@ -20,7 +20,6 @@
 import {
   ChangeKind as ProtoChangeKind,
   CountKind,
-  SessionEventKind,
   type GetCountResponse,
   type GetChangeDetailsResponse,
   type GetLastChangeResponse,
@@ -354,10 +353,6 @@ export async function getChangeDetails(
   const log = getLogger()
   const request = {
     sessionId,
-    sessionEventKind: SessionEventKind.UNSPECIFIED,
-    computedFileSize: 0,
-    changeCount: 0,
-    undoCount: 0,
     serial,
   }
   debugLog(log, () => ({ fn: 'protobufTs.getChangeDetails', rqst: request }))

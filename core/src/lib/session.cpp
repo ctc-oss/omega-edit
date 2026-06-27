@@ -16,6 +16,7 @@
 #include "impl_/change_def.hpp"
 #include "impl_/character_counts_def.h"
 #include "impl_/internal_fun.hpp"
+#include "impl_/macros.h"
 #include "impl_/model_def.hpp"
 #include "impl_/safe_math.hpp"
 #include "impl_/segment_def.hpp"
@@ -24,10 +25,12 @@
 #include "omega_edit/fwd_defs.h"
 #include "omega_edit/segment.h"
 #include "omega_edit/viewport.h"
+#include <algorithm>
 #include <cassert>
 #include <cstring>
 
 using omega_edit::internal::omega_change_get_transaction_bit_;
+using omega_edit::internal::omega_data_get_data_;
 using omega_edit::internal::omega_session_end_event_batch_;
 using omega_edit::internal::populate_data_segment_;
 using omega_edit::internal::safe_add_int64_;
@@ -45,6 +48,38 @@ int omega_session_get_segment(const omega_session_t *session_ptr, omega_segment_
     if (!session_ptr || !data_segment_ptr || offset < 0 || data_segment_ptr->capacity < 0) { return -1; }
     data_segment_ptr->offset = offset;
     return populate_data_segment_(session_ptr, data_segment_ptr);
+}
+
+int64_t omega_session_get_original_file_size(const omega_session_t *session_ptr) {
+    if (!session_ptr || session_ptr->models_.empty() || !session_ptr->models_.front()) { return -1; }
+    auto *file_ptr = session_ptr->models_.front()->file_ptr;
+    if (file_ptr == nullptr) { return 0; }
+    if (0 != FSEEK(file_ptr, 0L, SEEK_END)) { return -1; }
+    const auto file_size = FTELL(file_ptr);
+    return file_size < 0 ? -1 : file_size;
+}
+
+int omega_session_get_original_segment(const omega_session_t *session_ptr, omega_segment_t *data_segment_ptr,
+                                       int64_t offset) {
+    if (!session_ptr || !data_segment_ptr || offset < 0 || data_segment_ptr->capacity < 0) { return -1; }
+    data_segment_ptr->offset = offset;
+    data_segment_ptr->length = 0;
+
+    const auto original_file_size = omega_session_get_original_file_size(session_ptr);
+    if (original_file_size < 0 || offset > original_file_size) { return -1; }
+    if (data_segment_ptr->capacity == 0 || offset == original_file_size) { return 0; }
+
+    const auto read_length = std::min(data_segment_ptr->capacity, original_file_size - offset);
+    auto *file_ptr = session_ptr->models_.front()->file_ptr;
+    if (file_ptr == nullptr) { return read_length == 0 ? 0 : -1; }
+    if (0 != FSEEK(file_ptr, offset, SEEK_SET)) { return -1; }
+
+    auto *data = omega_data_get_data_(&data_segment_ptr->data, data_segment_ptr->capacity);
+    const auto actual = static_cast<int64_t>(fread(data, sizeof(omega_byte_t), read_length, file_ptr));
+    if (actual != read_length) { return -1; }
+    data_segment_ptr->length = actual;
+    data[data_segment_ptr->length] = '\0';
+    return 0;
 }
 
 int64_t omega_session_get_num_viewports(const omega_session_t *session_ptr) {

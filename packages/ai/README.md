@@ -79,9 +79,9 @@ codecs, transcodes, record/message helpers, and digest/checksum inspectors.
 All CLI commands emit JSON to stdout and return non-zero exit codes on failure.
 Exported change logs are portable `omega-edit.change-log` documents containing
 the byte operations needed to apply the same edits to another session, another
-file, or a fleet of compatible files. `foldedChangeCount` is non-zero when
-earlier edits have been absorbed into an OmegaEdit checkpoint baseline rather
-than exported as replayable byte operations.
+file, or a fleet of compatible files. Non-streaming change logs include
+before/after content fingerprints, and export fails instead of writing an
+incomplete replay log when any change details are unavailable.
 
 ## MCP Quick Start
 

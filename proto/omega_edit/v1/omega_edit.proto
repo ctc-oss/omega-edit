@@ -170,6 +170,12 @@ service EditorService {
   // viewports, checkpoints, etc.) in a single round-trip.
   rpc GetCount(GetCountRequest) returns (GetCountResponse);
 
+  // Check the native session model for internal consistency.
+  rpc CheckSessionModel(CheckSessionModelRequest) returns (CheckSessionModelResponse);
+
+  // Compute a server-side fingerprint for original or computed session content.
+  rpc GetSessionFingerprint(GetSessionFingerprintRequest) returns (GetSessionFingerprintResponse);
+
   // Return the total number of active sessions on the server.
   rpc GetSessionCount(GetSessionCountRequest) returns (GetSessionCountResponse);
 
@@ -696,12 +702,8 @@ message NotifyChangedViewportsResponse {
 
 // Request to retrieve details of a specific change by serial number.
 message GetChangeDetailsRequest {
-  string session_id = 1;                       // Session ID.
-  SessionEventKind session_event_kind = 2;     // Event kind.
-  int64 computed_file_size = 3;                // Computed file size after the event.
-  int64 change_count = 4;                      // Change count after the event.
-  int64 undo_count = 5;                        // Undo count after the event.
-  optional int64 serial = 6;                   // Serial number of the change.
+  string session_id = 1;     // Session ID.
+  optional int64 serial = 2; // Serial number of the change.
 }
 
 // Response with full details of a single change.
@@ -834,6 +836,51 @@ message SingleCount {
 message GetCountResponse {
   string session_id = 1;
   repeated SingleCount counts = 2;
+}
+
+// Request to run the native model-integrity check for a session.
+message CheckSessionModelRequest {
+  string session_id = 1; // Session to check.
+}
+
+// Result of the native model-integrity check.
+message CheckSessionModelResponse {
+  string session_id = 1; // Session that was checked.
+  bool valid = 2;        // True when omega_check_model returned 0.
+  int32 status = 3;      // Raw omega_check_model return code.
+}
+
+// Which session content should be fingerprinted.
+enum SessionFingerprintContent {
+  SESSION_FINGERPRINT_CONTENT_UNSPECIFIED = 0;
+  SESSION_FINGERPRINT_CONTENT_ORIGINAL = 1; // Content captured when the session was created.
+  SESSION_FINGERPRINT_CONTENT_COMPUTED = 2; // Current logical content after edits.
+}
+
+// Digest metadata for a content fingerprint.
+message ContentDigest {
+  string algorithm = 1; // Digest algorithm identifier, e.g. "sha256".
+  string value = 2;     // Lowercase hexadecimal digest value.
+}
+
+// Size and digest for a session content snapshot.
+message SessionContentFingerprint {
+  int64 byte_length = 1;    // Content size in bytes.
+  ContentDigest digest = 2; // Digest of the content bytes.
+}
+
+// Request a server-side fingerprint for original or computed session content.
+message GetSessionFingerprintRequest {
+  string session_id = 1;                    // Session to fingerprint.
+  SessionFingerprintContent content = 2;    // Original or computed content.
+  optional string algorithm = 3;            // Digest algorithm; defaults to "sha256".
+}
+
+// Server-side content fingerprint result.
+message GetSessionFingerprintResponse {
+  string session_id = 1;                         // Session that was fingerprinted.
+  SessionFingerprintContent content = 2;         // Content that was fingerprinted.
+  SessionContentFingerprint fingerprint = 3;     // Size and digest.
 }
 
 // Request the total number of active sessions.

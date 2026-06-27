@@ -28,9 +28,9 @@ A standalone VS Code extension that uses [Ωedit™](https://github.com/ctc-oss/
 
 Change log exports are portable `omega-edit.change-log` documents containing
 the byte operations needed to apply the same edits to another session, another
-file, or a fleet of compatible files. `foldedChangeCount` is non-zero when
-earlier edits have been absorbed into an OmegaEdit checkpoint baseline rather
-than exported as replayable byte operations.
+file, or a fleet of compatible files. Exports include before/after content
+fingerprints, and OmegaEdit refuses to write or apply incomplete change logs
+when required change details are unavailable.
 
 ## Client Helpers Used Here
 

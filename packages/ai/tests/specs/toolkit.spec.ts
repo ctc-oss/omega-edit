@@ -6,6 +6,42 @@ import * as path from 'path'
 import * as omegaEditClient from '@omega-edit/client'
 import { OmegaEditToolkit } from '../../src/service'
 import { parseInputData } from '../../src/codec'
+import type { ChangeLogDocument, ChangeLogEntry } from '../../src/types'
+
+const EMPTY_SHA256_FINGERPRINT = {
+  byteLength: 0,
+  digest: {
+    algorithm: 'sha256',
+    value: 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855',
+  },
+}
+
+const ABCDEF_SHA256_FINGERPRINT = {
+  byteLength: 6,
+  digest: {
+    algorithm: 'sha256',
+    value: 'bef57ec7f53a6d40beb640a780a639c83bc29ac8a9816f1fc6c5c6dcd93c4721',
+  },
+}
+
+function makeChangeLogDocument(
+  changes: ChangeLogEntry[],
+  overrides: Partial<ChangeLogDocument> = {}
+): ChangeLogDocument {
+  const document: ChangeLogDocument = {
+    format: 'omega-edit.change-log',
+    version: 2,
+    complete: true,
+    before: EMPTY_SHA256_FINGERPRINT,
+    after: EMPTY_SHA256_FINGERPRINT,
+    changeCount: changes.length,
+    sourceChangeCount: changes.length,
+    unavailableChangeCount: 0,
+    unavailableChangeSerials: [],
+    changes,
+  }
+  return { ...document, ...overrides }
+}
 
 describe('@omega-edit/ai toolkit', () => {
   it('preserves the original connection failure as the cause', async function () {
@@ -47,7 +83,7 @@ describe('@omega-edit/ai toolkit', () => {
         invalidVersionPath,
         JSON.stringify({
           format: 'omega-edit.change-log',
-          version: 2,
+          version: 1,
           changes: [],
         })
       )
@@ -92,25 +128,36 @@ describe('@omega-edit/ai toolkit', () => {
     const wrappedDocument = await toolkit.applyChangeLog({
       sessionId: 'session',
       dryRun: true,
-      changes: {
-        format: 'omega-edit.change-log',
-        version: 1,
-        changeCount: 0,
-        sourceChangeCount: 0,
-        foldedChangeCount: 0,
-        changes: [],
-      },
+      changes: makeChangeLogDocument([]),
     })
     assert.equal(wrappedDocument.applied, false)
     assert.equal(wrappedDocument.changeCount, 0)
+    assert.equal(wrappedDocument.inputChangeCount, 0)
 
-    const legacyArray = await toolkit.applyChangeLog({
-      sessionId: 'session',
-      dryRun: true,
-      changes: [],
-    })
-    assert.equal(legacyArray.applied, false)
-    assert.equal(legacyArray.changeCount, 0)
+    await assert.rejects(
+      () =>
+        toolkit.applyChangeLog({
+          sessionId: 'session',
+          dryRun: true,
+          changes: makeChangeLogDocument([], {
+            complete: false,
+            sourceChangeCount: 1,
+            unavailableChangeCount: 1,
+            unavailableChangeSerials: [1],
+          }),
+        }),
+      /Change log is incomplete/
+    )
+
+    await assert.rejects(
+      () =>
+        (toolkit.applyChangeLog as any)({
+          sessionId: 'session',
+          dryRun: true,
+          changes: [],
+        }),
+      /versioned omega-edit\.change-log document/
+    )
   })
 
   it('rejects inconsistent change-log serial and group metadata', async function () {
@@ -121,7 +168,7 @@ describe('@omega-edit/ai toolkit', () => {
         toolkit.applyChangeLog({
           sessionId: 'session',
           dryRun: true,
-          changes: [
+          changes: makeChangeLogDocument([
             {
               serial: 1,
               kind: 'INSERT',
@@ -136,7 +183,7 @@ describe('@omega-edit/ai toolkit', () => {
               length: 0,
               data: '42',
             },
-          ],
+          ]),
         }),
       /serial metadata must be contiguous/
     )
@@ -146,7 +193,7 @@ describe('@omega-edit/ai toolkit', () => {
         toolkit.applyChangeLog({
           sessionId: 'session',
           dryRun: true,
-          changes: [
+          changes: makeChangeLogDocument([
             {
               kind: 'INSERT',
               offset: 0,
@@ -168,7 +215,7 @@ describe('@omega-edit/ai toolkit', () => {
               data: '43',
               groupId: 'batch-a',
             },
-          ],
+          ]),
         }),
       /groupId "batch-a" is not contiguous/
     )
@@ -277,20 +324,36 @@ describe('@omega-edit/ai toolkit', () => {
         true
       )
       assert.equal(exportedLog.format, 'omega-edit.change-log')
-      assert.equal(exportedLog.version, 1)
+      assert.equal(exportedLog.version, 2)
+      assert.equal(exportedLog.complete, true)
+      assert.equal(exportedLog.before.byteLength, 6)
+      assert.equal(exportedLog.before.digest.algorithm, 'sha256')
+      assert.match(exportedLog.before.digest.value, /^[0-9a-f]+$/)
+      assert.equal(exportedLog.after.byteLength, 6)
+      assert.equal(exportedLog.after.digest.algorithm, 'sha256')
+      assert.match(exportedLog.after.digest.value, /^[0-9a-f]+$/)
+      assert.notEqual(
+        exportedLog.before.digest.value,
+        exportedLog.after.digest.value
+      )
       assert.equal(exportedLog.changeCount, 1)
       assert.equal(exportedLog.sourceChangeCount, 1)
-      assert.equal(exportedLog.foldedChangeCount, 0)
+      assert.equal(exportedLog.unavailableChangeCount, 0)
+      assert.deepEqual(exportedLog.unavailableChangeSerials, [])
       assert.equal(exportedLog.changes[0].kind, 'OVERWRITE')
       assert.equal(fs.existsSync(changeLogPath), true)
       const changeLogDocument = JSON.parse(
         await fs.promises.readFile(changeLogPath, 'utf8')
       )
       assert.equal(changeLogDocument.format, 'omega-edit.change-log')
-      assert.equal(changeLogDocument.version, 1)
+      assert.equal(changeLogDocument.version, 2)
+      assert.equal(changeLogDocument.complete, true)
+      assert.deepEqual(changeLogDocument.before, exportedLog.before)
+      assert.deepEqual(changeLogDocument.after, exportedLog.after)
       assert.equal(changeLogDocument.changeCount, 1)
       assert.equal(changeLogDocument.sourceChangeCount, 1)
-      assert.equal(changeLogDocument.foldedChangeCount, 0)
+      assert.equal(changeLogDocument.unavailableChangeCount, 0)
+      assert.deepEqual(changeLogDocument.unavailableChangeSerials, [])
       assert.equal(changeLogDocument.changes[0].kind, 'OVERWRITE')
 
       await fs.promises.writeFile(replayPath, Buffer.from('abcdef', 'utf8'))
@@ -302,6 +365,7 @@ describe('@omega-edit/ai toolkit', () => {
         })
         assert.equal(appliedLog.applied, true)
         assert.equal(appliedLog.changeCount, 1)
+        assert.equal(appliedLog.inputChangeCount, 1)
         const replayedRange = await toolkit.readRange(
           replaySession.sessionId,
           0,
@@ -361,20 +425,25 @@ describe('@omega-edit/ai toolkit', () => {
         () =>
           toolkit.applyChangeLog({
             sessionId: createdSessionId,
-            changes: [
+            changes: makeChangeLogDocument(
+              [
+                {
+                  kind: 'INSERT',
+                  offset: 1,
+                  length: 0,
+                  data: Buffer.from('ZZ', 'utf8').toString('hex'),
+                },
+                {
+                  kind: 'DELETE',
+                  offset: 1000,
+                  length: 1,
+                  data: '',
+                },
+              ],
               {
-                kind: 'INSERT',
-                offset: 1,
-                length: 0,
-                data: Buffer.from('ZZ', 'utf8').toString('hex'),
-              },
-              {
-                kind: 'DELETE',
-                offset: 1000,
-                length: 1,
-                data: '',
-              },
-            ],
+                before: ABCDEF_SHA256_FINGERPRINT,
+              }
+            ),
           }),
         /delete failed|change operation failed|invalid change arguments/i
       )

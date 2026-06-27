@@ -20,15 +20,20 @@
 import {
   TransformPluginOperation as RawProtoTransformPluginOperation,
   IOFlags as ProtoIOFlags,
+  SessionFingerprintContent as RawProtoSessionFingerprintContent,
   SessionEventKind as RawProtoSessionEventKind,
   ViewportEventKind as RawProtoViewportEventKind,
   type ApplyTransformPluginResponse as RawApplyTransformPluginResponse,
+  type CheckSessionModelResponse as RawCheckSessionModelResponse,
+  type GetSessionFingerprintResponse as RawGetSessionFingerprintResponse,
+  type SessionContentFingerprint as RawSessionContentFingerprint,
   type TransformProgress,
   type TransformPluginInfo as RawTransformPluginInfo,
 } from './protobuf_ts/generated/omega_edit/v1/omega_edit'
 import {
   applyTransformPlugin as rawApplyTransformPlugin,
   beginSessionTransaction as rawBeginSessionTransaction,
+  checkSessionModel as rawCheckSessionModel,
   countCharacters as rawCountCharacters,
   createCheckpoint as rawCreateCheckpoint,
   createSession as rawCreateSession,
@@ -40,6 +45,7 @@ import {
   getCounts as rawGetCounts,
   getLanguage as rawGetLanguage,
   getSegment as rawGetSegment,
+  getSessionFingerprint as rawGetSessionFingerprint,
   getSessionCount as rawGetSessionCount,
   listTransformPlugins as rawListTransformPlugins,
   notifyChangedViewports as rawNotifyChangedViewports,
@@ -127,6 +133,14 @@ export const ViewportEventKind = {
 export type ViewportEventKind =
   (typeof ViewportEventKind)[keyof typeof ViewportEventKind]
 
+export const SessionFingerprintContent = {
+  UNSPECIFIED: RawProtoSessionFingerprintContent.UNSPECIFIED,
+  ORIGINAL: RawProtoSessionFingerprintContent.ORIGINAL,
+  COMPUTED: RawProtoSessionFingerprintContent.COMPUTED,
+} as const
+export type SessionFingerprintContent =
+  (typeof SessionFingerprintContent)[keyof typeof SessionFingerprintContent]
+
 export const TransformPluginOperation = {
   UNSPECIFIED: RawProtoTransformPluginOperation.UNSPECIFIED,
   REPLACE: RawProtoTransformPluginOperation.REPLACE,
@@ -138,6 +152,9 @@ export type TransformPluginOperation =
 
 export type TransformPluginInfo = RawTransformPluginInfo
 export type ApplyTransformPluginResponse = RawApplyTransformPluginResponse
+export type CheckSessionModelResponse = RawCheckSessionModelResponse
+export type SessionContentFingerprint = RawSessionContentFingerprint
+export type GetSessionFingerprintResponse = RawGetSessionFingerprintResponse
 export type { TransformProgress }
 
 export const PROFILE_DOS_EOL = 256
@@ -169,6 +186,50 @@ export async function createSessionFromBytes(
 
 export function destroySession(session_id: string): Promise<string> {
   return rawDestroySession(session_id)
+}
+
+export async function checkSessionModel(
+  session_id: string
+): Promise<CheckSessionModelResponse> {
+  const response = await rawCheckSessionModel(session_id)
+  return {
+    sessionId: response.sessionId,
+    valid: response.valid,
+    status: requireSafeIntegerOutput(
+      'checkSessionModel status',
+      response.status
+    ),
+  }
+}
+
+export async function getSessionFingerprint(
+  session_id: string,
+  content: SessionFingerprintContent,
+  algorithm = 'sha256'
+): Promise<GetSessionFingerprintResponse> {
+  const response = await rawGetSessionFingerprint(
+    session_id,
+    content,
+    algorithm
+  )
+  if (!response.fingerprint?.digest) {
+    throw new Error('getSessionFingerprint response missing fingerprint digest')
+  }
+
+  return {
+    sessionId: response.sessionId,
+    content: response.content,
+    fingerprint: {
+      byteLength: requireSafeIntegerOutput(
+        'session fingerprint byte length',
+        response.fingerprint.byteLength
+      ),
+      digest: {
+        algorithm: response.fingerprint.digest.algorithm,
+        value: response.fingerprint.digest.value,
+      },
+    },
+  }
 }
 
 export async function createCheckpoint(session_id: string): Promise<number> {

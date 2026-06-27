@@ -103,6 +103,16 @@ void *omega_session_get_user_data_ptr(const omega_session_t *session_ptr);
 int omega_session_get_segment(const omega_session_t *session_ptr, omega_segment_t *data_segment_ptr, int64_t offset);
 
 /**
+ * Given a session, populate a segment from the immutable original session content.
+ * @param session_ptr session whose original content should be read
+ * @param data_segment_ptr data segment to populate
+ * @param offset original-content byte offset to read from
+ * @return 0 if the segment is populated successfully and non-zero otherwise
+ */
+int omega_session_get_original_segment(const omega_session_t *session_ptr, omega_segment_t *data_segment_ptr,
+                                       int64_t offset);
+
+/**
  * Given a session, return the number of active viewports
  * @param session_ptr session to get the number of active viewports for
  * @return number of active viewports
@@ -136,6 +146,13 @@ int64_t omega_session_get_num_undone_changes(const omega_session_t *session_ptr)
  * @return computed file size in bytes, or -1 on failure
  */
 int64_t omega_session_get_computed_file_size(const omega_session_t *session_ptr);
+
+/**
+ * Given a session, return the original file size in bytes
+ * @param session_ptr session to inspect
+ * @return original file size in bytes, or -1 on failure
+ */
+int64_t omega_session_get_original_file_size(const omega_session_t *session_ptr);
 
 /**
  * Given a session, get the last change (if any)

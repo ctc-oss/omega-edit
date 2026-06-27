@@ -19,7 +19,9 @@
 
 import {
   CountKind,
+  SessionFingerprintContent,
   type ApplyTransformPluginResponse,
+  type CheckSessionModelResponse,
   type CreateCheckpointResponse,
   type CreateSessionRequest,
   type CreateSessionResponse,
@@ -31,6 +33,7 @@ import {
   type GetCountResponse,
   type GetLanguageResponse,
   type GetSegmentResponse,
+  type GetSessionFingerprintResponse,
   type GetSessionCountResponse,
   type ListTransformPluginsResponse,
   type NotifyChangedViewportsResponse,
@@ -138,6 +141,101 @@ export async function destroySession(sessionId: string): Promise<string> {
         return reject(makeWrappedError('destroySession', error))
       }
     })
+  })
+}
+
+export async function checkSessionModel(
+  sessionId: string
+): Promise<CheckSessionModelResponse> {
+  const log = getLogger()
+  const request = { sessionId }
+  debugLog(log, () => ({ fn: 'protobufTs.checkSessionModel', rqst: request }))
+  const client = await getClient()
+
+  return new Promise<CheckSessionModelResponse>((resolve, reject) => {
+    callUnary(client, client.checkSessionModel, request, (err, response) => {
+      if (err) {
+        log.error({
+          fn: 'protobufTs.checkSessionModel',
+          rqst: request,
+          err: {
+            msg: err.message,
+            details: err.details,
+            code: err.code,
+            stack: err.stack,
+          },
+        })
+        return reject(makeWrappedError('checkSessionModel', err))
+      }
+
+      try {
+        const required = requireResponse(
+          response as CheckSessionModelResponse | undefined,
+          'checkSessionModel'
+        )
+        debugLog(log, () => ({
+          fn: 'protobufTs.checkSessionModel',
+          resp: required,
+        }))
+        return resolve(required)
+      } catch (error) {
+        return reject(makeWrappedError('checkSessionModel', error))
+      }
+    })
+  })
+}
+
+export async function getSessionFingerprint(
+  sessionId: string,
+  content: SessionFingerprintContent,
+  algorithm = ''
+): Promise<GetSessionFingerprintResponse> {
+  const log = getLogger()
+  const request =
+    algorithm.length > 0
+      ? { sessionId, content, algorithm }
+      : { sessionId, content }
+  debugLog(log, () => ({
+    fn: 'protobufTs.getSessionFingerprint',
+    rqst: request,
+  }))
+  const client = await getClient()
+
+  return new Promise<GetSessionFingerprintResponse>((resolve, reject) => {
+    callUnary(
+      client,
+      client.getSessionFingerprint,
+      request,
+      (err, response) => {
+        if (err) {
+          log.error({
+            fn: 'protobufTs.getSessionFingerprint',
+            rqst: request,
+            err: {
+              msg: err.message,
+              details: err.details,
+              code: err.code,
+              stack: err.stack,
+            },
+          })
+          return reject(makeWrappedError('getSessionFingerprint', err))
+        }
+
+        try {
+          const required = requireResponse(
+            response as GetSessionFingerprintResponse | undefined,
+            'getSessionFingerprint'
+          )
+          debugLog(log, () => ({
+            fn: 'protobufTs.getSessionFingerprint',
+            resp: required,
+          }))
+          return resolve(required)
+        } catch (error) {
+          return reject(makeWrappedError('getSessionFingerprint', error))
+        }
+      }
+    )
   })
 }
 

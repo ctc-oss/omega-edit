@@ -92,17 +92,16 @@ This is the reported bug. Root causes are spread across all three layers.
    and no record of how far it got. Should wrap in a begin/end transaction (core supports
    transaction state — see `omega_session_get_transaction_state` usage in the server) or, at
    minimum, checkpoint before and restore on failure.
-   **Status: Partially fixed.** AI change-log apply now runs normal edit batches inside server
-   transactions and rolls back to the starting change count if a later entry fails. A dedicated
-   discard-redo rollback primitive / applied-count reporting on failure is still open.
+   **Status: Fixed.** AI change-log apply now verifies the before fingerprint, applies normal
+   edit batches inside server transactions, verifies the after fingerprint before reporting
+   success, and rolls back to the starting change count on any apply/postcondition failure.
 
 9. **`applyChangeLog` is not atomic (extension).**
    `vscode-extension/src/hexEditorProvider.ts` `applyChangeLogEntries` has the same
    sequential, non-transactional shape.
-   **Status: Partially fixed.** Extension import now applies normal edit batches inside server
-   transactions, records successful imports as one local undo/redo transaction, and rolls back
-   to the starting change count on mid-apply failure. A dedicated discard-redo rollback
-   primitive remains open.
+   **Status: Fixed.** Extension import now verifies the before fingerprint, applies normal edit
+   batches inside server transactions, verifies the after fingerprint before recording local
+   history, and rolls back to the starting change count on any apply/postcondition failure.
 
 10. **Transforms are not atomic/first-class.** (User-requested flag — see G1.)
     A transform that internally expands/shrinks/replaces is recorded as one opaque `REPLACE`
@@ -176,9 +175,9 @@ This is the reported bug. Root causes are spread across all three layers.
 18. **Change-log entry/byte caps.**
     AI: `MAX_CHANGE_LOG_ENTRIES = 100_000`, `MAX_CHANGE_LOG_ENTRY_BYTES = 32 MiB`,
     `MAX_CHANGE_LOG_BYTES = 96 MiB` (`packages/ai/src/service.ts`). Extension mirrors these
-    (`hexEditorProvider.ts:146-148`). A session with >100k changes simply cannot export a log,
-    and `foldedChangeCount` silently hides the dropped ones (see E20). For a tool whose pitch is
-    massive files, a 100k-change ceiling is low.
+    (`hexEditorProvider.ts:146-148`). A session with >100k changes still cannot export a
+    non-streaming log. Export now fails loudly instead of hiding dropped changes, but for a tool
+    whose pitch is massive files, a 100k-change ceiling is low.
 
 19. **In-memory hex doubling everywhere.**
     Change-log data is stored/transported as hex strings (2× bytes) in both AI and extension,
@@ -195,13 +194,17 @@ This is the reported bug. Root causes are spread across all three layers.
     baseline are dropped and only counted in `foldedChangeCount`. The exported log therefore
     cannot faithfully reproduce a session that used checkpoints or transforms. This is presented
     in the README as a feature ("portable…apply to a fleet of files"), which overstates fidelity.
+    **Status: Fixed.** Export now checks the core model first, rejects unavailable serials /
+    missing details instead of emitting an incomplete log, writes explicit completeness metadata,
+    and includes server-computed before/after size+digest fingerprints for non-streaming logs.
+    The old folded-count path has been removed.
 
 21. **No schema validation / versioning enforcement on import.**
     `normalizeChangeLogEntries` accepts an array *or* `{changes:[...]}` but does not check
     `format`/`version` fields it itself writes. A v2 document or a foreign JSON array would be
     applied (or partially applied) without a compatibility gate.
-    **Status: Fixed.** Wrapped imports must now match the OmegaEdit change-log format and
-    version; the legacy bare-array form is still accepted.
+    **Status: Fixed.** Imports must now match the OmegaEdit change-log format and version;
+    bare JSON arrays are rejected.
 
 22. **`groupId` and `serial` are carried but not honored.**
     Import preserves `serial`/`groupId` (`service.ts` normalize) but apply ignores them — no
@@ -220,6 +223,8 @@ This is the reported bug. Root causes are spread across all three layers.
     `packages/client/src/protobuf_ts/change.ts` fills `sessionEventKind`, `computedFileSize`,
     `changeCount`, `undoCount` with zeros just to satisfy the shared request message. Harmless
     now but couples a read to an event-shaped message; a stricter server could reject it.
+    **Status: Fixed.** `GetChangeDetailsRequest` now carries only `session_id` and optional
+    `serial`.
 
 ---
 
@@ -257,6 +262,9 @@ This is the reported bug. Root causes are spread across all three layers.
 - **G3 — Streaming / file-backed change logs** to drop the in-memory and entry-count caps.
 - **G4 — BigInt offsets/lengths** at the TS boundary to lift the 2^53 ceiling.
 - **G5 — Transactional `applyChangeLog`** (begin/end transaction or checkpoint-guarded) for atomicity.
+  **Status: Fixed for change-log import.** Normal edit batches are transactional and the whole
+  import rolls back on failure; a future native "restore to starting serial and discard redo"
+  primitive would still make rollback cheaper and more direct.
 - **G6 — gRPC status-code based error handling.** **Status: Fixed.** Missing change-detail
   handling now follows preserved gRPC status codes instead of message text.
 

@@ -149,6 +149,14 @@ public:
     grpc::Status GetCount(grpc::ServerContext *context, const ::omega_edit::v1::GetCountRequest *request,
                           ::omega_edit::v1::GetCountResponse *response) override;
 
+    grpc::Status CheckSessionModel(grpc::ServerContext *context,
+                                   const ::omega_edit::v1::CheckSessionModelRequest *request,
+                                   ::omega_edit::v1::CheckSessionModelResponse *response) override;
+
+    grpc::Status GetSessionFingerprint(grpc::ServerContext *context,
+                                       const ::omega_edit::v1::GetSessionFingerprintRequest *request,
+                                       ::omega_edit::v1::GetSessionFingerprintResponse *response) override;
+
     grpc::Status GetSessionCount(grpc::ServerContext *context,
                                  const ::omega_edit::v1::GetSessionCountRequest *request,
                                  ::omega_edit::v1::GetSessionCountResponse *response) override;

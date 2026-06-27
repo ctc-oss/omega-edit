@@ -16,12 +16,14 @@
 
 #include <omega_edit.h>
 #include <omega_edit/character_counts.h>
+#include <omega_edit/check.h>
 #include <omega_edit/utility.h>
 #include <omega_edit/version.h>
 
 #include <algorithm>
 #include <atomic>
 #include <chrono>
+#include <cctype>
 #include <cstring>
 #include <filesystem>
 #include <fstream>
@@ -72,6 +74,89 @@ static int get_pid() {
 static int get_cpu_count() {
     auto n = std::thread::hardware_concurrency();
     return n > 0 ? static_cast<int>(n) : 1;
+}
+
+static constexpr char SESSION_FINGERPRINT_DIGEST_PLUGIN_ID[] = "omega.example.openssl_digests";
+static constexpr char DEFAULT_SESSION_FINGERPRINT_ALGORITHM[] = "sha256";
+static constexpr int64_t SESSION_FINGERPRINT_CHUNK_SIZE = 1024 * 1024;
+
+static std::string normalize_digest_algorithm(std::string algorithm) {
+    if (algorithm.empty()) { return DEFAULT_SESSION_FINGERPRINT_ALGORITHM; }
+    std::transform(algorithm.begin(), algorithm.end(), algorithm.begin(),
+                   [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+    return algorithm;
+}
+
+static bool digest_algorithm_is_json_safe(const std::string &algorithm) {
+    return !algorithm.empty() &&
+           std::all_of(algorithm.begin(), algorithm.end(),
+                       [](unsigned char c) { return std::isalnum(c) != 0 || c == '-'; });
+}
+
+static std::string make_digest_options_json(const std::string &algorithm) {
+    return "{\"algorithm\":\"" + algorithm + "\"}";
+}
+
+using session_fingerprint_content = ::omega_edit::v1::SessionFingerprintContent;
+
+static int64_t get_session_fingerprint_byte_length(omega_session_t *session, session_fingerprint_content content) {
+    switch (content) {
+    case ::omega_edit::v1::SESSION_FINGERPRINT_CONTENT_ORIGINAL:
+        return omega_session_get_original_file_size(session);
+    case ::omega_edit::v1::SESSION_FINGERPRINT_CONTENT_COMPUTED:
+        return omega_session_get_computed_file_size(session);
+    default:
+        return -1;
+    }
+}
+
+static int read_session_fingerprint_segment(const omega_session_t *session, session_fingerprint_content content,
+                                            omega_segment_t *segment, int64_t offset) {
+    switch (content) {
+    case ::omega_edit::v1::SESSION_FINGERPRINT_CONTENT_ORIGINAL:
+        return omega_session_get_original_segment(session, segment, offset);
+    case ::omega_edit::v1::SESSION_FINGERPRINT_CONTENT_COMPUTED:
+        return omega_session_get_segment(session, segment, offset);
+    default:
+        return -1;
+    }
+}
+
+struct session_fingerprint_reader {
+    const omega_session_t *session{};
+    session_fingerprint_content content{};
+    int64_t byte_length{};
+};
+
+static int64_t read_session_fingerprint_chunk(int64_t relative_offset, omega_byte_t *buffer, int64_t length,
+                                              void *user_data_ptr) {
+    auto *reader = static_cast<session_fingerprint_reader *>(user_data_ptr);
+    if (!reader || !reader->session || !buffer || relative_offset < 0 || length < 0 ||
+        relative_offset > reader->byte_length) {
+        return -1;
+    }
+
+    const auto remaining = reader->byte_length - relative_offset;
+    const auto read_length = std::min(std::min(length, remaining), SESSION_FINGERPRINT_CHUNK_SIZE);
+    if (read_length == 0) { return 0; }
+
+    auto *segment = omega_segment_create(read_length);
+    if (!segment) { return -1; }
+    const auto rc = read_session_fingerprint_segment(reader->session, reader->content, segment, relative_offset);
+    if (rc != 0) {
+        omega_segment_destroy(segment);
+        return -1;
+    }
+
+    const auto segment_length = std::min(read_length, omega_segment_get_length(segment));
+    auto *data = omega_segment_get_data(segment);
+    if (segment_length <= 0 || !data) {
+        omega_segment_destroy(segment);
+        return -1;
+    }
+    std::memcpy(buffer, data, static_cast<size_t>(segment_length));
+    omega_segment_destroy(segment);
+    return segment_length;
 }
 
 struct process_memory_metrics {
@@ -1269,6 +1354,101 @@ grpc::Status EditorServiceImpl::GetCount(grpc::ServerContext * /*context*/,
         single->set_count(count_value);
     }
 
+    return grpc::Status::OK;
+}
+
+grpc::Status EditorServiceImpl::CheckSessionModel(grpc::ServerContext * /*context*/,
+                                                  const ::omega_edit::v1::CheckSessionModelRequest *request,
+                                                  ::omega_edit::v1::CheckSessionModelResponse *response) {
+    auto locked_session = session_manager_.lock_session(request->session_id());
+    if (!locked_session) {
+        return grpc::Status(grpc::StatusCode::NOT_FOUND, "session not found: " + request->session_id());
+    }
+
+    const auto status = omega_check_model(locked_session.session());
+    response->set_session_id(request->session_id());
+    response->set_valid(status == 0);
+    response->set_status(status);
+    return grpc::Status::OK;
+}
+
+grpc::Status EditorServiceImpl::GetSessionFingerprint(
+        grpc::ServerContext * /*context*/, const ::omega_edit::v1::GetSessionFingerprintRequest *request,
+        ::omega_edit::v1::GetSessionFingerprintResponse *response) {
+    const auto content = request->content();
+    if (content != ::omega_edit::v1::SESSION_FINGERPRINT_CONTENT_ORIGINAL &&
+        content != ::omega_edit::v1::SESSION_FINGERPRINT_CONTENT_COMPUTED) {
+        return grpc::Status(grpc::StatusCode::INVALID_ARGUMENT, "fingerprint content must be original or computed");
+    }
+
+    auto algorithm = normalize_digest_algorithm(request->has_algorithm() ? request->algorithm() : "");
+    if (!digest_algorithm_is_json_safe(algorithm)) {
+        return grpc::Status(grpc::StatusCode::INVALID_ARGUMENT,
+                            "unsupported fingerprint digest algorithm: " + algorithm);
+    }
+    const auto options_json = make_digest_options_json(algorithm);
+
+    auto locked_session = session_manager_.lock_session(request->session_id());
+    if (!locked_session) {
+        return grpc::Status(grpc::StatusCode::NOT_FOUND, "session not found: " + request->session_id());
+    }
+    auto *session = locked_session.session();
+
+    const auto byte_length = get_session_fingerprint_byte_length(session, content);
+    if (byte_length < 0) {
+        return grpc::Status(grpc::StatusCode::INTERNAL, "session content length unavailable for fingerprint");
+    }
+
+    transform_plugin_response_guard plugin_response;
+    {
+        std::lock_guard<std::mutex> plugin_lock(transform_plugin_mutex_);
+        const auto *plugin_info = omega_transform_plugin_registry_find_info(transform_plugin_registry_,
+                                                                           SESSION_FINGERPRINT_DIGEST_PLUGIN_ID);
+        if (!plugin_info) {
+            return grpc::Status(grpc::StatusCode::FAILED_PRECONDITION,
+                                "session fingerprint digest plugin is not registered: " +
+                                        std::string(SESSION_FINGERPRINT_DIGEST_PLUGIN_ID));
+        }
+        if (plugin_info->operation != OMEGA_TRANSFORM_PLUGIN_OPERATION_INSPECT ||
+            (plugin_info->flags & OMEGA_TRANSFORM_PLUGIN_FLAG_STREAMING) == 0U) {
+            return grpc::Status(grpc::StatusCode::FAILED_PRECONDITION,
+                                "session fingerprint digest plugin must be a streaming inspect plugin");
+        }
+        if (0 != omega_transform_plugin_options_match_args_schema(options_json.c_str(), plugin_info->args_schema)) {
+            return grpc::Status(grpc::StatusCode::INVALID_ARGUMENT,
+                                "unsupported fingerprint digest algorithm: " + algorithm);
+        }
+
+        session_fingerprint_reader reader{session, content, byte_length};
+        if (0 != omega_transform_plugin_registry_inspect_reader(
+                         transform_plugin_registry_, SESSION_FINGERPRINT_DIGEST_PLUGIN_ID, 0, byte_length,
+                         options_json.c_str(), omega_session_get_checkpoint_directory(session),
+                         read_session_fingerprint_chunk, &reader, SESSION_FINGERPRINT_CHUNK_SIZE, nullptr, nullptr,
+                         &plugin_response.response)) {
+            return grpc::Status(grpc::StatusCode::INTERNAL,
+                                "session fingerprint digest plugin failed: " +
+                                        std::string(SESSION_FINGERPRINT_DIGEST_PLUGIN_ID));
+        }
+    }
+
+    if (plugin_response.response.result_length <= 0 || plugin_response.response.result_bytes == nullptr) {
+        return grpc::Status(grpc::StatusCode::INTERNAL,
+                            "session fingerprint digest plugin returned an empty digest");
+    }
+
+    std::string digest_value(reinterpret_cast<const char *>(plugin_response.response.result_bytes),
+                             static_cast<size_t>(plugin_response.response.result_length));
+    if (plugin_response.response.result_label && *plugin_response.response.result_label) {
+        algorithm = normalize_digest_algorithm(plugin_response.response.result_label);
+    }
+
+    response->set_session_id(request->session_id());
+    response->set_content(content);
+    auto *fingerprint = response->mutable_fingerprint();
+    fingerprint->set_byte_length(byte_length);
+    auto *digest_response = fingerprint->mutable_digest();
+    digest_response->set_algorithm(algorithm);
+    digest_response->set_value(digest_value);
     return grpc::Status::OK;
 }
 
