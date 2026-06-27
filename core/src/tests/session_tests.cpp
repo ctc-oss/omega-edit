@@ -21,6 +21,7 @@
 #include <catch2/catch_test_macros.hpp>
 #include <catch2/matchers/catch_matchers_contains.hpp>
 #include <catch2/matchers/catch_matchers_string.hpp>
+#include <algorithm>
 #include <vector>
 
 using Catch::Matchers::Contains;
@@ -147,6 +148,72 @@ TEST_CASE("Session Checkpoint Tests", "[SessionCheckpointTests]") {
                                  omega_io_flags_t::IO_FLG_OVERWRITE, nullptr));
     REQUIRE(0 == omega_util_compare_files(MAKE_PATH("test1.expected.checkpoint.1.dat"),
                                           MAKE_PATH("test1.actual.checkpoint.7.dat")));
+    omega_edit_destroy_session(session_ptr);
+}
+
+TEST_CASE("Restore Last Checkpoint Keeps Snapshot And Discards Later Edits",
+          "[SessionCheckpointTests][RestoreCheckpoint]") {
+    std::vector<omega_session_event_t> events;
+    const auto input = reinterpret_cast<const omega_byte_t *>("abcdef");
+    const auto session_ptr =
+            omega_edit_create_session_from_bytes(input, 6, record_session_event_cbk, &events, ALL_EVENTS, nullptr);
+    REQUIRE(session_ptr);
+
+    REQUIRE(-1 == omega_edit_restore_last_checkpoint(session_ptr));
+    REQUIRE(1 == omega_edit_overwrite_string(session_ptr, 1, "Z"));
+    REQUIRE(0 == omega_edit_create_checkpoint(session_ptr));
+    REQUIRE(1 == omega_session_get_num_checkpoints(session_ptr));
+    REQUIRE(1 == omega_session_get_num_changes(session_ptr));
+    REQUIRE("aZcdef" ==
+            omega_session_get_segment_string(session_ptr, 0, omega_session_get_computed_file_size(session_ptr)));
+
+    REQUIRE(2 == omega_edit_insert_string(session_ptr, 2, "YY"));
+    REQUIRE(3 == omega_edit_delete(session_ptr, 4, 1));
+    REQUIRE(3 == omega_session_get_num_changes(session_ptr));
+    REQUIRE("aZYYdef" ==
+            omega_session_get_segment_string(session_ptr, 0, omega_session_get_computed_file_size(session_ptr)));
+
+    REQUIRE(0 == omega_edit_restore_last_checkpoint(session_ptr));
+    REQUIRE(1 == omega_session_get_num_checkpoints(session_ptr));
+    REQUIRE(1 == omega_session_get_num_changes(session_ptr));
+    REQUIRE(0 == omega_session_get_num_undone_changes(session_ptr));
+    REQUIRE("aZcdef" ==
+            omega_session_get_segment_string(session_ptr, 0, omega_session_get_computed_file_size(session_ptr)));
+    REQUIRE(std::find(events.begin(), events.end(), SESSION_EVT_RESTORE_CHECKPOINT) != events.end());
+
+    omega_edit_destroy_session(session_ptr);
+}
+
+TEST_CASE("Restore Last Transform Checkpoint Preserves Transform Change",
+          "[SessionCheckpointTests][RestoreCheckpoint]") {
+    const auto input = reinterpret_cast<const omega_byte_t *>("abcXYZ");
+    const auto session_ptr =
+            omega_edit_create_session_from_bytes(input, 6, nullptr, nullptr, NO_EVENTS, nullptr);
+    REQUIRE(session_ptr);
+
+    REQUIRE(0 == omega_edit_apply_transform(session_ptr, to_lower, nullptr, 0, 0));
+    REQUIRE(1 == omega_session_get_num_checkpoints(session_ptr));
+    REQUIRE(1 == omega_session_get_num_changes(session_ptr));
+    const auto *transform_change = omega_session_get_last_change(session_ptr);
+    REQUIRE(transform_change);
+    REQUIRE('T' == omega_change_get_kind_as_char(transform_change));
+    REQUIRE("abcxyz" ==
+            omega_session_get_segment_string(session_ptr, 0, omega_session_get_computed_file_size(session_ptr)));
+
+    REQUIRE(2 == omega_edit_insert_string(session_ptr, 3, "--"));
+    REQUIRE("abc--xyz" ==
+            omega_session_get_segment_string(session_ptr, 0, omega_session_get_computed_file_size(session_ptr)));
+
+    REQUIRE(0 == omega_edit_restore_last_checkpoint(session_ptr));
+    REQUIRE(1 == omega_session_get_num_checkpoints(session_ptr));
+    REQUIRE(1 == omega_session_get_num_changes(session_ptr));
+    transform_change = omega_session_get_last_change(session_ptr);
+    REQUIRE(transform_change);
+    REQUIRE('T' == omega_change_get_kind_as_char(transform_change));
+    REQUIRE(1 == omega_change_get_serial(transform_change));
+    REQUIRE("abcxyz" ==
+            omega_session_get_segment_string(session_ptr, 0, omega_session_get_computed_file_size(session_ptr)));
+
     omega_edit_destroy_session(session_ptr);
 }
 

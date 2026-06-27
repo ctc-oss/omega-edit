@@ -71,6 +71,7 @@ const englishStrings = {
     sessionGroup: 'Session',
     createCheckpoint: 'Checkpoint',
     rollbackCheckpoint: 'Roll back',
+    restoreCheckpoint: 'Restore',
     exportChangeLog: 'Export Log',
     applyChangeLog: 'Apply Log',
     loadTransforms: 'Load transforms...',
@@ -164,12 +165,15 @@ const englishStrings = {
     applying: (name: string) => `Applying ${name}...`,
     creatingCheckpoint: 'Creating checkpoint...',
     rollingBackCheckpoint: 'Rolling back checkpoint...',
+    restoringCheckpoint: 'Restoring checkpoint...',
     exportingChangeLog: 'Exporting change log...',
     applyingChangeLog: 'Applying change log...',
     checkpointCreated: (count: number) =>
       `Checkpoint created (${formatNumber(count)} total)`,
     checkpointRolledBack: (count: number) =>
       `Checkpoint rolled back (${formatNumber(count)} remaining)`,
+    checkpointRestored: (count: number) =>
+      `Checkpoint restored (${formatNumber(count)} total)`,
     changeLogExported: (count: number) =>
       `Exported ${formatNumber(count)} change${count === 1 ? '' : 's'}`,
     changeLogApplied: (count: number) =>

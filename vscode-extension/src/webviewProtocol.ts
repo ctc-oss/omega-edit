@@ -146,6 +146,7 @@ export type WebviewToHostMessage =
   | { type: 'replaceRangeWithFile'; offset: number; length: number }
   | { type: 'createCheckpoint' }
   | { type: 'rollbackCheckpoint' }
+  | { type: 'restoreCheckpoint' }
   | { type: 'exportChangeLog' }
   | { type: 'applyChangeLog' }
   | { type: 'toggleEditMode' }
@@ -264,6 +265,7 @@ export type HostToWebviewMessage =
       action:
         | 'createCheckpoint'
         | 'rollbackCheckpoint'
+        | 'restoreCheckpoint'
         | 'exportChangeLog'
         | 'applyChangeLog'
       changeCount?: number
@@ -732,6 +734,7 @@ export function normalizeWebviewMessage(
     case 'requestTransformPlugins':
     case 'createCheckpoint':
     case 'rollbackCheckpoint':
+    case 'restoreCheckpoint':
     case 'exportChangeLog':
     case 'applyChangeLog':
     case 'undo':

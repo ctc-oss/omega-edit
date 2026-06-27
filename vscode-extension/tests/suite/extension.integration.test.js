@@ -71,6 +71,7 @@ suite('OmegaEdit VS Code extension', () => {
     assert.equal(typeof extensionApi.clearExternalHighlights, 'function')
     assert.equal(typeof extensionApi.createCheckpoint, 'function')
     assert.equal(typeof extensionApi.rollbackCheckpoint, 'function')
+    assert.equal(typeof extensionApi.restoreCheckpoint, 'function')
     assert.equal(typeof extensionApi.exportChangeLog, 'function')
     assert.equal(typeof extensionApi.applyChangeLog, 'function')
     assert.equal(typeof extensionApi.onDidChangeEditorState, 'function')
@@ -284,9 +285,12 @@ suite('OmegaEdit VS Code extension', () => {
     )
     const sourcePath = path.join(tmpDir, 'source.bin')
     const replayPath = path.join(tmpDir, 'replay.bin')
+    const tamperedReplayPath = path.join(tmpDir, 'replay-tampered.bin')
     const scriptPath = path.join(tmpDir, 'changes.json')
+    const tamperedScriptPath = path.join(tmpDir, 'changes-tampered.json')
     await fs.writeFile(sourcePath, Buffer.from('ABCDEFGH', 'utf8'))
     await fs.writeFile(replayPath, Buffer.from('ABCDEFGH', 'utf8'))
+    await fs.writeFile(tamperedReplayPath, Buffer.from('ABCDEFGH', 'utf8'))
 
     const provider1 = new HexEditorProvider({ subscriptions: [] }, testPort)
     const panel1 = createMockWebviewPanel()
@@ -422,8 +426,50 @@ suite('OmegaEdit VS Code extension', () => {
     assert.equal(saved, 'QTEyRHh5Wlo=')
     assert.equal(replayed, saved)
 
+    const tamperedScript = structuredClone(script)
+    const tamperedTransformChange = tamperedScript.changes.find(
+      (change) => change.kind === 'TRANSFORM'
+    )
+    assert.ok(
+      tamperedTransformChange,
+      'Expected a transform change to tamper with'
+    )
+    tamperedTransformChange.replacementLength = '999'
+    await fs.writeFile(
+      tamperedScriptPath,
+      JSON.stringify(tamperedScript, null, 2)
+    )
+
+    const provider3 = new HexEditorProvider({ subscriptions: [] }, testPort)
+    const panel3 = createMockWebviewPanel()
+    const document3 = await provider3.openCustomDocument(
+      vscode.Uri.file(tamperedReplayPath),
+      { backupId: undefined, untitledDocumentData: undefined },
+      new vscode.CancellationTokenSource().token
+    )
+
+    await provider3.resolveCustomEditor(
+      document3,
+      panel3,
+      new vscode.CancellationTokenSource().token
+    )
+
+    await assert.rejects(
+      () =>
+        provider3.applyChangeLog({
+          uri: document3.uri,
+          sourceUri: vscode.Uri.file(tamperedScriptPath),
+        }),
+      /replacement length mismatch/
+    )
+    const session3 = provider3.getSessionForTesting(document3.uri)
+    assert.ok(session3, 'Expected a tampered replay session')
+    await assertSessionText(session3.sessionId, 'ABCDEFGH')
+    assert.equal(session3.history.getChangeLog().length, 0)
+
     await panel1.fireDidDispose()
     await panel2.fireDidDispose()
+    await panel3.fireDidDispose()
     await fs.rm(tmpDir, { recursive: true, force: true })
   })
 
@@ -516,6 +562,59 @@ suite('OmegaEdit VS Code extension', () => {
     assert.equal(incompleteResult?.cancelled, true)
     assert.equal(incompleteResult?.changeCount, 0)
     await assertSessionText(session.sessionId, 'abc')
+
+    await panel.fireDidDispose()
+    await fs.rm(tmpDir, { recursive: true, force: true })
+  })
+
+  test('restores the latest checkpoint without dropping it', async () => {
+    const tmpDir = await fs.mkdtemp(
+      path.join(os.tmpdir(), 'omega-edit-vscode-restore-checkpoint-')
+    )
+    const samplePath = path.join(tmpDir, 'sample.bin')
+    await fs.writeFile(samplePath, Buffer.from('abcdef', 'utf8'))
+
+    const provider = new HexEditorProvider({ subscriptions: [] }, testPort)
+    const panel = createMockWebviewPanel()
+    const document = await provider.openCustomDocument(
+      vscode.Uri.file(samplePath),
+      { backupId: undefined, untitledDocumentData: undefined },
+      new vscode.CancellationTokenSource().token
+    )
+
+    await provider.resolveCustomEditor(
+      document,
+      panel,
+      new vscode.CancellationTokenSource().token
+    )
+
+    const session = provider.getSessionForTesting(document.uri)
+    assert.ok(session, 'Expected a session for checkpoint restore')
+
+    await provider.dispatchWebviewMessageForTesting(document.uri, {
+      type: 'overwrite',
+      offset: 1,
+      data: Buffer.from('Z', 'utf8').toString('hex'),
+    })
+    await assertSessionText(session.sessionId, 'aZcdef')
+
+    const checkpoint = await provider.createCheckpoint({ uri: document.uri })
+    assert.ok(checkpoint)
+    assert.equal(checkpoint.checkpointCount, 1)
+
+    await provider.dispatchWebviewMessageForTesting(document.uri, {
+      type: 'insert',
+      offset: 6,
+      data: Buffer.from('!', 'utf8').toString('hex'),
+    })
+    await assertSessionText(session.sessionId, 'aZcdef!')
+
+    const restored = await provider.restoreCheckpoint({ uri: document.uri })
+    assert.ok(restored)
+    assert.equal(restored.restored, true)
+    assert.equal(restored.checkpointCount, 1)
+    assert.equal(restored.discardedChangeCount, 1)
+    await assertSessionText(session.sessionId, 'aZcdef')
 
     await panel.fireDidDispose()
     await fs.rm(tmpDir, { recursive: true, force: true })

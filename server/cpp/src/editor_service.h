@@ -186,6 +186,11 @@ public:
         const ::omega_edit::v1::DestroyLastCheckpointRequest *request,
         ::omega_edit::v1::DestroyLastCheckpointResponse *response) override;
 
+    grpc::Status RestoreLastCheckpoint(
+        grpc::ServerContext *context,
+        const ::omega_edit::v1::RestoreLastCheckpointRequest *request,
+        ::omega_edit::v1::RestoreLastCheckpointResponse *response) override;
+
     grpc::Status ListTransformPlugins(grpc::ServerContext *context,
                                       const ::omega_edit::v1::ListTransformPluginsRequest *request,
                                       ::omega_edit::v1::ListTransformPluginsResponse *response) override;

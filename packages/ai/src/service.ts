@@ -36,6 +36,7 @@ import {
   replace,
   replaceSession as replaceWholeSession,
   resetClient,
+  restoreLastCheckpoint as restoreClientCheckpoint,
   runSessionTransaction,
   saveSession,
   searchSession,
@@ -74,6 +75,7 @@ import {
   ReadRangeResult,
   ReplaceSessionRequest,
   ReplaceSessionResult,
+  RestoreCheckpointResult,
   RollbackCheckpointResult,
   SearchRequest,
   SearchResult,
@@ -1167,6 +1169,29 @@ export class OmegaEditToolkit {
     }
   }
 
+  async restoreCheckpoint(sessionId: string): Promise<RestoreCheckpointResult> {
+    await this.ensureServerRunning()
+    const existingCount = await this.getCheckpointCount(sessionId)
+    if (existingCount <= 0) {
+      return {
+        sessionId,
+        restored: false,
+        checkpointCount: 0,
+        changeCount: await getChangeCount(sessionId),
+        discardedChangeCount: 0,
+      }
+    }
+
+    const response = await restoreClientCheckpoint(sessionId)
+    return {
+      sessionId: response.sessionId,
+      restored: true,
+      checkpointCount: response.checkpointCount,
+      changeCount: response.changeCount,
+      discardedChangeCount: response.discardedChangeCount,
+    }
+  }
+
   async exportChangeLog(
     sessionId: string,
     outputPath?: string,
@@ -1269,7 +1294,6 @@ export class OmegaEditToolkit {
     const startChangeCount = await getChangeCount(request.sessionId)
     try {
       const applyChange = async (change: ChangeLogEntry) => {
-        const data = Buffer.from(change.data, 'hex')
         const offset = normalizeNonNegativeInt64ForClient(
           change.offset,
           'change log entry offset'
@@ -1280,30 +1304,89 @@ export class OmegaEditToolkit {
         )
         switch (change.kind) {
           case 'INSERT':
-            await insert(request.sessionId, offset, data)
+            await insert(
+              request.sessionId,
+              offset,
+              Buffer.from(change.data, 'hex')
+            )
             return true
           case 'DELETE':
             await del(request.sessionId, offset, length)
             return true
           case 'OVERWRITE':
-            await overwrite(request.sessionId, offset, data)
+            await overwrite(
+              request.sessionId,
+              offset,
+              Buffer.from(change.data, 'hex')
+            )
             return true
           case 'REPLACE':
-            await replace(request.sessionId, offset, length, data)
+            await replace(
+              request.sessionId,
+              offset,
+              length,
+              Buffer.from(change.data, 'hex')
+            )
             return true
-          case 'TRANSFORM':
+          case 'TRANSFORM': {
             if (!change.transformId) {
               throw new Error('TRANSFORM change requires transformId')
             }
-            return (
-              await applyClientTransformPlugin(
-                request.sessionId,
-                change.transformId,
-                offset,
-                length,
-                change.optionsJson
+            const expectedSizeBefore =
+              change.computedFileSizeBefore !== undefined
+                ? normalizeNonNegativeInt64ForClient(
+                    change.computedFileSizeBefore,
+                    'change log entry computedFileSizeBefore'
+                  )
+                : undefined
+            if (expectedSizeBefore !== undefined) {
+              const actualSizeBefore = await getComputedFileSize(
+                request.sessionId
               )
-            ).contentChanged
+              if (actualSizeBefore !== expectedSizeBefore) {
+                throw new Error(
+                  `TRANSFORM ${change.transformId} expected pre-transform size ${expectedSizeBefore}, found ${actualSizeBefore}`
+                )
+              }
+            }
+            const response = await applyClientTransformPlugin(
+              request.sessionId,
+              change.transformId,
+              offset,
+              length,
+              change.optionsJson
+            )
+            if (!response.contentChanged) {
+              throw new Error(
+                `TRANSFORM ${change.transformId} replay produced no content change`
+              )
+            }
+            if (
+              change.replacementLength !== undefined &&
+              response.replacementLength !==
+                normalizeNonNegativeInt64ForClient(
+                  change.replacementLength,
+                  'change log entry replacementLength'
+                )
+            ) {
+              throw new Error(
+                `TRANSFORM ${change.transformId} replacement length mismatch`
+              )
+            }
+            if (
+              change.computedFileSizeAfter !== undefined &&
+              response.computedFileSize !==
+                normalizeNonNegativeInt64ForClient(
+                  change.computedFileSizeAfter,
+                  'change log entry computedFileSizeAfter'
+                )
+            ) {
+              throw new Error(
+                `TRANSFORM ${change.transformId} post-transform size mismatch`
+              )
+            }
+            return true
+          }
         }
       }
       const applyAndCountChange = async (change: ChangeLogEntry) => {

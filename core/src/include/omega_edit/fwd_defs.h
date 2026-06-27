@@ -45,7 +45,8 @@ typedef enum {
     SESSION_EVT_TRANSFORM_STARTED = 1 << 14,//< Occurs when a transform starts
     SESSION_EVT_TRANSFORM_PROGRESS = 1 << 15,//< Occurs when a running transform reports progress
     SESSION_EVT_TRANSFORM_COMPLETED = 1 << 16,//< Occurs when a transform completes successfully
-    SESSION_EVT_TRANSFORM_FAILED = 1 << 17//< Occurs when a transform fails
+    SESSION_EVT_TRANSFORM_FAILED = 1 << 17,//< Occurs when a transform fails
+    SESSION_EVT_RESTORE_CHECKPOINT = 1 << 18//< Occurs when a checkpoint snapshot is restored
 } omega_session_event_t;
 
 /** Enumeration of viewport events */

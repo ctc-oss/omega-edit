@@ -63,6 +63,7 @@ oe export-range --session <session-id> --offset 0 --length 128 --output ./header
 
 # Create checkpoints and broadcast/apply change logs
 oe create-checkpoint --session <session-id>
+oe restore-checkpoint --session <session-id>
 oe rollback-checkpoint --session <session-id>
 oe export-change-log --session <session-id> --output ./changes.json --overwrite
 oe apply-change-log --session <session-id> --input ./changes.json

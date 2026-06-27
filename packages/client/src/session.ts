@@ -26,6 +26,7 @@ import {
   type ApplyTransformPluginResponse as RawApplyTransformPluginResponse,
   type CheckSessionModelResponse as RawCheckSessionModelResponse,
   type GetSessionFingerprintResponse as RawGetSessionFingerprintResponse,
+  type RestoreLastCheckpointResponse as RawRestoreLastCheckpointResponse,
   type SessionContentFingerprint as RawSessionContentFingerprint,
   type TransformProgress,
   type TransformPluginInfo as RawTransformPluginInfo,
@@ -53,6 +54,7 @@ import {
   profileSession as rawProfileSession,
   replaceSession as rawReplaceSession,
   replaceSessionCheckpointed as rawReplaceSessionCheckpointed,
+  restoreLastCheckpoint as rawRestoreLastCheckpoint,
   resumeSessionChanges as rawResumeSessionChanges,
   saveSession as rawSaveSession,
   searchSession as rawSearchSession,
@@ -116,6 +118,7 @@ export const SessionEventKind = {
   TRANSFORM_PROGRESS: RawProtoSessionEventKind.TRANSFORM_PROGRESS,
   TRANSFORM_COMPLETED: RawProtoSessionEventKind.TRANSFORM_COMPLETED,
   TRANSFORM_FAILED: RawProtoSessionEventKind.TRANSFORM_FAILED,
+  RESTORE_CHECKPOINT: RawProtoSessionEventKind.RESTORE_CHECKPOINT,
 } as const
 export type SessionEventKind =
   (typeof SessionEventKind)[keyof typeof SessionEventKind]
@@ -152,6 +155,7 @@ export type TransformPluginOperation =
 
 export type TransformPluginInfo = RawTransformPluginInfo
 export type ApplyTransformPluginResponse = RawApplyTransformPluginResponse
+export type RestoreLastCheckpointResponse = RawRestoreLastCheckpointResponse
 export type CheckSessionModelResponse = RawCheckSessionModelResponse
 export type SessionContentFingerprint = RawSessionContentFingerprint
 export type GetSessionFingerprintResponse = RawGetSessionFingerprintResponse
@@ -251,6 +255,21 @@ export async function destroyLastCheckpoint(
       'remaining checkpoints',
       response.remainingCheckpoints
     )
+  })
+}
+
+export async function restoreLastCheckpoint(
+  session_id: string
+): Promise<RestoreLastCheckpointResponse> {
+  return await enqueueSessionMutation(session_id, async () => {
+    const response = await rawRestoreLastCheckpoint(session_id)
+    requireSafeIntegerOutput('checkpoint count', response.checkpointCount)
+    requireSafeIntegerOutput('change count', response.changeCount)
+    requireSafeIntegerOutput(
+      'discarded change count',
+      response.discardedChangeCount
+    )
+    return response
   })
 }
 

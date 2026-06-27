@@ -54,6 +54,7 @@
     onToggleSearchPanel: () => void
     onCreateCheckpoint: () => void
     onRollbackCheckpoint: () => void
+    onRestoreCheckpoint: () => void
     onExportChangeLog: () => void
     onApplyChangeLog: () => void
   }
@@ -89,6 +90,7 @@
     onToggleSearchPanel,
     onCreateCheckpoint,
     onRollbackCheckpoint,
+    onRestoreCheckpoint,
     onExportChangeLog,
     onApplyChangeLog,
   }: Props = $props()
@@ -198,6 +200,7 @@
       {onOpenTransformResult}
       {onCreateCheckpoint}
       {onRollbackCheckpoint}
+      {onRestoreCheckpoint}
       {onExportChangeLog}
       {onApplyChangeLog}
     />

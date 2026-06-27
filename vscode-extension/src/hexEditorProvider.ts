@@ -48,6 +48,7 @@ import {
   getChangeCount,
   getChangeDetails,
   getClientVersion,
+  getComputedFileSize,
   getContentType,
   getCounts,
   getLanguage,
@@ -66,6 +67,7 @@ import {
   profileSession,
   replaceSessionCheckpointed,
   redo,
+  restoreLastCheckpoint,
   runSessionTransaction,
   saveSession,
   SessionFingerprintContent,
@@ -359,6 +361,7 @@ function isMutationWebviewMessage(message: WebviewToHostMessage): boolean {
     case 'replaceAllMatches':
     case 'createCheckpoint':
     case 'rollbackCheckpoint':
+    case 'restoreCheckpoint':
     case 'applyChangeLog':
     case 'undo':
     case 'redo':
@@ -1989,7 +1992,8 @@ export class HexEditorProvider
           kind === ViewportEventKind.UNDO ||
           kind === ViewportEventKind.CLEAR ||
           kind === ViewportEventKind.TRANSFORM ||
-          kind === ViewportEventKind.MODIFY
+          kind === ViewportEventKind.MODIFY ||
+          kind === ViewportEventKind.CHANGES
         ) {
           await this.sendViewportData(session)
         }
@@ -2898,6 +2902,45 @@ export class HexEditorProvider
     }
   }
 
+  async restoreCheckpoint(options?: unknown): Promise<
+    | {
+        state: WebviewEditorState
+        restored: boolean
+        checkpointCount: number
+        changeCount: number
+        discardedChangeCount: number
+      }
+    | undefined
+  > {
+    const session = this.resolveCommandSession(options)
+    if (!session) {
+      void vscode.window.showWarningMessage(openEditorFirstMessage())
+      return
+    }
+    if (!this.ensureSessionCanMutate(session, true)) {
+      return
+    }
+
+    const result = await this.restoreLastCheckpoint(session, true)
+    this.postSessionActionComplete(session, {
+      action: 'restoreCheckpoint',
+      checkpointCount: result.checkpointCount,
+      cancelled: !result.restored,
+      message: result.restored
+        ? vscode.l10n.t('Restored latest OmegaEdit checkpoint')
+        : vscode.l10n.t('No OmegaEdit checkpoint to restore'),
+    })
+    if (result.restored) {
+      void vscode.window.showInformationMessage(
+        vscode.l10n.t('Restored latest OmegaEdit checkpoint')
+      )
+    }
+    return {
+      state: this.buildEditorState(session),
+      ...result,
+    }
+  }
+
   async rollbackActiveSession(): Promise<void> {
     if (!this.activeSession) {
       void vscode.window.showWarningMessage(openEditorFirstMessage())
@@ -3756,6 +3799,73 @@ export class HexEditorProvider
     }
   }
 
+  private async restoreLastCheckpoint(
+    session: EditorSession,
+    markDirty: boolean
+  ): Promise<{
+    restored: boolean
+    checkpointCount: number
+    changeCount: number
+    discardedChangeCount: number
+  }> {
+    if (!this.ensureSessionCanMutate(session, true)) {
+      return {
+        restored: false,
+        checkpointCount: await this.getCheckpointCount(session),
+        changeCount: await getChangeCount(session.sessionId),
+        discardedChangeCount: 0,
+      }
+    }
+
+    const checkpointCount = await this.getCheckpointCount(session)
+    if (checkpointCount <= 0) {
+      void vscode.window.showWarningMessage(
+        vscode.l10n.t('No OmegaEdit checkpoint to restore')
+      )
+      return {
+        restored: false,
+        checkpointCount,
+        changeCount: await getChangeCount(session.sessionId),
+        discardedChangeCount: 0,
+      }
+    }
+
+    this.postTransformStatus(
+      session,
+      true,
+      undefined,
+      vscode.l10n.t('Restoring checkpoint...')
+    )
+    let failureMessage: string | undefined
+    try {
+      const sessionSyncVersion = session.sessionSyncVersion
+      const response = await restoreLastCheckpoint(session.sessionId)
+      await this.waitForSessionSync(session, sessionSyncVersion)
+      await this.sendViewportData(session)
+      await this.resetSessionState(session, markDirty, markDirty, false)
+      this.clearSearchState(session)
+      this.postTransformStatus(
+        session,
+        false,
+        undefined,
+        vscode.l10n.t('Checkpoint restored')
+      )
+      return {
+        restored: true,
+        checkpointCount: response.checkpointCount,
+        changeCount: response.changeCount,
+        discardedChangeCount: response.discardedChangeCount,
+      }
+    } catch (error) {
+      failureMessage = error instanceof Error ? error.message : String(error)
+      throw error
+    } finally {
+      if (failureMessage) {
+        this.postTransformStatus(session, false, undefined, failureMessage)
+      }
+    }
+  }
+
   private async rollbackSession(
     session: EditorSession,
     markDirty: boolean
@@ -4367,6 +4477,23 @@ export class HexEditorProvider
           throw new Error('Transform change is missing transformId')
         }
 
+        const expectedSizeBefore =
+          change.computedFileSizeBefore !== undefined
+            ? normalizeNonNegativeInt64ForClient(
+                change.computedFileSizeBefore,
+                'change log entry computedFileSizeBefore'
+              )
+            : undefined
+        const actualSizeBefore = await getComputedFileSize(session.sessionId)
+        if (
+          expectedSizeBefore !== undefined &&
+          actualSizeBefore !== expectedSizeBefore
+        ) {
+          throw new Error(
+            `Transform ${change.transformId} expected pre-transform size ${expectedSizeBefore}, found ${actualSizeBefore}`
+          )
+        }
+
         const response = await applyTransformPlugin(
           session.sessionId,
           change.transformId,
@@ -4375,10 +4502,36 @@ export class HexEditorProvider
           change.optionsJson
         )
         if (!response.contentChanged) {
-          return undefined
+          throw new Error(
+            `Transform ${change.transformId} replay produced no content change`
+          )
         }
         if (response.serial === undefined) {
           throw new Error('Transform did not return a change serial')
+        }
+        if (
+          change.replacementLength !== undefined &&
+          response.replacementLength !==
+            normalizeNonNegativeInt64ForClient(
+              change.replacementLength,
+              'change log entry replacementLength'
+            )
+        ) {
+          throw new Error(
+            `Transform ${change.transformId} replacement length mismatch`
+          )
+        }
+        if (
+          change.computedFileSizeAfter !== undefined &&
+          response.computedFileSize !==
+            normalizeNonNegativeInt64ForClient(
+              change.computedFileSizeAfter,
+              'change log entry computedFileSizeAfter'
+            )
+        ) {
+          throw new Error(
+            `Transform ${change.transformId} post-transform size mismatch`
+          )
         }
 
         return {
@@ -4392,9 +4545,7 @@ export class HexEditorProvider
             ? { optionsJson: change.optionsJson }
             : {}),
           replacementLength: response.replacementLength,
-          ...(change.computedFileSizeBefore !== undefined
-            ? { computedFileSizeBefore: change.computedFileSizeBefore }
-            : {}),
+          computedFileSizeBefore: actualSizeBefore,
           computedFileSizeAfter: response.computedFileSize,
           ...(change.groupId ? { groupId: change.groupId } : {}),
         }
@@ -4830,6 +4981,11 @@ export class HexEditorProvider
 
         case 'rollbackCheckpoint': {
           await this.rollbackCheckpoint({ uri: session.document.uri })
+          break
+        }
+
+        case 'restoreCheckpoint': {
+          await this.restoreCheckpoint({ uri: session.document.uri })
           break
         }
 
