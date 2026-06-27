@@ -17,8 +17,17 @@
 
 #include "../../include/omega_edit/fwd_defs.h"
 #include "data_def.hpp"
+#include "find.h"
 
 struct omega_search_context_struct {
+    ~omega_search_context_struct() {
+        if (skip_table_ptr) { omega_find_destroy_skip_table(skip_table_ptr); }
+    }
+
+    omega_search_context_struct() = default;
+    omega_search_context_struct(const omega_search_context_struct &) = delete;
+    auto operator=(const omega_search_context_struct &) -> omega_search_context_struct & = delete;
+
     const omega_find_skip_table_t *skip_table_ptr{};
     omega_session_t *session_ptr{};
     int64_t pattern_length{};

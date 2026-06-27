@@ -23,18 +23,19 @@ using omega_edit::internal::omega_data_get_data_;
 
 omega_segment_t *omega_segment_create(int64_t capacity) {
     if (capacity < 0) { return nullptr; }
-    auto *segment_ptr = new omega_segment_t();
+    omega_segment_t *segment_ptr = nullptr;
     try {
+        segment_ptr = new omega_segment_t();
         omega_data_create_(&segment_ptr->data, capacity);
+        segment_ptr->capacity = capacity;
+        segment_ptr->length = 0;
+        segment_ptr->offset = -1;
+        segment_ptr->offset_adjustment = 0;
+        return segment_ptr;
     } catch (const std::bad_alloc &) {
         delete segment_ptr;
         return nullptr;
     }
-    segment_ptr->capacity = capacity;
-    segment_ptr->length = 0;
-    segment_ptr->offset = -1;
-    segment_ptr->offset_adjustment = 0;
-    return segment_ptr;
 }
 
 int64_t omega_segment_get_capacity(const omega_segment_t *segment_ptr) {

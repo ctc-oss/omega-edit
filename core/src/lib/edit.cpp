@@ -31,6 +31,7 @@
 #include <cstdlib>
 #include <limits>
 #include <memory>
+#include <new>
 #include <vector>
 
 using omega_edit::internal::add_overflows_int64_;
@@ -40,6 +41,7 @@ using omega_edit::internal::omega_change_get_kind_;
 using omega_edit::internal::omega_change_get_transaction_bit_;
 using omega_edit::internal::omega_data_create_;
 using omega_edit::internal::omega_data_destroy_;
+using omega_edit::internal::omega_data_get_data_;
 using omega_edit::internal::omega_model_segment_get_kind_;
 using omega_edit::internal::omega_session_begin_event_batch_;
 using omega_edit::internal::omega_session_end_event_batch_;
@@ -75,24 +77,35 @@ namespace {
         return change_count < (std::numeric_limits<int64_t>::max)() ? change_count + 1 : 0;
     }
 
-    void initialize_model_segments_(omega_model_segments_t &model_segments, int64_t length);
+    auto initialize_model_segments_(omega_model_segments_t &model_segments, int64_t length) -> bool;
 
     auto resolve_checkpoint_directory_(const char *file_path, const char *checkpoint_directory,
                                        std::string &checkpoint_directory_str) -> bool {
         if (checkpoint_directory == nullptr) {
             if ((file_path != nullptr) && file_path[0] != '\0') {
                 auto *const dirname = omega_util_dirname(file_path, nullptr);
-                if (dirname != nullptr) { checkpoint_directory = checkpoint_directory_str.assign(dirname).c_str(); }
+                if (dirname != nullptr) {
+                    try {
+                        checkpoint_directory = checkpoint_directory_str.assign(dirname).c_str();
+                    } catch (const std::bad_alloc &) { return false; }
+                }
             }
             if (checkpoint_directory == nullptr) {
                 auto *const temp_dir = omega_util_get_temp_directory();
                 if (temp_dir != nullptr) {
-                    checkpoint_directory = checkpoint_directory_str.assign(temp_dir).c_str();
+                    try {
+                        checkpoint_directory = checkpoint_directory_str.assign(temp_dir).c_str();
+                    } catch (const std::bad_alloc &) {
+                        free(temp_dir);
+                        return false;
+                    }
                     free(temp_dir);
                 } else {
                     auto *const current_dir = omega_util_get_current_dir(nullptr);
                     if (current_dir != nullptr) {
-                        checkpoint_directory = checkpoint_directory_str.assign(current_dir).c_str();
+                        try {
+                            checkpoint_directory = checkpoint_directory_str.assign(current_dir).c_str();
+                        } catch (const std::bad_alloc &) { return false; }
                     }
                 }
             }
@@ -111,7 +124,9 @@ namespace {
             LOG_ERROR("failed to resolve checkpoint_directory path '" << checkpoint_directory << "' to absolute path");
             return false;
         }
-        checkpoint_directory_str.assign(resolved_path);
+        try {
+            checkpoint_directory_str.assign(resolved_path);
+        } catch (const std::bad_alloc &) { return false; }
         return true;
     }
 
@@ -128,23 +143,40 @@ namespace {
             }
             file_size = FTELL(file_ptr);
         }
-        auto *const session_ptr = new omega_session_t;
-        session_ptr->checkpoint_directory_ = checkpoint_directory;
-        session_ptr->event_handler = cbk;
-        session_ptr->user_data_ptr = user_data_ptr;
-        session_ptr->event_interest_ = event_interest;
-        session_ptr->num_changes_adjustment_ = 0;
-        session_ptr->original_file_modification_time_ = original_file_modification_time;
-        session_ptr->original_file_modification_time_valid_ = original_file_modification_time_valid;
-        session_ptr->models_.push_back(std::make_unique<omega_model_t>());
-        if (file_ptr != nullptr) {
-            session_ptr->models_.back()->file_ptr = file_ptr;
-            if (file_path != nullptr) { session_ptr->models_.back()->file_path.assign(file_path); }
-            if (checkpoint_file_name != nullptr) { session_ptr->checkpoint_file_name_.assign(checkpoint_file_name); }
+        omega_session_t *session_ptr = nullptr;
+        try {
+            session_ptr = new omega_session_t;
+            session_ptr->checkpoint_directory_ = checkpoint_directory;
+            session_ptr->event_handler = cbk;
+            session_ptr->user_data_ptr = user_data_ptr;
+            session_ptr->event_interest_ = event_interest;
+            session_ptr->num_changes_adjustment_ = 0;
+            session_ptr->original_file_modification_time_ = original_file_modification_time;
+            session_ptr->original_file_modification_time_valid_ = original_file_modification_time_valid;
+            session_ptr->models_.push_back(std::make_unique<omega_model_t>());
+            if (file_ptr != nullptr) {
+                session_ptr->models_.back()->file_ptr = file_ptr;
+                if (file_path != nullptr) { session_ptr->models_.back()->file_path.assign(file_path); }
+                if (checkpoint_file_name != nullptr) {
+                    session_ptr->checkpoint_file_name_.assign(checkpoint_file_name);
+                }
+            }
+            if (!initialize_model_segments_(session_ptr->models_.back()->model_segments, file_size)) {
+                if (file_ptr != nullptr) {
+                    FCLOSE(file_ptr);
+                    session_ptr->models_.back()->file_ptr = nullptr;
+                    file_ptr = nullptr;
+                }
+                delete session_ptr;
+                return nullptr;
+            }
+            omega_session_notify(session_ptr, SESSION_EVT_CREATE, nullptr);
+            return session_ptr;
+        } catch (const std::bad_alloc &) {
+            if (file_ptr != nullptr) { FCLOSE(file_ptr); }
+            delete session_ptr;
+            return nullptr;
         }
-        initialize_model_segments_(session_ptr->models_.back()->model_segments, file_size);
-        omega_session_notify(session_ptr, SESSION_EVT_CREATE, nullptr);
-        return session_ptr;
     }
 
     auto reserve_output_path_(const char *requested_path, int mode, char *reserved_path,
@@ -233,9 +265,13 @@ namespace {
         return 0;
     }
 
-    void initialize_model_segments_(omega_model_segments_t &model_segments, int64_t length) {
-        model_segments.clear();
-        if (0 < length) {
+    auto initialize_model_segments_(omega_model_segments_t &model_segments, int64_t length) -> bool {
+        try {
+            omega_model_segments_t replacement_segments;
+            if (0 >= length) {
+                model_segments = std::move(replacement_segments);
+                return true;
+            }
             const auto change_ptr = std::make_shared<omega_change_t>();
             change_ptr->serial = 0;
             change_ptr->kind = (uint8_t) (change_kind_t::CHANGE_INSERT);
@@ -246,69 +282,67 @@ namespace {
             read_segment_ptr->computed_offset = 0;
             read_segment_ptr->change_offset = read_segment_ptr->change_ptr->offset;
             read_segment_ptr->computed_length = read_segment_ptr->change_ptr->length;
-            model_segments.push_back(std::move(read_segment_ptr));
-        }
+            replacement_segments.push_back(std::move(read_segment_ptr));
+            model_segments = std::move(replacement_segments);
+            return true;
+        } catch (const std::bad_alloc &) { return false; }
     }
 
     inline auto del_(int64_t serial, int64_t offset, int64_t length, bool transaction_bit) -> const_omega_change_ptr_t {
         // serial == 0 is used internally while decomposing OVERWRITE into DELETE+INSERT model updates.
         // Public delete entry points validate serial/range before creating DELETE changes.
-        const auto change_ptr = std::make_shared<omega_change_t>();
-        change_ptr->serial = serial;
-        change_ptr->kind =
-                (transaction_bit ? OMEGA_CHANGE_TRANSACTION_BIT : 0x00) | (uint8_t) change_kind_t::CHANGE_DELETE;
-        change_ptr->offset = offset;
-        change_ptr->length = length;
-        change_ptr->data.bytes_ptr = nullptr;
-        return change_ptr;
-    }
-
-    inline auto change_has_byte_data_(const omega_change_t *change_ptr) -> bool {
-        if (!change_ptr) { return false; }
-        const auto kind = omega_change_get_kind_(change_ptr);
-        return kind == change_kind_t::CHANGE_INSERT || kind == change_kind_t::CHANGE_OVERWRITE;
+        try {
+            const auto change_ptr = std::make_shared<omega_change_t>();
+            change_ptr->serial = serial;
+            change_ptr->kind =
+                    (transaction_bit ? OMEGA_CHANGE_TRANSACTION_BIT : 0x00) | (uint8_t) change_kind_t::CHANGE_DELETE;
+            change_ptr->offset = offset;
+            change_ptr->length = length;
+            return change_ptr;
+        } catch (const std::bad_alloc &) { return nullptr; }
     }
 
     inline auto populate_change_bytes_(omega_change_t *change_ptr, const omega_byte_t *bytes) -> bool {
-        if (change_ptr->length < DATA_T_SIZE) {
-            memcpy(change_ptr->data.sm_bytes, bytes, change_ptr->length);
-            change_ptr->data.sm_bytes[change_ptr->length] = '\0';
+        try {
+            omega_data_create_(&change_ptr->data, change_ptr->length);
+            auto *const change_data = omega_data_get_data_(&change_ptr->data, change_ptr->length);
+            if (!change_data) { return false; }
+            memcpy(change_data, bytes, change_ptr->length);
+            change_data[change_ptr->length] = '\0';
             return true;
-        }
-        int64_t allocation_length = 0;
-        if (!safe_add_int64_(change_ptr->length, 1, allocation_length)) { return false; }
-        change_ptr->data.bytes_ptr = new omega_byte_t[allocation_length];
-        memcpy(change_ptr->data.bytes_ptr, bytes, change_ptr->length);
-        change_ptr->data.bytes_ptr[change_ptr->length] = '\0';
-        return true;
+        } catch (const std::bad_alloc &) { return false; }
     }
 
     inline auto ins_(int64_t serial, int64_t offset, const omega_byte_t *bytes, int64_t length,
                      bool transaction_bit) -> const_omega_change_ptr_t {
         if (!bytes) { return nullptr; }
         if (serial <= 0 || !valid_nonnegative_range_(offset, length)) { return nullptr; }
-        auto change_ptr = std::make_shared<omega_change_t>();
-        change_ptr->serial = serial;
-        change_ptr->kind =
-                (transaction_bit ? OMEGA_CHANGE_TRANSACTION_BIT : 0x00) | (uint8_t) change_kind_t::CHANGE_INSERT;
-        change_ptr->offset = offset;
-        change_ptr->length = length;
-        if (!populate_change_bytes_(change_ptr.get(), bytes)) { return nullptr; }
-        return change_ptr;
+        try {
+            auto change_ptr = std::make_shared<omega_change_t>();
+            change_ptr->serial = serial;
+            change_ptr->kind =
+                    (transaction_bit ? OMEGA_CHANGE_TRANSACTION_BIT : 0x00) | (uint8_t) change_kind_t::CHANGE_INSERT;
+            change_ptr->offset = offset;
+            change_ptr->length = length;
+            if (!populate_change_bytes_(change_ptr.get(), bytes)) { return nullptr; }
+            return change_ptr;
+        } catch (const std::bad_alloc &) { return nullptr; }
     }
 
     inline auto ovr_(int64_t serial, int64_t offset, const omega_byte_t *bytes, int64_t length,
                      bool transaction_bit) -> const_omega_change_ptr_t {
         if (!bytes) { return nullptr; }
         if (serial <= 0 || !valid_nonnegative_range_(offset, length)) { return nullptr; }
-        auto change_ptr = std::make_shared<omega_change_t>();
-        change_ptr->serial = serial;
-        change_ptr->kind =
-                (transaction_bit ? OMEGA_CHANGE_TRANSACTION_BIT : 0x00) | (uint8_t) change_kind_t::CHANGE_OVERWRITE;
-        change_ptr->offset = offset;
-        change_ptr->length = length;
-        if (!populate_change_bytes_(change_ptr.get(), bytes)) { return nullptr; }
-        return change_ptr;
+        try {
+            auto change_ptr = std::make_shared<omega_change_t>();
+            change_ptr->serial = serial;
+            change_ptr->kind =
+                    (transaction_bit ? OMEGA_CHANGE_TRANSACTION_BIT : 0x00) | (uint8_t) change_kind_t::CHANGE_OVERWRITE;
+            change_ptr->offset = offset;
+            change_ptr->length = length;
+            if (!populate_change_bytes_(change_ptr.get(), bytes)) { return nullptr; }
+            return change_ptr;
+        } catch (const std::bad_alloc &) { return nullptr; }
     }
 
     inline auto transform_(int64_t serial, int64_t offset, int64_t length, const char *transform_id,
@@ -319,21 +353,22 @@ namespace {
             file_size_before < 0 || file_size_after < 0 || !checkpoint_file_path || !*checkpoint_file_path) {
             return nullptr;
         }
-        auto change_ptr = std::make_shared<omega_change_t>();
-        change_ptr->serial = serial;
-        change_ptr->kind =
-                (transaction_bit ? OMEGA_CHANGE_TRANSACTION_BIT : 0x00) | (uint8_t) change_kind_t::CHANGE_TRANSFORM;
-        change_ptr->offset = offset;
-        change_ptr->length = length;
-        change_ptr->data.bytes_ptr = nullptr;
-        change_ptr->transform_data = std::make_unique<omega_transform_change_data_struct>();
-        change_ptr->transform_data->transform_id = (transform_id && *transform_id) ? transform_id : "transform";
-        if (options_json) { change_ptr->transform_data->options_json = options_json; }
-        change_ptr->transform_data->replacement_length = replacement_length;
-        change_ptr->transform_data->computed_file_size_before = file_size_before;
-        change_ptr->transform_data->computed_file_size_after = file_size_after;
-        change_ptr->transform_data->checkpoint_file_path = checkpoint_file_path;
-        return change_ptr;
+        try {
+            auto change_ptr = std::make_shared<omega_change_t>();
+            change_ptr->serial = serial;
+            change_ptr->kind =
+                    (transaction_bit ? OMEGA_CHANGE_TRANSACTION_BIT : 0x00) | (uint8_t) change_kind_t::CHANGE_TRANSFORM;
+            change_ptr->offset = offset;
+            change_ptr->length = length;
+            change_ptr->transform_data = std::make_unique<omega_transform_change_data_struct>();
+            change_ptr->transform_data->transform_id = (transform_id && *transform_id) ? transform_id : "transform";
+            if (options_json) { change_ptr->transform_data->options_json = options_json; }
+            change_ptr->transform_data->replacement_length = replacement_length;
+            change_ptr->transform_data->computed_file_size_before = file_size_before;
+            change_ptr->transform_data->computed_file_size_after = file_size_after;
+            change_ptr->transform_data->checkpoint_file_path = checkpoint_file_path;
+            return change_ptr;
+        } catch (const std::bad_alloc &) { return nullptr; }
     }
 
     inline auto restore_viewport_callbacks_(omega_session_t *session_ptr, bool callbacks_were_paused,
@@ -379,6 +414,26 @@ namespace {
 
     private:
         omega_session_t *session_ptr_{};
+    };
+
+    class scoped_search_context_t {
+    public:
+        explicit scoped_search_context_t(omega_search_context_t *context_ptr) : context_ptr_(context_ptr) {}
+
+        ~scoped_search_context_t() { reset(); }
+
+        scoped_search_context_t(const scoped_search_context_t &) = delete;
+        auto operator=(const scoped_search_context_t &) -> scoped_search_context_t & = delete;
+
+        auto get() const -> omega_search_context_t * { return context_ptr_; }
+
+        void reset(omega_search_context_t *context_ptr = nullptr) {
+            if (context_ptr_ != nullptr) { omega_search_destroy_context(context_ptr_); }
+            context_ptr_ = context_ptr;
+        }
+
+    private:
+        omega_search_context_t *context_ptr_{};
     };
 
     struct session_stream_cursor_t {
@@ -673,20 +728,13 @@ namespace {
 
     inline void free_model_changes_(omega_model_struct *model_ptr) {
         model_ptr->model_snapshots.clear();
-        for (const auto &change_ptr : model_ptr->changes) {
-            if (change_has_byte_data_(change_ptr.get())) {
-                omega_data_destroy_(&const_cast<omega_change_t *>(change_ptr.get())->data, change_ptr->length);
-            }
-        }
         model_ptr->changes.clear();
     }
 
     inline void free_model_changes_undone_(omega_model_struct *model_ptr) {
         for (const auto &change_ptr : model_ptr->changes_undone) {
-            if (change_has_byte_data_(change_ptr.get())) {
-                omega_data_destroy_(&const_cast<omega_change_t *>(change_ptr.get())->data, change_ptr->length);
-            } else if (omega_change_get_kind_(change_ptr.get()) == change_kind_t::CHANGE_TRANSFORM &&
-                       change_ptr->transform_data && !change_ptr->transform_data->checkpoint_file_path.empty()) {
+            if (omega_change_get_kind_(change_ptr.get()) == change_kind_t::CHANGE_TRANSFORM &&
+                change_ptr->transform_data && !change_ptr->transform_data->checkpoint_file_path.empty()) {
                 if (0 != omega_util_remove_file(change_ptr->transform_data->checkpoint_file_path.c_str())) {
                     LOG_ERRNO();
                 }
@@ -704,7 +752,11 @@ namespace {
     }
 
     auto update_model_helper_(omega_model_t *model_ptr, const const_omega_change_ptr_t &change_ptr) -> int {
+        if (!change_ptr) { return -1; }
         assert(change_ptr->length > 0);
+        try {
+            model_ptr->model_segments.reserve(model_ptr->model_segments.size() + 2);
+        } catch (const std::bad_alloc &) { return -1; }
         int64_t read_offset = 0;
 
         if (model_ptr->model_segments.empty()) {
@@ -803,6 +855,7 @@ namespace {
         if (omega_change_get_kind_(change_ptr.get()) == change_kind_t::CHANGE_OVERWRITE) {
             const_omega_change_ptr_t const_change_ptr =
                     del_(0, change_ptr->offset, change_ptr->length, !omega_session_get_transaction_bit_(session_ptr));
+            if (!const_change_ptr) { return -1; }
             const auto rc = update_model_helper_(model_ptr, const_change_ptr);
             if (0 != rc) { return rc; }
         }
@@ -822,7 +875,9 @@ namespace {
             auto snap_it = snapshots.upper_bound(remaining_count);
             if (snap_it != snapshots.begin()) {
                 --snap_it;
-                model_ptr->model_segments = clone_model_segments_(snap_it->second);
+                try {
+                    model_ptr->model_segments = clone_model_segments_(snap_it->second);
+                } catch (const std::bad_alloc &) { return -1; }
                 replay_from = snap_it->first;
             } else {
                 int64_t length = 0;
@@ -830,7 +885,7 @@ namespace {
                     if (0 != FSEEK(model_ptr->file_ptr, 0L, SEEK_END)) { return -1; }
                     length = FTELL(model_ptr->file_ptr);
                 }
-                initialize_model_segments_(model_ptr->model_segments, length);
+                if (!initialize_model_segments_(model_ptr->model_segments, length)) { return -1; }
             }
         } else {
             int64_t length = 0;
@@ -838,7 +893,7 @@ namespace {
                 if (0 != FSEEK(model_ptr->file_ptr, 0L, SEEK_END)) { return -1; }
                 length = FTELL(model_ptr->file_ptr);
             }
-            initialize_model_segments_(model_ptr->model_segments, length);
+            if (!initialize_model_segments_(model_ptr->model_segments, length)) { return -1; }
         }
 
         for (auto i = replay_from; i < remaining_count; ++i) {
@@ -852,18 +907,31 @@ namespace {
         if (change_ptr->offset <= omega_session_get_computed_file_size(session_ptr)) {
             const auto change_serial = omega_change_get_serial(change_ptr.get());
             if (change_serial == 0 || change_serial == (std::numeric_limits<int64_t>::min)()) { return -1; }
+            auto serial_was_negative = false;
             if (change_serial < 0) {
-                const_cast<omega_change_t *>(change_ptr.get())->serial *= -1;
+                change_ptr->serial *= -1;
+                serial_was_negative = true;
             } else if (!session_ptr->models_.back()->changes_undone.empty()) {
                 free_session_changes_undone_(session_ptr);
             }
-            session_ptr->models_.back()->changes.push_back(change_ptr);
-            if (0 != update_model_(session_ptr, change_ptr)) { return -1; }
+            auto *const model_ptr = session_ptr->models_.back().get();
+            try {
+                model_ptr->changes.push_back(change_ptr);
+            } catch (const std::bad_alloc &) {
+                if (serial_was_negative) { change_ptr->serial *= -1; }
+                return -1;
+            }
+            if (0 != update_model_(session_ptr, change_ptr)) {
+                model_ptr->changes.pop_back();
+                if (serial_was_negative) { change_ptr->serial *= -1; }
+                return -1;
+            }
             if (session_ptr->undo_snapshot_interval_ > 0) {
-                const auto count = static_cast<int64_t>(session_ptr->models_.back()->changes.size());
+                const auto count = static_cast<int64_t>(model_ptr->changes.size());
                 if (count % session_ptr->undo_snapshot_interval_ == 0) {
-                    session_ptr->models_.back()->model_snapshots[count] =
-                            clone_model_segments_(session_ptr->models_.back()->model_segments);
+                    try {
+                        model_ptr->model_snapshots[count] = clone_model_segments_(model_ptr->model_segments);
+                    } catch (const std::bad_alloc &) { model_ptr->model_snapshots.erase(count); }
                 }
             }
             update_viewports_(session_ptr, change_ptr.get());
@@ -916,28 +984,48 @@ namespace {
                                   bool notify_transform,
                                   const const_omega_change_ptr_t &transform_change_ptr = nullptr) -> int64_t {
         if (!session_ptr || !checkpoint_filename) { return -1; }
-        const auto change_serial_base = omega_session_get_num_changes(session_ptr);
-        session_ptr->num_changes_adjustment_ = change_serial_base;
-        session_ptr->models_.push_back(std::make_unique<omega_model_t>());
-        session_ptr->models_.back()->change_serial_base = change_serial_base;
-        session_ptr->models_.back()->file_ptr = FOPEN(checkpoint_filename, "rb");
-        session_ptr->models_.back()->file_path = checkpoint_filename;
-        if (session_ptr->models_.back()->file_ptr == nullptr) {
-            LOG_ERROR("failed to open checkpoint file '" << checkpoint_filename << "'");
-            session_ptr->models_.pop_back();
+        if (file_size < 0) {
             omega_util_remove_file(checkpoint_filename);
             return -1;
         }
-        initialize_model_segments_(session_ptr->models_.back()->model_segments, file_size);
-        if (transform_change_ptr) {
-            if (omega_change_get_serial(transform_change_ptr.get()) != change_serial_base + 1) {
-                FCLOSE(session_ptr->models_.back()->file_ptr);
-                session_ptr->models_.pop_back();
+        const auto change_serial_base = omega_session_get_num_changes(session_ptr);
+        if (transform_change_ptr && omega_change_get_serial(transform_change_ptr.get()) != change_serial_base + 1) {
+            omega_util_remove_file(checkpoint_filename);
+            return -1;
+        }
+
+        std::unique_ptr<omega_model_t> checkpoint_model_ptr;
+        try {
+            checkpoint_model_ptr = std::make_unique<omega_model_t>();
+            checkpoint_model_ptr->change_serial_base = change_serial_base;
+            checkpoint_model_ptr->file_path = checkpoint_filename;
+            if (!initialize_model_segments_(checkpoint_model_ptr->model_segments, file_size)) {
                 omega_util_remove_file(checkpoint_filename);
                 return -1;
             }
-            session_ptr->models_.back()->changes.push_back(transform_change_ptr);
+            if (transform_change_ptr) { checkpoint_model_ptr->changes.push_back(transform_change_ptr); }
+        } catch (const std::bad_alloc &) {
+            omega_util_remove_file(checkpoint_filename);
+            return -1;
         }
+
+        auto *checkpoint_file_ptr = FOPEN(checkpoint_filename, "rb");
+        if (checkpoint_file_ptr == nullptr) {
+            LOG_ERROR("failed to open checkpoint file '" << checkpoint_filename << "'");
+            omega_util_remove_file(checkpoint_filename);
+            return -1;
+        }
+
+        checkpoint_model_ptr->file_ptr = checkpoint_file_ptr;
+        try {
+            session_ptr->models_.push_back(std::move(checkpoint_model_ptr));
+        } catch (const std::bad_alloc &) {
+            FCLOSE(checkpoint_file_ptr);
+            omega_util_remove_file(checkpoint_filename);
+            return -1;
+        }
+
+        session_ptr->num_changes_adjustment_ = change_serial_base;
         omega_session_notify(session_ptr, SESSION_EVT_CREATE_CHECKPOINT, nullptr);
 
         if (notify_transform) {
@@ -1076,6 +1164,10 @@ namespace {
             return -1;
         }
         const auto is_transform = transform_id && *transform_id;
+        std::unique_ptr<omega_byte_t[]> io_buf;
+        try {
+            io_buf = std::make_unique<omega_byte_t[]>(OMEGA_IO_BUFFER_SIZE);
+        } catch (const std::bad_alloc &) { return -1; }
 
         char checkpoint_filename[FILENAME_MAX + 1];
         if (0 != create_checkpoint_file_(session_ptr, checkpoint_filename, sizeof(checkpoint_filename))) { return -1; }
@@ -1087,7 +1179,6 @@ namespace {
         }
 
         session_stream_cursor_t cursor;
-        auto io_buf = std::make_unique<omega_byte_t[]>(OMEGA_IO_BUFFER_SIZE);
         auto rc = 0;
         if (!initialize_session_stream_cursor_(session_ptr, 0, cursor)) {
             rc = -1;
@@ -1191,13 +1282,16 @@ namespace {
         const auto transform_file_begin = transform_offset;
         int64_t transform_file_end = 0;
         if (!safe_add_int64_(transform_offset, adjusted_transform_length, transform_file_end)) { return -1; }
+        std::unique_ptr<omega_byte_t[]> io_buf;
+        try {
+            io_buf = std::make_unique<omega_byte_t[]>(OMEGA_IO_BUFFER_SIZE);
+        } catch (const std::bad_alloc &) { return -1; }
 
         const auto temp_fptr = FOPEN(file_path, "wb");
         if (!temp_fptr) {
             LOG_ERRNO();
             return -1;
         }
-        const auto io_buf = std::make_unique<omega_byte_t[]>(OMEGA_IO_BUFFER_SIZE);
         int64_t write_offset = 0;
         int64_t file_write_pos = 0;
         for (const auto &segment : session_ptr->models_.back()->model_segments) {
@@ -1340,6 +1434,10 @@ namespace {
         if (transform_model_ptr->changes.empty()) { return 0; }
         const auto change_ptr = transform_model_ptr->changes.back();
         if (omega_change_get_kind_(change_ptr.get()) != change_kind_t::CHANGE_TRANSFORM) { return 0; }
+        auto *const previous_model_ptr = session_ptr->models_[session_ptr->models_.size() - 2].get();
+        try {
+            previous_model_ptr->changes_undone.reserve(previous_model_ptr->changes_undone.size() + 1);
+        } catch (const std::bad_alloc &) { return -1; }
 
         transform_model_ptr->changes.pop_back();
         free_model_changes_undone_(transform_model_ptr);
@@ -1347,10 +1445,10 @@ namespace {
         session_ptr->models_.pop_back();
         session_ptr->num_changes_adjustment_ = session_ptr->models_.back()->change_serial_base;
 
-        auto *const undone_change_ptr = const_cast<omega_change_t *>(change_ptr.get());
+        auto *const undone_change_ptr = change_ptr.get();
         if (undone_change_ptr->serial <= 0) { return -1; }
         undone_change_ptr->serial *= -1;
-        session_ptr->models_.back()->changes_undone.push_back(change_ptr);
+        previous_model_ptr->changes_undone.push_back(change_ptr);
 
         mark_all_viewports_changed_(session_ptr, VIEWPORT_EVT_UNDO, undone_change_ptr);
         omega_session_notify(session_ptr, SESSION_EVT_UNDO, undone_change_ptr);
@@ -1368,30 +1466,34 @@ namespace {
 
         const auto checkpoint_file_size = change_ptr->transform_data->computed_file_size_after;
         if (checkpoint_file_size < 0) { return -1; }
+        const auto change_serial_base = omega_session_get_num_changes(session_ptr);
+        auto *const redone_change_ptr = change_ptr.get();
+        if (redone_change_ptr->serial >= 0) { return -1; }
+        const auto redone_serial = -redone_change_ptr->serial;
+        if (redone_serial != change_serial_base + 1) { return -1; }
+
+        std::unique_ptr<omega_model_t> checkpoint_model_ptr;
+        try {
+            checkpoint_model_ptr = std::make_unique<omega_model_t>();
+            checkpoint_model_ptr->change_serial_base = change_serial_base;
+            checkpoint_model_ptr->file_path = change_ptr->transform_data->checkpoint_file_path;
+            if (!initialize_model_segments_(checkpoint_model_ptr->model_segments, checkpoint_file_size)) { return -1; }
+            checkpoint_model_ptr->changes.push_back(change_ptr);
+        } catch (const std::bad_alloc &) { return -1; }
+
         auto *checkpoint_file = FOPEN(change_ptr->transform_data->checkpoint_file_path.c_str(), "rb");
         if (!checkpoint_file) { return -1; }
-
-        const auto change_serial_base = omega_session_get_num_changes(session_ptr);
-        auto *const redone_change_ptr = const_cast<omega_change_t *>(change_ptr.get());
-        if (redone_change_ptr->serial >= 0) {
-            FCLOSE(checkpoint_file);
-            return -1;
-        }
-        redone_change_ptr->serial *= -1;
-        if (redone_change_ptr->serial != change_serial_base + 1) {
-            redone_change_ptr->serial *= -1;
+        checkpoint_model_ptr->file_ptr = checkpoint_file;
+        try {
+            session_ptr->models_.push_back(std::move(checkpoint_model_ptr));
+        } catch (const std::bad_alloc &) {
             FCLOSE(checkpoint_file);
             return -1;
         }
 
+        redone_change_ptr->serial = redone_serial;
         undone_changes.pop_back();
         session_ptr->num_changes_adjustment_ = change_serial_base;
-        session_ptr->models_.push_back(std::make_unique<omega_model_t>());
-        session_ptr->models_.back()->change_serial_base = change_serial_base;
-        session_ptr->models_.back()->file_ptr = checkpoint_file;
-        session_ptr->models_.back()->file_path = change_ptr->transform_data->checkpoint_file_path;
-        initialize_model_segments_(session_ptr->models_.back()->model_segments, checkpoint_file_size);
-        session_ptr->models_.back()->changes.push_back(change_ptr);
 
         mark_all_viewports_changed_(session_ptr, VIEWPORT_EVT_EDIT, redone_change_ptr);
         omega_session_notify(session_ptr, SESSION_EVT_EDIT, redone_change_ptr);
@@ -1440,9 +1542,11 @@ omega_session_t *omega_edit_create_session(const char *file_path, omega_session_
             return nullptr;
         }
     }
-    return create_session_with_backing_file_(file_ptr, file_path, checkpoint_filename, checkpoint_directory_str,
-                                             original_file_modification_time,
-                                             original_file_modification_time_valid, cbk, user_data_ptr, event_interest);
+    auto *const session_ptr = create_session_with_backing_file_(
+            file_ptr, file_path, checkpoint_filename, checkpoint_directory_str, original_file_modification_time,
+            original_file_modification_time_valid, cbk, user_data_ptr, event_interest);
+    if (session_ptr == nullptr && file_ptr != nullptr) { omega_util_remove_file(checkpoint_filename); }
+    return session_ptr;
 }
 
 omega_session_t *omega_edit_create_session_from_bytes(const omega_byte_t *data_ptr, int64_t length,
@@ -1486,8 +1590,11 @@ omega_session_t *omega_edit_create_session_from_bytes(const omega_byte_t *data_p
         return nullptr;
     }
 
-    return create_session_with_backing_file_(file_ptr, nullptr, checkpoint_filename, checkpoint_directory_str, 0, false,
-                                             cbk, user_data_ptr, event_interest);
+    auto *const session_ptr =
+            create_session_with_backing_file_(file_ptr, nullptr, checkpoint_filename, checkpoint_directory_str, 0,
+                                              false, cbk, user_data_ptr, event_interest);
+    if (session_ptr == nullptr) { omega_util_remove_file(checkpoint_filename); }
+    return session_ptr;
 }
 
 void omega_edit_destroy_session(omega_session_t *session_ptr) {
@@ -1518,22 +1625,24 @@ omega_viewport_t *omega_edit_create_viewport(omega_session_t *session_ptr, int64
     int64_t viewport_end = 0;
     if (session_ptr && offset >= 0 && capacity > 0 && capacity <= OMEGA_VIEWPORT_CAPACITY_LIMIT &&
         safe_add_int64_(offset, capacity, viewport_end)) {
-        const auto viewport_ptr = std::make_shared<omega_viewport_t>();
-        viewport_ptr->session_ptr = session_ptr;
-        viewport_ptr->data_segment.offset = offset;
-        viewport_ptr->data_segment.offset_adjustment = 0;
-        viewport_ptr->data_segment.is_floating = (bool) is_floating;
-        viewport_ptr->data_segment.capacity = -1 * capacity;// Negative capacity indicates dirty read
-        viewport_ptr->data_segment.length = 0;
-        omega_data_create_(&viewport_ptr->data_segment.data, capacity);
-        viewport_ptr->event_handler = cbk;
-        viewport_ptr->user_data_ptr = user_data_ptr;
-        viewport_ptr->event_interest_ = event_interest;
-        omega_segment_get_data(&viewport_ptr->data_segment)[0] = '\0';
-        session_ptr->viewports_.push_back(viewport_ptr);
-        omega_viewport_notify(viewport_ptr.get(), VIEWPORT_EVT_CREATE, session_ptr->viewports_.back().get());
-        omega_session_notify(session_ptr, SESSION_EVT_CREATE_VIEWPORT, session_ptr->viewports_.back().get());
-        return session_ptr->viewports_.back().get();
+        try {
+            const auto viewport_ptr = std::make_shared<omega_viewport_t>();
+            viewport_ptr->session_ptr = session_ptr;
+            viewport_ptr->data_segment.offset = offset;
+            viewport_ptr->data_segment.offset_adjustment = 0;
+            viewport_ptr->data_segment.is_floating = (bool) is_floating;
+            viewport_ptr->data_segment.capacity = -1 * capacity;// Negative capacity indicates dirty read
+            viewport_ptr->data_segment.length = 0;
+            omega_data_create_(&viewport_ptr->data_segment.data, capacity);
+            viewport_ptr->event_handler = cbk;
+            viewport_ptr->user_data_ptr = user_data_ptr;
+            viewport_ptr->event_interest_ = event_interest;
+            omega_segment_get_data(&viewport_ptr->data_segment)[0] = '\0';
+            session_ptr->viewports_.push_back(viewport_ptr);
+            omega_viewport_notify(viewport_ptr.get(), VIEWPORT_EVT_CREATE, session_ptr->viewports_.back().get());
+            omega_session_notify(session_ptr, SESSION_EVT_CREATE_VIEWPORT, session_ptr->viewports_.back().get());
+            return session_ptr->viewports_.back().get();
+        } catch (const std::bad_alloc &) { return nullptr; }
     }
     return nullptr;
 }
@@ -1664,60 +1773,62 @@ int omega_edit_replace_matches_bytes(omega_session_t *session_ptr, const omega_b
     if (adjusted_length < 0) { return -1; }
     if (pattern_length > adjusted_length) { return 0; }
 
-    auto *const search_context = omega_search_create_context_bytes(session_ptr, pattern, pattern_length, offset,
-                                                                   adjusted_length, case_insensitive, is_reverse);
-    if (!search_context) { return -1; }
+    scoped_search_context_t search_context(omega_search_create_context_bytes(
+            session_ptr, pattern, pattern_length, offset, adjusted_length, case_insensitive, is_reverse));
+    if (!search_context.get()) { return -1; }
 
-    std::vector<int64_t> match_offsets;
-    int64_t last_accepted_offset = -1;
-    while ((limit <= 0 || static_cast<int64_t>(match_offsets.size()) < limit) &&
-           omega_search_next_match(search_context, 1) > 0) {
-        const auto match_offset = omega_search_context_get_match_offset(search_context);
-        int64_t match_end = 0;
-        int64_t last_accepted_end = 0;
-        if (!safe_add_int64_(match_offset, pattern_length, match_end) ||
-            (!match_offsets.empty() && !safe_add_int64_(last_accepted_offset, pattern_length, last_accepted_end))) {
-            omega_search_destroy_context(search_context);
-            return -1;
-        }
-        const bool overlaps_prior = !match_offsets.empty() && (is_reverse ? (match_end > last_accepted_offset)
-                                                                          : (match_offset < last_accepted_end));
-        if (overlaps_prior) { continue; }
-        match_offsets.push_back(match_offset);
-        last_accepted_offset = match_offset;
-    }
-    omega_search_destroy_context(search_context);
-
-    if (match_offsets.empty()) { return 0; }
-
-    std::sort(match_offsets.begin(), match_offsets.end(),
-              [front_to_back](const int64_t lhs, const int64_t rhs) { return front_to_back ? lhs < rhs : rhs < lhs; });
-
-    std::vector<omega_edit_script_op_t> ops;
-    ops.reserve(match_offsets.size());
-    replace_match_stats_t stats;
-    const auto replacement_delta = (overwrite_only != 0) ? 0LL : (replacement_length - pattern_length);
-    for (size_t i = 0; i < match_offsets.size(); ++i) {
-        int64_t base_offset = match_offsets[i];
-        if (front_to_back) {
-            const auto match_index = static_cast<int64_t>(i);
-            if (replacement_delta != 0 &&
-                (match_index > (std::numeric_limits<int64_t>::max)() / std::llabs(replacement_delta))) {
+    try {
+        std::vector<int64_t> match_offsets;
+        int64_t last_accepted_offset = -1;
+        while ((limit <= 0 || static_cast<int64_t>(match_offsets.size()) < limit) &&
+               omega_search_next_match(search_context.get(), 1) > 0) {
+            const auto match_offset = omega_search_context_get_match_offset(search_context.get());
+            int64_t match_end = 0;
+            int64_t last_accepted_end = 0;
+            if (!safe_add_int64_(match_offset, pattern_length, match_end) ||
+                (!match_offsets.empty() && !safe_add_int64_(last_accepted_offset, pattern_length, last_accepted_end))) {
                 return -1;
             }
-            if (!safe_add_int64_(match_offsets[i], replacement_delta * match_index, base_offset)) { return -1; }
+            const bool overlaps_prior = !match_offsets.empty() && (is_reverse ? (match_end > last_accepted_offset)
+                                                                              : (match_offset < last_accepted_end));
+            if (overlaps_prior) { continue; }
+            match_offsets.push_back(match_offset);
+            last_accepted_offset = match_offset;
         }
-        append_optimized_replace_ops_(ops, stats, base_offset, pattern, pattern_length, replacement, replacement_length,
-                                      overwrite_only != 0);
-    }
+        search_context.reset();
 
-    if (!ops.empty() && 0 != omega_edit_apply_script(session_ptr, ops.data(), ops.size())) { return -1; }
+        if (match_offsets.empty()) { return 0; }
 
-    if (replacement_count_out != nullptr) { *replacement_count_out = stats.replacements; }
-    if (delete_count_out != nullptr) { *delete_count_out = stats.deletes; }
-    if (insert_count_out != nullptr) { *insert_count_out = stats.inserts; }
-    if (overwrite_count_out != nullptr) { *overwrite_count_out = stats.overwrites; }
-    return 0;
+        std::sort(match_offsets.begin(), match_offsets.end(), [front_to_back](const int64_t lhs, const int64_t rhs) {
+            return front_to_back ? lhs < rhs : rhs < lhs;
+        });
+
+        std::vector<omega_edit_script_op_t> ops;
+        ops.reserve(match_offsets.size());
+        replace_match_stats_t stats;
+        const auto replacement_delta = (overwrite_only != 0) ? 0LL : (replacement_length - pattern_length);
+        for (size_t i = 0; i < match_offsets.size(); ++i) {
+            int64_t base_offset = match_offsets[i];
+            if (front_to_back) {
+                const auto match_index = static_cast<int64_t>(i);
+                if (replacement_delta != 0 &&
+                    (match_index > (std::numeric_limits<int64_t>::max)() / std::llabs(replacement_delta))) {
+                    return -1;
+                }
+                if (!safe_add_int64_(match_offsets[i], replacement_delta * match_index, base_offset)) { return -1; }
+            }
+            append_optimized_replace_ops_(ops, stats, base_offset, pattern, pattern_length, replacement,
+                                          replacement_length, overwrite_only != 0);
+        }
+
+        if (!ops.empty() && 0 != omega_edit_apply_script(session_ptr, ops.data(), ops.size())) { return -1; }
+
+        if (replacement_count_out != nullptr) { *replacement_count_out = stats.replacements; }
+        if (delete_count_out != nullptr) { *delete_count_out = stats.deletes; }
+        if (insert_count_out != nullptr) { *insert_count_out = stats.inserts; }
+        if (overwrite_count_out != nullptr) { *overwrite_count_out = stats.overwrites; }
+        return 0;
+    } catch (const std::bad_alloc &) { return -1; }
 }
 
 int omega_edit_replace_matches(omega_session_t *session_ptr, const char *pattern, int64_t pattern_length,
@@ -1770,6 +1881,14 @@ int omega_edit_replace_all_bytes(omega_session_t *session_ptr, const omega_byte_
         return 0;
     }
 
+    std::unique_ptr<omega_byte_t[]> io_buf;
+    try {
+        io_buf = std::make_unique<omega_byte_t[]>(OMEGA_IO_BUFFER_SIZE);
+    } catch (const std::bad_alloc &) {
+        omega_search_destroy_context(search_context);
+        return -1;
+    }
+
     char checkpoint_filename[FILENAME_MAX + 1];
     if (0 != create_checkpoint_file_(session_ptr, checkpoint_filename, sizeof(checkpoint_filename))) {
         omega_search_destroy_context(search_context);
@@ -1791,7 +1910,6 @@ int omega_edit_replace_all_bytes(omega_session_t *session_ptr, const omega_byte_
         return -1;
     }
 
-    auto io_buf = std::make_unique<omega_byte_t[]>(OMEGA_IO_BUFFER_SIZE);
     int64_t replace_end = 0;
     if (!safe_add_int64_(offset, adjusted_length, replace_end)) {
         omega_search_destroy_context(search_context);
@@ -1902,21 +2020,23 @@ int omega_edit_apply_script(omega_session_t *session_ptr, const omega_edit_scrip
 
     bool changed = false;
     int rc = 0;
-    for (size_t i = 0; i < op_count; ++i) {
-        const auto serial = apply_script_op_(session_ptr, ops[i]);
-        if (serial < 0) {
-            rc = -1;
-            break;
+    try {
+        for (size_t i = 0; i < op_count; ++i) {
+            const auto serial = apply_script_op_(session_ptr, ops[i]);
+            if (serial < 0) {
+                rc = -1;
+                break;
+            }
+            if (serial == 0 &&
+                (ops[i].kind == OMEGA_EDIT_SCRIPT_DELETE || ops[i].kind == OMEGA_EDIT_SCRIPT_INSERT ||
+                 ops[i].kind == OMEGA_EDIT_SCRIPT_OVERWRITE || ops[i].kind == OMEGA_EDIT_SCRIPT_REPLACE) &&
+                (ops[i].length > 0 || ops[i].bytes_length > 0)) {
+                rc = -1;
+                break;
+            }
+            if (serial > 0) { changed = true; }
         }
-        if (serial == 0 &&
-            (ops[i].kind == OMEGA_EDIT_SCRIPT_DELETE || ops[i].kind == OMEGA_EDIT_SCRIPT_INSERT ||
-             ops[i].kind == OMEGA_EDIT_SCRIPT_OVERWRITE || ops[i].kind == OMEGA_EDIT_SCRIPT_REPLACE) &&
-            (ops[i].length > 0 || ops[i].bytes_length > 0)) {
-            rc = -1;
-            break;
-        }
-        if (serial > 0) { changed = true; }
-    }
+    } catch (const std::bad_alloc &) { rc = -1; }
 
     restore_viewport_callbacks_(session_ptr, callbacks_were_paused, changed);
     return rc;
@@ -1925,12 +2045,14 @@ int omega_edit_apply_script(omega_session_t *session_ptr, const omega_edit_scrip
 int omega_edit_apply_builtin_transform(omega_session_t *session_ptr, omega_edit_transform_t transform, int64_t offset,
                                        int64_t length) {
     if (!is_builtin_transform_kind_(transform.kind)) { return -1; }
-    const auto options_json = builtin_transform_options_json_(transform);
-    return apply_transform_checkpointed_(session_ptr, apply_builtin_transform_, &transform, offset, length,
-                                         builtin_transform_id_(transform.kind),
-                                         options_json.empty() ? nullptr : options_json.c_str()) > 0
-                   ? 0
-                   : -1;
+    try {
+        const auto options_json = builtin_transform_options_json_(transform);
+        return apply_transform_checkpointed_(session_ptr, apply_builtin_transform_, &transform, offset, length,
+                                             builtin_transform_id_(transform.kind),
+                                             options_json.empty() ? nullptr : options_json.c_str()) > 0
+                       ? 0
+                       : -1;
+    } catch (const std::bad_alloc &) { return -1; }
 }
 
 int omega_edit_apply_transform(omega_session_t *session_ptr, omega_util_byte_transform_t transform, void *user_data_ptr,
@@ -1959,6 +2081,10 @@ int omega_edit_save_segment(omega_session_t *session_ptr, const char *file_path,
     const auto *const session_file_path = omega_session_get_file_path(session_ptr);
     const auto mode = omega_util_compute_mode(0666);// S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH
     if (saved_file_path != nullptr) { saved_file_path[0] = '\0'; }
+    std::unique_ptr<omega_byte_t[]> io_buf;
+    try {
+        io_buf = std::make_unique<omega_byte_t[]>(OMEGA_IO_BUFFER_SIZE);
+    } catch (const std::bad_alloc &) { return -6; }
 
     const auto overwrite_original =
             (overwrite && (session_file_path != nullptr) && (omega_util_file_exists(file_path) != 0) &&
@@ -1983,7 +2109,10 @@ int omega_edit_save_segment(omega_session_t *session_ptr, const char *file_path,
     FILE *temp_fptr = nullptr;
     if (overwrite) {
         errno = 0;// reset errno
-        const auto temp_filename_str = std::string(temp_filename);
+        std::string temp_filename_str;
+        try {
+            temp_filename_str = temp_filename;
+        } catch (const std::bad_alloc &) { return -3; }
         const auto count = temp_filename_str.empty()
                                    ? snprintf(temp_filename, FILENAME_MAX, ".OmegaEdit_XXXXXX")
                                    : snprintf(temp_filename, FILENAME_MAX, "%s%c.OmegaEdit_XXXXXX",
@@ -2017,7 +2146,6 @@ int omega_edit_save_segment(omega_session_t *session_ptr, const char *file_path,
         output_path = reserved_output_path;
         cleanup_output = true;
     }
-    const auto io_buf = std::make_unique<omega_byte_t[]>(OMEGA_IO_BUFFER_SIZE);
     int64_t bytes_written = 0;
     auto close_and_cleanup_output = [&]() {
         if (temp_fptr != nullptr) {
@@ -2211,7 +2339,7 @@ int omega_edit_clear_changes(omega_session_t *session_ptr) {
         if (0 != FSEEK(session_ptr->models_.front()->file_ptr, 0L, SEEK_END)) { return -1; }
         length = FTELL(session_ptr->models_.front()->file_ptr);
     }
-    initialize_model_segments_(session_ptr->models_.front()->model_segments, length);
+    if (!initialize_model_segments_(session_ptr->models_.front()->model_segments, length)) { return -1; }
     free_session_changes_(session_ptr);
     free_session_changes_undone_(session_ptr);
     for (const auto &viewport_ptr : session_ptr->viewports_) {
@@ -2233,9 +2361,19 @@ int64_t omega_edit_undo_last_change(omega_session_t *session_ptr) {
     while ((omega_session_changes_paused(session_ptr) == 0) && !session_ptr->models_.back()->changes.empty()) {
         auto *const model_ptr = session_ptr->models_.back().get();
         std::vector<const_omega_change_ptr_t> undone_changes;
-        undone_changes.reserve(1);
 
         const auto transaction_bit = omega_change_get_transaction_bit_(model_ptr->changes.back().get());
+        auto transaction_change_count = size_t{0};
+        for (auto iter = model_ptr->changes.rbegin();
+             iter != model_ptr->changes.rend() && transaction_bit == omega_change_get_transaction_bit_(iter->get());
+             ++iter) {
+            ++transaction_change_count;
+        }
+        try {
+            undone_changes.reserve(transaction_change_count);
+            model_ptr->changes_undone.reserve(model_ptr->changes_undone.size() + transaction_change_count);
+        } catch (const std::bad_alloc &) { return -1; }
+
         do {
             undone_changes.push_back(model_ptr->changes.back());
             model_ptr->changes.pop_back();
@@ -2246,7 +2384,7 @@ int64_t omega_edit_undo_last_change(omega_session_t *session_ptr) {
         if (0 != rebuild_model_to_change_count_(session_ptr, remaining_count)) { return -1; }
 
         for (const auto &change_ptr : undone_changes) {
-            auto *const undone_change_ptr = const_cast<omega_change_t *>(change_ptr.get());
+            auto *const undone_change_ptr = change_ptr.get();
             if (undone_change_ptr->serial <= 0) { return -1; }
             undone_change_ptr->serial *= -1;
 
@@ -2291,18 +2429,11 @@ int omega_edit_create_checkpoint(omega_session_t *session_ptr) {
     if (0 != create_checkpoint_file_(session_ptr, checkpoint_filename, sizeof(checkpoint_filename))) { return -1; }
     if (0 != omega_edit_save(session_ptr, checkpoint_filename, IO_FLG_OVERWRITE, nullptr)) {
         LOG_ERROR("failed to save checkpoint to '" << checkpoint_filename << "'");
+        omega_util_remove_file(checkpoint_filename);
         return -1;
     }
     const auto file_size = omega_session_get_computed_file_size(session_ptr);
-    const auto change_serial_base = omega_session_get_num_changes(session_ptr);
-    session_ptr->num_changes_adjustment_ = change_serial_base;
-    session_ptr->models_.push_back(std::make_unique<omega_model_t>());
-    session_ptr->models_.back()->change_serial_base = change_serial_base;
-    session_ptr->models_.back()->file_ptr = FOPEN(checkpoint_filename, "rb");
-    session_ptr->models_.back()->file_path = checkpoint_filename;
-    initialize_model_segments_(session_ptr->models_.back()->model_segments, file_size);
-    omega_session_notify(session_ptr, SESSION_EVT_CREATE_CHECKPOINT, nullptr);
-    return 0;
+    return promote_checkpoint_file_(session_ptr, checkpoint_filename, file_size, false) == 0 ? 0 : -1;
 }
 
 int omega_edit_destroy_last_checkpoint(omega_session_t *session_ptr) {

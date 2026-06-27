@@ -34,9 +34,15 @@
 #include <limits>
 #include <new>
 #include <string>
+#include <type_traits>
 
 using namespace std;
 using Catch::Matchers::Equals;
+
+static_assert(!std::is_copy_constructible<omega_data_t>::value, "omega_data_t must not be copy constructible");
+static_assert(!std::is_copy_assignable<omega_data_t>::value, "omega_data_t must not be copy assignable");
+static_assert(std::is_move_constructible<omega_data_t>::value, "omega_data_t must be move constructible");
+static_assert(std::is_move_assignable<omega_data_t>::value, "omega_data_t must be move assignable");
 
 // ─── Empty-string and zero-length edit operations ────────────────────────────
 
@@ -614,6 +620,28 @@ TEST_CASE("Data Segment Allocation Rejects Unrepresentable Null Terminator Capac
     REQUIRE_THROWS_AS(omega_edit::internal::omega_data_create_(
                               &data, (std::numeric_limits<int64_t>::max)()),
                       std::bad_array_new_length);
+}
+
+TEST_CASE("Omega Data Ownership Is Move Only With Explicit Borrowing", "[EdgeCase][Memory]") {
+    omega_data_t owned{};
+    omega_edit::internal::omega_data_create_(&owned, 8);
+    auto *owned_bytes = omega_edit::internal::omega_data_get_data_(&owned, 8);
+    REQUIRE(owned_bytes != nullptr);
+    memcpy(owned_bytes, "ABCDEFGH", 8);
+    owned_bytes[8] = '\0';
+
+    omega_data_t moved{std::move(owned)};
+    REQUIRE(nullptr == omega_edit::internal::omega_data_get_data_(&owned, 8));
+    REQUIRE(0 == memcmp(omega_edit::internal::omega_data_get_data_(&moved, 8), "ABCDEFGH", 8));
+
+    omega_byte_t scratch[] = {'x', 'y', 'z', '\0'};
+    omega_data_t borrowed{};
+    omega_edit::internal::omega_data_borrow_(&borrowed, scratch, 3);
+    auto *borrowed_bytes = omega_edit::internal::omega_data_get_data_(&borrowed, 3);
+    REQUIRE(borrowed_bytes == scratch);
+    borrowed_bytes[1] = 'Y';
+    omega_edit::internal::omega_data_destroy_(&borrowed, 3);
+    REQUIRE('Y' == scratch[1]);
 }
 
 TEST_CASE("Segment Allocation Rejects Unrepresentable Null Terminator Capacity", "[EdgeCase][Overflow]") {
