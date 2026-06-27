@@ -60,6 +60,12 @@
 <li><a class="reference internal" href="#_CPPv429omega_change_get_kind_as_charPK14omega_change_t"><code class="docutils literal notranslate"><span class="pre">omega_change_get_kind_as_char()</span></code></a></li>
 <li><a class="reference internal" href="#_CPPv432omega_change_get_transaction_bitPK14omega_change_t"><code class="docutils literal notranslate"><span class="pre">omega_change_get_transaction_bit()</span></code></a></li>
 <li><a class="reference internal" href="#_CPPv422omega_change_get_bytesPK14omega_change_t"><code class="docutils literal notranslate"><span class="pre">omega_change_get_bytes()</span></code></a></li>
+<li><a class="reference internal" href="#_CPPv425omega_change_is_transformPK14omega_change_t"><code class="docutils literal notranslate"><span class="pre">omega_change_is_transform()</span></code></a></li>
+<li><a class="reference internal" href="#_CPPv429omega_change_get_transform_idPK14omega_change_t"><code class="docutils literal notranslate"><span class="pre">omega_change_get_transform_id()</span></code></a></li>
+<li><a class="reference internal" href="#_CPPv439omega_change_get_transform_options_jsonPK14omega_change_t"><code class="docutils literal notranslate"><span class="pre">omega_change_get_transform_options_json()</span></code></a></li>
+<li><a class="reference internal" href="#_CPPv445omega_change_get_transform_replacement_lengthPK14omega_change_t"><code class="docutils literal notranslate"><span class="pre">omega_change_get_transform_replacement_length()</span></code></a></li>
+<li><a class="reference internal" href="#_CPPv452omega_change_get_transform_computed_file_size_beforePK14omega_change_t"><code class="docutils literal notranslate"><span class="pre">omega_change_get_transform_computed_file_size_before()</span></code></a></li>
+<li><a class="reference internal" href="#_CPPv451omega_change_get_transform_computed_file_size_afterPK14omega_change_t"><code class="docutils literal notranslate"><span class="pre">omega_change_get_transform_computed_file_size_after()</span></code></a></li>
 <li><a class="reference internal" href="#_CPPv422omega_change_is_undonePK14omega_change_t"><code class="docutils literal notranslate"><span class="pre">omega_change_is_undone()</span></code></a></li>
 </ul>
 </li>
@@ -121,6 +127,7 @@
 <li><a class="reference internal" href="#_CPPv420omega_edit_overwriteP15omega_session_t7int64_tPKc7int64_t"><code class="docutils literal notranslate"><span class="pre">omega_edit_overwrite()</span></code></a></li>
 <li><a class="reference internal" href="#_CPPv424omega_edit_replace_bytesP15omega_session_t7int64_t7int64_tPK12omega_byte_t7int64_t"><code class="docutils literal notranslate"><span class="pre">omega_edit_replace_bytes()</span></code></a></li>
 <li><a class="reference internal" href="#_CPPv437omega_edit_replace_bytes_checkpointedP15omega_session_t7int64_t7int64_tPK12omega_byte_t7int64_t"><code class="docutils literal notranslate"><span class="pre">omega_edit_replace_bytes_checkpointed()</span></code></a></li>
+<li><a class="reference internal" href="#_CPPv437omega_edit_replace_bytes_as_transformP15omega_session_t7int64_t7int64_tPK12omega_byte_t7int64_tPKcPKc"><code class="docutils literal notranslate"><span class="pre">omega_edit_replace_bytes_as_transform()</span></code></a></li>
 <li><a class="reference internal" href="#_CPPv418omega_edit_replaceP15omega_session_t7int64_t7int64_tPKc7int64_t"><code class="docutils literal notranslate"><span class="pre">omega_edit_replace()</span></code></a></li>
 <li><a class="reference internal" href="#_CPPv432omega_edit_replace_matches_bytesP15omega_session_tPK12omega_byte_t7int64_tPK12omega_byte_t7int64_tii7int64_t7int64_t7int64_tiiP7int64_tP7int64_tP7int64_tP7int64_t"><code class="docutils literal notranslate"><span class="pre">omega_edit_replace_matches_bytes()</span></code></a></li>
 <li><a class="reference internal" href="#_CPPv426omega_edit_replace_matchesP15omega_session_tPKc7int64_tPKc7int64_tii7int64_t7int64_t7int64_tiiP7int64_tP7int64_tP7int64_tP7int64_t"><code class="docutils literal notranslate"><span class="pre">omega_edit_replace_matches()</span></code></a></li>
@@ -164,6 +171,7 @@
 <li><a class="reference internal" href="#_CPPv427omega_util_paths_equivalentPKcPKc"><code class="docutils literal notranslate"><span class="pre">omega_util_paths_equivalent()</span></code></a></li>
 <li><a class="reference internal" href="#_CPPv424omega_util_compare_filesPKcPKc"><code class="docutils literal notranslate"><span class="pre">omega_util_compare_files()</span></code></a></li>
 <li><a class="reference internal" href="#_CPPv437omega_util_compare_modification_timesPKcPKc"><code class="docutils literal notranslate"><span class="pre">omega_util_compare_modification_times()</span></code></a></li>
+<li><a class="reference internal" href="#_CPPv432omega_util_get_modification_timePKcP7int64_t"><code class="docutils literal notranslate"><span class="pre">omega_util_get_modification_time()</span></code></a></li>
 <li><a class="reference internal" href="#_CPPv419omega_util_basenamePKcPci"><code class="docutils literal notranslate"><span class="pre">omega_util_basename()</span></code></a></li>
 <li><a class="reference internal" href="#_CPPv425omega_util_file_extensionPKcPc"><code class="docutils literal notranslate"><span class="pre">omega_util_file_extension()</span></code></a></li>
 <li><a class="reference internal" href="#_CPPv429omega_util_available_filenamePKcPc"><code class="docutils literal notranslate"><span class="pre">omega_util_available_filename()</span></code></a></li>
@@ -468,13 +476,13 @@
 <dl class="cpp function">
 <dt class="sig sig-object cpp" id="_CPPv429omega_change_get_kind_as_charPK14omega_change_t">
 <span id="_CPPv329omega_change_get_kind_as_charPK14omega_change_t"></span><span id="_CPPv229omega_change_get_kind_as_charPK14omega_change_t"></span><span id="omega_change_get_kind_as_char__omega_change_tCP"></span><span class="target" id="change_8h_1a2df7447ab807e538d631bba86783a121"></span><span class="kt"><span class="pre">char</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">omega_change_get_kind_as_char</span></span></span><span class="sig-paren">(</span><span class="k"><span class="pre">const</span></span><span class="w"> </span><a class="reference internal" href="#_CPPv414omega_change_t" title="omega_change_t"><span class="n"><span class="pre">omega_change_t</span></span></a><span class="w"> </span><span class="p"><span class="pre">*</span></span><span class="n sig-param"><span class="pre">change_ptr</span></span><span class="sig-paren">)</span><a class="headerlink" href="#_CPPv429omega_change_get_kind_as_charPK14omega_change_t" title="Link to this definition"></a><br /></dt>
-<dd><p>Given a change, return a character representing the kind of change (‘D’, ‘I’, and ‘O’) </p>
+<dd><p>Given a change, return a character representing the kind of change (‘D’, ‘I’, ‘O’, and ‘T’) </p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><p><strong>change_ptr</strong> – change to get the kind from </p>
 </dd>
 <dt class="field-even">Returns<span class="colon">:</span></dt>
-<dd class="field-even"><p>‘D’ if the change is a delete, ‘I’ if the change is an insert and ‘O’ if the change is an overwrite </p>
+<dd class="field-even"><p>‘D’ if the change is a delete, ‘I’ if the change is an insert, ‘O’ if the change is an overwrite, and ‘T’ if the change is a transform </p>
 </dd>
 </dl>
 </dd></dl>
@@ -503,6 +511,90 @@
 </dd>
 <dt class="field-even">Returns<span class="colon">:</span></dt>
 <dd class="field-even"><p>pointer to the byte data </p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="cpp function">
+<dt class="sig sig-object cpp" id="_CPPv425omega_change_is_transformPK14omega_change_t">
+<span id="_CPPv325omega_change_is_transformPK14omega_change_t"></span><span id="_CPPv225omega_change_is_transformPK14omega_change_t"></span><span id="omega_change_is_transform__omega_change_tCP"></span><span class="target" id="change_8h_1ae8c804599047efc9befe13557b3e26e5"></span><span class="kt"><span class="pre">int</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">omega_change_is_transform</span></span></span><span class="sig-paren">(</span><span class="k"><span class="pre">const</span></span><span class="w"> </span><a class="reference internal" href="#_CPPv414omega_change_t" title="omega_change_t"><span class="n"><span class="pre">omega_change_t</span></span></a><span class="w"> </span><span class="p"><span class="pre">*</span></span><span class="n sig-param"><span class="pre">change_ptr</span></span><span class="sig-paren">)</span><a class="headerlink" href="#_CPPv425omega_change_is_transformPK14omega_change_t" title="Link to this definition"></a><br /></dt>
+<dd><p>Given a change, return a non-zero value if this is a transform change. </p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>change_ptr</strong> – change to inspect </p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>non-zero if the change is a transform, zero otherwise </p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="cpp function">
+<dt class="sig sig-object cpp" id="_CPPv429omega_change_get_transform_idPK14omega_change_t">
+<span id="_CPPv329omega_change_get_transform_idPK14omega_change_t"></span><span id="_CPPv229omega_change_get_transform_idPK14omega_change_t"></span><span id="omega_change_get_transform_id__omega_change_tCP"></span><span class="target" id="change_8h_1a9e3ac95d47663f3b1235e9bc5f8b05bd"></span><span class="k"><span class="pre">const</span></span><span class="w"> </span><span class="kt"><span class="pre">char</span></span><span class="w"> </span><span class="p"><span class="pre">*</span></span><span class="sig-name descname"><span class="n"><span class="pre">omega_change_get_transform_id</span></span></span><span class="sig-paren">(</span><span class="k"><span class="pre">const</span></span><span class="w"> </span><a class="reference internal" href="#_CPPv414omega_change_t" title="omega_change_t"><span class="n"><span class="pre">omega_change_t</span></span></a><span class="w"> </span><span class="p"><span class="pre">*</span></span><span class="n sig-param"><span class="pre">change_ptr</span></span><span class="sig-paren">)</span><a class="headerlink" href="#_CPPv429omega_change_get_transform_idPK14omega_change_t" title="Link to this definition"></a><br /></dt>
+<dd><p>Given a transform change, return the transform identifier. </p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>change_ptr</strong> – transform change to inspect </p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>transform identifier, or NULL if this is not a transform change </p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="cpp function">
+<dt class="sig sig-object cpp" id="_CPPv439omega_change_get_transform_options_jsonPK14omega_change_t">
+<span id="_CPPv339omega_change_get_transform_options_jsonPK14omega_change_t"></span><span id="_CPPv239omega_change_get_transform_options_jsonPK14omega_change_t"></span><span id="omega_change_get_transform_options_json__omega_change_tCP"></span><span class="target" id="change_8h_1ad2ebc73437c5325b0621fbfb64c725c8"></span><span class="k"><span class="pre">const</span></span><span class="w"> </span><span class="kt"><span class="pre">char</span></span><span class="w"> </span><span class="p"><span class="pre">*</span></span><span class="sig-name descname"><span class="n"><span class="pre">omega_change_get_transform_options_json</span></span></span><span class="sig-paren">(</span><span class="k"><span class="pre">const</span></span><span class="w"> </span><a class="reference internal" href="#_CPPv414omega_change_t" title="omega_change_t"><span class="n"><span class="pre">omega_change_t</span></span></a><span class="w"> </span><span class="p"><span class="pre">*</span></span><span class="n sig-param"><span class="pre">change_ptr</span></span><span class="sig-paren">)</span><a class="headerlink" href="#_CPPv439omega_change_get_transform_options_jsonPK14omega_change_t" title="Link to this definition"></a><br /></dt>
+<dd><p>Given a transform change, return the transform options JSON. </p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>change_ptr</strong> – transform change to inspect </p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>options JSON, or NULL when not available </p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="cpp function">
+<dt class="sig sig-object cpp" id="_CPPv445omega_change_get_transform_replacement_lengthPK14omega_change_t">
+<span id="_CPPv345omega_change_get_transform_replacement_lengthPK14omega_change_t"></span><span id="_CPPv245omega_change_get_transform_replacement_lengthPK14omega_change_t"></span><span id="omega_change_get_transform_replacement_length__omega_change_tCP"></span><span class="target" id="change_8h_1a9ad4be9388649336002000daa1d2dba1"></span><span class="n"><span class="pre">int64_t</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">omega_change_get_transform_replacement_length</span></span></span><span class="sig-paren">(</span><span class="k"><span class="pre">const</span></span><span class="w"> </span><a class="reference internal" href="#_CPPv414omega_change_t" title="omega_change_t"><span class="n"><span class="pre">omega_change_t</span></span></a><span class="w"> </span><span class="p"><span class="pre">*</span></span><span class="n sig-param"><span class="pre">change_ptr</span></span><span class="sig-paren">)</span><a class="headerlink" href="#_CPPv445omega_change_get_transform_replacement_lengthPK14omega_change_t" title="Link to this definition"></a><br /></dt>
+<dd><p>Given a transform change, return the replacement byte length produced by the transform. </p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>change_ptr</strong> – transform change to inspect </p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>replacement byte length, or -1 if this is not a transform change </p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="cpp function">
+<dt class="sig sig-object cpp" id="_CPPv452omega_change_get_transform_computed_file_size_beforePK14omega_change_t">
+<span id="_CPPv352omega_change_get_transform_computed_file_size_beforePK14omega_change_t"></span><span id="_CPPv252omega_change_get_transform_computed_file_size_beforePK14omega_change_t"></span><span id="omega_change_get_transform_computed_file_size_before__omega_change_tCP"></span><span class="target" id="change_8h_1a2f997d94cf1b5a89cc8e3de9bb3c3625"></span><span class="n"><span class="pre">int64_t</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">omega_change_get_transform_computed_file_size_before</span></span></span><span class="sig-paren">(</span><span class="k"><span class="pre">const</span></span><span class="w"> </span><a class="reference internal" href="#_CPPv414omega_change_t" title="omega_change_t"><span class="n"><span class="pre">omega_change_t</span></span></a><span class="w"> </span><span class="p"><span class="pre">*</span></span><span class="n sig-param"><span class="pre">change_ptr</span></span><span class="sig-paren">)</span><a class="headerlink" href="#_CPPv452omega_change_get_transform_computed_file_size_beforePK14omega_change_t" title="Link to this definition"></a><br /></dt>
+<dd><p>Given a transform change, return the computed file size before the transform. </p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>change_ptr</strong> – transform change to inspect </p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>computed file size before the transform, or -1 if this is not a transform change </p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="cpp function">
+<dt class="sig sig-object cpp" id="_CPPv451omega_change_get_transform_computed_file_size_afterPK14omega_change_t">
+<span id="_CPPv351omega_change_get_transform_computed_file_size_afterPK14omega_change_t"></span><span id="_CPPv251omega_change_get_transform_computed_file_size_afterPK14omega_change_t"></span><span id="omega_change_get_transform_computed_file_size_after__omega_change_tCP"></span><span class="target" id="change_8h_1a1e5d655eec305accc32f136cb688de1f"></span><span class="n"><span class="pre">int64_t</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">omega_change_get_transform_computed_file_size_after</span></span></span><span class="sig-paren">(</span><span class="k"><span class="pre">const</span></span><span class="w"> </span><a class="reference internal" href="#_CPPv414omega_change_t" title="omega_change_t"><span class="n"><span class="pre">omega_change_t</span></span></a><span class="w"> </span><span class="p"><span class="pre">*</span></span><span class="n sig-param"><span class="pre">change_ptr</span></span><span class="sig-paren">)</span><a class="headerlink" href="#_CPPv451omega_change_get_transform_computed_file_size_afterPK14omega_change_t" title="Link to this definition"></a><br /></dt>
+<dd><p>Given a transform change, return the computed file size after the transform. </p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>change_ptr</strong> – transform change to inspect </p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>computed file size after the transform, or -1 if this is not a transform change </p>
 </dd>
 </dl>
 </dd></dl>
@@ -1083,6 +1175,29 @@
 </dd></dl>
 
 <dl class="cpp function">
+<dt class="sig sig-object cpp" id="_CPPv437omega_edit_replace_bytes_as_transformP15omega_session_t7int64_t7int64_tPK12omega_byte_t7int64_tPKcPKc">
+<span id="_CPPv337omega_edit_replace_bytes_as_transformP15omega_session_t7int64_t7int64_tPK12omega_byte_t7int64_tPKcPKc"></span><span id="_CPPv237omega_edit_replace_bytes_as_transformP15omega_session_t7int64_t7int64_tPK12omega_byte_t7int64_tPKcPKc"></span><span id="omega_edit_replace_bytes_as_transform__omega_session_tP.int64_t.int64_t.omega_byte_tCP.int64_t.cCP.cCP"></span><span class="target" id="edit_8h_1a7d864848247c424f265eb7e71a8bbcc3"></span><span class="n"><span class="pre">int64_t</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">omega_edit_replace_bytes_as_transform</span></span></span><span class="sig-paren">(</span><a class="reference internal" href="#_CPPv415omega_session_t" title="omega_session_t"><span class="n"><span class="pre">omega_session_t</span></span></a><span class="w"> </span><span class="p"><span class="pre">*</span></span><span class="n sig-param"><span class="pre">session_ptr</span></span>, <span class="n"><span class="pre">int64_t</span></span><span class="w"> </span><span class="n sig-param"><span class="pre">offset</span></span>, <span class="n"><span class="pre">int64_t</span></span><span class="w"> </span><span class="n sig-param"><span class="pre">delete_length</span></span>, <span class="k"><span class="pre">const</span></span><span class="w"> </span><a class="reference internal" href="#_CPPv412omega_byte_t" title="omega_byte_t"><span class="n"><span class="pre">omega_byte_t</span></span></a><span class="w"> </span><span class="p"><span class="pre">*</span></span><span class="n sig-param"><span class="pre">bytes</span></span>, <span class="n"><span class="pre">int64_t</span></span><span class="w"> </span><span class="n sig-param"><span class="pre">insert_length</span></span>, <span class="k"><span class="pre">const</span></span><span class="w"> </span><span class="kt"><span class="pre">char</span></span><span class="w"> </span><span class="p"><span class="pre">*</span></span><span class="n sig-param"><span class="pre">transform_id</span></span>, <span class="k"><span class="pre">const</span></span><span class="w"> </span><span class="kt"><span class="pre">char</span></span><span class="w"> </span><span class="p"><span class="pre">*</span></span><span class="n sig-param"><span class="pre">options_json</span></span><span class="sig-paren">)</span><a class="headerlink" href="#_CPPv437omega_edit_replace_bytes_as_transformP15omega_session_t7int64_t7int64_tPK12omega_byte_t7int64_tPKcPKc" title="Link to this definition"></a><br /></dt>
+<dd><p>Materialize a transform result through a checkpoint-backed model and record a lightweight transform change.</p>
+<p>The replacement bytes are written into the checkpoint and are not retained in the change log. The returned serial identifies a transform entry with the transform id, options JSON, affected range, replacement length, and computed file sizes.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>session_ptr</strong> – session to make the change in </p></li>
+<li><p><strong>offset</strong> – location offset to make the change </p></li>
+<li><p><strong>delete_length</strong> – number of original bytes to remove </p></li>
+<li><p><strong>bytes</strong> – replacement bytes, or null if <code class="docutils literal notranslate"><span class="pre">insert_length</span></code> is zero </p></li>
+<li><p><strong>insert_length</strong> – explicit number of replacement bytes to insert </p></li>
+<li><p><strong>transform_id</strong> – stable transform identifier </p></li>
+<li><p><strong>options_json</strong> – optional transform options JSON </p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>positive transform change serial if successful, non-positive otherwise </p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="cpp function">
 <dt class="sig sig-object cpp" id="_CPPv418omega_edit_replaceP15omega_session_t7int64_t7int64_tPKc7int64_t">
 <span id="_CPPv318omega_edit_replaceP15omega_session_t7int64_t7int64_tPKc7int64_t"></span><span id="_CPPv218omega_edit_replaceP15omega_session_t7int64_t7int64_tPKc7int64_t"></span><span id="omega_edit_replace__omega_session_tP.int64_t.int64_t.cCP.int64_t"></span><span class="target" id="edit_8h_1a58db24b8982a58a7d94a5e4371b58c3d"></span><span class="n"><span class="pre">int64_t</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">omega_edit_replace</span></span></span><span class="sig-paren">(</span><a class="reference internal" href="#_CPPv415omega_session_t" title="omega_session_t"><span class="n"><span class="pre">omega_session_t</span></span></a><span class="w"> </span><span class="p"><span class="pre">*</span></span><span class="n sig-param"><span class="pre">session_ptr</span></span>, <span class="n"><span class="pre">int64_t</span></span><span class="w"> </span><span class="n sig-param"><span class="pre">offset</span></span>, <span class="n"><span class="pre">int64_t</span></span><span class="w"> </span><span class="n sig-param"><span class="pre">delete_length</span></span>, <span class="k"><span class="pre">const</span></span><span class="w"> </span><span class="kt"><span class="pre">char</span></span><span class="w"> </span><span class="p"><span class="pre">*</span></span><span class="n sig-param"><span class="pre">cstr</span></span>, <span class="n"><span class="pre">int64_t</span></span><span class="w"> </span><span class="n sig-param"><span class="pre">insert_length</span></span><span class="sig-paren">)</span><a class="headerlink" href="#_CPPv418omega_edit_replaceP15omega_session_t7int64_t7int64_tPKc7int64_t" title="Link to this definition"></a><br /></dt>
 <dd><p>Replace a span of bytes at the given offset with a new C string. </p>
@@ -1606,6 +1721,23 @@
 </dd>
 <dt class="field-even">Returns<span class="colon">:</span></dt>
 <dd class="field-even"><p>0 if the modification times are equal, -1 if the modification time of path1 is less than path2, 1 if the modification time of path1 is greater than path2, or -2 if an error occurred </p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="cpp function">
+<dt class="sig sig-object cpp" id="_CPPv432omega_util_get_modification_timePKcP7int64_t">
+<span id="_CPPv332omega_util_get_modification_timePKcP7int64_t"></span><span id="_CPPv232omega_util_get_modification_timePKcP7int64_t"></span><span id="omega_util_get_modification_time__cCP.int64_tP"></span><span class="target" id="filesystem_8h_1a868a6914429ae174b2dfdb0971184c70"></span><span class="kt"><span class="pre">int</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">omega_util_get_modification_time</span></span></span><span class="sig-paren">(</span><span class="k"><span class="pre">const</span></span><span class="w"> </span><span class="kt"><span class="pre">char</span></span><span class="w"> </span><span class="p"><span class="pre">*</span></span><span class="n sig-param"><span class="pre">path</span></span>, <span class="n"><span class="pre">int64_t</span></span><span class="w"> </span><span class="p"><span class="pre">*</span></span><span class="n sig-param"><span class="pre">modification_time_out</span></span><span class="sig-paren">)</span><a class="headerlink" href="#_CPPv432omega_util_get_modification_timePKcP7int64_t" title="Link to this definition"></a><br /></dt>
+<dd><p>Get a file modification time value that can be compared with later values from the same function </p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>path</strong> – file path </p></li>
+<li><p><strong>modification_time_out</strong> – pointer to receive the modification time value </p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>0 on success, or a negative value on failure </p>
 </dd>
 </dl>
 </dd></dl>
