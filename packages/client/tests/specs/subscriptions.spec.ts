@@ -18,7 +18,7 @@
  */
 
 import { EventEmitter } from 'events'
-import { expect, initChai } from './common.js'
+import { expect, initExpect } from './common.js'
 import { getModuleCompat } from './moduleCompat.js'
 
 const { require } = getModuleCompat(import.meta.url)
@@ -61,8 +61,8 @@ function deferred(): {
 }
 
 describe('Managed Subscriptions', () => {
-  before(async () => {
-    await initChai()
+  beforeAll(async () => {
+    await initExpect()
   })
 
   it('should subscribe session events, ignore benign errors, and cancel idempotently', async () => {

@@ -34,7 +34,7 @@ let sessionModule: typeof import('../../src/session')
 describe('Session Edge Cases', () => {
   let restoreLogger = () => {}
 
-  before(() => {
+  beforeAll(() => {
     delete require.cache[require.resolve('../../dist/cjs/logger.js')]
     delete require.cache[require.resolve('../../dist/cjs/client.js')]
     delete require.cache[require.resolve('../../dist/cjs/change.js')]
@@ -54,7 +54,7 @@ describe('Session Edge Cases', () => {
       require('../../dist/cjs/session.js') as typeof import('../../src/session')
   })
 
-  after(() => {
+  afterAll(() => {
     restoreLogger()
   })
 

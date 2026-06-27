@@ -21,7 +21,7 @@ import * as fs from 'fs'
 import * as net from 'net'
 import * as os from 'os'
 import * as path from 'path'
-import { expect, initChai } from './common.js'
+import { expect, initExpect } from './common.js'
 import {
   overrideProperty,
   silenceClientLogger,
@@ -57,8 +57,8 @@ describe('Client Utilities', () => {
   let originalServerUri: string | undefined
   let originalServerSocket: string | undefined
 
-  before(async () => {
-    await initChai()
+  beforeAll(async () => {
+    await initExpect()
   })
 
   beforeEach(() => {

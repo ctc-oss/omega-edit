@@ -53,7 +53,7 @@ export function makeObjectIdResponse(id: string) {
 }
 
 export function expectErrorMessage(
-  expect: Chai.ExpectStatic,
+  expect: typeof import('vitest').expect,
   err: unknown,
   message: string
 ) {

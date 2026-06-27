@@ -53,11 +53,11 @@ describe('Viewports', () => {
   let session_id = ''
   const viewportIdPattern = opaqueIdPattern('vp_')
 
-  beforeEach('Create a new session', async () => {
+  beforeEach(async () => {
     session_id = await createTestSession(testPort)
   })
 
-  afterEach('Destroy session', async () => {
+  afterEach(async () => {
     await destroyTestSession(session_id)
   })
 
@@ -187,7 +187,7 @@ describe('Viewports', () => {
 
     expect(await destroyViewport(viewport_1_id)).to.equal(viewport_1_id)
     expect(await getViewportCount(session_id)).to.equal(0)
-  }).timeout(8000)
+  })
 
   it('Should handle floating viewports', async () => {
     let change_id = await insert(
@@ -295,7 +295,7 @@ describe('Viewports', () => {
     await destroyViewport(viewport_id)
     await destroyViewport(viewport_floating_id)
     expect(await getViewportCount(session_id)).to.equal(0)
-  }).timeout(8000)
+  })
 
   it('Should be able to scroll through an editing session', async () => {
     const capacity = 100
@@ -426,7 +426,7 @@ describe('Viewports', () => {
     expect(await getViewportCount(session_id)).to.equal(1)
     await destroyViewport(viewport_id)
     expect(await getViewportCount(session_id)).to.equal(0)
-  }).timeout(8000)
+  })
 
   it('Should keep viewport data aligned with the matching session segment', async () => {
     await insert(session_id, 0, Buffer.from('ABCDEFGHIJKLMNOPQRSTUVWXYZ'))

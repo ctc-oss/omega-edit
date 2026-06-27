@@ -18,7 +18,7 @@
  */
 
 import * as grpc from '@grpc/grpc-js'
-import { expect, initChai } from './common.js'
+import { expect, initExpect } from './common.js'
 import { getModuleCompat } from './moduleCompat.js'
 
 const { require } = getModuleCompat(import.meta.url)
@@ -119,8 +119,8 @@ class FakeReadableStream<T> {
 }
 
 describe('Proto Compatibility', () => {
-  before(async () => {
-    await initChai()
+  beforeAll(async () => {
+    await initExpect()
   })
 
   it('should preserve wrapper getter behavior for protobuf-ts compatibility classes', () => {

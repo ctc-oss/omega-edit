@@ -60,11 +60,11 @@ describe('StressTest', () => {
       : default_rotations
   let session_id = ''
 
-  beforeEach('Create a new session', async () => {
+  beforeEach(async () => {
     session_id = await createTestSession(testPort)
   })
 
-  afterEach('Destroy session', async () => {
+  afterEach(async () => {
     await destroyTestSession(session_id)
   })
 
@@ -103,7 +103,7 @@ describe('StressTest', () => {
     log_info(viewport_callbacks)
     await checkCallbackCount(session_callbacks, session_id, data.length * 2)
     await checkCallbackCount(viewport_callbacks, viewport_id, data.length * 2)
-  }).timeout(10000)
+  })
 
   it('Should handle fast appending', async () => {
     const data = Buffer.from(
@@ -136,7 +136,7 @@ describe('StressTest', () => {
     log_info(viewport_callbacks)
     await checkCallbackCount(session_callbacks, session_id, data.length * 2)
     await checkCallbackCount(viewport_callbacks, viewport_id, data.length * 2)
-  }).timeout(10000)
+  })
 
   it(
     'Should stress test all the editing capabilities (' +
@@ -320,5 +320,5 @@ describe('StressTest', () => {
       log_info('\x1b[32m%s\x1b[0m', session_callbacks)
       log_info('\x1b[32m%s\x1b[0m', viewport_callbacks)
     }
-  ).timeout(Math.max(10000, 4000 * full_rotations))
+  )
 })

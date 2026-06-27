@@ -33,7 +33,7 @@ let viewportModule: typeof import('../../src/viewport')
 describe('Viewport Edge Cases', () => {
   let restoreLogger = () => {}
 
-  before(() => {
+  beforeAll(() => {
     delete require.cache[require.resolve('../../dist/cjs/logger.js')]
     delete require.cache[require.resolve('../../dist/cjs/client.js')]
     delete require.cache[require.resolve('../../dist/cjs/viewport.js')]
@@ -47,7 +47,7 @@ describe('Viewport Edge Cases', () => {
       require('../../dist/cjs/viewport.js') as typeof import('../../src/viewport')
   })
 
-  after(() => {
+  afterAll(() => {
     restoreLogger()
   })
 

@@ -46,7 +46,7 @@ import {
 import {
   expect,
   expectOpaqueId,
-  initChai,
+  initExpect,
   testHost,
   testPort,
   testTransport,
@@ -79,51 +79,48 @@ describe('Server', () => {
   const level = process.env.OMEGA_EDIT_CLIENT_LOG_LEVEL || 'info'
   const logger = createSimpleFileLogger(logFile, level)
 
-  before(async () => {
-    await initChai()
+  beforeAll(async () => {
+    await initExpect()
   })
 
-  beforeEach(
-    `create on port ${serverTestPort} with a single session`,
-    async () => {
-      setLogger(logger)
-      if (isUds) {
-        const udsJavaHome = process.env.OMEGA_EDIT_TEST_JAVA_HOME
-        if (udsJavaHome) {
-          process.env.JAVA_HOME = udsJavaHome
-          const currentPath = process.env.PATH || ''
-          if (!currentPath.includes(`${udsJavaHome}/bin`)) {
-            process.env.PATH = `${udsJavaHome}/bin:${currentPath}`
-          }
+  beforeEach(async () => {
+    setLogger(logger)
+    if (isUds) {
+      const udsJavaHome = process.env.OMEGA_EDIT_TEST_JAVA_HOME
+      if (udsJavaHome) {
+        process.env.JAVA_HOME = udsJavaHome
+        const currentPath = process.env.PATH || ''
+        if (!currentPath.includes(`${udsJavaHome}/bin`)) {
+          process.env.PATH = `${udsJavaHome}/bin:${currentPath}`
         }
-
-        process.env.OMEGA_EDIT_SERVER_SOCKET = socketPath
-        delete process.env.OMEGA_EDIT_SERVER_URI
-        pid = await startServerUnixSocket(
-          socketPath,
-          undefined,
-          false,
-          serverTestPort,
-          testHost
-        )
-      } else {
-        delete process.env.OMEGA_EDIT_SERVER_SOCKET
-        delete process.env.OMEGA_EDIT_SERVER_URI
-        expect(await stopServiceOnPort(serverTestPort)).to.be.true
-        pid = await startServer(serverTestPort)
       }
-      expect(pid).to.be.a('number').greaterThan(0)
-      expect(pidIsRunning(pid as number)).to.be.true
-      resetClient()
-      expect(await getClient(serverTestPort)).to.not.be.undefined
-      expect(await getSessionCount()).to.equal(0)
-      session_id = (await createSession()).getSessionId()
-      expectOpaqueId(session_id, 'sess_')
-      expect(await getSessionCount()).to.equal(1)
-    }
-  )
 
-  afterEach(`on port ${serverTestPort} should no longer exist`, async () => {
+      process.env.OMEGA_EDIT_SERVER_SOCKET = socketPath
+      delete process.env.OMEGA_EDIT_SERVER_URI
+      pid = await startServerUnixSocket(
+        socketPath,
+        undefined,
+        false,
+        serverTestPort,
+        testHost
+      )
+    } else {
+      delete process.env.OMEGA_EDIT_SERVER_SOCKET
+      delete process.env.OMEGA_EDIT_SERVER_URI
+      expect(await stopServiceOnPort(serverTestPort)).to.be.true
+      pid = await startServer(serverTestPort)
+    }
+    expect(pid).to.be.a('number').greaterThan(0)
+    expect(pidIsRunning(pid as number)).to.be.true
+    resetClient()
+    expect(await getClient(serverTestPort)).to.not.be.undefined
+    expect(await getSessionCount()).to.equal(0)
+    session_id = (await createSession()).getSessionId()
+    expectOpaqueId(session_id, 'sess_')
+    expect(await getSessionCount()).to.equal(1)
+  })
+
+  afterEach(async () => {
     // after each test, the server should be stopped
     if (isUds) {
       expect(await stopProcessUsingPID(pid as number)).to.be.true
@@ -274,7 +271,7 @@ describe('Server Heartbeat Timeout', () => {
     expect(await getSessionCount()).to.equal(expected)
   }
 
-  beforeEach(`start server on port ${serverTestPort}`, async () => {
+  beforeEach(async () => {
     if (isUds) {
       const udsJavaHome = process.env.OMEGA_EDIT_TEST_JAVA_HOME
       if (udsJavaHome) {
@@ -308,7 +305,7 @@ describe('Server Heartbeat Timeout', () => {
     expect(await getSessionCount()).to.equal(0)
   })
 
-  afterEach(`stop server on port ${serverTestPort}`, async () => {
+  afterEach(async () => {
     if (isUds) {
       expect(await stopProcessUsingPID(pid as number)).to.be.true
       try {
@@ -461,7 +458,7 @@ describe('Server Shutdown When No Sessions', () => {
     expect(pidIsRunning(serverPid)).to.be.false
   }
 
-  beforeEach(`start server on port ${serverTestPort}`, async () => {
+  beforeEach(async () => {
     if (isUds) {
       const udsJavaHome = process.env.OMEGA_EDIT_TEST_JAVA_HOME
       if (udsJavaHome) {
@@ -496,7 +493,7 @@ describe('Server Shutdown When No Sessions', () => {
     expect(await getSessionCount()).to.equal(0)
   })
 
-  afterEach(`cleanup server on port ${serverTestPort}`, async () => {
+  afterEach(async () => {
     if (pid !== undefined && pidIsRunning(pid)) {
       if (isUds) {
         await stopProcessUsingPID(pid)
@@ -549,7 +546,7 @@ describe('Server Resource Limits', () => {
     viewportEventQueueCapacity: 1,
   }
 
-  beforeEach(`start limit-aware server on port ${serverTestPort}`, async () => {
+  beforeEach(async () => {
     if (isUds) {
       const udsJavaHome = process.env.OMEGA_EDIT_TEST_JAVA_HOME
       if (udsJavaHome) {
@@ -585,7 +582,7 @@ describe('Server Resource Limits', () => {
     expectOpaqueId(session_id, 'sess_')
   })
 
-  afterEach(`stop limit-aware server on port ${serverTestPort}`, async () => {
+  afterEach(async () => {
     if (isUds) {
       expect(await stopProcessUsingPID(pid as number)).to.be.true
       try {
@@ -793,7 +790,7 @@ describe('Server Logging', () => {
     expect(await fsPromises.readFile(logPath, 'utf8')).to.include(expectedText)
   }
 
-  afterEach(`cleanup logging server on port ${serverTestPort}`, async () => {
+  afterEach(async () => {
     if (pid !== undefined && pidIsRunning(pid)) {
       if (isUds) {
         expect(await stopProcessUsingPID(pid)).to.be.true
@@ -929,7 +926,7 @@ describe('Directory with Spaces Test', () => {
 
   let pid: number | undefined
 
-  before(async () => {
+  beforeAll(async () => {
     await fsPromises.mkdir(newDir, { recursive: true })
   })
 
