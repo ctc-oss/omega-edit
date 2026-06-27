@@ -43,7 +43,11 @@ import {
   stopServerGraceful,
   undo,
 } from '@omega-edit/client'
+import { once } from 'node:events'
+import { createWriteStream } from 'node:fs'
 import * as fs from 'node:fs/promises'
+import { dirname, basename, join } from 'node:path'
+import { finished } from 'node:stream/promises'
 import {
   DEFAULT_HOST,
   DEFAULT_MAX_EDIT_BYTES,
@@ -78,17 +82,15 @@ import {
   TransformPluginInfoResult,
 } from './types'
 
-const MAX_CHANGE_LOG_ENTRIES = 100_000
-const MAX_CHANGE_LOG_ENTRY_BYTES = 32 * 1024 * 1024
-const MAX_CHANGE_LOG_BYTES = MAX_CHANGE_LOG_ENTRY_BYTES * 3
 const MAX_CHANGE_LOG_JSON_NESTING = 256
 const CHANGE_LOG_FORMAT = 'omega-edit.change-log'
 const CHANGE_LOG_VERSION = 2
 const DEFAULT_CHANGE_LOG_DIGEST_ALGORITHM = 'sha256'
 const GRPC_NOT_FOUND = 5
+const MAX_INT64 = 9_223_372_036_854_775_807n
 
 interface CollectedChangeLogEntries {
-  changes: ChangeLogEntry[]
+  changes?: ChangeLogEntry[]
   unavailableChangeSerials: number[]
 }
 
@@ -118,6 +120,61 @@ function assertNonNegativeInteger(name: string, value: number): void {
   if (!isFiniteInteger(value) || value < 0) {
     throw new Error(`${name} must be a non-negative integer`)
   }
+}
+
+function parseNonNegativeInt64(value: unknown, name: string): bigint {
+  let parsed: bigint
+  if (typeof value === 'bigint') {
+    parsed = value
+  } else if (typeof value === 'number') {
+    if (!Number.isSafeInteger(value)) {
+      throw new Error(
+        `${name} must be a non-negative safe integer or decimal int64 string`
+      )
+    }
+    parsed = BigInt(value)
+  } else if (typeof value === 'string' && /^(0|[1-9]\d*)$/.test(value)) {
+    parsed = BigInt(value)
+  } else {
+    throw new Error(`${name} must be a non-negative int64`)
+  }
+
+  if (parsed < 0n || parsed > MAX_INT64) {
+    throw new Error(`${name} must be in the non-negative int64 range`)
+  }
+  return parsed
+}
+
+function parsePositiveInt64(value: unknown, name: string): bigint {
+  const parsed = parseNonNegativeInt64(value, name)
+  if (parsed <= 0n) {
+    throw new Error(`${name} must be a positive int64`)
+  }
+  return parsed
+}
+
+function int64ToSafeNumber(value: bigint, name: string): number {
+  if (value > BigInt(Number.MAX_SAFE_INTEGER)) {
+    throw new Error(
+      `${name} exceeds the current OmegaEdit TypeScript transport safe integer range`
+    )
+  }
+  return Number(value)
+}
+
+function normalizeNonNegativeInt64ForClient(
+  value: unknown,
+  name: string
+): number {
+  return int64ToSafeNumber(parseNonNegativeInt64(value, name), name)
+}
+
+function normalizePositiveInt64ForClient(value: unknown, name: string): number {
+  return int64ToSafeNumber(parsePositiveInt64(value, name), name)
+}
+
+function int64ToDecimal(value: number | string | bigint): string {
+  return parseNonNegativeInt64(value, 'change log integer').toString()
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -175,11 +232,6 @@ function normalizeChangeLogEntries(value: unknown): ParsedChangeLog {
       'Change log must be a versioned omega-edit.change-log document'
     )
   }
-  if (entries.length > MAX_CHANGE_LOG_ENTRIES) {
-    throw new Error(
-      `Change log has too many entries (${entries.length.toLocaleString()})`
-    )
-  }
 
   const normalized = entries.map((entry, index) =>
     normalizeChangeLogEntry(entry, index)
@@ -199,17 +251,13 @@ function normalizeChangeLogEntries(value: unknown): ParsedChangeLog {
 function readDocumentCount(
   document: Record<string, unknown>,
   key: string
-): number {
-  const value = document[key]
-  if (typeof value !== 'number' || !Number.isSafeInteger(value) || value < 0) {
-    throw new Error(`Change log ${key} must be a non-negative safe integer`)
-  }
-  return value
+): bigint {
+  return parseNonNegativeInt64(document[key], `Change log ${key}`)
 }
 
 function normalizeUnavailableChangeSerials(
   value: unknown,
-  sourceChangeCount: number
+  sourceChangeCount: bigint
 ): number[] {
   if (!Array.isArray(value)) {
     throw new Error('Change log unavailableChangeSerials must be an array')
@@ -217,27 +265,33 @@ function normalizeUnavailableChangeSerials(
 
   const seen = new Set<number>()
   return value.map((serial, index) => {
-    if (
-      typeof serial !== 'number' ||
-      !Number.isSafeInteger(serial) ||
-      serial <= 0
-    ) {
+    let serialValue: bigint
+    try {
+      serialValue = parsePositiveInt64(
+        serial,
+        `Change log unavailableChangeSerials[${index}]`
+      )
+    } catch {
       throw new Error(
-        `Change log unavailableChangeSerials[${index}] must be a positive safe integer`
+        `Change log unavailableChangeSerials[${index}] must be a positive int64`
       )
     }
-    if (serial > sourceChangeCount) {
+    if (serialValue > sourceChangeCount) {
       throw new Error(
         `Change log unavailableChangeSerials[${index}] exceeds sourceChangeCount`
       )
     }
-    if (seen.has(serial)) {
+    const serialNumber = int64ToSafeNumber(
+      serialValue,
+      `Change log unavailableChangeSerials[${index}]`
+    )
+    if (seen.has(serialNumber)) {
       throw new Error(
-        `Change log unavailableChangeSerials[${index}] duplicates serial ${serial}`
+        `Change log unavailableChangeSerials[${index}] duplicates serial ${serialNumber}`
       )
     }
-    seen.add(serial)
-    return serial
+    seen.add(serialNumber)
+    return serialNumber
   })
 }
 
@@ -249,15 +303,14 @@ function normalizeChangeLogFingerprint(
     throw new Error(`Change log ${key} fingerprint must be an object`)
   }
 
-  const byteLength = value.byteLength
-  if (
-    typeof byteLength !== 'number' ||
-    !Number.isSafeInteger(byteLength) ||
-    byteLength < 0
-  ) {
-    throw new Error(
-      `Change log ${key}.byteLength must be a non-negative safe integer`
-    )
+  let byteLength: string
+  try {
+    byteLength = parseNonNegativeInt64(
+      value.byteLength,
+      `Change log ${key}.byteLength`
+    ).toString()
+  } catch {
+    throw new Error(`Change log ${key}.byteLength must be a non-negative int64`)
   }
 
   if (!isRecord(value.digest)) {
@@ -336,7 +389,7 @@ function validateChangeLogDocumentMetadata(
     document,
     'unavailableChangeCount'
   )
-  if (changeCount !== changes.length) {
+  if (changeCount !== BigInt(changes.length)) {
     throw new Error('Change log changeCount must match changes length')
   }
   if (sourceChangeCount < changeCount) {
@@ -347,12 +400,12 @@ function validateChangeLogDocumentMetadata(
     document.unavailableChangeSerials,
     sourceChangeCount
   )
-  if (unavailableChangeCount !== unavailableChangeSerials.length) {
+  if (unavailableChangeCount !== BigInt(unavailableChangeSerials.length)) {
     throw new Error(
       'Change log unavailableChangeCount must match unavailableChangeSerials length'
     )
   }
-  if (document.complete !== (unavailableChangeCount === 0)) {
+  if (document.complete !== (unavailableChangeCount === 0n)) {
     throw new Error(
       'Change log complete must match unavailable change metadata'
     )
@@ -391,14 +444,14 @@ function normalizeChangeLogEntry(
   ) {
     throw new Error(`Change log entry ${index} has an unsupported kind`)
   }
-  if (typeof offset !== 'number') {
-    throw new Error(`Change log entry ${index} offset must be a number`)
-  }
-  if (typeof length !== 'number') {
-    throw new Error(`Change log entry ${index} length must be a number`)
-  }
-  assertNonNegativeInteger(`change log entry ${index} offset`, offset)
-  assertNonNegativeInteger(`change log entry ${index} length`, length)
+  const normalizedOffset = normalizeNonNegativeInt64ForClient(
+    offset,
+    `change log entry ${index} offset`
+  )
+  const normalizedLength = normalizeNonNegativeInt64ForClient(
+    length,
+    `change log entry ${index} length`
+  )
 
   if (kind === 'TRANSFORM' && data !== undefined && data !== '') {
     throw new Error(`Change log entry ${index} TRANSFORM does not carry data`)
@@ -413,16 +466,11 @@ function normalizeChangeLogEntry(
   if ((kind === 'INSERT' || kind === 'OVERWRITE') && dataBytes.length === 0) {
     throw new Error(`Change log entry ${index} ${kind} requires data`)
   }
-  if (dataBytes.length > MAX_CHANGE_LOG_ENTRY_BYTES) {
-    throw new Error(
-      `Change log entry ${index} data exceeds ${MAX_CHANGE_LOG_ENTRY_BYTES.toLocaleString()} bytes`
-    )
-  }
 
   const normalized: ChangeLogEntry = {
     kind,
-    offset,
-    length,
+    offset: normalizedOffset,
+    length: normalizedLength,
     data: Buffer.from(dataBytes).toString('hex'),
   }
   if (kind === 'TRANSFORM') {
@@ -437,11 +485,6 @@ function normalizeChangeLogEntry(
       if (typeof optionsJson !== 'string') {
         throw new Error(
           `Change log entry ${index} optionsJson must be a string`
-        )
-      }
-      if (Buffer.byteLength(optionsJson, 'utf8') > MAX_CHANGE_LOG_ENTRY_BYTES) {
-        throw new Error(
-          `Change log entry ${index} optionsJson exceeds ${MAX_CHANGE_LOG_ENTRY_BYTES.toLocaleString()} bytes`
         )
       }
       normalized.optionsJson = optionsJson
@@ -464,24 +507,17 @@ function normalizeChangeLogEntry(
       if (value === undefined) {
         continue
       }
-      if (typeof value !== 'number') {
-        throw new Error(`Change log entry ${index} ${key} must be a number`)
-      }
-      assertNonNegativeInteger(`change log entry ${index} ${key}`, value)
-      normalized[key] = value
+      normalized[key] = normalizeNonNegativeInt64ForClient(
+        value,
+        `change log entry ${index} ${key}`
+      )
     }
   }
   if (serial !== undefined) {
-    if (
-      typeof serial !== 'number' ||
-      !Number.isSafeInteger(serial) ||
-      serial <= 0
-    ) {
-      throw new Error(
-        `Change log entry ${index} serial must be a positive safe integer`
-      )
-    }
-    normalized.serial = serial
+    normalized.serial = normalizePositiveInt64ForClient(
+      serial,
+      `change log entry ${index} serial`
+    )
   }
   if (groupId !== undefined) {
     if (typeof groupId !== 'string' || !groupId.trim()) {
@@ -541,13 +577,6 @@ function validateChangeLogMetadata(entries: ChangeLogEntry[]): void {
 }
 
 async function readChangeLogFile(inputPath: string): Promise<ParsedChangeLog> {
-  const stat = await fs.stat(inputPath)
-  if (stat.size > MAX_CHANGE_LOG_BYTES) {
-    throw new Error(
-      `Change log is too large (${stat.size.toLocaleString()} bytes)`
-    )
-  }
-
   const text = await fs.readFile(inputPath, 'utf8')
   assertJsonNestingLimit(text)
   let parsed: unknown
@@ -623,15 +652,21 @@ function hasGrpcStatusCode(error: unknown, code: number): boolean {
 
 async function collectChangeLogEntries(
   sessionId: string,
-  sourceChangeCount: number
+  sourceChangeCount: number,
+  onEntry?: (entry: ChangeLogEntry) => Promise<void>
 ): Promise<CollectedChangeLogEntries> {
-  const changes: ChangeLogEntry[] = []
+  const changes = onEntry ? undefined : ([] as ChangeLogEntry[])
   const unavailableChangeSerials: number[] = []
   for (let serial = 1; serial <= sourceChangeCount; serial += 1) {
     try {
-      changes.push(
-        changeDetailsToLogEntry(await getChangeDetails(sessionId, serial))
+      const entry = changeDetailsToLogEntry(
+        await getChangeDetails(sessionId, serial)
       )
+      if (onEntry) {
+        await onEntry(entry)
+      } else {
+        changes?.push(entry)
+      }
     } catch (error) {
       if (!isMissingChangeDetailsError(error)) {
         throw error
@@ -697,7 +732,7 @@ async function getChangeLogFingerprint(
   }
 
   return {
-    byteLength: response.fingerprint.byteLength,
+    byteLength: int64ToDecimal(response.fingerprint.byteLength),
     digest: {
       algorithm: response.fingerprint.digest.algorithm.toLowerCase(),
       value: response.fingerprint.digest.value.toLowerCase(),
@@ -706,7 +741,7 @@ async function getChangeLogFingerprint(
 }
 
 function fingerprintLabel(fingerprint: ChangeLogFingerprint): string {
-  return `${fingerprint.byteLength} bytes ${fingerprint.digest.algorithm}:${fingerprint.digest.value}`
+  return `${int64ToDecimal(fingerprint.byteLength)} bytes ${fingerprint.digest.algorithm}:${fingerprint.digest.value}`
 }
 
 function fingerprintsMatch(
@@ -714,7 +749,7 @@ function fingerprintsMatch(
   expected: ChangeLogFingerprint
 ): boolean {
   return (
-    actual.byteLength === expected.byteLength &&
+    int64ToDecimal(actual.byteLength) === int64ToDecimal(expected.byteLength) &&
     actual.digest.algorithm === expected.digest.algorithm &&
     actual.digest.value === expected.digest.value
   )
@@ -742,6 +777,32 @@ async function assertCurrentSessionFingerprint(
   )
 }
 
+async function assertChangeLogExportStable(
+  sessionId: string,
+  sourceChangeCount: number,
+  expectedAfter: ChangeLogFingerprint
+): Promise<void> {
+  const finalChangeCount = await getChangeCount(sessionId)
+  if (finalChangeCount !== sourceChangeCount) {
+    throw new Error(
+      `Change log export refused: session changed during export; expected ${sourceChangeCount} change(s), found ${finalChangeCount}`
+    )
+  }
+
+  const finalAfter = await getChangeLogFingerprint(
+    sessionId,
+    SessionFingerprintContent.COMPUTED,
+    expectedAfter.digest.algorithm
+  )
+  if (!fingerprintsMatch(finalAfter, expectedAfter)) {
+    throw new Error(
+      `Change log export refused: session fingerprint changed during export; expected ${fingerprintLabel(
+        expectedAfter
+      )}, found ${fingerprintLabel(finalAfter)}`
+    )
+  }
+}
+
 function createChangeLogDocument(
   changes: ChangeLogEntry[],
   sourceChangeCount: number,
@@ -755,11 +816,152 @@ function createChangeLogDocument(
     complete: unavailableChangeSerials.length === 0,
     before,
     after,
-    changeCount: changes.length,
-    sourceChangeCount,
-    unavailableChangeCount: unavailableChangeSerials.length,
-    unavailableChangeSerials,
-    changes,
+    changeCount: changes.length.toString(),
+    sourceChangeCount: sourceChangeCount.toString(),
+    unavailableChangeCount: unavailableChangeSerials.length.toString(),
+    unavailableChangeSerials: unavailableChangeSerials.map((serial) =>
+      serial.toString()
+    ),
+    changes: changes.map(serializeChangeLogEntry),
+  }
+}
+
+function serializeChangeLogEntry(entry: ChangeLogEntry): ChangeLogEntry {
+  return {
+    ...entry,
+    ...(entry.serial !== undefined
+      ? { serial: int64ToDecimal(entry.serial) }
+      : {}),
+    offset: int64ToDecimal(entry.offset),
+    length: int64ToDecimal(entry.length),
+    ...(entry.replacementLength !== undefined
+      ? { replacementLength: int64ToDecimal(entry.replacementLength) }
+      : {}),
+    ...(entry.computedFileSizeBefore !== undefined
+      ? {
+          computedFileSizeBefore: int64ToDecimal(entry.computedFileSizeBefore),
+        }
+      : {}),
+    ...(entry.computedFileSizeAfter !== undefined
+      ? {
+          computedFileSizeAfter: int64ToDecimal(entry.computedFileSizeAfter),
+        }
+      : {}),
+  }
+}
+
+function createChangeLogSummary(
+  sessionId: string,
+  sourceChangeCount: number,
+  unavailableChangeSerials: number[],
+  before: ChangeLogFingerprint,
+  after: ChangeLogFingerprint,
+  changes?: ChangeLogEntry[],
+  outputPath?: string
+): ChangeLogResult {
+  return {
+    sessionId,
+    format: CHANGE_LOG_FORMAT,
+    version: CHANGE_LOG_VERSION,
+    complete: unavailableChangeSerials.length === 0,
+    before,
+    after,
+    changeCount: (changes?.length ?? sourceChangeCount).toString(),
+    sourceChangeCount: sourceChangeCount.toString(),
+    unavailableChangeCount: unavailableChangeSerials.length.toString(),
+    unavailableChangeSerials: unavailableChangeSerials.map((serial) =>
+      serial.toString()
+    ),
+    ...(changes ? { changes: changes.map(serializeChangeLogEntry) } : {}),
+    outputPath,
+  }
+}
+
+async function writeStreamText(
+  stream: NodeJS.WritableStream,
+  text: string
+): Promise<void> {
+  if (!stream.write(text)) {
+    await once(stream, 'drain')
+  }
+}
+
+async function writeChangeLogDocumentFile(
+  outputPath: string,
+  overwriteExisting: boolean,
+  sourceChangeCount: number,
+  before: ChangeLogFingerprint,
+  after: ChangeLogFingerprint,
+  writeEntries: (
+    writeEntry: (entry: ChangeLogEntry) => Promise<void>
+  ) => Promise<CollectedChangeLogEntries>,
+  verifyBeforeCommit?: () => Promise<void>
+): Promise<CollectedChangeLogEntries> {
+  if (!overwriteExisting) {
+    try {
+      await fs.access(outputPath)
+      throw new Error(
+        `Refusing to overwrite existing change log: ${outputPath}`
+      )
+    } catch (error) {
+      if (
+        !(error instanceof Error) ||
+        !('code' in error) ||
+        (error as NodeJS.ErrnoException).code !== 'ENOENT'
+      ) {
+        throw error
+      }
+    }
+  }
+
+  const tempPath = join(
+    dirname(outputPath),
+    `.${basename(outputPath)}.${process.pid}.${Date.now()}.tmp`
+  )
+  const stream = createWriteStream(tempPath, {
+    encoding: 'utf8',
+    flags: 'wx',
+  })
+  let committed = false
+
+  try {
+    const metadata = {
+      format: CHANGE_LOG_FORMAT,
+      version: CHANGE_LOG_VERSION,
+      complete: true,
+      before,
+      after,
+      changeCount: sourceChangeCount.toString(),
+      sourceChangeCount: sourceChangeCount.toString(),
+      unavailableChangeCount: '0',
+      unavailableChangeSerials: [],
+    }
+    const prefix = `${JSON.stringify(metadata, null, 2).replace(/\n}$/, ',\n  "changes": [')}\n`
+    await writeStreamText(stream, prefix)
+
+    let first = true
+    const collected = await writeEntries(async (entry) => {
+      const serialized = JSON.stringify(serializeChangeLogEntry(entry), null, 2)
+        .split('\n')
+        .map((line) => `    ${line}`)
+        .join('\n')
+      await writeStreamText(stream, `${first ? '' : ',\n'}${serialized}`)
+      first = false
+    })
+    await writeStreamText(stream, '\n  ]\n}\n')
+    stream.end()
+    await finished(stream)
+
+    assertCompleteChangeLog('export', collected.unavailableChangeSerials)
+    await verifyBeforeCommit?.()
+    await fs.rename(tempPath, outputPath)
+    committed = true
+    return collected
+  } finally {
+    if (!committed) {
+      stream.destroy()
+      await fs.rm(tempPath, { force: true }).catch(() => undefined)
+    }
   }
 }
 
@@ -978,9 +1180,36 @@ export class OmegaEditToolkit {
       SessionFingerprintContent.ORIGINAL
     )
     const sourceChangeCount = await getChangeCount(sessionId)
-    if (sourceChangeCount > MAX_CHANGE_LOG_ENTRIES) {
-      throw new Error(
-        `Change log has too many entries (${sourceChangeCount.toLocaleString()})`
+    const after = await getChangeLogFingerprint(
+      sessionId,
+      SessionFingerprintContent.COMPUTED,
+      before.digest.algorithm
+    )
+
+    if (outputPath) {
+      const collected = await writeChangeLogDocumentFile(
+        outputPath,
+        overwriteExisting,
+        sourceChangeCount,
+        before,
+        after,
+        async (writeEntry) =>
+          await collectChangeLogEntries(
+            sessionId,
+            sourceChangeCount,
+            writeEntry
+          ),
+        async () =>
+          await assertChangeLogExportStable(sessionId, sourceChangeCount, after)
+      )
+      return createChangeLogSummary(
+        sessionId,
+        sourceChangeCount,
+        collected.unavailableChangeSerials,
+        before,
+        after,
+        undefined,
+        outputPath
       )
     }
 
@@ -989,39 +1218,23 @@ export class OmegaEditToolkit {
       sourceChangeCount
     )
     assertCompleteChangeLog('export', collected.unavailableChangeSerials)
-    const after = await getChangeLogFingerprint(
-      sessionId,
-      SessionFingerprintContent.COMPUTED,
-      before.digest.algorithm
-    )
+    await assertChangeLogExportStable(sessionId, sourceChangeCount, after)
     const document = createChangeLogDocument(
-      collected.changes,
+      collected.changes ?? [],
       sourceChangeCount,
       collected.unavailableChangeSerials,
       before,
       after
     )
 
-    if (outputPath) {
-      await fs.writeFile(outputPath, `${JSON.stringify(document, null, 2)}\n`, {
-        flag: overwriteExisting ? 'w' : 'wx',
-      })
-    }
-
-    return {
+    return createChangeLogSummary(
       sessionId,
-      format: document.format,
-      version: document.version,
-      complete: document.complete,
-      before: document.before,
-      after: document.after,
-      changeCount: document.changeCount,
-      sourceChangeCount: document.sourceChangeCount,
-      unavailableChangeCount: document.unavailableChangeCount,
-      unavailableChangeSerials: document.unavailableChangeSerials,
-      changes: document.changes,
-      outputPath,
-    }
+      sourceChangeCount,
+      collected.unavailableChangeSerials,
+      document.before,
+      document.after,
+      document.changes
+    )
   }
 
   async applyChangeLog(
@@ -1057,18 +1270,26 @@ export class OmegaEditToolkit {
     try {
       const applyChange = async (change: ChangeLogEntry) => {
         const data = Buffer.from(change.data, 'hex')
+        const offset = normalizeNonNegativeInt64ForClient(
+          change.offset,
+          'change log entry offset'
+        )
+        const length = normalizeNonNegativeInt64ForClient(
+          change.length,
+          'change log entry length'
+        )
         switch (change.kind) {
           case 'INSERT':
-            await insert(request.sessionId, change.offset, data)
+            await insert(request.sessionId, offset, data)
             return true
           case 'DELETE':
-            await del(request.sessionId, change.offset, change.length)
+            await del(request.sessionId, offset, length)
             return true
           case 'OVERWRITE':
-            await overwrite(request.sessionId, change.offset, data)
+            await overwrite(request.sessionId, offset, data)
             return true
           case 'REPLACE':
-            await replace(request.sessionId, change.offset, change.length, data)
+            await replace(request.sessionId, offset, length, data)
             return true
           case 'TRANSFORM':
             if (!change.transformId) {
@@ -1078,8 +1299,8 @@ export class OmegaEditToolkit {
               await applyClientTransformPlugin(
                 request.sessionId,
                 change.transformId,
-                change.offset,
-                change.length,
+                offset,
+                length,
                 change.optionsJson
               )
             ).contentChanged

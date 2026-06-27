@@ -28,9 +28,11 @@ A standalone VS Code extension that uses [Ωedit™](https://github.com/ctc-oss/
 
 Change log exports are portable `omega-edit.change-log` documents containing
 the byte operations needed to apply the same edits to another session, another
-file, or a fleet of compatible files. Exports include before/after content
-fingerprints, and OmegaEdit refuses to write or apply incomplete change logs
-when required change details are unavailable.
+file, or a fleet of compatible files. Change-log integer fields are decimal
+int64 values in JSON, and local-file exports stream entries to a temporary file
+before renaming the completed document into place. Exports include before/after
+content fingerprints, and OmegaEdit refuses to write or apply incomplete change
+logs when required change details are unavailable.
 
 ## Client Helpers Used Here
 
