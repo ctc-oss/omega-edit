@@ -78,6 +78,11 @@ import {
   undo,
   ViewportEventKind,
 } from '@omega-edit/client'
+import { once } from 'node:events'
+import { createWriteStream } from 'node:fs'
+import * as nodeFs from 'node:fs/promises'
+import * as nodePath from 'node:path'
+import { finished } from 'node:stream/promises'
 import * as vscode from 'vscode'
 import { OMEGA_EDIT_VIEW_TYPE } from './constants'
 import {
@@ -148,7 +153,7 @@ interface AnalysisProfileRequest {
 }
 
 interface CollectedChangeLogRecords {
-  changes: ChangeRecord[]
+  changes?: ChangeRecord[]
   unavailableChangeSerials: number[]
 }
 
@@ -158,7 +163,7 @@ interface ChangeLogDigest {
 }
 
 interface ChangeLogFingerprint {
-  byteLength: number
+  byteLength: number | string
   digest: ChangeLogDigest
 }
 
@@ -175,12 +180,11 @@ const SERVER_HEALTH_ERROR_LATENCY_MS = 250
 const MAX_TRANSFORM_RESULT_TEXT_LENGTH = 240
 const MAX_TRANSFORM_RESULT_PREVIEW_BYTES = 4 * 1024
 const MAX_FILE_SPLICE_BYTES = 32 * 1024 * 1024
-const MAX_CHANGE_LOG_BYTES = MAX_FILE_SPLICE_BYTES * 3
-const MAX_CHANGE_LOG_ENTRIES = 100_000
 const CHANGE_LOG_FORMAT = 'omega-edit.change-log'
 const CHANGE_LOG_VERSION = 2
 const DEFAULT_CHANGE_LOG_DIGEST_ALGORITHM = 'sha256'
 const GRPC_NOT_FOUND = 5
+const MAX_INT64 = 9_223_372_036_854_775_807n
 const CONTEXT_HEX_EDITOR_ACTIVE = 'omegaEdit.hexEditorActive'
 const CONTEXT_CAN_UNDO = 'omegaEdit.canUndo'
 const CONTEXT_CAN_REDO = 'omegaEdit.canRedo'
@@ -237,6 +241,61 @@ function safeNonNegativeInteger(
     value <= max
     ? value
     : undefined
+}
+
+function parseNonNegativeInt64(value: unknown, name: string): bigint {
+  let parsed: bigint
+  if (typeof value === 'bigint') {
+    parsed = value
+  } else if (typeof value === 'number') {
+    if (!Number.isSafeInteger(value)) {
+      throw new Error(
+        `${name} must be a non-negative safe integer or decimal int64 string`
+      )
+    }
+    parsed = BigInt(value)
+  } else if (typeof value === 'string' && /^(0|[1-9]\d*)$/.test(value)) {
+    parsed = BigInt(value)
+  } else {
+    throw new Error(`${name} must be a non-negative int64`)
+  }
+
+  if (parsed < 0n || parsed > MAX_INT64) {
+    throw new Error(`${name} must be in the non-negative int64 range`)
+  }
+  return parsed
+}
+
+function parsePositiveInt64(value: unknown, name: string): bigint {
+  const parsed = parseNonNegativeInt64(value, name)
+  if (parsed <= 0n) {
+    throw new Error(`${name} must be a positive int64`)
+  }
+  return parsed
+}
+
+function int64ToSafeNumber(value: bigint, name: string): number {
+  if (value > BigInt(Number.MAX_SAFE_INTEGER)) {
+    throw new Error(
+      `${name} exceeds the current OmegaEdit TypeScript transport safe integer range`
+    )
+  }
+  return Number(value)
+}
+
+function normalizeNonNegativeInt64ForClient(
+  value: unknown,
+  name: string
+): number {
+  return int64ToSafeNumber(parseNonNegativeInt64(value, name), name)
+}
+
+function normalizePositiveInt64ForClient(value: unknown, name: string): number {
+  return int64ToSafeNumber(parsePositiveInt64(value, name), name)
+}
+
+function int64ToDecimal(value: number | string | bigint): string {
+  return parseNonNegativeInt64(value, 'change log integer').toString()
 }
 
 function safeString(
@@ -762,15 +821,21 @@ function hasGrpcStatusCode(error: unknown, code: number): boolean {
 async function collectChangeLogRecords(
   sessionId: string,
   sourceChangeCount: number,
+  onRecord?: (record: ChangeRecord) => Promise<void>,
   onProgress?: (processedSerial: number) => void
 ): Promise<CollectedChangeLogRecords> {
-  const changes: ChangeRecord[] = []
+  const changes = onRecord ? undefined : ([] as ChangeRecord[])
   const unavailableChangeSerials: number[] = []
   for (let serial = 1; serial <= sourceChangeCount; serial += 1) {
     try {
-      changes.push(
-        changeDetailsToChangeRecord(await getChangeDetails(sessionId, serial))
+      const record = changeDetailsToChangeRecord(
+        await getChangeDetails(sessionId, serial)
       )
+      if (onRecord) {
+        await onRecord(record)
+      } else {
+        changes?.push(record)
+      }
     } catch (error) {
       if (!isMissingChangeDetailsError(error)) {
         throw error
@@ -781,6 +846,104 @@ async function collectChangeLogRecords(
     }
   }
   return { changes, unavailableChangeSerials }
+}
+
+function serializeChangeLogRecord(
+  record: ChangeRecord
+): Record<string, unknown> {
+  return {
+    ...record,
+    serial: int64ToDecimal(record.serial),
+    offset: int64ToDecimal(record.offset),
+    length: int64ToDecimal(record.length),
+    ...(record.replacementLength !== undefined
+      ? { replacementLength: int64ToDecimal(record.replacementLength) }
+      : {}),
+    ...(record.computedFileSizeBefore !== undefined
+      ? {
+          computedFileSizeBefore: int64ToDecimal(record.computedFileSizeBefore),
+        }
+      : {}),
+    ...(record.computedFileSizeAfter !== undefined
+      ? {
+          computedFileSizeAfter: int64ToDecimal(record.computedFileSizeAfter),
+        }
+      : {}),
+  }
+}
+
+async function writeStreamText(
+  stream: NodeJS.WritableStream,
+  text: string
+): Promise<void> {
+  if (!stream.write(text)) {
+    await once(stream, 'drain')
+  }
+}
+
+async function writeChangeLogFile(
+  targetPath: string,
+  sourceChangeCount: number,
+  before: ChangeLogFingerprint,
+  after: ChangeLogFingerprint,
+  writeRecords: (
+    writeRecord: (record: ChangeRecord) => Promise<void>
+  ) => Promise<CollectedChangeLogRecords>,
+  verifyBeforeCommit?: () => Promise<void>
+): Promise<CollectedChangeLogRecords> {
+  const tempPath = nodePath.join(
+    nodePath.dirname(targetPath),
+    `.${nodePath.basename(targetPath)}.${process.pid}.${Date.now()}.tmp`
+  )
+  const stream = createWriteStream(tempPath, {
+    encoding: 'utf8',
+    flags: 'wx',
+  })
+  let committed = false
+
+  try {
+    const metadata = {
+      format: CHANGE_LOG_FORMAT,
+      version: CHANGE_LOG_VERSION,
+      complete: true,
+      before,
+      after,
+      changeCount: sourceChangeCount.toString(),
+      sourceChangeCount: sourceChangeCount.toString(),
+      unavailableChangeCount: '0',
+      unavailableChangeSerials: [],
+    }
+    const prefix = `${JSON.stringify(metadata, null, 2).replace(/\n}$/, ',\n  "changes": [')}\n`
+    await writeStreamText(stream, prefix)
+
+    let first = true
+    const collected = await writeRecords(async (record) => {
+      const serialized = JSON.stringify(
+        serializeChangeLogRecord(record),
+        null,
+        2
+      )
+        .split('\n')
+        .map((line) => `    ${line}`)
+        .join('\n')
+      await writeStreamText(stream, `${first ? '' : ',\n'}${serialized}`)
+      first = false
+    })
+    await writeStreamText(stream, '\n  ]\n}\n')
+    stream.end()
+    await finished(stream)
+
+    assertCompleteChangeLog('export', collected.unavailableChangeSerials)
+    await verifyBeforeCommit?.()
+    await nodeFs.rename(tempPath, targetPath)
+    committed = true
+    return collected
+  } finally {
+    if (!committed) {
+      stream.destroy()
+      await nodeFs.rm(tempPath, { force: true }).catch(() => undefined)
+    }
+  }
 }
 
 async function rollbackSessionToChangeCount(
@@ -832,17 +995,25 @@ function safeChangeRecord(value: unknown): ChangeRecord | undefined {
     return undefined
   }
 
-  const offset = safeNonNegativeInteger(value.offset)
-  if (offset === undefined) {
+  let offset: number
+  try {
+    offset = normalizeNonNegativeInt64ForClient(
+      value.offset,
+      'change log entry offset'
+    )
+  } catch {
     return undefined
   }
   let serial = 0
   if (value.serial !== undefined) {
-    const safeSerial = safeNonNegativeInteger(value.serial)
-    if (safeSerial === undefined || safeSerial <= 0) {
+    try {
+      serial = normalizePositiveInt64ForClient(
+        value.serial,
+        'change log entry serial'
+      )
+    } catch {
       return undefined
     }
-    serial = safeSerial
   }
   const groupId = safeString(value.groupId, MAX_LABEL_LENGTH)
   if (value.groupId !== undefined && !groupId) {
@@ -851,7 +1022,7 @@ function safeChangeRecord(value: unknown): ChangeRecord | undefined {
 
   switch (value.kind) {
     case 'INSERT': {
-      const data = safeHexString(value.data, MAX_FILE_SPLICE_BYTES)
+      const data = safeHexString(value.data, Number.POSITIVE_INFINITY)
       if (!data) {
         return undefined
       }
@@ -860,8 +1031,13 @@ function safeChangeRecord(value: unknown): ChangeRecord | undefined {
         : { serial, kind: 'INSERT', offset, length: 0, data }
     }
     case 'DELETE': {
-      const length = safeNonNegativeInteger(value.length)
-      if (!length || length <= 0) {
+      let length: number
+      try {
+        length = normalizePositiveInt64ForClient(
+          value.length,
+          'change log entry length'
+        )
+      } catch {
         return undefined
       }
       return groupId
@@ -869,7 +1045,7 @@ function safeChangeRecord(value: unknown): ChangeRecord | undefined {
         : { serial, kind: 'DELETE', offset, length, data: '' }
     }
     case 'OVERWRITE': {
-      const data = safeHexString(value.data, MAX_FILE_SPLICE_BYTES)
+      const data = safeHexString(value.data, Number.POSITIVE_INFINITY)
       if (!data) {
         return undefined
       }
@@ -891,9 +1067,17 @@ function safeChangeRecord(value: unknown): ChangeRecord | undefined {
           }
     }
     case 'REPLACE': {
-      const length = safeNonNegativeInteger(value.length)
-      const data = safeHexString(value.data, MAX_FILE_SPLICE_BYTES, true)
-      if (length === undefined || data === undefined) {
+      let length: number
+      try {
+        length = normalizeNonNegativeInt64ForClient(
+          value.length,
+          'change log entry length'
+        )
+      } catch {
+        return undefined
+      }
+      const data = safeHexString(value.data, Number.POSITIVE_INFINITY, true)
+      if (data === undefined) {
         return undefined
       }
       return groupId
@@ -901,12 +1085,20 @@ function safeChangeRecord(value: unknown): ChangeRecord | undefined {
         : { serial, kind: 'REPLACE', offset, length, data }
     }
     case 'TRANSFORM': {
-      const length = safeNonNegativeInteger(value.length)
+      let length: number
+      try {
+        length = normalizeNonNegativeInt64ForClient(
+          value.length,
+          'change log entry length'
+        )
+      } catch {
+        return undefined
+      }
       const transformId = safeString(value.transformId, MAX_LABEL_LENGTH)
       const optionsJson =
         value.optionsJson === undefined
           ? undefined
-          : safeString(value.optionsJson, MAX_FILE_SPLICE_BYTES, true)
+          : safeString(value.optionsJson, Number.POSITIVE_INFINITY, true)
       if (
         length === undefined ||
         !transformId ||
@@ -946,11 +1138,14 @@ function safeChangeRecord(value: unknown): ChangeRecord | undefined {
         if (value[key] === undefined) {
           continue
         }
-        const safeValue = safeNonNegativeInteger(value[key])
-        if (safeValue === undefined) {
+        try {
+          record[key] = normalizeNonNegativeInt64ForClient(
+            value[key],
+            `change log entry ${key}`
+          )
+        } catch {
           return undefined
         }
-        record[key] = safeValue
       }
 
       return record
@@ -1010,17 +1205,13 @@ function validateChangeRecordMetadata(
 function readChangeLogDocumentCount(
   document: Record<string, unknown>,
   key: string
-): number {
-  const value = safeNonNegativeInteger(document[key])
-  if (value === undefined) {
-    throw new Error(`Change log ${key} must be a non-negative safe integer`)
-  }
-  return value
+): bigint {
+  return parseNonNegativeInt64(document[key], `Change log ${key}`)
 }
 
 function normalizeUnavailableChangeSerials(
   value: unknown,
-  sourceChangeCount: number
+  sourceChangeCount: bigint
 ): number[] {
   if (!Array.isArray(value)) {
     throw new Error('Change log unavailableChangeSerials must be an array')
@@ -1028,17 +1219,26 @@ function normalizeUnavailableChangeSerials(
 
   const seen = new Set<number>()
   return value.map((serial, index) => {
-    const serialNumber = typeof serial === 'number' ? serial : Number.NaN
-    if (!Number.isSafeInteger(serialNumber) || serialNumber <= 0) {
+    let serialValue: bigint
+    try {
+      serialValue = parsePositiveInt64(
+        serial,
+        `Change log unavailableChangeSerials[${index}]`
+      )
+    } catch {
       throw new Error(
-        `Change log unavailableChangeSerials[${index}] must be a positive safe integer`
+        `Change log unavailableChangeSerials[${index}] must be a positive int64`
       )
     }
-    if (serialNumber > sourceChangeCount) {
+    if (serialValue > sourceChangeCount) {
       throw new Error(
         `Change log unavailableChangeSerials[${index}] exceeds sourceChangeCount`
       )
     }
+    const serialNumber = int64ToSafeNumber(
+      serialValue,
+      `Change log unavailableChangeSerials[${index}]`
+    )
     if (seen.has(serialNumber)) {
       throw new Error(
         `Change log unavailableChangeSerials[${index}] duplicates serial ${serialNumber}`
@@ -1057,11 +1257,14 @@ function normalizeChangeLogFingerprint(
     throw new Error(`Change log ${key} fingerprint must be an object`)
   }
 
-  const byteLength = safeNonNegativeInteger(value.byteLength)
-  if (byteLength === undefined) {
-    throw new Error(
-      `Change log ${key}.byteLength must be a non-negative safe integer`
-    )
+  let byteLength: string
+  try {
+    byteLength = parseNonNegativeInt64(
+      value.byteLength,
+      `Change log ${key}.byteLength`
+    ).toString()
+  } catch {
+    throw new Error(`Change log ${key}.byteLength must be a non-negative int64`)
   }
 
   if (!isRecord(value.digest)) {
@@ -1121,7 +1324,7 @@ async function getChangeLogFingerprint(
   }
 
   return {
-    byteLength: response.fingerprint.byteLength,
+    byteLength: int64ToDecimal(response.fingerprint.byteLength),
     digest: {
       algorithm: response.fingerprint.digest.algorithm.toLowerCase(),
       value: response.fingerprint.digest.value.toLowerCase(),
@@ -1130,7 +1333,7 @@ async function getChangeLogFingerprint(
 }
 
 function fingerprintLabel(fingerprint: ChangeLogFingerprint): string {
-  return `${fingerprint.byteLength} bytes ${fingerprint.digest.algorithm}:${fingerprint.digest.value}`
+  return `${int64ToDecimal(fingerprint.byteLength)} bytes ${fingerprint.digest.algorithm}:${fingerprint.digest.value}`
 }
 
 function fingerprintsMatch(
@@ -1138,7 +1341,7 @@ function fingerprintsMatch(
   expected: ChangeLogFingerprint
 ): boolean {
   return (
-    actual.byteLength === expected.byteLength &&
+    int64ToDecimal(actual.byteLength) === int64ToDecimal(expected.byteLength) &&
     actual.digest.algorithm === expected.digest.algorithm &&
     actual.digest.value === expected.digest.value
   )
@@ -1166,6 +1369,32 @@ async function assertCurrentSessionFingerprint(
   )
 }
 
+async function assertChangeLogExportStable(
+  sessionId: string,
+  sourceChangeCount: number,
+  expectedAfter: ChangeLogFingerprint
+): Promise<void> {
+  const finalChangeCount = await getChangeCount(sessionId)
+  if (finalChangeCount !== sourceChangeCount) {
+    throw new Error(
+      `Change log export refused: session changed during export; expected ${sourceChangeCount} change(s), found ${finalChangeCount}`
+    )
+  }
+
+  const finalAfter = await getChangeLogFingerprint(
+    sessionId,
+    SessionFingerprintContent.COMPUTED,
+    expectedAfter.digest.algorithm
+  )
+  if (!fingerprintsMatch(finalAfter, expectedAfter)) {
+    throw new Error(
+      `Change log export refused: session fingerprint changed during export; expected ${fingerprintLabel(
+        expectedAfter
+      )}, found ${fingerprintLabel(finalAfter)}`
+    )
+  }
+}
+
 function validateChangeLogDocumentMetadata(
   document: Record<string, unknown>,
   changes: ChangeRecord[]
@@ -1183,7 +1412,7 @@ function validateChangeLogDocumentMetadata(
     document,
     'unavailableChangeCount'
   )
-  if (changeCount !== changes.length) {
+  if (changeCount !== BigInt(changes.length)) {
     throw new Error('Change log changeCount must match changes length')
   }
   if (sourceChangeCount < changeCount) {
@@ -1194,12 +1423,12 @@ function validateChangeLogDocumentMetadata(
     document.unavailableChangeSerials,
     sourceChangeCount
   )
-  if (unavailableChangeCount !== unavailableChangeSerials.length) {
+  if (unavailableChangeCount !== BigInt(unavailableChangeSerials.length)) {
     throw new Error(
       'Change log unavailableChangeCount must match unavailableChangeSerials length'
     )
   }
-  if (document.complete !== (unavailableChangeCount === 0)) {
+  if (document.complete !== (unavailableChangeCount === 0n)) {
     throw new Error(
       'Change log complete must match unavailable change metadata'
     )
@@ -1209,12 +1438,6 @@ function validateChangeLogDocumentMetadata(
 }
 
 function parseChangeLog(content: Uint8Array): ParsedChangeLog {
-  if (content.byteLength > MAX_CHANGE_LOG_BYTES) {
-    throw new Error(
-      `Change log is too large (${content.byteLength.toLocaleString()} bytes)`
-    )
-  }
-
   let parsed: unknown
   try {
     parsed = JSON.parse(new TextDecoder().decode(content))
@@ -1239,11 +1462,6 @@ function parseChangeLog(content: Uint8Array): ParsedChangeLog {
   if (!entries) {
     throw new Error(
       'Change log must be a versioned omega-edit.change-log document'
-    )
-  }
-  if (entries.length > MAX_CHANGE_LOG_ENTRIES) {
-    throw new Error(
-      `Change log has too many entries (${entries.length.toLocaleString()})`
     )
   }
 
@@ -2021,21 +2239,15 @@ export class HexEditorProvider
       }
     }
 
-    if (sourceChangeCount > MAX_CHANGE_LOG_ENTRIES) {
-      throw new Error(
-        vscode.l10n.t(
-          'Change log has too many entries ({count}); export is limited to {limit}.',
-          {
-            count: sourceChangeCount.toLocaleString(),
-            limit: MAX_CHANGE_LOG_ENTRIES.toLocaleString(),
-          }
-        )
-      )
-    }
+    const after = await getChangeLogFingerprint(
+      session.sessionId,
+      SessionFingerprintContent.COMPUTED,
+      before.digest.algorithm
+    )
 
-    let changes: ChangeRecord[] = []
+    let changeCount = sourceChangeCount
     let unavailableChangeSerials: number[] = []
-    if (sourceChangeCount > 0) {
+    if (scriptUri.scheme === 'file') {
       const collected = await vscode.window.withProgress(
         {
           location: vscode.ProgressLocation.Notification,
@@ -2046,56 +2258,109 @@ export class HexEditorProvider
         },
         async (progress) => {
           let previousSerial = 0
-          return await collectChangeLogRecords(
-            session.sessionId,
+          return await writeChangeLogFile(
+            scriptUri.fsPath,
             sourceChangeCount,
-            (serial) => {
-              const increment =
-                ((serial - previousSerial) / sourceChangeCount) * 100
-              previousSerial = serial
-              progress.report({
-                increment,
-                message: vscode.l10n.t('{current} of {total}', {
-                  current: serial,
-                  total: sourceChangeCount,
-                }),
-              })
-            }
+            before,
+            after,
+            async (writeRecord) =>
+              await collectChangeLogRecords(
+                session.sessionId,
+                sourceChangeCount,
+                writeRecord,
+                (serial) => {
+                  const increment =
+                    sourceChangeCount === 0
+                      ? 100
+                      : ((serial - previousSerial) / sourceChangeCount) * 100
+                  previousSerial = serial
+                  progress.report({
+                    increment,
+                    message: vscode.l10n.t('{current} of {total}', {
+                      current: serial,
+                      total: sourceChangeCount,
+                    }),
+                  })
+                }
+              ),
+            async () =>
+              await assertChangeLogExportStable(
+                session.sessionId,
+                sourceChangeCount,
+                after
+              )
           )
         }
       )
-      changes = collected.changes
       unavailableChangeSerials = collected.unavailableChangeSerials
+    } else {
+      let changes: ChangeRecord[] = []
+      if (sourceChangeCount > 0) {
+        const collected = await vscode.window.withProgress(
+          {
+            location: vscode.ProgressLocation.Notification,
+            title: vscode.l10n.t('Exporting {count} change log entries…', {
+              count: sourceChangeCount,
+            }),
+            cancellable: false,
+          },
+          async (progress) => {
+            let previousSerial = 0
+            return await collectChangeLogRecords(
+              session.sessionId,
+              sourceChangeCount,
+              undefined,
+              (serial) => {
+                const increment =
+                  ((serial - previousSerial) / sourceChangeCount) * 100
+                previousSerial = serial
+                progress.report({
+                  increment,
+                  message: vscode.l10n.t('{current} of {total}', {
+                    current: serial,
+                    total: sourceChangeCount,
+                  }),
+                })
+              }
+            )
+          }
+        )
+        changes = collected.changes ?? []
+        unavailableChangeSerials = collected.unavailableChangeSerials
+      }
+      assertCompleteChangeLog('export', unavailableChangeSerials)
+      await assertChangeLogExportStable(
+        session.sessionId,
+        sourceChangeCount,
+        after
+      )
+      changeCount = changes.length
+      const unavailableChangeCount = unavailableChangeSerials.length
+      const content = Buffer.from(
+        JSON.stringify(
+          {
+            format: CHANGE_LOG_FORMAT,
+            version: CHANGE_LOG_VERSION,
+            complete: unavailableChangeCount === 0,
+            before,
+            after,
+            changeCount: changeCount.toString(),
+            sourceChangeCount: sourceChangeCount.toString(),
+            unavailableChangeCount: unavailableChangeCount.toString(),
+            unavailableChangeSerials: unavailableChangeSerials.map((serial) =>
+              serial.toString()
+            ),
+            changes: changes.map(serializeChangeLogRecord),
+          },
+          null,
+          2
+        ),
+        'utf8'
+      )
+      await vscode.workspace.fs.writeFile(scriptUri, content)
     }
     assertCompleteChangeLog('export', unavailableChangeSerials)
-    const after = await getChangeLogFingerprint(
-      session.sessionId,
-      SessionFingerprintContent.COMPUTED,
-      before.digest.algorithm
-    )
-    const changeCount = changes.length
     const unavailableChangeCount = unavailableChangeSerials.length
-
-    const content = Buffer.from(
-      JSON.stringify(
-        {
-          format: CHANGE_LOG_FORMAT,
-          version: CHANGE_LOG_VERSION,
-          complete: unavailableChangeCount === 0,
-          before,
-          after,
-          changeCount,
-          sourceChangeCount,
-          unavailableChangeCount,
-          unavailableChangeSerials,
-          changes,
-        },
-        null,
-        2
-      ),
-      'utf8'
-    )
-    await vscode.workspace.fs.writeFile(scriptUri, content)
     this.postSessionActionComplete(session, {
       action: 'exportChangeLog',
       changeCount,

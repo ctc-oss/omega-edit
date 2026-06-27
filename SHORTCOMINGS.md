@@ -171,6 +171,11 @@ This is the reported bug. Root causes are spread across all three layers.
     input and output. The core is 64-bit (`int64_t`). Any file or offset past ~9 PB is
     unreachable from the TS client. Defensible today, but it is a real ceiling that contradicts
     "remove limits." Consider `BigInt` on the boundaries that can legitimately exceed 2^53.
+    **Status: Partially fixed.** Versioned change-log documents now accept decimal int64 strings
+    and export integer metadata/entry coordinates as decimal strings, so JSON precision is no
+    longer the change-log format boundary. The generated TypeScript gRPC client still uses
+    `long_type_number`; replay refuses values beyond the safe-number transport boundary instead
+    of rounding them. Full BigInt client APIs remain a deliberate protobuf/client migration.
 
 18. **Change-log entry/byte caps.**
     AI: `MAX_CHANGE_LOG_ENTRIES = 100_000`, `MAX_CHANGE_LOG_ENTRY_BYTES = 32 MiB`,
@@ -178,11 +183,20 @@ This is the reported bug. Root causes are spread across all three layers.
     (`hexEditorProvider.ts:146-148`). A session with >100k changes still cannot export a
     non-streaming log. Export now fails loudly instead of hiding dropped changes, but for a tool
     whose pitch is massive files, a 100k-change ceiling is low.
+    **Status: Fixed.** AI and VS Code change-log import/export no longer impose the former
+    entry-count, per-entry-byte, or document-byte caps. They still reject invalid JSON shape,
+    incomplete change details, and values that cannot be replayed safely through the current TS
+    transport.
 
 19. **In-memory hex doubling everywhere.**
     Change-log data is stored/transported as hex strings (2× bytes) in both AI and extension,
     and transform replacements are fully materialized client-side. Streaming / chunked /
     file-backed change logs would honor the large-file promise.
+    **Status: Partially fixed.** AI file-backed export and VS Code local-file export now stream
+    entries to a temporary file and return summary metadata instead of echoing the full entry
+    array back to the caller. The v2 JSON payload still encodes bytes as hex, and import still
+    parses the full JSON document before replay; chunked/binary or streaming-import formats
+    remain future API work.
 
 ---
 
@@ -260,7 +274,12 @@ This is the reported bug. Root causes are spread across all three layers.
   AI + extension change-log encode/decode, and undo-by-inverse-or-rerun semantics.
 - **G2 — True checkpoint restore** (snapshot + restore-to), distinct from drop-last-checkpoint.
 - **G3 — Streaming / file-backed change logs** to drop the in-memory and entry-count caps.
+  **Status: Partially fixed.** File-backed export streams entries and the former hard caps are
+  gone; streaming import/chunked payloads still need a format/API decision.
 - **G4 — BigInt offsets/lengths** at the TS boundary to lift the 2^53 ceiling.
+  **Status: Partially fixed for change-log documents.** Serialized change-log int64 fields accept
+  decimal strings, but the generated TypeScript gRPC client still uses `long_type_number`, so full
+  BigInt replay/client APIs remain open.
 - **G5 — Transactional `applyChangeLog`** (begin/end transaction or checkpoint-guarded) for atomicity.
   **Status: Fixed for change-log import.** Normal edit batches are transactional and the whole
   import rolls back on failure; a future native "restore to starting serial and discard redo"

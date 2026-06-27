@@ -79,9 +79,13 @@ codecs, transcodes, record/message helpers, and digest/checksum inspectors.
 All CLI commands emit JSON to stdout and return non-zero exit codes on failure.
 Exported change logs are portable `omega-edit.change-log` documents containing
 the byte operations needed to apply the same edits to another session, another
-file, or a fleet of compatible files. Non-streaming change logs include
-before/after content fingerprints, and export fails instead of writing an
-incomplete replay log when any change details are unavailable.
+file, or a fleet of compatible files. Change-log integer fields are decimal
+int64 values in JSON, so counts, offsets, lengths, serials, and fingerprint
+sizes do not depend on JavaScript number precision. File-backed exports stream
+entries to a temporary file and rename only after the log is complete; the
+returned tool result is a summary rather than another in-memory copy of the
+entry array. Export fails instead of writing an incomplete replay log when any
+change details are unavailable.
 
 ## MCP Quick Start
 

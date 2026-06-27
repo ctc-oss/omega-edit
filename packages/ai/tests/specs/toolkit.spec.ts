@@ -160,6 +160,83 @@ describe('@omega-edit/ai toolkit', () => {
     )
   })
 
+  it('accepts decimal int64 strings in change-log documents', async function () {
+    const toolkit = new OmegaEditToolkit({ autoStart: false })
+
+    const dryRun = await toolkit.applyChangeLog({
+      sessionId: 'session',
+      dryRun: true,
+      changes: makeChangeLogDocument(
+        [
+          {
+            serial: '1',
+            kind: 'REPLACE',
+            offset: '2',
+            length: '1',
+            data: Buffer.from('Z', 'utf8').toString('hex'),
+          },
+        ],
+        {
+          before: {
+            ...ABCDEF_SHA256_FINGERPRINT,
+            byteLength: '6',
+          },
+          after: {
+            ...ABCDEF_SHA256_FINGERPRINT,
+            byteLength: '6',
+          },
+          changeCount: '1',
+          sourceChangeCount: '1',
+          unavailableChangeCount: '0',
+        }
+      ),
+    })
+
+    assert.equal(dryRun.inputChangeCount, 1)
+
+    await assert.rejects(
+      () =>
+        toolkit.applyChangeLog({
+          sessionId: 'session',
+          dryRun: true,
+          changes: makeChangeLogDocument(
+            [
+              {
+                kind: 'REPLACE',
+                offset: '9007199254740992',
+                length: '0',
+                data: '',
+              },
+            ],
+            {
+              changeCount: '1',
+              sourceChangeCount: '1',
+              unavailableChangeCount: '0',
+            }
+          ),
+        }),
+      /transport safe integer range/
+    )
+  })
+
+  it('does not impose the former 100k-entry change-log cap', async function () {
+    const toolkit = new OmegaEditToolkit({ autoStart: false })
+    const changes = Array.from({ length: 100_001 }, () => ({
+      kind: 'REPLACE' as const,
+      offset: 0,
+      length: 0,
+      data: '',
+    }))
+
+    const dryRun = await toolkit.applyChangeLog({
+      sessionId: 'session',
+      dryRun: true,
+      changes: makeChangeLogDocument(changes),
+    })
+
+    assert.equal(dryRun.inputChangeCount, changes.length)
+  })
+
   it('rejects inconsistent change-log serial and group metadata', async function () {
     const toolkit = new OmegaEditToolkit({ autoStart: false })
 
@@ -326,21 +403,21 @@ describe('@omega-edit/ai toolkit', () => {
       assert.equal(exportedLog.format, 'omega-edit.change-log')
       assert.equal(exportedLog.version, 2)
       assert.equal(exportedLog.complete, true)
-      assert.equal(exportedLog.before.byteLength, 6)
+      assert.equal(exportedLog.before.byteLength, '6')
       assert.equal(exportedLog.before.digest.algorithm, 'sha256')
       assert.match(exportedLog.before.digest.value, /^[0-9a-f]+$/)
-      assert.equal(exportedLog.after.byteLength, 6)
+      assert.equal(exportedLog.after.byteLength, '6')
       assert.equal(exportedLog.after.digest.algorithm, 'sha256')
       assert.match(exportedLog.after.digest.value, /^[0-9a-f]+$/)
       assert.notEqual(
         exportedLog.before.digest.value,
         exportedLog.after.digest.value
       )
-      assert.equal(exportedLog.changeCount, 1)
-      assert.equal(exportedLog.sourceChangeCount, 1)
-      assert.equal(exportedLog.unavailableChangeCount, 0)
+      assert.equal(exportedLog.changeCount, '1')
+      assert.equal(exportedLog.sourceChangeCount, '1')
+      assert.equal(exportedLog.unavailableChangeCount, '0')
       assert.deepEqual(exportedLog.unavailableChangeSerials, [])
-      assert.equal(exportedLog.changes[0].kind, 'OVERWRITE')
+      assert.equal(exportedLog.changes, undefined)
       assert.equal(fs.existsSync(changeLogPath), true)
       const changeLogDocument = JSON.parse(
         await fs.promises.readFile(changeLogPath, 'utf8')
@@ -350,11 +427,12 @@ describe('@omega-edit/ai toolkit', () => {
       assert.equal(changeLogDocument.complete, true)
       assert.deepEqual(changeLogDocument.before, exportedLog.before)
       assert.deepEqual(changeLogDocument.after, exportedLog.after)
-      assert.equal(changeLogDocument.changeCount, 1)
-      assert.equal(changeLogDocument.sourceChangeCount, 1)
-      assert.equal(changeLogDocument.unavailableChangeCount, 0)
+      assert.equal(changeLogDocument.changeCount, '1')
+      assert.equal(changeLogDocument.sourceChangeCount, '1')
+      assert.equal(changeLogDocument.unavailableChangeCount, '0')
       assert.deepEqual(changeLogDocument.unavailableChangeSerials, [])
       assert.equal(changeLogDocument.changes[0].kind, 'OVERWRITE')
+      assert.equal(changeLogDocument.changes[0].offset, '1')
 
       await fs.promises.writeFile(replayPath, Buffer.from('abcdef', 'utf8'))
       const replaySession = await toolkit.createSession(replayPath)

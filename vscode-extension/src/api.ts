@@ -69,7 +69,7 @@ export interface OmegaEditChangeLogDigest {
 }
 
 export interface OmegaEditChangeLogFingerprint {
-  byteLength: number
+  byteLength: number | string
   digest: OmegaEditChangeLogDigest
 }
 

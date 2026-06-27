@@ -6,6 +6,7 @@ export type ChangeLogEntryKind =
   | 'OVERWRITE'
   | 'REPLACE'
   | 'TRANSFORM'
+export type ChangeLogInt64 = number | string | bigint
 
 export interface ToolkitOptions {
   host?: string
@@ -40,16 +41,16 @@ export interface SessionStatus {
 }
 
 export interface ChangeLogEntry {
-  serial?: number
+  serial?: ChangeLogInt64
   kind: ChangeLogEntryKind
-  offset: number
-  length: number
+  offset: ChangeLogInt64
+  length: ChangeLogInt64
   data: string
   transformId?: string
   optionsJson?: string
-  replacementLength?: number
-  computedFileSizeBefore?: number
-  computedFileSizeAfter?: number
+  replacementLength?: ChangeLogInt64
+  computedFileSizeBefore?: ChangeLogInt64
+  computedFileSizeAfter?: ChangeLogInt64
   groupId?: string
 }
 
@@ -59,7 +60,7 @@ export interface ChangeLogDigest {
 }
 
 export interface ChangeLogFingerprint {
-  byteLength: number
+  byteLength: ChangeLogInt64
   digest: ChangeLogDigest
 }
 
@@ -69,10 +70,10 @@ export interface ChangeLogDocument {
   complete: boolean
   before: ChangeLogFingerprint
   after: ChangeLogFingerprint
-  changeCount: number
-  sourceChangeCount: number
-  unavailableChangeCount: number
-  unavailableChangeSerials: number[]
+  changeCount: ChangeLogInt64
+  sourceChangeCount: ChangeLogInt64
+  unavailableChangeCount: ChangeLogInt64
+  unavailableChangeSerials: ChangeLogInt64[]
   changes: ChangeLogEntry[]
 }
 
@@ -83,11 +84,11 @@ export interface ChangeLogResult {
   complete: boolean
   before: ChangeLogFingerprint
   after: ChangeLogFingerprint
-  changeCount: number
-  sourceChangeCount: number
-  unavailableChangeCount: number
-  unavailableChangeSerials: number[]
-  changes: ChangeLogEntry[]
+  changeCount: ChangeLogInt64
+  sourceChangeCount: ChangeLogInt64
+  unavailableChangeCount: ChangeLogInt64
+  unavailableChangeSerials: ChangeLogInt64[]
+  changes?: ChangeLogEntry[]
   outputPath?: string
 }
 
