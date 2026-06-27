@@ -17,7 +17,7 @@
  * limitations under the License.
  */
 
-import { expect, initChai } from './common.js'
+import { expect, initExpect } from './common.js'
 import { getModuleCompat } from './moduleCompat.js'
 
 const { require } = getModuleCompat(import.meta.url)
@@ -26,8 +26,8 @@ const clientPackage =
 const { EditorHistoryController, EditorSearchController } = clientPackage
 
 describe('Editor Patterns', () => {
-  before(async () => {
-    await initChai()
+  beforeAll(async () => {
+    await initExpect()
   })
 
   it('should track mixed local and checkpoint history with save-state semantics', async () => {

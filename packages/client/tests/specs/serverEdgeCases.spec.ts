@@ -21,7 +21,7 @@ import * as fs from 'fs'
 import * as os from 'os'
 import * as path from 'path'
 import { status as GrpcStatus } from '@grpc/grpc-js'
-import { expect, initChai } from './common.js'
+import { expect, initExpect } from './common.js'
 import {
   overrideProperty,
   silenceClientLogger,
@@ -34,7 +34,9 @@ const clientPackage =
   require('../../dist/cjs/index.js') as typeof import('../../src/index')
 let clientModule: typeof import('../../src/client')
 let serverModule: typeof import('../../src/server')
-let nativeServerModule: typeof import('../../../server/src/index')
+let nativeServerModule: {
+  getBinFolderPath(nodeModulesDir: string): string
+}
 const {
   delay,
   findFirstAvailablePort,
@@ -56,8 +58,8 @@ describe('Server Edge Cases', () => {
   let originalServerUri: string | undefined
   let originalServerSocket: string | undefined
 
-  before(async () => {
-    await initChai()
+  beforeAll(async () => {
+    await initExpect()
     delete require.cache[require.resolve('../../dist/cjs/logger.js')]
     delete require.cache[require.resolve('../../dist/cjs/client.js')]
     delete require.cache[require.resolve('../../dist/cjs/server.js')]
@@ -66,8 +68,9 @@ describe('Server Edge Cases', () => {
       require('../../dist/cjs/client.js') as typeof import('../../src/client')
     serverModule =
       require('../../dist/cjs/server.js') as typeof import('../../src/server')
-    nativeServerModule =
-      require('../../../server/out/index.js') as typeof import('../../../server/src/index')
+    nativeServerModule = require('../../../server/out/index.js') as {
+      getBinFolderPath(nodeModulesDir: string): string
+    }
   })
 
   beforeEach(() => {
@@ -89,7 +92,7 @@ describe('Server Edge Cases', () => {
     }
   })
 
-  after(() => {
+  afterAll(() => {
     restoreLogger()
   })
 
@@ -184,7 +187,7 @@ describe('Server Edge Cases', () => {
 
       fs.rmSync(tempDir, { recursive: true, force: true })
     }
-  }).timeout(15000)
+  })
 
   it('should reject invalid stale pid files before attempting startup', async () => {
     delete process.env.OMEGA_EDIT_SERVER_URI
@@ -303,11 +306,11 @@ describe('Server Edge Cases', () => {
         await stopProcessUsingPID(pid, 'SIGKILL')
       }
     }
-  }).timeout(15000)
+  })
 
-  it('should start a UDS-only server after removing a stale socket file', async function () {
+  it('should start a UDS-only server after removing a stale socket file', async () => {
     if (process.platform === 'win32') {
-      this.skip()
+      return
     }
 
     const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'omega-edit-uds-'))
@@ -345,11 +348,11 @@ describe('Server Edge Cases', () => {
       }
       fs.rmSync(tempDir, { recursive: true, force: true })
     }
-  }).timeout(20000)
+  })
 
-  it('should verify UDS startup against the launched socket endpoint', async function () {
+  it('should verify UDS startup against the launched socket endpoint', async () => {
     if (process.platform === 'win32') {
-      this.skip()
+      return
     }
 
     const tcpPort = await findFirstAvailablePort(9401, 9500)
@@ -398,7 +401,7 @@ describe('Server Edge Cases', () => {
 
       fs.rmSync(tempDir, { recursive: true, force: true })
     }
-  }).timeout(25000)
+  })
 
   it('should reject server info failures from the RPC client', async () => {
     const restoreGetClient = overrideProperty(
@@ -1027,7 +1030,7 @@ describe('Server Edge Cases', () => {
       restoreUnlinkSync()
       fs.rmSync(tempDir, { recursive: true, force: true })
     }
-  }).timeout(7000)
+  })
 
   it('should reject unix socket startup immediately on Windows', async () => {
     const socketDir = path.join(

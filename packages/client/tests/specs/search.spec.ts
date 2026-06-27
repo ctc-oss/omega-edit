@@ -36,6 +36,7 @@ import {
   replaceOneSession,
   replaceSessionCheckpointed,
   replaceSession,
+  runSessionTransaction,
   searchSession,
   undo,
 } from '@omega-edit/client'
@@ -45,7 +46,6 @@ import {
   expect,
   testPort,
 } from './common.js'
-import { runSessionTransaction } from '../../dist/esm/session.js'
 
 describe('Searching', () => {
   let session_id = ''
@@ -80,11 +80,11 @@ describe('Searching', () => {
     })
   }
 
-  beforeEach('Create a new session', async () => {
+  beforeEach(async () => {
     session_id = await createTestSession(testPort)
   })
 
-  afterEach('Destroy session', async () => {
+  afterEach(async () => {
     await destroyTestSession(session_id)
   })
 

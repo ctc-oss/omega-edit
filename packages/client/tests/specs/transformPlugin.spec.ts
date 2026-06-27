@@ -39,7 +39,7 @@ import { status as GrpcStatus } from '@grpc/grpc-js'
 import * as fs from 'fs'
 import * as path from 'path'
 import waitPort from 'wait-port'
-import { expect, initChai, testHost } from './common.js'
+import { expect, initExpect, testHost } from './common.js'
 import { getModuleCompat } from './moduleCompat.js'
 
 const { __dirname } = getModuleCompat(import.meta.url)
@@ -74,14 +74,14 @@ function findTransformPluginDirectory(): string | undefined {
 }
 
 describe('Transform plugin gRPC integration', () => {
-  before(async () => {
-    await initChai()
+  beforeAll(async () => {
+    await initExpect()
   })
 
-  it('Should list and apply exemplar transform plugins through gRPC', async function () {
+  it('Should list and apply exemplar transform plugins through gRPC', async () => {
     const pluginDirectory = findTransformPluginDirectory()
     if (!pluginDirectory) {
-      this.skip()
+      return
     }
 
     const port = await findFirstAvailablePort(21000, 21999)

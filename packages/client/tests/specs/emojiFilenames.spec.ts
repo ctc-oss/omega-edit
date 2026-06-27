@@ -39,7 +39,7 @@ describe('Emoji Filename Handling', () => {
   const testDataDir = path.join(__dirname, 'data')
 
   // Ensure the test data directory exists
-  before(() => {
+  beforeAll(() => {
     if (!fs.existsSync(testDataDir)) {
       fs.mkdirSync(testDataDir, { recursive: true })
     }
@@ -131,7 +131,7 @@ describe('Emoji Filename Handling', () => {
   )
 
   // Clean up test files after all tests
-  after(() => {
+  afterAll(() => {
     cleanupTestFiles()
   })
 })

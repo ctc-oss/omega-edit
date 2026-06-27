@@ -4,8 +4,11 @@ import * as fs from 'fs'
 import * as os from 'os'
 import * as path from 'path'
 import * as readline from 'readline'
+import { fileURLToPath } from 'url'
 import { findFirstAvailablePort } from '@omega-edit/client'
 import { OmegaEditToolkit } from '../../src/service'
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
 type PendingMap = Map<
   number,
@@ -15,9 +18,7 @@ type PendingMap = Map<
   }
 >
 
-describe('@omega-edit/ai mcp server', function () {
-  this.timeout(90000)
-
+describe('@omega-edit/ai mcp server', () => {
   it('serves OmegaEdit operations over MCP stdio', async function () {
     const port = await findFirstAvailablePort(20000, 20999)
     assert.ok(port, 'expected an available port for MCP test')

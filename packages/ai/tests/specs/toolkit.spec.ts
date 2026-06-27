@@ -7,9 +7,7 @@ import * as omegaEditClient from '@omega-edit/client'
 import { OmegaEditToolkit } from '../../src/service'
 import { parseInputData } from '../../src/codec'
 
-describe('@omega-edit/ai toolkit', function () {
-  this.timeout(90000)
-
+describe('@omega-edit/ai toolkit', () => {
   it('preserves the original connection failure as the cause', async function () {
     const port = await omegaEditClient.findFirstAvailablePort(19000, 19999)
     assert.ok(port, 'expected an available port for OmegaEdit')
