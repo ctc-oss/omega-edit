@@ -167,6 +167,14 @@ namespace omega_edit {
                                                const ::omega_edit::v1::GetSessionFingerprintRequest *request,
                                                ::omega_edit::v1::GetSessionFingerprintResponse *response) override;
 
+            grpc::Status GetSessionContentInfo(grpc::ServerContext *context,
+                                               const ::omega_edit::v1::GetSessionContentInfoRequest *request,
+                                               ::omega_edit::v1::GetSessionContentInfoResponse *response) override;
+
+            grpc::Status InspectSessionContent(grpc::ServerContext *context,
+                                               const ::omega_edit::v1::InspectSessionContentRequest *request,
+                                               ::omega_edit::v1::InspectSessionContentResponse *response) override;
+
             grpc::Status GetSessionCount(grpc::ServerContext *context,
                                          const ::omega_edit::v1::GetSessionCountRequest *request,
                                          ::omega_edit::v1::GetSessionCountResponse *response) override;

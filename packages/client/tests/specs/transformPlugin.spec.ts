@@ -21,6 +21,7 @@ import {
   TransformPluginOperation,
   applyTransformPlugin,
   beginSessionTransaction,
+  createCheckpoint,
   createSessionFromBytes,
   destroySession,
   endSessionTransaction,
@@ -29,8 +30,11 @@ import {
   getChangeCount,
   getComputedFileSize,
   getSegment,
+  getSessionContentInfo,
+  inspectSessionContent,
   listTransformPlugins,
   resetClient,
+  SessionContentSource,
   stopProcessUsingPID,
   stopServiceOnPort,
 } from '@omega-edit/client'
@@ -169,6 +173,86 @@ describe('Transform plugin gRPC integration', () => {
       )
       expect(digestPlugin?.defaultArgs).to.equal('{"algorithm":"sha256"}')
       expect(digestPlugin?.argsSchema).to.include('"x-omega-enumGroups"')
+
+      const ownedContentSession = await createSessionFromBytes(
+        Buffer.from('abc', 'utf8')
+      )
+      const ownedContentSessionId = ownedContentSession.getSessionId()
+      try {
+        const initialInfo = await getSessionContentInfo(ownedContentSessionId)
+        expect(
+          initialInfo.info.find(
+            (entry) => entry.content === SessionContentSource.ORIGINAL
+          )
+        ).to.deep.include({ available: true, byteLength: 3 })
+        expect(
+          initialInfo.info.find(
+            (entry) => entry.content === SessionContentSource.COMPUTED
+          )
+        ).to.deep.include({ available: true, byteLength: 3 })
+        expect(
+          initialInfo.info.find(
+            (entry) => entry.content === SessionContentSource.LATEST_CHECKPOINT
+          )
+        ).to.deep.include({ available: false, byteLength: 0 })
+
+        const originalDigest = await inspectSessionContent(
+          ownedContentSessionId,
+          SessionContentSource.ORIGINAL,
+          'omega.example.openssl_digests',
+          0,
+          3,
+          JSON.stringify({ algorithm: 'sha256' })
+        )
+        expect(originalDigest.resultLabel).to.equal('sha256')
+        expect(Buffer.from(originalDigest.result).toString('utf8')).to.equal(
+          'ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad'
+        )
+
+        await applyTransformPlugin(
+          ownedContentSessionId,
+          'omega.example.case_change',
+          0,
+          3,
+          JSON.stringify({ case: 'upper' })
+        )
+        await createCheckpoint(ownedContentSessionId)
+
+        const checkpointInfo = await getSessionContentInfo(
+          ownedContentSessionId
+        )
+        expect(
+          checkpointInfo.info.find(
+            (entry) => entry.content === SessionContentSource.LATEST_CHECKPOINT
+          )
+        ).to.deep.include({ available: true, byteLength: 3 })
+
+        const computedDigest = await inspectSessionContent(
+          ownedContentSessionId,
+          SessionContentSource.COMPUTED,
+          'omega.example.openssl_digests',
+          0,
+          3,
+          JSON.stringify({ algorithm: 'sha256' })
+        )
+        expect(Buffer.from(computedDigest.result).toString('utf8')).to.equal(
+          'b5d4045c3f466fa91fe2cc6abe79232a1a57cdf104f7a26e716e0a1e2789df78'
+        )
+
+        const checkpointDigest = await inspectSessionContent(
+          ownedContentSessionId,
+          SessionContentSource.LATEST_CHECKPOINT,
+          'omega.example.openssl_digests',
+          0,
+          3,
+          JSON.stringify({ algorithm: 'sha256' })
+        )
+        expect(Buffer.from(checkpointDigest.result).toString('utf8')).to.equal(
+          'b5d4045c3f466fa91fe2cc6abe79232a1a57cdf104f7a26e716e0a1e2789df78'
+        )
+      } finally {
+        await destroySession(ownedContentSessionId).catch(() => undefined)
+      }
 
       const session = await createSessionFromBytes(Buffer.from('abc', 'utf8'))
       sessionId = session.getSessionId()

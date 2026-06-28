@@ -114,6 +114,19 @@ TEST_CASE("End Of Line", "[EOLTests]") {
     REQUIRE(0 == omega_util_compare_files(MAKE_PATH("test1.dat"), MAKE_PATH("test1.actual.eol.1.dat")));
 }
 
+TEST_CASE("Read File Segment", "[UtilTests]") {
+    char buffer[5]{};
+    REQUIRE(4 == omega_util_read_file_segment(MAKE_PATH("test1.dat"), 10, buffer, 4));
+    REQUIRE_THAT(std::string(buffer, 4), Equals("abcd"));
+
+    REQUIRE(0 == omega_util_read_file_segment(MAKE_PATH("test1.dat"), 10, buffer, 0));
+    REQUIRE(-1 == omega_util_read_file_segment(MAKE_PATH("test1.dat"), 62, buffer, 2));
+    REQUIRE(-1 == omega_util_read_file_segment("IDonTExist.DaT", 0, buffer, 1));
+    REQUIRE(-1 == omega_util_read_file_segment(MAKE_PATH("test1.dat"), -1, buffer, 1));
+    REQUIRE(-1 == omega_util_read_file_segment(MAKE_PATH("test1.dat"), 0, nullptr, 1));
+    REQUIRE(-1 == omega_util_read_file_segment(nullptr, 0, buffer, 1));
+}
+
 TEST_CASE("File Exists", "[UtilTests]") {
     REQUIRE(fs::exists(MAKE_PATH("test1.dat")));
     omega_util_remove_file(MAKE_PATH("IDonTExist.DaT"));

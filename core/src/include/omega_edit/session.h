@@ -66,6 +66,14 @@ int omega_session_byte_frequency_profile_dos_eol_index();
 const char *omega_session_get_file_path(const omega_session_t *session_ptr);
 
 /**
+ * Given a session, return the OmegaEdit-owned immutable snapshot file captured at session creation.
+ * @param session_ptr session to inspect
+ * @return borrowed snapshot file path pointer, or null if unavailable. The returned pointer is owned by the session and
+ * remains valid only until the next session mutation or session destruction.
+ */
+const char *omega_session_get_original_snapshot_file_path(const omega_session_t *session_ptr);
+
+/**
  * Given a session, return the session event callback
  * @param session_ptr session to return the event callback from
  * @return session event callback
@@ -153,6 +161,21 @@ int64_t omega_session_get_computed_file_size(const omega_session_t *session_ptr)
  * @return original file size in bytes, or -1 on failure
  */
 int64_t omega_session_get_original_file_size(const omega_session_t *session_ptr);
+
+/**
+ * Given a session, return the OmegaEdit-owned immutable latest checkpoint file path.
+ * @param session_ptr session to inspect
+ * @return borrowed checkpoint file path pointer, or null if no checkpoint exists. The returned pointer is owned by the
+ * session and remains valid only until the next session mutation or session destruction.
+ */
+const char *omega_session_get_latest_checkpoint_file_path(const omega_session_t *session_ptr);
+
+/**
+ * Given a session, return the byte size of the OmegaEdit-owned immutable latest checkpoint file.
+ * @param session_ptr session to inspect
+ * @return latest checkpoint size in bytes, or -1 if no checkpoint exists or the size cannot be read
+ */
+int64_t omega_session_get_latest_checkpoint_file_size(const omega_session_t *session_ptr);
 
 /**
  * Given a session, get the last change (if any)

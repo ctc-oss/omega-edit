@@ -20,13 +20,17 @@
 import {
   TransformPluginOperation as RawProtoTransformPluginOperation,
   IOFlags as ProtoIOFlags,
+  SessionContentSource as RawProtoSessionContentSource,
   SessionFingerprintContent as RawProtoSessionFingerprintContent,
   SessionEventKind as RawProtoSessionEventKind,
   ViewportEventKind as RawProtoViewportEventKind,
   type ApplyTransformPluginResponse as RawApplyTransformPluginResponse,
   type CheckSessionModelResponse as RawCheckSessionModelResponse,
+  type GetSessionContentInfoResponse as RawGetSessionContentInfoResponse,
   type GetSessionFingerprintResponse as RawGetSessionFingerprintResponse,
+  type InspectSessionContentResponse as RawInspectSessionContentResponse,
   type RestoreLastCheckpointResponse as RawRestoreLastCheckpointResponse,
+  type SessionContentInfo as RawSessionContentInfo,
   type SessionContentFingerprint as RawSessionContentFingerprint,
   type TransformProgress,
   type TransformPluginInfo as RawTransformPluginInfo,
@@ -46,8 +50,10 @@ import {
   getCounts as rawGetCounts,
   getLanguage as rawGetLanguage,
   getSegment as rawGetSegment,
+  getSessionContentInfo as rawGetSessionContentInfo,
   getSessionFingerprint as rawGetSessionFingerprint,
   getSessionCount as rawGetSessionCount,
+  inspectSessionContent as rawInspectSessionContent,
   listTransformPlugins as rawListTransformPlugins,
   notifyChangedViewports as rawNotifyChangedViewports,
   pauseSessionChanges as rawPauseSessionChanges,
@@ -144,6 +150,15 @@ export const SessionFingerprintContent = {
 export type SessionFingerprintContent =
   (typeof SessionFingerprintContent)[keyof typeof SessionFingerprintContent]
 
+export const SessionContentSource = {
+  UNSPECIFIED: RawProtoSessionContentSource.UNSPECIFIED,
+  ORIGINAL: RawProtoSessionContentSource.ORIGINAL,
+  COMPUTED: RawProtoSessionContentSource.COMPUTED,
+  LATEST_CHECKPOINT: RawProtoSessionContentSource.LATEST_CHECKPOINT,
+} as const
+export type SessionContentSource =
+  (typeof SessionContentSource)[keyof typeof SessionContentSource]
+
 export const TransformPluginOperation = {
   UNSPECIFIED: RawProtoTransformPluginOperation.UNSPECIFIED,
   REPLACE: RawProtoTransformPluginOperation.REPLACE,
@@ -157,8 +172,11 @@ export type TransformPluginInfo = RawTransformPluginInfo
 export type ApplyTransformPluginResponse = RawApplyTransformPluginResponse
 export type RestoreLastCheckpointResponse = RawRestoreLastCheckpointResponse
 export type CheckSessionModelResponse = RawCheckSessionModelResponse
+export type SessionContentInfo = RawSessionContentInfo
+export type GetSessionContentInfoResponse = RawGetSessionContentInfoResponse
 export type SessionContentFingerprint = RawSessionContentFingerprint
 export type GetSessionFingerprintResponse = RawGetSessionFingerprintResponse
+export type InspectSessionContentResponse = RawInspectSessionContentResponse
 export type { TransformProgress }
 
 export const PROFILE_DOS_EOL = 256
@@ -233,6 +251,25 @@ export async function getSessionFingerprint(
         value: response.fingerprint.digest.value,
       },
     },
+  }
+}
+
+export async function getSessionContentInfo(
+  session_id: string,
+  content: SessionContentSource[] = []
+): Promise<GetSessionContentInfoResponse> {
+  const response = await rawGetSessionContentInfo(session_id, content)
+  return {
+    sessionId: response.sessionId,
+    info: response.info.map((entry) => ({
+      content: entry.content,
+      available: entry.available,
+      byteLength: requireSafeIntegerOutput(
+        'session content byte length',
+        entry.byteLength
+      ),
+      label: entry.label,
+    })),
   }
 }
 
@@ -448,6 +485,31 @@ export async function applyTransformPlugin(
     }
     return response
   })
+}
+
+export async function inspectSessionContent(
+  session_id: string,
+  content: SessionContentSource,
+  plugin_id: string,
+  offset: number = 0,
+  length: number = 0,
+  options_json?: string
+): Promise<InspectSessionContentResponse> {
+  const response = await rawInspectSessionContent(
+    session_id,
+    content,
+    plugin_id,
+    requireSafeIntegerInput('inspectSessionContent offset', offset),
+    requireSafeIntegerInput('inspectSessionContent length', length),
+    options_json
+  )
+  requireSafeIntegerOutput('inspectSessionContent offset', response.offset)
+  requireSafeIntegerOutput('inspectSessionContent length', response.length)
+  requireSafeIntegerOutput(
+    'inspectSessionContent content byte length',
+    response.contentByteLength
+  )
+  return response
 }
 
 export function profileSession(

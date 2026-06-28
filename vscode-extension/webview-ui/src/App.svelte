@@ -15,6 +15,8 @@
     type ServerHealthMessage,
     type WebviewEditorUiState,
     type WebviewExternalHighlight,
+    type WebviewSessionContentInfo,
+    type WebviewSessionContentSource,
     type WebviewTransformPlugin,
   } from './protocol'
   import {
@@ -118,7 +120,8 @@
       restoredState?.bytesPerRow ?? untrack(() => initialBytesPerRow)
     )
   )
-  let fileSize = $state(restoredViewportSnapshot?.fileSize ?? 0)
+  const initialFileSize = restoredViewportSnapshot?.fileSize ?? 0
+  let fileSize = $state(initialFileSize)
   let visibleOffset = $state(restoredViewportSnapshot?.visibleOffset ?? 0)
   let viewportOffset = $state(restoredViewportSnapshot?.viewportOffset ?? 0)
   let viewportData = $state<number[]>(
@@ -156,6 +159,14 @@
   let transformResult = $state<TransformResultState | undefined>(undefined)
   let transformResultHistory = $state<TransformResultState[]>([])
   let transformResultSequence = $state(0)
+  let contentSources = $state<WebviewSessionContentInfo[]>([
+    {
+      content: 'computed',
+      available: true,
+      byteLength: initialFileSize,
+      label: strings.transform.contentComputed,
+    },
+  ])
   let externalHighlights = $state<WebviewExternalHighlight[]>(
     restoredViewportSnapshot?.externalHighlights ?? []
   )
@@ -1335,6 +1346,29 @@
     savePreviewState({ offsetRadix: radix })
   }
 
+  function computedContentInfo(size: number): WebviewSessionContentInfo {
+    return {
+      content: 'computed',
+      available: true,
+      byteLength: size,
+      label: strings.transform.contentComputed,
+    }
+  }
+
+  function updateComputedContentInfo(size: number): void {
+    let found = false
+    const nextSources = contentSources.map((entry) => {
+      if (entry.content !== 'computed') {
+        return entry
+      }
+      found = true
+      return computedContentInfo(size)
+    })
+    contentSources = found
+      ? nextSources
+      : [computedContentInfo(size), ...nextSources]
+  }
+
   function formatSearchOffset(offset: number): string {
     return offsetRadix === 'dec'
       ? formatNumber(offset)
@@ -1351,6 +1385,7 @@
 
   function applyTransform(
     pluginId: string,
+    contentSource: WebviewSessionContentSource,
     offset: number,
     length: number,
     optionsJson?: string
@@ -1358,11 +1393,15 @@
     if (transformInFlight) {
       return
     }
+    const contentByteLength =
+      contentSources.find(
+        (entry) => entry.content === contentSource && entry.available
+      )?.byteLength ?? (contentSource === 'computed' ? fileSize : -1)
     if (
-      fileSize <= 0 ||
+      contentByteLength <= 0 ||
       offset < 0 ||
       length <= 0 ||
-      offset + length > fileSize
+      offset + length > contentByteLength
     ) {
       transformFeedback = strings.transform.selectRangeFirst
       return
@@ -1375,6 +1414,7 @@
     postToHost({
       type: 'applyTransform',
       pluginId,
+      contentSource,
       offset,
       length,
       optionsJson,
@@ -2085,6 +2125,7 @@
         updateProfilerViewportSnapshot(message)
         preparingFile = false
         fileSize = message.fileSize
+        updateComputedContentInfo(message.fileSize)
         viewportOffset = message.offset
         viewportData = message.data
         externalHighlights = message.externalHighlights
@@ -2125,6 +2166,7 @@
       }
       case 'fileSizeChanged':
         fileSize = message.fileSize
+        updateComputedContentInfo(message.fileSize)
         latestDataProfile = undefined
         pendingAnalysisProfileKey = ''
         if (message.fileSize <= 0) {
@@ -2136,6 +2178,9 @@
           selectionAnchor = -1
           selectedOffset = nextOffset
         }
+        break
+      case 'sessionContentInfo':
+        contentSources = message.contentSources
         break
       case 'documentReverted':
         latestDataProfile = undefined
@@ -2376,6 +2421,7 @@
     {offsetRadix}
     {insertDirection}
     {fileSize}
+    {contentSources}
     {transformPlugins}
     {transformPluginsLoaded}
     {transformPluginsLoading}

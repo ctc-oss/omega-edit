@@ -7,6 +7,8 @@ export type {
   ServerHealthMessage,
   WebviewEditorUiState,
   WebviewExternalHighlight,
+  WebviewSessionContentInfo,
+  WebviewSessionContentSource,
   WebviewTransformPlugin,
   WebviewToHostMessage,
 } from '../../src/webviewProtocol'

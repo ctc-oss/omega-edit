@@ -55,6 +55,10 @@ import type { GetSegmentResponse } from './omega_edit'
 import type { GetSegmentRequest } from './omega_edit'
 import type { GetSessionCountResponse } from './omega_edit'
 import type { GetSessionCountRequest } from './omega_edit'
+import type { InspectSessionContentResponse } from './omega_edit'
+import type { InspectSessionContentRequest } from './omega_edit'
+import type { GetSessionContentInfoResponse } from './omega_edit'
+import type { GetSessionContentInfoRequest } from './omega_edit'
 import type { GetSessionFingerprintResponse } from './omega_edit'
 import type { GetSessionFingerprintRequest } from './omega_edit'
 import type { CheckSessionModelResponse } from './omega_edit'
@@ -1284,6 +1288,80 @@ export interface IEditorServiceClient {
     callback: (
       err: grpc.ServiceError | null,
       value?: GetSessionFingerprintResponse
+    ) => void
+  ): grpc.ClientUnaryCall
+  /**
+   * Return the currently inspectable OmegaEdit-controlled content sources and byte lengths.
+   *
+   * @generated from protobuf rpc: GetSessionContentInfo
+   */
+  getSessionContentInfo(
+    input: GetSessionContentInfoRequest,
+    metadata: grpc.Metadata,
+    options: grpc.CallOptions,
+    callback: (
+      err: grpc.ServiceError | null,
+      value?: GetSessionContentInfoResponse
+    ) => void
+  ): grpc.ClientUnaryCall
+  getSessionContentInfo(
+    input: GetSessionContentInfoRequest,
+    metadata: grpc.Metadata,
+    callback: (
+      err: grpc.ServiceError | null,
+      value?: GetSessionContentInfoResponse
+    ) => void
+  ): grpc.ClientUnaryCall
+  getSessionContentInfo(
+    input: GetSessionContentInfoRequest,
+    options: grpc.CallOptions,
+    callback: (
+      err: grpc.ServiceError | null,
+      value?: GetSessionContentInfoResponse
+    ) => void
+  ): grpc.ClientUnaryCall
+  getSessionContentInfo(
+    input: GetSessionContentInfoRequest,
+    callback: (
+      err: grpc.ServiceError | null,
+      value?: GetSessionContentInfoResponse
+    ) => void
+  ): grpc.ClientUnaryCall
+  /**
+   * Run a streaming inspect plugin over OmegaEdit-controlled session content.
+   *
+   * @generated from protobuf rpc: InspectSessionContent
+   */
+  inspectSessionContent(
+    input: InspectSessionContentRequest,
+    metadata: grpc.Metadata,
+    options: grpc.CallOptions,
+    callback: (
+      err: grpc.ServiceError | null,
+      value?: InspectSessionContentResponse
+    ) => void
+  ): grpc.ClientUnaryCall
+  inspectSessionContent(
+    input: InspectSessionContentRequest,
+    metadata: grpc.Metadata,
+    callback: (
+      err: grpc.ServiceError | null,
+      value?: InspectSessionContentResponse
+    ) => void
+  ): grpc.ClientUnaryCall
+  inspectSessionContent(
+    input: InspectSessionContentRequest,
+    options: grpc.CallOptions,
+    callback: (
+      err: grpc.ServiceError | null,
+      value?: InspectSessionContentResponse
+    ) => void
+  ): grpc.ClientUnaryCall
+  inspectSessionContent(
+    input: InspectSessionContentRequest,
+    callback: (
+      err: grpc.ServiceError | null,
+      value?: InspectSessionContentResponse
     ) => void
   ): grpc.ClientUnaryCall
   /**
@@ -3161,6 +3239,88 @@ export class EditorServiceClient
     )
   }
   /**
+   * Return the currently inspectable OmegaEdit-controlled content sources and byte lengths.
+   *
+   * @generated from protobuf rpc: GetSessionContentInfo
+   */
+  getSessionContentInfo(
+    input: GetSessionContentInfoRequest,
+    metadata:
+      | grpc.Metadata
+      | grpc.CallOptions
+      | ((
+          err: grpc.ServiceError | null,
+          value?: GetSessionContentInfoResponse
+        ) => void),
+    options?:
+      | grpc.CallOptions
+      | ((
+          err: grpc.ServiceError | null,
+          value?: GetSessionContentInfoResponse
+        ) => void),
+    callback?: (
+      err: grpc.ServiceError | null,
+      value?: GetSessionContentInfoResponse
+    ) => void
+  ): grpc.ClientUnaryCall {
+    const method = EditorService.methods[30]
+    return this.makeUnaryRequest<
+      GetSessionContentInfoRequest,
+      GetSessionContentInfoResponse
+    >(
+      `/${EditorService.typeName}/${method.name}`,
+      (value: GetSessionContentInfoRequest): Buffer =>
+        Buffer.from(method.I.toBinary(value, this._binaryOptions)),
+      (value: Buffer): GetSessionContentInfoResponse =>
+        method.O.fromBinary(value, this._binaryOptions),
+      input,
+      metadata as any,
+      options as any,
+      callback as any
+    )
+  }
+  /**
+   * Run a streaming inspect plugin over OmegaEdit-controlled session content.
+   *
+   * @generated from protobuf rpc: InspectSessionContent
+   */
+  inspectSessionContent(
+    input: InspectSessionContentRequest,
+    metadata:
+      | grpc.Metadata
+      | grpc.CallOptions
+      | ((
+          err: grpc.ServiceError | null,
+          value?: InspectSessionContentResponse
+        ) => void),
+    options?:
+      | grpc.CallOptions
+      | ((
+          err: grpc.ServiceError | null,
+          value?: InspectSessionContentResponse
+        ) => void),
+    callback?: (
+      err: grpc.ServiceError | null,
+      value?: InspectSessionContentResponse
+    ) => void
+  ): grpc.ClientUnaryCall {
+    const method = EditorService.methods[31]
+    return this.makeUnaryRequest<
+      InspectSessionContentRequest,
+      InspectSessionContentResponse
+    >(
+      `/${EditorService.typeName}/${method.name}`,
+      (value: InspectSessionContentRequest): Buffer =>
+        Buffer.from(method.I.toBinary(value, this._binaryOptions)),
+      (value: Buffer): InspectSessionContentResponse =>
+        method.O.fromBinary(value, this._binaryOptions),
+      input,
+      metadata as any,
+      options as any,
+      callback as any
+    )
+  }
+  /**
    * Return the total number of active sessions on the server.
    *
    * @generated from protobuf rpc: GetSessionCount
@@ -3185,7 +3345,7 @@ export class EditorServiceClient
       value?: GetSessionCountResponse
     ) => void
   ): grpc.ClientUnaryCall {
-    const method = EditorService.methods[30]
+    const method = EditorService.methods[32]
     return this.makeUnaryRequest<
       GetSessionCountRequest,
       GetSessionCountResponse
@@ -3220,7 +3380,7 @@ export class EditorServiceClient
       value?: GetSegmentResponse
     ) => void
   ): grpc.ClientUnaryCall {
-    const method = EditorService.methods[31]
+    const method = EditorService.methods[33]
     return this.makeUnaryRequest<GetSegmentRequest, GetSegmentResponse>(
       `/${EditorService.typeName}/${method.name}`,
       (value: GetSegmentRequest): Buffer =>
@@ -3263,7 +3423,7 @@ export class EditorServiceClient
       value?: SearchSessionResponse
     ) => void
   ): grpc.ClientUnaryCall {
-    const method = EditorService.methods[32]
+    const method = EditorService.methods[34]
     return this.makeUnaryRequest<SearchSessionRequest, SearchSessionResponse>(
       `/${EditorService.typeName}/${method.name}`,
       (value: SearchSessionRequest): Buffer =>
@@ -3303,7 +3463,7 @@ export class EditorServiceClient
       value?: ReplaceSessionResponse
     ) => void
   ): grpc.ClientUnaryCall {
-    const method = EditorService.methods[33]
+    const method = EditorService.methods[35]
     return this.makeUnaryRequest<ReplaceSessionRequest, ReplaceSessionResponse>(
       `/${EditorService.typeName}/${method.name}`,
       (value: ReplaceSessionRequest): Buffer =>
@@ -3343,7 +3503,7 @@ export class EditorServiceClient
       value?: ReplaceSessionCheckpointedResponse
     ) => void
   ): grpc.ClientUnaryCall {
-    const method = EditorService.methods[34]
+    const method = EditorService.methods[36]
     return this.makeUnaryRequest<
       ReplaceSessionCheckpointedRequest,
       ReplaceSessionCheckpointedResponse
@@ -3384,7 +3544,7 @@ export class EditorServiceClient
       value?: CreateCheckpointResponse
     ) => void
   ): grpc.ClientUnaryCall {
-    const method = EditorService.methods[35]
+    const method = EditorService.methods[37]
     return this.makeUnaryRequest<
       CreateCheckpointRequest,
       CreateCheckpointResponse
@@ -3426,7 +3586,7 @@ export class EditorServiceClient
       value?: DestroyLastCheckpointResponse
     ) => void
   ): grpc.ClientUnaryCall {
-    const method = EditorService.methods[36]
+    const method = EditorService.methods[38]
     return this.makeUnaryRequest<
       DestroyLastCheckpointRequest,
       DestroyLastCheckpointResponse
@@ -3468,7 +3628,7 @@ export class EditorServiceClient
       value?: RestoreLastCheckpointResponse
     ) => void
   ): grpc.ClientUnaryCall {
-    const method = EditorService.methods[37]
+    const method = EditorService.methods[39]
     return this.makeUnaryRequest<
       RestoreLastCheckpointRequest,
       RestoreLastCheckpointResponse
@@ -3509,7 +3669,7 @@ export class EditorServiceClient
       value?: ListTransformPluginsResponse
     ) => void
   ): grpc.ClientUnaryCall {
-    const method = EditorService.methods[38]
+    const method = EditorService.methods[40]
     return this.makeUnaryRequest<
       ListTransformPluginsRequest,
       ListTransformPluginsResponse
@@ -3551,7 +3711,7 @@ export class EditorServiceClient
       value?: ApplyTransformPluginResponse
     ) => void
   ): grpc.ClientUnaryCall {
-    const method = EditorService.methods[39]
+    const method = EditorService.methods[41]
     return this.makeUnaryRequest<
       ApplyTransformPluginRequest,
       ApplyTransformPluginResponse
@@ -3593,7 +3753,7 @@ export class EditorServiceClient
       value?: GetByteFrequencyProfileResponse
     ) => void
   ): grpc.ClientUnaryCall {
-    const method = EditorService.methods[40]
+    const method = EditorService.methods[42]
     return this.makeUnaryRequest<
       GetByteFrequencyProfileRequest,
       GetByteFrequencyProfileResponse
@@ -3635,7 +3795,7 @@ export class EditorServiceClient
       value?: GetCharacterCountsResponse
     ) => void
   ): grpc.ClientUnaryCall {
-    const method = EditorService.methods[41]
+    const method = EditorService.methods[43]
     return this.makeUnaryRequest<
       GetCharacterCountsRequest,
       GetCharacterCountsResponse
@@ -3680,7 +3840,7 @@ export class EditorServiceClient
       value?: ServerControlResponse
     ) => void
   ): grpc.ClientUnaryCall {
-    const method = EditorService.methods[42]
+    const method = EditorService.methods[44]
     return this.makeUnaryRequest<ServerControlRequest, ServerControlResponse>(
       `/${EditorService.typeName}/${method.name}`,
       (value: ServerControlRequest): Buffer =>
@@ -3713,7 +3873,7 @@ export class EditorServiceClient
       value?: GetHeartbeatResponse
     ) => void
   ): grpc.ClientUnaryCall {
-    const method = EditorService.methods[43]
+    const method = EditorService.methods[45]
     return this.makeUnaryRequest<GetHeartbeatRequest, GetHeartbeatResponse>(
       `/${EditorService.typeName}/${method.name}`,
       (value: GetHeartbeatRequest): Buffer =>
@@ -3742,7 +3902,7 @@ export class EditorServiceClient
     metadata?: grpc.Metadata | grpc.CallOptions,
     options?: grpc.CallOptions
   ): grpc.ClientReadableStream<SubscribeToSessionEventsResponse> {
-    const method = EditorService.methods[44]
+    const method = EditorService.methods[46]
     return this.makeServerStreamRequest<
       SubscribeToSessionEventsRequest,
       SubscribeToSessionEventsResponse
@@ -3768,7 +3928,7 @@ export class EditorServiceClient
     metadata?: grpc.Metadata | grpc.CallOptions,
     options?: grpc.CallOptions
   ): grpc.ClientReadableStream<SubscribeToViewportEventsResponse> {
-    const method = EditorService.methods[45]
+    const method = EditorService.methods[47]
     return this.makeServerStreamRequest<
       SubscribeToViewportEventsRequest,
       SubscribeToViewportEventsResponse
@@ -3808,7 +3968,7 @@ export class EditorServiceClient
       value?: UnsubscribeToSessionEventsResponse
     ) => void
   ): grpc.ClientUnaryCall {
-    const method = EditorService.methods[46]
+    const method = EditorService.methods[48]
     return this.makeUnaryRequest<
       UnsubscribeToSessionEventsRequest,
       UnsubscribeToSessionEventsResponse
@@ -3849,7 +4009,7 @@ export class EditorServiceClient
       value?: UnsubscribeToViewportEventsResponse
     ) => void
   ): grpc.ClientUnaryCall {
-    const method = EditorService.methods[47]
+    const method = EditorService.methods[49]
     return this.makeUnaryRequest<
       UnsubscribeToViewportEventsRequest,
       UnsubscribeToViewportEventsResponse

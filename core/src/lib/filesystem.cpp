@@ -20,6 +20,7 @@
 #include <filesystem>
 #include <fstream>
 #include <iostream>
+#include <limits>
 #include <random>
 #include <string>
 
@@ -164,6 +165,34 @@ int64_t omega_util_file_size(char const *path) {
     if (!path || !*path) { return -1; }
     try {
         return fs::is_regular_file(path) ? static_cast<int64_t>(fs::file_size(path)) : -1;
+    } catch (const fs::filesystem_error &) { return -1; }
+}
+
+int64_t omega_util_read_file_segment(char const *path, int64_t offset, void *buffer, int64_t byte_count) {
+    if (!path || !*path || !buffer || offset < 0 || byte_count < 0) { return -1; }
+    if (byte_count == 0) { return 0; }
+
+    const auto requested_offset = static_cast<uintmax_t>(offset);
+    const auto requested_length = static_cast<uintmax_t>(byte_count);
+    if (requested_offset > static_cast<uintmax_t>((std::numeric_limits<std::streamoff>::max)()) ||
+        requested_length > static_cast<uintmax_t>((std::numeric_limits<std::streamsize>::max)())) {
+        return -1;
+    }
+
+    try {
+        const fs::path file_path(path);
+        if (!fs::is_regular_file(file_path)) { return -1; }
+
+        const auto file_size = fs::file_size(file_path);
+        if (requested_offset > file_size || requested_length > file_size - requested_offset) { return -1; }
+
+        std::ifstream stream(file_path, std::ios::binary);
+        if (!stream.is_open()) { return -1; }
+        stream.seekg(static_cast<std::streamoff>(offset), std::ios::beg);
+        if (!stream) { return -1; }
+        stream.read(static_cast<char *>(buffer), static_cast<std::streamsize>(byte_count));
+        const auto actual = static_cast<int64_t>(stream.gcount());
+        return actual == byte_count ? actual : -1;
     } catch (const fs::filesystem_error &) { return -1; }
 }
 

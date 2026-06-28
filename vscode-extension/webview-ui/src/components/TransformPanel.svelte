@@ -3,6 +3,8 @@
   import { formatNumber, strings } from '../i18n'
   import {
     MAX_TRANSFORM_OPTIONS_LENGTH,
+    type WebviewSessionContentInfo,
+    type WebviewSessionContentSource,
     type WebviewTransformPlugin,
   } from '../protocol'
 
@@ -68,6 +70,7 @@
     busy?: boolean
     error?: string
     fileSize?: number
+    contentSources?: WebviewSessionContentInfo[]
     selectedOffset?: number
     selectionStart?: number
     selectionEnd?: number
@@ -79,6 +82,7 @@
     onRequestTransforms: () => void
     onApplyTransform: (
       pluginId: string,
+      contentSource: WebviewSessionContentSource,
       offset: number,
       length: number,
       optionsJson?: string
@@ -118,6 +122,7 @@
     busy = false,
     error = '',
     fileSize = 0,
+    contentSources = [],
     selectedOffset = -1,
     selectionStart = -1,
     selectionEnd = -1,
@@ -141,6 +146,7 @@
 
   let selectedPluginId = $state('')
   let selectedFileAction = $state<FileSpliceActionId | ''>('')
+  let selectedContentSource = $state<WebviewSessionContentSource>('computed')
   let dialogOpen = $state(false)
   let optionsJson = $state('')
   let rangeStartInput = $state('')
@@ -152,6 +158,24 @@
 
   const selectedPlugin = $derived(
     plugins.find((plugin) => plugin.id === selectedPluginId)
+  )
+  const normalizedContentSources = $derived(
+    normalizeContentSources(contentSources, fileSize)
+  )
+  const canUseInspectableContent = $derived(
+    !busy && normalizedContentSources.some((source) => source.available)
+  )
+  const selectedContentInfo = $derived(
+    normalizedContentSources.find(
+      (source) => source.content === selectedContentSource && source.available
+    ) ?? normalizedContentSources.find((source) => source.content === 'computed')
+  )
+  const selectedRangeByteLength = $derived(
+    selectedFileAction
+      ? fileSize
+      : isInspectOnlyTransform(selectedPlugin)
+        ? (selectedContentInfo?.byteLength ?? 0)
+        : fileSize
   )
   const groupedTransformPlugins = $derived(groupTransformPlugins(plugins))
   const selectedActionValue = $derived(
@@ -177,14 +201,15 @@
   const advertisedExamples = $derived(advertisedTransformExamples(selectedPlugin))
   const optionHelp = $derived(getTransformOptionHelp(selectedPlugin))
   const transformRange = $derived(
-    validateTransformRange(rangeStartInput, rangeEndInput)
+    validateTransformRange(rangeStartInput, rangeEndInput, selectedRangeByteLength)
   )
   const insertOffset = $derived(validateInsertOffset(rangeStartInput))
   const optionsValidationError = $derived(
     selectedPlugin ? validateTransformOptions(selectedPlugin, optionsJson.trim()) : ''
   )
   const canApplyTransform = $derived(
-    transformRange.error === '' &&
+    Boolean(selectedPlugin && canUseTransformPlugin(selectedPlugin)) &&
+      transformRange.error === '' &&
       transformRange.length > 0 &&
       optionsValidationError === '' &&
       !busy
@@ -216,11 +241,60 @@
     }
   })
 
+  $effect(() => {
+    if (
+      !normalizedContentSources.some(
+        (source) => source.content === selectedContentSource && source.available
+      )
+    ) {
+      selectedContentSource = 'computed'
+    }
+  })
+
   function requestTransforms(): void {
     if (pluginsLoaded || pluginsLoading) {
       return
     }
     onRequestTransforms()
+  }
+
+  function contentSourceFallbackLabel(
+    content: WebviewSessionContentSource
+  ): string {
+    switch (content) {
+      case 'original':
+        return strings.transform.contentOriginal
+      case 'latestCheckpoint':
+        return strings.transform.contentLatestCheckpoint
+      case 'computed':
+        return strings.transform.contentComputed
+    }
+  }
+
+  function normalizeContentSources(
+    sources: WebviewSessionContentInfo[],
+    computedByteLength: number
+  ): WebviewSessionContentInfo[] {
+    const byContent = new Map<WebviewSessionContentSource, WebviewSessionContentInfo>()
+    for (const source of sources) {
+      byContent.set(source.content, {
+        ...source,
+        label: source.label || contentSourceFallbackLabel(source.content),
+      })
+    }
+    byContent.set('computed', {
+      ...(byContent.get('computed') ?? {}),
+      content: 'computed',
+      available: true,
+      byteLength: computedByteLength,
+      label:
+        byContent.get('computed')?.label || strings.transform.contentComputed,
+    })
+    return [
+      byContent.get('computed'),
+      byContent.get('original'),
+      byContent.get('latestCheckpoint'),
+    ].filter((source): source is WebviewSessionContentInfo => Boolean(source))
   }
 
   function formatOffset(offset: number): string {
@@ -255,14 +329,15 @@
 
   function validateTransformRange(
     startInput: string,
-    endInput: string
+    endInput: string,
+    byteLength: number
   ): TransformRangeState {
     const emptyRange = { offset: -1, end: -1, length: 0 }
-    if (fileSize <= 0) {
+    if (byteLength <= 0) {
       return { ...emptyRange, error: strings.transform.noFileRange }
     }
 
-    const maxOffset = fileSize - 1
+    const maxOffset = byteLength - 1
     const start = parseOffsetInput(startInput)
     const end = parseOffsetInput(endInput)
     if (start === undefined || end === undefined) {
@@ -297,10 +372,13 @@
 
   function defaultRangeStart(): number {
     if (selectionStart >= 0) {
-      return selectionStart
+      return Math.min(selectionStart, Math.max(0, selectedRangeByteLength - 1))
     }
     if (selectedOffset >= 0) {
-      return Math.max(0, Math.min(selectedOffset, Math.max(0, fileSize - 1)))
+      return Math.max(
+        0,
+        Math.min(selectedOffset, Math.max(0, selectedRangeByteLength - 1))
+      )
     }
     return 0
   }
@@ -317,7 +395,8 @@
 
   function resetRangeInputs(): void {
     const start = defaultRangeStart()
-    const end = selectionEnd >= start ? selectionEnd : start
+    const maxEnd = Math.max(0, selectedRangeByteLength - 1)
+    const end = selectionEnd >= start ? Math.min(selectionEnd, maxEnd) : start
     rangeStartInput = formatOffsetInput(start)
     rangeEndInput = formatOffsetInput(end)
   }
@@ -329,10 +408,10 @@
   }
 
   function useMaxRangeEnd(): void {
-    if (fileSize <= 0) {
+    if (selectedRangeByteLength <= 0) {
       return
     }
-    rangeEndInput = formatOffsetInput(fileSize - 1)
+    rangeEndInput = formatOffsetInput(selectedRangeByteLength - 1)
   }
 
   function useMaxInsertOffset(): void {
@@ -371,6 +450,18 @@
 
   function isMutatingTransform(plugin: WebviewTransformPlugin): boolean {
     return plugin.operation !== 2
+  }
+
+  function isInspectOnlyTransform(
+    plugin: WebviewTransformPlugin | undefined
+  ): boolean {
+    return plugin?.operation === 2
+  }
+
+  function canUseTransformPlugin(plugin: WebviewTransformPlugin): boolean {
+    return isInspectOnlyTransform(plugin)
+      ? canUseInspectableContent
+      : canTransformSelection
   }
 
   function groupTransformPlugins(
@@ -1095,6 +1186,7 @@
     const plugin = plugins.find((entry) => entry.id === pluginId)
     selectedPluginId = pluginId
     selectedFileAction = ''
+    selectedContentSource = 'computed'
     if (!plugin) {
       return
     }
@@ -1168,6 +1260,21 @@
     }
   }
 
+  function handleContentSourceChange(event: Event): void {
+    const select = event.currentTarget
+    if (!(select instanceof HTMLSelectElement)) {
+      return
+    }
+    if (
+      select.value === 'original' ||
+      select.value === 'computed' ||
+      select.value === 'latestCheckpoint'
+    ) {
+      selectedContentSource = select.value
+      resetRangeInputs()
+    }
+  }
+
   function closeTransformDialog(): void {
     dialogOpen = false
     selectedPluginId = ''
@@ -1188,8 +1295,7 @@
     if (
       selectedFileAction ||
       !plugin ||
-      !canApplyTransform ||
-      !canTransformSelection
+      !canApplyTransform
     ) {
       return
     }
@@ -1207,6 +1313,7 @@
     }
     onApplyTransform(
       plugin.id,
+      isInspectOnlyTransform(plugin) ? selectedContentSource : 'computed',
       transformRange.offset,
       transformRange.length,
       trimmedOptions || undefined
@@ -1332,7 +1439,7 @@
             <option
               value={transformActionValue(plugin.id)}
               title={plugin.description || plugin.id}
-              disabled={!canTransformSelection}
+              disabled={!canUseTransformPlugin(plugin)}
             >
               {plugin.name || plugin.id}
             </option>
@@ -1396,6 +1503,24 @@
         {selectedPlugin.id} | {transformOperationLabel(selectedPlugin.operation)}
       </div>
       <p>{optionHelp.description}</p>
+
+      {#if isInspectOnlyTransform(selectedPlugin)}
+        <div class="help-section-title">{strings.transform.contentSource}</div>
+        <label class="transform-options-field">
+          <span>{strings.transform.contentSource}</span>
+          <select
+            value={selectedContentSource}
+            onchange={handleContentSourceChange}
+            onkeydown={handleRangeKeydown}
+          >
+            {#each normalizedContentSources as source (source.content)}
+              <option value={source.content} disabled={!source.available}>
+                {source.label}
+              </option>
+            {/each}
+          </select>
+        </label>
+      {/if}
 
       <div class="help-section-title">{strings.transform.selectedRange}</div>
       <div class="transform-range-grid">

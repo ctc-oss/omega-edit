@@ -496,11 +496,22 @@ This is the reported bug. Root causes are spread across all three layers.
     boundaries clearer.
     **Status: New.**
 
+45. **Plugin calculations/transforms need cooperative cancellation.**
+    Session destroy, checkpoint cleanup, or user cancellation should be able to ask outstanding
+    inspect calculations and transform plugin calls to stop politely. Today plugin execution has
+    progress callbacks and chunked readers, but no explicit cancellation token/callback in
+    `omega_transform_plugin_request_t`; forcing a native plugin to die mid-call would be unsafe
+    for third-party plugins that hold database connections, file handles, transactions, or other
+    external resources. Add a host-owned cancellation signal, have SDK helpers and built-in
+    streaming loops check it between chunks, and document that plugins should roll back/close
+    external resources before returning a cancelled status.
+    **Status: New.**
+
 ---
 
 ## M. API design / portability
 
-45. **Event interest masks use signed integers and `ALL_EVENTS (~0)`.**
+46. **Event interest masks use signed integers and `ALL_EVENTS (~0)`.**
     `core/src/include/omega_edit/fwd_defs.h:64-67` defines `ALL_EVENTS` as `~0`, while session
     and viewport interest APIs store masks in `int32_t`. The current event values fit below the
     sign bit, but the all-events sentinel relies on signed representation and differs from the
@@ -511,7 +522,7 @@ This is the reported bug. Root causes are spread across all three layers.
     compatibility. The TypeScript client derives the matching masks from generated proto enums,
     and event-mask tests now assert the explicit known-bit behavior instead of `~0`.
 
-46. **Edit APIs mix serial-returning and status-code-returning conventions.**
+47. **Edit APIs mix serial-returning and status-code-returning conventions.**
     Core mutators such as `omega_edit_insert`, `omega_edit_delete`, and `omega_edit_replace`
     return a positive change serial on success, `0` for no-op/rejected-without-error cases, and
     `-1` for invalid arguments. Batch/checkpoint helpers such as
@@ -520,28 +531,28 @@ This is the reported bug. Root causes are spread across all three layers.
     use one success predicate across editing APIs, and mistakes can invert success handling.
     **Status: New.**
 
-47. **C-string and byte edit APIs encode different length semantics.**
+48. **C-string and byte edit APIs encode different length semantics.**
     The C-string helpers infer a length with `strlen` when the length argument is zero, while the
     `_bytes` variants treat length zero as an explicit no-op. The current header documents the
     difference, but the overload-like API shape remains easy to misuse for buffers that may contain
     embedded NUL bytes or for callers expecting zero length to mean the same thing everywhere.
     **Status: New.**
 
-48. **Search/replace and viewport APIs rely on long positional argument lists and `int` booleans.**
+49. **Search/replace and viewport APIs rely on long positional argument lists and `int` booleans.**
     `omega_edit_replace_matches` / `omega_edit_replace_matches_bytes` take a long sequence of
     positional range, matching, ordering, output-count, and mode arguments, while viewport creation
     and modification use `int is_floating` rather than a boolean or options struct. These signatures
     are hard to read at call sites and make argument swaps or non-boolean values easy to miss.
     **Status: New.**
 
-49. **Viewport dirty state is encoded as a negative capacity sentinel.**
+50. **Viewport dirty state is encoded as a negative capacity sentinel.**
     `core/src/lib/viewport.cpp:117` negates `data_segment.capacity` to mark viewport data dirty,
     and `omega_viewport_get_capacity` hides that by returning `std::abs(...)`. This couples a
     state flag to a conceptually non-negative size field and requires every data-segment user to
     remember the convention. A separate dirty flag would be more type-safe and less surprising.
     **Status: New.**
 
-50. **Output path collision handling stops after 999 suffixes.**
+51. **Output path collision handling stops after 999 suffixes.**
     `core/src/lib/edit.cpp:189-206` and `core/src/lib/filesystem.cpp:313-321` try numeric suffixes
     only from 1 through 999 before returning `EEXIST`/`nullptr`. Busy output directories or stale
     temp/checkpoint files can exhaust that small namespace even though a timestamp, UUID, or wider
@@ -553,7 +564,7 @@ This is the reported bug. Root causes are spread across all three layers.
 
 ## N. Build / dependency hygiene
 
-51. **Deprecated or aging generator dependencies remain in the workspace.**
+52. **Deprecated or aging generator dependencies remain in the workspace.**
     Root `package.json` still carries `@types/glob` even though modern `glob` ships its own types,
     and `packages/client/package.json` still depends on `grpc-tools` for protobuf generation while
     the runtime stack has otherwise moved to `@grpc/grpc-js`/protobuf-ts. These are not immediate
