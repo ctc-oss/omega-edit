@@ -27,52 +27,52 @@ extern "C" {
 
 /** Enumeration of session events */
 typedef enum {
-    SESSION_EVT_UNDEFINED = 0,//< No session event interest is defined
-    SESSION_EVT_CREATE = 1,//< Occurs when the session has been successfully created
-    SESSION_EVT_EDIT = 1 << 1,//< Occurs when the session has successfully processed an edit
-    SESSION_EVT_UNDO = 1 << 2,//< Occurs when the session has successfully processed an undo
-    SESSION_EVT_CLEAR = 1 << 3,//< Occurs when the session has successfully processed a clear
-    SESSION_EVT_TRANSFORM = 1 << 4,//< Occurs when the session has successfully processed a transform
-    SESSION_EVT_CREATE_CHECKPOINT = 1 << 5,//< Occurs when the session has successfully created a checkpoint
-    SESSION_EVT_DESTROY_CHECKPOINT = 1 << 6,//< Occurs when the session has successfully destroyed a checkpoint
-    SESSION_EVT_SAVE = 1 << 7,//< Occurs when the session has been successfully saved to file
-    SESSION_EVT_CHANGES_PAUSED = 1 << 8,//< Occurs when session changes have been paused
-    SESSION_EVT_CHANGES_RESUMED = 1 << 9,//< Occurs when session changes have been resumed
-    SESSION_EVT_CREATE_VIEWPORT = 1 << 10,//< Occurs when the session has successfully created a viewport
-    SESSION_EVT_DESTROY_VIEWPORT = 1 << 11,//< Occurs when the session has successfully destroyed a viewport
+    SESSION_EVT_UNDEFINED = 0,                //< No session event interest is defined
+    SESSION_EVT_CREATE = 1,                   //< Occurs when the session has been successfully created
+    SESSION_EVT_EDIT = 1 << 1,                //< Occurs when the session has successfully processed an edit
+    SESSION_EVT_UNDO = 1 << 2,                //< Occurs when the session has successfully processed an undo
+    SESSION_EVT_CLEAR = 1 << 3,               //< Occurs when the session has successfully processed a clear
+    SESSION_EVT_TRANSFORM = 1 << 4,           //< Occurs when the session has successfully processed a transform
+    SESSION_EVT_CREATE_CHECKPOINT = 1 << 5,   //< Occurs when the session has successfully created a checkpoint
+    SESSION_EVT_DESTROY_CHECKPOINT = 1 << 6,  //< Occurs when the session has successfully destroyed a checkpoint
+    SESSION_EVT_SAVE = 1 << 7,                //< Occurs when the session has been successfully saved to file
+    SESSION_EVT_CHANGES_PAUSED = 1 << 8,      //< Occurs when session changes have been paused
+    SESSION_EVT_CHANGES_RESUMED = 1 << 9,     //< Occurs when session changes have been resumed
+    SESSION_EVT_CREATE_VIEWPORT = 1 << 10,    //< Occurs when the session has successfully created a viewport
+    SESSION_EVT_DESTROY_VIEWPORT = 1 << 11,   //< Occurs when the session has successfully destroyed a viewport
     SESSION_EVT_TRANSACTION_STARTED = 1 << 12,//< Occurs when a transaction is opened on the session
-    SESSION_EVT_TRANSACTION_ENDED = 1 << 13,//< Occurs when an open transaction is ended on the session
-    SESSION_EVT_TRANSFORM_STARTED = 1 << 14,//< Occurs when a transform starts
-    SESSION_EVT_TRANSFORM_PROGRESS = 1 << 15,//< Occurs when a running transform reports progress
+    SESSION_EVT_TRANSACTION_ENDED = 1 << 13,  //< Occurs when an open transaction is ended on the session
+    SESSION_EVT_TRANSFORM_STARTED = 1 << 14,  //< Occurs when a transform starts
+    SESSION_EVT_TRANSFORM_PROGRESS = 1 << 15, //< Occurs when a running transform reports progress
     SESSION_EVT_TRANSFORM_COMPLETED = 1 << 16,//< Occurs when a transform completes successfully
-    SESSION_EVT_TRANSFORM_FAILED = 1 << 17,//< Occurs when a transform fails
-    SESSION_EVT_RESTORE_CHECKPOINT = 1 << 18//< Occurs when a checkpoint snapshot is restored
+    SESSION_EVT_TRANSFORM_FAILED = 1 << 17,   //< Occurs when a transform fails
+    SESSION_EVT_RESTORE_CHECKPOINT = 1 << 18  //< Occurs when a checkpoint snapshot is restored
 } omega_session_event_t;
 
 /** Enumeration of viewport events */
 typedef enum {
-    VIEWPORT_EVT_UNDEFINED = 0,//< No viewport event interest is defined
-    VIEWPORT_EVT_CREATE = 1,//< Occurs when the viewport has been successfully created
-    VIEWPORT_EVT_EDIT = 1 << 1,//< Occurs when an edit affects the viewport
-    VIEWPORT_EVT_UNDO = 1 << 2,//< Occurs when an undo affects the viewport
-    VIEWPORT_EVT_CLEAR = 1 << 3,//< Occurs when a clear affects the viewport
+    VIEWPORT_EVT_UNDEFINED = 0,     //< No viewport event interest is defined
+    VIEWPORT_EVT_CREATE = 1,        //< Occurs when the viewport has been successfully created
+    VIEWPORT_EVT_EDIT = 1 << 1,     //< Occurs when an edit affects the viewport
+    VIEWPORT_EVT_UNDO = 1 << 2,     //< Occurs when an undo affects the viewport
+    VIEWPORT_EVT_CLEAR = 1 << 3,    //< Occurs when a clear affects the viewport
     VIEWPORT_EVT_TRANSFORM = 1 << 4,//< Occurs when a transform affects the viewport
-    VIEWPORT_EVT_MODIFY = 1 << 5,//< Occurs when the viewport itself has been modified
-    VIEWPORT_EVT_CHANGES = 1 << 6//< Occurs when the viewport has changes to its data from some other activity
+    VIEWPORT_EVT_MODIFY = 1 << 5,   //< Occurs when the viewport itself has been modified
+    VIEWPORT_EVT_CHANGES = 1 << 6   //< Occurs when the viewport has changes to its data from some other activity
 } omega_viewport_event_t;
 
 /** Subscribe to all session events */
 #define SESSION_EVENTS_ALL                                                                                             \
     (SESSION_EVT_CREATE | SESSION_EVT_EDIT | SESSION_EVT_UNDO | SESSION_EVT_CLEAR | SESSION_EVT_TRANSFORM |            \
      SESSION_EVT_CREATE_CHECKPOINT | SESSION_EVT_DESTROY_CHECKPOINT | SESSION_EVT_SAVE | SESSION_EVT_CHANGES_PAUSED |  \
-     SESSION_EVT_CHANGES_RESUMED | SESSION_EVT_CREATE_VIEWPORT | SESSION_EVT_DESTROY_VIEWPORT |                       \
+     SESSION_EVT_CHANGES_RESUMED | SESSION_EVT_CREATE_VIEWPORT | SESSION_EVT_DESTROY_VIEWPORT |                        \
      SESSION_EVT_TRANSACTION_STARTED | SESSION_EVT_TRANSACTION_ENDED | SESSION_EVT_TRANSFORM_STARTED |                 \
      SESSION_EVT_TRANSFORM_PROGRESS | SESSION_EVT_TRANSFORM_COMPLETED | SESSION_EVT_TRANSFORM_FAILED |                 \
      SESSION_EVT_RESTORE_CHECKPOINT)
 
 /** Subscribe to all viewport events */
-#define VIEWPORT_EVENTS_ALL                                                                                           \
-    (VIEWPORT_EVT_CREATE | VIEWPORT_EVT_EDIT | VIEWPORT_EVT_UNDO | VIEWPORT_EVT_CLEAR | VIEWPORT_EVT_TRANSFORM |      \
+#define VIEWPORT_EVENTS_ALL                                                                                            \
+    (VIEWPORT_EVT_CREATE | VIEWPORT_EVT_EDIT | VIEWPORT_EVT_UNDO | VIEWPORT_EVT_CLEAR | VIEWPORT_EVT_TRANSFORM |       \
      VIEWPORT_EVT_MODIFY | VIEWPORT_EVT_CHANGES)
 
 /** Subscribe to all known events */
@@ -83,8 +83,8 @@ typedef enum {
 
 /** Enumeration of IO flags */
 typedef enum {
-    IO_FLG_NONE = 0,//< No IO flags are defined
-    IO_FLG_OVERWRITE = 1,//< Overwrite original file, unless modified outside the session
+    IO_FLG_NONE = 0,               //< No IO flags are defined
+    IO_FLG_OVERWRITE = 1,          //< Overwrite original file, unless modified outside the session
     IO_FLG_FORCE_OVERWRITE = 1 << 1//< Force overwrite of original file, even if modified outside the session
 } omega_io_flags_t;
 
@@ -92,14 +92,10 @@ typedef enum {
 #define ORIGINAL_MODIFIED (-100)
 
 /** Mask types */
-typedef enum {
-    MASK_AND, MASK_OR, MASK_XOR
-} omega_mask_kind_t;
+typedef enum { MASK_AND, MASK_OR, MASK_XOR } omega_mask_kind_t;
 
 /** Byte order mark (BOM) types */
-typedef enum {
-    BOM_UNKNOWN = 0, BOM_NONE, BOM_UTF8, BOM_UTF16LE, BOM_UTF16BE, BOM_UTF32LE, BOM_UTF32BE
-} omega_bom_t;
+typedef enum { BOM_UNKNOWN = 0, BOM_NONE, BOM_UTF8, BOM_UTF16LE, BOM_UTF16BE, BOM_UTF32LE, BOM_UTF32BE } omega_bom_t;
 
 /** Opaque character counts */
 typedef struct omega_character_counts_struct omega_character_counts_t;

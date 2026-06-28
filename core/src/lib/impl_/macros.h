@@ -62,7 +62,7 @@
         LPSTR errMsgBuff = nullptr;                                                                                    \
         size_t size = FormatMessageA(                                                                                  \
                 FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS, NULL,     \
-                errCode, MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), (LPSTR) &errMsgBuff, 0, NULL);                     \
+                errCode, MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), (LPSTR) & errMsgBuff, 0, NULL);                    \
         CLOG << LOCATION << "Windows error code=" << errCode << ": " << errMsgBuff << std::endl;                       \
         LocalFree(errMsgBuff);                                                                                         \
     } while (0)
@@ -84,7 +84,7 @@
         LPSTR errMsgBuff = nullptr;                                                                                    \
         size_t size = FormatMessageA(                                                                                  \
                 FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS, NULL,     \
-                errCode, MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), (LPSTR) &errMsgBuff, 0, NULL);                     \
+                errCode, MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), (LPSTR) & errMsgBuff, 0, NULL);                    \
         fprintf(stderr, "%s@%d::%s: Windows error code=%lu: %s\n", SOURCE_FILENAME, __LINE__, __FUNCTION__, errCode,   \
                 errMsgBuff);                                                                                           \
         LocalFree(errMsgBuff);                                                                                         \

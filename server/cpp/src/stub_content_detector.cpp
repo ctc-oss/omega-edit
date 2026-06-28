@@ -18,18 +18,18 @@
 #include "content_detection.h"
 
 namespace omega_edit {
-namespace grpc_server {
+    namespace grpc_server {
 
-class StubContentTypeDetector final : public IContentTypeDetector {
-public:
-    std::string detect(const uint8_t *data, int64_t length, const std::string &file_path) override {
-        return detect_builtin_content_type(data, length, file_path);
-    }
-};
+        class StubContentTypeDetector final : public IContentTypeDetector {
+        public:
+            std::string detect(const uint8_t *data, int64_t length, const std::string &file_path) override {
+                return detect_builtin_content_type(data, length, file_path);
+            }
+        };
 
-std::unique_ptr<IContentTypeDetector> create_default_content_type_detector() {
-    return std::make_unique<StubContentTypeDetector>();
-}
+        std::unique_ptr<IContentTypeDetector> create_default_content_type_detector() {
+            return std::make_unique<StubContentTypeDetector>();
+        }
 
-} // namespace grpc_server
-} // namespace omega_edit
+    }// namespace grpc_server
+}// namespace omega_edit

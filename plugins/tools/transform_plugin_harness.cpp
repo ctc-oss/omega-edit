@@ -39,12 +39,11 @@ namespace {
     };
 
     void print_usage(const char *argv0) {
-        std::cerr
-                << "Usage:\n"
-                << "  " << argv0 << " --plugin-dir DIR --list\n"
-                << "  " << argv0 << " --plugin PATH --run ID --input TEXT [--expect-output TEXT]\n"
-                << "  " << argv0 << " --plugin-dir DIR --run ID --input-hex HEX [--offset N] [--length N]\n"
-                << "       [--options JSON] [--expect-output-hex HEX] [--expect-result TEXT]\n";
+        std::cerr << "Usage:\n"
+                  << "  " << argv0 << " --plugin-dir DIR --list\n"
+                  << "  " << argv0 << " --plugin PATH --run ID --input TEXT [--expect-output TEXT]\n"
+                  << "  " << argv0 << " --plugin-dir DIR --run ID --input-hex HEX [--offset N] [--length N]\n"
+                  << "       [--options JSON] [--expect-output-hex HEX] [--expect-result TEXT]\n";
     }
 
     auto parse_i64(const char *value, int64_t &out) -> bool {
@@ -73,9 +72,9 @@ namespace {
     }
 
     auto parse_hex(std::string hex, std::vector<omega_byte_t> &bytes) -> bool {
-        hex.erase(std::remove_if(hex.begin(), hex.end(), [](unsigned char ch) {
-            return std::isspace(ch) != 0 || ch == ':' || ch == '-';
-        }), hex.end());
+        hex.erase(std::remove_if(hex.begin(), hex.end(),
+                                 [](unsigned char ch) { return std::isspace(ch) != 0 || ch == ':' || ch == '-'; }),
+                  hex.end());
         if ((hex.size() % 2) != 0) { return false; }
         bytes.clear();
         bytes.reserve(hex.size() / 2);
@@ -194,13 +193,13 @@ namespace {
     }
 
     auto register_plugins(omega_transform_plugin_registry_t *registry_ptr, const options_t &options) -> bool {
-        for (const auto &path: options.plugin_paths) {
+        for (const auto &path : options.plugin_paths) {
             if (0 != omega_transform_plugin_registry_register_plugin(registry_ptr, path.c_str())) {
                 std::cerr << "failed to register plugin: " << path << "\n";
                 return false;
             }
         }
-        for (const auto &dir: options.plugin_dirs) {
+        for (const auto &dir : options.plugin_dirs) {
             if (0 > omega_transform_plugin_registry_register_directory(registry_ptr, dir.c_str())) {
                 std::cerr << "failed to register plugin directory: " << dir << "\n";
                 return false;
@@ -215,9 +214,8 @@ namespace {
         for (int64_t i = 0; i < count; ++i) {
             const auto *info = omega_transform_plugin_registry_get_info(registry_ptr, i);
             if (!info) { continue; }
-            std::cout << info->id << "\t" << (info->name ? info->name : "") << "\t"
-                      << operation_name(info->operation) << "\t" << info->flags << "\t"
-                      << (info->description ? info->description : "") << "\n";
+            std::cout << info->id << "\t" << (info->name ? info->name : "") << "\t" << operation_name(info->operation)
+                      << "\t" << info->flags << "\t" << (info->description ? info->description : "") << "\n";
         }
         return 0;
     }
@@ -233,9 +231,9 @@ namespace {
         }
 
         const auto &input = *options.input;
-        auto *session_ptr = omega_edit_create_session_from_bytes(
-                input.empty() ? nullptr : input.data(), static_cast<int64_t>(input.size()), nullptr, nullptr,
-                NO_EVENTS, nullptr);
+        auto *session_ptr = omega_edit_create_session_from_bytes(input.empty() ? nullptr : input.data(),
+                                                                 static_cast<int64_t>(input.size()), nullptr, nullptr,
+                                                                 NO_EVENTS, nullptr);
         if (!session_ptr) {
             std::cerr << "failed to create session\n";
             return 1;
@@ -277,16 +275,17 @@ namespace {
             const auto &expected = *options.expect_output;
             if (expected.size() != static_cast<size_t>(output_length) ||
                 std::memcmp(expected.data(), output_ptr, expected.size()) != 0) {
-                std::cerr << "output mismatch: expected " << to_hex(expected.data(), static_cast<int64_t>(expected.size()))
-                          << " got " << to_hex(output_ptr, output_length) << "\n";
+                std::cerr << "output mismatch: expected "
+                          << to_hex(expected.data(), static_cast<int64_t>(expected.size())) << " got "
+                          << to_hex(output_ptr, output_length) << "\n";
                 result = 1;
             }
         }
         if (options.expect_result.has_value()) {
             const std::string actual = response.result_length > 0 && response.result_bytes != nullptr
-                                       ? std::string(reinterpret_cast<const char *>(response.result_bytes),
-                                                     static_cast<size_t>(response.result_length))
-                                       : std::string();
+                                               ? std::string(reinterpret_cast<const char *>(response.result_bytes),
+                                                             static_cast<size_t>(response.result_length))
+                                               : std::string();
             if (*options.expect_result != actual) {
                 std::cerr << "result mismatch: expected '" << *options.expect_result << "' got '" << actual << "'\n";
                 result = 1;
@@ -298,7 +297,7 @@ namespace {
         omega_edit_destroy_session(session_ptr);
         return result;
     }
-}
+}// namespace
 
 int main(int argc, char **argv) {
     options_t options;

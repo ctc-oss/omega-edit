@@ -170,59 +170,59 @@ namespace {
             }
 
             switch (ch) {
-            case '[':
-                in_character_class = true;
-                remember_atom(false, false);
-                break;
-            case '(':
-                if (index + 1 < pattern_text.size() && pattern_text[index + 1] == '?') { return false; }
-                groups.push_back({});
-                forget_atom();
-                break;
-            case ')': {
-                if (groups.empty()) { return false; }
-                const auto group = groups.back();
-                groups.pop_back();
-                remember_atom(true, group.has_quantified_atom || group.has_alternation);
-                break;
-            }
-            case '|':
-                if (!groups.empty()) { groups.back().has_alternation = true; }
-                forget_atom();
-                break;
-            case '*':
-            case '+':
-            case '?':
-                if (!apply_quantifier()) { return false; }
-                break;
-            case '{': {
-                size_t end = index + 1;
-                bool has_digit = false;
-                bool valid_range_quantifier = true;
-                for (; end < pattern_text.size() && pattern_text[end] != '}'; ++end) {
-                    const auto range_ch = static_cast<unsigned char>(pattern_text[end]);
-                    if (std::isdigit(range_ch) != 0) {
-                        has_digit = true;
-                    } else if (range_ch != ',') {
-                        valid_range_quantifier = false;
-                        break;
-                    }
-                }
-                if (end < pattern_text.size() && valid_range_quantifier && has_digit) {
-                    if (!apply_quantifier()) { return false; }
-                    index = end;
-                } else {
+                case '[':
+                    in_character_class = true;
+                    remember_atom(false, false);
+                    break;
+                case '(':
+                    if (index + 1 < pattern_text.size() && pattern_text[index + 1] == '?') { return false; }
+                    groups.push_back({});
                     forget_atom();
+                    break;
+                case ')': {
+                    if (groups.empty()) { return false; }
+                    const auto group = groups.back();
+                    groups.pop_back();
+                    remember_atom(true, group.has_quantified_atom || group.has_alternation);
+                    break;
                 }
-                break;
-            }
-            case '^':
-            case '$':
-                forget_atom();
-                break;
-            default:
-                remember_atom(false, false);
-                break;
+                case '|':
+                    if (!groups.empty()) { groups.back().has_alternation = true; }
+                    forget_atom();
+                    break;
+                case '*':
+                case '+':
+                case '?':
+                    if (!apply_quantifier()) { return false; }
+                    break;
+                case '{': {
+                    size_t end = index + 1;
+                    bool has_digit = false;
+                    bool valid_range_quantifier = true;
+                    for (; end < pattern_text.size() && pattern_text[end] != '}'; ++end) {
+                        const auto range_ch = static_cast<unsigned char>(pattern_text[end]);
+                        if (std::isdigit(range_ch) != 0) {
+                            has_digit = true;
+                        } else if (range_ch != ',') {
+                            valid_range_quantifier = false;
+                            break;
+                        }
+                    }
+                    if (end < pattern_text.size() && valid_range_quantifier && has_digit) {
+                        if (!apply_quantifier()) { return false; }
+                        index = end;
+                    } else {
+                        forget_atom();
+                    }
+                    break;
+                }
+                case '^':
+                case '$':
+                    forget_atom();
+                    break;
+                default:
+                    remember_atom(false, false);
+                    break;
             }
         }
 

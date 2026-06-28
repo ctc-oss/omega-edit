@@ -31,14 +31,14 @@ OMEGA_TRANSFORM_PLUGIN_EXPORT int omega_transform_plugin_get_info(omega_transfor
 }
 
 OMEGA_TRANSFORM_PLUGIN_EXPORT int omega_transform_plugin_apply(const omega_transform_plugin_request_t *request_ptr,
-                                                              omega_transform_plugin_response_t *response_ptr) {
+                                                               omega_transform_plugin_response_t *response_ptr) {
     if (!request_ptr || !response_ptr || !request_ptr->alloc || request_ptr->input_length < 0) { return -1; }
     if (request_ptr->input_length > INT64_MAX / 2) { return -1; }
     const int64_t replacement_length = request_ptr->input_length * 2;
     response_ptr->replacement_length = replacement_length;
     if (replacement_length == 0) { return omega_transform_plugin_sdk_set_no_content_change(response_ptr); }
-    response_ptr->replacement_bytes = (omega_byte_t *) omega_transform_plugin_sdk_alloc(request_ptr,
-                                                                                       (size_t) replacement_length);
+    response_ptr->replacement_bytes =
+            (omega_byte_t *) omega_transform_plugin_sdk_alloc(request_ptr, (size_t) replacement_length);
     if (!response_ptr->replacement_bytes) { return -1; }
     memcpy(response_ptr->replacement_bytes, request_ptr->input_bytes, (size_t) request_ptr->input_length);
     memcpy(response_ptr->replacement_bytes + request_ptr->input_length, request_ptr->input_bytes,

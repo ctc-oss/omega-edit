@@ -12,16 +12,16 @@
  *                                                                                                                    *
  **********************************************************************************************************************/
 
+#include "../lib/impl_/data_def.hpp"
+#include "../lib/impl_/safe_math.hpp"
+#include "../lib/impl_/session_def.hpp"
+#include "../lib/impl_/viewport_def.hpp"
 #include "omega_edit.h"
 #include "omega_edit/character_counts.h"
 #include "omega_edit/check.h"
 #include "omega_edit/stl_string_adaptor.hpp"
 #include "omega_edit/transform.h"
 #include "omega_edit/utility.h"
-#include "../lib/impl_/safe_math.hpp"
-#include "../lib/impl_/data_def.hpp"
-#include "../lib/impl_/session_def.hpp"
-#include "../lib/impl_/viewport_def.hpp"
 
 #include <test_util.hpp>
 
@@ -396,7 +396,8 @@ TEST_CASE("UTF-8 Overwrite Preserves Surrounding Bytes", "[EdgeCase][Unicode]") 
     REQUIRE(session_ptr);
 
     // Insert "aéb" = 61 C3 A9 62 (4 bytes)
-    const std::string data = "a\xC3\xA9""b";
+    const std::string data = "a\xC3\xA9"
+                             "b";
     REQUIRE(0 < omega_edit_insert_string(session_ptr, 0, data));
     REQUIRE(4 == omega_session_get_computed_file_size(session_ptr));
 
@@ -655,8 +656,7 @@ TEST_CASE("Viewport Negative Offset Sentinels Do Not Overflow Range Helpers", "[
 TEST_CASE("Data Segment Allocation Rejects Unrepresentable Null Terminator Capacity", "[EdgeCase][Overflow]") {
     omega_data_t data{};
 
-    REQUIRE_THROWS_AS(omega_edit::internal::omega_data_create_(
-                              &data, (std::numeric_limits<int64_t>::max)()),
+    REQUIRE_THROWS_AS(omega_edit::internal::omega_data_create_(&data, (std::numeric_limits<int64_t>::max)()),
                       std::bad_array_new_length);
 }
 
@@ -724,8 +724,8 @@ TEST_CASE("Floating Viewport Adjustment Overflow Is Rejected Without Undefined A
     const auto session_ptr = omega_edit_create_session(nullptr, nullptr, nullptr, 0, nullptr);
     REQUIRE(session_ptr);
 
-    auto *viewport_ptr = omega_edit_create_viewport(
-            session_ptr, (std::numeric_limits<int64_t>::max)() - 1, 1, 1, nullptr, nullptr, NO_EVENTS);
+    auto *viewport_ptr = omega_edit_create_viewport(session_ptr, (std::numeric_limits<int64_t>::max)() - 1, 1, 1,
+                                                    nullptr, nullptr, NO_EVENTS);
     REQUIRE(viewport_ptr);
 
     REQUIRE(0 < omega_edit_insert_string(session_ptr, 0, "x"));
@@ -756,8 +756,7 @@ TEST_CASE("Transform Rejects Negative Offsets Before Range Arithmetic", "[EdgeCa
     REQUIRE(session_ptr);
     REQUIRE(0 < omega_edit_insert_string(session_ptr, 0, "abc"));
 
-    REQUIRE(-1 == omega_edit_apply_transform(session_ptr, to_upper, nullptr,
-                                             (std::numeric_limits<int64_t>::min)(), 0));
+    REQUIRE(-1 == omega_edit_apply_transform(session_ptr, to_upper, nullptr, (std::numeric_limits<int64_t>::min)(), 0));
     REQUIRE("abc" == omega_session_get_segment_string(session_ptr, 0, 3));
 
     omega_edit_destroy_session(session_ptr);
@@ -812,8 +811,7 @@ TEST_CASE("Save To Bytes Rejects Ranges Above Memory Buffer Limit", "[EdgeCase][
     REQUIRE(nullptr == bytes);
     REQUIRE(0 == length);
 
-    REQUIRE(-1 == omega_edit_save_segment_to_bytes(session_ptr, &bytes, &length, 0,
-                                                   OMEGA_MEMORY_BUFFER_LIMIT + 1));
+    REQUIRE(-1 == omega_edit_save_segment_to_bytes(session_ptr, &bytes, &length, 0, OMEGA_MEMORY_BUFFER_LIMIT + 1));
     REQUIRE(nullptr == bytes);
     REQUIRE(0 == length);
 
@@ -848,9 +846,10 @@ TEST_CASE("Viewport Notify Callback", "[EdgeCase][ViewportNotify]") {
     REQUIRE(viewport_notify_count == 2);
 
     // Pause viewport callbacks and try again
-    omega_session_pause_viewport_event_callbacks(const_cast<omega_session_t *>(omega_viewport_get_session(viewport_ptr)));
+    omega_session_pause_viewport_event_callbacks(
+            const_cast<omega_session_t *>(omega_viewport_get_session(viewport_ptr)));
     REQUIRE(0 == omega_viewport_notify(viewport_ptr, VIEWPORT_EVT_EDIT, nullptr));
-    REQUIRE(viewport_notify_count == 2); // Should not have incremented
+    REQUIRE(viewport_notify_count == 2);// Should not have incremented
 
     // Resume and notify again
     omega_session_resume_viewport_event_callbacks(
@@ -861,7 +860,7 @@ TEST_CASE("Viewport Notify Callback", "[EdgeCase][ViewportNotify]") {
     // Verify NO_EVENTS suppresses notifications
     REQUIRE(NO_EVENTS == omega_viewport_set_event_interest(viewport_ptr, NO_EVENTS));
     REQUIRE(0 == omega_viewport_notify(viewport_ptr, VIEWPORT_EVT_EDIT, nullptr));
-    REQUIRE(viewport_notify_count == 3); // Should not have incremented
+    REQUIRE(viewport_notify_count == 3);// Should not have incremented
 
     omega_edit_destroy_viewport(viewport_ptr);
     omega_edit_destroy_session(session_ptr);
@@ -910,13 +909,13 @@ TEST_CASE("Checkpoint Replace All Streams Non-Overlapping Matches", "[EdgeCase][
     const omega_byte_t replacement[] = {'b'};
     int64_t replacement_count = -1;
 
-    REQUIRE(0 == omega_edit_replace_all_bytes(session_ptr, pattern, static_cast<int64_t>(sizeof(pattern)),
-                                              replacement, static_cast<int64_t>(sizeof(replacement)), 0, 0, 0,
-                                              &replacement_count));
+    REQUIRE(0 == omega_edit_replace_all_bytes(session_ptr, pattern, static_cast<int64_t>(sizeof(pattern)), replacement,
+                                              static_cast<int64_t>(sizeof(replacement)), 0, 0, 0, &replacement_count));
     REQUIRE(2 == replacement_count);
     REQUIRE(1 == omega_session_get_num_checkpoints(session_ptr));
     REQUIRE(1 == omega_session_get_num_changes(session_ptr));
-    REQUIRE(omega_session_get_segment_string(session_ptr, 0, omega_session_get_computed_file_size(session_ptr)) == "bb");
+    REQUIRE(omega_session_get_segment_string(session_ptr, 0, omega_session_get_computed_file_size(session_ptr)) ==
+            "bb");
     REQUIRE(0 == omega_check_model(session_ptr));
 
     omega_edit_destroy_session(session_ptr);
@@ -971,8 +970,8 @@ TEST_CASE("Transactional Replace Matches Uses Non-Overlapping Semantics", "[Edge
     int64_t delete_count = -1;
     int64_t insert_count = -1;
     int64_t overwrite_count = -1;
-    REQUIRE(0 == omega_edit_replace_matches(session_ptr, "aa", 0, "b", 0, 0, 0, 0, 0, 0, 1, 0,
-                                            &replacement_count, &delete_count, &insert_count, &overwrite_count));
+    REQUIRE(0 == omega_edit_replace_matches(session_ptr, "aa", 0, "b", 0, 0, 0, 0, 0, 0, 1, 0, &replacement_count,
+                                            &delete_count, &insert_count, &overwrite_count));
     REQUIRE(3 == replacement_count);
     REQUIRE(3 == delete_count);
     REQUIRE(3 == insert_count);
@@ -1023,8 +1022,8 @@ TEST_CASE("Transactional Replace Matches OverwriteOnly FrontToBack Uses Zero Off
     int64_t overwrite_count = -1;
     // Overwrite 'aa' (2 bytes) with 'x' (1 byte), overwrite_only=1, front_to_back=1.
     // Without the fix, match[1] would be adjusted by -1 and land at offset 3 instead of 4.
-    REQUIRE(0 == omega_edit_replace_matches(session_ptr, "aa", 0, "x", 0, 0, 0, 0, 0, 0, 1, 1,
-                                            &replacement_count, &delete_count, &insert_count, &overwrite_count));
+    REQUIRE(0 == omega_edit_replace_matches(session_ptr, "aa", 0, "x", 0, 0, 0, 0, 0, 0, 1, 1, &replacement_count,
+                                            &delete_count, &insert_count, &overwrite_count));
     REQUIRE(2 == replacement_count);
     REQUIRE(0 == delete_count);
     REQUIRE(0 == insert_count);
@@ -1082,8 +1081,7 @@ TEST_CASE("Checkpointed Replace Streams Through A New Model", "[EdgeCase][Checkp
 // ─── Session with empty file ─────────────────────────────────────────────────
 
 TEST_CASE("Operations on Session from Empty File", "[EdgeCase][EmptyFile]") {
-    const auto session_ptr =
-            omega_edit_create_session(MAKE_PATH("empty_file.dat"), nullptr, nullptr, 0, nullptr);
+    const auto session_ptr = omega_edit_create_session(MAKE_PATH("empty_file.dat"), nullptr, nullptr, 0, nullptr);
     REQUIRE(session_ptr);
     REQUIRE(0 == omega_session_get_computed_file_size(session_ptr));
 
@@ -1123,8 +1121,8 @@ TEST_CASE("Rapid Insert Delete Undo Cycles", "[EdgeCase][StressIntegrity]") {
     for (int i = 0; i < 100; ++i) {
         REQUIRE(0 < omega_edit_insert_string(session_ptr, 0, "x"));
         REQUIRE(0 < omega_edit_delete(session_ptr, 0, 1));
-        REQUIRE(0 != omega_edit_undo_last_change(session_ptr)); // undo delete
-        REQUIRE(0 != omega_edit_undo_last_change(session_ptr)); // undo insert
+        REQUIRE(0 != omega_edit_undo_last_change(session_ptr));// undo delete
+        REQUIRE(0 != omega_edit_undo_last_change(session_ptr));// undo insert
     }
 
     REQUIRE(0 == omega_session_get_computed_file_size(session_ptr));

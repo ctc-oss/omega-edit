@@ -19,10 +19,10 @@
 #include "omega_edit/encode.h"
 #include "omega_edit/stl_string_adaptor.hpp"
 #include "omega_edit/utility.h"
-#include <test_util.hpp>
 #include <catch2/catch_test_macros.hpp>
 #include <catch2/matchers/catch_matchers_contains.hpp>
 #include <catch2/matchers/catch_matchers_string.hpp>
+#include <test_util.hpp>
 
 #include <chrono>
 #include <cstdio>

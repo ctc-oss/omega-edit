@@ -12,14 +12,11 @@
  *                                                                                                                    *
  **********************************************************************************************************************/
 
-#include <omega_edit/transform_plugin_sdk.h>
 #include <ctype.h>
+#include <omega_edit/transform_plugin_sdk.h>
 #include <string.h>
 
-typedef enum omega_case_change_mode_t {
-    OMEGA_CASE_CHANGE_UPPER,
-    OMEGA_CASE_CHANGE_LOWER
-} omega_case_change_mode_t;
+typedef enum omega_case_change_mode_t { OMEGA_CASE_CHANGE_UPPER, OMEGA_CASE_CHANGE_LOWER } omega_case_change_mode_t;
 
 static const char CASE_CHANGE_ARGS_SCHEMA[] =
         "{\"type\":\"object\",\"properties\":{\"case\":{\"type\":\"string\",\"title\":\"Case\","
@@ -101,12 +98,8 @@ static int case_change_parse_options(const char *options_json, omega_case_change
 }
 
 static omega_byte_t case_change_byte(omega_byte_t byte, omega_case_change_mode_t mode) {
-    if (mode == OMEGA_CASE_CHANGE_UPPER && byte >= 'a' && byte <= 'z') {
-        return (omega_byte_t) (byte - ('a' - 'A'));
-    }
-    if (mode == OMEGA_CASE_CHANGE_LOWER && byte >= 'A' && byte <= 'Z') {
-        return (omega_byte_t) (byte + ('a' - 'A'));
-    }
+    if (mode == OMEGA_CASE_CHANGE_UPPER && byte >= 'a' && byte <= 'z') { return (omega_byte_t) (byte - ('a' - 'A')); }
+    if (mode == OMEGA_CASE_CHANGE_LOWER && byte >= 'A' && byte <= 'Z') { return (omega_byte_t) (byte + ('a' - 'A')); }
     return byte;
 }
 
@@ -117,7 +110,8 @@ OMEGA_TRANSFORM_PLUGIN_EXPORT int omega_transform_plugin_get_info(omega_transfor
     info_ptr->description = "Convert ASCII alphabetic bytes to upper or lower case.";
     info_ptr->operation = OMEGA_TRANSFORM_PLUGIN_OPERATION_REPLACE;
     info_ptr->flags = OMEGA_TRANSFORM_PLUGIN_FLAG_ONE_FOR_ONE | OMEGA_TRANSFORM_PLUGIN_FLAG_BINARY_SAFE;
-    info_ptr->help = "Choose upper or lower case. Only ASCII alphabetic bytes are changed; all other bytes are preserved.";
+    info_ptr->help =
+            "Choose upper or lower case. Only ASCII alphabetic bytes are changed; all other bytes are preserved.";
     info_ptr->example = "{\"case\":\"lower\"}";
     info_ptr->default_args = "{\"case\":\"upper\"}";
     info_ptr->args_schema = CASE_CHANGE_ARGS_SCHEMA;
@@ -126,7 +120,7 @@ OMEGA_TRANSFORM_PLUGIN_EXPORT int omega_transform_plugin_get_info(omega_transfor
 }
 
 OMEGA_TRANSFORM_PLUGIN_EXPORT int omega_transform_plugin_apply(const omega_transform_plugin_request_t *request_ptr,
-                                                              omega_transform_plugin_response_t *response_ptr) {
+                                                               omega_transform_plugin_response_t *response_ptr) {
     if (!request_ptr || !response_ptr || !request_ptr->alloc || request_ptr->input_length < 0 ||
         (request_ptr->input_length > 0 && !request_ptr->input_bytes)) {
         return -1;

@@ -20,9 +20,7 @@
 
 namespace omega_edit::internal {
 
-enum class model_segment_kind_t {
-    SEGMENT_READ, SEGMENT_INSERT
-};
+    enum class model_segment_kind_t { SEGMENT_READ, SEGMENT_INSERT };
 
 }// namespace omega_edit::internal
 
@@ -36,21 +34,22 @@ struct omega_model_segment_struct {
 
 namespace omega_edit::internal {
 
-inline model_segment_kind_t omega_model_segment_get_kind_(const omega_model_segment_t *model_segment_ptr) {
-    return (0 == omega_change_get_serial(model_segment_ptr->change_ptr.get())) ? model_segment_kind_t::SEGMENT_READ
-                                                                               : model_segment_kind_t::SEGMENT_INSERT;
-}
-
-inline char omega_model_segment_kind_as_char_(const model_segment_kind_t segment_kind) {
-    switch (segment_kind) {
-        case model_segment_kind_t::SEGMENT_READ:
-            return 'R';
-        case model_segment_kind_t::SEGMENT_INSERT:
-            return 'I';
-        default:
-            return '?';
+    inline model_segment_kind_t omega_model_segment_get_kind_(const omega_model_segment_t *model_segment_ptr) {
+        return (0 == omega_change_get_serial(model_segment_ptr->change_ptr.get()))
+                       ? model_segment_kind_t::SEGMENT_READ
+                       : model_segment_kind_t::SEGMENT_INSERT;
     }
-}
+
+    inline char omega_model_segment_kind_as_char_(const model_segment_kind_t segment_kind) {
+        switch (segment_kind) {
+            case model_segment_kind_t::SEGMENT_READ:
+                return 'R';
+            case model_segment_kind_t::SEGMENT_INSERT:
+                return 'I';
+            default:
+                return '?';
+        }
+    }
 
 }// namespace omega_edit::internal
 

@@ -31,7 +31,7 @@ OMEGA_TRANSFORM_PLUGIN_EXPORT int omega_transform_plugin_get_info(omega_transfor
 }
 
 OMEGA_TRANSFORM_PLUGIN_EXPORT int omega_transform_plugin_apply(const omega_transform_plugin_request_t *request_ptr,
-                                                              omega_transform_plugin_response_t *response_ptr) {
+                                                               omega_transform_plugin_response_t *response_ptr) {
     omega_bitmask_options_t options;
     if (omega_bitmask_parse_options(request_ptr ? request_ptr->options_json : NULL, 0xFF, OMEGA_BITMASK_XOR,
                                     &options) != 0) {

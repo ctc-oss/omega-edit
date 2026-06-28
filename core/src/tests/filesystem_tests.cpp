@@ -40,7 +40,7 @@ using Catch::Matchers::Equals;
  * @param seconds Number of seconds to sleep.
  */
 static inline void omega_util_sleep_(const int seconds) { std::this_thread::sleep_for(std::chrono::seconds(seconds)); }
-#endif // OMEGA_BUILD_WINDOWS
+#endif// OMEGA_BUILD_WINDOWS
 
 TEST_CASE("File Compare", "[UtilTests]") {
     SECTION("Identity") {
@@ -54,8 +54,8 @@ TEST_CASE("File Compare", "[UtilTests]") {
 }
 
 TEST_CASE("File Copy", "[UtilTests]") {
-    struct stat src_stat{};
-    struct stat dst_stat{};
+    struct stat src_stat {};
+    struct stat dst_stat {};
     omega_util_remove_file(MAKE_PATH("test1.copy.dat"));
 #ifdef OMEGA_BUILD_WINDOWS
     // sleep for 1 second to ensure the file modification time is different,
@@ -74,7 +74,7 @@ TEST_CASE("File Copy", "[UtilTests]") {
     REQUIRE(0 == stat(MAKE_PATH("test1.copy.dat"), &dst_stat));
 
     // The mode includes the file type
-    const int dst_mode = 0100600; // S_IFREG | S_IRUSR  regular file with owner read-only
+    const int dst_mode = 0100600;// S_IFREG | S_IRUSR  regular file with owner read-only
     REQUIRE(dst_mode != src_stat.st_mode);
     REQUIRE(src_stat.st_mode == dst_stat.st_mode);
 
@@ -134,7 +134,7 @@ TEST_CASE("File Touch", "[UtilTests]") {
     expected = dont_exist;
     REQUIRE_THAT(omega_util_available_filename(dont_exist.c_str(), nullptr), Equals(expected));
     omega_util_touch(dont_exist.c_str(),
-                     0); // logs an error as expected because create is false and the file does not exist
+                     0);// logs an error as expected because create is false and the file does not exist
     REQUIRE(!omega_util_file_exists(dont_exist.c_str()));
 #ifdef OMEGA_BUILD_WINDOWS
     // sleep for 1 second to ensure the file modification time is different,
@@ -247,18 +247,18 @@ TEST_CASE("File Extension", "[UtilTests]") {
 
 TEST_CASE("Emoji Filename Handling", "[FilesystemTests]") {
     const char *emoji_filenames[] = {
-        "test_😀.dat",
-        "test_👍.dat",
-        "test_🔥.dat",
-        "test 💩.dat", // Space in filename as well
-        "test_🚀.dat",
-        "test_👨‍👩‍👧‍👦.dat" // Family emoji with zero-width joiners
+            "test_😀.dat",
+            "test_👍.dat",
+            "test_🔥.dat",
+            "test 💩.dat",// Space in filename as well
+            "test_🚀.dat",
+            "test_👨‍👩‍👧‍👦.dat"// Family emoji with zero-width joiners
     };
 
     char buffer[FILENAME_MAX];
 
     // Test filesystem operations with emoji filenames
-    for (const auto &emoji_filename: emoji_filenames) {
+    for (const auto &emoji_filename : emoji_filenames) {
         const char dir_sep = omega_util_directory_separator();
         std::string base_path = std::string(DATA_DIR.string().c_str()) + dir_sep;
         std::string full_path = base_path + emoji_filename;

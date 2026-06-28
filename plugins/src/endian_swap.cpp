@@ -18,14 +18,13 @@
 #include <vector>
 
 namespace {
-constexpr const char *ENDIAN_SWAP_ARGS_SCHEMA =
-        "{\"type\":\"object\",\"properties\":{\"width\":{\"type\":\"integer\",\"title\":\"Field width\","
-        "\"description\":\"Bytes per integer field.\",\"default\":2,\"enum\":[2,4,8]}},"
-        "\"additionalProperties\":false}";
+    constexpr const char *ENDIAN_SWAP_ARGS_SCHEMA =
+            "{\"type\":\"object\",\"properties\":{\"width\":{\"type\":\"integer\",\"title\":\"Field width\","
+            "\"description\":\"Bytes per integer field.\",\"default\":2,\"enum\":[2,4,8]}},"
+            "\"additionalProperties\":false}";
 }
 
-extern "C" OMEGA_TRANSFORM_PLUGIN_EXPORT int omega_transform_plugin_get_info(
-        omega_transform_plugin_info_t *info_ptr) {
+extern "C" OMEGA_TRANSFORM_PLUGIN_EXPORT int omega_transform_plugin_get_info(omega_transform_plugin_info_t *info_ptr) {
     if (!info_ptr) { return -1; }
     info_ptr->id = "omega.example.endian_swap";
     info_ptr->name = "Endian Swap";
@@ -42,19 +41,17 @@ extern "C" OMEGA_TRANSFORM_PLUGIN_EXPORT int omega_transform_plugin_get_info(
     return 0;
 }
 
-extern "C" OMEGA_TRANSFORM_PLUGIN_EXPORT int omega_transform_plugin_apply(
-        const omega_transform_plugin_request_t *request_ptr, omega_transform_plugin_response_t *response_ptr) {
+extern "C" OMEGA_TRANSFORM_PLUGIN_EXPORT int
+omega_transform_plugin_apply(const omega_transform_plugin_request_t *request_ptr,
+                             omega_transform_plugin_response_t *response_ptr) {
     std::vector<omega_byte_t> bytes;
-    if (!omega_edit::plugin::selected_bytes(request_ptr, bytes) || !response_ptr || !request_ptr->alloc) {
-        return -1;
-    }
+    if (!omega_edit::plugin::selected_bytes(request_ptr, bytes) || !response_ptr || !request_ptr->alloc) { return -1; }
     std::map<std::string, std::string> options;
     if (!omega_edit::plugin::parse_string_options(request_ptr->options_json, options)) { return -1; }
     const int64_t width = omega_edit::plugin::option_int_or(options, "width", 2);
     if (!(width == 2 || width == 4 || width == 8)) { return -1; }
     using difference_type = std::vector<omega_byte_t>::difference_type;
-    for (size_t offset = 0; offset + static_cast<size_t>(width) <= bytes.size();
-         offset += static_cast<size_t>(width)) {
+    for (size_t offset = 0; offset + static_cast<size_t>(width) <= bytes.size(); offset += static_cast<size_t>(width)) {
         std::reverse(bytes.begin() + static_cast<difference_type>(offset),
                      bytes.begin() + static_cast<difference_type>(offset + static_cast<size_t>(width)));
     }

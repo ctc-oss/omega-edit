@@ -43,10 +43,8 @@ int main(int argc, char **argv) {
     static const omega_byte_t comma_space[] = ", ";
 
     const omega_edit_script_op_t ops[] = {
-            {0, 0, OMEGA_EDIT_SCRIPT_INSERT, hello_world, 11},
-            {6, 5, OMEGA_EDIT_SCRIPT_REPLACE, omega_edit, 9},
-            {0, 5, OMEGA_EDIT_SCRIPT_OVERWRITE, hello_upper, 5},
-            {5, 1, OMEGA_EDIT_SCRIPT_DELETE, nullptr, 0},
+            {0, 0, OMEGA_EDIT_SCRIPT_INSERT, hello_world, 11},   {6, 5, OMEGA_EDIT_SCRIPT_REPLACE, omega_edit, 9},
+            {0, 5, OMEGA_EDIT_SCRIPT_OVERWRITE, hello_upper, 5}, {5, 1, OMEGA_EDIT_SCRIPT_DELETE, nullptr, 0},
             {5, 0, OMEGA_EDIT_SCRIPT_INSERT, comma_space, 2},
     };
 
@@ -60,8 +58,8 @@ int main(int argc, char **argv) {
         return -1;
     }
 
-    cout << omega_session_get_segment_string(
-                    session_ptr.get(), 0, omega_session_get_computed_file_size(session_ptr.get()))
+    cout << omega_session_get_segment_string(session_ptr.get(), 0,
+                                             omega_session_get_computed_file_size(session_ptr.get()))
          << endl;
     return 0;
 }

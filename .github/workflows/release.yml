@@ -56,6 +56,14 @@ jobs:
           checkName: "TypeScript code passes Biome checks"
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
 
+      - name: Check C/C++ format
+        uses: fountainhead/action-wait-for-check@v1.2.0
+        id: cpp-format
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          checkName: "C/C++ source passes clang-format checks"
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+
       - name: Check VS Code extension - Ubuntu 1.110.0
         uses: fountainhead/action-wait-for-check@v1.2.0
         id: vscode-ubuntu-floor
@@ -132,6 +140,7 @@ jobs:
         if: |
           steps.rat-check.outcome != 'success' ||
           steps.ts-format.outcome != 'success' ||
+          steps.cpp-format.outcome != 'success' ||
           steps.vscode-ubuntu-floor.outcome != 'success' ||
           steps.vscode-ubuntu-stable.outcome != 'success' ||
           steps.vscode-windows-floor.outcome != 'success' ||
@@ -144,6 +153,7 @@ jobs:
         run: |
           echo "Rat Check Status: ${{ steps.rat-check.outcome }}"
           echo "Typescript Format Status: ${{ steps.ts-format.outcome }}"
+          echo "C/C++ Format Status: ${{ steps.cpp-format.outcome }}"
           echo "VS Code Ubuntu 1.110.0 Status: ${{ steps.vscode-ubuntu-floor.outcome }}"
           echo "VS Code Ubuntu stable Status: ${{ steps.vscode-ubuntu-stable.outcome }}"
           echo "VS Code Windows 1.110.0 Status: ${{ steps.vscode-windows-floor.outcome }}"

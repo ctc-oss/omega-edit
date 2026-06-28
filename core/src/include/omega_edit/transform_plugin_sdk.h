@@ -37,8 +37,8 @@ static inline void *omega_transform_plugin_sdk_alloc(const omega_transform_plugi
     return request_ptr->alloc(size == 0 ? 1 : size, request_ptr->allocator_user_data_ptr);
 }
 
-static inline omega_byte_t *omega_transform_plugin_sdk_copy_bytes(
-        const omega_transform_plugin_request_t *request_ptr, const omega_byte_t *bytes, int64_t length) {
+static inline omega_byte_t *omega_transform_plugin_sdk_copy_bytes(const omega_transform_plugin_request_t *request_ptr,
+                                                                  const omega_byte_t *bytes, int64_t length) {
     if (!request_ptr || length < 0 || (length > 0 && !bytes)) { return NULL; }
     omega_byte_t *copy = (omega_byte_t *) omega_transform_plugin_sdk_alloc(request_ptr, (size_t) length);
     if (!copy) { return NULL; }
@@ -47,7 +47,7 @@ static inline omega_byte_t *omega_transform_plugin_sdk_copy_bytes(
 }
 
 static inline char *omega_transform_plugin_sdk_copy_cstring(const omega_transform_plugin_request_t *request_ptr,
-                                                           const char *value) {
+                                                            const char *value) {
     if (!value) { return NULL; }
     const size_t length = strlen(value);
     char *copy = (char *) omega_transform_plugin_sdk_alloc(request_ptr, length + 1);
@@ -56,15 +56,15 @@ static inline char *omega_transform_plugin_sdk_copy_cstring(const omega_transfor
     return copy;
 }
 
-static inline int omega_transform_plugin_sdk_report_progress(
-        const omega_transform_plugin_request_t *request_ptr, const omega_transform_plugin_progress_t *progress_ptr) {
+static inline int omega_transform_plugin_sdk_report_progress(const omega_transform_plugin_request_t *request_ptr,
+                                                             const omega_transform_plugin_progress_t *progress_ptr) {
     if (!request_ptr || !request_ptr->progress || !progress_ptr) { return 0; }
     return request_ptr->progress(progress_ptr, request_ptr->progress_user_data_ptr);
 }
 
-static inline int omega_transform_plugin_sdk_report_byte_progress(
-        const omega_transform_plugin_request_t *request_ptr, int64_t processed_bytes, int64_t total_bytes,
-        const char *phase, const char *message) {
+static inline int omega_transform_plugin_sdk_report_byte_progress(const omega_transform_plugin_request_t *request_ptr,
+                                                                  int64_t processed_bytes, int64_t total_bytes,
+                                                                  const char *phase, const char *message) {
     if (processed_bytes < 0 || total_bytes < 0) { return -1; }
     omega_transform_plugin_progress_t progress;
     memset(&progress, 0, sizeof(progress));
@@ -73,14 +73,13 @@ static inline int omega_transform_plugin_sdk_report_byte_progress(
     progress.percent = total_bytes > 0 ? ((double) processed_bytes / (double) total_bytes) * 100.0 : 100.0;
     progress.phase = phase;
     progress.message = message;
-    progress.flags = OMEGA_TRANSFORM_PROGRESS_HAS_PROCESSED_BYTES |
-                     OMEGA_TRANSFORM_PROGRESS_HAS_TOTAL_BYTES |
+    progress.flags = OMEGA_TRANSFORM_PROGRESS_HAS_PROCESSED_BYTES | OMEGA_TRANSFORM_PROGRESS_HAS_TOTAL_BYTES |
                      OMEGA_TRANSFORM_PROGRESS_HAS_PERCENT;
     return omega_transform_plugin_sdk_report_progress(request_ptr, &progress);
 }
 
-static inline int omega_transform_plugin_sdk_report_phase(
-        const omega_transform_plugin_request_t *request_ptr, const char *phase, const char *message) {
+static inline int omega_transform_plugin_sdk_report_phase(const omega_transform_plugin_request_t *request_ptr,
+                                                          const char *phase, const char *message) {
     omega_transform_plugin_progress_t progress;
     memset(&progress, 0, sizeof(progress));
     progress.phase = phase;
@@ -97,9 +96,9 @@ static inline int omega_transform_plugin_sdk_set_no_content_change(omega_transfo
     return 0;
 }
 
-static inline int omega_transform_plugin_sdk_set_replacement(
-        const omega_transform_plugin_request_t *request_ptr, omega_transform_plugin_response_t *response_ptr,
-        const omega_byte_t *bytes, int64_t length) {
+static inline int omega_transform_plugin_sdk_set_replacement(const omega_transform_plugin_request_t *request_ptr,
+                                                             omega_transform_plugin_response_t *response_ptr,
+                                                             const omega_byte_t *bytes, int64_t length) {
     if (!request_ptr || !response_ptr || length < 0 || (length > 0 && !bytes)) { return -1; }
     if (length == 0 && request_ptr->input_length == 0) {
         return omega_transform_plugin_sdk_set_no_content_change(response_ptr);
@@ -110,9 +109,10 @@ static inline int omega_transform_plugin_sdk_set_replacement(
     return response_ptr->replacement_bytes ? 0 : -1;
 }
 
-static inline int omega_transform_plugin_sdk_set_text_result(
-        const omega_transform_plugin_request_t *request_ptr, omega_transform_plugin_response_t *response_ptr,
-        const char *label, const char *value, const char *mime_type) {
+static inline int omega_transform_plugin_sdk_set_text_result(const omega_transform_plugin_request_t *request_ptr,
+                                                             omega_transform_plugin_response_t *response_ptr,
+                                                             const char *label, const char *value,
+                                                             const char *mime_type) {
     if (!request_ptr || !response_ptr || !value) { return -1; }
     const size_t value_length = strlen(value);
     response_ptr->result_bytes = (omega_byte_t *) omega_transform_plugin_sdk_alloc(request_ptr, value_length);

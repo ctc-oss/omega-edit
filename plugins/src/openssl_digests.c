@@ -12,8 +12,8 @@
  *                                                                                                                    *
  **********************************************************************************************************************/
 
-#include <omega_edit/transform_plugin_sdk.h>
 #include <ctype.h>
+#include <omega_edit/transform_plugin_sdk.h>
 #include <openssl/evp.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -177,7 +177,7 @@ OMEGA_TRANSFORM_PLUGIN_EXPORT int omega_transform_plugin_get_info(omega_transfor
 }
 
 OMEGA_TRANSFORM_PLUGIN_EXPORT int omega_transform_plugin_apply(const omega_transform_plugin_request_t *request_ptr,
-                                                              omega_transform_plugin_response_t *response_ptr) {
+                                                               omega_transform_plugin_response_t *response_ptr) {
     if (!request_ptr || !response_ptr || !request_ptr->alloc || request_ptr->input_length < 0 ||
         request_ptr->session_length < 0) {
         return -1;

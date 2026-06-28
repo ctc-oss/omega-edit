@@ -18,10 +18,10 @@
 
 #include <test_util.hpp>
 
+#include <algorithm>
 #include <catch2/catch_test_macros.hpp>
 #include <catch2/matchers/catch_matchers_contains.hpp>
 #include <catch2/matchers/catch_matchers_string.hpp>
-#include <algorithm>
 #include <vector>
 
 using Catch::Matchers::Contains;
@@ -187,8 +187,7 @@ TEST_CASE("Restore Last Checkpoint Keeps Snapshot And Discards Later Edits",
 TEST_CASE("Restore Last Transform Checkpoint Preserves Transform Change",
           "[SessionCheckpointTests][RestoreCheckpoint]") {
     const auto input = reinterpret_cast<const omega_byte_t *>("abcXYZ");
-    const auto session_ptr =
-            omega_edit_create_session_from_bytes(input, 6, nullptr, nullptr, NO_EVENTS, nullptr);
+    const auto session_ptr = omega_edit_create_session_from_bytes(input, 6, nullptr, nullptr, NO_EVENTS, nullptr);
     REQUIRE(session_ptr);
 
     REQUIRE(0 == omega_edit_apply_transform(session_ptr, to_lower, nullptr, 0, 0));
