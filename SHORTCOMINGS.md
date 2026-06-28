@@ -382,7 +382,11 @@ This is the reported bug. Root causes are spread across all three layers.
     shared maximum length, NUL-character, printable/opaque-ID, or log-safe policy. Generated IDs
     are bounded, but caller-supplied IDs and paths can still be excessively large or log-hostile,
     and tightening creation-time validation would contain that shape for all later operations.
-    **Status: New.**
+    **Status: Fixed.** Desired session and viewport IDs are now bounded caller tokens
+    (1-128 bytes; letters, digits, `_`, `.`, and `-` only), while `file_path` and
+    `checkpoint_directory` reject overlong, NUL-containing, or control-character inputs before
+    filesystem/core API use. Client integration coverage now asserts accepted safe IDs and
+    rejected unsafe IDs/path arguments.
 
 35. **Default server host/port constants are duplicated across packages.**
     `packages/client/src/server.ts:47-48`, `packages/client/src/protobuf_ts/client.ts:36-37`,
@@ -477,9 +481,11 @@ This is the reported bug. Root causes are spread across all three layers.
     cap, compiled-regex cache, or timeout/backtracking guard. A plugin schema with a pathological
     pattern can make option validation unexpectedly expensive, and repeated transforms pay the
     regex compilation cost every time.
-    **Status: Partially fixed.** Schema regex validation now rejects oversized patterns and caches
-    compiled regex objects across validation calls; interruptible evaluation/backtracking limits
-    remain open.
+    **Status: Fixed.** Schema regex validation now rejects oversized patterns, caches compiled
+    regex objects across validation calls, and applies a conservative safety gate before
+    compilation/evaluation that rejects backreferences, lookaround-style groups, and quantified
+    groups containing quantifiers or alternation. Native coverage asserts safe validation still
+    works and the risky pattern families are rejected.
 
 44. **File-backed plugin allocation tracking is process-global.**
     Large plugin allocations are tracked through the process-wide
@@ -500,7 +506,10 @@ This is the reported bug. Root causes are spread across all three layers.
     sign bit, but the all-events sentinel relies on signed representation and differs from the
     TypeScript `ALL_EVENTS = ~NO_EVENTS` expression's 32-bit JavaScript behavior. A `uint32_t`
     mask or explicit all-events constant would make the ABI clearer.
-    **Status: New.**
+    **Status: Fixed.** The C API now exposes explicit `SESSION_EVENTS_ALL` and
+    `VIEWPORT_EVENTS_ALL` masks, with `ALL_EVENTS` preserved as their positive union for source
+    compatibility. The TypeScript client derives the matching masks from generated proto enums,
+    and event-mask tests now assert the explicit known-bit behavior instead of `~0`.
 
 46. **Edit APIs mix serial-returning and status-code-returning conventions.**
     Core mutators such as `omega_edit_insert`, `omega_edit_delete`, and `omega_edit_replace`

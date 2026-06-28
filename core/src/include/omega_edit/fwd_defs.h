@@ -61,8 +61,22 @@ typedef enum {
     VIEWPORT_EVT_CHANGES = 1 << 6//< Occurs when the viewport has changes to its data from some other activity
 } omega_viewport_event_t;
 
-/** Subscribe to all events */
-#define ALL_EVENTS (~0)
+/** Subscribe to all session events */
+#define SESSION_EVENTS_ALL                                                                                             \
+    (SESSION_EVT_CREATE | SESSION_EVT_EDIT | SESSION_EVT_UNDO | SESSION_EVT_CLEAR | SESSION_EVT_TRANSFORM |            \
+     SESSION_EVT_CREATE_CHECKPOINT | SESSION_EVT_DESTROY_CHECKPOINT | SESSION_EVT_SAVE | SESSION_EVT_CHANGES_PAUSED |  \
+     SESSION_EVT_CHANGES_RESUMED | SESSION_EVT_CREATE_VIEWPORT | SESSION_EVT_DESTROY_VIEWPORT |                       \
+     SESSION_EVT_TRANSACTION_STARTED | SESSION_EVT_TRANSACTION_ENDED | SESSION_EVT_TRANSFORM_STARTED |                 \
+     SESSION_EVT_TRANSFORM_PROGRESS | SESSION_EVT_TRANSFORM_COMPLETED | SESSION_EVT_TRANSFORM_FAILED |                 \
+     SESSION_EVT_RESTORE_CHECKPOINT)
+
+/** Subscribe to all viewport events */
+#define VIEWPORT_EVENTS_ALL                                                                                           \
+    (VIEWPORT_EVT_CREATE | VIEWPORT_EVT_EDIT | VIEWPORT_EVT_UNDO | VIEWPORT_EVT_CLEAR | VIEWPORT_EVT_TRANSFORM |      \
+     VIEWPORT_EVT_MODIFY | VIEWPORT_EVT_CHANGES)
+
+/** Subscribe to all known events */
+#define ALL_EVENTS (SESSION_EVENTS_ALL | VIEWPORT_EVENTS_ALL)
 
 /** Subscribe to no events */
 #define NO_EVENTS (0)

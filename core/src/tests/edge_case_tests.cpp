@@ -16,6 +16,7 @@
 #include "omega_edit/character_counts.h"
 #include "omega_edit/check.h"
 #include "omega_edit/stl_string_adaptor.hpp"
+#include "omega_edit/transform.h"
 #include "omega_edit/utility.h"
 #include "../lib/impl_/safe_math.hpp"
 #include "../lib/impl_/data_def.hpp"
@@ -121,6 +122,43 @@ TEST_CASE("Byte APIs preserve embedded nulls with explicit lengths", "[EdgeCase]
     omega_search_destroy_context(search_context);
 
     omega_edit_destroy_session(session_ptr);
+}
+
+TEST_CASE("Transform schema regex validation rejects risky patterns", "[EdgeCase][TransformSchema]") {
+    const char *safe_schema = R"json({
+        "type":"object",
+        "properties":{"name":{"type":"string","pattern":"^[A-Za-z0-9._-]{1,32}$"}},
+        "required":["name"],
+        "additionalProperties":false
+    })json";
+    REQUIRE(0 == omega_transform_plugin_options_match_args_schema(R"json({"name":"abc-123_ok"})json", safe_schema));
+    REQUIRE(-1 == omega_transform_plugin_options_match_args_schema(R"json({"name":"bad space"})json", safe_schema));
+
+    const char *nested_quantifier_schema = R"json({
+        "type":"object",
+        "properties":{"name":{"type":"string","pattern":"^(a+)+$"}},
+        "required":["name"],
+        "additionalProperties":false
+    })json";
+    REQUIRE(-1 ==
+            omega_transform_plugin_options_match_args_schema(R"json({"name":"aaaa"})json", nested_quantifier_schema));
+
+    const char *alternating_group_schema = R"json({
+        "type":"object",
+        "properties":{"name":{"type":"string","pattern":"^(a|aa)+$"}},
+        "required":["name"],
+        "additionalProperties":false
+    })json";
+    REQUIRE(-1 ==
+            omega_transform_plugin_options_match_args_schema(R"json({"name":"aaaa"})json", alternating_group_schema));
+
+    const char *backreference_schema = R"json({
+        "type":"object",
+        "properties":{"name":{"type":"string","pattern":"^(a)\1$"}},
+        "required":["name"],
+        "additionalProperties":false
+    })json";
+    REQUIRE(-1 == omega_transform_plugin_options_match_args_schema(R"json({"name":"aa"})json", backreference_schema));
 }
 
 TEST_CASE("Byte APIs treat zero-length inputs as empty and keep string helpers convenient",

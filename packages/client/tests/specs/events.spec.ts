@@ -18,17 +18,36 @@
  */
 
 import { expect } from './common.js'
-import { ALL_EVENTS, NO_EVENTS, ViewportEventKind } from '@omega-edit/client'
+import {
+  ALL_EVENTS,
+  NO_EVENTS,
+  SESSION_EVENTS_ALL,
+  SessionEventKind,
+  VIEWPORT_EVENTS_ALL,
+  ViewportEventKind,
+} from '@omega-edit/client'
+
+function combineEventMask(events: Record<string, number>): number {
+  return Object.values(events).reduce((mask, event) => mask | event, 0)
+}
 
 describe('Events', () => {
   it('can be bitwise manipulated and tested', () => {
+    const expectedSessionEvents = combineEventMask(SessionEventKind)
+    const expectedViewportEvents = combineEventMask(ViewportEventKind)
+
     expect(NO_EVENTS).to.equal(0)
-    expect(~0).to.equal(-1)
-    expect(ALL_EVENTS).to.equal(-1)
-    expect(ALL_EVENTS).to.equal(~NO_EVENTS)
-    expect(NO_EVENTS).to.equal(~ALL_EVENTS)
-    expect(ALL_EVENTS & ~ViewportEventKind.EDIT).to.equal(-3)
+    expect(SESSION_EVENTS_ALL).to.equal(expectedSessionEvents)
+    expect(VIEWPORT_EVENTS_ALL).to.equal(expectedViewportEvents)
+    expect(ALL_EVENTS).to.equal(expectedSessionEvents | expectedViewportEvents)
+    expect(ALL_EVENTS).to.be.greaterThan(NO_EVENTS)
+    expect(ALL_EVENTS & SessionEventKind.RESTORE_CHECKPOINT).to.equal(
+      SessionEventKind.RESTORE_CHECKPOINT
+    )
     expect(ALL_EVENTS & ViewportEventKind.EDIT).to.equal(ViewportEventKind.EDIT)
+    expect(ALL_EVENTS & ~ViewportEventKind.EDIT).to.equal(
+      ALL_EVENTS - ViewportEventKind.EDIT
+    )
     expect(
       ALL_EVENTS & ~ViewportEventKind.EDIT & ViewportEventKind.EDIT
     ).to.equal(NO_EVENTS)

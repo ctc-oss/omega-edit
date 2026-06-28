@@ -60,6 +60,26 @@ constexpr char kManagedSessionPrefix[] = "session-";
 constexpr char kSessionIdPrefix[] = "sess_";
 constexpr char kViewportIdPrefix[] = "vp_";
 constexpr char kSubscriptionIdPrefix[] = "sub_";
+constexpr size_t kMaxCallerIdBytes = 128;
+
+bool is_valid_external_id_char(unsigned char ch) {
+    return std::isalnum(ch) != 0 || ch == '_' || ch == '-' || ch == '.';
+}
+
+bool is_valid_external_id(const std::string &id) {
+    return !id.empty() && id.size() <= kMaxCallerIdBytes &&
+           std::all_of(id.begin(), id.end(),
+                       [](unsigned char ch) { return is_valid_external_id_char(ch); });
+}
+
+bool is_control_or_nul_byte(unsigned char ch) {
+    return ch == '\0' || ch < 0x20U || ch == 0x7FU;
+}
+
+bool is_valid_external_path(const std::string &path) {
+    return path.size() < FILENAME_MAX &&
+           std::none_of(path.begin(), path.end(), [](unsigned char ch) { return is_control_or_nul_byte(ch); });
+}
 
 int get_current_process_id() {
 #ifdef _WIN32
@@ -478,6 +498,15 @@ std::string SessionManager::create_session(const std::string &file_path, const s
 
     if (error_out) { *error_out = SessionCreateError::SUCCESS; }
 
+    if (!file_path.empty() && !is_valid_external_path(file_path)) {
+        if (error_out) { *error_out = SessionCreateError::INVALID_FILE_PATH; }
+        return "";
+    }
+    if (!checkpoint_directory.empty() && !is_valid_external_path(checkpoint_directory)) {
+        if (error_out) { *error_out = SessionCreateError::INVALID_CHECKPOINT_DIRECTORY; }
+        return "";
+    }
+
     const bool has_file_backing = !file_path.empty() && initial_data == nullptr;
     std::string canonical_file_path;
     if (has_file_backing && !normalize_existing_file_path(file_path, canonical_file_path)) {
@@ -516,10 +545,9 @@ std::string SessionManager::create_session(const std::string &file_path, const s
     // Session ID priority: desired_id > generated opaque session ID
     std::string session_id;
     if (!desired_id.empty()) {
-        // The ':' character is reserved as the session:viewport FQID separator
-        if (desired_id.find(':') != std::string::npos) {
+        if (!is_valid_external_id(desired_id)) {
             if (error_out) { *error_out = SessionCreateError::INVALID_ID; }
-            return ""; // Invalid: contains reserved character
+            return "";
         }
         session_id = desired_id;
         if (sessions_.count(session_id) != 0) {
@@ -798,10 +826,9 @@ std::string SessionManager::create_viewport(const std::string &session_id, int64
         return "";
     }
 
-    // The ':' character is reserved as the session:viewport FQID separator
-    if (!desired_viewport_id.empty() && desired_viewport_id.find(':') != std::string::npos) {
+    if (!desired_viewport_id.empty() && !is_valid_external_id(desired_viewport_id)) {
         if (error_out) *error_out = ViewportCreateError::INVALID_VIEWPORT_ID;
-        return ""; // Invalid: contains reserved character
+        return "";
     }
 
     auto &session_info = sit->second;

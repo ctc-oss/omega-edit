@@ -24,6 +24,7 @@
 #include <atomic>
 #include <chrono>
 #include <cctype>
+#include <cstdio>
 #include <cstring>
 #include <filesystem>
 #include <fstream>
@@ -79,6 +80,20 @@ static int get_cpu_count() {
 static constexpr char SESSION_FINGERPRINT_DIGEST_PLUGIN_ID[] = "omega.example.openssl_digests";
 static constexpr char DEFAULT_SESSION_FINGERPRINT_ALGORITHM[] = "sha256";
 static constexpr int64_t SESSION_FINGERPRINT_CHUNK_SIZE = 1024 * 1024;
+
+static bool path_argument_is_safe_for_core(const std::string &path) {
+    return path.size() < FILENAME_MAX &&
+           std::none_of(path.begin(), path.end(), [](unsigned char ch) {
+               return ch == '\0' || ch < 0x20U || ch == 0x7FU;
+           });
+}
+
+static grpc::Status validate_path_argument(const std::string &path, const char *field_name) {
+    if (path.empty() || path_argument_is_safe_for_core(path)) { return grpc::Status::OK; }
+    return grpc::Status(grpc::StatusCode::INVALID_ARGUMENT,
+                        std::string(field_name) +
+                                " must be shorter than FILENAME_MAX and contain no NUL or control characters");
+}
 
 static std::string normalize_digest_algorithm(std::string algorithm) {
     if (algorithm.empty()) { return DEFAULT_SESSION_FINGERPRINT_ALGORITHM; }
@@ -690,6 +705,8 @@ grpc::Status EditorServiceImpl::CreateSession(grpc::ServerContext * /*context*/,
 
     std::string file_path;
     if (request->has_file_path()) { file_path = request->file_path(); }
+    const auto file_path_status = validate_path_argument(file_path, "file_path");
+    if (!file_path_status.ok()) { return file_path_status; }
 
     const auto has_initial_data = request->has_initial_data();
     if (!file_path.empty() && has_initial_data) {
@@ -711,6 +728,8 @@ grpc::Status EditorServiceImpl::CreateSession(grpc::ServerContext * /*context*/,
 
     std::string checkpoint_dir;
     if (request->has_checkpoint_directory()) { checkpoint_dir = request->checkpoint_directory(); }
+    const auto checkpoint_dir_status = validate_path_argument(checkpoint_dir, "checkpoint_directory");
+    if (!checkpoint_dir_status.ok()) { return checkpoint_dir_status; }
 
     int64_t file_size = 0;
     std::string checkpoint_dir_out;
@@ -729,7 +748,15 @@ grpc::Status EditorServiceImpl::CreateSession(grpc::ServerContext * /*context*/,
     if (session_id.empty()) {
         switch (create_error) {
         case SessionCreateError::INVALID_ID:
-            return grpc::Status(grpc::StatusCode::INVALID_ARGUMENT, "session id contains reserved character ':'");
+            return grpc::Status(grpc::StatusCode::INVALID_ARGUMENT,
+                                "session id must be 1-128 bytes and contain only letters, digits, '_', '.', or '-'");
+        case SessionCreateError::INVALID_FILE_PATH:
+            return grpc::Status(grpc::StatusCode::INVALID_ARGUMENT,
+                                "file_path must be shorter than FILENAME_MAX and contain no NUL or control characters");
+        case SessionCreateError::INVALID_CHECKPOINT_DIRECTORY:
+            return grpc::Status(grpc::StatusCode::INVALID_ARGUMENT,
+                                "checkpoint_directory must be shorter than FILENAME_MAX and contain no NUL or "
+                                "control characters");
         case SessionCreateError::ALREADY_EXISTS:
             return grpc::Status(grpc::StatusCode::ALREADY_EXISTS, "session already exists: " + desired_id);
         default:
@@ -1035,7 +1062,7 @@ grpc::Status EditorServiceImpl::CreateViewport(grpc::ServerContext * /*context*/
             return grpc::Status(grpc::StatusCode::NOT_FOUND, "session not found: " + request->session_id());
         case ViewportCreateError::INVALID_VIEWPORT_ID:
             return grpc::Status(grpc::StatusCode::INVALID_ARGUMENT,
-                                "viewport id contains reserved character ':': " + desired_vp_id);
+                                "viewport id must be 1-128 bytes and contain only letters, digits, '_', '.', or '-'");
         case ViewportCreateError::DUPLICATE_VIEWPORT_ID:
             return grpc::Status(grpc::StatusCode::ALREADY_EXISTS, "viewport already exists: " + desired_vp_id);
         case ViewportCreateError::TOO_MANY_VIEWPORTS:

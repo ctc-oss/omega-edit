@@ -24,12 +24,26 @@ import {
   resetClient as resetSharedClient,
   waitForReady as waitForReadySharedClient,
 } from './protobuf_ts/client'
+import {
+  SessionEventKind as ProtoSessionEventKind,
+  ViewportEventKind as ProtoViewportEventKind,
+} from './protobuf_ts/generated/omega_edit/v1/omega_edit'
 
 export type { ClientConnectionOptions }
 
+function combineEventMask(events: Record<string, string | number>): number {
+  let mask = 0
+  for (const value of Object.values(events)) {
+    if (typeof value === 'number') mask |= value
+  }
+  return mask
+}
+
 // subscription events
 export const NO_EVENTS = 0 // subscribe to no events
-export const ALL_EVENTS = ~NO_EVENTS // subscribe to all events
+export const SESSION_EVENTS_ALL = combineEventMask(ProtoSessionEventKind)
+export const VIEWPORT_EVENTS_ALL = combineEventMask(ProtoViewportEventKind)
+export const ALL_EVENTS = SESSION_EVENTS_ALL | VIEWPORT_EVENTS_ALL
 
 /**
  * Reset the client back to undefined.
