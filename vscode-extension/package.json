@@ -59,10 +59,14 @@
         "omegaEdit.bytesPerRow": {
           "type": "number",
           "default": 16,
-          "enum": [
-            8,
-            16,
-            32
+          "anyOf": [
+            {
+              "const": 0
+            },
+            {
+              "minimum": 8,
+              "maximum": 64
+            }
           ],
           "description": "%omegaEdit.configuration.bytesPerRow.description%"
         },

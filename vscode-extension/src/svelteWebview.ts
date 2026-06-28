@@ -14,7 +14,11 @@
 
 import * as crypto from 'node:crypto'
 import * as vscode from 'vscode'
-import { type BytesPerRow, normalizeBytesPerRow } from './webviewProtocol'
+import {
+  AUTO_BYTES_PER_ROW_SETTING,
+  bytesPerRowFromSetting,
+  normalizeBytesPerRowSetting,
+} from './webviewProtocol'
 
 const SVELTE_WEBVIEW_OUT_DIR = ['out', 'svelte-webview'] as const
 const AUTO_WEBVIEW_LANGUAGE = 'auto'
@@ -75,7 +79,7 @@ export function getSvelteWebviewLocalResourceRoot(
 export function getSvelteWebviewContent(
   webview: vscode.Webview,
   extensionUri: vscode.Uri,
-  bytesPerRow: BytesPerRow
+  bytesPerRowSetting: number
 ): string {
   const resourceRoot = getSvelteWebviewLocalResourceRoot(extensionUri)
   const scriptUri = webview.asWebviewUri(
@@ -86,7 +90,15 @@ export function getSvelteWebviewContent(
   )
   const cspSource = escapeHtmlAttribute(webview.cspSource)
   const scriptNonce = nonce()
-  const normalizedBytesPerRow = normalizeBytesPerRow(bytesPerRow)
+  const normalizedBytesPerRowSetting =
+    normalizeBytesPerRowSetting(bytesPerRowSetting)
+  const normalizedBytesPerRow = bytesPerRowFromSetting(
+    normalizedBytesPerRowSetting
+  )
+  const bytesPerRowMode =
+    normalizedBytesPerRowSetting === AUTO_BYTES_PER_ROW_SETTING
+      ? 'auto'
+      : 'fixed'
   const language = resolveWebviewLanguage()
   const escapedLanguage = escapeHtmlAttribute(language)
   const textDirection = textDirectionForLanguage(language)
@@ -108,7 +120,7 @@ export function getSvelteWebviewContent(
   <title>${title}</title>
 </head>
 <body>
-  <div id="app" data-bytes-per-row="${normalizedBytesPerRow}" data-locale="${escapedLanguage}">
+  <div id="app" data-bytes-per-row="${normalizedBytesPerRow}" data-bytes-per-row-mode="${bytesPerRowMode}" data-locale="${escapedLanguage}">
     <p class="bootstrap-status">${loading}</p>
   </div>
   <script nonce="${scriptNonce}" type="module" src="${scriptUri.toString()}"></script>

@@ -2,7 +2,7 @@ import App from './App.svelte'
 import './styles.css'
 import { mount } from 'svelte'
 import { setLanguage, strings, textDirectionForLanguage } from './i18n'
-import { normalizeBytesPerRow } from './protocol'
+import { normalizeBytesPerRow, normalizeBytesPerRowMode } from './protocol'
 
 const initialLanguage = document.documentElement.lang || navigator.language
 setLanguage(initialLanguage)
@@ -20,6 +20,9 @@ document.documentElement.dir = textDirectionForLanguage(activeLanguage)
 const initialBytesPerRow = normalizeBytesPerRow(
   Number.parseInt(target.dataset.bytesPerRow ?? '', 10)
 )
+const initialBytesPerRowMode = normalizeBytesPerRowMode(
+  target.dataset.bytesPerRowMode
+)
 
 try {
   target.replaceChildren()
@@ -27,6 +30,7 @@ try {
     target,
     props: {
       initialBytesPerRow,
+      initialBytesPerRowMode,
     },
   })
 } catch (error) {

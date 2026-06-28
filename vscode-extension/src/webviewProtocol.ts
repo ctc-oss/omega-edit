@@ -18,10 +18,14 @@ export const MAX_TRANSFORM_OPTIONS_LENGTH = 256 * 1024
 export const MAX_ANALYSIS_PROFILE_BYTES = 64 * 1024
 export const MAX_LABEL_LENGTH = 128
 export const MAX_EXTERNAL_HIGHLIGHTS = 512
-export const VALID_BYTES_PER_ROW = [8, 16, 32] as const
+export const AUTO_BYTES_PER_ROW_SETTING = 0
+export const MIN_BYTES_PER_ROW = 8
+export const MAX_BYTES_PER_ROW = 64
 export const DEFAULT_BYTES_PER_ROW = 16
+export const FIXED_BYTES_PER_ROW_OPTIONS = [8, 16, 32, 64] as const
 
-export type BytesPerRow = (typeof VALID_BYTES_PER_ROW)[number]
+export type BytesPerRow = number
+export type BytesPerRowMode = 'fixed' | 'auto'
 export type OffsetRadix = 'hex' | 'dec'
 export type GridEditPane = 'hex' | 'ascii'
 export type WebviewEditMode = 'insert' | 'overwrite'
@@ -127,7 +131,8 @@ export type WebviewToHostMessage =
   | { type: 'scroll'; direction: 'up' | 'down' }
   | { type: 'scrollTo'; offset: number }
   | { type: 'setViewportMetrics'; visibleRows: number }
-  | { type: 'setBytesPerRow'; bytesPerRow: BytesPerRow }
+  | { type: 'setBytesPerRow'; bytesPerRow: BytesPerRow; persist?: boolean }
+  | { type: 'setBytesPerRowMode'; mode: BytesPerRowMode }
   | {
       type: 'requestAnalysisProfile'
       offset: number
@@ -261,6 +266,7 @@ export type HostToWebviewMessage =
       offset: number
       length: number
       operation: number
+      contentSource: WebviewSessionContentSource
       contentChanged: boolean
       replacementLength: number
       computedFileSize: number
@@ -390,9 +396,29 @@ export interface ServerHealthMessage {
 }
 
 export function normalizeBytesPerRow(value: unknown): BytesPerRow {
-  return VALID_BYTES_PER_ROW.includes(value as BytesPerRow)
-    ? (value as BytesPerRow)
+  return typeof value === 'number' &&
+    Number.isSafeInteger(value) &&
+    value >= MIN_BYTES_PER_ROW &&
+    value <= MAX_BYTES_PER_ROW
+    ? value
     : DEFAULT_BYTES_PER_ROW
+}
+
+export function normalizeBytesPerRowSetting(value: unknown): number {
+  return value === AUTO_BYTES_PER_ROW_SETTING
+    ? AUTO_BYTES_PER_ROW_SETTING
+    : normalizeBytesPerRow(value)
+}
+
+export function bytesPerRowFromSetting(value: unknown): BytesPerRow {
+  const setting = normalizeBytesPerRowSetting(value)
+  return setting === AUTO_BYTES_PER_ROW_SETTING
+    ? DEFAULT_BYTES_PER_ROW
+    : setting
+}
+
+export function normalizeBytesPerRowMode(value: unknown): BytesPerRowMode {
+  return value === 'auto' ? 'auto' : 'fixed'
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -764,8 +790,24 @@ export function normalizeWebviewMessage(
 
     case 'setBytesPerRow': {
       const bytesPerRow = normalizeBytesPerRow(raw.bytesPerRow)
-      return raw.bytesPerRow === bytesPerRow
-        ? { type: 'setBytesPerRow', bytesPerRow }
+      const persist =
+        raw.persist === undefined
+          ? undefined
+          : typeof raw.persist === 'boolean'
+            ? raw.persist
+            : null
+      return raw.bytesPerRow === bytesPerRow && persist !== null
+        ? {
+            type: 'setBytesPerRow',
+            bytesPerRow,
+            ...(persist === undefined ? {} : { persist }),
+          }
+        : undefined
+    }
+
+    case 'setBytesPerRowMode': {
+      return raw.mode === 'fixed' || raw.mode === 'auto'
+        ? { type: 'setBytesPerRowMode', mode: raw.mode }
         : undefined
     }
 

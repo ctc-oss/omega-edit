@@ -10,11 +10,14 @@ export interface PersistedViewportSnapshot {
 
 export interface PersistedPreviewState {
   bytesPerRow?: number
+  bytesPerRowMode?: 'fixed' | 'auto'
   offsetRadix?: 'hex' | 'dec'
   insertDirection?: 'forward' | 'backward'
   searchPanelVisible?: boolean
   profilerExpanded?: boolean
   analysisSectionOrder?: Record<string, string[]>
+  selectionAnchor?: number
+  selectedOffset?: number
   viewportSnapshot?: PersistedViewportSnapshot
 }
 

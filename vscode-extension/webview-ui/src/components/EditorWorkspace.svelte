@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { tick } from 'svelte'
   import type {
     BytesPerRow,
     HostToWebviewMessage,
@@ -71,6 +72,8 @@
     canRedo?: boolean
     undoCount?: number
     redoCount?: number
+    autoFitBytesPerRow?: boolean
+    maxBytesPerRow?: number
     editDisabled?: boolean
     readOnlyLabel?: string
     readOnlyTitle?: string
@@ -84,6 +87,7 @@
     onTypeByte: (pane: GridEditPane, key: string) => boolean
     onDeleteByte: (backward: boolean) => boolean
     onVisibleRowsChange: (visibleRows: number) => void
+    onAutoFitBytesPerRow: (bytesPerRow: BytesPerRow) => void
     onToggleProfilerExpanded: () => void
     onProfilerModeChange: (mode: AnalysisMode) => void
     onMoveAnalysisSection: (
@@ -136,6 +140,8 @@
     canRedo = false,
     undoCount = 0,
     redoCount = 0,
+    autoFitBytesPerRow = false,
+    maxBytesPerRow = 64,
     editDisabled = false,
     readOnlyLabel = strings.grid.readOnly,
     readOnlyTitle = readOnlyLabel,
@@ -149,11 +155,104 @@
     onTypeByte,
     onDeleteByte,
     onVisibleRowsChange,
+    onAutoFitBytesPerRow,
     onToggleProfilerExpanded,
     onProfilerModeChange,
     onMoveAnalysisSection,
     onReorderAnalysisSection,
   }: Props = $props()
+
+  let gridScrollerElement = $state<HTMLDivElement>()
+  let autoFitFrame = $state<number | undefined>(undefined)
+
+  function measureAutoFitBytesPerRow(): BytesPerRow | undefined {
+    if (!gridScrollerElement || !autoFitBytesPerRow || preparing) {
+      return undefined
+    }
+
+    const grid = gridScrollerElement.querySelector('.preview-grid')
+    const row =
+      gridScrollerElement.querySelector('.grid-row') ||
+      gridScrollerElement.querySelector('.grid-header')
+    const hexCells = row?.querySelector('.hex-cells, .hex-heading')
+    const asciiCells = row?.querySelector('.ascii')
+    const offsetCell = row?.querySelector('.offset, .offset-heading')
+    if (!grid || !row || !hexCells || !offsetCell) {
+      return undefined
+    }
+
+    const gridStyle = getComputedStyle(grid)
+    const rowStyle = getComputedStyle(row)
+    const horizontalPadding =
+      (Number.parseFloat(gridStyle.paddingLeft) || 0) +
+      (Number.parseFloat(gridStyle.paddingRight) || 0)
+    const gap = Number.parseFloat(rowStyle.columnGap) || 0
+    const hexWidth = hexCells.getBoundingClientRect().width
+    const asciiWidth =
+      asciiCells?.getBoundingClientRect().width ||
+      Math.max(1, hexWidth / Math.max(1, bytesPerRow) / 3) * bytesPerRow
+    const perByteWidth = Math.max(
+      1,
+      (hexWidth + asciiWidth) / Math.max(1, bytesPerRow)
+    )
+    const fixedWidth =
+      offsetCell.getBoundingClientRect().width + gap * 2 + horizontalPadding
+    const availableWidth = Math.max(0, gridScrollerElement.clientWidth)
+    const rawFit = Math.floor((availableWidth - fixedWidth) / perByteWidth)
+    return Math.max(8, Math.min(maxBytesPerRow, rawFit))
+  }
+
+  async function reportAutoFitBytesPerRow(): Promise<void> {
+    await tick()
+    const nextBytesPerRow = measureAutoFitBytesPerRow()
+    if (nextBytesPerRow !== undefined) {
+      onAutoFitBytesPerRow(nextBytesPerRow)
+    }
+  }
+
+  function queueAutoFitBytesPerRow(): void {
+    if (!autoFitBytesPerRow || !gridScrollerElement || preparing) {
+      return
+    }
+    if (autoFitFrame !== undefined) {
+      cancelAnimationFrame(autoFitFrame)
+    }
+    autoFitFrame = requestAnimationFrame(() => {
+      autoFitFrame = undefined
+      void reportAutoFitBytesPerRow()
+    })
+  }
+
+  $effect(() => {
+    if (
+      gridScrollerElement &&
+      autoFitBytesPerRow &&
+      !preparing &&
+      profilerExpanded !== undefined &&
+      bytesPerRow >= 0 &&
+      data.length >= 0
+    ) {
+      queueAutoFitBytesPerRow()
+    }
+  })
+
+  $effect(() => {
+    if (!gridScrollerElement) {
+      return
+    }
+
+    const observer = new ResizeObserver(() => {
+      queueAutoFitBytesPerRow()
+    })
+    observer.observe(gridScrollerElement)
+    queueAutoFitBytesPerRow()
+    return () => {
+      if (autoFitFrame !== undefined) {
+        cancelAnimationFrame(autoFitFrame)
+      }
+      observer.disconnect()
+    }
+  })
 </script>
 
 <div class="editor-main">
@@ -164,35 +263,37 @@
         <span>{strings.grid.preparingFile}</span>
       </div>
     {:else}
-      <PreviewGrid
-        {data}
-        offset={visibleOffset}
-        {bytesPerRow}
-        {offsetRadix}
-        {selectedOffset}
-        {selectionStart}
-        {selectionEnd}
-        {activePane}
-        searchStart={searchStart}
-        searchEnd={searchEnd}
-        inspectorStart={inspectorStart}
-        inspectorEnd={inspectorEnd}
-        {externalHighlights}
-        {pendingHexLabel}
-        {canScrollUp}
-        {canScrollDown}
-        onSelect={onSelect}
-        onActivePaneChange={onActivePaneChange}
-        onMoveSelection={onMoveSelection}
-        onJumpToBoundary={onJumpToBoundary}
-        onScroll={onScroll}
-        onToggleEditMode={onToggleEditMode}
-        onTypeByte={onTypeByte}
-        onDeleteByte={onDeleteByte}
-        readOnly={editDisabled}
-        onVisibleRowsChange={onVisibleRowsChange}
-        editMode={editMode}
-      />
+      <div class="editor-grid-scroller" bind:this={gridScrollerElement}>
+        <PreviewGrid
+          {data}
+          offset={visibleOffset}
+          {bytesPerRow}
+          {offsetRadix}
+          {selectedOffset}
+          {selectionStart}
+          {selectionEnd}
+          {activePane}
+          searchStart={searchStart}
+          searchEnd={searchEnd}
+          inspectorStart={inspectorStart}
+          inspectorEnd={inspectorEnd}
+          {externalHighlights}
+          {pendingHexLabel}
+          {canScrollUp}
+          {canScrollDown}
+          onSelect={onSelect}
+          onActivePaneChange={onActivePaneChange}
+          onMoveSelection={onMoveSelection}
+          onJumpToBoundary={onJumpToBoundary}
+          onScroll={onScroll}
+          onToggleEditMode={onToggleEditMode}
+          onTypeByte={onTypeByte}
+          onDeleteByte={onDeleteByte}
+          readOnly={editDisabled}
+          onVisibleRowsChange={onVisibleRowsChange}
+          editMode={editMode}
+        />
+      </div>
       <FileScrollbar
         {fileSize}
         visibleOffset={scrollOffset}

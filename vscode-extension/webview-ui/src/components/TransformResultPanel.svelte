@@ -7,6 +7,7 @@
     label: string
     value: string
     mimeType?: string
+    contentSourceLabel: string
     rangeStart: string
     rangeEnd: string
     length: string
@@ -19,6 +20,7 @@
     label,
     value,
     mimeType = '',
+    contentSourceLabel,
     rangeStart,
     rangeEnd,
     length,
@@ -62,6 +64,8 @@
   <div class="transform-result-meta">
     <span class="analysis-label">{strings.transform.resultLabel}</span>
     <span class="analysis-value">{label}</span>
+    <span class="analysis-label">{strings.transform.contentSource}</span>
+    <span class="analysis-value">{contentSourceLabel}</span>
     {#if mimeType}
       <span class="analysis-label">{strings.transform.resultMimeType}</span>
       <span class="analysis-value">{mimeType}</span>

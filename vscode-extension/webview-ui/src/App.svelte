@@ -7,9 +7,12 @@
   import TransformResultPanel from './components/TransformResultPanel.svelte'
   import { formatNumber, strings } from './i18n'
   import {
+    MAX_BYTES_PER_ROW,
     MAX_ANALYSIS_PROFILE_BYTES,
     normalizeBytesPerRow,
+    normalizeBytesPerRowMode,
     type BytesPerRow,
+    type BytesPerRowMode,
     type HostToWebviewMessage,
     type InsertDirection,
     type ServerHealthMessage,
@@ -75,6 +78,8 @@
     title: string
     summary: string
     label: string
+    contentSource: WebviewSessionContentSource
+    contentSourceLabel: string
     value: string
     mimeType: string
     offset: number
@@ -106,21 +111,38 @@
 
   interface Props {
     initialBytesPerRow?: BytesPerRow
+    initialBytesPerRowMode?: BytesPerRowMode
   }
 
-  let { initialBytesPerRow = 16 }: Props = $props()
+  let {
+    initialBytesPerRow = 16,
+    initialBytesPerRowMode = 'fixed',
+  }: Props = $props()
 
   const restoredState = getPreviewState()
   const restoredViewportSnapshot = normalizeViewportSnapshot(
     restoredState?.viewportSnapshot
   )
 
+  const configuredBytesPerRow = normalizeBytesPerRow(
+    untrack(() => initialBytesPerRow)
+  )
+  const configuredBytesPerRowMode = normalizeBytesPerRowMode(
+    untrack(() => initialBytesPerRowMode)
+  )
+  let bytesPerRowMode = $state<BytesPerRowMode>(configuredBytesPerRowMode)
   let bytesPerRow = $state<BytesPerRow>(
     normalizeBytesPerRow(
-      restoredState?.bytesPerRow ?? untrack(() => initialBytesPerRow)
+      configuredBytesPerRowMode === 'auto'
+        ? restoredState?.bytesPerRow ?? configuredBytesPerRow
+        : configuredBytesPerRow
     )
   )
   const initialFileSize = restoredViewportSnapshot?.fileSize ?? 0
+  const restoredSelection = normalizePersistedSelection(
+    restoredState,
+    initialFileSize
+  )
   let fileSize = $state(initialFileSize)
   let visibleOffset = $state(restoredViewportSnapshot?.visibleOffset ?? 0)
   let viewportOffset = $state(restoredViewportSnapshot?.viewportOffset ?? 0)
@@ -185,8 +207,8 @@
   let serverHealth = $state<ServerHealthMessage | undefined>(undefined)
   let renderSamples = $state<number[]>([])
   let pendingAnalysisProfileKey = $state('')
-  let selectionAnchor = $state(-1)
-  let selectedOffset = $state(-1)
+  let selectionAnchor = $state(restoredSelection?.anchor ?? -1)
+  let selectedOffset = $state(restoredSelection?.offset ?? -1)
   let searchQuery = $state('')
   let replacementQuery = $state('')
   let searchHex = $state(false)
@@ -202,6 +224,7 @@
   let replaceMessage = $state('')
   let clipboardMessage = $state('')
   let lastPostedEditorStateKey = $state('')
+  let lastPostedAutoFitBytesPerRow = $state<number | undefined>(undefined)
 
   const selectionStart = $derived(
     selectionAnchor >= 0 && selectedOffset >= 0
@@ -337,9 +360,49 @@
   }
 
   function setBytesPerRow(bytes: BytesPerRow): void {
-    bytesPerRow = bytes
-    savePreviewState({ bytesPerRow: bytes })
-    postToHost({ type: 'setBytesPerRow', bytesPerRow: bytes })
+    const normalizedBytes = normalizeBytesPerRow(bytes)
+    bytesPerRowMode = 'fixed'
+    bytesPerRow = normalizedBytes
+    lastPostedAutoFitBytesPerRow = undefined
+    savePreviewState({
+      bytesPerRow: normalizedBytes,
+      bytesPerRowMode,
+    })
+    postToHost({ type: 'setBytesPerRow', bytesPerRow: normalizedBytes })
+  }
+
+  function setBytesPerRowMode(mode: BytesPerRowMode): void {
+    const normalizedMode = normalizeBytesPerRowMode(mode)
+    bytesPerRowMode = normalizedMode
+    lastPostedAutoFitBytesPerRow = undefined
+    savePreviewState({ bytesPerRowMode })
+    if (normalizedMode === 'auto') {
+      postToHost({ type: 'setBytesPerRowMode', mode: 'auto' })
+    } else {
+      setBytesPerRow(bytesPerRow)
+    }
+  }
+
+  function applyAutoFitBytesPerRow(bytes: BytesPerRow): void {
+    if (bytesPerRowMode !== 'auto') {
+      return
+    }
+
+    const normalizedBytes = normalizeBytesPerRow(bytes)
+    if (normalizedBytes !== bytesPerRow) {
+      bytesPerRow = normalizedBytes
+      savePreviewState({ bytesPerRow: normalizedBytes })
+    }
+    if (lastPostedAutoFitBytesPerRow === normalizedBytes) {
+      return
+    }
+
+    lastPostedAutoFitBytesPerRow = normalizedBytes
+    postToHost({
+      type: 'setBytesPerRow',
+      bytesPerRow: normalizedBytes,
+      persist: false,
+    })
   }
 
   function toggleProfilerExpanded(): void {
@@ -360,24 +423,53 @@
   function savePreviewState(
     overrides: Partial<{
       bytesPerRow: BytesPerRow
+      bytesPerRowMode: BytesPerRowMode
       offsetRadix: 'hex' | 'dec'
       insertDirection: InsertDirection
       searchPanelVisible: boolean
       profilerExpanded: boolean
       analysisSectionOrder: AnalysisSectionOrder
+      selectionAnchor: number
+      selectedOffset: number
       viewportSnapshot: PersistedViewportSnapshot | undefined
     }> = {}
   ): void {
     setPreviewState({
       bytesPerRow,
+      bytesPerRowMode,
       offsetRadix,
       insertDirection,
       searchPanelVisible,
       profilerExpanded,
       analysisSectionOrder,
+      selectionAnchor,
+      selectedOffset,
       viewportSnapshot,
       ...overrides,
     })
+  }
+
+  function normalizePersistedSelection(
+    rawState: unknown,
+    totalSize: number
+  ): { anchor: number; offset: number } | undefined {
+    if (!rawState || typeof rawState !== 'object' || totalSize <= 0) {
+      return undefined
+    }
+
+    const state = rawState as Record<string, unknown>
+    const anchor = safeInteger(state.selectionAnchor)
+    const offset = safeInteger(state.selectedOffset)
+    if (
+      anchor === undefined ||
+      offset === undefined ||
+      anchor >= totalSize ||
+      offset >= totalSize
+    ) {
+      return undefined
+    }
+
+    return { anchor, offset }
   }
 
   function normalizeViewportSnapshot(
@@ -818,12 +910,17 @@
     inspectorHighlightEnd = -1
   }
 
+  function saveSelectionState(): void {
+    savePreviewState({ selectionAnchor, selectedOffset })
+  }
+
   function selectOffset(offset: number, extend = false): void {
     const nextOffset = clampOffset(offset)
     if (nextOffset < 0) {
       selectionAnchor = -1
       selectedOffset = -1
       clipboardMessage = ''
+      saveSelectionState()
       return
     }
 
@@ -835,6 +932,7 @@
     pendingHexNibble = undefined
     pendingHexLabel = ''
     clearInspectorHighlight()
+    saveSelectionState()
 
     if (
       nextOffset < visibleOffset ||
@@ -850,6 +948,7 @@
       selectionAnchor = -1
       selectedOffset = -1
       clipboardMessage = ''
+      saveSelectionState()
       return
     }
 
@@ -860,6 +959,7 @@
     pendingHexNibble = undefined
     pendingHexLabel = ''
     clearInspectorHighlight()
+    saveSelectionState()
 
     if (
       start < visibleOffset ||
@@ -1369,6 +1469,28 @@
       : [computedContentInfo(size), ...nextSources]
   }
 
+  function contentSourceFallbackLabel(
+    contentSource: WebviewSessionContentSource
+  ): string {
+    switch (contentSource) {
+      case 'original':
+        return strings.transform.contentOriginal
+      case 'latestCheckpoint':
+        return strings.transform.contentLatestCheckpoint
+      default:
+        return strings.transform.contentComputed
+    }
+  }
+
+  function transformResultContentSourceLabel(
+    contentSource: WebviewSessionContentSource
+  ): string {
+    return (
+      contentSources.find((entry) => entry.content === contentSource)?.label ||
+      contentSourceFallbackLabel(contentSource)
+    )
+  }
+
   function formatSearchOffset(offset: number): string {
     return offsetRadix === 'dec'
       ? formatNumber(offset)
@@ -1610,13 +1732,11 @@
       return undefined
     }
 
+    const contentSource = message.contentSource || 'computed'
     const displayLength = message.contentChanged
       ? message.replacementLength || message.length || 1
       : message.length || 1
-    const rangeEnd = Math.min(
-      Math.max(0, fileSize - 1),
-      message.offset + displayLength - 1
-    )
+    const rangeEnd = message.offset + displayLength - 1
     const timestamp = Date.now()
     const title = transformPluginTitle(message.pluginId)
     const label = message.resultLabel || strings.transform.resultDefault
@@ -1624,10 +1744,12 @@
     transformResultSequence += 1
 
     return {
-      id: `${timestamp}-${transformResultSequence}-${message.pluginId}-${message.offset}-${displayLength}`,
+      id: `${timestamp}-${transformResultSequence}-${message.pluginId}-${contentSource}-${message.offset}-${displayLength}`,
       title,
       summary: describeTransformComplete(message),
       label,
+      contentSource,
+      contentSourceLabel: transformResultContentSourceLabel(contentSource),
       value: message.resultText,
       mimeType: message.resultMimeType,
       offset: message.offset,
@@ -1636,6 +1758,12 @@
       createdAtLabel,
       historyLabel: '',
     }
+  }
+
+  function shouldSelectTransformResultRange(
+    message: TransformCompleteMessage
+  ): boolean {
+    return (message.contentSource || 'computed') === 'computed'
   }
 
   function formatTransformResult(
@@ -2274,7 +2402,8 @@
         if (message.contentChanged) {
           clearSearchResults()
         }
-        if (message.offset >= 0) {
+        const shouldSelectRange = shouldSelectTransformResultRange(message)
+        if (shouldSelectRange && message.offset >= 0) {
           const transformedLength = message.contentChanged
             ? message.replacementLength || message.length || 1
             : message.length || 1
@@ -2282,8 +2411,10 @@
         }
         transformFeedback = describeTransformComplete(message)
         rememberTransformResult(createTransformResult(message))
-        pendingAnalysisProfileKey = ''
-        requestAnalysisProfile(true)
+        if (shouldSelectRange || message.contentChanged) {
+          pendingAnalysisProfileKey = ''
+          requestAnalysisProfile(true)
+        }
         break
       case 'fileActionComplete':
         transformInFlight = false
@@ -2418,6 +2549,7 @@
 <main class="app-shell">
   <Toolbar
     {bytesPerRow}
+    {bytesPerRowMode}
     {offsetRadix}
     {insertDirection}
     {fileSize}
@@ -2436,6 +2568,7 @@
     {selectionEnd}
     {selectionLength}
     onBytesPerRow={setBytesPerRow}
+    onBytesPerRowMode={setBytesPerRowMode}
     onOffsetRadix={setOffsetRadix}
     onInsertDirection={setInsertDirection}
     onGoToOffset={goToOffset}
@@ -2486,6 +2619,7 @@
         label={displayTransformResult.label}
         value={displayTransformResult.value}
         mimeType={displayTransformResult.mimeType}
+        contentSourceLabel={displayTransformResult.contentSourceLabel}
         rangeStart={displayTransformResult.rangeStart}
         rangeEnd={displayTransformResult.rangeEnd}
         length={displayTransformResult.length}
@@ -2499,6 +2633,8 @@
     {visibleOffset}
     scrollOffset={navigationOffset}
     {bytesPerRow}
+    autoFitBytesPerRow={bytesPerRowMode === 'auto'}
+    maxBytesPerRow={MAX_BYTES_PER_ROW}
     {offsetRadix}
     {selectedOffset}
     {selectionStart}
@@ -2544,6 +2680,7 @@
     readOnlyLabel={strings.grid.readOnly}
     readOnlyTitle={transformFeedback || strings.transform.inFlight}
     onVisibleRowsChange={setVisibleRows}
+    onAutoFitBytesPerRow={applyAutoFitBytesPerRow}
     onToggleProfilerExpanded={toggleProfilerExpanded}
     onProfilerModeChange={setProfilerMode}
     onMoveAnalysisSection={moveAnalysisSectionByDelta}

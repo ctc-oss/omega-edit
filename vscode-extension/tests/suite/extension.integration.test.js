@@ -894,6 +894,7 @@ suite('OmegaEdit VS Code extension', () => {
       'transformComplete'
     )
     assert.ok(transformComplete, 'Expected calculation action completion')
+    assert.equal(transformComplete.contentSource, 'computed')
     assert.equal(transformComplete.contentChanged, false)
     assert.equal(transformComplete.resultLabel, 'sum8')
     assert.equal(transformComplete.resultText, '0x26')
@@ -901,6 +902,64 @@ suite('OmegaEdit VS Code extension', () => {
       lastMessageOfType(panel.messages, 'editState'),
       cleanEditState
     )
+
+    await panel.fireDidDispose()
+    await fs.rm(tmpDir, { recursive: true, force: true })
+  })
+
+  test('reports calculation content source for original snapshots', async () => {
+    const tmpDir = await fs.mkdtemp(
+      path.join(os.tmpdir(), 'omega-edit-vscode-transform-original-')
+    )
+    const samplePath = path.join(tmpDir, 'transform-original.bin')
+    await fs.writeFile(samplePath, Buffer.from('abc', 'utf8'))
+
+    const provider = new HexEditorProvider({ subscriptions: [] }, testPort)
+    const panel = createMockWebviewPanel()
+    const document = await provider.openCustomDocument(
+      vscode.Uri.file(samplePath),
+      { backupId: undefined, untitledDocumentData: undefined },
+      new vscode.CancellationTokenSource().token
+    )
+
+    await provider.resolveCustomEditor(
+      document,
+      panel,
+      new vscode.CancellationTokenSource().token
+    )
+
+    const session = provider.getSessionForTesting(document.uri)
+    assert.ok(
+      session,
+      'Expected a live session for the original calculation test'
+    )
+
+    await provider.dispatchWebviewMessageForTesting(document.uri, {
+      type: 'overwrite',
+      offset: 0,
+      data: Buffer.from('z', 'utf8').toString('hex'),
+    })
+    await assertSessionText(session.sessionId, 'zbc')
+
+    await provider.dispatchWebviewMessageForTesting(document.uri, {
+      type: 'applyTransform',
+      pluginId: 'omega.example.common_checksums',
+      contentSource: 'original',
+      offset: 0,
+      length: 3,
+      optionsJson: JSON.stringify({ algorithm: 'sum8' }),
+    })
+
+    await assertSessionText(session.sessionId, 'zbc')
+    const transformComplete = lastMessageOfType(
+      panel.messages,
+      'transformComplete'
+    )
+    assert.ok(transformComplete, 'Expected original calculation completion')
+    assert.equal(transformComplete.contentSource, 'original')
+    assert.equal(transformComplete.contentChanged, false)
+    assert.equal(transformComplete.resultLabel, 'sum8')
+    assert.equal(transformComplete.resultText, '0x26')
 
     await panel.fireDidDispose()
     await fs.rm(tmpDir, { recursive: true, force: true })

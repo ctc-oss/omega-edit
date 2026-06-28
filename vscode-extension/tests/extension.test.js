@@ -48,6 +48,11 @@ test('package.json matches shared extension constants', () => {
     `${packageJson.publisher}.${packageJson.name}`,
     OMEGA_EDIT_EXTENSION_ID
   )
+  assert.deepEqual(
+    packageJson.contributes.configuration.properties['omegaEdit.bytesPerRow']
+      .anyOf,
+    [{ const: 0 }, { minimum: 8, maximum: 64 }]
+  )
   assert.equal(
     packageJson.scripts['package:vsix'],
     'vsce package --out omega-edit-data-editor.vsix'
@@ -683,6 +688,7 @@ test('compiled extension entrypoints exist after build', () => {
   assert.doesNotMatch(svelteBundleCss, /\.inspector-feedback:empty/)
   assert.match(svelteBundleCss, /\.editor-main/)
   assert.match(svelteBundleCss, /\.editor-grid-shell/)
+  assert.match(svelteBundleCss, /\.editor-grid-scroller/)
   assert.match(svelteStylesSource, /\.editor-readonly-badge/)
   assert.match(svelteStylesSource, /\.editor-readonly-dot/)
   assert.match(svelteStylesSource, /\.transform-options-form/)
@@ -695,6 +701,9 @@ test('compiled extension entrypoints exist after build', () => {
   assert.match(svelteBundleCss, /\.offset-jump-input/)
   assert.match(svelteBundleCss, /\.offset-jump-status/)
   assert.match(svelteBundleCss, /--segmented-button-width/)
+  assert.match(svelteBundleCss, /\.bytes-per-row-input/)
+  assert.match(svelteBundleCss, /\.preview-grid\.bytes-64/)
+  assert.match(svelteBundleCss, /\.byte\.selected:hover/)
   assert.match(
     svelteBundleCss,
     /inline-size:\s*var\(--segmented-button-width\)/
@@ -729,11 +738,17 @@ test('compiled extension entrypoints exist after build', () => {
   }
   assert.match(svelteAppSource, /selectionAnchor/)
   assert.match(svelteAppSource, /selectedOffset/)
+  assert.match(svelteAppSource, /normalizePersistedSelection/)
+  assert.match(svelteAppSource, /selectionAnchor: number/)
+  assert.match(svelteAppSource, /selectedOffset: number/)
+  assert.match(svelteAppSource, /saveSelectionState/)
   assert.match(svelteAppSource, /const DEFAULT_VISIBLE_ROWS = 16/)
   assert.match(svelteAppSource, /pendingVisibleOffset/)
   assert.match(svelteAppSource, /pendingSearchReveal/)
   assert.match(svelteAppSource, /externalHighlights = \$state/)
   assert.match(svelteAppSource, /function currentEditorUiState/)
+  assert.match(svelteAppSource, /bytesPerRowMode/)
+  assert.match(svelteAppSource, /function applyAutoFitBytesPerRow/)
   assert.match(svelteAppSource, /type: 'editorStateChanged'/)
   assert.match(svelteAppSource, /type: 'toggleEditMode'/)
   assert.match(svelteAppSource, /case 'editMode'/)
@@ -827,6 +842,10 @@ test('compiled extension entrypoints exist after build', () => {
     /normalizeOffsetRadix\(restoredState\?\.offsetRadix\)/
   )
   assert.match(svelteAppSource, /savePreviewState\(\{ offsetRadix: radix \}\)/)
+  assert.match(
+    svelteAppSource,
+    /savePreviewState\(\{\s*\n\s*bytesPerRow: normalizedBytes,\s*\n\s*bytesPerRowMode,/
+  )
   assert.match(svelteAppSource, /case 'transformPlugins'/)
   assert.match(svelteAppSource, /transformPlugins = message\.plugins/)
   assert.match(svelteAppSource, /transformPluginsLoaded = true/)
@@ -837,8 +856,17 @@ test('compiled extension entrypoints exist after build', () => {
   assert.match(svelteAppSource, /strings\.transform\.calculationCompleted/)
   assert.match(svelteAppSource, /describeFileActionComplete/)
   assert.match(svelteAppSource, /createTransformResult\(message\)/)
+  assert.match(
+    svelteAppSource,
+    /contentSourceLabel: transformResultContentSourceLabel/
+  )
   assert.match(svelteAppSource, /rememberTransformResult/)
   assert.match(svelteAppSource, /openTransformResult/)
+  assert.match(svelteAppSource, /shouldSelectTransformResultRange/)
+  assert.match(
+    svelteAppSource,
+    /if \(shouldSelectRange && message\.offset >= 0\)/
+  )
   assert.match(
     svelteAppSource,
     /selectRange\(message\.offset, transformedLength\)/
@@ -930,6 +958,10 @@ test('compiled extension entrypoints exist after build', () => {
   assert.match(editorWorkspaceSource, /PreviewGrid/)
   assert.match(editorWorkspaceSource, /FileScrollbar/)
   assert.match(editorWorkspaceSource, /editor-grid-shell/)
+  assert.match(editorWorkspaceSource, /editor-grid-scroller/)
+  assert.match(editorWorkspaceSource, /onAutoFitBytesPerRow/)
+  assert.match(editorWorkspaceSource, /measureAutoFitBytesPerRow/)
+  assert.match(editorWorkspaceSource, /profilerExpanded !== undefined/)
   assert.match(editorWorkspaceSource, /editor-readonly-badge/)
   assert.match(editorWorkspaceSource, /editor-readonly-dot/)
   assert.match(editorWorkspaceSource, /readOnlyLabel/)
@@ -964,6 +996,7 @@ test('compiled extension entrypoints exist after build', () => {
   assert.match(previewGridSource, /canScrollDown/)
   assert.match(previewGridSource, /event\.stopPropagation\(\)/)
   assert.match(previewGridSource, /event\.deltaY === 0/)
+  assert.match(previewGridSource, /Math\.abs\(event\.deltaX\)/)
   assert.match(previewGridSource, /case 'Insert'/)
   assert.match(previewGridSource, /case 'Backspace'/)
   assert.match(previewGridSource, /case 'Delete'/)
@@ -1178,6 +1211,8 @@ test('compiled extension entrypoints exist after build', () => {
   assert.doesNotMatch(transformPanelSource, /refreshTransforms/)
   assert.match(transformResultPanelSource, /strings\.transform\.resultTitle/)
   assert.match(transformResultPanelSource, /navigator\.clipboard\.writeText/)
+  assert.match(transformResultPanelSource, /contentSourceLabel/)
+  assert.match(transformResultPanelSource, /strings\.transform\.contentSource/)
   assert.match(transformResultPanelSource, /class="transform-result-value"/)
   assert.match(transformResultPanelSource, /onDismiss/)
   assert.doesNotMatch(toolbarSource, /onTop/)
@@ -1397,7 +1432,9 @@ test('compiled extension entrypoints exist after build', () => {
 test('webview protocol normalizes editor commands and rejects invalid ranges', () => {
   const context = { fileSize: 10 }
 
-  assert.equal(normalizeBytesPerRow(24), 16)
+  assert.equal(normalizeBytesPerRow(24), 24)
+  assert.equal(normalizeBytesPerRow(7), 16)
+  assert.equal(normalizeBytesPerRow(65), 16)
   assert.deepEqual(
     normalizeWebviewMessage(context, {
       type: 'editorStateChanged',
@@ -1571,10 +1608,39 @@ test('webview protocol normalizes editor commands and rejects invalid ranges', (
     }),
     { type: 'setBytesPerRow', bytesPerRow: 16 }
   )
-  assert.equal(
+  assert.deepEqual(
     normalizeWebviewMessage(context, {
       type: 'setBytesPerRow',
       bytesPerRow: 24,
+    }),
+    { type: 'setBytesPerRow', bytesPerRow: 24 }
+  )
+  assert.deepEqual(
+    normalizeWebviewMessage(context, {
+      type: 'setBytesPerRow',
+      bytesPerRow: 64,
+      persist: false,
+    }),
+    { type: 'setBytesPerRow', bytesPerRow: 64, persist: false }
+  )
+  assert.deepEqual(
+    normalizeWebviewMessage(context, {
+      type: 'setBytesPerRowMode',
+      mode: 'auto',
+    }),
+    { type: 'setBytesPerRowMode', mode: 'auto' }
+  )
+  assert.equal(
+    normalizeWebviewMessage(context, {
+      type: 'setBytesPerRow',
+      bytesPerRow: 7,
+    }),
+    undefined
+  )
+  assert.equal(
+    normalizeWebviewMessage(context, {
+      type: 'setBytesPerRow',
+      bytesPerRow: 65,
     }),
     undefined
   )
