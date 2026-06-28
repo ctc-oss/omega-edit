@@ -2,7 +2,21 @@
 
 A standalone VS Code extension that uses [Ωedit™](https://github.com/ctc-oss/omega-edit) as a fast, usable data/hex editor. It covers the core editing, navigation, save, replay, and integration API paths needed for byte-level parser and debugger integrations.
 
-![Ωedit™ Data Editor](./images/omega-hex.png)
+![Ωedit™ Data Editor overview](./images/omega-edit-vscode-overview.png)
+
+## Feature Screenshots
+
+**Search and replace with synchronized hex/text highlighting**
+
+![Ωedit™ Data Editor search and replace](./images/omega-edit-vscode-search-replace.png)
+
+**External highlights for parser/debugger integrations**
+
+![Ωedit™ Data Editor Daffodil-style external highlights](./images/omega-edit-vscode-daffodil-highlights.png)
+
+**Transform plugins with inspectable content sources**
+
+![Ωedit™ Data Editor transform content-source dialog](./images/omega-edit-vscode-transform-dialog.png)
 
 ## What This Demonstrates
 
