@@ -19,6 +19,7 @@
 
 import {
   CountKind,
+  SessionContentSource,
   SessionFingerprintContent,
   type ApplyTransformPluginResponse,
   type CheckSessionModelResponse,
@@ -33,8 +34,10 @@ import {
   type GetCountResponse,
   type GetLanguageResponse,
   type GetSegmentResponse,
+  type GetSessionContentInfoResponse,
   type GetSessionFingerprintResponse,
   type GetSessionCountResponse,
+  type InspectSessionContentResponse,
   type ListTransformPluginsResponse,
   type NotifyChangedViewportsResponse,
   type DestroyLastCheckpointResponse,
@@ -234,6 +237,56 @@ export async function getSessionFingerprint(
           return resolve(required)
         } catch (error) {
           return reject(makeWrappedError('getSessionFingerprint', error))
+        }
+      }
+    )
+  })
+}
+
+export async function getSessionContentInfo(
+  sessionId: string,
+  content: SessionContentSource[] = []
+): Promise<GetSessionContentInfoResponse> {
+  const log = getLogger()
+  const request = { sessionId, content }
+  debugLog(log, () => ({
+    fn: 'protobufTs.getSessionContentInfo',
+    rqst: request,
+  }))
+  const client = await getClient()
+
+  return new Promise<GetSessionContentInfoResponse>((resolve, reject) => {
+    callUnary(
+      client,
+      client.getSessionContentInfo,
+      request,
+      (err, response) => {
+        if (err) {
+          log.error({
+            fn: 'protobufTs.getSessionContentInfo',
+            rqst: request,
+            err: {
+              msg: err.message,
+              details: err.details,
+              code: err.code,
+              stack: err.stack,
+            },
+          })
+          return reject(makeWrappedError('getSessionContentInfo', err))
+        }
+
+        try {
+          const required = requireResponse(
+            response as GetSessionContentInfoResponse | undefined,
+            'getSessionContentInfo'
+          )
+          debugLog(log, () => ({
+            fn: 'protobufTs.getSessionContentInfo',
+            resp: required,
+          }))
+          return resolve(required)
+        } catch (error) {
+          return reject(makeWrappedError('getSessionContentInfo', error))
         }
       }
     )
@@ -922,6 +975,67 @@ export async function applyTransformPlugin(
         return reject(makeWrappedError('applyTransformPlugin', error))
       }
     })
+  })
+}
+
+export async function inspectSessionContent(
+  sessionId: string,
+  content: SessionContentSource,
+  pluginId: string,
+  offset: number = 0,
+  length: number = 0,
+  optionsJson?: string
+): Promise<InspectSessionContentResponse> {
+  const log = getLogger()
+  const request = {
+    sessionId,
+    content,
+    pluginId,
+    offset,
+    length,
+    optionsJson,
+  }
+  debugLog(log, () => ({
+    fn: 'protobufTs.inspectSessionContent',
+    rqst: request,
+  }))
+  const client = await getClient()
+
+  return new Promise<InspectSessionContentResponse>((resolve, reject) => {
+    callUnary(
+      client,
+      client.inspectSessionContent,
+      request,
+      (err, response) => {
+        if (err) {
+          log.error({
+            fn: 'protobufTs.inspectSessionContent',
+            rqst: request,
+            err: {
+              msg: err.message,
+              details: err.details,
+              code: err.code,
+              stack: err.stack,
+            },
+          })
+          return reject(makeWrappedError('inspectSessionContent', err))
+        }
+
+        try {
+          const required = requireResponse(
+            response as InspectSessionContentResponse | undefined,
+            'inspectSessionContent'
+          )
+          debugLog(log, () => ({
+            fn: 'protobufTs.inspectSessionContent',
+            resp: required,
+          }))
+          return resolve(required)
+        } catch (error) {
+          return reject(makeWrappedError('inspectSessionContent', error))
+        }
+      }
+    )
   })
 }
 

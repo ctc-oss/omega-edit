@@ -2,6 +2,8 @@
   import type {
     BytesPerRow,
     InsertDirection,
+    WebviewSessionContentInfo,
+    WebviewSessionContentSource,
     WebviewTransformPlugin,
   } from '../protocol'
   import { strings } from '../i18n'
@@ -23,6 +25,7 @@
     offsetRadix?: 'hex' | 'dec'
     insertDirection?: InsertDirection
     fileSize?: number
+    contentSources?: WebviewSessionContentInfo[]
     transformPlugins?: WebviewTransformPlugin[]
     transformPluginsLoaded?: boolean
     transformPluginsLoading?: boolean
@@ -43,6 +46,7 @@
     onRequestTransforms: () => void
     onApplyTransform: (
       pluginId: string,
+      contentSource: WebviewSessionContentSource,
       offset: number,
       length: number,
       optionsJson?: string
@@ -64,6 +68,7 @@
     offsetRadix = 'hex',
     insertDirection = 'forward',
     fileSize = 0,
+    contentSources = [],
     transformPlugins = [],
     transformPluginsLoaded = false,
     transformPluginsLoading = false,
@@ -179,6 +184,7 @@
   <div class="toolbar-group">
     <TransformPanel
       plugins={transformPlugins}
+      {contentSources}
       pluginsLoaded={transformPluginsLoaded}
       pluginsLoading={transformPluginsLoading}
       busy={transformInFlight}

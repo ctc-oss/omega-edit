@@ -22,6 +22,7 @@
 #include "impl_/segment_def.hpp"
 #include "impl_/session_def.hpp"
 #include "omega_edit/character_counts.h"
+#include "omega_edit/filesystem.h"
 #include "omega_edit/fwd_defs.h"
 #include "omega_edit/segment.h"
 #include "omega_edit/viewport.h"
@@ -52,11 +53,7 @@ int omega_session_get_segment(const omega_session_t *session_ptr, omega_segment_
 
 int64_t omega_session_get_original_file_size(const omega_session_t *session_ptr) {
     if (!session_ptr || session_ptr->models_.empty() || !session_ptr->models_.front()) { return -1; }
-    auto *file_ptr = session_ptr->models_.front()->file_ptr;
-    if (file_ptr == nullptr) { return 0; }
-    if (0 != FSEEK(file_ptr, 0L, SEEK_END)) { return -1; }
-    const auto file_size = FTELL(file_ptr);
-    return file_size < 0 ? -1 : file_size;
+    return omega_util_file_size(omega_session_get_original_snapshot_file_path(session_ptr));
 }
 
 int omega_session_get_original_segment(const omega_session_t *session_ptr, omega_segment_t *data_segment_ptr,
@@ -134,6 +131,23 @@ const omega_change_t *omega_session_get_last_undo(const omega_session_t *session
 const char *omega_session_get_file_path(const omega_session_t *session_ptr) {
     if (!session_ptr) { return nullptr; }
     return session_ptr->models_.back()->file_path.empty() ? nullptr : session_ptr->models_.back()->file_path.c_str();
+}
+
+const char *omega_session_get_original_snapshot_file_path(const omega_session_t *session_ptr) {
+    if (!session_ptr || session_ptr->checkpoint_file_name_.empty()) { return nullptr; }
+    return session_ptr->checkpoint_file_name_.c_str();
+}
+
+const char *omega_session_get_latest_checkpoint_file_path(const omega_session_t *session_ptr) {
+    if (!session_ptr || omega_session_get_num_checkpoints(session_ptr) <= 0) { return nullptr; }
+    assert(session_ptr->models_.back());
+    return session_ptr->models_.back()->file_path.empty() ? nullptr : session_ptr->models_.back()->file_path.c_str();
+}
+
+int64_t omega_session_get_latest_checkpoint_file_size(const omega_session_t *session_ptr) {
+    if (!session_ptr || omega_session_get_num_checkpoints(session_ptr) <= 0) { return -1; }
+    assert(session_ptr->models_.back());
+    return omega_util_file_size(omega_session_get_latest_checkpoint_file_path(session_ptr));
 }
 
 omega_session_event_cbk_t omega_session_get_event_cbk(const omega_session_t *session_ptr) {

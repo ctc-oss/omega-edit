@@ -97,6 +97,16 @@ uint64_t omega_util_remove_all(char const *path);
 int64_t omega_util_file_size(char const *path);
 
 /**
+ * Read a byte range from a regular file path into a caller-provided buffer.
+ * @param path path to read from
+ * @param offset non-negative byte offset to begin reading
+ * @param buffer destination buffer
+ * @param byte_count number of bytes to read
+ * @return bytes read, or -1 on error or short read
+ */
+int64_t omega_util_read_file_segment(char const *path, int64_t offset, void *buffer, int64_t byte_count);
+
+/**
  * Given two file paths, determine if they are equivalent
  * @param path1 first path
  * @param path2 second path

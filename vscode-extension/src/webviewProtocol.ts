@@ -26,6 +26,10 @@ export type OffsetRadix = 'hex' | 'dec'
 export type GridEditPane = 'hex' | 'ascii'
 export type WebviewEditMode = 'insert' | 'overwrite'
 export type InsertDirection = 'forward' | 'backward'
+export type WebviewSessionContentSource =
+  | 'original'
+  | 'computed'
+  | 'latestCheckpoint'
 export type ExternalHighlightKind =
   | 'current'
   | 'parsed'
@@ -36,6 +40,7 @@ export type ExternalHighlightKind =
 
 export interface WebviewProtocolContext {
   readonly fileSize: number
+  readonly contentSources?: readonly WebviewSessionContentInfo[]
 }
 
 export interface WebviewTransformPlugin {
@@ -59,6 +64,13 @@ export interface WebviewCharacterCount {
   tripleByteCount: number
   quadByteCount: number
   invalidBytes: number
+}
+
+export interface WebviewSessionContentInfo {
+  content: WebviewSessionContentSource
+  available: boolean
+  byteLength: number
+  label: string
 }
 
 export interface WebviewExternalHighlight {
@@ -105,6 +117,7 @@ export interface WebviewEditorState extends WebviewEditorUiState {
     operation: number
     flags: number
   }>
+  contentSources: WebviewSessionContentInfo[]
   contentType?: string
   language?: string
 }
@@ -154,6 +167,7 @@ export type WebviewToHostMessage =
   | {
       type: 'applyTransform'
       pluginId: string
+      contentSource?: WebviewSessionContentSource
       offset: number
       length: number
       optionsJson?: string
@@ -224,6 +238,10 @@ export type HostToWebviewMessage =
       type: 'transformPlugins'
       plugins: WebviewTransformPlugin[]
       error?: string
+    }
+  | {
+      type: 'sessionContentInfo'
+      contentSources: WebviewSessionContentInfo[]
     }
   | {
       type: 'transformStatus'
@@ -481,6 +499,50 @@ function safeFileLengthRange(
     return undefined
   }
   return { offset, length }
+}
+
+function safeSessionContentSource(
+  value: unknown
+): WebviewSessionContentSource | undefined {
+  return value === 'original' ||
+    value === 'computed' ||
+    value === 'latestCheckpoint'
+    ? value
+    : undefined
+}
+
+function sessionContentByteLength(
+  context: WebviewProtocolContext,
+  contentSource: WebviewSessionContentSource
+): number | undefined {
+  if (contentSource === 'computed') {
+    return context.fileSize
+  }
+  const entry = context.contentSources?.find(
+    (candidate) => candidate.content === contentSource && candidate.available
+  )
+  return entry?.byteLength
+}
+
+function safeContentLengthRange(
+  context: WebviewProtocolContext,
+  contentSource: WebviewSessionContentSource,
+  offsetValue: unknown,
+  lengthValue: unknown,
+  allowZeroLength = false,
+  maxLength = Number.MAX_SAFE_INTEGER
+): { offset: number; length: number } | undefined {
+  const byteLength = sessionContentByteLength(context, contentSource)
+  if (byteLength === undefined) {
+    return undefined
+  }
+  return safeFileLengthRange(
+    { fileSize: byteLength },
+    offsetValue,
+    lengthValue,
+    allowZeroLength,
+    maxLength
+  )
 }
 
 function safeFileOffset(
@@ -844,19 +906,32 @@ export function normalizeWebviewMessage(
 
     case 'applyTransform': {
       const pluginId = safeString(raw.pluginId, MAX_LABEL_LENGTH)
-      const range = safeFileLengthRange(context, raw.offset, raw.length)
+      const contentSource =
+        raw.contentSource === undefined
+          ? 'computed'
+          : safeSessionContentSource(raw.contentSource)
+      const range = contentSource
+        ? safeContentLengthRange(context, contentSource, raw.offset, raw.length)
+        : undefined
       const optionsJson =
         raw.optionsJson === undefined
           ? undefined
           : safeJsonString(raw.optionsJson, MAX_TRANSFORM_OPTIONS_LENGTH)
       if (
         !pluginId ||
+        !contentSource ||
         !range ||
         (raw.optionsJson !== undefined && optionsJson === undefined)
       ) {
         return undefined
       }
-      return { type: 'applyTransform', pluginId, ...range, optionsJson }
+      return {
+        type: 'applyTransform',
+        pluginId,
+        contentSource,
+        ...range,
+        optionsJson,
+      }
     }
 
     case 'search': {

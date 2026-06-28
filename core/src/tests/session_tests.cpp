@@ -216,6 +216,32 @@ TEST_CASE("Restore Last Transform Checkpoint Preserves Transform Change",
     omega_edit_destroy_session(session_ptr);
 }
 
+TEST_CASE("Session owned snapshot file accessors expose original and latest checkpoint",
+          "[SessionCheckpointTests][SnapshotFiles]") {
+    const auto input = reinterpret_cast<const omega_byte_t *>("abcdef");
+    const auto session_ptr = omega_edit_create_session_from_bytes(input, 6, nullptr, nullptr, NO_EVENTS, nullptr);
+    REQUIRE(session_ptr);
+
+    const auto *original_path = omega_session_get_original_snapshot_file_path(session_ptr);
+    REQUIRE(original_path);
+    REQUIRE(0 != omega_util_file_exists(original_path));
+    REQUIRE(6 == omega_session_get_original_file_size(session_ptr));
+    REQUIRE(6 == omega_util_file_size(original_path));
+
+    REQUIRE(nullptr == omega_session_get_latest_checkpoint_file_path(session_ptr));
+    REQUIRE(-1 == omega_session_get_latest_checkpoint_file_size(session_ptr));
+
+    REQUIRE(1 == omega_edit_overwrite_string(session_ptr, 1, "Z"));
+    REQUIRE(0 == omega_edit_create_checkpoint(session_ptr));
+    const auto *checkpoint_path = omega_session_get_latest_checkpoint_file_path(session_ptr);
+    REQUIRE(checkpoint_path);
+    REQUIRE(0 != omega_util_file_exists(checkpoint_path));
+    REQUIRE(6 == omega_session_get_latest_checkpoint_file_size(session_ptr));
+    REQUIRE(6 == omega_util_file_size(checkpoint_path));
+
+    omega_edit_destroy_session(session_ptr);
+}
+
 TEST_CASE("Empty Session File Tests", "[EmptySessionFileTests]") {
     file_info_t file_info;
     file_info.num_changes = 0;

@@ -176,6 +176,12 @@ service EditorService {
     // Compute a server-side fingerprint for original or computed session content.
     rpc GetSessionFingerprint(GetSessionFingerprintRequest) returns (GetSessionFingerprintResponse);
 
+    // Return the currently inspectable OmegaEdit-controlled content sources and byte lengths.
+    rpc GetSessionContentInfo(GetSessionContentInfoRequest) returns (GetSessionContentInfoResponse);
+
+    // Run a streaming inspect plugin over OmegaEdit-controlled session content.
+    rpc InspectSessionContent(InspectSessionContentRequest) returns (InspectSessionContentResponse);
+
     // Return the total number of active sessions on the server.
     rpc GetSessionCount(GetSessionCountRequest) returns (GetSessionCountResponse);
 
@@ -877,6 +883,34 @@ enum SessionFingerprintContent {
     SESSION_FINGERPRINT_CONTENT_COMPUTED = 2;// Current logical content after edits.
 }
 
+// Which OmegaEdit-controlled session content should be inspected.
+enum SessionContentSource {
+    SESSION_CONTENT_SOURCE_UNSPECIFIED = 0;
+    SESSION_CONTENT_SOURCE_ORIGINAL = 1;         // Immutable snapshot captured when the session was created.
+    SESSION_CONTENT_SOURCE_COMPUTED = 2;         // Current logical content after edits.
+    SESSION_CONTENT_SOURCE_LATEST_CHECKPOINT = 3;// Immutable latest checkpoint snapshot, if one exists.
+}
+
+// Metadata for an inspectable session content source.
+message SessionContentInfo {
+    SessionContentSource content = 1;// Content source described by this entry.
+    bool available = 2;              // True when the source is available for inspection.
+    int64 byte_length = 3;           // Content size in bytes when available.
+    string label = 4;                // Human-readable source label.
+}
+
+// Request inspectable content-source metadata for a session.
+message GetSessionContentInfoRequest {
+    string session_id = 1;                    // Session to query.
+    repeated SessionContentSource content = 2;// Optional sources; default is all supported sources.
+}
+
+// Inspectable content-source metadata for a session.
+message GetSessionContentInfoResponse {
+    string session_id = 1;               // Session that was queried.
+    repeated SessionContentInfo info = 2;// Content source entries.
+}
+
 // Digest metadata for a content fingerprint.
 message ContentDigest {
     string algorithm = 1;// Digest algorithm identifier, e.g. "sha256".
@@ -901,6 +935,29 @@ message GetSessionFingerprintResponse {
     string session_id = 1;                    // Session that was fingerprinted.
     SessionFingerprintContent content = 2;    // Content that was fingerprinted.
     SessionContentFingerprint fingerprint = 3;// Size and digest.
+}
+
+// Request applying a streaming inspect plugin to OmegaEdit-controlled content.
+message InspectSessionContentRequest {
+    string session_id = 1;           // Session to inspect.
+    SessionContentSource content = 2;// Content source to inspect.
+    string plugin_id = 3;            // Registered streaming inspect plugin identifier.
+    optional int64 offset = 4;       // Starting byte offset (default: 0).
+    optional int64 length = 5;       // Number of bytes to inspect (0/default = through EOF).
+    optional string options_json = 6;// Plugin-specific options.
+}
+
+// Result of applying a streaming inspect plugin to OmegaEdit-controlled content.
+message InspectSessionContentResponse {
+    string session_id = 1;               // Session that was inspected.
+    SessionContentSource content = 2;    // Content source that was inspected.
+    string plugin_id = 3;                // Plugin that was applied.
+    int64 offset = 4;                    // Starting offset of the inspected range.
+    int64 length = 5;                    // Length of the inspected range.
+    int64 content_byte_length = 6;       // Total byte length of the selected content source.
+    optional string result_label = 7;    // Plugin-provided result label.
+    optional string result_mime_type = 8;// Plugin-provided result MIME type.
+    bytes result = 9;                    // Plugin-provided inspection bytes.
 }
 
 // Request the total number of active sessions.

@@ -54,9 +54,11 @@ import {
   getLanguage,
   getSegment,
   getServerInfo,
+  getSessionContentInfo,
   getSessionFingerprint,
   getViewportData,
   IOFlags,
+  inspectSessionContent,
   SaveStatus,
   type IServerInfo,
   insert,
@@ -70,6 +72,7 @@ import {
   restoreLastCheckpoint,
   runSessionTransaction,
   saveSession,
+  SessionContentSource,
   SessionFingerprintContent,
   SessionEventKind,
   startServerHeartbeatLoop,
@@ -100,6 +103,8 @@ import {
   type WebviewEditorState,
   type WebviewEditorUiState,
   type WebviewExternalHighlight,
+  type WebviewSessionContentInfo,
+  type WebviewSessionContentSource,
   type WebviewTransformPlugin,
   type HostToWebviewMessage,
   type ServerHealthMetric,
@@ -136,6 +141,7 @@ interface EditorSession {
   analysisProfileTask?: Promise<void>
   webviewState: WebviewEditorUiState
   externalHighlights: WebviewExternalHighlight[]
+  contentSources: WebviewSessionContentInfo[]
   transformPlugins: WebviewTransformPlugin[]
   transformInFlight: boolean
   pendingHistoryOperation?: 'undo' | 'redo'
@@ -454,6 +460,57 @@ function formatTransformCompletionMessage(response: {
   }
 
   return vscode.l10n.t('OmegaEdit action completed without content changes')
+}
+
+function webviewContentSourceToClient(
+  source: WebviewSessionContentSource
+): SessionContentSource {
+  switch (source) {
+    case 'original':
+      return SessionContentSource.ORIGINAL
+    case 'latestCheckpoint':
+      return SessionContentSource.LATEST_CHECKPOINT
+    case 'computed':
+      return SessionContentSource.COMPUTED
+  }
+}
+
+function clientContentSourceToWebview(
+  source: SessionContentSource
+): WebviewSessionContentSource | undefined {
+  switch (source) {
+    case SessionContentSource.ORIGINAL:
+      return 'original'
+    case SessionContentSource.COMPUTED:
+      return 'computed'
+    case SessionContentSource.LATEST_CHECKPOINT:
+      return 'latestCheckpoint'
+    default:
+      return undefined
+  }
+}
+
+function defaultContentSources(fileSize: number): WebviewSessionContentInfo[] {
+  return [
+    {
+      content: 'computed',
+      available: true,
+      byteLength: fileSize,
+      label: vscode.l10n.t('Current Content'),
+    },
+    {
+      content: 'original',
+      available: true,
+      byteLength: fileSize,
+      label: vscode.l10n.t('Original Snapshot'),
+    },
+    {
+      content: 'latestCheckpoint',
+      available: false,
+      byteLength: 0,
+      label: vscode.l10n.t('Latest Checkpoint'),
+    },
+  ]
 }
 
 function formatStatusByteCount(value: number): string {
@@ -1844,6 +1901,7 @@ export class HexEditorProvider
       search: new EditorSearchController(scope.sessionId),
       webviewState: initialWebviewState(bytesPerRow),
       externalHighlights: [],
+      contentSources: defaultContentSources(scope.model.fileSize),
       transformPlugins: [],
       transformInFlight: false,
       restoredFromBackup: wasRestoredFromBackup,
@@ -1861,6 +1919,7 @@ export class HexEditorProvider
       await this.handleWebviewMessage(session, pendingMessage)
     }
     await this.sendViewportData(session)
+    await this.refreshSessionContentInfo(session)
     this.postEditState(session)
     this.postEditMode(session)
 
@@ -2008,6 +2067,7 @@ export class HexEditorProvider
           type: 'fileSizeChanged',
           fileSize: context.model.fileSize,
         })
+        void this.refreshSessionContentInfo(session)
         if (session.search.shouldClearAfterExternalEdit()) {
           this.clearSearchState(session)
         }
@@ -3246,8 +3306,53 @@ export class HexEditorProvider
         operation: plugin.operation,
         flags: plugin.flags,
       })),
+      contentSources: session.contentSources,
       contentType: session.contentType,
       language: session.language,
+    }
+  }
+
+  private async refreshSessionContentInfo(
+    session: EditorSession
+  ): Promise<void> {
+    if (session.disposed || session.scope.isDisposed) {
+      return
+    }
+    try {
+      const response = await getSessionContentInfo(session.sessionId)
+      if (session.disposed || session.scope.isDisposed) {
+        return
+      }
+      const contentSources = response.info
+        .map((entry): WebviewSessionContentInfo | undefined => {
+          const content = clientContentSourceToWebview(entry.content)
+          return content
+            ? {
+                content,
+                available: entry.available,
+                byteLength: entry.byteLength,
+                label: entry.label,
+              }
+            : undefined
+        })
+        .filter(
+          (entry): entry is WebviewSessionContentInfo => entry !== undefined
+        )
+      session.contentSources =
+        contentSources.length > 0
+          ? contentSources
+          : defaultContentSources(session.fileSize)
+      this.postWebviewMessage(session, {
+        type: 'sessionContentInfo',
+        contentSources: session.contentSources,
+      })
+      this._onDidChangeEditorState.fire(this.buildEditorState(session))
+    } catch {
+      session.contentSources = defaultContentSources(session.fileSize)
+      this.postWebviewMessage(session, {
+        type: 'sessionContentInfo',
+        contentSources: session.contentSources,
+      })
     }
   }
 
@@ -3433,6 +3538,7 @@ export class HexEditorProvider
   private async applyTransformToRange(
     session: EditorSession,
     pluginId: string,
+    contentSource: WebviewSessionContentSource,
     offset: number,
     length: number,
     optionsJson?: string
@@ -3449,12 +3555,56 @@ export class HexEditorProvider
     )
     let failureMessage: string | undefined
     try {
-      const clampedOffset = Math.max(0, Math.min(offset, session.fileSize))
-      const remainingLength = Math.max(0, session.fileSize - clampedOffset)
+      const plugin = session.transformPlugins.find(
+        (entry) => entry.id === pluginId
+      )
+      const inspectOnly = plugin?.operation === TransformPluginOperation.INSPECT
+      const effectiveContentSource = inspectOnly ? contentSource : 'computed'
+      const contentByteLength =
+        session.contentSources.find(
+          (entry) => entry.content === effectiveContentSource && entry.available
+        )?.byteLength ??
+        (effectiveContentSource === 'computed' ? session.fileSize : 0)
+      const clampedOffset = Math.max(0, Math.min(offset, contentByteLength))
+      const remainingLength = Math.max(0, contentByteLength - clampedOffset)
       const originalLength =
         length === 0 ? remainingLength : Math.min(length, remainingLength)
       const sessionSyncVersion = session.sessionSyncVersion
       const computedFileSizeBefore = session.fileSize
+      if (inspectOnly) {
+        const response = await inspectSessionContent(
+          session.sessionId,
+          webviewContentSourceToClient(effectiveContentSource),
+          pluginId,
+          clampedOffset,
+          originalLength,
+          optionsJson
+        )
+
+        this.postWebviewMessage(session, {
+          type: 'transformComplete',
+          pluginId: response.pluginId,
+          offset: response.offset,
+          length: response.length,
+          operation: TransformPluginOperation.INSPECT,
+          contentChanged: false,
+          replacementLength: 0,
+          computedFileSize: session.fileSize,
+          resultLabel: response.resultLabel ?? '',
+          resultMimeType: response.resultMimeType ?? '',
+          resultText: transformResultToText(response.result),
+        })
+        void vscode.window.showInformationMessage(
+          formatTransformCompletionMessage({
+            operation: TransformPluginOperation.INSPECT,
+            contentChanged: false,
+            length: response.length,
+            replacementLength: 0,
+          })
+        )
+        return
+      }
+
       const response = await applyTransformPlugin(
         session.sessionId,
         pluginId,
@@ -3486,6 +3636,7 @@ export class HexEditorProvider
       }
 
       await this.sendViewportData(session)
+      await this.refreshSessionContentInfo(session)
 
       this.postWebviewMessage(session, {
         type: 'transformComplete',
@@ -4706,7 +4857,7 @@ export class HexEditorProvider
     rawMessage: unknown
   ): Promise<void> {
     const msg = normalizeWebviewMessage(
-      { fileSize: session.fileSize },
+      { fileSize: session.fileSize, contentSources: session.contentSources },
       rawMessage
     )
     if (!msg || session.scope.isDisposed || session.disposed) {
@@ -5063,6 +5214,7 @@ export class HexEditorProvider
             await this.applyTransformToRange(
               session,
               msg.pluginId,
+              msg.contentSource ?? 'computed',
               msg.offset,
               msg.length,
               msg.optionsJson?.trim() || undefined

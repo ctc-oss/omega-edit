@@ -17,6 +17,7 @@
 #include <omega_edit.h>
 #include <omega_edit/character_counts.h>
 #include <omega_edit/check.h>
+#include <omega_edit/filesystem.h>
 #include <omega_edit/utility.h>
 #include <omega_edit/version.h>
 
@@ -79,7 +80,7 @@ namespace omega_edit {
 
         static constexpr char SESSION_FINGERPRINT_DIGEST_PLUGIN_ID[] = "omega.example.openssl_digests";
         static constexpr char DEFAULT_SESSION_FINGERPRINT_ALGORITHM[] = "sha256";
-        static constexpr int64_t SESSION_FINGERPRINT_CHUNK_SIZE = 1024 * 1024;
+        static constexpr int64_t SESSION_CONTENT_INSPECTION_CHUNK_SIZE = 1024 * 1024;
 
         static bool path_argument_is_safe_for_core(const std::string &path) {
             return path.size() < FILENAME_MAX && std::none_of(path.begin(), path.end(), [](unsigned char ch) {
@@ -110,54 +111,110 @@ namespace omega_edit {
             return "{\"algorithm\":\"" + algorithm + "\"}";
         }
 
+        using session_content_source = ::omega_edit::v1::SessionContentSource;
         using session_fingerprint_content = ::omega_edit::v1::SessionFingerprintContent;
 
-        static int64_t get_session_fingerprint_byte_length(omega_session_t *session,
-                                                           session_fingerprint_content content) {
+        static session_content_source fingerprint_content_to_session_content(session_fingerprint_content content) {
             switch (content) {
                 case ::omega_edit::v1::SESSION_FINGERPRINT_CONTENT_ORIGINAL:
-                    return omega_session_get_original_file_size(session);
+                    return ::omega_edit::v1::SESSION_CONTENT_SOURCE_ORIGINAL;
                 case ::omega_edit::v1::SESSION_FINGERPRINT_CONTENT_COMPUTED:
+                    return ::omega_edit::v1::SESSION_CONTENT_SOURCE_COMPUTED;
+                default:
+                    return ::omega_edit::v1::SESSION_CONTENT_SOURCE_UNSPECIFIED;
+            }
+        }
+
+        static bool is_supported_session_content_source(session_content_source content) {
+            return content == ::omega_edit::v1::SESSION_CONTENT_SOURCE_ORIGINAL ||
+                   content == ::omega_edit::v1::SESSION_CONTENT_SOURCE_COMPUTED ||
+                   content == ::omega_edit::v1::SESSION_CONTENT_SOURCE_LATEST_CHECKPOINT;
+        }
+
+        static const char *session_content_source_label(session_content_source content) {
+            switch (content) {
+                case ::omega_edit::v1::SESSION_CONTENT_SOURCE_ORIGINAL:
+                    return "Original snapshot";
+                case ::omega_edit::v1::SESSION_CONTENT_SOURCE_COMPUTED:
+                    return "Current content";
+                case ::omega_edit::v1::SESSION_CONTENT_SOURCE_LATEST_CHECKPOINT:
+                    return "Latest checkpoint";
+                default:
+                    return "Unknown";
+            }
+        }
+
+        static bool session_content_source_uses_file_snapshot(session_content_source content) {
+            return content == ::omega_edit::v1::SESSION_CONTENT_SOURCE_ORIGINAL ||
+                   content == ::omega_edit::v1::SESSION_CONTENT_SOURCE_LATEST_CHECKPOINT;
+        }
+
+        static int64_t get_session_content_byte_length(omega_session_t *session, session_content_source content) {
+            switch (content) {
+                case ::omega_edit::v1::SESSION_CONTENT_SOURCE_ORIGINAL:
+                    return omega_session_get_original_file_size(session);
+                case ::omega_edit::v1::SESSION_CONTENT_SOURCE_COMPUTED:
                     return omega_session_get_computed_file_size(session);
+                case ::omega_edit::v1::SESSION_CONTENT_SOURCE_LATEST_CHECKPOINT:
+                    return omega_session_get_latest_checkpoint_file_size(session);
                 default:
                     return -1;
             }
         }
 
-        static int read_session_fingerprint_segment(const omega_session_t *session, session_fingerprint_content content,
-                                                    omega_segment_t *segment, int64_t offset) {
+        static const char *get_session_content_snapshot_file_path(const omega_session_t *session,
+                                                                  session_content_source content) {
             switch (content) {
-                case ::omega_edit::v1::SESSION_FINGERPRINT_CONTENT_ORIGINAL:
+                case ::omega_edit::v1::SESSION_CONTENT_SOURCE_ORIGINAL:
+                    return omega_session_get_original_snapshot_file_path(session);
+                case ::omega_edit::v1::SESSION_CONTENT_SOURCE_LATEST_CHECKPOINT:
+                    return omega_session_get_latest_checkpoint_file_path(session);
+                default:
+                    return nullptr;
+            }
+        }
+
+        static int read_session_content_segment(const omega_session_t *session, session_content_source content,
+                                                omega_segment_t *segment, int64_t offset) {
+            switch (content) {
+                case ::omega_edit::v1::SESSION_CONTENT_SOURCE_ORIGINAL:
                     return omega_session_get_original_segment(session, segment, offset);
-                case ::omega_edit::v1::SESSION_FINGERPRINT_CONTENT_COMPUTED:
+                case ::omega_edit::v1::SESSION_CONTENT_SOURCE_COMPUTED:
                     return omega_session_get_segment(session, segment, offset);
                 default:
                     return -1;
             }
         }
 
-        struct session_fingerprint_reader {
+        struct session_content_reader {
             const omega_session_t *session{};
-            session_fingerprint_content content{};
-            int64_t byte_length{};
+            session_content_source content{};
+            int64_t offset{};
+            int64_t length{};
         };
 
-        static int64_t read_session_fingerprint_chunk(int64_t relative_offset, omega_byte_t *buffer, int64_t length,
-                                                      void *user_data_ptr) {
-            auto *reader = static_cast<session_fingerprint_reader *>(user_data_ptr);
+        struct session_content_file_reader {
+            std::string file_path;
+            int64_t offset{};
+            int64_t length{};
+        };
+
+        static int64_t read_session_content_chunk(int64_t relative_offset, omega_byte_t *buffer, int64_t length,
+                                                  void *user_data_ptr) {
+            auto *reader = static_cast<session_content_reader *>(user_data_ptr);
             if (!reader || !reader->session || !buffer || relative_offset < 0 || length < 0 ||
-                relative_offset > reader->byte_length) {
+                relative_offset > reader->length) {
                 return -1;
             }
 
-            const auto remaining = reader->byte_length - relative_offset;
-            const auto read_length = std::min(std::min(length, remaining), SESSION_FINGERPRINT_CHUNK_SIZE);
+            const auto remaining = reader->length - relative_offset;
+            const auto read_length = std::min(std::min(length, remaining), SESSION_CONTENT_INSPECTION_CHUNK_SIZE);
             if (read_length == 0) { return 0; }
 
             auto *segment = omega_segment_create(read_length);
             if (!segment) { return -1; }
-            const auto rc =
-                    read_session_fingerprint_segment(reader->session, reader->content, segment, relative_offset);
+            const auto rc = read_session_content_segment(reader->session, reader->content, segment,
+                                                         reader->offset + relative_offset);
             if (rc != 0) {
                 omega_segment_destroy(segment);
                 return -1;
@@ -172,6 +229,52 @@ namespace omega_edit {
             std::memcpy(buffer, data, static_cast<size_t>(segment_length));
             omega_segment_destroy(segment);
             return segment_length;
+        }
+
+        static int64_t read_session_content_file_chunk(int64_t relative_offset, omega_byte_t *buffer, int64_t length,
+                                                       void *user_data_ptr) {
+            auto *reader = static_cast<session_content_file_reader *>(user_data_ptr);
+            if (!reader || reader->file_path.empty() || !buffer || relative_offset < 0 || length < 0 ||
+                reader->offset < 0 || reader->length < 0 || relative_offset > reader->length) {
+                return -1;
+            }
+
+            const auto remaining = reader->length - relative_offset;
+            const auto read_length = std::min(std::min(length, remaining), SESSION_CONTENT_INSPECTION_CHUNK_SIZE);
+            if (read_length == 0) { return 0; }
+            if (relative_offset > (std::numeric_limits<int64_t>::max)() - reader->offset) { return -1; }
+
+            // Owned snapshot inspections are deliberately opportunistic: if session cleanup removes the file while a
+            // calculation is running, the next chunk fails and the RPC is aborted.
+            return omega_util_read_file_segment(reader->file_path.c_str(), reader->offset + relative_offset, buffer,
+                                                read_length);
+        }
+
+        static grpc::Status validate_session_content_range(int64_t content_byte_length, int64_t request_offset,
+                                                           int64_t request_length, int64_t &effective_offset,
+                                                           int64_t &effective_length) {
+            if (content_byte_length < 0) {
+                return grpc::Status(grpc::StatusCode::FAILED_PRECONDITION, "session content source is not available");
+            }
+            if (request_offset < 0 || request_length < 0) {
+                return grpc::Status(grpc::StatusCode::INVALID_ARGUMENT,
+                                    "inspection offset and length must be non-negative");
+            }
+            if (request_offset > content_byte_length) {
+                return grpc::Status(grpc::StatusCode::INVALID_ARGUMENT,
+                                    "inspection range offset is outside the selected content");
+            }
+
+            const auto remaining = content_byte_length - request_offset;
+            effective_offset = request_offset;
+            effective_length = (request_length == 0 || request_length > remaining) ? remaining : request_length;
+            return grpc::Status::OK;
+        }
+
+        static bool inspect_plugin_response_is_valid(const omega_transform_plugin_response_t &response) {
+            if (response.replacement_bytes != nullptr || response.replacement_length != 0) { return false; }
+            if (response.result_length < 0) { return false; }
+            return response.result_length == 0 || response.result_bytes != nullptr;
         }
 
         struct process_memory_metrics {
@@ -1486,47 +1589,107 @@ namespace omega_edit {
             }
             const auto options_json = make_digest_options_json(algorithm);
 
-            auto locked_session = session_manager_.lock_session(request->session_id());
-            if (!locked_session) {
-                return grpc::Status(grpc::StatusCode::NOT_FOUND, "session not found: " + request->session_id());
-            }
-            auto *session = locked_session.session();
-
-            const auto byte_length = get_session_fingerprint_byte_length(session, content);
-            if (byte_length < 0) {
-                return grpc::Status(grpc::StatusCode::INTERNAL, "session content length unavailable for fingerprint");
-            }
-
+            const auto inspection_content = fingerprint_content_to_session_content(content);
+            int64_t byte_length = -1;
             transform_plugin_response_guard plugin_response;
-            {
-                std::lock_guard<std::mutex> plugin_lock(transform_plugin_mutex_);
-                const auto *plugin_info = omega_transform_plugin_registry_find_info(
-                        transform_plugin_registry_, SESSION_FINGERPRINT_DIGEST_PLUGIN_ID);
-                if (!plugin_info) {
-                    return grpc::Status(grpc::StatusCode::FAILED_PRECONDITION,
-                                        "session fingerprint digest plugin is not registered: " +
-                                                std::string(SESSION_FINGERPRINT_DIGEST_PLUGIN_ID));
-                }
-                if (plugin_info->operation != OMEGA_TRANSFORM_PLUGIN_OPERATION_INSPECT ||
-                    (plugin_info->flags & OMEGA_TRANSFORM_PLUGIN_FLAG_STREAMING) == 0U) {
-                    return grpc::Status(grpc::StatusCode::FAILED_PRECONDITION,
-                                        "session fingerprint digest plugin must be a streaming inspect plugin");
-                }
-                if (0 !=
-                    omega_transform_plugin_options_match_args_schema(options_json.c_str(), plugin_info->args_schema)) {
-                    return grpc::Status(grpc::StatusCode::INVALID_ARGUMENT,
-                                        "unsupported fingerprint digest algorithm: " + algorithm);
+
+            if (session_content_source_uses_file_snapshot(inspection_content)) {
+                std::string checkpoint_directory;
+                std::string snapshot_file_path;
+                {
+                    auto locked_session = session_manager_.lock_session(request->session_id());
+                    if (!locked_session) {
+                        return grpc::Status(grpc::StatusCode::NOT_FOUND, "session not found: " + request->session_id());
+                    }
+                    auto *session = locked_session.session();
+                    byte_length = get_session_content_byte_length(session, inspection_content);
+                    if (byte_length < 0) {
+                        return grpc::Status(grpc::StatusCode::INTERNAL,
+                                            "session content length unavailable for fingerprint");
+                    }
+                    const auto *checkpoint_directory_ptr = omega_session_get_checkpoint_directory(session);
+                    checkpoint_directory = checkpoint_directory_ptr ? checkpoint_directory_ptr : "";
+                    const auto *snapshot_path_ptr = get_session_content_snapshot_file_path(session, inspection_content);
+                    if (!snapshot_path_ptr || !*snapshot_path_ptr) {
+                        return grpc::Status(grpc::StatusCode::FAILED_PRECONDITION,
+                                            "session fingerprint content source is not file-backed");
+                    }
+                    snapshot_file_path = snapshot_path_ptr;
                 }
 
-                session_fingerprint_reader reader{session, content, byte_length};
-                if (0 != omega_transform_plugin_registry_inspect_reader(
-                                 transform_plugin_registry_, SESSION_FINGERPRINT_DIGEST_PLUGIN_ID, 0, byte_length,
-                                 options_json.c_str(), omega_session_get_checkpoint_directory(session),
-                                 read_session_fingerprint_chunk, &reader, SESSION_FINGERPRINT_CHUNK_SIZE, nullptr,
-                                 nullptr, &plugin_response.response)) {
+                session_content_file_reader reader{snapshot_file_path, 0, byte_length};
+                {
+                    std::lock_guard<std::mutex> plugin_lock(transform_plugin_mutex_);
+                    const auto *plugin_info = omega_transform_plugin_registry_find_info(
+                            transform_plugin_registry_, SESSION_FINGERPRINT_DIGEST_PLUGIN_ID);
+                    if (!plugin_info) {
+                        return grpc::Status(grpc::StatusCode::FAILED_PRECONDITION,
+                                            "session fingerprint digest plugin is not registered: " +
+                                                    std::string(SESSION_FINGERPRINT_DIGEST_PLUGIN_ID));
+                    }
+                    if (plugin_info->operation != OMEGA_TRANSFORM_PLUGIN_OPERATION_INSPECT ||
+                        (plugin_info->flags & OMEGA_TRANSFORM_PLUGIN_FLAG_STREAMING) == 0U) {
+                        return grpc::Status(grpc::StatusCode::FAILED_PRECONDITION,
+                                            "session fingerprint digest plugin must be a streaming inspect plugin");
+                    }
+                    if (0 != omega_transform_plugin_options_match_args_schema(options_json.c_str(),
+                                                                              plugin_info->args_schema)) {
+                        return grpc::Status(grpc::StatusCode::INVALID_ARGUMENT,
+                                            "unsupported fingerprint digest algorithm: " + algorithm);
+                    }
+
+                    if (0 != omega_transform_plugin_registry_inspect_reader(
+                                     transform_plugin_registry_, SESSION_FINGERPRINT_DIGEST_PLUGIN_ID, 0, byte_length,
+                                     options_json.c_str(), checkpoint_directory.c_str(),
+                                     read_session_content_file_chunk, &reader, SESSION_CONTENT_INSPECTION_CHUNK_SIZE,
+                                     nullptr, nullptr, &plugin_response.response)) {
+                        return grpc::Status(grpc::StatusCode::ABORTED,
+                                            "session fingerprint digest plugin failed: " +
+                                                    std::string(SESSION_FINGERPRINT_DIGEST_PLUGIN_ID));
+                    }
+                }
+            } else {
+                auto locked_session = session_manager_.lock_session(request->session_id());
+                if (!locked_session) {
+                    return grpc::Status(grpc::StatusCode::NOT_FOUND, "session not found: " + request->session_id());
+                }
+                auto *session = locked_session.session();
+                byte_length = get_session_content_byte_length(session, inspection_content);
+                if (byte_length < 0) {
                     return grpc::Status(grpc::StatusCode::INTERNAL,
-                                        "session fingerprint digest plugin failed: " +
-                                                std::string(SESSION_FINGERPRINT_DIGEST_PLUGIN_ID));
+                                        "session content length unavailable for fingerprint");
+                }
+
+                {
+                    std::lock_guard<std::mutex> plugin_lock(transform_plugin_mutex_);
+                    const auto *plugin_info = omega_transform_plugin_registry_find_info(
+                            transform_plugin_registry_, SESSION_FINGERPRINT_DIGEST_PLUGIN_ID);
+                    if (!plugin_info) {
+                        return grpc::Status(grpc::StatusCode::FAILED_PRECONDITION,
+                                            "session fingerprint digest plugin is not registered: " +
+                                                    std::string(SESSION_FINGERPRINT_DIGEST_PLUGIN_ID));
+                    }
+                    if (plugin_info->operation != OMEGA_TRANSFORM_PLUGIN_OPERATION_INSPECT ||
+                        (plugin_info->flags & OMEGA_TRANSFORM_PLUGIN_FLAG_STREAMING) == 0U) {
+                        return grpc::Status(grpc::StatusCode::FAILED_PRECONDITION,
+                                            "session fingerprint digest plugin must be a streaming inspect plugin");
+                    }
+                    if (0 != omega_transform_plugin_options_match_args_schema(options_json.c_str(),
+                                                                              plugin_info->args_schema)) {
+                        return grpc::Status(grpc::StatusCode::INVALID_ARGUMENT,
+                                            "unsupported fingerprint digest algorithm: " + algorithm);
+                    }
+
+                    session_content_reader reader{session, inspection_content, 0, byte_length};
+                    if (0 != omega_transform_plugin_registry_inspect_reader(
+                                     transform_plugin_registry_, SESSION_FINGERPRINT_DIGEST_PLUGIN_ID, 0, byte_length,
+                                     options_json.c_str(), omega_session_get_checkpoint_directory(session),
+                                     read_session_content_chunk, &reader, SESSION_CONTENT_INSPECTION_CHUNK_SIZE,
+                                     nullptr, nullptr, &plugin_response.response)) {
+                        return grpc::Status(grpc::StatusCode::INTERNAL,
+                                            "session fingerprint digest plugin failed: " +
+                                                    std::string(SESSION_FINGERPRINT_DIGEST_PLUGIN_ID));
+                    }
                 }
             }
 
@@ -1548,6 +1711,182 @@ namespace omega_edit {
             auto *digest_response = fingerprint->mutable_digest();
             digest_response->set_algorithm(algorithm);
             digest_response->set_value(digest_value);
+            return grpc::Status::OK;
+        }
+
+        grpc::Status
+        EditorServiceImpl::GetSessionContentInfo(grpc::ServerContext * /*context*/,
+                                                 const ::omega_edit::v1::GetSessionContentInfoRequest *request,
+                                                 ::omega_edit::v1::GetSessionContentInfoResponse *response) {
+            auto locked_session = session_manager_.lock_session(request->session_id());
+            if (!locked_session) {
+                return grpc::Status(grpc::StatusCode::NOT_FOUND, "session not found: " + request->session_id());
+            }
+            auto *session = locked_session.session();
+
+            std::vector<session_content_source> requested;
+            if (request->content().empty()) {
+                requested = {
+                        ::omega_edit::v1::SESSION_CONTENT_SOURCE_ORIGINAL,
+                        ::omega_edit::v1::SESSION_CONTENT_SOURCE_COMPUTED,
+                        ::omega_edit::v1::SESSION_CONTENT_SOURCE_LATEST_CHECKPOINT,
+                };
+            } else {
+                requested.reserve(static_cast<size_t>(request->content_size()));
+                for (const auto content_value : request->content()) {
+                    requested.push_back(static_cast<session_content_source>(content_value));
+                }
+            }
+
+            response->set_session_id(request->session_id());
+            for (const auto content : requested) {
+                if (!is_supported_session_content_source(content)) {
+                    return grpc::Status(grpc::StatusCode::INVALID_ARGUMENT, "unsupported session content source");
+                }
+
+                const auto byte_length = get_session_content_byte_length(session, content);
+                auto *info = response->add_info();
+                info->set_content(content);
+                info->set_available(byte_length >= 0);
+                info->set_byte_length(byte_length >= 0 ? byte_length : 0);
+                info->set_label(session_content_source_label(content));
+            }
+            return grpc::Status::OK;
+        }
+
+        grpc::Status
+        EditorServiceImpl::InspectSessionContent(grpc::ServerContext * /*context*/,
+                                                 const ::omega_edit::v1::InspectSessionContentRequest *request,
+                                                 ::omega_edit::v1::InspectSessionContentResponse *response) {
+            const auto content = request->content();
+            if (!is_supported_session_content_source(content)) {
+                return grpc::Status(grpc::StatusCode::INVALID_ARGUMENT, "unsupported session content source");
+            }
+            if (request->plugin_id().empty()) {
+                return grpc::Status(grpc::StatusCode::INVALID_ARGUMENT, "plugin_id is required");
+            }
+
+            const int64_t requested_offset = request->has_offset() ? request->offset() : 0;
+            const int64_t requested_length = request->has_length() ? request->length() : 0;
+            int64_t content_byte_length = -1;
+            int64_t effective_offset = 0;
+            int64_t effective_length = 0;
+            std::string checkpoint_directory;
+            transform_plugin_response_guard plugin_response;
+
+            if (session_content_source_uses_file_snapshot(content)) {
+                std::string snapshot_file_path;
+                {
+                    auto locked_session = session_manager_.lock_session(request->session_id());
+                    if (!locked_session) {
+                        return grpc::Status(grpc::StatusCode::NOT_FOUND, "session not found: " + request->session_id());
+                    }
+                    auto *session = locked_session.session();
+                    content_byte_length = get_session_content_byte_length(session, content);
+                    const auto range_status =
+                            validate_session_content_range(content_byte_length, requested_offset, requested_length,
+                                                           effective_offset, effective_length);
+                    if (!range_status.ok()) { return range_status; }
+                    const auto *checkpoint_directory_ptr = omega_session_get_checkpoint_directory(session);
+                    checkpoint_directory = checkpoint_directory_ptr ? checkpoint_directory_ptr : "";
+                    const auto *snapshot_path_ptr = get_session_content_snapshot_file_path(session, content);
+                    if (!snapshot_path_ptr || !*snapshot_path_ptr) {
+                        return grpc::Status(grpc::StatusCode::FAILED_PRECONDITION,
+                                            "session content source is not file-backed");
+                    }
+                    snapshot_file_path = snapshot_path_ptr;
+                }
+
+                session_content_file_reader reader{snapshot_file_path, effective_offset, effective_length};
+                {
+                    std::lock_guard<std::mutex> plugin_lock(transform_plugin_mutex_);
+                    const auto *plugin_info = omega_transform_plugin_registry_find_info(transform_plugin_registry_,
+                                                                                        request->plugin_id().c_str());
+                    if (!plugin_info) {
+                        return grpc::Status(grpc::StatusCode::NOT_FOUND,
+                                            "transform plugin not found: " + request->plugin_id());
+                    }
+                    if (plugin_info->operation != OMEGA_TRANSFORM_PLUGIN_OPERATION_INSPECT ||
+                        (plugin_info->flags & OMEGA_TRANSFORM_PLUGIN_FLAG_STREAMING) == 0U) {
+                        return grpc::Status(grpc::StatusCode::FAILED_PRECONDITION,
+                                            "session content inspection requires a streaming inspect plugin");
+                    }
+                    const char *options_json = request->has_options_json() ? request->options_json().c_str() : nullptr;
+                    if (0 != omega_transform_plugin_options_match_args_schema(options_json, plugin_info->args_schema)) {
+                        return grpc::Status(grpc::StatusCode::INVALID_ARGUMENT,
+                                            "transform options do not match schema: " + request->plugin_id());
+                    }
+                    if (0 != omega_transform_plugin_registry_inspect_reader(
+                                     transform_plugin_registry_, request->plugin_id().c_str(), effective_offset,
+                                     effective_length, options_json, checkpoint_directory.c_str(),
+                                     read_session_content_file_chunk, &reader, SESSION_CONTENT_INSPECTION_CHUNK_SIZE,
+                                     nullptr, nullptr, &plugin_response.response)) {
+                        return grpc::Status(grpc::StatusCode::ABORTED,
+                                            "session content inspection failed: " + request->plugin_id());
+                    }
+                }
+            } else {
+                auto locked_session = session_manager_.lock_session(request->session_id());
+                if (!locked_session) {
+                    return grpc::Status(grpc::StatusCode::NOT_FOUND, "session not found: " + request->session_id());
+                }
+                auto *session = locked_session.session();
+                content_byte_length = get_session_content_byte_length(session, content);
+                const auto range_status = validate_session_content_range(
+                        content_byte_length, requested_offset, requested_length, effective_offset, effective_length);
+                if (!range_status.ok()) { return range_status; }
+
+                session_content_reader reader{session, content, effective_offset, effective_length};
+                {
+                    std::lock_guard<std::mutex> plugin_lock(transform_plugin_mutex_);
+                    const auto *plugin_info = omega_transform_plugin_registry_find_info(transform_plugin_registry_,
+                                                                                        request->plugin_id().c_str());
+                    if (!plugin_info) {
+                        return grpc::Status(grpc::StatusCode::NOT_FOUND,
+                                            "transform plugin not found: " + request->plugin_id());
+                    }
+                    if (plugin_info->operation != OMEGA_TRANSFORM_PLUGIN_OPERATION_INSPECT ||
+                        (plugin_info->flags & OMEGA_TRANSFORM_PLUGIN_FLAG_STREAMING) == 0U) {
+                        return grpc::Status(grpc::StatusCode::FAILED_PRECONDITION,
+                                            "session content inspection requires a streaming inspect plugin");
+                    }
+                    const char *options_json = request->has_options_json() ? request->options_json().c_str() : nullptr;
+                    if (0 != omega_transform_plugin_options_match_args_schema(options_json, plugin_info->args_schema)) {
+                        return grpc::Status(grpc::StatusCode::INVALID_ARGUMENT,
+                                            "transform options do not match schema: " + request->plugin_id());
+                    }
+                    if (0 != omega_transform_plugin_registry_inspect_reader(
+                                     transform_plugin_registry_, request->plugin_id().c_str(), effective_offset,
+                                     effective_length, options_json, omega_session_get_checkpoint_directory(session),
+                                     read_session_content_chunk, &reader, SESSION_CONTENT_INSPECTION_CHUNK_SIZE,
+                                     nullptr, nullptr, &plugin_response.response)) {
+                        return grpc::Status(grpc::StatusCode::INTERNAL,
+                                            "session content inspection failed: " + request->plugin_id());
+                    }
+                }
+            }
+
+            if (!inspect_plugin_response_is_valid(plugin_response.response)) {
+                return grpc::Status(grpc::StatusCode::INTERNAL,
+                                    "session content inspection returned an invalid result");
+            }
+
+            response->set_session_id(request->session_id());
+            response->set_content(content);
+            response->set_plugin_id(request->plugin_id());
+            response->set_offset(effective_offset);
+            response->set_length(effective_length);
+            response->set_content_byte_length(content_byte_length);
+            if (plugin_response.response.result_label) {
+                response->set_result_label(plugin_response.response.result_label);
+            }
+            if (plugin_response.response.result_mime_type) {
+                response->set_result_mime_type(plugin_response.response.result_mime_type);
+            }
+            if (plugin_response.response.result_length > 0) {
+                response->set_result(reinterpret_cast<const char *>(plugin_response.response.result_bytes),
+                                     static_cast<size_t>(plugin_response.response.result_length));
+            }
             return grpc::Status::OK;
         }
 
