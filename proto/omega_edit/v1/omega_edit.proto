@@ -907,7 +907,7 @@ message GetSessionContentInfoRequest {
 
 // Inspectable content-source metadata for a session.
 message GetSessionContentInfoResponse {
-    string session_id = 1;              // Session that was queried.
+    string session_id = 1;               // Session that was queried.
     repeated SessionContentInfo info = 2;// Content source entries.
 }
 
@@ -939,25 +939,25 @@ message GetSessionFingerprintResponse {
 
 // Request applying a streaming inspect plugin to OmegaEdit-controlled content.
 message InspectSessionContentRequest {
-    string session_id = 1;            // Session to inspect.
-    SessionContentSource content = 2; // Content source to inspect.
-    string plugin_id = 3;             // Registered streaming inspect plugin identifier.
-    optional int64 offset = 4;        // Starting byte offset (default: 0).
-    optional int64 length = 5;        // Number of bytes to inspect (0/default = through EOF).
-    optional string options_json = 6; // Plugin-specific options.
+    string session_id = 1;           // Session to inspect.
+    SessionContentSource content = 2;// Content source to inspect.
+    string plugin_id = 3;            // Registered streaming inspect plugin identifier.
+    optional int64 offset = 4;       // Starting byte offset (default: 0).
+    optional int64 length = 5;       // Number of bytes to inspect (0/default = through EOF).
+    optional string options_json = 6;// Plugin-specific options.
 }
 
 // Result of applying a streaming inspect plugin to OmegaEdit-controlled content.
 message InspectSessionContentResponse {
-    string session_id = 1;                 // Session that was inspected.
-    SessionContentSource content = 2;      // Content source that was inspected.
-    string plugin_id = 3;                  // Plugin that was applied.
-    int64 offset = 4;                      // Starting offset of the inspected range.
-    int64 length = 5;                      // Length of the inspected range.
-    int64 content_byte_length = 6;         // Total byte length of the selected content source.
-    optional string result_label = 7;      // Plugin-provided result label.
-    optional string result_mime_type = 8;  // Plugin-provided result MIME type.
-    bytes result = 9;                      // Plugin-provided inspection bytes.
+    string session_id = 1;               // Session that was inspected.
+    SessionContentSource content = 2;    // Content source that was inspected.
+    string plugin_id = 3;                // Plugin that was applied.
+    int64 offset = 4;                    // Starting offset of the inspected range.
+    int64 length = 5;                    // Length of the inspected range.
+    int64 content_byte_length = 6;       // Total byte length of the selected content source.
+    optional string result_label = 7;    // Plugin-provided result label.
+    optional string result_mime_type = 8;// Plugin-provided result MIME type.
+    bytes result = 9;                    // Plugin-provided inspection bytes.
 }
 
 // Request the total number of active sessions.

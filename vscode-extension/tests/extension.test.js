@@ -1819,6 +1819,7 @@ test('webview protocol normalizes analysis, search, and transform messages', () 
     {
       type: 'applyTransform',
       pluginId: 'omega.example.bitwise',
+      contentSource: 'computed',
       offset: 1,
       length: 4,
       optionsJson: '{ "operator": "xor", "mask": [255] }',
