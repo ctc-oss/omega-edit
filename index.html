@@ -169,6 +169,7 @@
 <li><a class="reference internal" href="#_CPPv427omega_util_remove_directoryPKc"><code class="docutils literal notranslate"><span class="pre">omega_util_remove_directory()</span></code></a></li>
 <li><a class="reference internal" href="#_CPPv421omega_util_remove_allPKc"><code class="docutils literal notranslate"><span class="pre">omega_util_remove_all()</span></code></a></li>
 <li><a class="reference internal" href="#_CPPv420omega_util_file_sizePKc"><code class="docutils literal notranslate"><span class="pre">omega_util_file_size()</span></code></a></li>
+<li><a class="reference internal" href="#_CPPv428omega_util_read_file_segmentPKc7int64_tPv7int64_t"><code class="docutils literal notranslate"><span class="pre">omega_util_read_file_segment()</span></code></a></li>
 <li><a class="reference internal" href="#_CPPv427omega_util_paths_equivalentPKcPKc"><code class="docutils literal notranslate"><span class="pre">omega_util_paths_equivalent()</span></code></a></li>
 <li><a class="reference internal" href="#_CPPv424omega_util_compare_filesPKcPKc"><code class="docutils literal notranslate"><span class="pre">omega_util_compare_files()</span></code></a></li>
 <li><a class="reference internal" href="#_CPPv437omega_util_compare_modification_timesPKcPKc"><code class="docutils literal notranslate"><span class="pre">omega_util_compare_modification_times()</span></code></a></li>
@@ -280,6 +281,7 @@
 <li><a class="reference internal" href="#_CPPv441omega_session_byte_frequency_profile_sizev"><code class="docutils literal notranslate"><span class="pre">omega_session_byte_frequency_profile_size()</span></code></a></li>
 <li><a class="reference internal" href="#_CPPv450omega_session_byte_frequency_profile_dos_eol_indexv"><code class="docutils literal notranslate"><span class="pre">omega_session_byte_frequency_profile_dos_eol_index()</span></code></a></li>
 <li><a class="reference internal" href="#_CPPv427omega_session_get_file_pathPK15omega_session_t"><code class="docutils literal notranslate"><span class="pre">omega_session_get_file_path()</span></code></a></li>
+<li><a class="reference internal" href="#_CPPv445omega_session_get_original_snapshot_file_pathPK15omega_session_t"><code class="docutils literal notranslate"><span class="pre">omega_session_get_original_snapshot_file_path()</span></code></a></li>
 <li><a class="reference internal" href="#_CPPv427omega_session_get_event_cbkPK15omega_session_t"><code class="docutils literal notranslate"><span class="pre">omega_session_get_event_cbk()</span></code></a></li>
 <li><a class="reference internal" href="#_CPPv432omega_session_get_event_interestPK15omega_session_t"><code class="docutils literal notranslate"><span class="pre">omega_session_get_event_interest()</span></code></a></li>
 <li><a class="reference internal" href="#_CPPv432omega_session_set_event_interestP15omega_session_t7int32_t"><code class="docutils literal notranslate"><span class="pre">omega_session_set_event_interest()</span></code></a></li>
@@ -292,6 +294,8 @@
 <li><a class="reference internal" href="#_CPPv436omega_session_get_num_undone_changesPK15omega_session_t"><code class="docutils literal notranslate"><span class="pre">omega_session_get_num_undone_changes()</span></code></a></li>
 <li><a class="reference internal" href="#_CPPv436omega_session_get_computed_file_sizePK15omega_session_t"><code class="docutils literal notranslate"><span class="pre">omega_session_get_computed_file_size()</span></code></a></li>
 <li><a class="reference internal" href="#_CPPv436omega_session_get_original_file_sizePK15omega_session_t"><code class="docutils literal notranslate"><span class="pre">omega_session_get_original_file_size()</span></code></a></li>
+<li><a class="reference internal" href="#_CPPv445omega_session_get_latest_checkpoint_file_pathPK15omega_session_t"><code class="docutils literal notranslate"><span class="pre">omega_session_get_latest_checkpoint_file_path()</span></code></a></li>
+<li><a class="reference internal" href="#_CPPv445omega_session_get_latest_checkpoint_file_sizePK15omega_session_t"><code class="docutils literal notranslate"><span class="pre">omega_session_get_latest_checkpoint_file_size()</span></code></a></li>
 <li><a class="reference internal" href="#_CPPv429omega_session_get_last_changePK15omega_session_t"><code class="docutils literal notranslate"><span class="pre">omega_session_get_last_change()</span></code></a></li>
 <li><a class="reference internal" href="#_CPPv427omega_session_get_last_undoPK15omega_session_t"><code class="docutils literal notranslate"><span class="pre">omega_session_get_last_undo()</span></code></a></li>
 <li><a class="reference internal" href="#_CPPv424omega_session_get_changePK15omega_session_t7int64_t"><code class="docutils literal notranslate"><span class="pre">omega_session_get_change()</span></code></a></li>
@@ -1696,6 +1700,25 @@
 </dd></dl>
 
 <dl class="cpp function">
+<dt class="sig sig-object cpp" id="_CPPv428omega_util_read_file_segmentPKc7int64_tPv7int64_t">
+<span id="_CPPv328omega_util_read_file_segmentPKc7int64_tPv7int64_t"></span><span id="_CPPv228omega_util_read_file_segmentPKc7int64_tPv7int64_t"></span><span id="omega_util_read_file_segment__cCP.int64_t.voidP.int64_t"></span><span class="target" id="filesystem_8h_1a0dcfb9eedf27b3a16d7463e90373d113"></span><span class="n"><span class="pre">int64_t</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">omega_util_read_file_segment</span></span></span><span class="sig-paren">(</span><span class="kt"><span class="pre">char</span></span><span class="w"> </span><span class="k"><span class="pre">const</span></span><span class="w"> </span><span class="p"><span class="pre">*</span></span><span class="n sig-param"><span class="pre">path</span></span>, <span class="n"><span class="pre">int64_t</span></span><span class="w"> </span><span class="n sig-param"><span class="pre">offset</span></span>, <span class="kt"><span class="pre">void</span></span><span class="w"> </span><span class="p"><span class="pre">*</span></span><span class="n sig-param"><span class="pre">buffer</span></span>, <span class="n"><span class="pre">int64_t</span></span><span class="w"> </span><span class="n sig-param"><span class="pre">byte_count</span></span><span class="sig-paren">)</span><a class="headerlink" href="#_CPPv428omega_util_read_file_segmentPKc7int64_tPv7int64_t" title="Link to this definition"></a><br /></dt>
+<dd><p>Read a byte range from a regular file path into a caller-provided buffer. </p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>path</strong> – path to read from </p></li>
+<li><p><strong>offset</strong> – non-negative byte offset to begin reading </p></li>
+<li><p><strong>buffer</strong> – destination buffer </p></li>
+<li><p><strong>byte_count</strong> – number of bytes to read </p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>bytes read, or -1 on error or short read </p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="cpp function">
 <dt class="sig sig-object cpp" id="_CPPv427omega_util_paths_equivalentPKcPKc">
 <span id="_CPPv327omega_util_paths_equivalentPKcPKc"></span><span id="_CPPv227omega_util_paths_equivalentPKcPKc"></span><span id="omega_util_paths_equivalent__cCP.cCP"></span><span class="target" id="filesystem_8h_1a7a28b82130434ac7812113f0e6a100c7"></span><span class="kt"><span class="pre">int</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">omega_util_paths_equivalent</span></span></span><span class="sig-paren">(</span><span class="kt"><span class="pre">char</span></span><span class="w"> </span><span class="k"><span class="pre">const</span></span><span class="w"> </span><span class="p"><span class="pre">*</span></span><span class="n sig-param"><span class="pre">path1</span></span>, <span class="kt"><span class="pre">char</span></span><span class="w"> </span><span class="k"><span class="pre">const</span></span><span class="w"> </span><span class="p"><span class="pre">*</span></span><span class="n sig-param"><span class="pre">path2</span></span><span class="sig-paren">)</span><a class="headerlink" href="#_CPPv427omega_util_paths_equivalentPKcPKc" title="Link to this definition"></a><br /></dt>
 <dd><p>Given two file paths, determine if they are equivalent </p>
@@ -2492,6 +2515,20 @@
 </dd></dl>
 
 <dl class="cpp function">
+<dt class="sig sig-object cpp" id="_CPPv445omega_session_get_original_snapshot_file_pathPK15omega_session_t">
+<span id="_CPPv345omega_session_get_original_snapshot_file_pathPK15omega_session_t"></span><span id="_CPPv245omega_session_get_original_snapshot_file_pathPK15omega_session_t"></span><span id="omega_session_get_original_snapshot_file_path__omega_session_tCP"></span><span class="target" id="session_8h_1ae9b747430019569efbd5da63890188f3"></span><span class="k"><span class="pre">const</span></span><span class="w"> </span><span class="kt"><span class="pre">char</span></span><span class="w"> </span><span class="p"><span class="pre">*</span></span><span class="sig-name descname"><span class="n"><span class="pre">omega_session_get_original_snapshot_file_path</span></span></span><span class="sig-paren">(</span><span class="k"><span class="pre">const</span></span><span class="w"> </span><a class="reference internal" href="#_CPPv415omega_session_t" title="omega_session_t"><span class="n"><span class="pre">omega_session_t</span></span></a><span class="w"> </span><span class="p"><span class="pre">*</span></span><span class="n sig-param"><span class="pre">session_ptr</span></span><span class="sig-paren">)</span><a class="headerlink" href="#_CPPv445omega_session_get_original_snapshot_file_pathPK15omega_session_t" title="Link to this definition"></a><br /></dt>
+<dd><p>Given a session, return the OmegaEdit-owned immutable snapshot file captured at session creation. </p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>session_ptr</strong> – session to inspect </p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>borrowed snapshot file path pointer, or null if unavailable. The returned pointer is owned by the session and remains valid only until the next session mutation or session destruction. </p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="cpp function">
 <dt class="sig sig-object cpp" id="_CPPv427omega_session_get_event_cbkPK15omega_session_t">
 <span id="_CPPv327omega_session_get_event_cbkPK15omega_session_t"></span><span id="_CPPv227omega_session_get_event_cbkPK15omega_session_t"></span><span id="omega_session_get_event_cbk__omega_session_tCP"></span><span class="target" id="session_8h_1a97d18c4f97677395cf3495c430dfef65"></span><a class="reference internal" href="#_CPPv425omega_session_event_cbk_t" title="omega_session_event_cbk_t"><span class="n"><span class="pre">omega_session_event_cbk_t</span></span></a><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">omega_session_get_event_cbk</span></span></span><span class="sig-paren">(</span><span class="k"><span class="pre">const</span></span><span class="w"> </span><a class="reference internal" href="#_CPPv415omega_session_t" title="omega_session_t"><span class="n"><span class="pre">omega_session_t</span></span></a><span class="w"> </span><span class="p"><span class="pre">*</span></span><span class="n sig-param"><span class="pre">session_ptr</span></span><span class="sig-paren">)</span><a class="headerlink" href="#_CPPv427omega_session_get_event_cbkPK15omega_session_t" title="Link to this definition"></a><br /></dt>
 <dd><p>Given a session, return the session event callback </p>
@@ -2666,6 +2703,34 @@
 </dd>
 <dt class="field-even">Returns<span class="colon">:</span></dt>
 <dd class="field-even"><p>original file size in bytes, or -1 on failure </p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="cpp function">
+<dt class="sig sig-object cpp" id="_CPPv445omega_session_get_latest_checkpoint_file_pathPK15omega_session_t">
+<span id="_CPPv345omega_session_get_latest_checkpoint_file_pathPK15omega_session_t"></span><span id="_CPPv245omega_session_get_latest_checkpoint_file_pathPK15omega_session_t"></span><span id="omega_session_get_latest_checkpoint_file_path__omega_session_tCP"></span><span class="target" id="session_8h_1abe526098d86351065b321d1acb8f0089"></span><span class="k"><span class="pre">const</span></span><span class="w"> </span><span class="kt"><span class="pre">char</span></span><span class="w"> </span><span class="p"><span class="pre">*</span></span><span class="sig-name descname"><span class="n"><span class="pre">omega_session_get_latest_checkpoint_file_path</span></span></span><span class="sig-paren">(</span><span class="k"><span class="pre">const</span></span><span class="w"> </span><a class="reference internal" href="#_CPPv415omega_session_t" title="omega_session_t"><span class="n"><span class="pre">omega_session_t</span></span></a><span class="w"> </span><span class="p"><span class="pre">*</span></span><span class="n sig-param"><span class="pre">session_ptr</span></span><span class="sig-paren">)</span><a class="headerlink" href="#_CPPv445omega_session_get_latest_checkpoint_file_pathPK15omega_session_t" title="Link to this definition"></a><br /></dt>
+<dd><p>Given a session, return the OmegaEdit-owned immutable latest checkpoint file path. </p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>session_ptr</strong> – session to inspect </p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>borrowed checkpoint file path pointer, or null if no checkpoint exists. The returned pointer is owned by the session and remains valid only until the next session mutation or session destruction. </p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="cpp function">
+<dt class="sig sig-object cpp" id="_CPPv445omega_session_get_latest_checkpoint_file_sizePK15omega_session_t">
+<span id="_CPPv345omega_session_get_latest_checkpoint_file_sizePK15omega_session_t"></span><span id="_CPPv245omega_session_get_latest_checkpoint_file_sizePK15omega_session_t"></span><span id="omega_session_get_latest_checkpoint_file_size__omega_session_tCP"></span><span class="target" id="session_8h_1a07d2e8dc9d59ebb13ec2fe3a9ad65f76"></span><span class="n"><span class="pre">int64_t</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">omega_session_get_latest_checkpoint_file_size</span></span></span><span class="sig-paren">(</span><span class="k"><span class="pre">const</span></span><span class="w"> </span><a class="reference internal" href="#_CPPv415omega_session_t" title="omega_session_t"><span class="n"><span class="pre">omega_session_t</span></span></a><span class="w"> </span><span class="p"><span class="pre">*</span></span><span class="n sig-param"><span class="pre">session_ptr</span></span><span class="sig-paren">)</span><a class="headerlink" href="#_CPPv445omega_session_get_latest_checkpoint_file_sizePK15omega_session_t" title="Link to this definition"></a><br /></dt>
+<dd><p>Given a session, return the byte size of the OmegaEdit-owned immutable latest checkpoint file. </p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>session_ptr</strong> – session to inspect </p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>latest checkpoint size in bytes, or -1 if no checkpoint exists or the size cannot be read </p>
 </dd>
 </dl>
 </dd></dl>
