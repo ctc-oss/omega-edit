@@ -55,6 +55,8 @@ export interface HeartbeatOptions {
   logConfigFile?: string
   /** Register transform plugins from these directories. */
   transformPluginDirectories?: string[]
+  /** Permit unauthenticated TCP binds outside loopback. */
+  insecureAllowNonLoopback?: boolean
 }
 
 /**
@@ -374,6 +376,9 @@ function heartbeatToArgs(
   }
   if (opts?.logLevel !== undefined) {
     args.push(`--log-level=${opts.logLevel}`)
+  }
+  if (opts?.insecureAllowNonLoopback) {
+    args.push('--insecure-allow-non-loopback')
   }
   const configuredTransformPluginDirectories =
     opts?.transformPluginDirectories?.filter(

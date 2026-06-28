@@ -88,6 +88,9 @@ await stopServerGraceful()
 
 `startServer(..., heartbeat)` and `startServerUnixSocket(..., heartbeat)` accept the same `HeartbeatOptions` bag exported from `@omega-edit/server`, including native logging fields such as `logFile`, `logLevel`, and `logConfigFile`.
 
+The bundled server is unauthenticated. Keep TCP binds on `127.0.0.1`/`localhost` or use Unix domain sockets unless an
+outer layer controls access. Binding outside loopback requires `insecureAllowNonLoopback: true`.
+
 Shutdown migration note:
 
 - In the 2.x line, `stopServerGraceful()` and `stopServerImmediate()` return a structured result object with `responseCode`, `serverProcessId`, and `status` instead of returning only a numeric response code.

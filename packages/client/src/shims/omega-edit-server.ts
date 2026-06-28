@@ -39,6 +39,8 @@ export interface HeartbeatOptions {
   logFile?: string
   logLevel?: string
   logConfigFile?: string
+  transformPluginDirectories?: string[]
+  insecureAllowNonLoopback?: boolean
 }
 
 export declare function runServer(

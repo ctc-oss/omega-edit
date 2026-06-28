@@ -12,6 +12,7 @@ const commonOptions = {
   host: { type: 'string' as const },
   port: { type: 'string' as const },
   'no-autostart': { type: 'boolean' as const },
+  'insecure-allow-non-loopback': { type: 'boolean' as const },
 }
 
 function printJson(value: unknown): void {
@@ -56,6 +57,8 @@ function usage(): string {
     `  --host <host>          OmegaEdit server host (default ${DEFAULT_HOST})`,
     `  --port <port>          OmegaEdit server port (default ${DEFAULT_PORT})`,
     '  --no-autostart         Refuse to auto-start OmegaEdit when not already running',
+    '  --insecure-allow-non-loopback',
+    '                         Permit auto-starting an unauthenticated server outside loopback',
   ].join('\n')
 }
 
@@ -95,6 +98,7 @@ function getToolkit(values: Record<string, string | boolean | undefined>) {
         ? parseIntegerOption(values.port as string, 'port')
         : undefined,
     autoStart: values['no-autostart'] ? false : true,
+    insecureAllowNonLoopback: values['insecure-allow-non-loopback'] === true,
   })
 }
 

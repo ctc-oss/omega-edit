@@ -27,6 +27,7 @@
 #include <csignal>
 #include <cstdio>
 #include <cstdlib>
+#include <cstring>
 #include <ctime>
 #include <fstream>
 #include <iomanip>
@@ -112,6 +113,28 @@ static bool parse_log_level(const std::string &value, const std::string &name, L
         return false;
     }
     return true;
+}
+
+static bool env_value_is_true(const char *value) {
+    if (!value) { return false; }
+    std::string normalized;
+    normalized.reserve(std::strlen(value));
+    for (const char *ptr = value; *ptr; ++ptr) {
+        normalized.push_back(static_cast<char>(std::tolower(static_cast<unsigned char>(*ptr))));
+    }
+    return normalized == "1" || normalized == "true" || normalized == "yes" || normalized == "on";
+}
+
+static std::string normalized_bind_address(std::string value) {
+    if (value.size() >= 2 && value.front() == '[' && value.back() == ']') { value = value.substr(1, value.size() - 2); }
+    for (char &ch : value) { ch = static_cast<char>(std::tolower(static_cast<unsigned char>(ch))); }
+    return value;
+}
+
+static bool is_loopback_bind_address(const std::string &interface_addr) {
+    const auto normalized = normalized_bind_address(interface_addr);
+    return normalized == "localhost" || normalized == "ip6-localhost" || normalized == "::1" ||
+           normalized == "0:0:0:0:0:0:0:1" || normalized.rfind("127.", 0) == 0;
 }
 
 static std::string current_timestamp() {
@@ -269,6 +292,8 @@ static void print_usage(const char *progname) {
               << "  -f, --pidfile <path>             Write PID to file\n"
               << "  -u, --unix-socket <path>         Unix domain socket path (Linux/macOS only)\n"
               << "      --unix-socket-only           Bind only to Unix domain socket\n"
+              << "      --insecure-allow-non-loopback\n"
+              << "                                   Permit TCP binds outside loopback without authentication\n"
               << "\nLogging options:\n"
               << "      --log-file <path>            Append native server logs to file\n"
               << "      --log-level <level>          Native log level (debug, info, warn, error)\n"
@@ -301,6 +326,7 @@ int main(int argc, char **argv) {
     std::string log_file;
     std::string log_config_file;
     bool unix_socket_only = false;
+    bool insecure_allow_non_loopback = false;
     LogLevel log_level = LogLevel::Info;
 
     // Heartbeat / session-reaping defaults (0 = disabled)
@@ -320,8 +346,10 @@ int main(int argc, char **argv) {
     }
     if (const char *env = std::getenv("OMEGA_EDIT_SERVER_UNIX_SOCKET")) { unix_socket = env; }
     if (const char *env = std::getenv("OMEGA_EDIT_SERVER_UNIX_SOCKET_ONLY")) {
-        std::string val(env);
-        if (val == "true" || val == "1") { unix_socket_only = true; }
+        if (env_value_is_true(env)) { unix_socket_only = true; }
+    }
+    if (const char *env = std::getenv("OMEGA_EDIT_SERVER_INSECURE_ALLOW_NON_LOOPBACK")) {
+        insecure_allow_non_loopback = env_value_is_true(env);
     }
     if (const char *env = std::getenv("OMEGA_EDIT_SERVER_PIDFILE")) { pidfile = env; }
     if (const char *env = std::getenv("OMEGA_EDIT_SERVER_LOG_CONFIG")) {
@@ -381,6 +409,8 @@ int main(int argc, char **argv) {
             return 0;
         } else if (arg == "--unix-socket-only") {
             unix_socket_only = true;
+        } else if (arg == "--insecure-allow-non-loopback") {
+            insecure_allow_non_loopback = true;
         } else if (arg == "--shutdown-when-no-sessions") {
             shutdown_when_no_sessions = true;
         } else {
@@ -569,6 +599,18 @@ int main(int argc, char **argv) {
                                             std::to_string(pid) + " bound to " + unix_addr + ": ready...");
 #endif
     } else {
+        if (!is_loopback_bind_address(interface_addr)) {
+            if (!insecure_allow_non_loopback) {
+                log_message(LogLevel::Error,
+                            "Refusing unauthenticated non-loopback TCP bind to " + interface_addr +
+                                    ". Bind 127.0.0.1/localhost or pass --insecure-allow-non-loopback.");
+                return 1;
+            }
+            log_message(
+                    LogLevel::Warn,
+                    "Ωedit gRPC server is binding outside loopback without authentication. Clients that can reach " +
+                            interface_addr + " can act with this process's file and plugin privileges.");
+        }
         std::string server_address = interface_addr + ":" + std::to_string(port);
         builder.AddListeningPort(server_address, grpc::InsecureServerCredentials());
         log_message(LogLevel::Info, std::string("Ωedit gRPC server (v") + SERVER_VERSION + ") with PID " +

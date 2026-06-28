@@ -152,6 +152,7 @@ The AI surface is intentionally bounded:
 - search result counts are capped by `OMEGA_EDIT_AI_MAX_SEARCH_RESULTS` (default `1000`)
 - preview context is capped by `OMEGA_EDIT_AI_PREVIEW_CONTEXT_BYTES` (default `64`)
 - auto-start refuses to launch Ωedit™ if the target port is already occupied by a non-Ωedit™ service
+- auto-start keeps the unauthenticated native server on loopback unless `--insecure-allow-non-loopback` is supplied
 
 ## Notes
 

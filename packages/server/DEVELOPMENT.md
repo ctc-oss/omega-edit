@@ -4,7 +4,7 @@ This document covers building, packaging, and contributing to the `@omega-edit/s
 
 ## Prerequisites
 
-- Node.js 16+
+- Node.js 22 or newer; Node.js 24 is used by the primary CI lane and `.nvmrc`
 - Yarn (v1 or compatible)
 - CMake 3.16+ and a C++17 compiler (for building the native gRPC server)
 - gRPC and Protobuf libraries (fetched automatically by CMake)

@@ -122,7 +122,9 @@ USER omega
 WORKDIR /data
 
 # The server listens on 0.0.0.0:9000 inside the container (not 127.0.0.1)
-# so that Docker port mapping works correctly.
+# so that Docker port mapping works correctly. Docker network and published-port
+# configuration are the container trust boundary, so the non-loopback bind is an
+# explicit opt-in here.
 ENV OMEGA_EDIT_SERVER_HOST="0.0.0.0" \
     OMEGA_EDIT_SERVER_PORT="9000"
 
@@ -133,4 +135,4 @@ HEALTHCHECK --interval=10s --timeout=3s --start-period=5s --retries=3 \
   CMD ["/usr/local/bin/grpc_health_probe", "-addr=127.0.0.1:9000", "-connect-timeout=500ms", "-rpc-timeout=500ms"]
 
 ENTRYPOINT ["omega-edit-grpc-server"]
-CMD ["--interface", "0.0.0.0", "--port", "9000"]
+CMD ["--interface", "0.0.0.0", "--port", "9000", "--insecure-allow-non-loopback"]

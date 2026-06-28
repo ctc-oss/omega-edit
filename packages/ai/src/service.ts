@@ -975,6 +975,7 @@ export class OmegaEditToolkit {
   readonly maxEditBytes: number
   readonly maxSearchResults: number
   readonly previewContextBytes: number
+  readonly insecureAllowNonLoopback: boolean
 
   constructor(options: ToolkitOptions = {}) {
     this.host = options.host || DEFAULT_HOST
@@ -986,6 +987,7 @@ export class OmegaEditToolkit {
       options.maxSearchResults || DEFAULT_MAX_SEARCH_RESULTS
     this.previewContextBytes =
       options.previewContextBytes || DEFAULT_PREVIEW_CONTEXT_BYTES
+    this.insecureAllowNonLoopback = options.insecureAllowNonLoopback === true
   }
 
   private async waitForServerToStop(timeoutMs: number = 10000): Promise<void> {
@@ -1032,7 +1034,14 @@ export class OmegaEditToolkit {
         )
       }
 
-      await startServer(this.port, this.host)
+      await startServer(
+        this.port,
+        this.host,
+        undefined,
+        this.insecureAllowNonLoopback
+          ? { insecureAllowNonLoopback: true }
+          : undefined
+      )
       await this.connectToServer()
       return
     }

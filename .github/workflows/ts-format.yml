@@ -21,8 +21,12 @@ on:
 
 jobs:
   build:
-    name: TypeScript code passes Biome checks
+    name: TypeScript code passes Biome checks on Node ${{ matrix.node-version }}
     runs-on: ubuntu-22.04
+    strategy:
+      matrix:
+        node-version: [22, 24]
+      fail-fast: false
     steps:
       - name: Checkout current branch (full) 🛎️
         uses: actions/checkout@v7
@@ -34,7 +38,7 @@ jobs:
         uses: actions/setup-node@v6
         with:
           registry-url: 'https://registry.npmjs.org'
-          node-version: 24
+          node-version: ${{ matrix.node-version }}
           cache: 'yarn'
 
       - name: yarn lint - all workspaces 🧶

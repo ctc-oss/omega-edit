@@ -14,7 +14,7 @@
     "url": "https://github.com/ctc-oss/omega-edit/issues"
   },
   "engines": {
-    "node": "^24.0.0",
+    "node": ">=22",
     "vscode": "^1.110.0"
   },
   "categories": [
@@ -290,7 +290,7 @@
   "devDependencies": {
     "@biomejs/biome": "^2.4.9",
     "@sveltejs/vite-plugin-svelte": "^7.1.2",
-    "@types/node": "^24.0.0",
+    "@types/node": "^22.20.0",
     "@types/vscode": "^1.110.0",
     "@vscode/test-electron": "^2.5.2",
     "@vscode/vsce": "^3.7.1",

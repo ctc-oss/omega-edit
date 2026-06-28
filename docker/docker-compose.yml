@@ -26,6 +26,8 @@
 # Security notes:
 #   - The published port is bound to 127.0.0.1 by default so the unauthenticated
 #     gRPC endpoint is not exposed beyond the host unless you opt into it.
+#   - The server listens on 0.0.0.0 inside the container so Docker port mapping
+#     works; the image command passes --insecure-allow-non-loopback explicitly.
 #   - The container runs with a read-only root filesystem; only /data and /tmp
 #     remain writable.
 #   - The server runs as the caller-supplied UID/GID instead of root. Export
