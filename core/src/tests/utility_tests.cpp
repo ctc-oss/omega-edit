@@ -14,10 +14,10 @@
 
 #include "omega_edit/filesystem.h"
 #include "omega_edit/utility.h"
-#include <test_util.hpp>
 #include <catch2/catch_test_macros.hpp>
 #include <catch2/matchers/catch_matchers_contains.hpp>
 #include <catch2/matchers/catch_matchers_string.hpp>
+#include <test_util.hpp>
 
 using namespace std;
 namespace fs = std::filesystem;
@@ -116,17 +116,17 @@ TEST_CASE("Transformer", "[TransformerTest]") {
 
 TEST_CASE("File Transformer", "[TransformerTest]") {
     REQUIRE(0 == omega_util_apply_byte_transform_to_file(
-        MAKE_PATH("test1.dat"), MAKE_PATH("test1.actual.transformed.1.dat"), to_upper, nullptr, 0, 0));
+                         MAKE_PATH("test1.dat"), MAKE_PATH("test1.actual.transformed.1.dat"), to_upper, nullptr, 0, 0));
     REQUIRE(0 == omega_util_compare_files(MAKE_PATH("test1.expected.transformed.1.dat"),
-        MAKE_PATH("test1.actual.transformed.1.dat")));
+                                          MAKE_PATH("test1.actual.transformed.1.dat")));
     REQUIRE(0 == omega_util_apply_byte_transform_to_file(MAKE_PATH("test1.dat"),
-        MAKE_PATH("test1.actual.transformed.2.dat"), to_lower, nullptr,
-        37, 10));
+                                                         MAKE_PATH("test1.actual.transformed.2.dat"), to_lower, nullptr,
+                                                         37, 10));
     REQUIRE(0 == omega_util_compare_files(MAKE_PATH("test1.expected.transformed.2.dat"),
-        MAKE_PATH("test1.actual.transformed.2.dat")));
+                                          MAKE_PATH("test1.actual.transformed.2.dat")));
     REQUIRE(0 != omega_util_apply_byte_transform_to_file(MAKE_PATH("test1.dat"),
-        MAKE_PATH("test1.actual.transformed.3.dat"), to_lower, nullptr,
-        37, 100));
+                                                         MAKE_PATH("test1.actual.transformed.3.dat"), to_lower, nullptr,
+                                                         37, 100));
     REQUIRE(0 == omega_util_file_exists(MAKE_PATH("test1.actual.transformed.3.dat")));
 }
 

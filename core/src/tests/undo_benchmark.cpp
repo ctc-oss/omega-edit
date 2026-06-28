@@ -37,16 +37,15 @@ namespace {
     }
 
     int64_t apply_uniform_replace_transaction(omega_session_t *session_ptr, int match_count,
-                                              const std::string_view from_token,
-                                              const std::string_view to_token) {
+                                              const std::string_view from_token, const std::string_view to_token) {
         if (!session_ptr) { return -1; }
         if (0 != omega_session_begin_transaction(session_ptr)) { return -1; }
 
         int64_t last_serial = 0;
         for (int i = match_count - 1; i >= 0; --i) {
-            last_serial = omega_edit_replace(session_ptr, static_cast<int64_t>(i) * static_cast<int64_t>(from_token.size()),
-                                             static_cast<int64_t>(from_token.size()), to_token.data(),
-                                             static_cast<int64_t>(to_token.size()));
+            last_serial = omega_edit_replace(
+                    session_ptr, static_cast<int64_t>(i) * static_cast<int64_t>(from_token.size()),
+                    static_cast<int64_t>(from_token.size()), to_token.data(), static_cast<int64_t>(to_token.size()));
             if (last_serial <= 0) { return -1; }
         }
 
@@ -96,8 +95,8 @@ TEST_CASE("Benchmark stacked replace-style transaction undo latency", "[.][UndoB
     const auto total = std::accumulate(undo_latencies_ms.begin(), undo_latencies_ms.end(), 0.0);
     const auto average = total / static_cast<double>(undo_latencies_ms.size());
 
-    std::cout << "\nUndo benchmark: " << transaction_rounds << " stacked replace-style transactions, "
-              << match_count << " matches each\n";
+    std::cout << "\nUndo benchmark: " << transaction_rounds << " stacked replace-style transactions, " << match_count
+              << " matches each\n";
     for (size_t i = 0; i < undo_latencies_ms.size(); ++i) {
         std::cout << "  undo " << (i + 1) << ": " << undo_latencies_ms[i] << " ms\n";
     }

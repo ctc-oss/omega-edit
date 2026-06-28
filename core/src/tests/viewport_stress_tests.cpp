@@ -39,9 +39,7 @@ TEST_CASE("Multi-Viewport Sync Under Edits", "[ViewportStress][MultiViewport]") 
     // Insert initial content: 200 bytes of known data
     std::string initial_data;
     initial_data.reserve(200);
-    for (int i = 0; i < 200; ++i) {
-        initial_data.push_back(static_cast<char>('A' + (i % 26)));
-    }
+    for (int i = 0; i < 200; ++i) { initial_data.push_back(static_cast<char>('A' + (i % 26))); }
     REQUIRE(0 < omega_edit_insert_string(session_ptr, 0, initial_data));
     REQUIRE(200 == omega_session_get_computed_file_size(session_ptr));
 
@@ -52,10 +50,10 @@ TEST_CASE("Multi-Viewport Sync Under Edits", "[ViewportStress][MultiViewport]") 
     viewports.reserve(NUM_VIEWPORTS);
 
     for (int i = 0; i < NUM_VIEWPORTS; ++i) {
-        int64_t offset = i * 8; // staggered by 8 bytes, overlapping
+        int64_t offset = i * 8;// staggered by 8 bytes, overlapping
         if (offset + VP_CAPACITY > 200) { offset = 200 - VP_CAPACITY; }
-        auto *vp = omega_edit_create_viewport(session_ptr, offset, VP_CAPACITY, 0,
-                                              stress_viewport_event_cbk, nullptr, 0);
+        auto *vp =
+                omega_edit_create_viewport(session_ptr, offset, VP_CAPACITY, 0, stress_viewport_event_cbk, nullptr, 0);
         REQUIRE(vp);
         viewports.push_back(vp);
     }
@@ -195,9 +193,7 @@ TEST_CASE("Many Viewports With Interleaved Edits", "[ViewportStress][HeavyEdits]
     REQUIRE(session_ptr);
 
     // Build up 500 bytes of content
-    for (int i = 0; i < 50; ++i) {
-        REQUIRE(0 < omega_edit_insert_string(session_ptr, i * 10, "0123456789"));
-    }
+    for (int i = 0; i < 50; ++i) { REQUIRE(0 < omega_edit_insert_string(session_ptr, i * 10, "0123456789")); }
     REQUIRE(500 == omega_session_get_computed_file_size(session_ptr));
 
     // Create 20 floating viewports spread across the content
@@ -217,9 +213,7 @@ TEST_CASE("Many Viewports With Interleaved Edits", "[ViewportStress][HeavyEdits]
             // Delete 5 bytes from offset i*2 (clamped to file size)
             int64_t offset = (i * 2) % file_size;
             int64_t len = (offset + 5 > file_size) ? file_size - offset : 5;
-            if (len > 0) {
-                omega_edit_delete(session_ptr, offset, len);
-            }
+            if (len > 0) { omega_edit_delete(session_ptr, offset, len); }
         } else if (i % 3 == 1) {
             // Insert at position i*3 (clamped)
             int64_t offset = (file_size > 0) ? ((i * 3) % file_size) : 0;
@@ -248,9 +242,7 @@ TEST_CASE("Many Viewports With Interleaved Edits", "[ViewportStress][HeavyEdits]
     REQUIRE(0 == omega_check_model(session_ptr));
 
     // Undo all changes and verify viewports still stay in sync
-    while (omega_session_get_num_changes(session_ptr) > 0) {
-        omega_edit_undo_last_change(session_ptr);
-    }
+    while (omega_session_get_num_changes(session_ptr) > 0) { omega_edit_undo_last_change(session_ptr); }
 
     for (int i = 0; i < NUM_VIEWPORTS; ++i) {
         auto vp_offset = omega_viewport_get_offset(viewports[i]);
@@ -293,7 +285,7 @@ TEST_CASE("Viewport Modify Changes Offset and Capacity", "[ViewportStress][Viewp
 
     // Insert before the viewport offset — floating viewport should adjust
     REQUIRE(0 < omega_edit_insert_string(session_ptr, 0, "12345"));
-    REQUIRE(omega_viewport_get_offset(vp) == 25); // shifted by 5
+    REQUIRE(omega_viewport_get_offset(vp) == 25);// shifted by 5
     REQUIRE(omega_viewport_get_string(vp) == "UVWXYZ");
 
     omega_edit_destroy_viewport(vp);
@@ -311,13 +303,15 @@ TEST_CASE("Viewport In Segment Query", "[ViewportStress][ViewportInSegment]") {
 
     // Viewport at offset=5, capacity=10. The in_segment function uses inclusive boundaries:
     // (offset + length) >= viewport_offset && offset <= (viewport_offset + viewport_capacity)
-    REQUIRE(omega_viewport_in_segment(vp, 0, 20));  // segment [0,20) clearly overlaps
-    REQUIRE(omega_viewport_in_segment(vp, 5, 10));  // exact match
-    REQUIRE(omega_viewport_in_segment(vp, 10, 10)); // segment [10,20) overlaps
-    REQUIRE(omega_viewport_in_segment(vp, 0, 5));   // abutting at boundary (5 <= 5+10 and 0+5 >= 5) — library treats as in-segment
-    REQUIRE(omega_viewport_in_segment(vp, 15, 10)); // abutting at boundary (15 <= 5+10 and 15+10 >= 5) — library treats as in-segment
-    REQUIRE(!omega_viewport_in_segment(vp, 16, 10)); // segment [16,26) — truly no overlap (16 > 15)
-    REQUIRE(!omega_viewport_in_segment(vp, 0, 4));   // segment [0,4) — truly no overlap (4 < 5)
+    REQUIRE(omega_viewport_in_segment(vp, 0, 20)); // segment [0,20) clearly overlaps
+    REQUIRE(omega_viewport_in_segment(vp, 5, 10)); // exact match
+    REQUIRE(omega_viewport_in_segment(vp, 10, 10));// segment [10,20) overlaps
+    REQUIRE(omega_viewport_in_segment(
+            vp, 0, 5));// abutting at boundary (5 <= 5+10 and 0+5 >= 5) — library treats as in-segment
+    REQUIRE(omega_viewport_in_segment(
+            vp, 15, 10));// abutting at boundary (15 <= 5+10 and 15+10 >= 5) — library treats as in-segment
+    REQUIRE(!omega_viewport_in_segment(vp, 16, 10));// segment [16,26) — truly no overlap (16 > 15)
+    REQUIRE(!omega_viewport_in_segment(vp, 0, 4));  // segment [0,4) — truly no overlap (4 < 5)
 
     omega_edit_destroy_viewport(vp);
     omega_edit_destroy_session(session_ptr);
@@ -327,7 +321,7 @@ TEST_CASE("Following Byte Count", "[ViewportStress][FollowingByteCount]") {
     const auto session_ptr = omega_edit_create_session(nullptr, nullptr, nullptr, 0, nullptr);
     REQUIRE(session_ptr);
 
-    REQUIRE(0 < omega_edit_insert_string(session_ptr, 0, "ABCDEFGHIJKLMNOPQRST"));  // 20 bytes
+    REQUIRE(0 < omega_edit_insert_string(session_ptr, 0, "ABCDEFGHIJKLMNOPQRST"));// 20 bytes
     REQUIRE(20 == omega_session_get_computed_file_size(session_ptr));
 
     auto *vp = omega_edit_create_viewport(session_ptr, 0, 10, 0, nullptr, nullptr, 0);

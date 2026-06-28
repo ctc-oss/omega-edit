@@ -15,8 +15,8 @@
 #ifndef OMEGA_EDIT_BITMASK_OPTIONS_H
 #define OMEGA_EDIT_BITMASK_OPTIONS_H
 
-#include <omega_edit/transform_plugin_sdk.h>
 #include <ctype.h>
+#include <omega_edit/transform_plugin_sdk.h>
 #include <stddef.h>
 #include <stdlib.h>
 #include <string.h>
@@ -217,8 +217,7 @@ static int omega_bitmask_parse_mask_value(const char **cursor, omega_bitmask_opt
 }
 
 static int omega_bitmask_parse_options(const char *options_json, omega_byte_t default_byte,
-                                       omega_bitmask_operation_t default_operation,
-                                       omega_bitmask_options_t *mask_out) {
+                                       omega_bitmask_operation_t default_operation, omega_bitmask_options_t *mask_out) {
     if (!mask_out) { return -1; }
     mask_out->bytes[0] = default_byte;
     mask_out->length = 1;
@@ -267,7 +266,8 @@ static int omega_bitmask_parse_options(const char *options_json, omega_byte_t de
     return -1;
 }
 
-static omega_byte_t omega_bitmask_apply_byte(omega_byte_t value, omega_byte_t mask, omega_bitmask_operation_t operation) {
+static omega_byte_t omega_bitmask_apply_byte(omega_byte_t value, omega_byte_t mask,
+                                             omega_bitmask_operation_t operation) {
     switch (operation) {
         case OMEGA_BITMASK_AND:
             return (omega_byte_t) (value & mask);
@@ -315,8 +315,8 @@ static int omega_bitmask_apply_replace(const omega_transform_plugin_request_t *r
         return omega_transform_plugin_sdk_set_no_content_change(response_ptr);
     }
 
-    omega_byte_t *bytes = omega_transform_plugin_sdk_copy_bytes(request_ptr, request_ptr->input_bytes,
-                                                                request_ptr->input_length);
+    omega_byte_t *bytes =
+            omega_transform_plugin_sdk_copy_bytes(request_ptr, request_ptr->input_bytes, request_ptr->input_length);
     if (!bytes) { return -1; }
 
     for (int64_t i = 0; i < request_ptr->input_length; ++i) {

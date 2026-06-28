@@ -20,51 +20,51 @@
 #include <string>
 
 namespace omega_edit {
-namespace grpc_server {
+    namespace grpc_server {
 
-// ── Pluggable interfaces ─────────────────────────────────────────────────────
+        // ── Pluggable interfaces ─────────────────────────────────────────────────────
 
-/// Abstract interface for content/MIME type detection.
-/// Implementations may use libmagic, heuristics, or any other backend.
-class IContentTypeDetector {
-public:
-    virtual ~IContentTypeDetector() = default;
+        /// Abstract interface for content/MIME type detection.
+        /// Implementations may use libmagic, heuristics, or any other backend.
+        class IContentTypeDetector {
+        public:
+            virtual ~IContentTypeDetector() = default;
 
-    /// Detect the MIME type of a data buffer.
-    /// @param data pointer to the raw bytes
-    /// @param length number of bytes
-    /// @param file_path optional source path hint for extension-aware fallback detection
-    /// @return MIME type string (e.g. "text/plain", "application/pdf")
-    virtual std::string detect(const uint8_t *data, int64_t length, const std::string &file_path) = 0;
-};
+            /// Detect the MIME type of a data buffer.
+            /// @param data pointer to the raw bytes
+            /// @param length number of bytes
+            /// @param file_path optional source path hint for extension-aware fallback detection
+            /// @return MIME type string (e.g. "text/plain", "application/pdf")
+            virtual std::string detect(const uint8_t *data, int64_t length, const std::string &file_path) = 0;
+        };
 
-/// Abstract interface for language detection.
-/// Implementations may use CLD3, trigrams, or any other backend.
-class ILanguageDetector {
-public:
-    virtual ~ILanguageDetector() = default;
+        /// Abstract interface for language detection.
+        /// Implementations may use CLD3, trigrams, or any other backend.
+        class ILanguageDetector {
+        public:
+            virtual ~ILanguageDetector() = default;
 
-    /// Detect the language of a text buffer.
-    /// @param data pointer to the raw bytes (expected to be text)
-    /// @param length number of bytes
-    /// @param bom byte-order mark hint (e.g. "UTF-8", "UTF-16LE", "none")
-    /// @return ISO 639-1 language code (e.g. "en", "ja") or "unknown"
-    virtual std::string detect(const uint8_t *data, int64_t length, const std::string &bom) = 0;
-};
+            /// Detect the language of a text buffer.
+            /// @param data pointer to the raw bytes (expected to be text)
+            /// @param length number of bytes
+            /// @param bom byte-order mark hint (e.g. "UTF-8", "UTF-16LE", "none")
+            /// @return ISO 639-1 language code (e.g. "en", "ja") or "unknown"
+            virtual std::string detect(const uint8_t *data, int64_t length, const std::string &bom) = 0;
+        };
 
-// ── Factory functions ────────────────────────────────────────────────────────
+        // ── Factory functions ────────────────────────────────────────────────────────
 
-/// Create the default content-type detector (libmagic-backed).
-std::unique_ptr<IContentTypeDetector> create_default_content_type_detector();
+        /// Create the default content-type detector (libmagic-backed).
+        std::unique_ptr<IContentTypeDetector> create_default_content_type_detector();
 
-/// Lightweight built-in content-type detector used as a fallback when libmagic is unavailable
-/// or returns a generic result.
-std::string detect_builtin_content_type(const uint8_t *data, int64_t length, const std::string &file_path);
+        /// Lightweight built-in content-type detector used as a fallback when libmagic is unavailable
+        /// or returns a generic result.
+        std::string detect_builtin_content_type(const uint8_t *data, int64_t length, const std::string &file_path);
 
-/// Create the default language detector (CLD3-backed).
-std::unique_ptr<ILanguageDetector> create_default_language_detector();
+        /// Create the default language detector (CLD3-backed).
+        std::unique_ptr<ILanguageDetector> create_default_language_detector();
 
-} // namespace grpc_server
-} // namespace omega_edit
+    }// namespace grpc_server
+}// namespace omega_edit
 
-#endif // OMEGA_EDIT_CONTENT_DETECTION_H
+#endif// OMEGA_EDIT_CONTENT_DETECTION_H

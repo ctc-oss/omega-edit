@@ -12,18 +12,15 @@
  *                                                                                                                    *
  **********************************************************************************************************************/
 
-#include <omega_edit/transform_plugin_sdk.h>
 #include <ctype.h>
+#include <omega_edit/transform_plugin_sdk.h>
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
 
 static const char BASE64_ALPHABET[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
 
-typedef enum omega_base64_direction_t {
-    OMEGA_BASE64_ENCODE,
-    OMEGA_BASE64_DECODE
-} omega_base64_direction_t;
+typedef enum omega_base64_direction_t { OMEGA_BASE64_ENCODE, OMEGA_BASE64_DECODE } omega_base64_direction_t;
 
 static const char BASE64_ARGS_SCHEMA[] =
         "{\"type\":\"object\",\"properties\":{\"direction\":{\"type\":\"string\",\"title\":\"Direction\","
@@ -190,9 +187,7 @@ static int base64_decode(const omega_transform_plugin_request_t *request_ptr,
     int64_t encoded_length = 0;
     int padding = 0;
     if (validate_base64(request_ptr, &encoded_length, &padding) != 0) { return -1; }
-    if (encoded_length == 0) {
-        return omega_transform_plugin_sdk_set_replacement(request_ptr, response_ptr, NULL, 0);
-    }
+    if (encoded_length == 0) { return omega_transform_plugin_sdk_set_replacement(request_ptr, response_ptr, NULL, 0); }
 
     const int64_t output_length = (encoded_length / 4) * 3 - padding;
     omega_byte_t *output = (omega_byte_t *) omega_transform_plugin_sdk_alloc(request_ptr, (size_t) output_length);
@@ -239,7 +234,7 @@ OMEGA_TRANSFORM_PLUGIN_EXPORT int omega_transform_plugin_get_info(omega_transfor
 }
 
 OMEGA_TRANSFORM_PLUGIN_EXPORT int omega_transform_plugin_apply(const omega_transform_plugin_request_t *request_ptr,
-                                                              omega_transform_plugin_response_t *response_ptr) {
+                                                               omega_transform_plugin_response_t *response_ptr) {
     if (!request_ptr || !response_ptr || !request_ptr->alloc || request_ptr->input_length < 0 ||
         (request_ptr->input_length > 0 && !request_ptr->input_bytes)) {
         return -1;

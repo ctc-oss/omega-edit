@@ -20,13 +20,13 @@
 #include <grpcpp/grpcpp.h>
 #include <grpcpp/health_check_service_interface.h>
 
-#include <csignal>
+#include <atomic>
+#include <cctype>
+#include <chrono>
 #include <climits>
+#include <csignal>
 #include <cstdio>
 #include <cstdlib>
-#include <atomic>
-#include <chrono>
-#include <cctype>
 #include <ctime>
 #include <fstream>
 #include <iomanip>
@@ -69,10 +69,14 @@ static void signal_handler(int /*signum*/) { g_shutdown_requested.store(true, st
 
 static const char *log_level_name(LogLevel level) {
     switch (level) {
-        case LogLevel::Debug: return "DEBUG";
-        case LogLevel::Info: return "INFO";
-        case LogLevel::Warn: return "WARN";
-        case LogLevel::Error: return "ERROR";
+        case LogLevel::Debug:
+            return "DEBUG";
+        case LogLevel::Info:
+            return "INFO";
+        case LogLevel::Warn:
+            return "WARN";
+        case LogLevel::Error:
+            return "ERROR";
     }
     return "INFO";
 }
@@ -80,9 +84,7 @@ static const char *log_level_name(LogLevel level) {
 static bool try_parse_log_level(const std::string &value, LogLevel &out) {
     std::string normalized;
     normalized.reserve(value.size());
-    for (char ch : value) {
-        normalized.push_back(static_cast<char>(std::tolower(static_cast<unsigned char>(ch))));
-    }
+    for (char ch : value) { normalized.push_back(static_cast<char>(std::tolower(static_cast<unsigned char>(ch)))); }
     if (normalized == "trace" || normalized == "debug") {
         out = LogLevel::Debug;
         return true;
@@ -105,8 +107,8 @@ static bool try_parse_log_level(const std::string &value, LogLevel &out) {
 static bool parse_log_level(const std::string &value, const std::string &name, LogLevel &out) {
     if (!try_parse_log_level(value, out)) {
         std::cerr << "Error: " << name
-                  << " must be one of trace, debug, info, warn, warning, error, fatal, critical; got: "
-                  << value << "\n";
+                  << " must be one of trace, debug, info, warn, warning, error, fatal, critical; got: " << value
+                  << "\n";
         return false;
     }
     return true;
@@ -127,14 +129,11 @@ static std::string current_timestamp() {
 }
 
 static void log_message(LogLevel level, const std::string &message) {
-    if (static_cast<int>(level) < static_cast<int>(g_log_level)) {
-        return;
-    }
+    if (static_cast<int>(level) < static_cast<int>(g_log_level)) { return; }
 
     std::lock_guard<std::mutex> lock(g_log_mutex);
-    (*g_log_stream) << "[" << current_timestamp() << "] "
-                    << "[" << log_level_name(level) << "] "
-                    << message << std::endl;
+    (*g_log_stream) << "[" << current_timestamp() << "] " << "[" << log_level_name(level) << "] " << message
+                    << std::endl;
 }
 
 static bool configure_log_output(const std::string &log_file) {
@@ -167,14 +166,10 @@ static bool apply_log_config_file(const std::string &config_path, std::string &l
     const std::regex root_level_regex(R"OMEGA(<root[^>]*level\s*=\s*"([^"]+)")OMEGA", std::regex::icase);
     std::smatch match;
 
-    if (std::regex_search(contents, match, file_regex)) {
-        log_file = match[1].str();
-    }
+    if (std::regex_search(contents, match, file_regex)) { log_file = match[1].str(); }
     if (std::regex_search(contents, match, root_level_regex)) {
         LogLevel parsed_level;
-        if (!parse_log_level(match[1].str(), "--log-config root level", parsed_level)) {
-            return false;
-        }
+        if (!parse_log_level(match[1].str(), "--log-config root level", parsed_level)) { return false; }
         log_level = parsed_level;
     }
 
@@ -192,8 +187,8 @@ static bool parse_int(const std::string &str, const std::string &name, long min_
             return false;
         }
         if (v < min_val || v > max_val) {
-            std::cerr << "Error: " << name << " must be between " << min_val << " and " << max_val
-                      << ", got: " << v << "\n";
+            std::cerr << "Error: " << name << " must be between " << min_val << " and " << max_val << ", got: " << v
+                      << "\n";
             return false;
         }
         out = static_cast<int>(v);
@@ -216,8 +211,8 @@ static bool parse_int64(const std::string &str, const std::string &name, int64_t
             return false;
         }
         if (v < min_val || v > max_val) {
-            std::cerr << "Error: " << name << " must be between " << min_val << " and " << max_val
-                      << ", got: " << v << "\n";
+            std::cerr << "Error: " << name << " must be between " << min_val << " and " << max_val << ", got: " << v
+                      << "\n";
             return false;
         }
         out = static_cast<int64_t>(v);
@@ -230,8 +225,7 @@ static bool parse_int64(const std::string &str, const std::string &name, int64_t
 
 /// Parse a string as a size_t in [min_val, max_val], writing the result to out.
 /// Returns true on success; on failure prints a message to stderr and returns false.
-static bool parse_size_t(const std::string &str, const std::string &name, size_t min_val, size_t max_val,
-                         size_t &out) {
+static bool parse_size_t(const std::string &str, const std::string &name, size_t min_val, size_t max_val, size_t &out) {
     try {
         size_t pos = 0;
         unsigned long long v = std::stoull(str, &pos);
@@ -240,8 +234,8 @@ static bool parse_size_t(const std::string &str, const std::string &name, size_t
             return false;
         }
         if (v < min_val || v > max_val) {
-            std::cerr << "Error: " << name << " must be between " << min_val << " and " << max_val
-                      << ", got: " << v << "\n";
+            std::cerr << "Error: " << name << " must be between " << min_val << " and " << max_val << ", got: " << v
+                      << "\n";
             return false;
         }
         out = static_cast<size_t>(v);
@@ -262,9 +256,7 @@ static void append_transform_plugin_directories(const std::string &directories, 
     std::stringstream stream(directories);
     std::string directory;
     while (std::getline(stream, directory, delimiter)) {
-        if (!directory.empty()) {
-            out.push_back(directory);
-        }
+        if (!directory.empty()) { out.push_back(directory); }
     }
 }
 
@@ -322,31 +314,21 @@ int main(int argc, char **argv) {
     size_t max_viewports_per_session = resource_limits.max_viewports_per_session;
     std::vector<std::string> transform_plugin_directories;
     // Environment variable defaults
-    if (const char *env = std::getenv("OMEGA_EDIT_SERVER_HOST")) {
-        interface_addr = env;
-    }
+    if (const char *env = std::getenv("OMEGA_EDIT_SERVER_HOST")) { interface_addr = env; }
     if (const char *env = std::getenv("OMEGA_EDIT_SERVER_PORT")) {
         if (!parse_int(env, "OMEGA_EDIT_SERVER_PORT", 1, 65535, port)) return 1;
     }
-    if (const char *env = std::getenv("OMEGA_EDIT_SERVER_UNIX_SOCKET")) {
-        unix_socket = env;
-    }
+    if (const char *env = std::getenv("OMEGA_EDIT_SERVER_UNIX_SOCKET")) { unix_socket = env; }
     if (const char *env = std::getenv("OMEGA_EDIT_SERVER_UNIX_SOCKET_ONLY")) {
         std::string val(env);
-        if (val == "true" || val == "1") {
-            unix_socket_only = true;
-        }
+        if (val == "true" || val == "1") { unix_socket_only = true; }
     }
-    if (const char *env = std::getenv("OMEGA_EDIT_SERVER_PIDFILE")) {
-        pidfile = env;
-    }
+    if (const char *env = std::getenv("OMEGA_EDIT_SERVER_PIDFILE")) { pidfile = env; }
     if (const char *env = std::getenv("OMEGA_EDIT_SERVER_LOG_CONFIG")) {
         log_config_file = env;
         if (!apply_log_config_file(log_config_file, log_file, log_level)) return 1;
     }
-    if (const char *env = std::getenv("OMEGA_EDIT_SERVER_LOG_FILE")) {
-        log_file = env;
-    }
+    if (const char *env = std::getenv("OMEGA_EDIT_SERVER_LOG_FILE")) { log_file = env; }
     if (const char *env = std::getenv("OMEGA_EDIT_SERVER_LOG_LEVEL")) {
         if (!parse_log_level(env, "OMEGA_EDIT_SERVER_LOG_LEVEL", log_level)) return 1;
     } else if (const char *env = std::getenv("OMEGA_EDIT_LOG_LEVEL")) {
@@ -366,19 +348,22 @@ int main(int argc, char **argv) {
     }
     if (const char *env = std::getenv("OMEGA_EDIT_SESSION_EVENT_QUEUE_CAPACITY")) {
         if (!parse_size_t(env, "OMEGA_EDIT_SESSION_EVENT_QUEUE_CAPACITY", 0, std::numeric_limits<size_t>::max(),
-                       session_event_queue_capacity)) return 1;
+                          session_event_queue_capacity))
+            return 1;
     }
     if (const char *env = std::getenv("OMEGA_EDIT_VIEWPORT_EVENT_QUEUE_CAPACITY")) {
         if (!parse_size_t(env, "OMEGA_EDIT_VIEWPORT_EVENT_QUEUE_CAPACITY", 0, std::numeric_limits<size_t>::max(),
-                       viewport_event_queue_capacity)) return 1;
+                          viewport_event_queue_capacity))
+            return 1;
     }
     if (const char *env = std::getenv("OMEGA_EDIT_MAX_CHANGE_BYTES")) {
-        if (!parse_int64(env, "OMEGA_EDIT_MAX_CHANGE_BYTES", 0, std::numeric_limits<int64_t>::max(),
-                         max_change_bytes)) return 1;
+        if (!parse_int64(env, "OMEGA_EDIT_MAX_CHANGE_BYTES", 0, std::numeric_limits<int64_t>::max(), max_change_bytes))
+            return 1;
     }
     if (const char *env = std::getenv("OMEGA_EDIT_MAX_VIEWPORTS_PER_SESSION")) {
         if (!parse_size_t(env, "OMEGA_EDIT_MAX_VIEWPORTS_PER_SESSION", 0, std::numeric_limits<size_t>::max(),
-                       max_viewports_per_session)) return 1;
+                          max_viewports_per_session))
+            return 1;
     }
     if (const char *env = std::getenv("OMEGA_EDIT_TRANSFORM_PLUGIN_DIRS")) {
         append_transform_plugin_directories(env, transform_plugin_directories);
@@ -408,9 +393,7 @@ int main(int argc, char **argv) {
             } else {
                 key = arg;
                 // Only consume the next argument as a value if it exists and doesn't look like a flag
-                if (i + 1 < argc && argv[i + 1][0] != '-') {
-                    value = argv[++i];
-                }
+                if (i + 1 < argc && argv[i + 1][0] != '-') { value = argv[++i]; }
             }
 
             if (key == "-i" || key == "--interface") {
@@ -470,12 +453,8 @@ int main(int argc, char **argv) {
                 std::string config_log_file = log_file;
                 LogLevel config_log_level = log_level;
                 if (!apply_log_config_file(log_config_file, config_log_file, config_log_level)) return 1;
-                if (!has_explicit_log_file) {
-                    log_file = config_log_file;
-                }
-                if (!has_explicit_log_level) {
-                    log_level = config_log_level;
-                }
+                if (!has_explicit_log_file) { log_file = config_log_file; }
+                if (!has_explicit_log_level) { log_level = config_log_level; }
             } else if (key == "--session-timeout") {
                 if (value.empty()) {
                     std::cerr << "Error: " << key << " requires a value\n";
@@ -494,28 +473,31 @@ int main(int argc, char **argv) {
                     return 1;
                 }
                 if (!parse_size_t(value, "--session-event-queue-capacity", 0, std::numeric_limits<size_t>::max(),
-                               session_event_queue_capacity)) return 1;
+                                  session_event_queue_capacity))
+                    return 1;
             } else if (key == "--viewport-event-queue-capacity") {
                 if (value.empty()) {
                     std::cerr << "Error: " << key << " requires a value\n";
                     return 1;
                 }
                 if (!parse_size_t(value, "--viewport-event-queue-capacity", 0, std::numeric_limits<size_t>::max(),
-                               viewport_event_queue_capacity)) return 1;
+                                  viewport_event_queue_capacity))
+                    return 1;
             } else if (key == "--max-change-bytes") {
                 if (value.empty()) {
                     std::cerr << "Error: " << key << " requires a value\n";
                     return 1;
                 }
-                if (!parse_int64(value, "--max-change-bytes", 0, std::numeric_limits<int64_t>::max(),
-                                 max_change_bytes)) return 1;
+                if (!parse_int64(value, "--max-change-bytes", 0, std::numeric_limits<int64_t>::max(), max_change_bytes))
+                    return 1;
             } else if (key == "--max-viewports-per-session") {
                 if (value.empty()) {
                     std::cerr << "Error: " << key << " requires a value\n";
                     return 1;
                 }
                 if (!parse_size_t(value, "--max-viewports-per-session", 0, std::numeric_limits<size_t>::max(),
-                               max_viewports_per_session)) return 1;
+                                  max_viewports_per_session))
+                    return 1;
             } else if (key == "--transform-plugin-dir") {
                 if (value.empty()) {
                     std::cerr << "Error: " << key << " requires a value\n";
@@ -529,9 +511,7 @@ int main(int argc, char **argv) {
 
     g_log_level = log_level;
     if (!configure_log_output(log_file)) return 1;
-    if (!log_file.empty()) {
-        log_message(LogLevel::Info, "native server logging redirected to " + log_file);
-    }
+    if (!log_file.empty()) { log_message(LogLevel::Info, "native server logging redirected to " + log_file); }
 
     // Write PID file
     int pid = getpid();
@@ -586,13 +566,13 @@ int main(int argc, char **argv) {
         std::string unix_addr = "unix:" + unix_socket;
         builder.AddListeningPort(unix_addr, grpc::InsecureServerCredentials());
         log_message(LogLevel::Info, std::string("Ωedit gRPC server (v") + SERVER_VERSION + ") with PID " +
-                                         std::to_string(pid) + " bound to " + unix_addr + ": ready...");
+                                            std::to_string(pid) + " bound to " + unix_addr + ": ready...");
 #endif
     } else {
         std::string server_address = interface_addr + ":" + std::to_string(port);
         builder.AddListeningPort(server_address, grpc::InsecureServerCredentials());
         log_message(LogLevel::Info, std::string("Ωedit gRPC server (v") + SERVER_VERSION + ") with PID " +
-                                         std::to_string(pid) + " bound to " + server_address + ": ready...");
+                                            std::to_string(pid) + " bound to " + server_address + ": ready...");
 
 #ifndef _WIN32
         if (!unix_socket.empty()) {
@@ -619,9 +599,7 @@ int main(int argc, char **argv) {
             std::this_thread::sleep_for(std::chrono::milliseconds(100));
         }
         std::cerr << "Received shutdown signal, shutting down..." << std::endl;
-        if (g_server) {
-            g_server->Shutdown();
-        }
+        if (g_server) { g_server->Shutdown(); }
     });
 
     g_server->Wait();
@@ -630,9 +608,7 @@ int main(int argc, char **argv) {
     std::cerr << "Ωedit gRPC server (v" << SERVER_VERSION << ") with PID " << pid << ": exiting..." << std::endl;
 
     // Cleanup PID file
-    if (!pidfile.empty()) {
-        std::remove(pidfile.c_str());
-    }
+    if (!pidfile.empty()) { std::remove(pidfile.c_str()); }
 
     return 0;
 }

@@ -33,7 +33,7 @@ int omega_check_model(const omega_session_t *session_ptr) {
         if (!model_ptr) { return -1; }
 
         int64_t expected_offset = 0;
-        for (const auto &segment: model_ptr->model_segments) {
+        for (const auto &segment : model_ptr->model_segments) {
             // Each segment must reference a valid change
             if (!segment || !segment->change_ptr) { return -1; }
 
@@ -86,8 +86,7 @@ int omega_check_model(const omega_session_t *session_ptr) {
     int64_t model_total_length = 0;
     if (!back_model->model_segments.empty() &&
         !safe_add_int64_(back_model->model_segments.back()->computed_offset,
-                         back_model->model_segments.back()->computed_length,
-                         model_total_length)) {
+                         back_model->model_segments.back()->computed_length, model_total_length)) {
         return -1;
     }
     if (model_total_length != computed_file_size) { return -1; }

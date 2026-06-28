@@ -59,8 +59,8 @@ int64_t omega_viewport_get_offset(const omega_viewport_t *viewport_ptr) {
     if (!viewport_ptr) { return -1; }
     int64_t offset = 0;
     return safe_add_int64_(viewport_ptr->data_segment.offset, viewport_ptr->data_segment.offset_adjustment, offset)
-           ? offset
-           : -1;
+                   ? offset
+                   : -1;
 }
 
 void *omega_viewport_get_user_data_ptr(const omega_viewport_t *viewport_ptr) {
@@ -94,9 +94,7 @@ int64_t omega_viewport_get_following_byte_count(const omega_viewport_t *viewport
     const auto viewport_offset = omega_viewport_get_offset(viewport_ptr);
     if (viewport_offset < 0) { return 0; }
     int64_t viewport_end = 0;
-    if (!safe_add_int64_(viewport_offset, omega_viewport_get_length(viewport_ptr), viewport_end)) {
-        return 0;
-    }
+    if (!safe_add_int64_(viewport_offset, omega_viewport_get_length(viewport_ptr), viewport_end)) { return 0; }
     if (viewport_end < 0) { return 0; }
     const auto computed_file_size = omega_session_get_computed_file_size(omega_viewport_get_session(viewport_ptr));
     if (computed_file_size < 0) { return 0; }
@@ -155,11 +153,10 @@ int omega_viewport_in_segment(const omega_viewport_t *viewport_ptr, int64_t offs
     int64_t segment_end = 0;
     int64_t viewport_end = 0;
     return safe_add_int64_(offset, length, segment_end) &&
-           safe_add_int64_(viewport_offset, omega_viewport_get_capacity(viewport_ptr), viewport_end) &&
-           segment_end >= viewport_offset &&
-           offset <= viewport_end
-           ? 1
-           : 0;
+                           safe_add_int64_(viewport_offset, omega_viewport_get_capacity(viewport_ptr), viewport_end) &&
+                           segment_end >= viewport_offset && offset <= viewport_end
+                   ? 1
+                   : 0;
 }
 
 int omega_viewport_notify(const omega_viewport_t *viewport_ptr, omega_viewport_event_t viewport_event,
