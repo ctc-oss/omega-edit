@@ -116,8 +116,123 @@ namespace {
     std::mutex g_schema_regex_cache_mutex;
     std::unordered_map<std::string, std::shared_ptr<const std::regex>> g_schema_regex_cache;
 
+    struct regex_group_context_t {
+        bool has_quantified_atom{};
+        bool has_alternation{};
+    };
+
+    auto schema_regex_is_safe_(const std::string &pattern_text) -> bool {
+        bool escaped = false;
+        bool in_character_class = false;
+        bool last_atom_exists = false;
+        bool last_atom_is_group = false;
+        bool last_group_has_risky_content = false;
+        std::vector<regex_group_context_t> groups;
+
+        auto remember_atom = [&](bool is_group, bool group_has_risky_content) {
+            last_atom_exists = true;
+            last_atom_is_group = is_group;
+            last_group_has_risky_content = group_has_risky_content;
+        };
+
+        auto forget_atom = [&]() {
+            last_atom_exists = false;
+            last_atom_is_group = false;
+            last_group_has_risky_content = false;
+        };
+
+        auto apply_quantifier = [&]() {
+            if (!last_atom_exists) { return true; }
+            if (last_atom_is_group && last_group_has_risky_content) { return false; }
+            if (!groups.empty()) { groups.back().has_quantified_atom = true; }
+            forget_atom();
+            return true;
+        };
+
+        for (size_t index = 0; index < pattern_text.size(); ++index) {
+            const auto ch = static_cast<unsigned char>(pattern_text[index]);
+
+            if (escaped) {
+                if (std::isdigit(ch) != 0) { return false; }
+                remember_atom(false, false);
+                escaped = false;
+                continue;
+            }
+
+            if (ch == '\\') {
+                escaped = true;
+                continue;
+            }
+
+            if (in_character_class) {
+                if (ch == ']') { in_character_class = false; }
+                continue;
+            }
+
+            switch (ch) {
+            case '[':
+                in_character_class = true;
+                remember_atom(false, false);
+                break;
+            case '(':
+                if (index + 1 < pattern_text.size() && pattern_text[index + 1] == '?') { return false; }
+                groups.push_back({});
+                forget_atom();
+                break;
+            case ')': {
+                if (groups.empty()) { return false; }
+                const auto group = groups.back();
+                groups.pop_back();
+                remember_atom(true, group.has_quantified_atom || group.has_alternation);
+                break;
+            }
+            case '|':
+                if (!groups.empty()) { groups.back().has_alternation = true; }
+                forget_atom();
+                break;
+            case '*':
+            case '+':
+            case '?':
+                if (!apply_quantifier()) { return false; }
+                break;
+            case '{': {
+                size_t end = index + 1;
+                bool has_digit = false;
+                bool valid_range_quantifier = true;
+                for (; end < pattern_text.size() && pattern_text[end] != '}'; ++end) {
+                    const auto range_ch = static_cast<unsigned char>(pattern_text[end]);
+                    if (std::isdigit(range_ch) != 0) {
+                        has_digit = true;
+                    } else if (range_ch != ',') {
+                        valid_range_quantifier = false;
+                        break;
+                    }
+                }
+                if (end < pattern_text.size() && valid_range_quantifier && has_digit) {
+                    if (!apply_quantifier()) { return false; }
+                    index = end;
+                } else {
+                    forget_atom();
+                }
+                break;
+            }
+            case '^':
+            case '$':
+                forget_atom();
+                break;
+            default:
+                remember_atom(false, false);
+                break;
+            }
+        }
+
+        return !escaped && !in_character_class && groups.empty();
+    }
+
     auto get_schema_regex_(const std::string &pattern_text) -> std::shared_ptr<const std::regex> {
-        if (pattern_text.size() > OMEGA_SCHEMA_REGEX_MAX_PATTERN_BYTES) { return nullptr; }
+        if (pattern_text.size() > OMEGA_SCHEMA_REGEX_MAX_PATTERN_BYTES || !schema_regex_is_safe_(pattern_text)) {
+            return nullptr;
+        }
         {
             std::lock_guard<std::mutex> lock(g_schema_regex_cache_mutex);
             const auto iter = g_schema_regex_cache.find(pattern_text);

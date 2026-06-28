@@ -112,6 +112,21 @@ function touch(filePath: string) {
   fs.utimesSync(filePath, time, time)
 }
 
+async function expectInvalidArgument(
+  operation: () => Promise<unknown>,
+  expectedMessage: string
+): Promise<void> {
+  let rejected = false
+  try {
+    await operation()
+  } catch (err) {
+    rejected = true
+    expect((err as Error).message).to.include('INVALID_ARGUMENT')
+    expect((err as Error).message).to.include(expectedMessage)
+  }
+  expect(rejected, `expected ${expectedMessage} rejection`).to.equal(true)
+}
+
 describe('Sessions', () => {
   const iterations = 500
   const emptyFile = path.join(__dirname, 'data', 'empty.txt')
@@ -1284,6 +1299,55 @@ describe('Sessions', () => {
     expect(await getSessionCount()).to.equal(initialCount)
   })
 
+  it('Should validate caller chosen session IDs', async () => {
+    expect(await getClient(testPort)).to.not.be.undefined
+    const initialCount = await getSessionCount()
+    const safeSessionId = 'session.id-01_ok'
+    const session = await createSession('', safeSessionId)
+
+    try {
+      expect(session.getSessionId()).to.equal(safeSessionId)
+      expect(await getSessionCount()).to.equal(initialCount + 1)
+    } finally {
+      await destroySession(safeSessionId)
+    }
+
+    const nul = String.fromCharCode(0)
+    const unsafeSessionIds = [
+      'bad:id',
+      'bad/id',
+      'bad id',
+      `bad${nul}id`,
+      'a'.repeat(129),
+    ]
+
+    for (const sessionId of unsafeSessionIds) {
+      await expectInvalidArgument(
+        () => createSession('', sessionId),
+        'session id must be 1-128 bytes'
+      )
+    }
+
+    expect(await getSessionCount()).to.equal(initialCount)
+  })
+
+  it('Should reject malformed create-session path inputs', async () => {
+    expect(await getClient(testPort)).to.not.be.undefined
+    const initialCount = await getSessionCount()
+    const nul = String.fromCharCode(0)
+
+    await expectInvalidArgument(
+      () => createSession(`bad${nul}path`),
+      'file_path must be shorter than FILENAME_MAX'
+    )
+    await expectInvalidArgument(
+      () => createSession('', '', `bad${nul}checkpoint`),
+      'checkpoint_directory must be shorter than FILENAME_MAX'
+    )
+
+    expect(await getSessionCount()).to.equal(initialCount)
+  })
+
   it('Should reject duplicate desired viewport IDs within a session', async () => {
     const session = await createSession()
     const sessionId = session.getSessionId()
@@ -1306,6 +1370,41 @@ describe('Sessions', () => {
           `viewport already exists: ${desiredViewportId}`
         )
       }
+    } finally {
+      await destroySession(sessionId)
+    }
+  })
+
+  it('Should validate caller chosen viewport IDs', async () => {
+    expect(await getClient(testPort)).to.not.be.undefined
+    const session = await createSession()
+    const sessionId = session.getSessionId()
+    const safeViewportId = 'viewport.id-01_ok'
+
+    try {
+      const viewport = await createViewport(safeViewportId, sessionId, 0, 16)
+      expect(viewport.getViewportId()).to.equal(
+        `${sessionId}:${safeViewportId}`
+      )
+      expect(await getViewportCount(sessionId)).to.equal(1)
+
+      const nul = String.fromCharCode(0)
+      const unsafeViewportIds = [
+        'bad:id',
+        'bad/id',
+        'bad id',
+        `bad${nul}id`,
+        'a'.repeat(129),
+      ]
+
+      for (const viewportId of unsafeViewportIds) {
+        await expectInvalidArgument(
+          () => createViewport(viewportId, sessionId, 0, 16),
+          'viewport id must be 1-128 bytes'
+        )
+      }
+
+      expect(await getViewportCount(sessionId)).to.equal(1)
     } finally {
       await destroySession(sessionId)
     }

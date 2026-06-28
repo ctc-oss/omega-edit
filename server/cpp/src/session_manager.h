@@ -210,16 +210,18 @@ struct LockedViewport {
 /// Error codes returned by SessionManager::create_session
 enum class SessionCreateError {
     SUCCESS,
-    INVALID_ID,     ///< desired_id contains the reserved ':' character
-    ALREADY_EXISTS, ///< a session with the given id already exists
-    CORE_ERROR,     ///< the underlying omega_edit API failed to create the session
+    INVALID_ID,                   ///< desired_id is not a bounded caller ID token
+    INVALID_FILE_PATH,            ///< file_path is not safe to pass to the core C API
+    INVALID_CHECKPOINT_DIRECTORY, ///< checkpoint_directory is not safe to pass to the core C API
+    ALREADY_EXISTS,               ///< a session with the given id already exists
+    CORE_ERROR,                   ///< the underlying omega_edit API failed to create the session
 };
 
 /// Error codes returned by SessionManager::create_viewport
 enum class ViewportCreateError {
     SUCCESS,
     SESSION_NOT_FOUND,
-    INVALID_VIEWPORT_ID,   ///< desired_viewport_id contains the reserved ':' character
+    INVALID_VIEWPORT_ID,   ///< desired_viewport_id is not a bounded caller ID token
     DUPLICATE_VIEWPORT_ID, ///< a viewport with the given id already exists
     TOO_MANY_VIEWPORTS,    ///< the session has reached the configured viewport limit
     CORE_ERROR,            ///< the underlying omega_edit API failed to create the viewport
