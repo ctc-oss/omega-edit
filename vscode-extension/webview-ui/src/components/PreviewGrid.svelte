@@ -408,7 +408,7 @@
   }
 
   function handleWheel(event: WheelEvent): void {
-    if (event.deltaY === 0) {
+    if (event.deltaY === 0 || Math.abs(event.deltaX) > Math.abs(event.deltaY)) {
       return
     }
 

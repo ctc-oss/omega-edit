@@ -110,6 +110,33 @@ button:focus-visible {
   justify-content: flex-end;
 }
 
+.bytes-per-row-control {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.bytes-per-row-control .segmented {
+  --segmented-button-width: 44px;
+}
+
+.bytes-per-row-input {
+  width: 54px;
+  height: 26px;
+  padding: 3px 5px;
+  border: 1px solid var(--vscode-input-border, var(--vscode-editorGroup-border));
+  border-radius: 2px;
+  color: var(--vscode-input-foreground);
+  background: var(--vscode-input-background);
+  font: inherit;
+}
+
+.bytes-per-row-input:focus {
+  outline: 1px solid var(--vscode-focusBorder);
+  outline-offset: -1px;
+}
+
 .top-panels {
   min-width: 0;
   overflow: hidden;
@@ -813,6 +840,15 @@ button.dialog-backdrop:focus-visible {
   grid-template-columns: minmax(0, 1fr);
 }
 
+.editor-grid-scroller {
+  display: grid;
+  min-width: 0;
+  min-height: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  overscroll-behavior: contain;
+}
+
 .preparing-file {
   display: flex;
   grid-column: 1 / -1;
@@ -1452,10 +1488,11 @@ button.dialog-backdrop:focus-visible {
   display: grid;
   grid-auto-rows: minmax(24px, auto);
   align-content: start;
-  min-width: 0;
-  max-width: 100%;
+  width: max-content;
+  min-width: 100%;
+  max-width: none;
   min-height: 0;
-  overflow: hidden;
+  overflow: visible;
   overscroll-behavior: contain;
   padding: 8px;
   font-family: var(--vscode-editor-font-family, monospace);
@@ -1467,12 +1504,228 @@ button.dialog-backdrop:focus-visible {
   --bytes-per-row: 8;
 }
 
+.preview-grid.bytes-9 {
+  --bytes-per-row: 9;
+}
+
+.preview-grid.bytes-10 {
+  --bytes-per-row: 10;
+}
+
+.preview-grid.bytes-11 {
+  --bytes-per-row: 11;
+}
+
+.preview-grid.bytes-12 {
+  --bytes-per-row: 12;
+}
+
+.preview-grid.bytes-13 {
+  --bytes-per-row: 13;
+}
+
+.preview-grid.bytes-14 {
+  --bytes-per-row: 14;
+}
+
+.preview-grid.bytes-15 {
+  --bytes-per-row: 15;
+}
+
 .preview-grid.bytes-16 {
   --bytes-per-row: 16;
 }
 
+.preview-grid.bytes-17 {
+  --bytes-per-row: 17;
+}
+
+.preview-grid.bytes-18 {
+  --bytes-per-row: 18;
+}
+
+.preview-grid.bytes-19 {
+  --bytes-per-row: 19;
+}
+
+.preview-grid.bytes-20 {
+  --bytes-per-row: 20;
+}
+
+.preview-grid.bytes-21 {
+  --bytes-per-row: 21;
+}
+
+.preview-grid.bytes-22 {
+  --bytes-per-row: 22;
+}
+
+.preview-grid.bytes-23 {
+  --bytes-per-row: 23;
+}
+
+.preview-grid.bytes-24 {
+  --bytes-per-row: 24;
+}
+
+.preview-grid.bytes-25 {
+  --bytes-per-row: 25;
+}
+
+.preview-grid.bytes-26 {
+  --bytes-per-row: 26;
+}
+
+.preview-grid.bytes-27 {
+  --bytes-per-row: 27;
+}
+
+.preview-grid.bytes-28 {
+  --bytes-per-row: 28;
+}
+
+.preview-grid.bytes-29 {
+  --bytes-per-row: 29;
+}
+
+.preview-grid.bytes-30 {
+  --bytes-per-row: 30;
+}
+
+.preview-grid.bytes-31 {
+  --bytes-per-row: 31;
+}
+
 .preview-grid.bytes-32 {
   --bytes-per-row: 32;
+}
+
+.preview-grid.bytes-33 {
+  --bytes-per-row: 33;
+}
+
+.preview-grid.bytes-34 {
+  --bytes-per-row: 34;
+}
+
+.preview-grid.bytes-35 {
+  --bytes-per-row: 35;
+}
+
+.preview-grid.bytes-36 {
+  --bytes-per-row: 36;
+}
+
+.preview-grid.bytes-37 {
+  --bytes-per-row: 37;
+}
+
+.preview-grid.bytes-38 {
+  --bytes-per-row: 38;
+}
+
+.preview-grid.bytes-39 {
+  --bytes-per-row: 39;
+}
+
+.preview-grid.bytes-40 {
+  --bytes-per-row: 40;
+}
+
+.preview-grid.bytes-41 {
+  --bytes-per-row: 41;
+}
+
+.preview-grid.bytes-42 {
+  --bytes-per-row: 42;
+}
+
+.preview-grid.bytes-43 {
+  --bytes-per-row: 43;
+}
+
+.preview-grid.bytes-44 {
+  --bytes-per-row: 44;
+}
+
+.preview-grid.bytes-45 {
+  --bytes-per-row: 45;
+}
+
+.preview-grid.bytes-46 {
+  --bytes-per-row: 46;
+}
+
+.preview-grid.bytes-47 {
+  --bytes-per-row: 47;
+}
+
+.preview-grid.bytes-48 {
+  --bytes-per-row: 48;
+}
+
+.preview-grid.bytes-49 {
+  --bytes-per-row: 49;
+}
+
+.preview-grid.bytes-50 {
+  --bytes-per-row: 50;
+}
+
+.preview-grid.bytes-51 {
+  --bytes-per-row: 51;
+}
+
+.preview-grid.bytes-52 {
+  --bytes-per-row: 52;
+}
+
+.preview-grid.bytes-53 {
+  --bytes-per-row: 53;
+}
+
+.preview-grid.bytes-54 {
+  --bytes-per-row: 54;
+}
+
+.preview-grid.bytes-55 {
+  --bytes-per-row: 55;
+}
+
+.preview-grid.bytes-56 {
+  --bytes-per-row: 56;
+}
+
+.preview-grid.bytes-57 {
+  --bytes-per-row: 57;
+}
+
+.preview-grid.bytes-58 {
+  --bytes-per-row: 58;
+}
+
+.preview-grid.bytes-59 {
+  --bytes-per-row: 59;
+}
+
+.preview-grid.bytes-60 {
+  --bytes-per-row: 60;
+}
+
+.preview-grid.bytes-61 {
+  --bytes-per-row: 61;
+}
+
+.preview-grid.bytes-62 {
+  --bytes-per-row: 62;
+}
+
+.preview-grid.bytes-63 {
+  --bytes-per-row: 63;
+}
+
+.preview-grid.bytes-64 {
+  --bytes-per-row: 64;
 }
 
 .preview-grid:focus-visible {
@@ -1490,7 +1743,7 @@ button.dialog-backdrop:focus-visible {
   grid-template-columns:
     minmax(9ch, 12ch)
     max-content
-    minmax(8ch, 1fr);
+    max-content;
   align-items: center;
   gap: 12px;
   min-width: max-content;
@@ -1544,6 +1797,11 @@ button.dialog-backdrop:focus-visible {
 .ascii-heading,
 .offset {
   color: var(--vscode-terminal-ansiCyan, #4fc1ff);
+}
+
+.ascii-heading {
+  display: inline-flex;
+  width: calc(var(--bytes-per-row) * 1ch);
 }
 
 .byte {
@@ -1686,6 +1944,29 @@ button.dialog-backdrop:focus-visible {
   background: var(--vscode-editor-selectionBackground);
 }
 
+.byte.selected:hover,
+.text-byte.selected:hover {
+  color: #111827;
+  background: var(--vscode-terminal-ansiYellow, #f59e0b);
+  border-color: var(--vscode-terminal-ansiYellow, #f59e0b);
+}
+
+body.vscode-light .byte.selected:hover,
+body.vscode-light .text-byte.selected:hover {
+  color: #ffffff;
+  background: var(--vscode-terminal-ansiRed, #a31515);
+  border-color: var(--vscode-terminal-ansiRed, #a31515);
+}
+
+body.vscode-high-contrast .byte.selected:hover,
+body.vscode-high-contrast .text-byte.selected:hover,
+body.vscode-high-contrast-light .byte.selected:hover,
+body.vscode-high-contrast-light .text-byte.selected:hover {
+  color: var(--vscode-editor-background);
+  background: var(--vscode-focusBorder);
+  border-color: var(--vscode-focusBorder);
+}
+
 .byte.focused,
 .text-byte.focused {
   border-color: var(--vscode-focusBorder);
@@ -1712,10 +1993,10 @@ button.dialog-backdrop:focus-visible {
 
 .ascii {
   display: flex;
-  min-width: 0;
-  overflow: hidden;
+  width: calc(var(--bytes-per-row) * 1ch);
+  min-width: calc(var(--bytes-per-row) * 1ch);
+  overflow: visible;
   color: var(--vscode-descriptionForeground);
-  text-overflow: ellipsis;
   white-space: nowrap;
 }
 

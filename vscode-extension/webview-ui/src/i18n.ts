@@ -29,6 +29,11 @@ const englishStrings = {
     label: 'OmegaEdit editor toolbar',
     bytesPerRow: 'Bytes per row',
     bytesPerRowTitle: (count: number) => `Show ${count} bytes per row`,
+    autoBytesPerRow: 'Auto',
+    autoBytesPerRowTitle: 'Fit bytes per row to the editor width',
+    customBytesPerRow: 'Custom bytes per row',
+    customBytesPerRowTitle: (min: number, max: number) =>
+      `Set bytes per row from ${min} to ${max}`,
     offsetRadix: 'Offset radix',
     hexOffsets: 'Hex',
     decOffsets: 'Dec',
@@ -479,6 +484,11 @@ const localeOverrides: Record<string, LocaleStringOverrides> = {
       bytesPerRow: 'Bytes por fila',
       bytesPerRowTitle: (count: number) =>
         `Mostrar ${formatNumber(count)} bytes por fila`,
+      autoBytesPerRow: 'Auto',
+      autoBytesPerRowTitle: 'Ajustar bytes por fila al ancho del editor',
+      customBytesPerRow: 'Bytes por fila personalizados',
+      customBytesPerRowTitle: (min: number, max: number) =>
+        `Establecer bytes por fila de ${formatNumber(min)} a ${formatNumber(max)}`,
       offsetRadix: 'Base del desplazamiento',
       hexOffsets: 'Hex',
       decOffsets: 'Dec',

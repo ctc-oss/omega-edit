@@ -1,10 +1,15 @@
 <script lang="ts">
-  import type {
-    BytesPerRow,
-    InsertDirection,
-    WebviewSessionContentInfo,
-    WebviewSessionContentSource,
-    WebviewTransformPlugin,
+  import {
+    FIXED_BYTES_PER_ROW_OPTIONS,
+    MAX_BYTES_PER_ROW,
+    MIN_BYTES_PER_ROW,
+    normalizeBytesPerRow,
+    type BytesPerRow,
+    type BytesPerRowMode,
+    type InsertDirection,
+    type WebviewSessionContentInfo,
+    type WebviewSessionContentSource,
+    type WebviewTransformPlugin,
   } from '../protocol'
   import { strings } from '../i18n'
   import OffsetJump from './OffsetJump.svelte'
@@ -22,6 +27,7 @@
 
   interface Props {
     bytesPerRow: BytesPerRow
+    bytesPerRowMode: BytesPerRowMode
     offsetRadix?: 'hex' | 'dec'
     insertDirection?: InsertDirection
     fileSize?: number
@@ -40,6 +46,7 @@
     selectionEnd?: number
     selectionLength?: number
     onBytesPerRow: (bytesPerRow: BytesPerRow) => void
+    onBytesPerRowMode: (mode: BytesPerRowMode) => void
     onOffsetRadix: (radix: 'hex' | 'dec') => void
     onInsertDirection: (direction: InsertDirection) => void
     onGoToOffset: (offset: number) => void
@@ -65,6 +72,7 @@
 
   let {
     bytesPerRow,
+    bytesPerRowMode,
     offsetRadix = 'hex',
     insertDirection = 'forward',
     fileSize = 0,
@@ -83,6 +91,7 @@
     selectionEnd = -1,
     selectionLength = 0,
     onBytesPerRow,
+    onBytesPerRowMode,
     onOffsetRadix,
     onInsertDirection,
     onGoToOffset,
@@ -100,22 +109,92 @@
     onApplyChangeLog,
   }: Props = $props()
 
-  const rowOptions: BytesPerRow[] = [8, 16, 32]
+  const rowOptions: BytesPerRow[] = [...FIXED_BYTES_PER_ROW_OPTIONS]
+  let customBytesPerRowValue = $state('')
+
+  function clampBytesPerRow(value: number): BytesPerRow {
+    if (!Number.isFinite(value)) {
+      return bytesPerRow
+    }
+    return normalizeBytesPerRow(
+      Math.max(MIN_BYTES_PER_ROW, Math.min(MAX_BYTES_PER_ROW, Math.floor(value)))
+    )
+  }
+
+  function handleCustomBytesInput(event: Event): void {
+    customBytesPerRowValue = (event.currentTarget as HTMLInputElement).value
+  }
+
+  function commitCustomBytesPerRow(force = false): void {
+    const nextBytesPerRow = clampBytesPerRow(
+      Number.parseInt(customBytesPerRowValue, 10)
+    )
+    customBytesPerRowValue = String(nextBytesPerRow)
+    if (
+      !force &&
+      bytesPerRowMode === 'auto' &&
+      nextBytesPerRow === bytesPerRow
+    ) {
+      return
+    }
+    onBytesPerRow(nextBytesPerRow)
+  }
+
+  function handleCustomBytesKeydown(event: KeyboardEvent): void {
+    if (event.key === 'Enter') {
+      event.preventDefault()
+      commitCustomBytesPerRow(true)
+    }
+  }
+
+  function handleCustomBytesBlur(): void {
+    commitCustomBytesPerRow()
+  }
+
+  $effect(() => {
+    customBytesPerRowValue = String(bytesPerRow)
+  })
 </script>
 
 <div class="toolbar" role="toolbar" aria-label={strings.toolbar.label}>
-  <div class="segmented" aria-label={strings.toolbar.bytesPerRow}>
-    {#each rowOptions as option}
+  <div class="bytes-per-row-control">
+    <div class="segmented" aria-label={strings.toolbar.bytesPerRow}>
       <button
         type="button"
-        class:active={option === bytesPerRow}
-        aria-pressed={option === bytesPerRow}
-        title={strings.toolbar.bytesPerRowTitle(option)}
-        onclick={() => onBytesPerRow(option)}
+        class:active={bytesPerRowMode === 'auto'}
+        aria-pressed={bytesPerRowMode === 'auto'}
+        title={strings.toolbar.autoBytesPerRowTitle}
+        onclick={() => onBytesPerRowMode('auto')}
       >
-        {option}
+        {strings.toolbar.autoBytesPerRow}
       </button>
-    {/each}
+      {#each rowOptions as option}
+        <button
+          type="button"
+          class:active={bytesPerRowMode === 'fixed' && option === bytesPerRow}
+          aria-pressed={bytesPerRowMode === 'fixed' && option === bytesPerRow}
+          title={strings.toolbar.bytesPerRowTitle(option)}
+          onclick={() => onBytesPerRow(option)}
+        >
+          {option}
+        </button>
+      {/each}
+    </div>
+    <input
+      class="bytes-per-row-input"
+      type="number"
+      min={MIN_BYTES_PER_ROW}
+      max={MAX_BYTES_PER_ROW}
+      value={customBytesPerRowValue}
+      aria-label={strings.toolbar.customBytesPerRow}
+      title={strings.toolbar.customBytesPerRowTitle(
+        MIN_BYTES_PER_ROW,
+        MAX_BYTES_PER_ROW
+      )}
+      oninput={handleCustomBytesInput}
+      onblur={handleCustomBytesBlur}
+      onkeydown={handleCustomBytesKeydown}
+    />
   </div>
 
   <div class="segmented" aria-label={strings.toolbar.offsetRadix}>
