@@ -16,6 +16,7 @@ export interface ToolkitOptions {
   maxEditBytes?: number
   maxSearchResults?: number
   previewContextBytes?: number
+  insecureAllowNonLoopback?: boolean
 }
 
 export interface EncodedData {

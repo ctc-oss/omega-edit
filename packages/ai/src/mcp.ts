@@ -733,6 +733,7 @@ async function main(): Promise<void> {
       host: { type: 'string' },
       port: { type: 'string' },
       'no-autostart': { type: 'boolean' },
+      'insecure-allow-non-loopback': { type: 'boolean' },
     },
     allowPositionals: false,
   })
@@ -744,6 +745,8 @@ async function main(): Promise<void> {
         ? Number.parseInt(parsed.values.port as string, 10)
         : DEFAULT_PORT,
     autoStart: parsed.values['no-autostart'] ? false : true,
+    insecureAllowNonLoopback:
+      parsed.values['insecure-allow-non-loopback'] === true,
   })
 
   const tools = buildTools(toolkit)

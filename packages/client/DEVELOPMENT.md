@@ -15,7 +15,7 @@ If you find yourself adding any other recurring poll against session or viewport
 
 ## Prerequisites
 
-- Node.js 24.x
+- Node.js 22 or newer; Node.js 24 is used by the primary CI lane and `.nvmrc`
 - Yarn (v1 or compatible)
 - The `@omega-edit/server` package must be built and packaged first
 

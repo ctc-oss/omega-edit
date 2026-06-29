@@ -72,9 +72,17 @@ const proc = await runServer(9000, '127.0.0.1', '/tmp/server.pid', {
 const proc2 = await runServerWithArgs([
   '--interface=0.0.0.0',
   '--port=9000',
+  '--insecure-allow-non-loopback',
   '--unix-socket=/tmp/omega.sock',
 ])
 ```
+
+## Security Boundary
+
+The native gRPC server has no built-in authentication. Its default `127.0.0.1` TCP bind and Unix domain socket mode are
+the intended trust boundary. Non-loopback TCP binds require `--insecure-allow-non-loopback` or the
+`insecureAllowNonLoopback` option because any reachable client can create sessions, read and edit files, save output,
+and invoke registered transform plugins with the server process's privileges.
 
 ### Standalone Binary
 
@@ -120,6 +128,7 @@ interface HeartbeatOptions {
   logLevel?: string              // Native log level: debug, info, warn, error
   logConfigFile?: string         // Compatibility shim for logback-style XML config
   transformPluginDirectories?: string[] // Directories containing transform plugin shared libraries
+  insecureAllowNonLoopback?: boolean // Permit unauthenticated non-loopback TCP binds
 }
 ```
 
@@ -147,6 +156,7 @@ The native binary supports:
 | `--log-level` | Set native server log verbosity |
 | `--log-config` | Read log file/level from a logback-style XML config |
 | `--transform-plugin-dir` | Register transform plugins from a directory; repeat for multiple directories |
+| `--insecure-allow-non-loopback` | Permit unauthenticated TCP binds outside loopback |
 
 The package includes the first-party transform plugins for the current platform and
 registers them automatically when no explicit transform plugin directories are supplied.

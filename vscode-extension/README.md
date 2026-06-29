@@ -64,7 +64,7 @@ The example now leans on higher-level editor-facing helpers from `@omega-edit/cl
 
 ### Prerequisites
 
-- [Node.js](https://nodejs.org/) 24.x
+- [Node.js](https://nodejs.org/) 22 or newer; Node.js 24 is used by the primary CI lane and `.nvmrc`
 - [VS Code](https://code.visualstudio.com/) >= 1.110
 
 The current VS Code floor is `1.110` because that is the oldest version exercised in CI and it matches the `@types/vscode` version used to compile the example. If the support range is widened later, the CI matrix should be widened with it.

@@ -112,6 +112,13 @@ For an installed package instead of a source checkout, use the Codex MCP format 
 - machine-readable CLI and MCP responses are easier for agents to consume than terminal scraping
 - the same primitives work for both human-operated scripts and agent-hosted tool calls
 
+### Server Trust Boundary
+
+The bundled gRPC server is an unauthenticated local editing service. By default it binds to `127.0.0.1`; keep it on
+loopback or a Unix domain socket unless the surrounding environment supplies its own access control. Non-loopback TCP
+binds, such as `0.0.0.0`, require the explicit `--insecure-allow-non-loopback` opt-in because any client that can reach
+the server can read, edit, save, and invoke registered transform plugins with the server process's privileges.
+
 ## Transform Plugins
 
 OmegaEdit can discover native transform plugins from `.so`, `.dylib`, and `.dll` files. Plugins can replace a selected range, expand or shrink content, or inspect a range and return a result such as a checksum or hash. The separately packaged examples include bitwise transforms, ASCII case changes, binary/text codecs, zlib compression, character transcoding, decimal field helpers, record/text escaping, TLV/varint inspectors, and MD5/SHA/BLAKE/CRC/checksum-style inspection. See the [Transform Plugins guide](https://github.com/ctc-oss/omega-edit/wiki/Transform-Plugins) for the ABI, SDK helpers, plugin package layout, server registration options, and exemplar plugins.
@@ -130,13 +137,16 @@ User documentation is published to https://ctc-oss.github.io/omega-edit/.
 - **conan** C/C++ package manager (https://conan.io)
 - **git** for version control (https://git-scm.com)
 - **make** or **ninja** for running the build scripts (https://www.gnu.org/software/make/ or https://ninja-build.org)
+- **Node.js 22+** and **yarn** for building, testing, and packaging the node artifacts (https://yarnpkg.com)
 - **nvm** or **nodeenv** for using specific versions of node.js
+
+Optional documentation tools:
+
 - **doxygen** to generate API documentation (https://www.doxygen.nl)
 - **graphviz** to generate API documentation (https://graphviz.org)
 - **sphinx** to generate user documentation (https://www.sphinx-doc.org)
   - **sphinx RTD theme** (https://github.com/readthedocs/sphinx_rtd_theme)
   - **breathe** ReStructuredText and Sphinx bridge to Doxygen (https://github.com/michaeljones/breathe)
-- **yarn** for building, testing, and packaging the node artifacts (https://yarnpkg.com)
 
 ### IDE
 

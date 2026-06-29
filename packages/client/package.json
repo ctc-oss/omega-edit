@@ -32,7 +32,7 @@
   "author": "CTC-OSS",
   "license": "Apache-2.0",
   "engines": {
-    "node": "^24.0.0"
+    "node": ">=22"
   },
   "config": {
     "protocVersion": "35.1"
