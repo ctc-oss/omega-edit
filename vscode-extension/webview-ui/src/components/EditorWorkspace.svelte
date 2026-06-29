@@ -164,6 +164,10 @@
 
   let gridScrollerElement = $state<HTMLDivElement>()
   let autoFitFrame = $state<number | undefined>(undefined)
+  let autoFitOverflowCap = $state<
+    { width: number; bytesPerRow: BytesPerRow } | undefined
+  >(undefined)
+  const AUTO_FIT_WIDTH_GUARD_PX = 24
 
   function measureAutoFitBytesPerRow(): BytesPerRow | undefined {
     if (!gridScrollerElement || !autoFitBytesPerRow || preparing) {
@@ -171,9 +175,8 @@
     }
 
     const grid = gridScrollerElement.querySelector('.preview-grid')
-    const row =
-      gridScrollerElement.querySelector('.grid-row') ||
-      gridScrollerElement.querySelector('.grid-header')
+    const header = gridScrollerElement.querySelector('.grid-header')
+    const row = gridScrollerElement.querySelector('.grid-row') || header
     const hexCells = row?.querySelector('.hex-cells, .hex-heading')
     const asciiCells = row?.querySelector('.ascii')
     const offsetCell = row?.querySelector('.offset, .offset-heading')
@@ -186,19 +189,71 @@
     const horizontalPadding =
       (Number.parseFloat(gridStyle.paddingLeft) || 0) +
       (Number.parseFloat(gridStyle.paddingRight) || 0)
-    const gap = Number.parseFloat(rowStyle.columnGap) || 0
+    const gapFromStyle = Number.parseFloat(rowStyle.columnGap)
     const hexWidth = hexCells.getBoundingClientRect().width
     const asciiWidth =
       asciiCells?.getBoundingClientRect().width ||
       Math.max(1, hexWidth / Math.max(1, bytesPerRow) / 3) * bytesPerRow
+    const measuredRowWidth = row.getBoundingClientRect().width
+    const measuredGap = Math.max(
+      0,
+      (measuredRowWidth -
+        offsetCell.getBoundingClientRect().width -
+        hexWidth -
+        asciiWidth) /
+        2
+    )
+    const gap = Number.isFinite(gapFromStyle) ? gapFromStyle : measuredGap
+    const hexByteWidth =
+      row.querySelector('.byte, .hex-heading span')?.getBoundingClientRect()
+        .width || hexWidth / Math.max(1, bytesPerRow)
+    const asciiByteWidth =
+      row.querySelector('.text-byte')?.getBoundingClientRect().width ||
+      asciiWidth / Math.max(1, bytesPerRow)
     const perByteWidth = Math.max(
       1,
-      (hexWidth + asciiWidth) / Math.max(1, bytesPerRow)
+      hexByteWidth + asciiByteWidth
     )
     const fixedWidth =
-      offsetCell.getBoundingClientRect().width + gap * 2 + horizontalPadding
+      Math.max(
+        offsetCell.getBoundingClientRect().width,
+        header
+          ?.querySelector('.offset-heading')
+          ?.getBoundingClientRect().width ?? 0
+      ) +
+      gap * 2 +
+      horizontalPadding +
+      AUTO_FIT_WIDTH_GUARD_PX
     const availableWidth = Math.max(0, gridScrollerElement.clientWidth)
+    const overflowWidth = Math.max(
+      0,
+      gridScrollerElement.scrollWidth - availableWidth
+    )
+    if (overflowWidth > 1) {
+      const overflowBytes = Math.ceil(overflowWidth / perByteWidth)
+      const cappedBytesPerRow = Math.max(
+        8,
+        Math.min(maxBytesPerRow, bytesPerRow - overflowBytes)
+      )
+      autoFitOverflowCap = {
+        width: availableWidth,
+        bytesPerRow: cappedBytesPerRow,
+      }
+      return cappedBytesPerRow
+    }
+
     const rawFit = Math.floor((availableWidth - fixedWidth) / perByteWidth)
+    if (
+      autoFitOverflowCap &&
+      Math.abs(availableWidth - autoFitOverflowCap.width) <= perByteWidth
+    ) {
+      return Math.max(
+        8,
+        Math.min(maxBytesPerRow, rawFit, autoFitOverflowCap.bytesPerRow)
+      )
+    }
+
+    autoFitOverflowCap = undefined
     return Math.max(8, Math.min(maxBytesPerRow, rawFit))
   }
 
