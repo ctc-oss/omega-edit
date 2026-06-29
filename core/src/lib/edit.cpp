@@ -675,15 +675,11 @@ namespace {
         int64_t replay_from = 0;
         if (!snapshots.empty()) {
             auto snap_it = snapshots.upper_bound(remaining_count);
-            if (snap_it != snapshots.begin()) {
-                --snap_it;
-                try {
-                    model_ptr->model_segments = clone_model_segments_(snap_it->second);
-                } catch (const std::bad_alloc &) { return -1; }
-                replay_from = snap_it->first;
-            } else {
-                if (0 != reset_model_segments_to_original_(model_ptr)) { return -1; }
-            }
+            --snap_it;
+            try {
+                model_ptr->model_segments = clone_model_segments_(snap_it->second);
+            } catch (const std::bad_alloc &) { return -1; }
+            replay_from = snap_it->first;
         } else {
             if (0 != reset_model_segments_to_original_(model_ptr)) { return -1; }
         }

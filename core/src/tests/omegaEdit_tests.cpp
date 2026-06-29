@@ -1321,6 +1321,30 @@ TEST_CASE("Restore To Change Count Discards Redo Without Dropping Active Changes
     omega_edit_destroy_session(session_ptr);
 }
 
+TEST_CASE("Restore To Change Count Rebuilds From Retained Undo Snapshot", "[UndoTests]") {
+    auto *session_ptr = omega_edit_create_session(nullptr, nullptr, nullptr, ALL_EVENTS, nullptr);
+    REQUIRE(session_ptr);
+
+    REQUIRE(2 == omega_session_set_undo_snapshot_interval(session_ptr, 2));
+    for (auto i = 0; i < 7; ++i) {
+        const char bytes[] = {static_cast<char>('A' + i), '\0'};
+        REQUIRE(0 < omega_edit_insert_string(session_ptr, omega_session_get_computed_file_size(session_ptr), bytes));
+    }
+    REQUIRE(7 == omega_session_get_num_changes(session_ptr));
+    REQUIRE("ABCDEFG" ==
+            omega_session_get_segment_string(session_ptr, 0, omega_session_get_computed_file_size(session_ptr)));
+
+    REQUIRE(0 == omega_edit_restore_to_change_count(session_ptr, 5));
+    REQUIRE(5 == omega_session_get_num_changes(session_ptr));
+    REQUIRE(0 == omega_session_get_num_undone_changes(session_ptr));
+    REQUIRE("ABCDE" ==
+            omega_session_get_segment_string(session_ptr, 0, omega_session_get_computed_file_size(session_ptr)));
+    REQUIRE(0 == omega_edit_redo_last_undo(session_ptr));
+    REQUIRE(0 == omega_check_model(session_ptr));
+
+    omega_edit_destroy_session(session_ptr);
+}
+
 TEST_CASE("Restore To Change Count Discards Explicit Checkpoint Models", "[UndoTests]") {
     auto *session_ptr = omega_edit_create_session(nullptr, nullptr, nullptr, ALL_EVENTS, nullptr);
     REQUIRE(session_ptr);
