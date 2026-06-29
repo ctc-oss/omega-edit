@@ -1311,8 +1311,7 @@ namespace {
         return redone_change_ptr->serial;
     }
 
-    int discard_top_model_(omega_session_t *session_ptr) {
-        if (!session_ptr || session_ptr->models_.size() <= 1) { return -1; }
+    void discard_top_model_(omega_session_t *session_ptr) {
         auto *const model_ptr = session_ptr->models_.back().get();
         if (model_ptr->file_ptr) {
             FCLOSE(model_ptr->file_ptr);
@@ -1323,7 +1322,6 @@ namespace {
         free_model_changes_undone_(model_ptr);
         session_ptr->models_.pop_back();
         session_ptr->num_changes_adjustment_ = session_ptr->models_.back()->change_serial_base;
-        return 0;
     }
 }// namespace
 
@@ -2191,7 +2189,7 @@ int omega_edit_restore_to_change_count(omega_session_t *session_ptr, int64_t cha
         const auto model_base = model_ptr->change_serial_base;
         if (change_count < model_base ||
             (change_count == model_base && checkpoint_snapshot_change_count_(model_ptr) > 0)) {
-            if (0 != discard_top_model_(session_ptr)) { return -1; }
+            discard_top_model_(session_ptr);
             restored = true;
             continue;
         }
@@ -2199,9 +2197,7 @@ int omega_edit_restore_to_change_count(omega_session_t *session_ptr, int64_t cha
     }
 
     auto *const model_ptr = session_ptr->models_.back().get();
-    if (change_count < model_ptr->change_serial_base) { return -1; }
     const auto keep_count = change_count - model_ptr->change_serial_base;
-    if (keep_count < 0 || keep_count > static_cast<int64_t>(model_ptr->changes.size())) { return -1; }
 
     if (keep_count < static_cast<int64_t>(model_ptr->changes.size())) {
         model_ptr->changes.erase(model_ptr->changes.begin() + static_cast<std::ptrdiff_t>(keep_count),
