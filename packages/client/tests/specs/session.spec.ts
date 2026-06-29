@@ -49,6 +49,8 @@ import {
   profileSession,
   saveSession,
   SaveStatus,
+  restoreToChangeCount,
+  undo,
 } from '@omega-edit/client'
 import * as fs from 'fs'
 import * as path from 'path'
@@ -1072,6 +1074,42 @@ describe('Sessions', () => {
       expect(await destroyLastCheckpoint(session_id)).to.equal(0)
       expect(await getSessionBytes(session_id)).to.deep.equal(seed)
       expect(await getChangeCount(session_id)).to.equal(0)
+    } finally {
+      if (session_id) {
+        await destroySession(session_id)
+      }
+    }
+  })
+
+  it('Should restore to an earlier change count and discard redo', async () => {
+    let session_id = ''
+
+    try {
+      const session = await createSessionFromBytes(
+        Buffer.from('restore seed'),
+        'restore_change_count_test'
+      )
+      session_id = session.getSessionId()
+
+      await insert(session_id, 12, Buffer.from(' one'))
+      const keepCount = await getChangeCount(session_id)
+      await insert(session_id, 16, Buffer.from(' two'))
+      await del(session_id, 0, 8)
+      expect(await getSessionBytes(session_id)).to.deep.equal(
+        Buffer.from('seed one two')
+      )
+      await undo(session_id)
+      expect(await getSessionBytes(session_id)).to.deep.equal(
+        Buffer.from('restore seed one two')
+      )
+
+      const response = await restoreToChangeCount(session_id, keepCount)
+      expect(response.changeCount).to.equal(keepCount)
+      expect(response.discardedChangeCount).to.equal(1)
+      expect(response.discardedUndoCount).to.equal(1)
+      expect(await getSessionBytes(session_id)).to.deep.equal(
+        Buffer.from('restore seed one')
+      )
     } finally {
       if (session_id) {
         await destroySession(session_id)

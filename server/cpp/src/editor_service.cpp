@@ -1090,6 +1090,50 @@ namespace omega_edit {
             return grpc::Status::OK;
         }
 
+        grpc::Status
+        EditorServiceImpl::RestoreToChangeCount(grpc::ServerContext * /*context*/,
+                                                const ::omega_edit::v1::RestoreToChangeCountRequest *request,
+                                                ::omega_edit::v1::RestoreToChangeCountResponse *response) {
+            if (request->change_count() < 0) {
+                return grpc::Status(grpc::StatusCode::INVALID_ARGUMENT, "change_count must be non-negative");
+            }
+
+            auto mutation_guard = session_manager_.try_begin_mutation(request->session_id());
+            if (!mutation_guard) {
+                return status_for_session_operation_start(mutation_guard.result(), "restore to change count",
+                                                          request->session_id());
+            }
+
+            auto locked_session = session_manager_.lock_session(request->session_id());
+            if (!locked_session) {
+                return grpc::Status(grpc::StatusCode::NOT_FOUND, "session not found: " + request->session_id());
+            }
+            auto *session = locked_session.session();
+
+            const auto before_change_count = omega_session_get_num_changes(session);
+            const auto before_undo_count = omega_session_get_num_undone_changes(session);
+            if (request->change_count() > before_change_count) {
+                return grpc::Status(grpc::StatusCode::INVALID_ARGUMENT,
+                                    "change_count cannot exceed current session change count");
+            }
+
+            if (0 != omega_edit_restore_to_change_count(session, request->change_count())) {
+                return grpc::Status(grpc::StatusCode::FAILED_PRECONDITION,
+                                    "failed to restore session to requested change count");
+            }
+
+            const auto after_change_count = omega_session_get_num_changes(session);
+            const auto after_undo_count = omega_session_get_num_undone_changes(session);
+            response->set_session_id(request->session_id());
+            response->set_change_count(after_change_count);
+            response->set_discarded_change_count(
+                    before_change_count > after_change_count ? before_change_count - after_change_count : 0);
+            response->set_discarded_undo_count(
+                    before_undo_count > after_undo_count ? before_undo_count - after_undo_count : 0);
+            response->set_remaining_checkpoint_count(omega_session_get_num_checkpoints(session));
+            return grpc::Status::OK;
+        }
+
         // ---------- Session Control ----------
 
         grpc::Status EditorServiceImpl::PauseSessionChanges(grpc::ServerContext * /*context*/,

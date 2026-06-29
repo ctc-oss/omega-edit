@@ -1310,7 +1310,26 @@ namespace {
         omega_session_notify(session_ptr, SESSION_EVT_EDIT, redone_change_ptr);
         return redone_change_ptr->serial;
     }
+
+    int discard_top_model_(omega_session_t *session_ptr) {
+        if (!session_ptr || session_ptr->models_.size() <= 1) { return -1; }
+        auto *const model_ptr = session_ptr->models_.back().get();
+        if (model_ptr->file_ptr) {
+            FCLOSE(model_ptr->file_ptr);
+            model_ptr->file_ptr = nullptr;
+        }
+        if (!model_ptr->file_path.empty() && 0 != omega_util_remove_file(model_ptr->file_path.c_str())) { LOG_ERRNO(); }
+        free_model_changes_(model_ptr);
+        free_model_changes_undone_(model_ptr);
+        session_ptr->models_.pop_back();
+        session_ptr->num_changes_adjustment_ = session_ptr->models_.back()->change_serial_base;
+        return 0;
+    }
 }// namespace
+
+int omega_edit_serial_result_is_success(int64_t result) { return result > 0 ? 1 : 0; }
+
+int omega_edit_status_result_is_success(int result) { return result == 0 ? 1 : 0; }
 
 omega_session_t *omega_edit_create_session(const char *file_path, omega_session_event_cbk_t cbk, void *user_data_ptr,
                                            int32_t event_interest, const char *checkpoint_directory) {
@@ -2158,6 +2177,48 @@ int omega_edit_clear_changes(omega_session_t *session_ptr) {
         omega_viewport_notify(viewport_ptr.get(), VIEWPORT_EVT_CLEAR, nullptr);
     }
     omega_session_notify(session_ptr, SESSION_EVT_CLEAR, nullptr);
+    return 0;
+}
+
+int omega_edit_restore_to_change_count(omega_session_t *session_ptr, int64_t change_count) {
+    if (!session_ptr || change_count < 0) { return -1; }
+    const auto current_change_count = omega_session_get_num_changes(session_ptr);
+    if (change_count > current_change_count) { return -1; }
+
+    bool restored = false;
+    while (session_ptr->models_.size() > 1) {
+        auto *const model_ptr = session_ptr->models_.back().get();
+        const auto model_base = model_ptr->change_serial_base;
+        if (change_count < model_base ||
+            (change_count == model_base && checkpoint_snapshot_change_count_(model_ptr) > 0)) {
+            if (0 != discard_top_model_(session_ptr)) { return -1; }
+            restored = true;
+            continue;
+        }
+        break;
+    }
+
+    auto *const model_ptr = session_ptr->models_.back().get();
+    if (change_count < model_ptr->change_serial_base) { return -1; }
+    const auto keep_count = change_count - model_ptr->change_serial_base;
+    if (keep_count < 0 || keep_count > static_cast<int64_t>(model_ptr->changes.size())) { return -1; }
+
+    if (keep_count < static_cast<int64_t>(model_ptr->changes.size())) {
+        model_ptr->changes.erase(model_ptr->changes.begin() + static_cast<std::ptrdiff_t>(keep_count),
+                                 model_ptr->changes.end());
+        restored = true;
+    }
+    if (!model_ptr->changes_undone.empty()) {
+        free_model_changes_undone_(model_ptr);
+        restored = true;
+    }
+    if (0 != rebuild_model_to_change_count_(session_ptr, keep_count)) { return -1; }
+
+    session_ptr->num_changes_adjustment_ = session_ptr->models_.back()->change_serial_base;
+    if (restored) {
+        mark_all_viewports_changed_(session_ptr, VIEWPORT_EVT_CHANGES, nullptr);
+        omega_session_notify(session_ptr, SESSION_EVT_UNDO, nullptr);
+    }
     return 0;
 }
 

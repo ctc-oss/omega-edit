@@ -46,6 +46,7 @@ import {
   type ReplaceSessionCheckpointedRequest,
   type ReplaceSessionCheckpointedResponse,
   type RestoreLastCheckpointResponse,
+  type RestoreToChangeCountResponse,
   type SaveSessionRequest,
   type SaveSessionResponse,
   type SearchSessionRequest,
@@ -1481,6 +1482,51 @@ export async function restoreLastCheckpoint(
         }
       }
     )
+  })
+}
+
+export async function restoreToChangeCount(
+  sessionId: string,
+  changeCount: number
+): Promise<RestoreToChangeCountResponse> {
+  const log = getLogger()
+  const request = { sessionId, changeCount }
+  debugLog(log, () => ({
+    fn: 'protobufTs.restoreToChangeCount',
+    rqst: request,
+  }))
+  const client = await getClient()
+
+  return new Promise<RestoreToChangeCountResponse>((resolve, reject) => {
+    callUnary(client, client.restoreToChangeCount, request, (err, response) => {
+      if (err) {
+        log.error({
+          fn: 'protobufTs.restoreToChangeCount',
+          rqst: request,
+          err: {
+            msg: err.message,
+            details: err.details,
+            code: err.code,
+            stack: err.stack,
+          },
+        })
+        return reject(makeWrappedError('restoreToChangeCount', err))
+      }
+
+      try {
+        const required = requireResponse(
+          response as RestoreToChangeCountResponse | undefined,
+          'restoreToChangeCount'
+        )
+        debugLog(log, () => ({
+          fn: 'protobufTs.restoreToChangeCount',
+          resp: required,
+        }))
+        return resolve(required)
+      } catch (error) {
+        return reject(makeWrappedError('restoreToChangeCount', error))
+      }
+    })
   })
 }
 

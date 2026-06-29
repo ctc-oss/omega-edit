@@ -29,79 +29,19 @@ Risk guide:
 1. **Undo performance batch**: implement the low-risk undo pieces first
    (transaction extents, redo batching, snapshot telemetry), then tackle
    in-place inverse undo.
-2. **Edit result semantics**: add a unified success predicate or typed result for
-   core mutators before more callers rely on mixed return conventions.
-3. **Plugin cancellation**: add cooperative cancellation to the transform plugin
+2. **Plugin cancellation**: add cooperative cancellation to the transform plugin
    request path and SDK helpers.
-4. **Streaming import**: pair existing streaming export with a streaming/chunked
+3. **Streaming import**: pair existing streaming export with a streaming/chunked
    import path.
-5. **Checkpoint caps/dedupe**: add server/API guardrails for unbounded checkpoint
+4. **Checkpoint caps/dedupe**: add server/API guardrails for unbounded checkpoint
    creation.
 
 The first batch gives a useful blend: high user-visible impact from undo work,
 plus lower-risk cleanup that reduces future surprises.
 
----
-
-## P0 Correctness / Data Integrity
-
-### 1. Mixed edit API success conventions
-
-**Impact:** High
-**Risk:** Medium
-**Area:** Core C API
-
-Core mutators such as `omega_edit_insert`, `omega_edit_delete`,
-`omega_edit_overwrite`, and `omega_edit_replace` return a positive change serial
-on success, `0` for no-op/rejected-without-error cases, and `-1` for invalid
-arguments. Batch/checkpoint helpers such as
-`omega_edit_replace_bytes_checkpointed`, `omega_edit_apply_script`,
-`omega_edit_replace_all_bytes`, and `omega_edit_replace_matches_bytes` return
-`0` on success and non-zero on failure.
-
-No single success predicate works across the editing surface. A caller can
-silently invert success/failure handling by applying the convention from one API
-family to another.
-
-Relevant code:
-- `core/src/include/omega_edit/edit.h`
-- `core/src/lib/edit.cpp`
-
-Suggested fix:
-- Add an explicit result type or documented helper predicate for new code.
-- Keep existing ABI-compatible functions, but introduce clearer wrappers for
-  serial-returning edits and status-returning batch/checkpoint operations.
-- Add tests that assert each public mutator's no-op, success, and failure
-  return semantics.
-
-### 2. Change-log rollback still compensates through undo
-
-**Impact:** High
-**Risk:** Medium to High
-**Area:** Core/server/client change-log import
-
-Change-log import is now much safer: it validates fingerprints, applies normal
-edit batches transactionally, and rolls back on failure. The remaining weakness
-is the rollback primitive itself. AI and VS Code import paths still compensate by
-undoing back to the starting change count. If that rollback path itself fails
-partway through, the session can still be left in an awkward intermediate state.
-
-Relevant code:
-- `packages/ai/src/service.ts`
-- `vscode-extension/src/hexEditorProvider.ts`
-- `core/src/lib/edit.cpp`
-
-Suggested fix:
-- Add a native "restore to change serial/count and discard redo" primitive.
-- Use that primitive from AI and VS Code import rollback.
-- Cover failure injection around apply and rollback so partial rollback cannot
-  be mistaken for success.
-
----
-
 ## P1 High-Impact Work
 
-### 3. Undo still rebuilds the model instead of applying inverse edits
+### 1. Undo still rebuilds the model instead of applying inverse edits
 
 **Impact:** High
 **Risk:** High
@@ -129,7 +69,7 @@ Suggested fix:
 - Use model integrity tests around mixed insert/delete/overwrite/replace
   sequences before replacing the rebuild path.
 
-### 4. Undo snapshot strategy is count-only and memory-blind
+### 2. Undo snapshot strategy is count-only and memory-blind
 
 **Impact:** High
 **Risk:** Medium to High
@@ -151,7 +91,7 @@ Suggested fix:
   cheap references instead of deep clones.
 - Surface basic metrics for snapshot count/bytes in tests or debug logs.
 
-### 5. Transform plugins have no cooperative cancellation
+### 3. Transform plugins have no cooperative cancellation
 
 **Impact:** High
 **Risk:** Medium
@@ -175,7 +115,7 @@ Suggested fix:
 - Check cancellation in built-in streaming loops between chunks.
 - Document plugin cleanup expectations on cancellation.
 
-### 6. Change-log import is still full-document JSON parsing
+### 4. Change-log import is still full-document JSON parsing
 
 **Impact:** High
 **Risk:** Medium to High
@@ -196,7 +136,7 @@ Suggested fix:
 - Validate document header/fingerprint before reading all entries.
 - Replay entries incrementally while preserving atomic rollback semantics.
 
-### 7. TypeScript live client still has a 2^53 int64 ceiling
+### 5. TypeScript live client still has a 2^53 int64 ceiling
 
 **Impact:** High for the "massive files" promise
 **Risk:** High
@@ -223,7 +163,7 @@ Suggested fix:
 
 ## P2 Medium-Impact / Medium-Risk Work
 
-### 8. Transform change replay is metadata-aware but not native-first
+### 6. Transform change replay is metadata-aware but not native-first
 
 **Impact:** Medium to High
 **Risk:** Medium to High
@@ -232,8 +172,7 @@ Suggested fix:
 Transform metadata is now carried through core/proto/server/client/export/import,
 and import can replay transforms through the server. The remaining gap is that
 replay still depends on the target environment having compatible plugin
-semantics, and rollback uses the general import compensation path rather than a
-dedicated native replay/import primitive.
+semantics rather than a dedicated native replay/import primitive.
 
 Suggested fix:
 - Define the guarantees expected of portable transform replay.
@@ -241,7 +180,7 @@ Suggested fix:
   operation end to end.
 - Keep verifying replayed size/replacement metadata after import.
 
-### 9. File-backed plugin allocation tracking is process-global
+### 7. File-backed plugin allocation tracking is process-global
 
 **Impact:** Medium
 **Risk:** Medium
@@ -261,7 +200,7 @@ Suggested fix:
 - Add stress coverage for concurrent transforms that allocate file-backed
   buffers.
 
-### 10. Server checkpoint creation has no cap or dedupe policy
+### 8. Server checkpoint creation has no cap or dedupe policy
 
 **Impact:** Medium
 **Risk:** Medium
@@ -281,7 +220,7 @@ Suggested fix:
 - Consider dedupe when the computed content equals the latest checkpoint.
 - Return explicit "not needed" or "limit reached" results where appropriate.
 
-### 11. C-string and byte edit APIs encode different zero-length semantics
+### 9. C-string and byte edit APIs encode different zero-length semantics
 
 **Impact:** Medium
 **Risk:** Low to Medium
@@ -300,7 +239,7 @@ Suggested fix:
 - Keep byte APIs explicit-only.
 - Add examples that steer binary callers to `_bytes` variants.
 
-### 12. Long positional argument lists remain hard to use safely
+### 10. Long positional argument lists remain hard to use safely
 
 **Impact:** Medium
 **Risk:** Low to Medium
@@ -319,7 +258,7 @@ Suggested fix:
 - Preserve existing positional APIs for ABI compatibility.
 - Use enum/boolean-like typed fields in the options structs.
 
-### 13. Viewport dirty state uses a negative-capacity sentinel
+### 11. Viewport dirty state uses a negative-capacity sentinel
 
 **Impact:** Medium
 **Risk:** Low to Medium
@@ -344,7 +283,7 @@ Suggested fix:
 
 ## P3 Low-Risk / Opportunistic Work
 
-### 14. Snapshot allocation failure silently degrades undo speed
+### 12. Snapshot allocation failure silently degrades undo speed
 
 **Impact:** Low to Medium
 **Risk:** Low
@@ -360,7 +299,7 @@ Suggested fix:
 - Emit a debug/warn log or session diagnostic event when snapshot capture fails.
 - Add a test hook or allocator-failure test if the existing harness supports it.
 
-### 15. Transaction-boundary scan is linear per undo
+### 13. Transaction-boundary scan is linear per undo
 
 **Impact:** Low to Medium
 **Risk:** Low to Medium
@@ -376,7 +315,7 @@ Suggested fix:
 - Store transaction extents or cached transaction change counts.
 - Reuse the same metadata for redo batching.
 
-### 16. Redo still replays one change at a time
+### 14. Redo still replays one change at a time
 
 **Impact:** Low to Medium
 **Risk:** Low to Medium
@@ -409,6 +348,10 @@ These areas were in the old document but are no longer open backlog items:
   snapshot registry metadata under a short lock and execute under session/content
   guards.
 - Missing explicit undo-to-baseline reset path.
+- Mixed edit API success conventions; serial-returning and status-returning core
+  APIs now have explicit success predicates.
+- Undo-based change-log rollback; AI and VS Code imports now use a native
+  restore-to-change-count primitive that discards redo.
 - Session/viewport subscription lock ordering, handoff, queue closure, and
   ordered callback delivery.
 - Desired ID/path validation and default host/port duplication.

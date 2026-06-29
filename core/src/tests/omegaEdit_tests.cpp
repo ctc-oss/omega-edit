@@ -1240,3 +1240,66 @@ TEST_CASE("Undo Snapshot Optimization", "[UndoTests]") {
 
     omega_edit_destroy_session(session_ptr);
 }
+
+TEST_CASE("Edit result predicates distinguish serial and status conventions", "[EditResult]") {
+    REQUIRE(0 == omega_edit_serial_result_is_success(-1));
+    REQUIRE(0 == omega_edit_serial_result_is_success(0));
+    REQUIRE(1 == omega_edit_serial_result_is_success(1));
+
+    REQUIRE(1 == omega_edit_status_result_is_success(0));
+    REQUIRE(0 == omega_edit_status_result_is_success(-1));
+    REQUIRE(0 == omega_edit_status_result_is_success(1));
+}
+
+TEST_CASE("Restore To Change Count Discards Later Changes And Redo", "[UndoTests]") {
+    auto *session_ptr = omega_edit_create_session(nullptr, nullptr, nullptr, ALL_EVENTS, nullptr);
+    REQUIRE(session_ptr);
+
+    REQUIRE(0 < omega_edit_insert_string(session_ptr, 0, "abc"));
+    const auto keep_count = omega_session_get_num_changes(session_ptr);
+    REQUIRE(0 < omega_edit_insert_string(session_ptr, 3, "def"));
+    REQUIRE(0 < omega_edit_insert_string(session_ptr, 6, "ghi"));
+    REQUIRE("abcdefghi" ==
+            omega_session_get_segment_string(session_ptr, 0, omega_session_get_computed_file_size(session_ptr)));
+    REQUIRE(0 > omega_edit_undo_last_change(session_ptr));
+    REQUIRE(1 == omega_session_get_num_undone_changes(session_ptr));
+    REQUIRE("abcdef" ==
+            omega_session_get_segment_string(session_ptr, 0, omega_session_get_computed_file_size(session_ptr)));
+
+    REQUIRE(0 == omega_edit_restore_to_change_count(session_ptr, keep_count));
+    REQUIRE(keep_count == omega_session_get_num_changes(session_ptr));
+    REQUIRE(0 == omega_session_get_num_undone_changes(session_ptr));
+    REQUIRE("abc" ==
+            omega_session_get_segment_string(session_ptr, 0, omega_session_get_computed_file_size(session_ptr)));
+    REQUIRE(0 == omega_check_model(session_ptr));
+
+    REQUIRE(0 == omega_edit_redo_last_undo(session_ptr));
+    REQUIRE(-1 == omega_edit_restore_to_change_count(session_ptr, keep_count + 1));
+
+    omega_edit_destroy_session(session_ptr);
+}
+
+TEST_CASE("Restore To Change Count Discards Transform Checkpoint Model", "[UndoTests][Transform]") {
+    auto *session_ptr = omega_edit_create_session(nullptr, nullptr, nullptr, ALL_EVENTS, nullptr);
+    REQUIRE(session_ptr);
+
+    REQUIRE(0 < omega_edit_insert_string(session_ptr, 0, "abc"));
+    const auto keep_count = omega_session_get_num_changes(session_ptr);
+
+    const omega_edit_transform_t upper_transform{OMEGA_EDIT_TRANSFORM_ASCII_TO_UPPER, 0};
+    REQUIRE(0 == omega_edit_apply_builtin_transform(session_ptr, upper_transform, 0, 3));
+    REQUIRE(keep_count + 1 == omega_session_get_num_changes(session_ptr));
+    REQUIRE("ABC" ==
+            omega_session_get_segment_string(session_ptr, 0, omega_session_get_computed_file_size(session_ptr)));
+    REQUIRE(1 == omega_session_get_num_checkpoints(session_ptr));
+
+    REQUIRE(0 == omega_edit_restore_to_change_count(session_ptr, keep_count));
+    REQUIRE(keep_count == omega_session_get_num_changes(session_ptr));
+    REQUIRE(0 == omega_session_get_num_undone_changes(session_ptr));
+    REQUIRE(0 == omega_session_get_num_checkpoints(session_ptr));
+    REQUIRE("abc" ==
+            omega_session_get_segment_string(session_ptr, 0, omega_session_get_computed_file_size(session_ptr)));
+    REQUIRE(0 == omega_check_model(session_ptr));
+
+    omega_edit_destroy_session(session_ptr);
+}

@@ -70,6 +70,7 @@ import {
   replaceSessionCheckpointed,
   redo,
   restoreLastCheckpoint,
+  restoreToChangeCount,
   runSessionTransaction,
   saveSession,
   SessionContentSource,
@@ -1013,27 +1014,14 @@ async function rollbackSessionToChangeCount(
   sessionId: string,
   targetChangeCount: number
 ): Promise<boolean> {
-  let currentChangeCount = await getChangeCount(sessionId)
-  let rolledBack = false
-  while (currentChangeCount > targetChangeCount) {
-    await undo(sessionId)
-    rolledBack = true
-    const nextChangeCount = await getChangeCount(sessionId)
-    if (nextChangeCount >= currentChangeCount) {
-      throw new Error(
-        `Rollback did not reduce change count from ${currentChangeCount}`
-      )
-    }
-    currentChangeCount = nextChangeCount
-  }
-
-  if (currentChangeCount !== targetChangeCount) {
+  const response = await restoreToChangeCount(sessionId, targetChangeCount)
+  if (response.changeCount !== targetChangeCount) {
     throw new Error(
-      `Rollback ended at change count ${currentChangeCount}, expected ${targetChangeCount}`
+      `Rollback ended at change count ${response.changeCount}, expected ${targetChangeCount}`
     )
   }
 
-  return rolledBack
+  return response.discardedChangeCount > 0 || response.discardedUndoCount > 0
 }
 
 function changeLogApplyErrorWithRollbackFailure(

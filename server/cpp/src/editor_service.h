@@ -82,6 +82,10 @@ namespace omega_edit {
                                       const ::omega_edit::v1::ClearChangesRequest *request,
                                       ::omega_edit::v1::ClearChangesResponse *response) override;
 
+            grpc::Status RestoreToChangeCount(grpc::ServerContext *context,
+                                              const ::omega_edit::v1::RestoreToChangeCountRequest *request,
+                                              ::omega_edit::v1::RestoreToChangeCountResponse *response) override;
+
             grpc::Status PauseSessionChanges(grpc::ServerContext *context,
                                              const ::omega_edit::v1::PauseSessionChangesRequest *request,
                                              ::omega_edit::v1::PauseSessionChangesResponse *response) override;
