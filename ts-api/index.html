@@ -73,6 +73,8 @@
 </tbody>
 </table>
 <p><code>startServer(..., heartbeat)</code> and <code>startServerUnixSocket(..., heartbeat)</code> accept the same <code>HeartbeatOptions</code> bag exported from <code>@omega-edit/server</code>, including native logging fields such as <code>logFile</code>, <code>logLevel</code>, and <code>logConfigFile</code>.</p>
+<p>The bundled server is unauthenticated. Keep TCP binds on <code>127.0.0.1</code>/<code>localhost</code> or use Unix domain sockets unless an
+outer layer controls access. Binding outside loopback requires <code>insecureAllowNonLoopback: true</code>.</p>
 <p>Shutdown migration note:</p>
 <ul>
 <li>In the 2.x line, <code>stopServerGraceful()</code> and <code>stopServerImmediate()</code> return a structured result object with <code>responseCode</code>, <code>serverProcessId</code>, and <code>status</code> instead of returning only a numeric response code.</li>
