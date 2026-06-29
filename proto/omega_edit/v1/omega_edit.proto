@@ -585,10 +585,10 @@ message RestoreToChangeCountRequest {
 
 // Response after restoring a session to a previous active change count.
 message RestoreToChangeCountResponse {
-    string session_id = 1;                 // Session that was restored.
-    int64 change_count = 2;                // Session change count after restore.
-    int64 discarded_change_count = 3;      // Number of active changes discarded.
-    int64 discarded_undo_count = 4;        // Number of redo/undone changes discarded.
+    string session_id = 1;               // Session that was restored.
+    int64 change_count = 2;              // Session change count after restore.
+    int64 discarded_change_count = 3;    // Number of active changes discarded.
+    int64 discarded_undo_count = 4;      // Number of redo/undone changes discarded.
     int64 remaining_checkpoint_count = 5;// Checkpoint count after restore.
 }
 

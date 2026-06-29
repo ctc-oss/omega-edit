@@ -1279,6 +1279,74 @@ TEST_CASE("Restore To Change Count Discards Later Changes And Redo", "[UndoTests
     omega_edit_destroy_session(session_ptr);
 }
 
+TEST_CASE("Restore To Change Count Validates Inputs And No-Ops Current Count", "[UndoTests]") {
+    auto *session_ptr = omega_edit_create_session(nullptr, nullptr, nullptr, ALL_EVENTS, nullptr);
+    REQUIRE(session_ptr);
+
+    REQUIRE(-1 == omega_edit_restore_to_change_count(nullptr, 0));
+    REQUIRE(-1 == omega_edit_restore_to_change_count(session_ptr, -1));
+    REQUIRE(-1 == omega_edit_restore_to_change_count(session_ptr, 1));
+    REQUIRE(0 == omega_edit_restore_to_change_count(session_ptr, 0));
+    REQUIRE(0 == omega_check_model(session_ptr));
+
+    REQUIRE(0 < omega_edit_insert_string(session_ptr, 0, "abc"));
+    const auto current_count = omega_session_get_num_changes(session_ptr);
+    REQUIRE(0 == omega_edit_restore_to_change_count(session_ptr, current_count));
+    REQUIRE(current_count == omega_session_get_num_changes(session_ptr));
+    REQUIRE("abc" ==
+            omega_session_get_segment_string(session_ptr, 0, omega_session_get_computed_file_size(session_ptr)));
+    REQUIRE(0 == omega_check_model(session_ptr));
+
+    omega_edit_destroy_session(session_ptr);
+}
+
+TEST_CASE("Restore To Change Count Discards Redo Without Dropping Active Changes", "[UndoTests]") {
+    auto *session_ptr = omega_edit_create_session(nullptr, nullptr, nullptr, ALL_EVENTS, nullptr);
+    REQUIRE(session_ptr);
+
+    REQUIRE(0 < omega_edit_insert_string(session_ptr, 0, "abc"));
+    REQUIRE(0 < omega_edit_insert_string(session_ptr, 3, "def"));
+    REQUIRE(0 > omega_edit_undo_last_change(session_ptr));
+    const auto current_count = omega_session_get_num_changes(session_ptr);
+    REQUIRE(1 == omega_session_get_num_undone_changes(session_ptr));
+
+    REQUIRE(0 == omega_edit_restore_to_change_count(session_ptr, current_count));
+    REQUIRE(current_count == omega_session_get_num_changes(session_ptr));
+    REQUIRE(0 == omega_session_get_num_undone_changes(session_ptr));
+    REQUIRE("abc" ==
+            omega_session_get_segment_string(session_ptr, 0, omega_session_get_computed_file_size(session_ptr)));
+    REQUIRE(0 == omega_edit_redo_last_undo(session_ptr));
+    REQUIRE(0 == omega_check_model(session_ptr));
+
+    omega_edit_destroy_session(session_ptr);
+}
+
+TEST_CASE("Restore To Change Count Discards Explicit Checkpoint Models", "[UndoTests]") {
+    auto *session_ptr = omega_edit_create_session(nullptr, nullptr, nullptr, ALL_EVENTS, nullptr);
+    REQUIRE(session_ptr);
+
+    REQUIRE(0 < omega_edit_insert_string(session_ptr, 0, "abc"));
+    const auto checkpoint_count = omega_session_get_num_changes(session_ptr);
+    REQUIRE(0 == omega_edit_create_checkpoint(session_ptr));
+    REQUIRE(1 == omega_session_get_num_checkpoints(session_ptr));
+    REQUIRE(0 < omega_edit_insert_string(session_ptr, 3, "def"));
+
+    REQUIRE(0 == omega_edit_restore_to_change_count(session_ptr, checkpoint_count));
+    REQUIRE(checkpoint_count == omega_session_get_num_changes(session_ptr));
+    REQUIRE(1 == omega_session_get_num_checkpoints(session_ptr));
+    REQUIRE("abc" ==
+            omega_session_get_segment_string(session_ptr, 0, omega_session_get_computed_file_size(session_ptr)));
+    REQUIRE(0 == omega_check_model(session_ptr));
+
+    REQUIRE(0 == omega_edit_restore_to_change_count(session_ptr, 0));
+    REQUIRE(0 == omega_session_get_num_changes(session_ptr));
+    REQUIRE(0 == omega_session_get_num_checkpoints(session_ptr));
+    REQUIRE(0 == omega_session_get_computed_file_size(session_ptr));
+    REQUIRE(0 == omega_check_model(session_ptr));
+
+    omega_edit_destroy_session(session_ptr);
+}
+
 TEST_CASE("Restore To Change Count Discards Transform Checkpoint Model", "[UndoTests][Transform]") {
     auto *session_ptr = omega_edit_create_session(nullptr, nullptr, nullptr, ALL_EVENTS, nullptr);
     REQUIRE(session_ptr);
