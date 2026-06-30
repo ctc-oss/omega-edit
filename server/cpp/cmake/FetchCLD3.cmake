@@ -21,9 +21,8 @@ include(FetchContent)
 
 FetchContent_Declare(
     cld3
-    GIT_REPOSITORY https://github.com/google/cld3.git
-    GIT_TAG        b48dc46512566f5a2d41118c8c1116c4f96dc661
-    GIT_SHALLOW    TRUE
+    URL       https://github.com/google/cld3/archive/b48dc46512566f5a2d41118c8c1116c4f96dc661.tar.gz
+    URL_HASH SHA256=d0d4ea2fddcbc7d10ace2c37309feb09da87e8ce7ced6ce73592da1359f4765f
 )
 
 FetchContent_GetProperties(cld3)
