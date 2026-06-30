@@ -114,8 +114,11 @@
 <li><a class="reference internal" href="#_CPPv426omega_edit_create_viewportP15omega_session_t7int64_t7int64_ti26omega_viewport_event_cbk_tPv7int32_t"><code class="docutils literal notranslate"><span class="pre">omega_edit_create_viewport()</span></code></a></li>
 <li><a class="reference internal" href="#_CPPv427omega_edit_destroy_viewportP16omega_viewport_t"><code class="docutils literal notranslate"><span class="pre">omega_edit_destroy_viewport()</span></code></a></li>
 <li><a class="reference internal" href="#_CPPv424omega_edit_clear_changesP15omega_session_t"><code class="docutils literal notranslate"><span class="pre">omega_edit_clear_changes()</span></code></a></li>
+<li><a class="reference internal" href="#_CPPv434omega_edit_restore_to_change_countP15omega_session_t7int64_t"><code class="docutils literal notranslate"><span class="pre">omega_edit_restore_to_change_count()</span></code></a></li>
 <li><a class="reference internal" href="#_CPPv427omega_edit_undo_last_changeP15omega_session_t"><code class="docutils literal notranslate"><span class="pre">omega_edit_undo_last_change()</span></code></a></li>
 <li><a class="reference internal" href="#_CPPv425omega_edit_redo_last_undoP15omega_session_t"><code class="docutils literal notranslate"><span class="pre">omega_edit_redo_last_undo()</span></code></a></li>
+<li><a class="reference internal" href="#_CPPv435omega_edit_serial_result_is_success7int64_t"><code class="docutils literal notranslate"><span class="pre">omega_edit_serial_result_is_success()</span></code></a></li>
+<li><a class="reference internal" href="#_CPPv435omega_edit_status_result_is_successi"><code class="docutils literal notranslate"><span class="pre">omega_edit_status_result_is_success()</span></code></a></li>
 <li><a class="reference internal" href="#_CPPv423omega_edit_save_segmentP15omega_session_tPKciPc7int64_t7int64_t"><code class="docutils literal notranslate"><span class="pre">omega_edit_save_segment()</span></code></a></li>
 <li><a class="reference internal" href="#_CPPv415omega_edit_saveP15omega_session_tPKciPc"><code class="docutils literal notranslate"><span class="pre">omega_edit_save()</span></code></a></li>
 <li><a class="reference internal" href="#_CPPv432omega_edit_save_segment_to_bytesPK15omega_session_tPP12omega_byte_tP7int64_t7int64_t7int64_t"><code class="docutils literal notranslate"><span class="pre">omega_edit_save_segment_to_bytes()</span></code></a></li>
@@ -927,6 +930,23 @@
 </dd></dl>
 
 <dl class="cpp function">
+<dt class="sig sig-object cpp" id="_CPPv434omega_edit_restore_to_change_countP15omega_session_t7int64_t">
+<span id="_CPPv334omega_edit_restore_to_change_countP15omega_session_t7int64_t"></span><span id="_CPPv234omega_edit_restore_to_change_countP15omega_session_t7int64_t"></span><span id="omega_edit_restore_to_change_count__omega_session_tP.int64_t"></span><span class="target" id="edit_8h_1ad82e3b8cf5831857b5a2dc2cc560ba64"></span><span class="kt"><span class="pre">int</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">omega_edit_restore_to_change_count</span></span></span><span class="sig-paren">(</span><a class="reference internal" href="#_CPPv415omega_session_t" title="omega_session_t"><span class="n"><span class="pre">omega_session_t</span></span></a><span class="w"> </span><span class="p"><span class="pre">*</span></span><span class="n sig-param"><span class="pre">session_ptr</span></span>, <span class="n"><span class="pre">int64_t</span></span><span class="w"> </span><span class="n sig-param"><span class="pre">change_count</span></span><span class="sig-paren">)</span><a class="headerlink" href="#_CPPv434omega_edit_restore_to_change_countP15omega_session_t7int64_t" title="Link to this definition"></a><br /></dt>
+<dd><p>Restore a session to a previous active change count and discard redo history. The target count must be between the current model’s available history base and the current active change count. Checkpoint-backed transform models created after the target count are discarded. </p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>session_ptr</strong> – session to restore </p></li>
+<li><p><strong>change_count</strong> – active change count to keep </p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>zero on success and non-zero otherwise </p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="cpp function">
 <dt class="sig sig-object cpp" id="_CPPv427omega_edit_undo_last_changeP15omega_session_t">
 <span id="_CPPv327omega_edit_undo_last_changeP15omega_session_t"></span><span id="_CPPv227omega_edit_undo_last_changeP15omega_session_t"></span><span id="omega_edit_undo_last_change__omega_session_tP"></span><span class="target" id="edit_8h_1ab959730b7a5c9088a11e90e6504d2eeb"></span><span class="n"><span class="pre">int64_t</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">omega_edit_undo_last_change</span></span></span><span class="sig-paren">(</span><a class="reference internal" href="#_CPPv415omega_session_t" title="omega_session_t"><span class="n"><span class="pre">omega_session_t</span></span></a><span class="w"> </span><span class="p"><span class="pre">*</span></span><span class="n sig-param"><span class="pre">session_ptr</span></span><span class="sig-paren">)</span><a class="headerlink" href="#_CPPv427omega_edit_undo_last_changeP15omega_session_t" title="Link to this definition"></a><br /></dt>
 <dd><p>Given a session, undo the last change </p>
@@ -950,6 +970,34 @@
 </dd>
 <dt class="field-even">Returns<span class="colon">:</span></dt>
 <dd class="field-even"><p>positive serial number of the redone change if successful, zero otherwise </p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="cpp function">
+<dt class="sig sig-object cpp" id="_CPPv435omega_edit_serial_result_is_success7int64_t">
+<span id="_CPPv335omega_edit_serial_result_is_success7int64_t"></span><span id="_CPPv235omega_edit_serial_result_is_success7int64_t"></span><span id="omega_edit_serial_result_is_success__int64_t"></span><span class="target" id="edit_8h_1aca5f0d4e455f71799dddb51763c2e7e1"></span><span class="kt"><span class="pre">int</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">omega_edit_serial_result_is_success</span></span></span><span class="sig-paren">(</span><span class="n"><span class="pre">int64_t</span></span><span class="w"> </span><span class="n sig-param"><span class="pre">result</span></span><span class="sig-paren">)</span><a class="headerlink" href="#_CPPv435omega_edit_serial_result_is_success7int64_t" title="Link to this definition"></a><br /></dt>
+<dd><p>Test a serial-returning edit result, such as omega_edit_insert or omega_edit_delete, for success. </p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>result</strong> – edit result value </p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>non-zero when result is a positive change serial </p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="cpp function">
+<dt class="sig sig-object cpp" id="_CPPv435omega_edit_status_result_is_successi">
+<span id="_CPPv335omega_edit_status_result_is_successi"></span><span id="_CPPv235omega_edit_status_result_is_successi"></span><span id="omega_edit_status_result_is_success__i"></span><span class="target" id="edit_8h_1a7ec9e5a2fdb405f1eb316a8d7147bc3e"></span><span class="kt"><span class="pre">int</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">omega_edit_status_result_is_success</span></span></span><span class="sig-paren">(</span><span class="kt"><span class="pre">int</span></span><span class="w"> </span><span class="n sig-param"><span class="pre">result</span></span><span class="sig-paren">)</span><a class="headerlink" href="#_CPPv435omega_edit_status_result_is_successi" title="Link to this definition"></a><br /></dt>
+<dd><p>Test a status-returning edit result, such as omega_edit_clear_changes or omega_edit_apply_script, for success. </p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>result</strong> – edit status value </p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>non-zero when result is zero </p>
 </dd>
 </dl>
 </dd></dl>
