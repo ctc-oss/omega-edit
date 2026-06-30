@@ -904,7 +904,7 @@ export interface GetChangeDetailsResponse {
   /**
    * @generated from protobuf field: optional bytes data = 6
    */
-  data?: Uint8Array // Payload bytes (for insert/overwrite).
+  data?: Uint8Array // Primitive payload bytes.
   /**
    * @generated from protobuf field: optional omega_edit.v1.TransformChangeDetails transform = 7
    */
@@ -950,7 +950,7 @@ export interface GetLastChangeResponse {
   /**
    * @generated from protobuf field: optional bytes data = 6
    */
-  data?: Uint8Array // Payload bytes (for insert/overwrite).
+  data?: Uint8Array // Primitive payload bytes.
   /**
    * @generated from protobuf field: optional omega_edit.v1.TransformChangeDetails transform = 7
    */
@@ -996,7 +996,7 @@ export interface GetLastUndoResponse {
   /**
    * @generated from protobuf field: optional bytes data = 6
    */
-  data?: Uint8Array // Payload bytes (for insert/overwrite).
+  data?: Uint8Array // Primitive payload bytes.
   /**
    * @generated from protobuf field: optional omega_edit.v1.TransformChangeDetails transform = 7
    */
@@ -2350,7 +2350,7 @@ export enum ChangeKind {
    */
   UNSPECIFIED = 0,
   /**
-   * Delete `length` bytes starting at `offset`.
+   * Delete `length` bytes starting at `offset`; change details carry the deleted bytes in `data`.
    *
    * @generated from protobuf enum value: CHANGE_KIND_DELETE = 1;
    */

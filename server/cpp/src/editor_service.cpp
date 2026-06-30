@@ -785,9 +785,8 @@ namespace omega_edit {
             response->set_length(omega_change_get_length(change));
 
             const auto *bytes = omega_change_get_bytes(change);
-            if (bytes && omega_change_get_length(change) > 0) {
-                response->set_data(bytes, static_cast<size_t>(omega_change_get_length(change)));
-            }
+            const auto data_length = omega_change_get_data_length(change);
+            if (bytes && data_length > 0) { response->set_data(bytes, static_cast<size_t>(data_length)); }
 
             if (omega_change_is_transform(change)) {
                 auto *transform = response->mutable_transform();

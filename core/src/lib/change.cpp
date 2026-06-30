@@ -20,6 +20,9 @@
 using omega_edit::internal::change_kind_t;
 using omega_edit::internal::omega_change_get_kind_;
 using omega_edit::internal::omega_change_get_transaction_bit_;
+using omega_edit::internal::omega_data_create_;
+using omega_edit::internal::omega_data_destroy_;
+using omega_edit::internal::omega_data_get_data_;
 using omega_edit::internal::omega_data_get_data_const_;
 
 static_assert(sizeof(omega_change_t) == sizeof(omega_change_struct), "omega_change_t size mismatch");
@@ -39,17 +42,53 @@ int64_t omega_change_get_serial(const omega_change_t *change_ptr) {
     return change_ptr->serial;
 }
 
+static inline const omega_byte_t *payload_bytes_(const omega_byte_payload_struct *payload_ptr) {
+    if (!payload_ptr || payload_ptr->length <= 0) { return nullptr; }
+    if (payload_ptr->storage == OMEGA_CHANGE_DATA_STORAGE_INLINE) {
+        return omega_data_get_data_const_(&payload_ptr->bytes, payload_ptr->length);
+    }
+    if (payload_ptr->storage != OMEGA_CHANGE_DATA_STORAGE_FILE_BACKED || payload_ptr->file_path.empty()) {
+        return nullptr;
+    }
+    if (payload_ptr->cache.capacity() == payload_ptr->length) {
+        return omega_data_get_data_const_(&payload_ptr->cache, payload_ptr->length);
+    }
+    auto *const mutable_payload_ptr = const_cast<omega_byte_payload_struct *>(payload_ptr);
+    try {
+        omega_data_create_(&mutable_payload_ptr->cache, payload_ptr->length);
+    } catch (const std::bad_alloc &) { return nullptr; }
+    auto *const data_ptr = omega_data_get_data_(&mutable_payload_ptr->cache, payload_ptr->length);
+    if (!data_ptr || omega_util_read_file_segment(payload_ptr->file_path.c_str(), 0, data_ptr, payload_ptr->length) !=
+                             payload_ptr->length) {
+        omega_data_destroy_(&mutable_payload_ptr->cache, payload_ptr->length);
+        return nullptr;
+    }
+    data_ptr[payload_ptr->length] = '\0';
+    return data_ptr;
+}
+
 static inline const omega_byte_t *change_bytes_(const omega_change_t *change_ptr) {
     if (!change_ptr) { return nullptr; }
-    const auto kind = omega_change_get_kind_(change_ptr);
-    return (kind == change_kind_t::CHANGE_INSERT || kind == change_kind_t::CHANGE_OVERWRITE)
-                   ? omega_data_get_data_const_(&change_ptr->data, change_ptr->length)
-                   : nullptr;
+    return payload_bytes_(&change_ptr->data);
 }
 
 const omega_byte_t *omega_change_get_bytes(const omega_change_t *change_ptr) {
     if (!change_ptr) { return nullptr; }
     return change_bytes_(change_ptr);
+}
+
+const omega_byte_t *omega_change_get_data(const omega_change_t *change_ptr) {
+    return omega_change_get_bytes(change_ptr);
+}
+
+int64_t omega_change_get_data_length(const omega_change_t *change_ptr) {
+    if (!change_ptr || change_ptr->data.storage == OMEGA_CHANGE_DATA_STORAGE_NONE) { return 0; }
+    return change_ptr->data.length;
+}
+
+omega_change_data_storage_t omega_change_get_data_storage(const omega_change_t *change_ptr) {
+    if (!change_ptr) { return OMEGA_CHANGE_DATA_STORAGE_NONE; }
+    return change_ptr->data.storage;
 }
 
 char omega_change_get_kind_as_char(const omega_change_t *change_ptr) {

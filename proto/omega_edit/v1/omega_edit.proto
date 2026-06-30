@@ -283,7 +283,7 @@ enum IOFlags {
 // The kind of atomic edit applied to a session.
 enum ChangeKind {
     CHANGE_KIND_UNSPECIFIED = 0;
-    // Delete `length` bytes starting at `offset`.
+    // Delete `length` bytes starting at `offset`; change details carry the deleted bytes in `data`.
     CHANGE_KIND_DELETE = 1;
     // Insert `data` at `offset` without removing existing bytes.
     CHANGE_KIND_INSERT = 2;
@@ -756,7 +756,7 @@ message GetChangeDetailsResponse {
     ChangeKind kind = 3;                          // Type of edit.
     int64 offset = 4;                             // Byte offset.
     int64 length = 5;                             // Number of bytes affected.
-    optional bytes data = 6;                      // Payload bytes (for insert/overwrite).
+    optional bytes data = 6;                      // Primitive payload bytes.
     optional TransformChangeDetails transform = 7;// Transform metadata (for transform changes).
 }
 
@@ -772,7 +772,7 @@ message GetLastChangeResponse {
     ChangeKind kind = 3;                          // Type of edit.
     int64 offset = 4;                             // Byte offset.
     int64 length = 5;                             // Number of bytes affected.
-    optional bytes data = 6;                      // Payload bytes (for insert/overwrite).
+    optional bytes data = 6;                      // Primitive payload bytes.
     optional TransformChangeDetails transform = 7;// Transform metadata (for transform changes).
 }
 
@@ -788,7 +788,7 @@ message GetLastUndoResponse {
     ChangeKind kind = 3;                          // Type of edit.
     int64 offset = 4;                             // Byte offset.
     int64 length = 5;                             // Number of bytes affected.
-    optional bytes data = 6;                      // Payload bytes (for insert/overwrite).
+    optional bytes data = 6;                      // Primitive payload bytes.
     optional TransformChangeDetails transform = 7;// Transform metadata (for transform changes).
 }
 

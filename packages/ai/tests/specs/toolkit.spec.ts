@@ -539,7 +539,7 @@ describe('@omega-edit/ai toolkit', () => {
                   kind: 'DELETE',
                   offset: 1000,
                   length: 1,
-                  data: '',
+                  data: Buffer.from('x', 'utf8').toString('hex'),
                 },
               ],
               {

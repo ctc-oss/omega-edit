@@ -460,6 +460,17 @@ int64_t omega_session_set_undo_snapshot_interval(omega_session_t *session_ptr, i
     return session_ptr->undo_snapshot_interval_;
 }
 
+int64_t omega_session_get_change_inline_payload_limit(const omega_session_t *session_ptr) {
+    if (!session_ptr) { return 0; }
+    return session_ptr->change_inline_payload_limit_;
+}
+
+int64_t omega_session_set_change_inline_payload_limit(omega_session_t *session_ptr, int64_t limit) {
+    if (!session_ptr || limit < 0) { return 0; }
+    session_ptr->change_inline_payload_limit_ = limit;
+    return session_ptr->change_inline_payload_limit_;
+}
+
 bool omega_edit::internal::omega_session_get_transaction_bit_(const omega_session_t *session_ptr) {
     return (session_ptr->models_.back()->changes.empty()) ||
            omega_change_get_transaction_bit_(session_ptr->models_.back()->changes.back().get());

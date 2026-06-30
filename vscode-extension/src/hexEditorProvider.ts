@@ -860,10 +860,7 @@ function changeDetailsToChangeRecord(
     kind,
     offset: change.getOffset(),
     length: kind === 'INSERT' ? 0 : change.getLength(),
-    data:
-      kind === 'DELETE'
-        ? ''
-        : Buffer.from(change.getData_asU8()).toString('hex'),
+    data: Buffer.from(change.getData_asU8()).toString('hex'),
   }
 }
 
@@ -1091,9 +1088,13 @@ function safeChangeRecord(value: unknown): ChangeRecord | undefined {
       } catch {
         return undefined
       }
+      const data = safeHexString(value.data, Number.POSITIVE_INFINITY)
+      if (!data || data.length / 2 !== length) {
+        return undefined
+      }
       return groupId
-        ? { serial, kind: 'DELETE', offset, length, data: '', groupId }
-        : { serial, kind: 'DELETE', offset, length, data: '' }
+        ? { serial, kind: 'DELETE', offset, length, data, groupId }
+        : { serial, kind: 'DELETE', offset, length, data }
     }
     case 'OVERWRITE': {
       const data = safeHexString(value.data, Number.POSITIVE_INFINITY)
@@ -4657,7 +4658,7 @@ export class HexEditorProvider
           kind: 'DELETE',
           offset: change.offset,
           length: change.length,
-          data: '',
+          data: change.data,
           ...(change.groupId ? { groupId: change.groupId } : {}),
         }
       }

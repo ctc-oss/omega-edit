@@ -29,10 +29,12 @@
 #include "impl_/viewport_def.hpp"
 #include <algorithm>
 #include <cassert>
+#include <cstddef>
 #include <cstdlib>
 #include <limits>
 #include <memory>
 #include <new>
+#include <string>
 #include <vector>
 
 using omega_edit::internal::add_overflows_int64_;
@@ -45,8 +47,11 @@ using omega_edit::internal::ins_;
 using omega_edit::internal::is_builtin_transform_kind_;
 using omega_edit::internal::model_segment_kind_t;
 using omega_edit::internal::next_change_serial_;
+using omega_edit::internal::omega_change_copy_payload_bytes_;
 using omega_edit::internal::omega_change_get_kind_;
+using omega_edit::internal::omega_change_get_payload_length_;
 using omega_edit::internal::omega_change_get_transaction_bit_;
+using omega_edit::internal::omega_change_write_payload_bytes_;
 using omega_edit::internal::omega_data_create_;
 using omega_edit::internal::omega_data_destroy_;
 using omega_edit::internal::omega_model_segment_get_kind_;
@@ -85,6 +90,32 @@ namespace {
     constexpr int OMEGA_OUTPUT_PATH_SUFFIX_ATTEMPTS = 1000000;
 
     auto initialize_model_segments_(omega_model_segments_t &model_segments, int64_t length) -> bool;
+
+    struct captured_change_payload_t {
+        omega_byte_t *bytes{};
+        int64_t length{};
+        std::string file_path{};
+        omega_change_data_storage_t storage{OMEGA_CHANGE_DATA_STORAGE_NONE};
+
+        ~captured_change_payload_t() {
+            free(bytes);
+            if (storage == OMEGA_CHANGE_DATA_STORAGE_FILE_BACKED && !file_path.empty()) {
+                omega_util_remove_file(file_path.c_str());
+            }
+        }
+
+        captured_change_payload_t() = default;
+        captured_change_payload_t(const captured_change_payload_t &) = delete;
+        auto operator=(const captured_change_payload_t &) -> captured_change_payload_t & = delete;
+
+        auto release_file_path() -> std::string {
+            storage = OMEGA_CHANGE_DATA_STORAGE_NONE;
+            length = 0;
+            std::string released;
+            released.swap(file_path);
+            return released;
+        }
+    };
 
     auto resolve_checkpoint_directory_(const char *file_path, const char *checkpoint_directory,
                                        std::string &checkpoint_directory_str) -> bool {
@@ -506,6 +537,7 @@ namespace {
         result->computed_length = segment_ptr->computed_length;
         result->change_offset = segment_ptr->change_offset;
         result->change_ptr = segment_ptr->change_ptr;
+        result->payload_role = segment_ptr->payload_role;
         return result;
     }
 
@@ -637,6 +669,114 @@ namespace {
             if (!safe_add_int64_(read_offset, (*iter)->computed_length, read_offset)) { return -1; }
         }
         return -1;
+    }
+
+    auto insert_payload_segment_(omega_model_t *model_ptr, const const_omega_change_ptr_t &change_ptr,
+                                 omega_change_payload_role_t payload_role, int64_t offset, int64_t length) -> int {
+        if (!model_ptr || !change_ptr || !valid_nonnegative_range_(offset, length)) { return -1; }
+        if (length == 0) { return 0; }
+        try {
+            model_ptr->model_segments.reserve(model_ptr->model_segments.size() + 2);
+        } catch (const std::bad_alloc &) { return -1; }
+
+        auto make_insert_segment = [&]() {
+            auto insert_segment_ptr = std::make_unique<omega_model_segment_t>();
+            insert_segment_ptr->computed_offset = offset;
+            insert_segment_ptr->computed_length = length;
+            insert_segment_ptr->change_offset = 0;
+            insert_segment_ptr->change_ptr = change_ptr;
+            insert_segment_ptr->payload_role = payload_role;
+            return insert_segment_ptr;
+        };
+
+        if (model_ptr->model_segments.empty()) {
+            if (offset != 0) { return -1; }
+            try {
+                model_ptr->model_segments.push_back(make_insert_segment());
+            } catch (const std::bad_alloc &) { return -1; }
+            return 0;
+        }
+
+        int64_t read_offset = 0;
+        for (auto iter = model_ptr->model_segments.begin(); iter != model_ptr->model_segments.end(); ++iter) {
+            int64_t segment_end = 0;
+            if (!safe_add_int64_((*iter)->computed_offset, (*iter)->computed_length, segment_end)) { return -1; }
+            if (read_offset != (*iter)->computed_offset) {
+                ABORT(print_model_segments_(model_ptr, CLOG);
+                      LOG_ERROR("break in model continuity, expected: " << read_offset
+                                                                        << ", got: " << (*iter)->computed_offset););
+            }
+            if (offset >= read_offset && offset <= segment_end) {
+                if (offset != read_offset) {
+                    const auto delta = offset - (*iter)->computed_offset;
+                    if (delta == (*iter)->computed_length) {
+                        ++iter;
+                    } else {
+                        auto split_segment_ptr = clone_model_segment_(*iter);
+                        if (!safe_add_int64_(split_segment_ptr->computed_offset, delta,
+                                             split_segment_ptr->computed_offset) ||
+                            !safe_add_int64_(split_segment_ptr->change_offset, delta,
+                                             split_segment_ptr->change_offset)) {
+                            return -1;
+                        }
+                        split_segment_ptr->computed_length -= delta;
+                        (*iter)->computed_length = delta;
+                        iter = model_ptr->model_segments.insert(iter + 1, std::move(split_segment_ptr));
+                    }
+                }
+
+                iter = model_ptr->model_segments.insert(iter, make_insert_segment());
+                for (++iter; iter != model_ptr->model_segments.end(); ++iter) {
+                    if (!safe_add_int64_((*iter)->computed_offset, length, (*iter)->computed_offset)) { return -1; }
+                }
+                return 0;
+            }
+            if (!safe_add_int64_(read_offset, (*iter)->computed_length, read_offset)) { return -1; }
+        }
+        return -1;
+    }
+
+    auto undo_change_in_model_(omega_model_t *model_ptr, const const_omega_change_ptr_t &change_ptr) -> int {
+        if (!model_ptr || !change_ptr) { return -1; }
+        switch (omega_change_get_kind_(change_ptr.get())) {
+            case change_kind_t::CHANGE_INSERT: {
+                const auto payload_length =
+                        omega_change_get_payload_length_(change_ptr.get(), OMEGA_CHANGE_PAYLOAD_DATA);
+                if (payload_length != change_ptr->length) { return -1; }
+                const auto inverse_delete = del_(0, change_ptr->offset, payload_length, false);
+                return inverse_delete ? update_model_helper_(model_ptr, inverse_delete) : -1;
+            }
+            case change_kind_t::CHANGE_DELETE: {
+                const auto payload_length =
+                        omega_change_get_payload_length_(change_ptr.get(), OMEGA_CHANGE_PAYLOAD_DATA);
+                if (payload_length != change_ptr->length) { return -1; }
+                return insert_payload_segment_(model_ptr, change_ptr, OMEGA_CHANGE_PAYLOAD_DATA, change_ptr->offset,
+                                               payload_length);
+            }
+            case change_kind_t::CHANGE_OVERWRITE: {
+                const auto replacement_length =
+                        omega_change_get_payload_length_(change_ptr.get(), OMEGA_CHANGE_PAYLOAD_DATA);
+                if (replacement_length != change_ptr->length) { return -1; }
+                const auto inverse_delete = del_(0, change_ptr->offset, replacement_length, false);
+                if (!inverse_delete || update_model_helper_(model_ptr, inverse_delete) != 0) { return -1; }
+                const auto inverse_length =
+                        omega_change_get_payload_length_(change_ptr.get(), OMEGA_CHANGE_PAYLOAD_INVERSE_DATA);
+                return insert_payload_segment_(model_ptr, change_ptr, OMEGA_CHANGE_PAYLOAD_INVERSE_DATA,
+                                               change_ptr->offset, inverse_length);
+            }
+            default:
+                return -1;
+        }
+    }
+
+    auto undo_changes_in_model_(omega_session_t *session_ptr,
+                                const std::vector<const_omega_change_ptr_t> &undone_changes) -> int {
+        if (!session_ptr) { return -1; }
+        auto *const model_ptr = session_ptr->models_.back().get();
+        for (const auto &change_ptr : undone_changes) {
+            if (undo_change_in_model_(model_ptr, change_ptr) != 0) { return -1; }
+        }
+        return 0;
     }
 
     auto update_model_(omega_session_t *session_ptr, const const_omega_change_ptr_t &change_ptr) -> int {
@@ -789,6 +929,30 @@ namespace {
         return 0;
     }
 
+    auto create_payload_file_(omega_session_t *session_ptr, char *payload_filename,
+                              size_t payload_filename_size) -> int {
+        if (!session_ptr || !payload_filename || payload_filename_size == 0) { return -1; }
+        const auto *const checkpoint_directory = omega_session_get_checkpoint_directory(session_ptr);
+        if (omega_util_directory_exists(checkpoint_directory) == 0) {
+            LOG_ERROR("checkpoint directory '" << checkpoint_directory << "' does not exist");
+            return -1;
+        }
+        const auto snprintf_result =
+                snprintf(payload_filename, payload_filename_size, "%s%c.OmegaEdit-payload.%zu.XXXXXX",
+                         checkpoint_directory, omega_util_directory_separator(), session_ptr->models_.size());
+        if (snprintf_result < 0 || static_cast<size_t>(snprintf_result) >= payload_filename_size) {
+            LOG_ERROR("failed to create payload filename template");
+            return -1;
+        }
+        const auto payload_fd = omega_util_mkstemp(payload_filename, 0600);// S_IRUSR | S_IWUSR
+        if (payload_fd < 0) {
+            LOG_ERROR("omega_util_mkstemp failed for payload file '" << payload_filename << "'");
+            return -1;
+        }
+        close(payload_fd);
+        return 0;
+    }
+
     auto promote_checkpoint_file_(omega_session_t *session_ptr, const char *checkpoint_filename, int64_t file_size,
                                   bool notify_transform,
                                   const const_omega_change_ptr_t &transform_change_ptr = nullptr) -> int64_t {
@@ -914,9 +1078,9 @@ namespace {
                     case model_segment_kind_t::SEGMENT_INSERT: {
                         int64_t source_offset = 0;
                         if (!safe_add_int64_(segment->change_offset, segment_start, source_offset)) { return -1; }
-                        if (static_cast<int64_t>(
-                                    fwrite(omega_change_get_bytes(segment->change_ptr.get()) + source_offset,
-                                           sizeof(omega_byte_t), segment_length, to_file_ptr)) != segment_length) {
+                        if (omega_change_write_payload_bytes_(segment->change_ptr.get(), segment->payload_role,
+                                                              source_offset, segment_length, to_file_ptr, io_buf,
+                                                              OMEGA_IO_BUFFER_SIZE) != segment_length) {
                             LOG_ERROR("fwrite failed");
                             return -1;
                         }
@@ -937,6 +1101,72 @@ namespace {
             if (segment_consumed >= segment->computed_length) { ++cursor.segment_iter; }
         }
         return processed;
+    }
+
+    auto save_session_range_to_payload_file_(omega_session_t *session_ptr, const char *payload_file_path,
+                                             int64_t offset, int64_t length) -> int {
+        if (!session_ptr || !payload_file_path || offset < 0 || length < 0) { return -1; }
+        auto *payload_file_ptr = FOPEN(payload_file_path, "wb");
+        if (!payload_file_ptr) {
+            LOG_ERRNO();
+            return -1;
+        }
+
+        std::unique_ptr<omega_byte_t[]> io_buf;
+        try {
+            io_buf = std::make_unique<omega_byte_t[]>(OMEGA_IO_BUFFER_SIZE);
+        } catch (const std::bad_alloc &) {
+            FCLOSE(payload_file_ptr);
+            return -1;
+        }
+
+        session_stream_cursor_t cursor;
+        int64_t end_offset = 0;
+        if (!safe_add_int64_(offset, length, end_offset) ||
+            !initialize_session_stream_cursor_(session_ptr, offset, cursor) ||
+            stream_session_range_(cursor, end_offset, payload_file_ptr, io_buf.get()) != length) {
+            FCLOSE(payload_file_ptr);
+            return -1;
+        }
+        FCLOSE(payload_file_ptr);
+        return omega_util_file_size(payload_file_path) == length ? 0 : -1;
+    }
+
+    auto capture_session_range_payload_(omega_session_t *session_ptr, int64_t offset, int64_t length,
+                                        captured_change_payload_t &payload) -> bool {
+        if (!session_ptr || offset < 0 || length < 0) { return false; }
+        if (length == 0) { return true; }
+        const auto inline_payload_limit =
+                (std::min)(session_ptr->change_inline_payload_limit_, static_cast<int64_t>(OMEGA_MEMORY_BUFFER_LIMIT));
+        if (length <= inline_payload_limit) {
+            omega_byte_t *bytes = nullptr;
+            int64_t byte_count = 0;
+            if (0 != omega_edit_save_segment_to_bytes(session_ptr, &bytes, &byte_count, offset, length) ||
+                byte_count != length) {
+                free(bytes);
+                return false;
+            }
+            payload.bytes = bytes;
+            payload.length = byte_count;
+            payload.storage = OMEGA_CHANGE_DATA_STORAGE_INLINE;
+            return true;
+        }
+
+        char payload_filename[FILENAME_MAX + 1];
+        if (0 != create_payload_file_(session_ptr, payload_filename, sizeof(payload_filename))) { return false; }
+        if (0 != save_session_range_to_payload_file_(session_ptr, payload_filename, offset, length)) {
+            omega_util_remove_file(payload_filename);
+            return false;
+        }
+        try {
+            payload.file_path = payload_filename;
+        } catch (const std::bad_alloc &) {
+            omega_util_remove_file(payload_filename);
+            return false;
+        }
+        payload.length = length;
+        payload.storage = OMEGA_CHANGE_DATA_STORAGE_FILE_BACKED;
+        return true;
     }
 
     auto write_bytes_to_file_(FILE *file_ptr, const omega_byte_t *bytes, int64_t length) -> int64_t {
@@ -1124,50 +1354,47 @@ namespace {
                     break;
                 }
                 case model_segment_kind_t::SEGMENT_INSERT: {
-                    const auto *src = omega_change_get_bytes(segment->change_ptr.get()) + segment->change_offset;
                     const auto len = segment->computed_length;
                     int64_t segment_file_end = 0;
                     if (!safe_add_int64_(file_write_pos, len, segment_file_end)) {
                         FCLOSE(temp_fptr);
                         return -1;
                     }
-                    if (file_write_pos < transform_file_end && segment_file_end > transform_file_begin) {
-                        int64_t seg_remaining = len;
-                        int64_t seg_offset = 0;
-                        while (seg_remaining > 0) {
-                            const auto chunk = std::min(seg_remaining, OMEGA_IO_BUFFER_SIZE);
-                            memcpy(io_buf.get(), src + seg_offset, chunk);
-                            int64_t buf_begin = 0;
-                            if (!safe_add_int64_(file_write_pos, seg_offset, buf_begin)) {
-                                FCLOSE(temp_fptr);
-                                return -1;
-                            }
-                            int64_t buf_end = 0;
-                            if (!safe_add_int64_(buf_begin, chunk, buf_end)) {
-                                FCLOSE(temp_fptr);
-                                return -1;
-                            }
-                            if (buf_begin < transform_file_end && buf_end > transform_file_begin) {
-                                const auto t_start = std::max(transform_file_begin - buf_begin, int64_t(0));
-                                const auto t_end = std::min(transform_file_end - buf_begin, chunk);
-                                omega_util_apply_byte_transform(io_buf.get() + t_start, t_end - t_start, transform,
-                                                                user_data_ptr);
-                            }
-                            if (static_cast<int64_t>(fwrite(io_buf.get(), 1, chunk, temp_fptr)) != chunk) {
-                                FCLOSE(temp_fptr);
-                                LOG_ERROR("fwrite failed");
-                                return -1;
-                            }
-                            seg_remaining -= chunk;
-                            if (!safe_add_int64_(seg_offset, chunk, seg_offset)) {
-                                FCLOSE(temp_fptr);
-                                return -1;
-                            }
+                    int64_t seg_remaining = len;
+                    int64_t seg_offset = 0;
+                    while (seg_remaining > 0) {
+                        const auto chunk = std::min(seg_remaining, OMEGA_IO_BUFFER_SIZE);
+                        int64_t payload_offset = 0;
+                        if (!safe_add_int64_(segment->change_offset, seg_offset, payload_offset) ||
+                            omega_change_copy_payload_bytes_(segment->change_ptr.get(), segment->payload_role,
+                                                             payload_offset, io_buf.get(), chunk) != 0) {
+                            FCLOSE(temp_fptr);
+                            return -1;
                         }
-                    } else {
-                        if (static_cast<int64_t>(fwrite(src, 1, len, temp_fptr)) != len) {
+                        int64_t buf_begin = 0;
+                        if (!safe_add_int64_(file_write_pos, seg_offset, buf_begin)) {
+                            FCLOSE(temp_fptr);
+                            return -1;
+                        }
+                        int64_t buf_end = 0;
+                        if (!safe_add_int64_(buf_begin, chunk, buf_end)) {
+                            FCLOSE(temp_fptr);
+                            return -1;
+                        }
+                        if (buf_begin < transform_file_end && buf_end > transform_file_begin) {
+                            const auto t_start = std::max(transform_file_begin - buf_begin, int64_t(0));
+                            const auto t_end = std::min(transform_file_end - buf_begin, chunk);
+                            omega_util_apply_byte_transform(io_buf.get() + t_start, t_end - t_start, transform,
+                                                            user_data_ptr);
+                        }
+                        if (static_cast<int64_t>(fwrite(io_buf.get(), 1, chunk, temp_fptr)) != chunk) {
                             FCLOSE(temp_fptr);
                             LOG_ERROR("fwrite failed");
+                            return -1;
+                        }
+                        seg_remaining -= chunk;
+                        if (!safe_add_int64_(seg_offset, chunk, seg_offset)) {
+                            FCLOSE(temp_fptr);
                             return -1;
                         }
                     }
@@ -1495,11 +1722,18 @@ int64_t omega_edit_delete(omega_session_t *session_ptr, int64_t offset, int64_t 
     if (computed_file_size < 0) { return -1; }
     const auto serial = next_change_serial_(session_ptr);
     if (serial <= 0) { return -1; }
-    return (omega_session_changes_paused(session_ptr) == 0) && 0 < length && offset < computed_file_size
-                   ? update_(session_ptr,
-                             del_(serial, offset, std::min(length, static_cast<int64_t>(computed_file_size) - offset),
-                                  determine_change_transaction_bit_(session_ptr)))
-                   : 0;
+    if ((omega_session_changes_paused(session_ptr) != 0) || offset >= computed_file_size) { return 0; }
+
+    const auto effective_length = std::min(length, static_cast<int64_t>(computed_file_size) - offset);
+    captured_change_payload_t deleted_payload;
+    if (!capture_session_range_payload_(session_ptr, offset, effective_length, deleted_payload)) { return -1; }
+    const auto transaction_bit = determine_change_transaction_bit_(session_ptr);
+    const auto change_ptr = deleted_payload.storage == OMEGA_CHANGE_DATA_STORAGE_FILE_BACKED
+                                    ? del_(serial, offset, effective_length, deleted_payload.release_file_path(),
+                                           effective_length, transaction_bit)
+                                    : del_(serial, offset, effective_length, deleted_payload.bytes,
+                                           deleted_payload.length, transaction_bit);
+    return update_(session_ptr, change_ptr);
 }
 
 int64_t omega_edit_insert_bytes(omega_session_t *session_ptr, int64_t offset, const omega_byte_t *bytes,
@@ -1535,10 +1769,21 @@ int64_t omega_edit_overwrite_bytes(omega_session_t *session_ptr, int64_t offset,
     if (computed_file_size < 0) { return -1; }
     const auto serial = next_change_serial_(session_ptr);
     if (serial <= 0) { return -1; }
-    return (omega_session_changes_paused(session_ptr) == 0) && offset <= computed_file_size
-                   ? update_(session_ptr,
-                             ovr_(serial, offset, bytes, length, determine_change_transaction_bit_(session_ptr)))
-                   : 0;
+    if ((omega_session_changes_paused(session_ptr) != 0) || offset > computed_file_size) { return 0; }
+
+    const auto replaced_length = offset < computed_file_size ? std::min(length, computed_file_size - offset) : 0;
+    captured_change_payload_t replaced_payload;
+    if (replaced_length > 0 &&
+        !capture_session_range_payload_(session_ptr, offset, replaced_length, replaced_payload)) {
+        return -1;
+    }
+    const auto transaction_bit = determine_change_transaction_bit_(session_ptr);
+    const auto change_ptr = replaced_payload.storage == OMEGA_CHANGE_DATA_STORAGE_FILE_BACKED
+                                    ? ovr_(serial, offset, bytes, length, replaced_payload.release_file_path(),
+                                           replaced_length, transaction_bit)
+                                    : ovr_(serial, offset, bytes, length, replaced_payload.bytes,
+                                           replaced_payload.length, transaction_bit);
+    return update_(session_ptr, change_ptr);
 }
 
 int64_t omega_edit_overwrite(omega_session_t *session_ptr, int64_t offset, const char *cstr, int64_t length) {
@@ -2024,8 +2269,9 @@ int omega_edit_save_segment(omega_session_t *session_ptr, const char *file_path,
                     close_and_cleanup_output();
                     return -7;
                 }
-                if (static_cast<int64_t>(fwrite(omega_change_get_bytes(segment->change_ptr.get()) + source_offset, 1,
-                                                segment_length, temp_fptr)) != segment_length) {
+                if (omega_change_write_payload_bytes_(segment->change_ptr.get(), segment->payload_role, source_offset,
+                                                      segment_length, temp_fptr, io_buf.get(),
+                                                      OMEGA_IO_BUFFER_SIZE) != segment_length) {
                     close_and_cleanup_output();
                     LOG_ERROR("fwrite failed");
                     return -7;
@@ -2240,14 +2486,22 @@ int64_t omega_edit_undo_last_change(omega_session_t *session_ptr) {
             model_ptr->changes_undone.reserve(model_ptr->changes_undone.size() + transaction_change_count);
         } catch (const std::bad_alloc &) { return -1; }
 
-        do {
-            undone_changes.push_back(model_ptr->changes.back());
-            model_ptr->changes.pop_back();
-        } while ((omega_session_changes_paused(session_ptr) == 0) && !model_ptr->changes.empty() &&
-                 transaction_bit == omega_change_get_transaction_bit_(model_ptr->changes.back().get()));
+        for (auto iter = model_ptr->changes.rbegin();
+             iter != model_ptr->changes.rend() && undone_changes.size() < transaction_change_count; ++iter) {
+            undone_changes.push_back(*iter);
+        }
 
-        const auto remaining_count = static_cast<int64_t>(model_ptr->changes.size());
-        if (0 != rebuild_model_to_change_count_(session_ptr, remaining_count)) { return -1; }
+        const auto remaining_count =
+                static_cast<int64_t>(model_ptr->changes.size() - static_cast<size_t>(transaction_change_count));
+        if (0 != undo_changes_in_model_(session_ptr, undone_changes)) {
+            rebuild_model_to_change_count_(session_ptr, static_cast<int64_t>(model_ptr->changes.size()));
+            return -1;
+        }
+
+        model_ptr->changes.erase(model_ptr->changes.end() - static_cast<std::ptrdiff_t>(transaction_change_count),
+                                 model_ptr->changes.end());
+        model_ptr->model_snapshots.erase(model_ptr->model_snapshots.upper_bound(remaining_count),
+                                         model_ptr->model_snapshots.end());
 
         for (const auto &change_ptr : undone_changes) {
             auto *const undone_change_ptr = change_ptr.get();
