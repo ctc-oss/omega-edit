@@ -652,16 +652,6 @@ namespace {
         return update_model_helper_(model_ptr, change_ptr);
     }
 
-    auto reset_model_segments_to_original_(omega_model_t *model_ptr) -> int {
-        if (!model_ptr) { return -1; }
-        int64_t length = 0;
-        if (model_ptr->file_ptr != nullptr) {
-            if (0 != FSEEK(model_ptr->file_ptr, 0L, SEEK_END)) { return -1; }
-            length = FTELL(model_ptr->file_ptr);
-        }
-        return initialize_model_segments_(model_ptr->model_segments, length) ? 0 : -1;
-    }
-
     auto rebuild_model_to_change_count_(omega_session_t *session_ptr, int64_t remaining_count) -> int {
         if (!session_ptr) { return -1; }
 
@@ -670,18 +660,30 @@ namespace {
         auto cleanup_it = snapshots.upper_bound(remaining_count);
         snapshots.erase(cleanup_it, snapshots.end());
 
-        if (remaining_count == 0) { return reset_model_segments_to_original_(model_ptr); }
-
         int64_t replay_from = 0;
         if (!snapshots.empty()) {
             auto snap_it = snapshots.upper_bound(remaining_count);
-            --snap_it;
-            try {
-                model_ptr->model_segments = clone_model_segments_(snap_it->second);
-            } catch (const std::bad_alloc &) { return -1; }
-            replay_from = snap_it->first;
+            if (snap_it != snapshots.begin()) {
+                --snap_it;
+                try {
+                    model_ptr->model_segments = clone_model_segments_(snap_it->second);
+                } catch (const std::bad_alloc &) { return -1; }
+                replay_from = snap_it->first;
+            } else {
+                int64_t length = 0;
+                if (model_ptr->file_ptr != nullptr) {
+                    if (0 != FSEEK(model_ptr->file_ptr, 0L, SEEK_END)) { return -1; }
+                    length = FTELL(model_ptr->file_ptr);
+                }
+                if (!initialize_model_segments_(model_ptr->model_segments, length)) { return -1; }
+            }
         } else {
-            if (0 != reset_model_segments_to_original_(model_ptr)) { return -1; }
+            int64_t length = 0;
+            if (model_ptr->file_ptr != nullptr) {
+                if (0 != FSEEK(model_ptr->file_ptr, 0L, SEEK_END)) { return -1; }
+                length = FTELL(model_ptr->file_ptr);
+            }
+            if (!initialize_model_segments_(model_ptr->model_segments, length)) { return -1; }
         }
 
         for (auto i = replay_from; i < remaining_count; ++i) {
