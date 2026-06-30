@@ -55,6 +55,22 @@ function makeChangeLogDocument(
   return { ...document, ...overrides }
 }
 
+function makeTransformDataHex(
+  transformId: string,
+  args: Record<string, unknown> = {}
+) {
+  return Buffer.from(JSON.stringify({ transformId, args }), 'utf8').toString(
+    'hex'
+  )
+}
+
+function parseTransformDataHex(data: string) {
+  return JSON.parse(Buffer.from(data, 'hex').toString('utf8')) as {
+    transformId?: unknown
+    args?: unknown
+  }
+}
+
 describe('@omega-edit/ai toolkit', () => {
   it('preserves the original connection failure as the cause', async function () {
     const port = await omegaEditClient.findFirstAvailablePort(19000, 19999)
@@ -826,7 +842,83 @@ describe('@omega-edit/ai toolkit', () => {
     }
   })
 
-  it('rejects transform change logs when replay metadata differs', async function () {
+  it('treats transform change-log data as the canonical descriptor', async function () {
+    const toolkit = new OmegaEditToolkit({ autoStart: false })
+    const transformData = makeTransformDataHex('omega.example.base64', {
+      direction: 'encode',
+    })
+
+    const dryRun = await toolkit.applyChangeLog({
+      sessionId: 'dry-run-session',
+      dryRun: true,
+      changes: makeChangeLogDocument([
+        {
+          serial: 1,
+          kind: 'TRANSFORM',
+          offset: 0,
+          length: 8,
+          data: transformData,
+        },
+      ]),
+    })
+    assert.equal(dryRun.applied, false)
+    assert.equal(dryRun.inputChangeCount, 1)
+
+    await assert.rejects(
+      () =>
+        toolkit.applyChangeLog({
+          sessionId: 'dry-run-session',
+          dryRun: true,
+          changes: makeChangeLogDocument([
+            {
+              kind: 'TRANSFORM',
+              offset: 0,
+              length: 8,
+              data: '',
+            },
+          ]),
+        }),
+      /TRANSFORM data requires data/
+    )
+
+    await assert.rejects(
+      () =>
+        toolkit.applyChangeLog({
+          sessionId: 'dry-run-session',
+          dryRun: true,
+          changes: makeChangeLogDocument([
+            {
+              kind: 'TRANSFORM',
+              offset: 0,
+              length: 8,
+              data: transformData,
+              transformId: 'omega.example.base64',
+            } as unknown as ChangeLogEntry,
+          ]),
+        }),
+      /metadata must be carried in data/
+    )
+
+    await assert.rejects(
+      () =>
+        toolkit.applyChangeLog({
+          sessionId: 'dry-run-session',
+          dryRun: true,
+          changes: makeChangeLogDocument([
+            {
+              kind: 'TRANSFORM',
+              offset: 0,
+              length: 8,
+              data: transformData,
+              replacementLength: 12,
+            } as unknown as ChangeLogEntry,
+          ]),
+        }),
+      /metadata must be carried in data/
+    )
+  })
+
+  it('exports and replays transform change logs with first-class data', async function () {
     const port = await omegaEditClient.findFirstAvailablePort(19000, 19999)
     assert.ok(port, 'expected an available port for OmegaEdit')
 
@@ -852,30 +944,36 @@ describe('@omega-edit/ai toolkit', () => {
       })
       await toolkit.exportChangeLog(sourceSessionId, changeLogPath, true)
 
-      const tamperedLog = JSON.parse(
+      const exportedLog = JSON.parse(
         await fs.promises.readFile(changeLogPath, 'utf8')
       )
-      const transformChange = tamperedLog.changes.find(
+      const transformChange = exportedLog.changes.find(
         (change: ChangeLogEntry) => change.kind === 'TRANSFORM'
       )
       assert.ok(transformChange, 'expected exported transform change')
-      transformChange.replacementLength = '999'
+      assert.notEqual(transformChange.data, '')
+      const transformDescriptor = parseTransformDataHex(transformChange.data)
+      assert.equal(transformDescriptor.transformId, 'omega.example.base64')
+      assert.deepEqual(transformDescriptor.args, {})
+      assert.equal('transformId' in transformChange, false)
+      assert.equal('optionsJson' in transformChange, false)
+      assert.equal('replacementLength' in transformChange, false)
+      assert.equal('computedFileSizeBefore' in transformChange, false)
+      assert.equal('computedFileSizeAfter' in transformChange, false)
 
       const replay = await toolkit.createSession(replayPath)
       replaySessionId = replay.sessionId
-      await assert.rejects(
-        () =>
-          toolkit.applyChangeLog({
-            sessionId: replaySessionId,
-            changes: tamperedLog,
-          }),
-        /replacement length mismatch/
-      )
+      const applyResult = await toolkit.applyChangeLog({
+        sessionId: replaySessionId,
+        changes: exportedLog,
+      })
+      assert.equal(applyResult.applied, true)
+      assert.equal(applyResult.changeCount, 1)
 
-      const replayedRange = await toolkit.readRange(replaySessionId, 0, 8)
-      assert.equal(replayedRange.data.utf8, 'ABCDEFGH')
+      const replayedRange = await toolkit.readRange(replaySessionId, 0, 12)
+      assert.equal(replayedRange.data.utf8, 'QUJDREVGR0g=')
       const status = await toolkit.sessionStatus(replaySessionId)
-      assert.equal(status.changeCount, 0)
+      assert.equal(status.changeCount, 1)
     } finally {
       if (sourceSessionId) {
         await toolkit.destroySession(sourceSessionId).catch(() => undefined)

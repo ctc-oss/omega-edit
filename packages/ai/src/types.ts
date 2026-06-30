@@ -47,11 +47,6 @@ export interface ChangeLogEntry {
   offset: ChangeLogInt64
   length: ChangeLogInt64
   data: string
-  transformId?: string
-  optionsJson?: string
-  replacementLength?: ChangeLogInt64
-  computedFileSizeBefore?: ChangeLogInt64
-  computedFileSizeAfter?: ChangeLogInt64
   groupId?: string
 }
 
