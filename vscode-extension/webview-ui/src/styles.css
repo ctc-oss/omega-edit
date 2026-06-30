@@ -1898,44 +1898,193 @@ button.dialog-backdrop:focus-visible {
 .byte.externalHighlight::before,
 .text-byte.externalHighlight::before {
   position: absolute;
-  top: 1px;
-  right: 1px;
-  left: 1px;
-  height: 2px;
-  border-radius: 2px;
-  background: var(--omega-external-highlight);
+  top: 0;
+  right: 0;
+  left: 0;
+  height: 3px;
+  border-radius: 2px 2px 0 0;
+  background: var(--omega-external-highlight-accent);
   content: "";
   pointer-events: none;
 }
 
-.byte.externalCurrent,
-.text-byte.externalCurrent {
-  --omega-external-highlight: var(--vscode-editorBracketMatch-border, #b9b9b9);
+.byte.externalHighlight:not(.selected):not(.searchHit),
+.text-byte.externalHighlight:not(.selected):not(.searchHit) {
+  border-top-color: var(--omega-external-highlight-accent);
+  border-bottom-color: color-mix(
+    in srgb,
+    var(--omega-external-highlight-accent) 42%,
+    transparent
+  );
+  background: color-mix(
+    in srgb,
+    var(--omega-external-highlight-fill) 20%,
+    transparent
+  );
 }
 
-.byte.externalParsed,
-.text-byte.externalParsed {
-  --omega-external-highlight: var(--vscode-charts-green, #89d185);
+.byte.externalRangeStart,
+.text-byte.externalRangeStart {
+  border-left-color: var(--omega-external-highlight-accent);
+}
+
+.byte.externalRangeEnd,
+.text-byte.externalRangeEnd {
+  border-right-color: var(--omega-external-highlight-accent);
+}
+
+.byte.externalRangeStart::before,
+.text-byte.externalRangeStart::before {
+  left: 0;
+  border-top-left-radius: 2px;
+}
+
+.byte.externalRangeEnd::before,
+.text-byte.externalRangeEnd::before {
+  right: 0;
+  border-top-right-radius: 2px;
+}
+
+.byte.externalHighlightHovered:not(.selected),
+.text-byte.externalHighlightHovered:not(.selected) {
+  border-color: var(--omega-external-highlight-accent);
+  background: color-mix(
+    in srgb,
+    var(--omega-external-highlight-fill) 34%,
+    transparent
+  );
+}
+
+.byte.externalStale:not(.selected),
+.text-byte.externalStale:not(.selected) {
+  border-style: dashed;
+  border-color: color-mix(
+    in srgb,
+    var(--omega-external-highlight-accent) 70%,
+    var(--vscode-editor-background)
+  );
+  background: color-mix(
+    in srgb,
+    var(--omega-external-highlight-fill) 10%,
+    transparent
+  );
+}
+
+.byte.externalStale::before,
+.text-byte.externalStale::before {
+  opacity: 0.55;
+}
+
+.byte.externalStale.externalHighlightHovered:not(.selected),
+.text-byte.externalStale.externalHighlightHovered:not(.selected) {
+  background: color-mix(
+    in srgb,
+    var(--omega-external-highlight-fill) 20%,
+    transparent
+  );
+}
+
+.byte[data-external-color="0"],
+.text-byte[data-external-color="0"] {
+  --omega-external-highlight-accent: var(--vscode-charts-blue, #3794ff);
+  --omega-external-highlight-fill: var(--vscode-charts-blue, #3794ff);
+}
+
+.byte[data-external-color="1"],
+.text-byte[data-external-color="1"] {
+  --omega-external-highlight-accent: var(--vscode-charts-green, #89d185);
+  --omega-external-highlight-fill: var(--vscode-charts-green, #89d185);
+}
+
+.byte[data-external-color="2"],
+.text-byte[data-external-color="2"] {
+  --omega-external-highlight-accent: var(--vscode-charts-yellow, #cca700);
+  --omega-external-highlight-fill: var(--vscode-charts-yellow, #cca700);
+}
+
+.byte[data-external-color="3"],
+.text-byte[data-external-color="3"] {
+  --omega-external-highlight-accent: var(--vscode-charts-orange, #d18616);
+  --omega-external-highlight-fill: var(--vscode-charts-orange, #d18616);
+}
+
+.byte[data-external-color="4"],
+.text-byte[data-external-color="4"] {
+  --omega-external-highlight-accent: var(--vscode-charts-purple, #b180d7);
+  --omega-external-highlight-fill: var(--vscode-charts-purple, #b180d7);
+}
+
+.byte[data-external-color="5"],
+.text-byte[data-external-color="5"] {
+  --omega-external-highlight-accent: var(--vscode-charts-red, #f14c4c);
+  --omega-external-highlight-fill: var(--vscode-charts-red, #f14c4c);
+}
+
+.byte[data-external-color="6"],
+.text-byte[data-external-color="6"] {
+  --omega-external-highlight-accent: var(--vscode-terminal-ansiCyan, #4fc1ff);
+  --omega-external-highlight-fill: var(--vscode-terminal-ansiCyan, #4fc1ff);
+}
+
+.byte[data-external-color="7"],
+.text-byte[data-external-color="7"] {
+  --omega-external-highlight-accent: var(--vscode-terminal-ansiMagenta, #c586c0);
+  --omega-external-highlight-fill: var(--vscode-terminal-ansiMagenta, #c586c0);
+}
+
+.byte[data-external-color="8"],
+.text-byte[data-external-color="8"] {
+  --omega-external-highlight-accent: var(--vscode-terminal-ansiBrightGreen, #b5cea8);
+  --omega-external-highlight-fill: var(--vscode-terminal-ansiBrightGreen, #b5cea8);
+}
+
+.byte[data-external-color="9"],
+.text-byte[data-external-color="9"] {
+  --omega-external-highlight-accent: var(--vscode-terminal-ansiBrightBlue, #9cdcfe);
+  --omega-external-highlight-fill: var(--vscode-terminal-ansiBrightBlue, #9cdcfe);
+}
+
+.byte[data-external-color="10"],
+.text-byte[data-external-color="10"] {
+  --omega-external-highlight-accent: var(--vscode-terminal-ansiBrightYellow, #dcdcaa);
+  --omega-external-highlight-fill: var(--vscode-terminal-ansiBrightYellow, #dcdcaa);
+}
+
+.byte[data-external-color="11"],
+.text-byte[data-external-color="11"] {
+  --omega-external-highlight-accent: var(--vscode-terminal-ansiBrightRed, #f48771);
+  --omega-external-highlight-fill: var(--vscode-terminal-ansiBrightRed, #f48771);
+}
+
+.byte.externalCurrent,
+.text-byte.externalCurrent {
+  border-color: var(--vscode-focusBorder, var(--omega-external-highlight-accent));
+  box-shadow: inset 0 0 0 1px
+    var(--vscode-focusBorder, var(--omega-external-highlight-accent));
 }
 
 .byte.externalError,
 .text-byte.externalError {
-  --omega-external-highlight: var(--vscode-errorForeground, #f14c4c);
+  --omega-external-highlight-accent: var(--vscode-errorForeground, #f14c4c);
+  --omega-external-highlight-fill: var(--vscode-errorForeground, #f14c4c);
 }
 
 .byte.externalWarning,
 .text-byte.externalWarning {
-  --omega-external-highlight: var(--vscode-editorWarning-foreground, #cca700);
+  --omega-external-highlight-accent: var(--vscode-editorWarning-foreground, #cca700);
+  --omega-external-highlight-fill: var(--vscode-editorWarning-foreground, #cca700);
 }
 
 .byte.externalBreakpoint,
 .text-byte.externalBreakpoint {
-  --omega-external-highlight: var(--vscode-debugIcon-breakpointForeground, #e51400);
+  --omega-external-highlight-accent: var(--vscode-debugIcon-breakpointForeground, #e51400);
+  --omega-external-highlight-fill: var(--vscode-debugIcon-breakpointForeground, #e51400);
 }
 
 .byte.externalSecondary,
 .text-byte.externalSecondary {
-  --omega-external-highlight: var(--vscode-editorInfo-foreground, #3794ff);
+  --omega-external-highlight-accent: var(--vscode-editorInfo-foreground, #3794ff);
+  --omega-external-highlight-fill: var(--vscode-editorInfo-foreground, #3794ff);
 }
 
 .byte.selected,

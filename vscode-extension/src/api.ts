@@ -10,7 +10,7 @@ export const OMEGA_EDIT_EXTENSION_PUBLISHER = 'ctc-oss'
 export const OMEGA_EDIT_EXTENSION_NAME = 'omega-edit-data-editor'
 export const OMEGA_EDIT_EXTENSION_ID =
   `${OMEGA_EDIT_EXTENSION_PUBLISHER}.${OMEGA_EDIT_EXTENSION_NAME}` as const
-export const OMEGA_EDIT_EXTENSION_API_VERSION = 3
+export const OMEGA_EDIT_EXTENSION_API_VERSION = 4
 
 export type OmegaEditExternalHighlightKind = ExternalHighlightKind
 export type OmegaEditExternalHighlight = WebviewExternalHighlight
@@ -39,6 +39,14 @@ export interface OmegaEditExternalHighlightRequest
   highlights: OmegaEditExternalHighlight[]
   reveal?: boolean
 }
+
+export interface OmegaEditRangeMapLoadOptions extends OmegaEditEditorSelector {
+  sourceUri?: vscode.Uri | string
+  reveal?: boolean
+}
+
+export interface OmegaEditRangeMapUnloadOptions
+  extends OmegaEditEditorSelector {}
 
 export interface OmegaEditCheckpointOptions extends OmegaEditEditorSelector {}
 
@@ -94,6 +102,27 @@ export interface OmegaEditChangeLogResult {
   cancelled?: boolean
 }
 
+export interface OmegaEditRangeMapLoadResult {
+  state?: OmegaEditEditorState
+  uri?: vscode.Uri
+  source?: string
+  nodeCount: number
+  highlightCount: number
+  selectedPath?: string
+  selectedRange?: {
+    offset: number
+    length: number
+  }
+  cancelled?: boolean
+  message?: string
+}
+
+export interface OmegaEditRangeMapUnloadResult {
+  state?: OmegaEditEditorState
+  unloadedCount: number
+  highlightCount: number
+}
+
 export interface OmegaEditExtensionApi {
   /**
    * Stable VS Code extension id expected by dependent extensions.
@@ -121,6 +150,12 @@ export interface OmegaEditExtensionApi {
   clearExternalHighlights(
     options?: vscode.Uri | string | OmegaEditEditorSelector
   ): OmegaEditEditorState | undefined
+  loadRangeMap(
+    options?: vscode.Uri | string | OmegaEditRangeMapLoadOptions
+  ): Promise<OmegaEditRangeMapLoadResult | undefined>
+  unloadRangeMap(
+    options?: vscode.Uri | string | OmegaEditRangeMapUnloadOptions
+  ): OmegaEditRangeMapUnloadResult | undefined
   setInsertDirection(
     directionOrOptions?:
       | OmegaEditInsertDirection

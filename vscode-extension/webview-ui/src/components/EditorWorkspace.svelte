@@ -283,9 +283,7 @@
       gridScrollerElement &&
       autoFitBytesPerRow &&
       !preparing &&
-      profilerExpanded !== undefined &&
-      bytesPerRow >= 0 &&
-      data.length >= 0
+      profilerExpanded !== undefined
     ) {
       queueAutoFitBytesPerRow()
     }

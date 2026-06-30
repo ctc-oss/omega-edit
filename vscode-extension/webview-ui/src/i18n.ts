@@ -29,8 +29,6 @@ const englishStrings = {
     label: 'OmegaEdit editor toolbar',
     bytesPerRow: 'Bytes per row',
     bytesPerRowTitle: (count: number) => `Show ${count} bytes per row`,
-    autoBytesPerRow: 'Auto',
-    autoBytesPerRowTitle: 'Fit bytes per row to the editor width',
     customBytesPerRow: 'Custom bytes per row',
     customBytesPerRowTitle: (min: number, max: number) =>
       `Set bytes per row from ${min} to ${max}`,
@@ -291,6 +289,7 @@ const englishStrings = {
       `${pane}\nOffset: ${offset}\nValue: 0x${hex} / ${decimal} / ${binary}\nText: ${text}\nClass: ${byteClass}\nMode: ${mode}`,
     externalHighlight: (label: string, source?: string) =>
       source ? `External: ${label} (${source})` : `External: ${label}`,
+    externalHighlightStale: 'Stale: content changed; reparse to refresh labels',
   },
   inspector: {
     label: 'Selected byte inspector',
@@ -484,8 +483,6 @@ const localeOverrides: Record<string, LocaleStringOverrides> = {
       bytesPerRow: 'Bytes por fila',
       bytesPerRowTitle: (count: number) =>
         `Mostrar ${formatNumber(count)} bytes por fila`,
-      autoBytesPerRow: 'Auto',
-      autoBytesPerRowTitle: 'Ajustar bytes por fila al ancho del editor',
       customBytesPerRow: 'Bytes por fila personalizados',
       customBytesPerRowTitle: (min: number, max: number) =>
         `Establecer bytes por fila de ${formatNumber(min)} a ${formatNumber(max)}`,
@@ -595,6 +592,8 @@ const localeOverrides: Record<string, LocaleStringOverrides> = {
       printableByte: 'ASCII imprimible',
       controlByte: 'Byte de control',
       highBitByte: 'Byte de bit alto',
+      externalHighlightStale:
+        'Obsoleto: el contenido cambio; vuelve a analizar para actualizar etiquetas',
     },
     inspector: {
       label: 'Inspector de byte seleccionado',

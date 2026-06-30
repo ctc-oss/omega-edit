@@ -1,0 +1,1601 @@
+{
+  "format": "omega-edit.range-map",
+  "version": 1,
+  "source": "images/OmegaEditLogo.png",
+  "sourceFormat": "PNG",
+  "producer": "OmegaEdit experimental PNG range-map fixture",
+  "selectedPath": "/png/chunks[0]/data/width",
+  "nodes": [
+    {
+      "path": "/png/signature",
+      "label": "PNG signature",
+      "offset": 0,
+      "length": 8,
+      "kind": "parsed",
+      "type": "bytes",
+      "value": "89504e470d0a1a0a"
+    },
+    {
+      "path": "/png/chunks[0]",
+      "label": "IHDR chunk",
+      "offset": 8,
+      "length": 25,
+      "kind": "secondary",
+      "type": "pngChunk",
+      "children": [
+        {
+          "path": "/png/chunks[0]/length",
+          "label": "IHDR length",
+          "offset": 8,
+          "length": 4,
+          "kind": "parsed",
+          "type": "uint32",
+          "value": 13
+        },
+        {
+          "path": "/png/chunks[0]/type",
+          "label": "IHDR type",
+          "offset": 12,
+          "length": 4,
+          "kind": "parsed",
+          "type": "ascii",
+          "value": "IHDR"
+        },
+        {
+          "path": "/png/chunks[0]/data",
+          "label": "IHDR data",
+          "offset": 16,
+          "length": 13,
+          "kind": "parsed",
+          "type": "bytes",
+          "children": [
+            {
+              "path": "/png/chunks[0]/data/width",
+              "label": "IHDR width",
+              "offset": 16,
+              "length": 4,
+              "kind": "parsed",
+              "type": "uint32",
+              "value": 1002
+            },
+            {
+              "path": "/png/chunks[0]/data/height",
+              "label": "IHDR height",
+              "offset": 20,
+              "length": 4,
+              "kind": "parsed",
+              "type": "uint32",
+              "value": 1002
+            },
+            {
+              "path": "/png/chunks[0]/data/bitDepth",
+              "label": "IHDR bit depth",
+              "offset": 24,
+              "length": 1,
+              "kind": "parsed",
+              "type": "uint8",
+              "value": 8
+            },
+            {
+              "path": "/png/chunks[0]/data/colorType",
+              "label": "IHDR color type",
+              "offset": 25,
+              "length": 1,
+              "kind": "parsed",
+              "type": "uint8",
+              "value": 6
+            },
+            {
+              "path": "/png/chunks[0]/data/compression",
+              "label": "IHDR compression",
+              "offset": 26,
+              "length": 1,
+              "kind": "parsed",
+              "type": "uint8",
+              "value": 0
+            },
+            {
+              "path": "/png/chunks[0]/data/filter",
+              "label": "IHDR filter",
+              "offset": 27,
+              "length": 1,
+              "kind": "parsed",
+              "type": "uint8",
+              "value": 0
+            },
+            {
+              "path": "/png/chunks[0]/data/interlace",
+              "label": "IHDR interlace",
+              "offset": 28,
+              "length": 1,
+              "kind": "parsed",
+              "type": "uint8",
+              "value": 0
+            }
+          ]
+        },
+        {
+          "path": "/png/chunks[0]/crc",
+          "label": "IHDR CRC",
+          "offset": 29,
+          "length": 4,
+          "kind": "parsed",
+          "type": "uint32",
+          "value": "0x049EA5D2"
+        }
+      ]
+    },
+    {
+      "path": "/png/chunks[1]",
+      "label": "sRGB chunk",
+      "offset": 33,
+      "length": 13,
+      "kind": "secondary",
+      "type": "pngChunk",
+      "children": [
+        {
+          "path": "/png/chunks[1]/length",
+          "label": "sRGB length",
+          "offset": 33,
+          "length": 4,
+          "kind": "parsed",
+          "type": "uint32",
+          "value": 1
+        },
+        {
+          "path": "/png/chunks[1]/type",
+          "label": "sRGB type",
+          "offset": 37,
+          "length": 4,
+          "kind": "parsed",
+          "type": "ascii",
+          "value": "sRGB"
+        },
+        {
+          "path": "/png/chunks[1]/data",
+          "label": "sRGB data",
+          "offset": 41,
+          "length": 1,
+          "kind": "parsed",
+          "type": "bytes",
+          "children": [
+            {
+              "path": "/png/chunks[1]/data/renderingIntent",
+              "label": "sRGB rendering intent",
+              "offset": 41,
+              "length": 1,
+              "kind": "parsed",
+              "type": "uint8",
+              "value": 0
+            }
+          ]
+        },
+        {
+          "path": "/png/chunks[1]/crc",
+          "label": "sRGB CRC",
+          "offset": 42,
+          "length": 4,
+          "kind": "parsed",
+          "type": "uint32",
+          "value": "0xAECE1CE9"
+        }
+      ]
+    },
+    {
+      "path": "/png/chunks[2]",
+      "label": "eXIf chunk",
+      "offset": 46,
+      "length": 132,
+      "kind": "secondary",
+      "type": "pngChunk",
+      "children": [
+        {
+          "path": "/png/chunks[2]/length",
+          "label": "eXIf length",
+          "offset": 46,
+          "length": 4,
+          "kind": "parsed",
+          "type": "uint32",
+          "value": 120
+        },
+        {
+          "path": "/png/chunks[2]/type",
+          "label": "eXIf type",
+          "offset": 50,
+          "length": 4,
+          "kind": "parsed",
+          "type": "ascii",
+          "value": "eXIf"
+        },
+        {
+          "path": "/png/chunks[2]/data",
+          "label": "eXIf data",
+          "offset": 54,
+          "length": 120,
+          "kind": "parsed",
+          "type": "bytes"
+        },
+        {
+          "path": "/png/chunks[2]/crc",
+          "label": "eXIf CRC",
+          "offset": 174,
+          "length": 4,
+          "kind": "parsed",
+          "type": "uint32",
+          "value": "0x043463DE"
+        }
+      ]
+    },
+    {
+      "path": "/png/chunks[3]",
+      "label": "pHYs chunk",
+      "offset": 178,
+      "length": 21,
+      "kind": "secondary",
+      "type": "pngChunk",
+      "children": [
+        {
+          "path": "/png/chunks[3]/length",
+          "label": "pHYs length",
+          "offset": 178,
+          "length": 4,
+          "kind": "parsed",
+          "type": "uint32",
+          "value": 9
+        },
+        {
+          "path": "/png/chunks[3]/type",
+          "label": "pHYs type",
+          "offset": 182,
+          "length": 4,
+          "kind": "parsed",
+          "type": "ascii",
+          "value": "pHYs"
+        },
+        {
+          "path": "/png/chunks[3]/data",
+          "label": "pHYs data",
+          "offset": 186,
+          "length": 9,
+          "kind": "parsed",
+          "type": "bytes",
+          "children": [
+            {
+              "path": "/png/chunks[3]/data/pixelsPerUnitX",
+              "label": "pHYs pixels per unit X",
+              "offset": 186,
+              "length": 4,
+              "kind": "parsed",
+              "type": "uint32",
+              "value": 5906
+            },
+            {
+              "path": "/png/chunks[3]/data/pixelsPerUnitY",
+              "label": "pHYs pixels per unit Y",
+              "offset": 190,
+              "length": 4,
+              "kind": "parsed",
+              "type": "uint32",
+              "value": 5906
+            },
+            {
+              "path": "/png/chunks[3]/data/unitSpecifier",
+              "label": "pHYs unit specifier",
+              "offset": 194,
+              "length": 1,
+              "kind": "parsed",
+              "type": "uint8",
+              "value": 1
+            }
+          ]
+        },
+        {
+          "path": "/png/chunks[3]/crc",
+          "label": "pHYs CRC",
+          "offset": 195,
+          "length": 4,
+          "kind": "parsed",
+          "type": "uint32",
+          "value": "0x679FD252"
+        }
+      ]
+    },
+    {
+      "path": "/png/chunks[4]",
+      "label": "IDAT chunk",
+      "offset": 199,
+      "length": 16396,
+      "kind": "secondary",
+      "type": "pngChunk",
+      "children": [
+        {
+          "path": "/png/chunks[4]/length",
+          "label": "IDAT length",
+          "offset": 199,
+          "length": 4,
+          "kind": "parsed",
+          "type": "uint32",
+          "value": 16384
+        },
+        {
+          "path": "/png/chunks[4]/type",
+          "label": "IDAT type",
+          "offset": 203,
+          "length": 4,
+          "kind": "parsed",
+          "type": "ascii",
+          "value": "IDAT"
+        },
+        {
+          "path": "/png/chunks[4]/data",
+          "label": "IDAT data",
+          "offset": 207,
+          "length": 16384,
+          "kind": "secondary",
+          "type": "bytes"
+        },
+        {
+          "path": "/png/chunks[4]/crc",
+          "label": "IDAT CRC",
+          "offset": 16591,
+          "length": 4,
+          "kind": "parsed",
+          "type": "uint32",
+          "value": "0xF2426A51"
+        }
+      ]
+    },
+    {
+      "path": "/png/chunks[5]",
+      "label": "IDAT chunk",
+      "offset": 16595,
+      "length": 16396,
+      "kind": "secondary",
+      "type": "pngChunk",
+      "children": [
+        {
+          "path": "/png/chunks[5]/length",
+          "label": "IDAT length",
+          "offset": 16595,
+          "length": 4,
+          "kind": "parsed",
+          "type": "uint32",
+          "value": 16384
+        },
+        {
+          "path": "/png/chunks[5]/type",
+          "label": "IDAT type",
+          "offset": 16599,
+          "length": 4,
+          "kind": "parsed",
+          "type": "ascii",
+          "value": "IDAT"
+        },
+        {
+          "path": "/png/chunks[5]/data",
+          "label": "IDAT data",
+          "offset": 16603,
+          "length": 16384,
+          "kind": "secondary",
+          "type": "bytes"
+        },
+        {
+          "path": "/png/chunks[5]/crc",
+          "label": "IDAT CRC",
+          "offset": 32987,
+          "length": 4,
+          "kind": "parsed",
+          "type": "uint32",
+          "value": "0x13911120"
+        }
+      ]
+    },
+    {
+      "path": "/png/chunks[6]",
+      "label": "IDAT chunk",
+      "offset": 32991,
+      "length": 16396,
+      "kind": "secondary",
+      "type": "pngChunk",
+      "children": [
+        {
+          "path": "/png/chunks[6]/length",
+          "label": "IDAT length",
+          "offset": 32991,
+          "length": 4,
+          "kind": "parsed",
+          "type": "uint32",
+          "value": 16384
+        },
+        {
+          "path": "/png/chunks[6]/type",
+          "label": "IDAT type",
+          "offset": 32995,
+          "length": 4,
+          "kind": "parsed",
+          "type": "ascii",
+          "value": "IDAT"
+        },
+        {
+          "path": "/png/chunks[6]/data",
+          "label": "IDAT data",
+          "offset": 32999,
+          "length": 16384,
+          "kind": "secondary",
+          "type": "bytes"
+        },
+        {
+          "path": "/png/chunks[6]/crc",
+          "label": "IDAT CRC",
+          "offset": 49383,
+          "length": 4,
+          "kind": "parsed",
+          "type": "uint32",
+          "value": "0x749D684F"
+        }
+      ]
+    },
+    {
+      "path": "/png/chunks[7]",
+      "label": "IDAT chunk",
+      "offset": 49387,
+      "length": 16396,
+      "kind": "secondary",
+      "type": "pngChunk",
+      "children": [
+        {
+          "path": "/png/chunks[7]/length",
+          "label": "IDAT length",
+          "offset": 49387,
+          "length": 4,
+          "kind": "parsed",
+          "type": "uint32",
+          "value": 16384
+        },
+        {
+          "path": "/png/chunks[7]/type",
+          "label": "IDAT type",
+          "offset": 49391,
+          "length": 4,
+          "kind": "parsed",
+          "type": "ascii",
+          "value": "IDAT"
+        },
+        {
+          "path": "/png/chunks[7]/data",
+          "label": "IDAT data",
+          "offset": 49395,
+          "length": 16384,
+          "kind": "secondary",
+          "type": "bytes"
+        },
+        {
+          "path": "/png/chunks[7]/crc",
+          "label": "IDAT CRC",
+          "offset": 65779,
+          "length": 4,
+          "kind": "parsed",
+          "type": "uint32",
+          "value": "0xBF79E7AB"
+        }
+      ]
+    },
+    {
+      "path": "/png/chunks[8]",
+      "label": "IDAT chunk",
+      "offset": 65783,
+      "length": 16396,
+      "kind": "secondary",
+      "type": "pngChunk",
+      "children": [
+        {
+          "path": "/png/chunks[8]/length",
+          "label": "IDAT length",
+          "offset": 65783,
+          "length": 4,
+          "kind": "parsed",
+          "type": "uint32",
+          "value": 16384
+        },
+        {
+          "path": "/png/chunks[8]/type",
+          "label": "IDAT type",
+          "offset": 65787,
+          "length": 4,
+          "kind": "parsed",
+          "type": "ascii",
+          "value": "IDAT"
+        },
+        {
+          "path": "/png/chunks[8]/data",
+          "label": "IDAT data",
+          "offset": 65791,
+          "length": 16384,
+          "kind": "secondary",
+          "type": "bytes"
+        },
+        {
+          "path": "/png/chunks[8]/crc",
+          "label": "IDAT CRC",
+          "offset": 82175,
+          "length": 4,
+          "kind": "parsed",
+          "type": "uint32",
+          "value": "0xE6BB1BFA"
+        }
+      ]
+    },
+    {
+      "path": "/png/chunks[9]",
+      "label": "IDAT chunk",
+      "offset": 82179,
+      "length": 16396,
+      "kind": "secondary",
+      "type": "pngChunk",
+      "children": [
+        {
+          "path": "/png/chunks[9]/length",
+          "label": "IDAT length",
+          "offset": 82179,
+          "length": 4,
+          "kind": "parsed",
+          "type": "uint32",
+          "value": 16384
+        },
+        {
+          "path": "/png/chunks[9]/type",
+          "label": "IDAT type",
+          "offset": 82183,
+          "length": 4,
+          "kind": "parsed",
+          "type": "ascii",
+          "value": "IDAT"
+        },
+        {
+          "path": "/png/chunks[9]/data",
+          "label": "IDAT data",
+          "offset": 82187,
+          "length": 16384,
+          "kind": "secondary",
+          "type": "bytes"
+        },
+        {
+          "path": "/png/chunks[9]/crc",
+          "label": "IDAT CRC",
+          "offset": 98571,
+          "length": 4,
+          "kind": "parsed",
+          "type": "uint32",
+          "value": "0xD3345578"
+        }
+      ]
+    },
+    {
+      "path": "/png/chunks[10]",
+      "label": "IDAT chunk",
+      "offset": 98575,
+      "length": 16396,
+      "kind": "secondary",
+      "type": "pngChunk",
+      "children": [
+        {
+          "path": "/png/chunks[10]/length",
+          "label": "IDAT length",
+          "offset": 98575,
+          "length": 4,
+          "kind": "parsed",
+          "type": "uint32",
+          "value": 16384
+        },
+        {
+          "path": "/png/chunks[10]/type",
+          "label": "IDAT type",
+          "offset": 98579,
+          "length": 4,
+          "kind": "parsed",
+          "type": "ascii",
+          "value": "IDAT"
+        },
+        {
+          "path": "/png/chunks[10]/data",
+          "label": "IDAT data",
+          "offset": 98583,
+          "length": 16384,
+          "kind": "secondary",
+          "type": "bytes"
+        },
+        {
+          "path": "/png/chunks[10]/crc",
+          "label": "IDAT CRC",
+          "offset": 114967,
+          "length": 4,
+          "kind": "parsed",
+          "type": "uint32",
+          "value": "0xFF72F4B5"
+        }
+      ]
+    },
+    {
+      "path": "/png/chunks[11]",
+      "label": "IDAT chunk",
+      "offset": 114971,
+      "length": 16396,
+      "kind": "secondary",
+      "type": "pngChunk",
+      "children": [
+        {
+          "path": "/png/chunks[11]/length",
+          "label": "IDAT length",
+          "offset": 114971,
+          "length": 4,
+          "kind": "parsed",
+          "type": "uint32",
+          "value": 16384
+        },
+        {
+          "path": "/png/chunks[11]/type",
+          "label": "IDAT type",
+          "offset": 114975,
+          "length": 4,
+          "kind": "parsed",
+          "type": "ascii",
+          "value": "IDAT"
+        },
+        {
+          "path": "/png/chunks[11]/data",
+          "label": "IDAT data",
+          "offset": 114979,
+          "length": 16384,
+          "kind": "secondary",
+          "type": "bytes"
+        },
+        {
+          "path": "/png/chunks[11]/crc",
+          "label": "IDAT CRC",
+          "offset": 131363,
+          "length": 4,
+          "kind": "parsed",
+          "type": "uint32",
+          "value": "0x3F307FF1"
+        }
+      ]
+    },
+    {
+      "path": "/png/chunks[12]",
+      "label": "IDAT chunk",
+      "offset": 131367,
+      "length": 16396,
+      "kind": "secondary",
+      "type": "pngChunk",
+      "children": [
+        {
+          "path": "/png/chunks[12]/length",
+          "label": "IDAT length",
+          "offset": 131367,
+          "length": 4,
+          "kind": "parsed",
+          "type": "uint32",
+          "value": 16384
+        },
+        {
+          "path": "/png/chunks[12]/type",
+          "label": "IDAT type",
+          "offset": 131371,
+          "length": 4,
+          "kind": "parsed",
+          "type": "ascii",
+          "value": "IDAT"
+        },
+        {
+          "path": "/png/chunks[12]/data",
+          "label": "IDAT data",
+          "offset": 131375,
+          "length": 16384,
+          "kind": "secondary",
+          "type": "bytes"
+        },
+        {
+          "path": "/png/chunks[12]/crc",
+          "label": "IDAT CRC",
+          "offset": 147759,
+          "length": 4,
+          "kind": "parsed",
+          "type": "uint32",
+          "value": "0x6CACBFC9"
+        }
+      ]
+    },
+    {
+      "path": "/png/chunks[13]",
+      "label": "IDAT chunk",
+      "offset": 147763,
+      "length": 16396,
+      "kind": "secondary",
+      "type": "pngChunk",
+      "children": [
+        {
+          "path": "/png/chunks[13]/length",
+          "label": "IDAT length",
+          "offset": 147763,
+          "length": 4,
+          "kind": "parsed",
+          "type": "uint32",
+          "value": 16384
+        },
+        {
+          "path": "/png/chunks[13]/type",
+          "label": "IDAT type",
+          "offset": 147767,
+          "length": 4,
+          "kind": "parsed",
+          "type": "ascii",
+          "value": "IDAT"
+        },
+        {
+          "path": "/png/chunks[13]/data",
+          "label": "IDAT data",
+          "offset": 147771,
+          "length": 16384,
+          "kind": "secondary",
+          "type": "bytes"
+        },
+        {
+          "path": "/png/chunks[13]/crc",
+          "label": "IDAT CRC",
+          "offset": 164155,
+          "length": 4,
+          "kind": "parsed",
+          "type": "uint32",
+          "value": "0x6110A83B"
+        }
+      ]
+    },
+    {
+      "path": "/png/chunks[14]",
+      "label": "IDAT chunk",
+      "offset": 164159,
+      "length": 16396,
+      "kind": "secondary",
+      "type": "pngChunk",
+      "children": [
+        {
+          "path": "/png/chunks[14]/length",
+          "label": "IDAT length",
+          "offset": 164159,
+          "length": 4,
+          "kind": "parsed",
+          "type": "uint32",
+          "value": 16384
+        },
+        {
+          "path": "/png/chunks[14]/type",
+          "label": "IDAT type",
+          "offset": 164163,
+          "length": 4,
+          "kind": "parsed",
+          "type": "ascii",
+          "value": "IDAT"
+        },
+        {
+          "path": "/png/chunks[14]/data",
+          "label": "IDAT data",
+          "offset": 164167,
+          "length": 16384,
+          "kind": "secondary",
+          "type": "bytes"
+        },
+        {
+          "path": "/png/chunks[14]/crc",
+          "label": "IDAT CRC",
+          "offset": 180551,
+          "length": 4,
+          "kind": "parsed",
+          "type": "uint32",
+          "value": "0xD915130E"
+        }
+      ]
+    },
+    {
+      "path": "/png/chunks[15]",
+      "label": "IDAT chunk",
+      "offset": 180555,
+      "length": 16396,
+      "kind": "secondary",
+      "type": "pngChunk",
+      "children": [
+        {
+          "path": "/png/chunks[15]/length",
+          "label": "IDAT length",
+          "offset": 180555,
+          "length": 4,
+          "kind": "parsed",
+          "type": "uint32",
+          "value": 16384
+        },
+        {
+          "path": "/png/chunks[15]/type",
+          "label": "IDAT type",
+          "offset": 180559,
+          "length": 4,
+          "kind": "parsed",
+          "type": "ascii",
+          "value": "IDAT"
+        },
+        {
+          "path": "/png/chunks[15]/data",
+          "label": "IDAT data",
+          "offset": 180563,
+          "length": 16384,
+          "kind": "secondary",
+          "type": "bytes"
+        },
+        {
+          "path": "/png/chunks[15]/crc",
+          "label": "IDAT CRC",
+          "offset": 196947,
+          "length": 4,
+          "kind": "parsed",
+          "type": "uint32",
+          "value": "0x13AD9253"
+        }
+      ]
+    },
+    {
+      "path": "/png/chunks[16]",
+      "label": "IDAT chunk",
+      "offset": 196951,
+      "length": 16396,
+      "kind": "secondary",
+      "type": "pngChunk",
+      "children": [
+        {
+          "path": "/png/chunks[16]/length",
+          "label": "IDAT length",
+          "offset": 196951,
+          "length": 4,
+          "kind": "parsed",
+          "type": "uint32",
+          "value": 16384
+        },
+        {
+          "path": "/png/chunks[16]/type",
+          "label": "IDAT type",
+          "offset": 196955,
+          "length": 4,
+          "kind": "parsed",
+          "type": "ascii",
+          "value": "IDAT"
+        },
+        {
+          "path": "/png/chunks[16]/data",
+          "label": "IDAT data",
+          "offset": 196959,
+          "length": 16384,
+          "kind": "secondary",
+          "type": "bytes"
+        },
+        {
+          "path": "/png/chunks[16]/crc",
+          "label": "IDAT CRC",
+          "offset": 213343,
+          "length": 4,
+          "kind": "parsed",
+          "type": "uint32",
+          "value": "0x11D18456"
+        }
+      ]
+    },
+    {
+      "path": "/png/chunks[17]",
+      "label": "IDAT chunk",
+      "offset": 213347,
+      "length": 16396,
+      "kind": "secondary",
+      "type": "pngChunk",
+      "children": [
+        {
+          "path": "/png/chunks[17]/length",
+          "label": "IDAT length",
+          "offset": 213347,
+          "length": 4,
+          "kind": "parsed",
+          "type": "uint32",
+          "value": 16384
+        },
+        {
+          "path": "/png/chunks[17]/type",
+          "label": "IDAT type",
+          "offset": 213351,
+          "length": 4,
+          "kind": "parsed",
+          "type": "ascii",
+          "value": "IDAT"
+        },
+        {
+          "path": "/png/chunks[17]/data",
+          "label": "IDAT data",
+          "offset": 213355,
+          "length": 16384,
+          "kind": "secondary",
+          "type": "bytes"
+        },
+        {
+          "path": "/png/chunks[17]/crc",
+          "label": "IDAT CRC",
+          "offset": 229739,
+          "length": 4,
+          "kind": "parsed",
+          "type": "uint32",
+          "value": "0x1D5114DF"
+        }
+      ]
+    },
+    {
+      "path": "/png/chunks[18]",
+      "label": "IDAT chunk",
+      "offset": 229743,
+      "length": 16396,
+      "kind": "secondary",
+      "type": "pngChunk",
+      "children": [
+        {
+          "path": "/png/chunks[18]/length",
+          "label": "IDAT length",
+          "offset": 229743,
+          "length": 4,
+          "kind": "parsed",
+          "type": "uint32",
+          "value": 16384
+        },
+        {
+          "path": "/png/chunks[18]/type",
+          "label": "IDAT type",
+          "offset": 229747,
+          "length": 4,
+          "kind": "parsed",
+          "type": "ascii",
+          "value": "IDAT"
+        },
+        {
+          "path": "/png/chunks[18]/data",
+          "label": "IDAT data",
+          "offset": 229751,
+          "length": 16384,
+          "kind": "secondary",
+          "type": "bytes"
+        },
+        {
+          "path": "/png/chunks[18]/crc",
+          "label": "IDAT CRC",
+          "offset": 246135,
+          "length": 4,
+          "kind": "parsed",
+          "type": "uint32",
+          "value": "0xE72390DF"
+        }
+      ]
+    },
+    {
+      "path": "/png/chunks[19]",
+      "label": "IDAT chunk",
+      "offset": 246139,
+      "length": 16396,
+      "kind": "secondary",
+      "type": "pngChunk",
+      "children": [
+        {
+          "path": "/png/chunks[19]/length",
+          "label": "IDAT length",
+          "offset": 246139,
+          "length": 4,
+          "kind": "parsed",
+          "type": "uint32",
+          "value": 16384
+        },
+        {
+          "path": "/png/chunks[19]/type",
+          "label": "IDAT type",
+          "offset": 246143,
+          "length": 4,
+          "kind": "parsed",
+          "type": "ascii",
+          "value": "IDAT"
+        },
+        {
+          "path": "/png/chunks[19]/data",
+          "label": "IDAT data",
+          "offset": 246147,
+          "length": 16384,
+          "kind": "secondary",
+          "type": "bytes"
+        },
+        {
+          "path": "/png/chunks[19]/crc",
+          "label": "IDAT CRC",
+          "offset": 262531,
+          "length": 4,
+          "kind": "parsed",
+          "type": "uint32",
+          "value": "0xCAC7D36C"
+        }
+      ]
+    },
+    {
+      "path": "/png/chunks[20]",
+      "label": "IDAT chunk",
+      "offset": 262535,
+      "length": 16396,
+      "kind": "secondary",
+      "type": "pngChunk",
+      "children": [
+        {
+          "path": "/png/chunks[20]/length",
+          "label": "IDAT length",
+          "offset": 262535,
+          "length": 4,
+          "kind": "parsed",
+          "type": "uint32",
+          "value": 16384
+        },
+        {
+          "path": "/png/chunks[20]/type",
+          "label": "IDAT type",
+          "offset": 262539,
+          "length": 4,
+          "kind": "parsed",
+          "type": "ascii",
+          "value": "IDAT"
+        },
+        {
+          "path": "/png/chunks[20]/data",
+          "label": "IDAT data",
+          "offset": 262543,
+          "length": 16384,
+          "kind": "secondary",
+          "type": "bytes"
+        },
+        {
+          "path": "/png/chunks[20]/crc",
+          "label": "IDAT CRC",
+          "offset": 278927,
+          "length": 4,
+          "kind": "parsed",
+          "type": "uint32",
+          "value": "0xEBF3C92D"
+        }
+      ]
+    },
+    {
+      "path": "/png/chunks[21]",
+      "label": "IDAT chunk",
+      "offset": 278931,
+      "length": 16396,
+      "kind": "secondary",
+      "type": "pngChunk",
+      "children": [
+        {
+          "path": "/png/chunks[21]/length",
+          "label": "IDAT length",
+          "offset": 278931,
+          "length": 4,
+          "kind": "parsed",
+          "type": "uint32",
+          "value": 16384
+        },
+        {
+          "path": "/png/chunks[21]/type",
+          "label": "IDAT type",
+          "offset": 278935,
+          "length": 4,
+          "kind": "parsed",
+          "type": "ascii",
+          "value": "IDAT"
+        },
+        {
+          "path": "/png/chunks[21]/data",
+          "label": "IDAT data",
+          "offset": 278939,
+          "length": 16384,
+          "kind": "secondary",
+          "type": "bytes"
+        },
+        {
+          "path": "/png/chunks[21]/crc",
+          "label": "IDAT CRC",
+          "offset": 295323,
+          "length": 4,
+          "kind": "parsed",
+          "type": "uint32",
+          "value": "0xBB947905"
+        }
+      ]
+    },
+    {
+      "path": "/png/chunks[22]",
+      "label": "IDAT chunk",
+      "offset": 295327,
+      "length": 16396,
+      "kind": "secondary",
+      "type": "pngChunk",
+      "children": [
+        {
+          "path": "/png/chunks[22]/length",
+          "label": "IDAT length",
+          "offset": 295327,
+          "length": 4,
+          "kind": "parsed",
+          "type": "uint32",
+          "value": 16384
+        },
+        {
+          "path": "/png/chunks[22]/type",
+          "label": "IDAT type",
+          "offset": 295331,
+          "length": 4,
+          "kind": "parsed",
+          "type": "ascii",
+          "value": "IDAT"
+        },
+        {
+          "path": "/png/chunks[22]/data",
+          "label": "IDAT data",
+          "offset": 295335,
+          "length": 16384,
+          "kind": "secondary",
+          "type": "bytes"
+        },
+        {
+          "path": "/png/chunks[22]/crc",
+          "label": "IDAT CRC",
+          "offset": 311719,
+          "length": 4,
+          "kind": "parsed",
+          "type": "uint32",
+          "value": "0x92C656F7"
+        }
+      ]
+    },
+    {
+      "path": "/png/chunks[23]",
+      "label": "IDAT chunk",
+      "offset": 311723,
+      "length": 16396,
+      "kind": "secondary",
+      "type": "pngChunk",
+      "children": [
+        {
+          "path": "/png/chunks[23]/length",
+          "label": "IDAT length",
+          "offset": 311723,
+          "length": 4,
+          "kind": "parsed",
+          "type": "uint32",
+          "value": 16384
+        },
+        {
+          "path": "/png/chunks[23]/type",
+          "label": "IDAT type",
+          "offset": 311727,
+          "length": 4,
+          "kind": "parsed",
+          "type": "ascii",
+          "value": "IDAT"
+        },
+        {
+          "path": "/png/chunks[23]/data",
+          "label": "IDAT data",
+          "offset": 311731,
+          "length": 16384,
+          "kind": "secondary",
+          "type": "bytes"
+        },
+        {
+          "path": "/png/chunks[23]/crc",
+          "label": "IDAT CRC",
+          "offset": 328115,
+          "length": 4,
+          "kind": "parsed",
+          "type": "uint32",
+          "value": "0xBFF3FD62"
+        }
+      ]
+    },
+    {
+      "path": "/png/chunks[24]",
+      "label": "IDAT chunk",
+      "offset": 328119,
+      "length": 16396,
+      "kind": "secondary",
+      "type": "pngChunk",
+      "children": [
+        {
+          "path": "/png/chunks[24]/length",
+          "label": "IDAT length",
+          "offset": 328119,
+          "length": 4,
+          "kind": "parsed",
+          "type": "uint32",
+          "value": 16384
+        },
+        {
+          "path": "/png/chunks[24]/type",
+          "label": "IDAT type",
+          "offset": 328123,
+          "length": 4,
+          "kind": "parsed",
+          "type": "ascii",
+          "value": "IDAT"
+        },
+        {
+          "path": "/png/chunks[24]/data",
+          "label": "IDAT data",
+          "offset": 328127,
+          "length": 16384,
+          "kind": "secondary",
+          "type": "bytes"
+        },
+        {
+          "path": "/png/chunks[24]/crc",
+          "label": "IDAT CRC",
+          "offset": 344511,
+          "length": 4,
+          "kind": "parsed",
+          "type": "uint32",
+          "value": "0x76791984"
+        }
+      ]
+    },
+    {
+      "path": "/png/chunks[25]",
+      "label": "IDAT chunk",
+      "offset": 344515,
+      "length": 16396,
+      "kind": "secondary",
+      "type": "pngChunk",
+      "children": [
+        {
+          "path": "/png/chunks[25]/length",
+          "label": "IDAT length",
+          "offset": 344515,
+          "length": 4,
+          "kind": "parsed",
+          "type": "uint32",
+          "value": 16384
+        },
+        {
+          "path": "/png/chunks[25]/type",
+          "label": "IDAT type",
+          "offset": 344519,
+          "length": 4,
+          "kind": "parsed",
+          "type": "ascii",
+          "value": "IDAT"
+        },
+        {
+          "path": "/png/chunks[25]/data",
+          "label": "IDAT data",
+          "offset": 344523,
+          "length": 16384,
+          "kind": "secondary",
+          "type": "bytes"
+        },
+        {
+          "path": "/png/chunks[25]/crc",
+          "label": "IDAT CRC",
+          "offset": 360907,
+          "length": 4,
+          "kind": "parsed",
+          "type": "uint32",
+          "value": "0x4B97231A"
+        }
+      ]
+    },
+    {
+      "path": "/png/chunks[26]",
+      "label": "IDAT chunk",
+      "offset": 360911,
+      "length": 16396,
+      "kind": "secondary",
+      "type": "pngChunk",
+      "children": [
+        {
+          "path": "/png/chunks[26]/length",
+          "label": "IDAT length",
+          "offset": 360911,
+          "length": 4,
+          "kind": "parsed",
+          "type": "uint32",
+          "value": 16384
+        },
+        {
+          "path": "/png/chunks[26]/type",
+          "label": "IDAT type",
+          "offset": 360915,
+          "length": 4,
+          "kind": "parsed",
+          "type": "ascii",
+          "value": "IDAT"
+        },
+        {
+          "path": "/png/chunks[26]/data",
+          "label": "IDAT data",
+          "offset": 360919,
+          "length": 16384,
+          "kind": "secondary",
+          "type": "bytes"
+        },
+        {
+          "path": "/png/chunks[26]/crc",
+          "label": "IDAT CRC",
+          "offset": 377303,
+          "length": 4,
+          "kind": "parsed",
+          "type": "uint32",
+          "value": "0x5FED1D59"
+        }
+      ]
+    },
+    {
+      "path": "/png/chunks[27]",
+      "label": "IDAT chunk",
+      "offset": 377307,
+      "length": 16396,
+      "kind": "secondary",
+      "type": "pngChunk",
+      "children": [
+        {
+          "path": "/png/chunks[27]/length",
+          "label": "IDAT length",
+          "offset": 377307,
+          "length": 4,
+          "kind": "parsed",
+          "type": "uint32",
+          "value": 16384
+        },
+        {
+          "path": "/png/chunks[27]/type",
+          "label": "IDAT type",
+          "offset": 377311,
+          "length": 4,
+          "kind": "parsed",
+          "type": "ascii",
+          "value": "IDAT"
+        },
+        {
+          "path": "/png/chunks[27]/data",
+          "label": "IDAT data",
+          "offset": 377315,
+          "length": 16384,
+          "kind": "secondary",
+          "type": "bytes"
+        },
+        {
+          "path": "/png/chunks[27]/crc",
+          "label": "IDAT CRC",
+          "offset": 393699,
+          "length": 4,
+          "kind": "parsed",
+          "type": "uint32",
+          "value": "0x76608973"
+        }
+      ]
+    },
+    {
+      "path": "/png/chunks[28]",
+      "label": "IDAT chunk",
+      "offset": 393703,
+      "length": 16396,
+      "kind": "secondary",
+      "type": "pngChunk",
+      "children": [
+        {
+          "path": "/png/chunks[28]/length",
+          "label": "IDAT length",
+          "offset": 393703,
+          "length": 4,
+          "kind": "parsed",
+          "type": "uint32",
+          "value": 16384
+        },
+        {
+          "path": "/png/chunks[28]/type",
+          "label": "IDAT type",
+          "offset": 393707,
+          "length": 4,
+          "kind": "parsed",
+          "type": "ascii",
+          "value": "IDAT"
+        },
+        {
+          "path": "/png/chunks[28]/data",
+          "label": "IDAT data",
+          "offset": 393711,
+          "length": 16384,
+          "kind": "secondary",
+          "type": "bytes"
+        },
+        {
+          "path": "/png/chunks[28]/crc",
+          "label": "IDAT CRC",
+          "offset": 410095,
+          "length": 4,
+          "kind": "parsed",
+          "type": "uint32",
+          "value": "0x11D68831"
+        }
+      ]
+    },
+    {
+      "path": "/png/chunks[29]",
+      "label": "IDAT chunk",
+      "offset": 410099,
+      "length": 16396,
+      "kind": "secondary",
+      "type": "pngChunk",
+      "children": [
+        {
+          "path": "/png/chunks[29]/length",
+          "label": "IDAT length",
+          "offset": 410099,
+          "length": 4,
+          "kind": "parsed",
+          "type": "uint32",
+          "value": 16384
+        },
+        {
+          "path": "/png/chunks[29]/type",
+          "label": "IDAT type",
+          "offset": 410103,
+          "length": 4,
+          "kind": "parsed",
+          "type": "ascii",
+          "value": "IDAT"
+        },
+        {
+          "path": "/png/chunks[29]/data",
+          "label": "IDAT data",
+          "offset": 410107,
+          "length": 16384,
+          "kind": "secondary",
+          "type": "bytes"
+        },
+        {
+          "path": "/png/chunks[29]/crc",
+          "label": "IDAT CRC",
+          "offset": 426491,
+          "length": 4,
+          "kind": "parsed",
+          "type": "uint32",
+          "value": "0xBC966148"
+        }
+      ]
+    },
+    {
+      "path": "/png/chunks[30]",
+      "label": "IDAT chunk",
+      "offset": 426495,
+      "length": 16396,
+      "kind": "secondary",
+      "type": "pngChunk",
+      "children": [
+        {
+          "path": "/png/chunks[30]/length",
+          "label": "IDAT length",
+          "offset": 426495,
+          "length": 4,
+          "kind": "parsed",
+          "type": "uint32",
+          "value": 16384
+        },
+        {
+          "path": "/png/chunks[30]/type",
+          "label": "IDAT type",
+          "offset": 426499,
+          "length": 4,
+          "kind": "parsed",
+          "type": "ascii",
+          "value": "IDAT"
+        },
+        {
+          "path": "/png/chunks[30]/data",
+          "label": "IDAT data",
+          "offset": 426503,
+          "length": 16384,
+          "kind": "secondary",
+          "type": "bytes"
+        },
+        {
+          "path": "/png/chunks[30]/crc",
+          "label": "IDAT CRC",
+          "offset": 442887,
+          "length": 4,
+          "kind": "parsed",
+          "type": "uint32",
+          "value": "0x3401491D"
+        }
+      ]
+    },
+    {
+      "path": "/png/chunks[31]",
+      "label": "IDAT chunk",
+      "offset": 442891,
+      "length": 11325,
+      "kind": "secondary",
+      "type": "pngChunk",
+      "children": [
+        {
+          "path": "/png/chunks[31]/length",
+          "label": "IDAT length",
+          "offset": 442891,
+          "length": 4,
+          "kind": "parsed",
+          "type": "uint32",
+          "value": 11313
+        },
+        {
+          "path": "/png/chunks[31]/type",
+          "label": "IDAT type",
+          "offset": 442895,
+          "length": 4,
+          "kind": "parsed",
+          "type": "ascii",
+          "value": "IDAT"
+        },
+        {
+          "path": "/png/chunks[31]/data",
+          "label": "IDAT data",
+          "offset": 442899,
+          "length": 11313,
+          "kind": "secondary",
+          "type": "bytes"
+        },
+        {
+          "path": "/png/chunks[31]/crc",
+          "label": "IDAT CRC",
+          "offset": 454212,
+          "length": 4,
+          "kind": "parsed",
+          "type": "uint32",
+          "value": "0x637170FA"
+        }
+      ]
+    },
+    {
+      "path": "/png/chunks[32]",
+      "label": "IEND chunk",
+      "offset": 454216,
+      "length": 12,
+      "kind": "secondary",
+      "type": "pngChunk",
+      "children": [
+        {
+          "path": "/png/chunks[32]/length",
+          "label": "IEND length",
+          "offset": 454216,
+          "length": 4,
+          "kind": "parsed",
+          "type": "uint32",
+          "value": 0
+        },
+        {
+          "path": "/png/chunks[32]/type",
+          "label": "IEND type",
+          "offset": 454220,
+          "length": 4,
+          "kind": "parsed",
+          "type": "ascii",
+          "value": "IEND"
+        },
+        {
+          "path": "/png/chunks[32]/crc",
+          "label": "IEND CRC",
+          "offset": 454224,
+          "length": 4,
+          "kind": "parsed",
+          "type": "uint32",
+          "value": "0xAE426082"
+        }
+      ]
+    }
+  ]
+}

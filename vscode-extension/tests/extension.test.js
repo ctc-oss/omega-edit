@@ -18,6 +18,7 @@ const {
   OMEGA_EDIT_EXPORT_CHANGE_LOG_COMMAND,
   OMEGA_EDIT_GET_EDITOR_STATE_COMMAND,
   OMEGA_EDIT_GO_TO_OFFSET_COMMAND,
+  OMEGA_EDIT_LOAD_RANGE_MAP_COMMAND,
   OMEGA_EDIT_OPEN_IN_HEX_EDITOR_COMMAND,
   OMEGA_EDIT_REFRESH_TRANSFORM_PLUGINS_COMMAND,
   OMEGA_EDIT_REDO_COMMAND,
@@ -29,6 +30,7 @@ const {
   OMEGA_EDIT_ROLLBACK_CHECKPOINT_COMMAND,
   OMEGA_EDIT_TOGGLE_INSERT_DIRECTION_COMMAND,
   OMEGA_EDIT_UNDO_COMMAND,
+  OMEGA_EDIT_UNLOAD_RANGE_MAP_COMMAND,
   OMEGA_EDIT_VIEW_TYPE,
 } = require('../out/constants.js')
 const {
@@ -37,22 +39,36 @@ const {
   normalizeBytesPerRow,
   normalizeWebviewMessage,
 } = require('../out/webviewProtocol.js')
+const {
+  assertRangeMapFitsFile,
+  parseRangeMapContent,
+} = require('../out/rangeMap.js')
+
+function encodeRangeMap(rangeMap) {
+  return Buffer.from(
+    JSON.stringify({
+      format: 'omega-edit.range-map',
+      version: 1,
+      ...rangeMap,
+    })
+  )
+}
 
 test('package.json matches shared extension constants', () => {
   assert.equal(packageJson.main, './out/extension.js')
   assert.equal(packageJson.types, './out/api.d.ts')
-  assert.equal(OMEGA_EDIT_EXTENSION_API_VERSION, 3)
+  assert.equal(OMEGA_EDIT_EXTENSION_API_VERSION, 4)
   assert.equal(packageJson.name, OMEGA_EDIT_EXTENSION_NAME)
   assert.equal(packageJson.publisher, OMEGA_EDIT_EXTENSION_PUBLISHER)
   assert.equal(
     `${packageJson.publisher}.${packageJson.name}`,
     OMEGA_EDIT_EXTENSION_ID
   )
-  assert.deepEqual(
+  const bytesPerRowConfiguration =
     packageJson.contributes.configuration.properties['omegaEdit.bytesPerRow']
-      .anyOf,
-    [{ const: 0 }, { minimum: 8, maximum: 64 }]
-  )
+  assert.equal(bytesPerRowConfiguration.minimum, 8)
+  assert.equal(bytesPerRowConfiguration.maximum, 64)
+  assert.equal(bytesPerRowConfiguration.anyOf, undefined)
   assert.equal(
     packageJson.scripts['package:vsix'],
     'vsce package --out omega-edit-data-editor.vsix'
@@ -174,6 +190,8 @@ test('package.json matches shared extension constants', () => {
       OMEGA_EDIT_GET_EDITOR_STATE_COMMAND,
       OMEGA_EDIT_SET_EXTERNAL_HIGHLIGHTS_COMMAND,
       OMEGA_EDIT_CLEAR_EXTERNAL_HIGHLIGHTS_COMMAND,
+      OMEGA_EDIT_LOAD_RANGE_MAP_COMMAND,
+      OMEGA_EDIT_UNLOAD_RANGE_MAP_COMMAND,
     ]
   )
   assert.equal(
@@ -191,6 +209,14 @@ test('package.json matches shared extension constants', () => {
   assert.equal(
     packageNls['omegaEdit.command.clearExternalHighlights.title'],
     'OmegaEdit: Clear External Highlights'
+  )
+  assert.equal(
+    packageNls['omegaEdit.command.loadRangeMap.title'],
+    'OmegaEdit: Load Range Map'
+  )
+  assert.equal(
+    packageNls['omegaEdit.command.unloadRangeMap.title'],
+    'OmegaEdit: Unload Range Map'
   )
   assert.deepEqual(
     packageJson.contributes.configuration.properties['omegaEdit.language'].enum,
@@ -559,6 +585,9 @@ test('compiled extension entrypoints exist after build', () => {
   assert.match(providerJs, /getEditorState/)
   assert.match(providerJs, /setExternalHighlights/)
   assert.match(providerJs, /clearExternalHighlights/)
+  assert.match(providerJs, /loadRangeMap/)
+  assert.match(providerJs, /unloadRangeMap/)
+  assert.match(providerJs, /parseRangeMapContent/)
   assert.match(providerJs, /createStatusBarItem/)
   assert.match(providerJs, /updateStatusBar/)
   assert.match(providerJs, /Replacing matches\.\.\./)
@@ -595,6 +624,11 @@ test('compiled extension entrypoints exist after build', () => {
   assert.doesNotMatch(providerJs, /editor\.action\.toggleOvertypeInsertMode/)
   assert.match(providerJs, /normalizeExternalHighlights/)
   assert.match(providerJs, /type:\s*['"]externalHighlights['"]/)
+  assert.match(providerJs, /markExternalHighlightsStale/)
+  assert.match(providerJs, /postBytesPerRow/)
+  assert.doesNotMatch(providerJs, /AUTO_BYTES_PER_ROW_SETTING/)
+  assert.match(providerJs, /stale:\s*true/)
+  assert.match(providerJs, /notifyDocumentChanged/)
   assert.match(providerJs, /case\s+['"]editorStateChanged['"]/)
   assert.match(providerJs, /buildEditorState/)
   assert.match(providerJs, /clampedLength <= 0/)
@@ -609,6 +643,9 @@ test('compiled extension entrypoints exist after build', () => {
   assert.match(protocolJs, /normalizeExternalHighlights/)
   assert.match(protocolJs, /editorStateChanged/)
   assert.match(protocolSource, /externalHighlights/)
+  assert.match(protocolSource, /type: 'bytesPerRow'/)
+  assert.match(protocolSource, /bytesPerRowMode: BytesPerRowMode/)
+  assert.match(protocolSource, /stale\?: boolean/)
   assert.match(protocolSource, /WebviewEditorState/)
   assert.match(protocolJs, /MAX_ANALYSIS_PROFILE_BYTES/)
   assert.match(protocolSource, /documentReverted/)
@@ -622,6 +659,10 @@ test('compiled extension entrypoints exist after build', () => {
   assert.match(apiDts, /extensionId/)
   assert.match(apiDts, /onDidChangeEditorState/)
   assert.match(apiDts, /setExternalHighlights/)
+  assert.match(apiDts, /loadRangeMap/)
+  assert.match(apiDts, /unloadRangeMap/)
+  assert.match(apiDts, /OmegaEditRangeMapLoadResult/)
+  assert.match(apiDts, /OmegaEditRangeMapUnloadResult/)
   assert.match(apiDts, /OmegaEditExternalHighlightKind/)
   assert.match(svelteHostJs, /svelte-webview/)
   assert.match(svelteHostJs, /Content-Security-Policy/)
@@ -673,9 +714,16 @@ test('compiled extension entrypoints exist after build', () => {
   assert.match(svelteBundleCss, /\.byte\.inspectorRange/)
   assert.match(svelteBundleCss, /\.byte\.externalHighlight:before/)
   assert.match(svelteBundleCss, /\.byte\.externalCurrent/)
-  assert.match(svelteBundleCss, /\.byte\.externalParsed/)
   assert.match(svelteBundleCss, /\.byte\.externalError/)
   assert.match(svelteBundleCss, /\.byte\.externalBreakpoint/)
+  assert.match(svelteBundleCss, /\.byte\.externalRangeStart/)
+  assert.match(svelteBundleCss, /\.byte\.externalRangeEnd/)
+  assert.match(svelteBundleCss, /\.byte\.externalHighlightHovered/)
+  assert.match(svelteBundleCss, /\.byte\.externalStale/)
+  assert.match(svelteBundleCss, /\.byte\[data-external-color="0"\]/)
+  assert.match(svelteBundleCss, /\.byte\[data-external-color="11"\]/)
+  assert.match(svelteBundleCss, /--omega-external-highlight-accent/)
+  assert.match(svelteBundleCss, /--omega-external-highlight-fill/)
   assert.match(svelteBundleCss, /\.byte\.inspectorRange:not\(\.selected\)/)
   assert.match(svelteBundleCss, /\.byte\.inspectorRange:after/)
   assert.match(svelteBundleCss, /\.byte\.selected/)
@@ -748,7 +796,16 @@ test('compiled extension entrypoints exist after build', () => {
   assert.match(svelteAppSource, /externalHighlights = \$state/)
   assert.match(svelteAppSource, /function currentEditorUiState/)
   assert.match(svelteAppSource, /bytesPerRowMode/)
+  assert.match(svelteAppSource, /function applyBytesPerRow/)
   assert.match(svelteAppSource, /function applyAutoFitBytesPerRow/)
+  assert.match(
+    svelteAppSource,
+    /function applyAutoFitBytesPerRow[\s\S]*void bytes/
+  )
+  assert.doesNotMatch(svelteAppSource, /mode: 'auto'/)
+  assert.match(svelteAppSource, /autoFitBytesPerRow=\{false\}/)
+  assert.doesNotMatch(toolbarSource, /autoBytesPerRow/)
+  assert.doesNotMatch(toolbarSource, /onBytesPerRowMode\('auto'\)/)
   assert.match(svelteAppSource, /type: 'editorStateChanged'/)
   assert.match(svelteAppSource, /type: 'toggleEditMode'/)
   assert.match(svelteAppSource, /case 'editMode'/)
@@ -951,6 +1008,7 @@ test('compiled extension entrypoints exist after build', () => {
   assert.match(svelteAppSource, /case 'serverHealth'/)
   assert.match(svelteAppSource, /serverHealth = message/)
   assert.match(svelteAppSource, /case 'externalHighlights'/)
+  assert.match(svelteAppSource, /case 'bytesPerRow'/)
   assert.match(svelteAppSource, /dataProfile=\{latestDataProfile\}/)
   assert.match(svelteAppSource, /viewportProfile=\{latestViewportProfile\}/)
   assert.match(svelteAppSource, /\{serverHealth\}/)
@@ -962,6 +1020,14 @@ test('compiled extension entrypoints exist after build', () => {
   assert.match(editorWorkspaceSource, /onAutoFitBytesPerRow/)
   assert.match(editorWorkspaceSource, /measureAutoFitBytesPerRow/)
   assert.match(editorWorkspaceSource, /profilerExpanded !== undefined/)
+  assert.doesNotMatch(
+    editorWorkspaceSource,
+    /autoFitBytesPerRow[\s\S]{0,160}bytesPerRow >= 0/
+  )
+  assert.doesNotMatch(
+    editorWorkspaceSource,
+    /autoFitBytesPerRow[\s\S]{0,180}data\.length >= 0/
+  )
   assert.match(editorWorkspaceSource, /editor-readonly-badge/)
   assert.match(editorWorkspaceSource, /editor-readonly-dot/)
   assert.match(editorWorkspaceSource, /readOnlyLabel/)
@@ -1061,6 +1127,19 @@ test('compiled extension entrypoints exist after build', () => {
   assert.match(previewGridSource, /class:externalParsed/)
   assert.match(previewGridSource, /class:externalError/)
   assert.match(previewGridSource, /class:externalBreakpoint/)
+  assert.match(previewGridSource, /EXTERNAL_HIGHLIGHT_COLOR_COUNT = 12/)
+  assert.match(previewGridSource, /hoveredExternalHighlightId/)
+  assert.match(previewGridSource, /function hashExternalHighlightId/)
+  assert.match(previewGridSource, /function externalHighlightColorSlot/)
+  assert.match(previewGridSource, /function isExternalRangeStart/)
+  assert.match(previewGridSource, /function isExternalRangeEnd/)
+  assert.match(previewGridSource, /function isExternalHighlightHovered/)
+  assert.match(previewGridSource, /externalHighlightStale/)
+  assert.match(previewGridSource, /data-external-color=\{externalColorSlot\}/)
+  assert.match(previewGridSource, /class:externalRangeStart/)
+  assert.match(previewGridSource, /class:externalRangeEnd/)
+  assert.match(previewGridSource, /class:externalHighlightHovered/)
+  assert.match(previewGridSource, /class:externalStale/)
   assert.match(previewGridSource, /FALLBACK_VISIBLE_ROWS/)
   assert.match(previewGridSource, /availableHeight/)
   assert.match(previewGridSource, /Math\.max\(1, Math\.floor/)
@@ -1102,6 +1181,7 @@ test('compiled extension entrypoints exist after build', () => {
   assert.doesNotMatch(i18nSource, /Hex offset/)
   assert.doesNotMatch(i18nSource, /Decimal offset/)
   assert.match(i18nSource, /externalHighlight/)
+  assert.match(i18nSource, /externalHighlightStale/)
   assert.match(i18nSource, /text: 'TEXT'/)
   assert.match(i18nSource, /resultAvailable/)
   assert.match(i18nSource, /resultHistoryTitle/)
@@ -1383,9 +1463,13 @@ test('compiled extension entrypoints exist after build', () => {
   assert.match(extensionJs, /OMEGA_EDIT_GET_EDITOR_STATE_COMMAND/)
   assert.match(extensionJs, /OMEGA_EDIT_SET_EXTERNAL_HIGHLIGHTS_COMMAND/)
   assert.match(extensionJs, /OMEGA_EDIT_CLEAR_EXTERNAL_HIGHLIGHTS_COMMAND/)
+  assert.match(extensionJs, /OMEGA_EDIT_LOAD_RANGE_MAP_COMMAND/)
+  assert.match(extensionJs, /OMEGA_EDIT_UNLOAD_RANGE_MAP_COMMAND/)
   assert.match(extensionJs, /getEditorState/)
   assert.match(extensionJs, /setExternalHighlights/)
   assert.match(extensionJs, /clearExternalHighlights/)
+  assert.match(extensionJs, /loadRangeMap/)
+  assert.match(extensionJs, /unloadRangeMap/)
   assert.match(extensionJs, /createOmegaEditExtensionApi/)
   assert.match(extensionJs, /OMEGA_EDIT_EXTENSION_ID/)
   assert.match(extensionJs, /OMEGA_EDIT_EXTENSION_API_VERSION/)
@@ -1426,6 +1510,146 @@ test('compiled extension entrypoints exist after build', () => {
   assert.match(
     extensionJs,
     /getClient\)\(connection\.port,\s*undefined,\s*\{\s*socketPath:\s*connection\.socketPath/
+  )
+})
+
+test('range map parser loads the OmegaEdit PNG logo fixture', () => {
+  const fixturePath = path.resolve(
+    __dirname,
+    '../../images/OmegaEditLogo.omega-ranges.json'
+  )
+  const parsed = parseRangeMapContent(fs.readFileSync(fixturePath))
+
+  assert.equal(parsed.document.format, 'omega-edit.range-map')
+  assert.equal(parsed.document.version, 1)
+  assert.equal(parsed.document.source, 'images/OmegaEditLogo.png')
+  assert.equal(parsed.document.selectedPath, '/png/chunks[0]/data/width')
+  assert.equal(parsed.document.nodes.length, 34)
+  assert.equal(parsed.nodeCount, 176)
+  assert.equal(parsed.highlights.length, 176)
+  assert.deepEqual(parsed.selectedHighlight, {
+    id: '/png/chunks[0]/data/width',
+    offset: 16,
+    length: 4,
+    kind: 'current',
+    label: 'IHDR width (uint32) = 1002',
+    source: 'images/OmegaEditLogo.png',
+  })
+
+  const widthIndex = parsed.highlights.findIndex(
+    (highlight) => highlight.id === '/png/chunks[0]/data/width'
+  )
+  const dataIndex = parsed.highlights.findIndex(
+    (highlight) => highlight.id === '/png/chunks[0]/data'
+  )
+  const chunkIndex = parsed.highlights.findIndex(
+    (highlight) => highlight.id === '/png/chunks[0]'
+  )
+  assert.ok(widthIndex >= 0)
+  assert.ok(widthIndex < dataIndex)
+  assert.ok(dataIndex < chunkIndex)
+})
+
+test('range map parser rejects hostile node shapes before flattening', () => {
+  assert.throws(
+    () =>
+      parseRangeMapContent(
+        encodeRangeMap({
+          nodes: Array.from({ length: 513 }, (_, index) => ({
+            path: `/node-${index}`,
+            offset: index,
+            length: 1,
+          })),
+        })
+      ),
+    /Range map cannot contain more than 512 nodes/
+  )
+
+  let node = {
+    path: '/node-64',
+    offset: 0,
+    length: 1,
+  }
+  for (let index = 63; index >= 0; index -= 1) {
+    node = {
+      path: `/node-${index}`,
+      offset: 0,
+      length: 1,
+      children: [node],
+    }
+  }
+
+  assert.throws(
+    () =>
+      parseRangeMapContent(
+        encodeRangeMap({
+          nodes: [node],
+        })
+      ),
+    /Range map node 0(\.0){64} exceeds maximum depth 64/
+  )
+
+  assert.throws(
+    () =>
+      parseRangeMapContent(
+        encodeRangeMap({
+          nodes: [
+            {
+              path: '',
+              offset: 0,
+              length: 1,
+            },
+          ],
+        })
+      ),
+    /Range map node 0 requires path/
+  )
+})
+
+test('range map parser generates bounded unique highlight ids', () => {
+  const parsed = parseRangeMapContent(
+    encodeRangeMap({
+      nodes: [
+        {
+          path: `/${'long-path'.repeat(18)}`,
+          offset: 0,
+          length: 1,
+          value: {
+            retained: false,
+          },
+        },
+        {
+          path: 'range.0',
+          offset: 1,
+          length: 1,
+        },
+      ],
+    })
+  )
+  const ids = parsed.highlights.map((highlight) => highlight.id)
+
+  assert.equal(new Set(ids).size, ids.length)
+  assert.ok(ids.includes('range.0'))
+  assert.ok(ids.some((id) => id !== 'range.0' && id.startsWith('range.1.')))
+  assert.equal(parsed.document.nodes[0].value, '[object]')
+})
+
+test('range map file-fit validation names the offending node', () => {
+  const parsed = parseRangeMapContent(
+    encodeRangeMap({
+      nodes: [
+        {
+          path: '/too-far',
+          offset: 6,
+          length: 1,
+        },
+      ],
+    })
+  )
+
+  assert.throws(
+    () => assertRangeMapFitsFile(parsed, 6),
+    /Range map node \/too-far \[6, 7\) is outside file bounds \(6 bytes\)/
   )
 })
 
@@ -1567,6 +1791,7 @@ test('webview protocol normalizes editor commands and rejects invalid ranges', (
         length: 1,
         kind: 'error',
         label: '',
+        stale: true,
       },
     ]),
     [
@@ -1585,6 +1810,7 @@ test('webview protocol normalizes editor commands and rejects invalid ranges', (
         kind: 'error',
         label: 'error',
         source: undefined,
+        stale: true,
       },
     ]
   )
@@ -1623,12 +1849,12 @@ test('webview protocol normalizes editor commands and rejects invalid ranges', (
     }),
     { type: 'setBytesPerRow', bytesPerRow: 64, persist: false }
   )
-  assert.deepEqual(
+  assert.equal(
     normalizeWebviewMessage(context, {
       type: 'setBytesPerRowMode',
       mode: 'auto',
     }),
-    { type: 'setBytesPerRowMode', mode: 'auto' }
+    undefined
   )
   assert.equal(
     normalizeWebviewMessage(context, {

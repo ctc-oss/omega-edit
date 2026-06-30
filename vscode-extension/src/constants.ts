@@ -22,3 +22,5 @@ export const OMEGA_EDIT_SET_EXTERNAL_HIGHLIGHTS_COMMAND =
   'omegaEdit.setExternalHighlights'
 export const OMEGA_EDIT_CLEAR_EXTERNAL_HIGHLIGHTS_COMMAND =
   'omegaEdit.clearExternalHighlights'
+export const OMEGA_EDIT_LOAD_RANGE_MAP_COMMAND = 'omegaEdit.loadRangeMap'
+export const OMEGA_EDIT_UNLOAD_RANGE_MAP_COMMAND = 'omegaEdit.unloadRangeMap'

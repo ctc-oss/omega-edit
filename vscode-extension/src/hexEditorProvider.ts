@@ -95,6 +95,7 @@ import {
   getSvelteWebviewContent,
   getSvelteWebviewLocalResourceRoot,
 } from './svelteWebview'
+import { assertRangeMapFitsFile, parseRangeMapContent } from './rangeMap'
 import {
   MAX_ANALYSIS_PROFILE_BYTES,
   MAX_LABEL_LENGTH,
@@ -192,6 +193,27 @@ interface TransformPrimitiveDescriptor {
 
 interface ParsedChangeRecord extends ChangeRecord {
   transformDescriptor?: TransformPrimitiveDescriptor
+}
+
+interface RangeMapLoadResult {
+  state: WebviewEditorState
+  uri?: vscode.Uri
+  source?: string
+  nodeCount: number
+  highlightCount: number
+  selectedPath?: string
+  selectedRange?: {
+    offset: number
+    length: number
+  }
+  cancelled?: boolean
+  message?: string
+}
+
+interface RangeMapUnloadResult {
+  state: WebviewEditorState
+  unloadedCount: number
+  highlightCount: number
 }
 
 const SESSION_SYNC_TIMEOUT_MS = 2000
@@ -1791,12 +1813,19 @@ export class HexEditorProvider
     bytesPerRow: BytesPerRow
   ): Promise<void> {
     const normalizedBytesPerRow = normalizeBytesPerRow(bytesPerRow)
+    const capacity = this.getViewportCapacity(normalizedBytesPerRow)
+    const bytesPerRowChanged = session.bytesPerRow !== normalizedBytesPerRow
     session.bytesPerRow = normalizedBytesPerRow
     session.webviewState = {
       ...session.webviewState,
       bytesPerRow: normalizedBytesPerRow,
     }
-    session.capacity = this.getViewportCapacity(normalizedBytesPerRow)
+    if (!bytesPerRowChanged && session.capacity === capacity) {
+      this.postEditState(session)
+      return
+    }
+
+    session.capacity = capacity
     session.bufferOffset = -1
     await this.scrollTo(session, session.offset)
     this.postEditState(session)
@@ -2351,6 +2380,133 @@ export class HexEditorProvider
     return this.buildEditorState(session)
   }
 
+  unloadRangeMap(options?: unknown): RangeMapUnloadResult | undefined {
+    const session = this.resolveCommandSession(options)
+    if (!session) {
+      void vscode.window.showWarningMessage(openEditorFirstMessage())
+      return
+    }
+
+    const unloadedCount = session.externalHighlights.length
+    session.externalHighlights = []
+    this.postExternalHighlights(session)
+
+    if (unloadedCount > 0) {
+      void vscode.window.showInformationMessage(
+        vscode.l10n.t('Unloaded {count} range map label(s)', {
+          count: unloadedCount,
+        })
+      )
+    }
+
+    return {
+      state: this.buildEditorState(session),
+      unloadedCount,
+      highlightCount: 0,
+    }
+  }
+
+  async loadRangeMap(
+    options?: unknown
+  ): Promise<RangeMapLoadResult | undefined> {
+    const session = this.resolveCommandSession(options)
+    if (!session) {
+      void vscode.window.showWarningMessage(openEditorFirstMessage())
+      return
+    }
+
+    const rangeMapUri =
+      parseCommandOptionUri(options, 'sourceUri') ??
+      (
+        await vscode.window.showOpenDialog({
+          canSelectMany: false,
+          filters: { JSON: ['json'] },
+          openLabel: vscode.l10n.t('Load Range Map'),
+          title: vscode.l10n.t('Load OmegaEdit range map'),
+        })
+      )?.[0]
+
+    if (!rangeMapUri) {
+      return {
+        state: this.buildEditorState(session),
+        nodeCount: 0,
+        highlightCount: 0,
+        cancelled: true,
+      }
+    }
+
+    let parsed: ReturnType<typeof parseRangeMapContent>
+    let highlights: NonNullable<ReturnType<typeof normalizeExternalHighlights>>
+    try {
+      parsed = parseRangeMapContent(
+        await vscode.workspace.fs.readFile(rangeMapUri)
+      )
+      assertRangeMapFitsFile(parsed, session.fileSize)
+      const normalizedHighlights = normalizeExternalHighlights(
+        { fileSize: session.fileSize },
+        parsed.highlights
+      )
+      if (!normalizedHighlights) {
+        throw new Error('Range map highlights failed validation')
+      }
+      highlights = normalizedHighlights
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error)
+      void vscode.window.showErrorMessage(
+        vscode.l10n.t('Could not load OmegaEdit range map: {message}', {
+          message,
+        })
+      )
+      return {
+        state: this.buildEditorState(session),
+        uri: rangeMapUri,
+        nodeCount: 0,
+        highlightCount: 0,
+        cancelled: true,
+        message,
+      }
+    }
+
+    const selectedHighlight =
+      parsed.selectedHighlight === undefined
+        ? undefined
+        : highlights.find(
+            (highlight) => highlight.id === parsed.selectedHighlight?.id
+          )
+    session.externalHighlights = highlights
+    this.postExternalHighlights(session)
+
+    const shouldReveal = !isRecord(options) || options.reveal !== false
+    if (shouldReveal && selectedHighlight) {
+      await this.scrollTo(session, selectedHighlight.offset)
+    }
+
+    const message = selectedHighlight
+      ? vscode.l10n.t('Loaded {count} range map label(s); selected {path}', {
+          count: highlights.length,
+          path: parsed.document.selectedPath ?? selectedHighlight.label,
+        })
+      : vscode.l10n.t('Loaded {count} range map label(s)', {
+          count: highlights.length,
+        })
+    void vscode.window.showInformationMessage(message)
+
+    return {
+      state: this.buildEditorState(session),
+      uri: rangeMapUri,
+      source: parsed.document.source,
+      nodeCount: parsed.nodeCount,
+      highlightCount: highlights.length,
+      selectedPath: parsed.document.selectedPath,
+      selectedRange: selectedHighlight
+        ? {
+            offset: selectedHighlight.offset,
+            length: selectedHighlight.length,
+          }
+        : undefined,
+    }
+  }
+
   setInsertDirection(
     directionOrOptions?: unknown,
     options?: unknown
@@ -2381,27 +2537,15 @@ export class HexEditorProvider
   }
 
   /** Re-read bytesPerRow from config and refresh all open editors */
-  refreshBytesPerRow(): void {
-    const config = vscode.workspace.getConfiguration('omegaEdit')
+  refreshBytesPerRow(bytesPerRowSettingOverride?: number): void {
     const bytesPerRowSetting = normalizeBytesPerRowSetting(
-      config.get('bytesPerRow')
+      bytesPerRowSettingOverride ??
+        vscode.workspace.getConfiguration('omegaEdit').get('bytesPerRow')
     )
-    const bytesPerRow = bytesPerRowFromSetting(bytesPerRowSetting)
     for (const session of this.sessions.values()) {
+      const bytesPerRow = bytesPerRowFromSetting(bytesPerRowSetting)
       session.bytesPerRowSetting = bytesPerRowSetting
-      session.bytesPerRow = bytesPerRow
-      session.webviewState = {
-        ...session.webviewState,
-        bytesPerRow,
-      }
-      session.panel.webview.options = {
-        ...session.panel.webview.options,
-        localResourceRoots: this.getLocalResourceRoots(),
-      }
-      session.panel.webview.html = this.renderWebviewHtml(
-        session.panel.webview,
-        bytesPerRowSetting
-      )
+      this.postBytesPerRow(session, bytesPerRow)
       this.postTransformStatus(
         session,
         session.transformInFlight,
@@ -3356,6 +3500,34 @@ export class HexEditorProvider
       highlights: session.externalHighlights,
     })
     this.fireEditorStateChanged(session)
+  }
+
+  private postBytesPerRow(
+    session: EditorSession,
+    bytesPerRow = session.bytesPerRow
+  ): void {
+    this.postWebviewMessage(session, {
+      type: 'bytesPerRow',
+      bytesPerRow,
+      bytesPerRowMode: 'fixed',
+    })
+  }
+
+  private markExternalHighlightsStale(session: EditorSession): void {
+    if (
+      session.externalHighlights.length === 0 ||
+      session.externalHighlights.every((highlight) => highlight.stale === true)
+    ) {
+      return
+    }
+
+    session.externalHighlights = session.externalHighlights.map(
+      (highlight) => ({
+        ...highlight,
+        stale: true,
+      })
+    )
+    this.postExternalHighlights(session)
   }
 
   private postEditMode(session: EditorSession): void {
@@ -4577,6 +4749,7 @@ export class HexEditorProvider
       this.makeHistoryExecutor(session)
     )
     if (didUndo) {
+      this.markExternalHighlightsStale(session)
       await this.waitForSessionSync(session, sessionSyncVersion)
       this.clearSearchState(session)
     }
@@ -4593,6 +4766,7 @@ export class HexEditorProvider
       this.makeHistoryExecutor(session)
     )
     if (didRedo) {
+      this.markExternalHighlightsStale(session)
       await this.waitForSessionSync(session, sessionSyncVersion)
       this.clearSearchState(session)
     }
@@ -4667,6 +4841,7 @@ export class HexEditorProvider
   }
 
   private notifyDocumentChanged(session: EditorSession): void {
+    this.markExternalHighlightsStale(session)
     this._onDidChangeCustomDocument.fire({
       document: session.document,
       undo: () => this.performUndoOnSession(session),
@@ -5108,16 +5283,11 @@ export class HexEditorProvider
         }
 
         case 'setBytesPerRowMode': {
-          if (msg.mode === 'auto') {
-            session.bytesPerRowSetting = 0
-            await this.updateBytesPerRowConfiguration(session, 0)
-          } else {
-            session.bytesPerRowSetting = session.bytesPerRow
-            await this.updateBytesPerRowConfiguration(
-              session,
-              session.bytesPerRow
-            )
-          }
+          session.bytesPerRowSetting = session.bytesPerRow
+          await this.updateBytesPerRowConfiguration(
+            session,
+            session.bytesPerRow
+          )
           break
         }
 

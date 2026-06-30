@@ -4,6 +4,7 @@
   import type { BytesPerRow, WebviewExternalHighlight } from '../protocol'
 
   const FALLBACK_VISIBLE_ROWS = 16
+  const EXTERNAL_HIGHLIGHT_COLOR_COUNT = 12
 
   interface Props {
     data?: number[]
@@ -107,6 +108,13 @@
 
     return lookup
   })
+  const hoveredExternalHighlightId = $derived.by(() => {
+    if (hoveredRowIndex < 0 || hoveredColumn < 0) {
+      return undefined
+    }
+    const byteOffset = offset + hoveredRowIndex * bytesPerRow + hoveredColumn
+    return externalHighlightFor(byteOffset)?.id
+  })
 
   function formatHex(byte: number): string {
     return byte.toString(16).toUpperCase().padStart(2, '0')
@@ -181,12 +189,17 @@
         ? strings.grid.overwriteTitle
         : strings.grid.insertTitle
     )
-    return highlight
-      ? `${baseTitle}\n${strings.grid.externalHighlight(
-          highlight.label,
-          highlight.source
-        )}`
-      : baseTitle
+    if (!highlight) {
+      return baseTitle
+    }
+
+    const staleSuffix = highlight.stale
+      ? `\n${strings.grid.externalHighlightStale}`
+      : ''
+    return `${baseTitle}\n${strings.grid.externalHighlight(
+      highlight.label,
+      highlight.source
+    )}${staleSuffix}`
   }
 
   function isSelected(byteOffset: number): boolean {
@@ -220,6 +233,56 @@
     byteOffset: number
   ): WebviewExternalHighlight | undefined {
     return externalHighlightByOffset.get(byteOffset)
+  }
+
+  function hashExternalHighlightId(id: string): number {
+    let hash = 0
+    for (let index = 0; index < id.length; index += 1) {
+      hash = (hash * 31 + id.charCodeAt(index)) >>> 0
+    }
+    return hash
+  }
+
+  function externalHighlightColorSlot(
+    highlight: WebviewExternalHighlight | undefined
+  ): string | undefined {
+    if (!highlight) {
+      return undefined
+    }
+    return String(
+      hashExternalHighlightId(highlight.id) % EXTERNAL_HIGHLIGHT_COLOR_COUNT
+    )
+  }
+
+  function isExternalRangeStart(
+    byteOffset: number,
+    highlight: WebviewExternalHighlight | undefined
+  ): boolean {
+    if (!highlight) {
+      return false
+    }
+    const previous = externalHighlightFor(byteOffset - 1)
+    return byteOffset === highlight.offset || previous?.id !== highlight.id
+  }
+
+  function isExternalRangeEnd(
+    byteOffset: number,
+    highlight: WebviewExternalHighlight | undefined
+  ): boolean {
+    if (!highlight) {
+      return false
+    }
+    const next = externalHighlightFor(byteOffset + 1)
+    return (
+      byteOffset === highlight.offset + highlight.length - 1 ||
+      next?.id !== highlight.id
+    )
+  }
+
+  function isExternalHighlightHovered(
+    highlight: WebviewExternalHighlight | undefined
+  ): boolean {
+    return !!highlight && hoveredExternalHighlightId === highlight.id
   }
 
   function updateHover(rowIndex: number, column: number): void {
@@ -527,6 +590,8 @@
             {@const byteOffset = row.rowOffset + index}
             {@const externalHighlight = externalHighlightFor(byteOffset)}
             {@const externalKind = externalHighlight?.kind ?? ''}
+            {@const externalColorSlot =
+              externalHighlightColorSlot(externalHighlight)}
             {@const byteTitle = formatByteHoverTitle(
               'hex',
               byte,
@@ -546,9 +611,22 @@
               class:externalWarning={externalKind === 'warning'}
               class:externalBreakpoint={externalKind === 'breakpoint'}
               class:externalSecondary={externalKind === 'secondary'}
+              class:externalStale={externalHighlight?.stale === true}
+              class:externalRangeStart={isExternalRangeStart(
+                byteOffset,
+                externalHighlight
+              )}
+              class:externalRangeEnd={isExternalRangeEnd(
+                byteOffset,
+                externalHighlight
+              )}
+              class:externalHighlightHovered={isExternalHighlightHovered(
+                externalHighlight
+              )}
               class:selected={isSelected(byteOffset)}
               class:focused={byteOffset === selectedOffset}
               class:activePane={activePane === 'hex' && byteOffset === selectedOffset}
+              data-external-color={externalColorSlot}
               data-column={index}
               data-offset={byteOffset}
               data-pane="hex"
@@ -574,6 +652,8 @@
             {@const byteOffset = row.rowOffset + index}
             {@const externalHighlight = externalHighlightFor(byteOffset)}
             {@const externalKind = externalHighlight?.kind ?? ''}
+            {@const externalColorSlot =
+              externalHighlightColorSlot(externalHighlight)}
             {@const byteTitle = formatByteHoverTitle(
               'ascii',
               byte,
@@ -596,9 +676,22 @@
               class:externalWarning={externalKind === 'warning'}
               class:externalBreakpoint={externalKind === 'breakpoint'}
               class:externalSecondary={externalKind === 'secondary'}
+              class:externalStale={externalHighlight?.stale === true}
+              class:externalRangeStart={isExternalRangeStart(
+                byteOffset,
+                externalHighlight
+              )}
+              class:externalRangeEnd={isExternalRangeEnd(
+                byteOffset,
+                externalHighlight
+              )}
+              class:externalHighlightHovered={isExternalHighlightHovered(
+                externalHighlight
+              )}
               class:selected={isSelected(byteOffset)}
               class:focused={byteOffset === selectedOffset}
               class:activePane={activePane === 'ascii' && byteOffset === selectedOffset}
+              data-external-color={externalColorSlot}
               data-column={index}
               data-offset={byteOffset}
               data-pane="ascii"

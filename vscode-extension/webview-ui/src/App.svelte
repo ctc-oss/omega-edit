@@ -10,7 +10,6 @@
     MAX_BYTES_PER_ROW,
     MAX_ANALYSIS_PROFILE_BYTES,
     normalizeBytesPerRow,
-    normalizeBytesPerRowMode,
     type BytesPerRow,
     type BytesPerRowMode,
     type HostToWebviewMessage,
@@ -127,15 +126,11 @@
   const configuredBytesPerRow = normalizeBytesPerRow(
     untrack(() => initialBytesPerRow)
   )
-  const configuredBytesPerRowMode = normalizeBytesPerRowMode(
-    untrack(() => initialBytesPerRowMode)
-  )
-  let bytesPerRowMode = $state<BytesPerRowMode>(configuredBytesPerRowMode)
+  untrack(() => initialBytesPerRowMode)
+  let bytesPerRowMode = $state<BytesPerRowMode>('fixed')
   let bytesPerRow = $state<BytesPerRow>(
     normalizeBytesPerRow(
-      configuredBytesPerRowMode === 'auto'
-        ? restoredState?.bytesPerRow ?? configuredBytesPerRow
-        : configuredBytesPerRow
+      restoredState?.bytesPerRow ?? configuredBytesPerRow
     )
   )
   const initialFileSize = restoredViewportSnapshot?.fileSize ?? 0
@@ -224,7 +219,6 @@
   let replaceMessage = $state('')
   let clipboardMessage = $state('')
   let lastPostedEditorStateKey = $state('')
-  let lastPostedAutoFitBytesPerRow = $state<number | undefined>(undefined)
 
   const selectionStart = $derived(
     selectionAnchor >= 0 && selectedOffset >= 0
@@ -359,50 +353,30 @@
     return source.slice(start, start + rowWidth * rows)
   }
 
-  function setBytesPerRow(bytes: BytesPerRow): void {
+  function applyBytesPerRow(
+    bytes: BytesPerRow,
+    options: { mode: BytesPerRowMode; persist: boolean }
+  ): void {
     const normalizedBytes = normalizeBytesPerRow(bytes)
-    bytesPerRowMode = 'fixed'
+    bytesPerRowMode = options.mode
     bytesPerRow = normalizedBytes
-    lastPostedAutoFitBytesPerRow = undefined
     savePreviewState({
       bytesPerRow: normalizedBytes,
       bytesPerRowMode,
     })
-    postToHost({ type: 'setBytesPerRow', bytesPerRow: normalizedBytes })
-  }
-
-  function setBytesPerRowMode(mode: BytesPerRowMode): void {
-    const normalizedMode = normalizeBytesPerRowMode(mode)
-    bytesPerRowMode = normalizedMode
-    lastPostedAutoFitBytesPerRow = undefined
-    savePreviewState({ bytesPerRowMode })
-    if (normalizedMode === 'auto') {
-      postToHost({ type: 'setBytesPerRowMode', mode: 'auto' })
-    } else {
-      setBytesPerRow(bytesPerRow)
-    }
-  }
-
-  function applyAutoFitBytesPerRow(bytes: BytesPerRow): void {
-    if (bytesPerRowMode !== 'auto') {
-      return
-    }
-
-    const normalizedBytes = normalizeBytesPerRow(bytes)
-    if (normalizedBytes !== bytesPerRow) {
-      bytesPerRow = normalizedBytes
-      savePreviewState({ bytesPerRow: normalizedBytes })
-    }
-    if (lastPostedAutoFitBytesPerRow === normalizedBytes) {
-      return
-    }
-
-    lastPostedAutoFitBytesPerRow = normalizedBytes
     postToHost({
       type: 'setBytesPerRow',
       bytesPerRow: normalizedBytes,
-      persist: false,
+      ...(options.persist ? {} : { persist: false }),
     })
+  }
+
+  function setBytesPerRow(bytes: BytesPerRow): void {
+    applyBytesPerRow(bytes, { mode: 'fixed', persist: true })
+  }
+
+  function applyAutoFitBytesPerRow(bytes: BytesPerRow): void {
+    void bytes
   }
 
   function toggleProfilerExpanded(): void {
@@ -2451,6 +2425,11 @@
           savePreviewState()
         }
         break
+      case 'bytesPerRow':
+        bytesPerRowMode = 'fixed'
+        bytesPerRow = normalizeBytesPerRow(message.bytesPerRow)
+        savePreviewState({ bytesPerRow, bytesPerRowMode })
+        break
       case 'editMode':
         setInspectorEditMode(message.editMode)
         break
@@ -2542,7 +2521,6 @@
     {selectionEnd}
     {selectionLength}
     onBytesPerRow={setBytesPerRow}
-    onBytesPerRowMode={setBytesPerRowMode}
     onOffsetRadix={setOffsetRadix}
     onInsertDirection={setInsertDirection}
     onGoToOffset={goToOffset}
@@ -2607,7 +2585,7 @@
     {visibleOffset}
     scrollOffset={navigationOffset}
     {bytesPerRow}
-    autoFitBytesPerRow={bytesPerRowMode === 'auto'}
+    autoFitBytesPerRow={false}
     maxBytesPerRow={MAX_BYTES_PER_ROW}
     {offsetRadix}
     {selectedOffset}
