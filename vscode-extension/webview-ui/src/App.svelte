@@ -163,7 +163,7 @@
   let inspectorHighlightStart = $state(-1)
   let inspectorHighlightEnd = $state(-1)
   let inspectorExpanded = $state(true)
-  let searchPanelVisible = $state(restoredState?.searchPanelVisible ?? true)
+  let searchPanelVisible = $state(restoredState?.searchPanelVisible ?? false)
   let profilerExpanded = $state(restoredState?.profilerExpanded ?? true)
   let profilerMode = $state<AnalysisMode>('profile')
   let analysisSectionOrder = $state<AnalysisSectionOrder>(
@@ -1829,21 +1829,6 @@
     )
   }
 
-  function historyShortcut(event: KeyboardEvent): 'undo' | 'redo' | undefined {
-    if ((!event.ctrlKey && !event.metaKey) || event.altKey) {
-      return undefined
-    }
-
-    const key = event.key.toLowerCase()
-    if (key === 'z') {
-      return event.shiftKey ? 'redo' : 'undo'
-    }
-    if (key === 'y' && !event.shiftKey) {
-      return 'redo'
-    }
-    return undefined
-  }
-
   function normalizeHexInput(
     value: string,
     allowEmpty: boolean
@@ -2495,17 +2480,6 @@
       handleHostMessage(event.data)
     }
     const keyListener = (event: KeyboardEvent) => {
-      const historyAction = historyShortcut(event)
-      if (historyAction && !isEditableTarget(event.target)) {
-        event.preventDefault()
-        if (transformInFlight) {
-          clipboardMessage = strings.transform.inFlight
-          replaceMessage = strings.transform.inFlight
-          return
-        }
-        postToHost({ type: historyAction })
-        return
-      }
       if (
         event.defaultPrevented ||
         event.key !== 'Insert' ||

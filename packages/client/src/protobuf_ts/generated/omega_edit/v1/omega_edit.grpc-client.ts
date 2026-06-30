@@ -103,6 +103,8 @@ import type { ResumeSessionChangesResponse } from './omega_edit'
 import type { ResumeSessionChangesRequest } from './omega_edit'
 import type { PauseSessionChangesResponse } from './omega_edit'
 import type { PauseSessionChangesRequest } from './omega_edit'
+import type { RestoreToChangeCountResponse } from './omega_edit'
+import type { RestoreToChangeCountRequest } from './omega_edit'
 import type { ClearChangesResponse } from './omega_edit'
 import type { ClearChangesRequest } from './omega_edit'
 import type { RedoLastUndoResponse } from './omega_edit'
@@ -461,6 +463,43 @@ export interface IEditorServiceClient {
     callback: (
       err: grpc.ServiceError | null,
       value?: ClearChangesResponse
+    ) => void
+  ): grpc.ClientUnaryCall
+  /**
+   * Restore the session to a previous active change count and discard redo history.
+   *
+   * @generated from protobuf rpc: RestoreToChangeCount
+   */
+  restoreToChangeCount(
+    input: RestoreToChangeCountRequest,
+    metadata: grpc.Metadata,
+    options: grpc.CallOptions,
+    callback: (
+      err: grpc.ServiceError | null,
+      value?: RestoreToChangeCountResponse
+    ) => void
+  ): grpc.ClientUnaryCall
+  restoreToChangeCount(
+    input: RestoreToChangeCountRequest,
+    metadata: grpc.Metadata,
+    callback: (
+      err: grpc.ServiceError | null,
+      value?: RestoreToChangeCountResponse
+    ) => void
+  ): grpc.ClientUnaryCall
+  restoreToChangeCount(
+    input: RestoreToChangeCountRequest,
+    options: grpc.CallOptions,
+    callback: (
+      err: grpc.ServiceError | null,
+      value?: RestoreToChangeCountResponse
+    ) => void
+  ): grpc.ClientUnaryCall
+  restoreToChangeCount(
+    input: RestoreToChangeCountRequest,
+    callback: (
+      err: grpc.ServiceError | null,
+      value?: RestoreToChangeCountResponse
     ) => void
   ): grpc.ClientUnaryCall
   /**
@@ -2354,6 +2393,47 @@ export class EditorServiceClient
     )
   }
   /**
+   * Restore the session to a previous active change count and discard redo history.
+   *
+   * @generated from protobuf rpc: RestoreToChangeCount
+   */
+  restoreToChangeCount(
+    input: RestoreToChangeCountRequest,
+    metadata:
+      | grpc.Metadata
+      | grpc.CallOptions
+      | ((
+          err: grpc.ServiceError | null,
+          value?: RestoreToChangeCountResponse
+        ) => void),
+    options?:
+      | grpc.CallOptions
+      | ((
+          err: grpc.ServiceError | null,
+          value?: RestoreToChangeCountResponse
+        ) => void),
+    callback?: (
+      err: grpc.ServiceError | null,
+      value?: RestoreToChangeCountResponse
+    ) => void
+  ): grpc.ClientUnaryCall {
+    const method = EditorService.methods[8]
+    return this.makeUnaryRequest<
+      RestoreToChangeCountRequest,
+      RestoreToChangeCountResponse
+    >(
+      `/${EditorService.typeName}/${method.name}`,
+      (value: RestoreToChangeCountRequest): Buffer =>
+        Buffer.from(method.I.toBinary(value, this._binaryOptions)),
+      (value: Buffer): RestoreToChangeCountResponse =>
+        method.O.fromBinary(value, this._binaryOptions),
+      input,
+      metadata as any,
+      options as any,
+      callback as any
+    )
+  }
+  /**
    * Pause acceptance of new changes on the session.  Any SubmitChange calls
    * while paused will be rejected.
    *
@@ -2379,7 +2459,7 @@ export class EditorServiceClient
       value?: PauseSessionChangesResponse
     ) => void
   ): grpc.ClientUnaryCall {
-    const method = EditorService.methods[8]
+    const method = EditorService.methods[9]
     return this.makeUnaryRequest<
       PauseSessionChangesRequest,
       PauseSessionChangesResponse
@@ -2420,7 +2500,7 @@ export class EditorServiceClient
       value?: ResumeSessionChangesResponse
     ) => void
   ): grpc.ClientUnaryCall {
-    const method = EditorService.methods[9]
+    const method = EditorService.methods[10]
     return this.makeUnaryRequest<
       ResumeSessionChangesRequest,
       ResumeSessionChangesResponse
@@ -2467,7 +2547,7 @@ export class EditorServiceClient
       value?: SessionBeginTransactionResponse
     ) => void
   ): grpc.ClientUnaryCall {
-    const method = EditorService.methods[10]
+    const method = EditorService.methods[11]
     return this.makeUnaryRequest<
       SessionBeginTransactionRequest,
       SessionBeginTransactionResponse
@@ -2508,7 +2588,7 @@ export class EditorServiceClient
       value?: SessionEndTransactionResponse
     ) => void
   ): grpc.ClientUnaryCall {
-    const method = EditorService.methods[11]
+    const method = EditorService.methods[12]
     return this.makeUnaryRequest<
       SessionEndTransactionRequest,
       SessionEndTransactionResponse
@@ -2554,7 +2634,7 @@ export class EditorServiceClient
       value?: CreateViewportResponse
     ) => void
   ): grpc.ClientUnaryCall {
-    const method = EditorService.methods[12]
+    const method = EditorService.methods[13]
     return this.makeUnaryRequest<CreateViewportRequest, CreateViewportResponse>(
       `/${EditorService.typeName}/${method.name}`,
       (value: CreateViewportRequest): Buffer =>
@@ -2592,7 +2672,7 @@ export class EditorServiceClient
       value?: ModifyViewportResponse
     ) => void
   ): grpc.ClientUnaryCall {
-    const method = EditorService.methods[13]
+    const method = EditorService.methods[14]
     return this.makeUnaryRequest<ModifyViewportRequest, ModifyViewportResponse>(
       `/${EditorService.typeName}/${method.name}`,
       (value: ModifyViewportRequest): Buffer =>
@@ -2631,7 +2711,7 @@ export class EditorServiceClient
       value?: ViewportHasChangesResponse
     ) => void
   ): grpc.ClientUnaryCall {
-    const method = EditorService.methods[14]
+    const method = EditorService.methods[15]
     return this.makeUnaryRequest<
       ViewportHasChangesRequest,
       ViewportHasChangesResponse
@@ -2672,7 +2752,7 @@ export class EditorServiceClient
       value?: GetViewportDataResponse
     ) => void
   ): grpc.ClientUnaryCall {
-    const method = EditorService.methods[15]
+    const method = EditorService.methods[16]
     return this.makeUnaryRequest<
       GetViewportDataRequest,
       GetViewportDataResponse
@@ -2713,7 +2793,7 @@ export class EditorServiceClient
       value?: DestroyViewportResponse
     ) => void
   ): grpc.ClientUnaryCall {
-    const method = EditorService.methods[16]
+    const method = EditorService.methods[17]
     return this.makeUnaryRequest<
       DestroyViewportRequest,
       DestroyViewportResponse
@@ -2754,7 +2834,7 @@ export class EditorServiceClient
       value?: PauseViewportEventsResponse
     ) => void
   ): grpc.ClientUnaryCall {
-    const method = EditorService.methods[17]
+    const method = EditorService.methods[18]
     return this.makeUnaryRequest<
       PauseViewportEventsRequest,
       PauseViewportEventsResponse
@@ -2795,7 +2875,7 @@ export class EditorServiceClient
       value?: ResumeViewportEventsResponse
     ) => void
   ): grpc.ClientUnaryCall {
-    const method = EditorService.methods[18]
+    const method = EditorService.methods[19]
     return this.makeUnaryRequest<
       ResumeViewportEventsRequest,
       ResumeViewportEventsResponse
@@ -2837,7 +2917,7 @@ export class EditorServiceClient
       value?: NotifyChangedViewportsResponse
     ) => void
   ): grpc.ClientUnaryCall {
-    const method = EditorService.methods[19]
+    const method = EditorService.methods[20]
     return this.makeUnaryRequest<
       NotifyChangedViewportsRequest,
       NotifyChangedViewportsResponse
@@ -2883,7 +2963,7 @@ export class EditorServiceClient
       value?: GetChangeDetailsResponse
     ) => void
   ): grpc.ClientUnaryCall {
-    const method = EditorService.methods[20]
+    const method = EditorService.methods[21]
     return this.makeUnaryRequest<
       GetChangeDetailsRequest,
       GetChangeDetailsResponse
@@ -2924,7 +3004,7 @@ export class EditorServiceClient
       value?: GetLastChangeResponse
     ) => void
   ): grpc.ClientUnaryCall {
-    const method = EditorService.methods[21]
+    const method = EditorService.methods[22]
     return this.makeUnaryRequest<GetLastChangeRequest, GetLastChangeResponse>(
       `/${EditorService.typeName}/${method.name}`,
       (value: GetLastChangeRequest): Buffer =>
@@ -2956,7 +3036,7 @@ export class EditorServiceClient
       value?: GetLastUndoResponse
     ) => void
   ): grpc.ClientUnaryCall {
-    const method = EditorService.methods[22]
+    const method = EditorService.methods[23]
     return this.makeUnaryRequest<GetLastUndoRequest, GetLastUndoResponse>(
       `/${EditorService.typeName}/${method.name}`,
       (value: GetLastUndoRequest): Buffer =>
@@ -2998,7 +3078,7 @@ export class EditorServiceClient
       value?: GetComputedFileSizeResponse
     ) => void
   ): grpc.ClientUnaryCall {
-    const method = EditorService.methods[23]
+    const method = EditorService.methods[24]
     return this.makeUnaryRequest<
       GetComputedFileSizeRequest,
       GetComputedFileSizeResponse
@@ -3039,7 +3119,7 @@ export class EditorServiceClient
       value?: GetByteOrderMarkResponse
     ) => void
   ): grpc.ClientUnaryCall {
-    const method = EditorService.methods[24]
+    const method = EditorService.methods[25]
     return this.makeUnaryRequest<
       GetByteOrderMarkRequest,
       GetByteOrderMarkResponse
@@ -3080,7 +3160,7 @@ export class EditorServiceClient
       value?: GetContentTypeResponse
     ) => void
   ): grpc.ClientUnaryCall {
-    const method = EditorService.methods[25]
+    const method = EditorService.methods[26]
     return this.makeUnaryRequest<GetContentTypeRequest, GetContentTypeResponse>(
       `/${EditorService.typeName}/${method.name}`,
       (value: GetContentTypeRequest): Buffer =>
@@ -3113,7 +3193,7 @@ export class EditorServiceClient
       value?: GetLanguageResponse
     ) => void
   ): grpc.ClientUnaryCall {
-    const method = EditorService.methods[26]
+    const method = EditorService.methods[27]
     return this.makeUnaryRequest<GetLanguageRequest, GetLanguageResponse>(
       `/${EditorService.typeName}/${method.name}`,
       (value: GetLanguageRequest): Buffer =>
@@ -3143,7 +3223,7 @@ export class EditorServiceClient
       | ((err: grpc.ServiceError | null, value?: GetCountResponse) => void),
     callback?: (err: grpc.ServiceError | null, value?: GetCountResponse) => void
   ): grpc.ClientUnaryCall {
-    const method = EditorService.methods[27]
+    const method = EditorService.methods[28]
     return this.makeUnaryRequest<GetCountRequest, GetCountResponse>(
       `/${EditorService.typeName}/${method.name}`,
       (value: GetCountRequest): Buffer =>
@@ -3181,7 +3261,7 @@ export class EditorServiceClient
       value?: CheckSessionModelResponse
     ) => void
   ): grpc.ClientUnaryCall {
-    const method = EditorService.methods[28]
+    const method = EditorService.methods[29]
     return this.makeUnaryRequest<
       CheckSessionModelRequest,
       CheckSessionModelResponse
@@ -3222,7 +3302,7 @@ export class EditorServiceClient
       value?: GetSessionFingerprintResponse
     ) => void
   ): grpc.ClientUnaryCall {
-    const method = EditorService.methods[29]
+    const method = EditorService.methods[30]
     return this.makeUnaryRequest<
       GetSessionFingerprintRequest,
       GetSessionFingerprintResponse
@@ -3263,7 +3343,7 @@ export class EditorServiceClient
       value?: GetSessionContentInfoResponse
     ) => void
   ): grpc.ClientUnaryCall {
-    const method = EditorService.methods[30]
+    const method = EditorService.methods[31]
     return this.makeUnaryRequest<
       GetSessionContentInfoRequest,
       GetSessionContentInfoResponse
@@ -3304,7 +3384,7 @@ export class EditorServiceClient
       value?: InspectSessionContentResponse
     ) => void
   ): grpc.ClientUnaryCall {
-    const method = EditorService.methods[31]
+    const method = EditorService.methods[32]
     return this.makeUnaryRequest<
       InspectSessionContentRequest,
       InspectSessionContentResponse
@@ -3345,7 +3425,7 @@ export class EditorServiceClient
       value?: GetSessionCountResponse
     ) => void
   ): grpc.ClientUnaryCall {
-    const method = EditorService.methods[32]
+    const method = EditorService.methods[33]
     return this.makeUnaryRequest<
       GetSessionCountRequest,
       GetSessionCountResponse
@@ -3380,7 +3460,7 @@ export class EditorServiceClient
       value?: GetSegmentResponse
     ) => void
   ): grpc.ClientUnaryCall {
-    const method = EditorService.methods[33]
+    const method = EditorService.methods[34]
     return this.makeUnaryRequest<GetSegmentRequest, GetSegmentResponse>(
       `/${EditorService.typeName}/${method.name}`,
       (value: GetSegmentRequest): Buffer =>
@@ -3423,7 +3503,7 @@ export class EditorServiceClient
       value?: SearchSessionResponse
     ) => void
   ): grpc.ClientUnaryCall {
-    const method = EditorService.methods[34]
+    const method = EditorService.methods[35]
     return this.makeUnaryRequest<SearchSessionRequest, SearchSessionResponse>(
       `/${EditorService.typeName}/${method.name}`,
       (value: SearchSessionRequest): Buffer =>
@@ -3463,7 +3543,7 @@ export class EditorServiceClient
       value?: ReplaceSessionResponse
     ) => void
   ): grpc.ClientUnaryCall {
-    const method = EditorService.methods[35]
+    const method = EditorService.methods[36]
     return this.makeUnaryRequest<ReplaceSessionRequest, ReplaceSessionResponse>(
       `/${EditorService.typeName}/${method.name}`,
       (value: ReplaceSessionRequest): Buffer =>
@@ -3503,7 +3583,7 @@ export class EditorServiceClient
       value?: ReplaceSessionCheckpointedResponse
     ) => void
   ): grpc.ClientUnaryCall {
-    const method = EditorService.methods[36]
+    const method = EditorService.methods[37]
     return this.makeUnaryRequest<
       ReplaceSessionCheckpointedRequest,
       ReplaceSessionCheckpointedResponse
@@ -3544,7 +3624,7 @@ export class EditorServiceClient
       value?: CreateCheckpointResponse
     ) => void
   ): grpc.ClientUnaryCall {
-    const method = EditorService.methods[37]
+    const method = EditorService.methods[38]
     return this.makeUnaryRequest<
       CreateCheckpointRequest,
       CreateCheckpointResponse
@@ -3586,7 +3666,7 @@ export class EditorServiceClient
       value?: DestroyLastCheckpointResponse
     ) => void
   ): grpc.ClientUnaryCall {
-    const method = EditorService.methods[38]
+    const method = EditorService.methods[39]
     return this.makeUnaryRequest<
       DestroyLastCheckpointRequest,
       DestroyLastCheckpointResponse
@@ -3628,7 +3708,7 @@ export class EditorServiceClient
       value?: RestoreLastCheckpointResponse
     ) => void
   ): grpc.ClientUnaryCall {
-    const method = EditorService.methods[39]
+    const method = EditorService.methods[40]
     return this.makeUnaryRequest<
       RestoreLastCheckpointRequest,
       RestoreLastCheckpointResponse
@@ -3669,7 +3749,7 @@ export class EditorServiceClient
       value?: ListTransformPluginsResponse
     ) => void
   ): grpc.ClientUnaryCall {
-    const method = EditorService.methods[40]
+    const method = EditorService.methods[41]
     return this.makeUnaryRequest<
       ListTransformPluginsRequest,
       ListTransformPluginsResponse
@@ -3711,7 +3791,7 @@ export class EditorServiceClient
       value?: ApplyTransformPluginResponse
     ) => void
   ): grpc.ClientUnaryCall {
-    const method = EditorService.methods[41]
+    const method = EditorService.methods[42]
     return this.makeUnaryRequest<
       ApplyTransformPluginRequest,
       ApplyTransformPluginResponse
@@ -3753,7 +3833,7 @@ export class EditorServiceClient
       value?: GetByteFrequencyProfileResponse
     ) => void
   ): grpc.ClientUnaryCall {
-    const method = EditorService.methods[42]
+    const method = EditorService.methods[43]
     return this.makeUnaryRequest<
       GetByteFrequencyProfileRequest,
       GetByteFrequencyProfileResponse
@@ -3795,7 +3875,7 @@ export class EditorServiceClient
       value?: GetCharacterCountsResponse
     ) => void
   ): grpc.ClientUnaryCall {
-    const method = EditorService.methods[43]
+    const method = EditorService.methods[44]
     return this.makeUnaryRequest<
       GetCharacterCountsRequest,
       GetCharacterCountsResponse
@@ -3840,7 +3920,7 @@ export class EditorServiceClient
       value?: ServerControlResponse
     ) => void
   ): grpc.ClientUnaryCall {
-    const method = EditorService.methods[44]
+    const method = EditorService.methods[45]
     return this.makeUnaryRequest<ServerControlRequest, ServerControlResponse>(
       `/${EditorService.typeName}/${method.name}`,
       (value: ServerControlRequest): Buffer =>
@@ -3873,7 +3953,7 @@ export class EditorServiceClient
       value?: GetHeartbeatResponse
     ) => void
   ): grpc.ClientUnaryCall {
-    const method = EditorService.methods[45]
+    const method = EditorService.methods[46]
     return this.makeUnaryRequest<GetHeartbeatRequest, GetHeartbeatResponse>(
       `/${EditorService.typeName}/${method.name}`,
       (value: GetHeartbeatRequest): Buffer =>
@@ -3902,7 +3982,7 @@ export class EditorServiceClient
     metadata?: grpc.Metadata | grpc.CallOptions,
     options?: grpc.CallOptions
   ): grpc.ClientReadableStream<SubscribeToSessionEventsResponse> {
-    const method = EditorService.methods[46]
+    const method = EditorService.methods[47]
     return this.makeServerStreamRequest<
       SubscribeToSessionEventsRequest,
       SubscribeToSessionEventsResponse
@@ -3928,7 +4008,7 @@ export class EditorServiceClient
     metadata?: grpc.Metadata | grpc.CallOptions,
     options?: grpc.CallOptions
   ): grpc.ClientReadableStream<SubscribeToViewportEventsResponse> {
-    const method = EditorService.methods[47]
+    const method = EditorService.methods[48]
     return this.makeServerStreamRequest<
       SubscribeToViewportEventsRequest,
       SubscribeToViewportEventsResponse
@@ -3968,7 +4048,7 @@ export class EditorServiceClient
       value?: UnsubscribeToSessionEventsResponse
     ) => void
   ): grpc.ClientUnaryCall {
-    const method = EditorService.methods[48]
+    const method = EditorService.methods[49]
     return this.makeUnaryRequest<
       UnsubscribeToSessionEventsRequest,
       UnsubscribeToSessionEventsResponse
@@ -4009,7 +4089,7 @@ export class EditorServiceClient
       value?: UnsubscribeToViewportEventsResponse
     ) => void
   ): grpc.ClientUnaryCall {
-    const method = EditorService.methods[49]
+    const method = EditorService.methods[50]
     return this.makeUnaryRequest<
       UnsubscribeToViewportEventsRequest,
       UnsubscribeToViewportEventsResponse

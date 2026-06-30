@@ -448,6 +448,48 @@ export interface ClearChangesResponse {
   id: string // Session ID.
 }
 /**
+ * Request to restore a session to a previous active change count.
+ *
+ * @generated from protobuf message omega_edit.v1.RestoreToChangeCountRequest
+ */
+export interface RestoreToChangeCountRequest {
+  /**
+   * @generated from protobuf field: string session_id = 1
+   */
+  sessionId: string // Session ID.
+  /**
+   * @generated from protobuf field: int64 change_count = 2
+   */
+  changeCount: number // Active change count to keep.
+}
+/**
+ * Response after restoring a session to a previous active change count.
+ *
+ * @generated from protobuf message omega_edit.v1.RestoreToChangeCountResponse
+ */
+export interface RestoreToChangeCountResponse {
+  /**
+   * @generated from protobuf field: string session_id = 1
+   */
+  sessionId: string // Session that was restored.
+  /**
+   * @generated from protobuf field: int64 change_count = 2
+   */
+  changeCount: number // Session change count after restore.
+  /**
+   * @generated from protobuf field: int64 discarded_change_count = 3
+   */
+  discardedChangeCount: number // Number of active changes discarded.
+  /**
+   * @generated from protobuf field: int64 discarded_undo_count = 4
+   */
+  discardedUndoCount: number // Number of redo/undone changes discarded.
+  /**
+   * @generated from protobuf field: int64 remaining_checkpoint_count = 5
+   */
+  remainingCheckpointCount: number // Checkpoint count after restore.
+}
+/**
  * Request to pause change acceptance on a session.
  *
  * @generated from protobuf message omega_edit.v1.PauseSessionChangesRequest
@@ -4641,6 +4683,220 @@ class ClearChangesResponse$Type extends MessageType<ClearChangesResponse> {
  * @generated MessageType for protobuf message omega_edit.v1.ClearChangesResponse
  */
 export const ClearChangesResponse = new ClearChangesResponse$Type()
+// @generated message type with reflection information, may provide speed optimized methods
+class RestoreToChangeCountRequest$Type extends MessageType<RestoreToChangeCountRequest> {
+  constructor() {
+    super('omega_edit.v1.RestoreToChangeCountRequest', [
+      { no: 1, name: 'session_id', kind: 'scalar', T: 9 /*ScalarType.STRING*/ },
+      {
+        no: 2,
+        name: 'change_count',
+        kind: 'scalar',
+        T: 3 /*ScalarType.INT64*/,
+        L: 2 /*LongType.NUMBER*/,
+      },
+    ])
+  }
+  create(
+    value?: PartialMessage<RestoreToChangeCountRequest>
+  ): RestoreToChangeCountRequest {
+    const message = globalThis.Object.create(this.messagePrototype!)
+    message.sessionId = ''
+    message.changeCount = 0
+    if (value !== undefined)
+      reflectionMergePartial<RestoreToChangeCountRequest>(this, message, value)
+    return message
+  }
+  internalBinaryRead(
+    reader: IBinaryReader,
+    length: number,
+    options: BinaryReadOptions,
+    target?: RestoreToChangeCountRequest
+  ): RestoreToChangeCountRequest {
+    let message = target ?? this.create(),
+      end = reader.pos + length
+    while (reader.pos < end) {
+      let [fieldNo, wireType] = reader.tag()
+      switch (fieldNo) {
+        case /* string session_id */ 1:
+          message.sessionId = reader.string()
+          break
+        case /* int64 change_count */ 2:
+          message.changeCount = reader.int64().toNumber()
+          break
+        default:
+          let u = options.readUnknownField
+          if (u === 'throw')
+            throw new globalThis.Error(
+              `Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`
+            )
+          let d = reader.skip(wireType)
+          if (u !== false)
+            (u === true ? UnknownFieldHandler.onRead : u)(
+              this.typeName,
+              message,
+              fieldNo,
+              wireType,
+              d
+            )
+      }
+    }
+    return message
+  }
+  internalBinaryWrite(
+    message: RestoreToChangeCountRequest,
+    writer: IBinaryWriter,
+    options: BinaryWriteOptions
+  ): IBinaryWriter {
+    /* string session_id = 1; */
+    if (message.sessionId !== '')
+      writer.tag(1, WireType.LengthDelimited).string(message.sessionId)
+    /* int64 change_count = 2; */
+    if (message.changeCount !== 0)
+      writer.tag(2, WireType.Varint).int64(message.changeCount)
+    let u = options.writeUnknownFields
+    if (u !== false)
+      (u == true ? UnknownFieldHandler.onWrite : u)(
+        this.typeName,
+        message,
+        writer
+      )
+    return writer
+  }
+}
+/**
+ * @generated MessageType for protobuf message omega_edit.v1.RestoreToChangeCountRequest
+ */
+export const RestoreToChangeCountRequest =
+  new RestoreToChangeCountRequest$Type()
+// @generated message type with reflection information, may provide speed optimized methods
+class RestoreToChangeCountResponse$Type extends MessageType<RestoreToChangeCountResponse> {
+  constructor() {
+    super('omega_edit.v1.RestoreToChangeCountResponse', [
+      { no: 1, name: 'session_id', kind: 'scalar', T: 9 /*ScalarType.STRING*/ },
+      {
+        no: 2,
+        name: 'change_count',
+        kind: 'scalar',
+        T: 3 /*ScalarType.INT64*/,
+        L: 2 /*LongType.NUMBER*/,
+      },
+      {
+        no: 3,
+        name: 'discarded_change_count',
+        kind: 'scalar',
+        T: 3 /*ScalarType.INT64*/,
+        L: 2 /*LongType.NUMBER*/,
+      },
+      {
+        no: 4,
+        name: 'discarded_undo_count',
+        kind: 'scalar',
+        T: 3 /*ScalarType.INT64*/,
+        L: 2 /*LongType.NUMBER*/,
+      },
+      {
+        no: 5,
+        name: 'remaining_checkpoint_count',
+        kind: 'scalar',
+        T: 3 /*ScalarType.INT64*/,
+        L: 2 /*LongType.NUMBER*/,
+      },
+    ])
+  }
+  create(
+    value?: PartialMessage<RestoreToChangeCountResponse>
+  ): RestoreToChangeCountResponse {
+    const message = globalThis.Object.create(this.messagePrototype!)
+    message.sessionId = ''
+    message.changeCount = 0
+    message.discardedChangeCount = 0
+    message.discardedUndoCount = 0
+    message.remainingCheckpointCount = 0
+    if (value !== undefined)
+      reflectionMergePartial<RestoreToChangeCountResponse>(this, message, value)
+    return message
+  }
+  internalBinaryRead(
+    reader: IBinaryReader,
+    length: number,
+    options: BinaryReadOptions,
+    target?: RestoreToChangeCountResponse
+  ): RestoreToChangeCountResponse {
+    let message = target ?? this.create(),
+      end = reader.pos + length
+    while (reader.pos < end) {
+      let [fieldNo, wireType] = reader.tag()
+      switch (fieldNo) {
+        case /* string session_id */ 1:
+          message.sessionId = reader.string()
+          break
+        case /* int64 change_count */ 2:
+          message.changeCount = reader.int64().toNumber()
+          break
+        case /* int64 discarded_change_count */ 3:
+          message.discardedChangeCount = reader.int64().toNumber()
+          break
+        case /* int64 discarded_undo_count */ 4:
+          message.discardedUndoCount = reader.int64().toNumber()
+          break
+        case /* int64 remaining_checkpoint_count */ 5:
+          message.remainingCheckpointCount = reader.int64().toNumber()
+          break
+        default:
+          let u = options.readUnknownField
+          if (u === 'throw')
+            throw new globalThis.Error(
+              `Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`
+            )
+          let d = reader.skip(wireType)
+          if (u !== false)
+            (u === true ? UnknownFieldHandler.onRead : u)(
+              this.typeName,
+              message,
+              fieldNo,
+              wireType,
+              d
+            )
+      }
+    }
+    return message
+  }
+  internalBinaryWrite(
+    message: RestoreToChangeCountResponse,
+    writer: IBinaryWriter,
+    options: BinaryWriteOptions
+  ): IBinaryWriter {
+    /* string session_id = 1; */
+    if (message.sessionId !== '')
+      writer.tag(1, WireType.LengthDelimited).string(message.sessionId)
+    /* int64 change_count = 2; */
+    if (message.changeCount !== 0)
+      writer.tag(2, WireType.Varint).int64(message.changeCount)
+    /* int64 discarded_change_count = 3; */
+    if (message.discardedChangeCount !== 0)
+      writer.tag(3, WireType.Varint).int64(message.discardedChangeCount)
+    /* int64 discarded_undo_count = 4; */
+    if (message.discardedUndoCount !== 0)
+      writer.tag(4, WireType.Varint).int64(message.discardedUndoCount)
+    /* int64 remaining_checkpoint_count = 5; */
+    if (message.remainingCheckpointCount !== 0)
+      writer.tag(5, WireType.Varint).int64(message.remainingCheckpointCount)
+    let u = options.writeUnknownFields
+    if (u !== false)
+      (u == true ? UnknownFieldHandler.onWrite : u)(
+        this.typeName,
+        message,
+        writer
+      )
+    return writer
+  }
+}
+/**
+ * @generated MessageType for protobuf message omega_edit.v1.RestoreToChangeCountResponse
+ */
+export const RestoreToChangeCountResponse =
+  new RestoreToChangeCountResponse$Type()
 // @generated message type with reflection information, may provide speed optimized methods
 class PauseSessionChangesRequest$Type extends MessageType<PauseSessionChangesRequest> {
   constructor() {
@@ -13806,6 +14062,12 @@ export const EditorService = new ServiceType('omega_edit.v1.EditorService', [
     options: {},
     I: ClearChangesRequest,
     O: ClearChangesResponse,
+  },
+  {
+    name: 'RestoreToChangeCount',
+    options: {},
+    I: RestoreToChangeCountRequest,
+    O: RestoreToChangeCountResponse,
   },
   {
     name: 'PauseSessionChanges',

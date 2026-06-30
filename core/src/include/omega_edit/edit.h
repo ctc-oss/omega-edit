@@ -104,6 +104,16 @@ void omega_edit_destroy_viewport(omega_viewport_t *viewport_ptr);
 int omega_edit_clear_changes(omega_session_t *session_ptr);
 
 /**
+ * Restore a session to a previous active change count and discard redo history.
+ * The target count must be between the current model's available history base and the current active change count.
+ * Checkpoint-backed transform models created after the target count are discarded.
+ * @param session_ptr session to restore
+ * @param change_count active change count to keep
+ * @return zero on success and non-zero otherwise
+ */
+int omega_edit_restore_to_change_count(omega_session_t *session_ptr, int64_t change_count);
+
+/**
  * Given a session, undo the last change
  * @param session_ptr session to undo the last change for
  * @return negative serial number of the undone change if successful, zero otherwise
@@ -116,6 +126,20 @@ int64_t omega_edit_undo_last_change(omega_session_t *session_ptr);
  * @return positive serial number of the redone change if successful, zero otherwise
  */
 int64_t omega_edit_redo_last_undo(omega_session_t *session_ptr);
+
+/**
+ * Test a serial-returning edit result, such as omega_edit_insert or omega_edit_delete, for success.
+ * @param result edit result value
+ * @return non-zero when result is a positive change serial
+ */
+int omega_edit_serial_result_is_success(int64_t result);
+
+/**
+ * Test a status-returning edit result, such as omega_edit_clear_changes or omega_edit_apply_script, for success.
+ * @param result edit status value
+ * @return non-zero when result is zero
+ */
+int omega_edit_status_result_is_success(int result);
 
 /**
  * Save a segment of the the given session (the edited file) to the given file path.  If the save file already exists,

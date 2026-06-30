@@ -30,6 +30,7 @@ import {
   type GetSessionFingerprintResponse as RawGetSessionFingerprintResponse,
   type InspectSessionContentResponse as RawInspectSessionContentResponse,
   type RestoreLastCheckpointResponse as RawRestoreLastCheckpointResponse,
+  type RestoreToChangeCountResponse as RawRestoreToChangeCountResponse,
   type SessionContentInfo as RawSessionContentInfo,
   type SessionContentFingerprint as RawSessionContentFingerprint,
   type TransformProgress,
@@ -61,6 +62,7 @@ import {
   replaceSession as rawReplaceSession,
   replaceSessionCheckpointed as rawReplaceSessionCheckpointed,
   restoreLastCheckpoint as rawRestoreLastCheckpoint,
+  restoreToChangeCount as rawRestoreToChangeCount,
   resumeSessionChanges as rawResumeSessionChanges,
   saveSession as rawSaveSession,
   searchSession as rawSearchSession,
@@ -171,6 +173,7 @@ export type TransformPluginOperation =
 export type TransformPluginInfo = RawTransformPluginInfo
 export type ApplyTransformPluginResponse = RawApplyTransformPluginResponse
 export type RestoreLastCheckpointResponse = RawRestoreLastCheckpointResponse
+export type RestoreToChangeCountResponse = RawRestoreToChangeCountResponse
 export type CheckSessionModelResponse = RawCheckSessionModelResponse
 export type SessionContentInfo = RawSessionContentInfo
 export type GetSessionContentInfoResponse = RawGetSessionContentInfoResponse
@@ -305,6 +308,32 @@ export async function restoreLastCheckpoint(
     requireSafeIntegerOutput(
       'discarded change count',
       response.discardedChangeCount
+    )
+    return response
+  })
+}
+
+export async function restoreToChangeCount(
+  session_id: string,
+  change_count: number
+): Promise<RestoreToChangeCountResponse> {
+  return await enqueueSessionMutation(session_id, async () => {
+    const response = await rawRestoreToChangeCount(
+      session_id,
+      requireSafeIntegerInput('restore change count', change_count)
+    )
+    requireSafeIntegerOutput('change count', response.changeCount)
+    requireSafeIntegerOutput(
+      'discarded change count',
+      response.discardedChangeCount
+    )
+    requireSafeIntegerOutput(
+      'discarded undo count',
+      response.discardedUndoCount
+    )
+    requireSafeIntegerOutput(
+      'remaining checkpoint count',
+      response.remainingCheckpointCount
     )
     return response
   })

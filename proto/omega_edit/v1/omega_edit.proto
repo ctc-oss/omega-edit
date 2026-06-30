@@ -85,6 +85,9 @@ service EditorService {
     // Undo *all* changes in the session, returning it to its original state.
     rpc ClearChanges(ClearChangesRequest) returns (ClearChangesResponse);
 
+    // Restore the session to a previous active change count and discard redo history.
+    rpc RestoreToChangeCount(RestoreToChangeCountRequest) returns (RestoreToChangeCountResponse);
+
     // Pause acceptance of new changes on the session.  Any SubmitChange calls
     // while paused will be rejected.
     rpc PauseSessionChanges(PauseSessionChangesRequest) returns (PauseSessionChangesResponse);
@@ -572,6 +575,21 @@ message ClearChangesRequest {
 // Response after clearing all changes.
 message ClearChangesResponse {
     string id = 1;// Session ID.
+}
+
+// Request to restore a session to a previous active change count.
+message RestoreToChangeCountRequest {
+    string session_id = 1; // Session ID.
+    int64 change_count = 2;// Active change count to keep.
+}
+
+// Response after restoring a session to a previous active change count.
+message RestoreToChangeCountResponse {
+    string session_id = 1;               // Session that was restored.
+    int64 change_count = 2;              // Session change count after restore.
+    int64 discarded_change_count = 3;    // Number of active changes discarded.
+    int64 discarded_undo_count = 4;      // Number of redo/undone changes discarded.
+    int64 remaining_checkpoint_count = 5;// Checkpoint count after restore.
 }
 
 // Request to pause change acceptance on a session.

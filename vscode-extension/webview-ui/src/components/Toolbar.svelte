@@ -85,7 +85,7 @@
     transformFeedback = '',
     transformResults = [],
     activeTransformResultId = '',
-    searchPanelVisible = true,
+    searchPanelVisible = false,
     selectedOffset = -1,
     selectionStart = -1,
     selectionEnd = -1,
