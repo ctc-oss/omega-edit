@@ -54,12 +54,26 @@
 </ul>
 </li>
 <li><a class="reference internal" href="#change-h">change.h</a><ul>
+<li><a class="reference internal" href="#_CPPv427omega_change_data_storage_t"><code class="docutils literal notranslate"><span class="pre">omega_change_data_storage_t</span></code></a><ul>
+<li><a class="reference internal" href="#_CPPv4N27omega_change_data_storage_t30OMEGA_CHANGE_DATA_STORAGE_NONEE"><code class="docutils literal notranslate"><span class="pre">OMEGA_CHANGE_DATA_STORAGE_NONE</span></code></a></li>
+<li><a class="reference internal" href="#_CPPv4N27omega_change_data_storage_t32OMEGA_CHANGE_DATA_STORAGE_INLINEE"><code class="docutils literal notranslate"><span class="pre">OMEGA_CHANGE_DATA_STORAGE_INLINE</span></code></a></li>
+<li><a class="reference internal" href="#_CPPv4N27omega_change_data_storage_t37OMEGA_CHANGE_DATA_STORAGE_FILE_BACKEDE"><code class="docutils literal notranslate"><span class="pre">OMEGA_CHANGE_DATA_STORAGE_FILE_BACKED</span></code></a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#_CPPv427omega_change_payload_role_t"><code class="docutils literal notranslate"><span class="pre">omega_change_payload_role_t</span></code></a><ul>
+<li><a class="reference internal" href="#_CPPv4N27omega_change_payload_role_t25OMEGA_CHANGE_PAYLOAD_DATAE"><code class="docutils literal notranslate"><span class="pre">OMEGA_CHANGE_PAYLOAD_DATA</span></code></a></li>
+<li><a class="reference internal" href="#_CPPv4N27omega_change_payload_role_t33OMEGA_CHANGE_PAYLOAD_INVERSE_DATAE"><code class="docutils literal notranslate"><span class="pre">OMEGA_CHANGE_PAYLOAD_INVERSE_DATA</span></code></a></li>
+</ul>
+</li>
 <li><a class="reference internal" href="#_CPPv423omega_change_get_offsetPK14omega_change_t"><code class="docutils literal notranslate"><span class="pre">omega_change_get_offset()</span></code></a></li>
 <li><a class="reference internal" href="#_CPPv423omega_change_get_lengthPK14omega_change_t"><code class="docutils literal notranslate"><span class="pre">omega_change_get_length()</span></code></a></li>
 <li><a class="reference internal" href="#_CPPv423omega_change_get_serialPK14omega_change_t"><code class="docutils literal notranslate"><span class="pre">omega_change_get_serial()</span></code></a></li>
 <li><a class="reference internal" href="#_CPPv429omega_change_get_kind_as_charPK14omega_change_t"><code class="docutils literal notranslate"><span class="pre">omega_change_get_kind_as_char()</span></code></a></li>
 <li><a class="reference internal" href="#_CPPv432omega_change_get_transaction_bitPK14omega_change_t"><code class="docutils literal notranslate"><span class="pre">omega_change_get_transaction_bit()</span></code></a></li>
 <li><a class="reference internal" href="#_CPPv422omega_change_get_bytesPK14omega_change_t"><code class="docutils literal notranslate"><span class="pre">omega_change_get_bytes()</span></code></a></li>
+<li><a class="reference internal" href="#_CPPv421omega_change_get_dataPK14omega_change_t"><code class="docutils literal notranslate"><span class="pre">omega_change_get_data()</span></code></a></li>
+<li><a class="reference internal" href="#_CPPv428omega_change_get_data_lengthPK14omega_change_t"><code class="docutils literal notranslate"><span class="pre">omega_change_get_data_length()</span></code></a></li>
+<li><a class="reference internal" href="#_CPPv429omega_change_get_data_storagePK14omega_change_t"><code class="docutils literal notranslate"><span class="pre">omega_change_get_data_storage()</span></code></a></li>
 <li><a class="reference internal" href="#_CPPv425omega_change_is_transformPK14omega_change_t"><code class="docutils literal notranslate"><span class="pre">omega_change_is_transform()</span></code></a></li>
 <li><a class="reference internal" href="#_CPPv429omega_change_get_transform_idPK14omega_change_t"><code class="docutils literal notranslate"><span class="pre">omega_change_get_transform_id()</span></code></a></li>
 <li><a class="reference internal" href="#_CPPv439omega_change_get_transform_options_jsonPK14omega_change_t"><code class="docutils literal notranslate"><span class="pre">omega_change_get_transform_options_json()</span></code></a></li>
@@ -78,6 +92,7 @@
 <li><a class="reference internal" href="#c.OMEGA_VIEWPORT_CAPACITY_LIMIT"><code class="docutils literal notranslate"><span class="pre">OMEGA_VIEWPORT_CAPACITY_LIMIT</span></code></a></li>
 <li><a class="reference internal" href="#c.OMEGA_SEARCH_PATTERN_LENGTH_LIMIT"><code class="docutils literal notranslate"><span class="pre">OMEGA_SEARCH_PATTERN_LENGTH_LIMIT</span></code></a></li>
 <li><a class="reference internal" href="#c.OMEGA_MEMORY_BUFFER_LIMIT"><code class="docutils literal notranslate"><span class="pre">OMEGA_MEMORY_BUFFER_LIMIT</span></code></a></li>
+<li><a class="reference internal" href="#c.OMEGA_CHANGE_INLINE_PAYLOAD_LIMIT"><code class="docutils literal notranslate"><span class="pre">OMEGA_CHANGE_INLINE_PAYLOAD_LIMIT</span></code></a></li>
 <li><a class="reference internal" href="#c.OMEGA_BYTE_T"><code class="docutils literal notranslate"><span class="pre">OMEGA_BYTE_T</span></code></a></li>
 <li><a class="reference internal" href="#c.OMEGA_BUILD_UNIX"><code class="docutils literal notranslate"><span class="pre">OMEGA_BUILD_UNIX</span></code></a></li>
 <li><a class="reference internal" href="#c.OMEGA_BUILD_64_BIT"><code class="docutils literal notranslate"><span class="pre">OMEGA_BUILD_64_BIT</span></code></a></li>
@@ -323,6 +338,8 @@
 <li><a class="reference internal" href="#_CPPv445omega_session_get_checkpoint_directory_lengthPK15omega_session_t"><code class="docutils literal notranslate"><span class="pre">omega_session_get_checkpoint_directory_length()</span></code></a></li>
 <li><a class="reference internal" href="#_CPPv440omega_session_get_undo_snapshot_intervalPK15omega_session_t"><code class="docutils literal notranslate"><span class="pre">omega_session_get_undo_snapshot_interval()</span></code></a></li>
 <li><a class="reference internal" href="#_CPPv440omega_session_set_undo_snapshot_intervalP15omega_session_t7int64_t"><code class="docutils literal notranslate"><span class="pre">omega_session_set_undo_snapshot_interval()</span></code></a></li>
+<li><a class="reference internal" href="#_CPPv445omega_session_get_change_inline_payload_limitPK15omega_session_t"><code class="docutils literal notranslate"><span class="pre">omega_session_get_change_inline_payload_limit()</span></code></a></li>
+<li><a class="reference internal" href="#_CPPv445omega_session_set_change_inline_payload_limitP15omega_session_t7int64_t"><code class="docutils literal notranslate"><span class="pre">omega_session_set_change_inline_payload_limit()</span></code></a></li>
 </ul>
 </li>
 <li><a class="reference internal" href="#stl-string-adaptor-hpp">stl_string_adaptor.hpp</a></li>
@@ -443,6 +460,53 @@
 <h2>change.h<a class="headerlink" href="#change-h" title="Link to this heading"></a></h2>
 <p>Functions that operate on editing changes (<a class="reference internal" href="#fwd__defs_8h_1abd76c7cfa54e74e06d920dfc2753e3dd"><span class="std std-ref">omega_change_t</span></a>). </p>
 <div class="breathe-sectiondef docutils container">
+<p class="breathe-sectiondef-title rubric" id="breathe-section-title-enums">Enums</p>
+<dl class="cpp enum">
+<dt class="sig sig-object cpp" id="_CPPv427omega_change_data_storage_t">
+<span id="_CPPv327omega_change_data_storage_t"></span><span id="_CPPv227omega_change_data_storage_t"></span><span class="target" id="change_8h_1a8bbf5457d2e127772c802ccf57f57526"></span><span class="k"><span class="pre">enum</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">omega_change_data_storage_t</span></span></span><a class="headerlink" href="#_CPPv427omega_change_data_storage_t" title="Link to this definition"></a><br /></dt>
+<dd><p>Storage backing for a change primitive’s data payload. </p>
+<p><em>Values:</em></p>
+<dl class="cpp enumerator">
+<dt class="sig sig-object cpp" id="_CPPv4N27omega_change_data_storage_t30OMEGA_CHANGE_DATA_STORAGE_NONEE">
+<span id="_CPPv3N27omega_change_data_storage_t30OMEGA_CHANGE_DATA_STORAGE_NONEE"></span><span id="_CPPv2N27omega_change_data_storage_t30OMEGA_CHANGE_DATA_STORAGE_NONEE"></span><span class="target" id="change_8h_1a8bbf5457d2e127772c802ccf57f57526ae044fa54885605d7b4bc690bbde3c3ad"></span><span class="k"><span class="pre">enumerator</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">OMEGA_CHANGE_DATA_STORAGE_NONE</span></span></span><a class="headerlink" href="#_CPPv4N27omega_change_data_storage_t30OMEGA_CHANGE_DATA_STORAGE_NONEE" title="Link to this definition"></a><br /></dt>
+<dd><p>No data payload is available for this change. </p>
+</dd></dl>
+
+<dl class="cpp enumerator">
+<dt class="sig sig-object cpp" id="_CPPv4N27omega_change_data_storage_t32OMEGA_CHANGE_DATA_STORAGE_INLINEE">
+<span id="_CPPv3N27omega_change_data_storage_t32OMEGA_CHANGE_DATA_STORAGE_INLINEE"></span><span id="_CPPv2N27omega_change_data_storage_t32OMEGA_CHANGE_DATA_STORAGE_INLINEE"></span><span class="target" id="change_8h_1a8bbf5457d2e127772c802ccf57f57526ae1b493600ba3ab52a82c630b17347350"></span><span class="k"><span class="pre">enumerator</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">OMEGA_CHANGE_DATA_STORAGE_INLINE</span></span></span><a class="headerlink" href="#_CPPv4N27omega_change_data_storage_t32OMEGA_CHANGE_DATA_STORAGE_INLINEE" title="Link to this definition"></a><br /></dt>
+<dd><p>Data is stored inline with the change. </p>
+</dd></dl>
+
+<dl class="cpp enumerator">
+<dt class="sig sig-object cpp" id="_CPPv4N27omega_change_data_storage_t37OMEGA_CHANGE_DATA_STORAGE_FILE_BACKEDE">
+<span id="_CPPv3N27omega_change_data_storage_t37OMEGA_CHANGE_DATA_STORAGE_FILE_BACKEDE"></span><span id="_CPPv2N27omega_change_data_storage_t37OMEGA_CHANGE_DATA_STORAGE_FILE_BACKEDE"></span><span class="target" id="change_8h_1a8bbf5457d2e127772c802ccf57f57526a22da8a7ced37fc7aefb0656f9faebea7"></span><span class="k"><span class="pre">enumerator</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">OMEGA_CHANGE_DATA_STORAGE_FILE_BACKED</span></span></span><a class="headerlink" href="#_CPPv4N27omega_change_data_storage_t37OMEGA_CHANGE_DATA_STORAGE_FILE_BACKEDE" title="Link to this definition"></a><br /></dt>
+<dd><p>Data is stored in a session-owned backing file. </p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="cpp enum">
+<dt class="sig sig-object cpp" id="_CPPv427omega_change_payload_role_t">
+<span id="_CPPv327omega_change_payload_role_t"></span><span id="_CPPv227omega_change_payload_role_t"></span><span class="target" id="change_8h_1a4a54f1f25d19e21eb2e737246e3d70bc"></span><span class="k"><span class="pre">enum</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">omega_change_payload_role_t</span></span></span><a class="headerlink" href="#_CPPv427omega_change_payload_role_t" title="Link to this definition"></a><br /></dt>
+<dd><p>Payload selector for internal and diagnostic byte access. </p>
+<p><em>Values:</em></p>
+<dl class="cpp enumerator">
+<dt class="sig sig-object cpp" id="_CPPv4N27omega_change_payload_role_t25OMEGA_CHANGE_PAYLOAD_DATAE">
+<span id="_CPPv3N27omega_change_payload_role_t25OMEGA_CHANGE_PAYLOAD_DATAE"></span><span id="_CPPv2N27omega_change_payload_role_t25OMEGA_CHANGE_PAYLOAD_DATAE"></span><span class="target" id="change_8h_1a4a54f1f25d19e21eb2e737246e3d70bca2f1f00beafd66c4167cb7910062678b8"></span><span class="k"><span class="pre">enumerator</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">OMEGA_CHANGE_PAYLOAD_DATA</span></span></span><a class="headerlink" href="#_CPPv4N27omega_change_payload_role_t25OMEGA_CHANGE_PAYLOAD_DATAE" title="Link to this definition"></a><br /></dt>
+<dd><p>The primitive data payload. </p>
+</dd></dl>
+
+<dl class="cpp enumerator">
+<dt class="sig sig-object cpp" id="_CPPv4N27omega_change_payload_role_t33OMEGA_CHANGE_PAYLOAD_INVERSE_DATAE">
+<span id="_CPPv3N27omega_change_payload_role_t33OMEGA_CHANGE_PAYLOAD_INVERSE_DATAE"></span><span id="_CPPv2N27omega_change_payload_role_t33OMEGA_CHANGE_PAYLOAD_INVERSE_DATAE"></span><span class="target" id="change_8h_1a4a54f1f25d19e21eb2e737246e3d70bca9aed3857c84f5ca3e64b8e9759c7e79b"></span><span class="k"><span class="pre">enumerator</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">OMEGA_CHANGE_PAYLOAD_INVERSE_DATA</span></span></span><a class="headerlink" href="#_CPPv4N27omega_change_payload_role_t33OMEGA_CHANGE_PAYLOAD_INVERSE_DATAE" title="Link to this definition"></a><br /></dt>
+<dd><p>Bytes removed by the primitive, when distinct from data. </p>
+</dd></dl>
+
+</dd></dl>
+
+</div>
+<div class="breathe-sectiondef docutils container">
 <p class="breathe-sectiondef-title rubric" id="breathe-section-title-functions">Functions</p>
 <dl class="cpp function">
 <dt class="sig sig-object cpp" id="_CPPv423omega_change_get_offsetPK14omega_change_t">
@@ -517,13 +581,62 @@
 <dl class="cpp function">
 <dt class="sig sig-object cpp" id="_CPPv422omega_change_get_bytesPK14omega_change_t">
 <span id="_CPPv322omega_change_get_bytesPK14omega_change_t"></span><span id="_CPPv222omega_change_get_bytesPK14omega_change_t"></span><span id="omega_change_get_bytes__omega_change_tCP"></span><span class="target" id="change_8h_1ab0bfab136b4920deb1aef0a6c9bf79a1"></span><span class="k"><span class="pre">const</span></span><span class="w"> </span><a class="reference internal" href="#_CPPv412omega_byte_t" title="omega_byte_t"><span class="n"><span class="pre">omega_byte_t</span></span></a><span class="w"> </span><span class="p"><span class="pre">*</span></span><span class="sig-name descname"><span class="n"><span class="pre">omega_change_get_bytes</span></span></span><span class="sig-paren">(</span><span class="k"><span class="pre">const</span></span><span class="w"> </span><a class="reference internal" href="#_CPPv414omega_change_t" title="omega_change_t"><span class="n"><span class="pre">omega_change_t</span></span></a><span class="w"> </span><span class="p"><span class="pre">*</span></span><span class="n sig-param"><span class="pre">change_ptr</span></span><span class="sig-paren">)</span><a class="headerlink" href="#_CPPv422omega_change_get_bytesPK14omega_change_t" title="Link to this definition"></a><br /></dt>
-<dd><p>Given a change, return a pointer to the byte data </p>
+<dd><p>Given a change, return a pointer to the primitive byte payload.</p>
+<p>This is the first-class primitive view of the change data field:<ul class="simple">
+<li><p>INSERT/OVERWRITE payloads are the inserted or overwritten bytes.</p></li>
+<li><p>DELETE payloads are exactly the original bytes removed by the edit.</p></li>
+<li><p>TRANSFORM payloads are a JSON descriptor containing the transform id and arguments.</p></li>
+</ul>
+</p>
+<p>Use omega_change_get_data_length and omega_change_get_data_storage to interpret the returned pointer.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
-<dd class="field-odd"><p><strong>change_ptr</strong> – change to get the bytes data from </p>
+<dd class="field-odd"><p><strong>change_ptr</strong> – change to get the primitive byte payload from </p>
 </dd>
 <dt class="field-even">Returns<span class="colon">:</span></dt>
-<dd class="field-even"><p>pointer to the byte data </p>
+<dd class="field-even"><p>pointer to primitive data, or NULL when no payload is available or materialization fails </p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="cpp function">
+<dt class="sig sig-object cpp" id="_CPPv421omega_change_get_dataPK14omega_change_t">
+<span id="_CPPv321omega_change_get_dataPK14omega_change_t"></span><span id="_CPPv221omega_change_get_dataPK14omega_change_t"></span><span id="omega_change_get_data__omega_change_tCP"></span><span class="target" id="change_8h_1a5cec69daab5242364a10bc91420426ad"></span><span class="k"><span class="pre">const</span></span><span class="w"> </span><a class="reference internal" href="#_CPPv412omega_byte_t" title="omega_byte_t"><span class="n"><span class="pre">omega_byte_t</span></span></a><span class="w"> </span><span class="p"><span class="pre">*</span></span><span class="sig-name descname"><span class="n"><span class="pre">omega_change_get_data</span></span></span><span class="sig-paren">(</span><span class="k"><span class="pre">const</span></span><span class="w"> </span><a class="reference internal" href="#_CPPv414omega_change_t" title="omega_change_t"><span class="n"><span class="pre">omega_change_t</span></span></a><span class="w"> </span><span class="p"><span class="pre">*</span></span><span class="n sig-param"><span class="pre">change_ptr</span></span><span class="sig-paren">)</span><a class="headerlink" href="#_CPPv421omega_change_get_dataPK14omega_change_t" title="Link to this definition"></a><br /></dt>
+<dd><p>Alias for omega_change_get_bytes. </p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>change_ptr</strong> – change to get the primitive data payload from </p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>pointer to primitive data, or NULL when no payload is available or materialization fails </p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="cpp function">
+<dt class="sig sig-object cpp" id="_CPPv428omega_change_get_data_lengthPK14omega_change_t">
+<span id="_CPPv328omega_change_get_data_lengthPK14omega_change_t"></span><span id="_CPPv228omega_change_get_data_lengthPK14omega_change_t"></span><span id="omega_change_get_data_length__omega_change_tCP"></span><span class="target" id="change_8h_1aea45587b9d64b50dfaaecf050a718701"></span><span class="n"><span class="pre">int64_t</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">omega_change_get_data_length</span></span></span><span class="sig-paren">(</span><span class="k"><span class="pre">const</span></span><span class="w"> </span><a class="reference internal" href="#_CPPv414omega_change_t" title="omega_change_t"><span class="n"><span class="pre">omega_change_t</span></span></a><span class="w"> </span><span class="p"><span class="pre">*</span></span><span class="n sig-param"><span class="pre">change_ptr</span></span><span class="sig-paren">)</span><a class="headerlink" href="#_CPPv428omega_change_get_data_lengthPK14omega_change_t" title="Link to this definition"></a><br /></dt>
+<dd><p>Given a change, return the primitive data payload length. </p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>change_ptr</strong> – change to inspect </p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>primitive data byte count, or 0 when no payload is available </p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="cpp function">
+<dt class="sig sig-object cpp" id="_CPPv429omega_change_get_data_storagePK14omega_change_t">
+<span id="_CPPv329omega_change_get_data_storagePK14omega_change_t"></span><span id="_CPPv229omega_change_get_data_storagePK14omega_change_t"></span><span id="omega_change_get_data_storage__omega_change_tCP"></span><span class="target" id="change_8h_1a947cf5e133c9d3f7082104e1dffd4245"></span><a class="reference internal" href="#_CPPv427omega_change_data_storage_t" title="omega_change_data_storage_t"><span class="n"><span class="pre">omega_change_data_storage_t</span></span></a><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">omega_change_get_data_storage</span></span></span><span class="sig-paren">(</span><span class="k"><span class="pre">const</span></span><span class="w"> </span><a class="reference internal" href="#_CPPv414omega_change_t" title="omega_change_t"><span class="n"><span class="pre">omega_change_t</span></span></a><span class="w"> </span><span class="p"><span class="pre">*</span></span><span class="n sig-param"><span class="pre">change_ptr</span></span><span class="sig-paren">)</span><a class="headerlink" href="#_CPPv429omega_change_get_data_storagePK14omega_change_t" title="Link to this definition"></a><br /></dt>
+<dd><p>Given a change, return how the primitive data payload is stored. </p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>change_ptr</strong> – change to inspect </p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>primitive data storage kind </p>
 </dd>
 </dl>
 </dd></dl>
@@ -675,6 +788,12 @@
 <dt class="sig sig-object cpp" id="c.OMEGA_MEMORY_BUFFER_LIMIT">
 <span class="target" id="config_8h_1a59b6799c45ce3e0831c643446b1523f3"></span><span class="sig-name descname"><span class="n"><span class="pre">OMEGA_MEMORY_BUFFER_LIMIT</span></span></span><a class="headerlink" href="#c.OMEGA_MEMORY_BUFFER_LIMIT" title="Link to this definition"></a><br /></dt>
 <dd><p>Maximum byte range that APIs may materialize into one in-memory buffer. </p>
+</dd></dl>
+
+<dl class="cpp macro">
+<dt class="sig sig-object cpp" id="c.OMEGA_CHANGE_INLINE_PAYLOAD_LIMIT">
+<span class="target" id="config_8h_1aa020f6539a670eb29826886d9cf8f1e8"></span><span class="sig-name descname"><span class="n"><span class="pre">OMEGA_CHANGE_INLINE_PAYLOAD_LIMIT</span></span></span><a class="headerlink" href="#c.OMEGA_CHANGE_INLINE_PAYLOAD_LIMIT" title="Link to this definition"></a><br /></dt>
+<dd><p>Maximum primitive payload byte range stored inline before using file-backed storage. </p>
 </dd></dl>
 
 <dl class="cpp macro">
@@ -3124,6 +3243,37 @@
 </dd>
 <dt class="field-even">Returns<span class="colon">:</span></dt>
 <dd class="field-even"><p>the new interval, or 0 on error </p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="cpp function">
+<dt class="sig sig-object cpp" id="_CPPv445omega_session_get_change_inline_payload_limitPK15omega_session_t">
+<span id="_CPPv345omega_session_get_change_inline_payload_limitPK15omega_session_t"></span><span id="_CPPv245omega_session_get_change_inline_payload_limitPK15omega_session_t"></span><span id="omega_session_get_change_inline_payload_limit__omega_session_tCP"></span><span class="target" id="session_8h_1a47b5003768f94c18347bd3098ef95f94"></span><span class="n"><span class="pre">int64_t</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">omega_session_get_change_inline_payload_limit</span></span></span><span class="sig-paren">(</span><span class="k"><span class="pre">const</span></span><span class="w"> </span><a class="reference internal" href="#_CPPv415omega_session_t" title="omega_session_t"><span class="n"><span class="pre">omega_session_t</span></span></a><span class="w"> </span><span class="p"><span class="pre">*</span></span><span class="n sig-param"><span class="pre">session_ptr</span></span><span class="sig-paren">)</span><a class="headerlink" href="#_CPPv445omega_session_get_change_inline_payload_limitPK15omega_session_t" title="Link to this definition"></a><br /></dt>
+<dd><p>Given a session, return the inline primitive payload threshold. Change payloads larger than this threshold are stored in session-owned backing files when possible. </p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>session_ptr</strong> – session to get the inline primitive payload threshold for </p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>threshold in bytes, or 0 for null sessions </p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="cpp function">
+<dt class="sig sig-object cpp" id="_CPPv445omega_session_set_change_inline_payload_limitP15omega_session_t7int64_t">
+<span id="_CPPv345omega_session_set_change_inline_payload_limitP15omega_session_t7int64_t"></span><span id="_CPPv245omega_session_set_change_inline_payload_limitP15omega_session_t7int64_t"></span><span id="omega_session_set_change_inline_payload_limit__omega_session_tP.int64_t"></span><span class="target" id="session_8h_1a4fd9eba373ae35a34fe79568e3d3756c"></span><span class="n"><span class="pre">int64_t</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">omega_session_set_change_inline_payload_limit</span></span></span><span class="sig-paren">(</span><a class="reference internal" href="#_CPPv415omega_session_t" title="omega_session_t"><span class="n"><span class="pre">omega_session_t</span></span></a><span class="w"> </span><span class="p"><span class="pre">*</span></span><span class="n sig-param"><span class="pre">session_ptr</span></span>, <span class="n"><span class="pre">int64_t</span></span><span class="w"> </span><span class="n sig-param"><span class="pre">limit</span></span><span class="sig-paren">)</span><a class="headerlink" href="#_CPPv445omega_session_set_change_inline_payload_limitP15omega_session_t7int64_t" title="Link to this definition"></a><br /></dt>
+<dd><p>Set the inline primitive payload threshold for a session. A value of 0 stores every non-empty captured primitive payload in a backing file. Values above OMEGA_MEMORY_BUFFER_LIMIT are accepted, but materialized public byte buffers are still limited by OMEGA_MEMORY_BUFFER_LIMIT. </p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>session_ptr</strong> – session to set the inline primitive payload threshold for </p></li>
+<li><p><strong>limit</strong> – threshold in bytes </p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>the new threshold, or 0 on error </p>
 </dd>
 </dl>
 </dd></dl>
