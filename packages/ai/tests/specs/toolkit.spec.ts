@@ -71,6 +71,19 @@ function parseTransformDataHex(data: string) {
   }
 }
 
+async function assertToolkitText(
+  toolkit: OmegaEditToolkit,
+  sessionId: string,
+  expected: string
+) {
+  const expectedLength = Buffer.byteLength(expected, 'utf8')
+  const status = await toolkit.sessionStatus(sessionId)
+  assert.equal(status.computedSize, expectedLength)
+  const range = await toolkit.readRange(sessionId, 0, expectedLength)
+  assert.equal(range.actualLength, expectedLength)
+  assert.equal(range.data.utf8, expected)
+}
+
 describe('@omega-edit/ai toolkit', () => {
   it('preserves the original connection failure as the cause', async function () {
     const port = await omegaEditClient.findFirstAvailablePort(19000, 19999)
@@ -836,6 +849,245 @@ describe('@omega-edit/ai toolkit', () => {
     } finally {
       if (createdSessionId) {
         await toolkit.destroySession(createdSessionId).catch(() => undefined)
+      }
+      await toolkit.stopServer().catch(() => undefined)
+      fs.rmSync(tempDir, { recursive: true, force: true })
+    }
+  })
+
+  it('round-trips every first-class primitive through change logs and undo/redo', async function () {
+    const port = await omegaEditClient.findFirstAvailablePort(19000, 19999)
+    assert.ok(port, 'expected an available port for OmegaEdit')
+
+    const toolkit = new OmegaEditToolkit({ port: port!, autoStart: true })
+    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'omega-edit-ai-'))
+    const inputPath = path.join(tempDir, 'input.bin')
+    const replayPath = path.join(tempDir, 'replay.bin')
+    fs.writeFileSync(inputPath, Buffer.from('ABCDEFGH', 'utf8'))
+    fs.writeFileSync(replayPath, Buffer.from('ABCDEFGH', 'utf8'))
+
+    const replaced = 'A12DxyZZZ'
+    const transformed = Buffer.from(replaced, 'utf8').toString('base64')
+    const changes: ChangeLogEntry[] = [
+      {
+        serial: 1,
+        kind: 'INSERT',
+        offset: 1,
+        length: 0,
+        data: Buffer.from('12', 'utf8').toString('hex'),
+      },
+      {
+        serial: 2,
+        kind: 'DELETE',
+        offset: 3,
+        length: 2,
+        data: Buffer.from('BC', 'utf8').toString('hex'),
+      },
+      {
+        serial: 3,
+        kind: 'OVERWRITE',
+        offset: 4,
+        length: 2,
+        data: Buffer.from('xy', 'utf8').toString('hex'),
+      },
+      {
+        serial: 4,
+        kind: 'REPLACE',
+        offset: 6,
+        length: 2,
+        data: Buffer.from('ZZZ', 'utf8').toString('hex'),
+      },
+      {
+        serial: 5,
+        kind: 'TRANSFORM',
+        offset: 0,
+        length: Buffer.byteLength(replaced, 'utf8'),
+        data: makeTransformDataHex('omega.example.base64'),
+      },
+    ]
+
+    let sessionId = ''
+    let replaySessionId = ''
+
+    try {
+      const created = await toolkit.createSession(inputPath)
+      sessionId = created.sessionId
+
+      const result = await toolkit.applyChangeLog({
+        sessionId,
+        changes: makeChangeLogDocument(changes, {
+          before: makeUtf8Fingerprint('ABCDEFGH'),
+          after: makeUtf8Fingerprint(transformed),
+        }),
+      })
+      assert.equal(result.applied, true)
+      assert.equal(result.changeCount, 5)
+      assert.equal(result.inputChangeCount, 5)
+      await assertToolkitText(toolkit, sessionId, transformed)
+
+      let status = await toolkit.sessionStatus(sessionId)
+      assert.equal(status.changeCount, 6)
+      assert.equal(status.undoCount, 0)
+
+      await toolkit.undo(sessionId)
+      await assertToolkitText(toolkit, sessionId, replaced)
+      status = await toolkit.sessionStatus(sessionId)
+      assert.equal(status.changeCount, 5)
+      assert.equal(status.undoCount, 1)
+
+      await toolkit.undo(sessionId)
+      await assertToolkitText(toolkit, sessionId, 'ABCDEFGH')
+      status = await toolkit.sessionStatus(sessionId)
+      assert.equal(status.changeCount, 0)
+      assert.equal(status.undoCount, 6)
+
+      await toolkit.redo(sessionId)
+      await assertToolkitText(toolkit, sessionId, replaced)
+      status = await toolkit.sessionStatus(sessionId)
+      assert.equal(status.changeCount, 5)
+      assert.equal(status.undoCount, 1)
+
+      await toolkit.redo(sessionId)
+      await assertToolkitText(toolkit, sessionId, transformed)
+      status = await toolkit.sessionStatus(sessionId)
+      assert.equal(status.changeCount, 6)
+      assert.equal(status.undoCount, 0)
+
+      const replay = await toolkit.createSession(replayPath)
+      replaySessionId = replay.sessionId
+      const replayResult = await toolkit.applyChangeLog({
+        sessionId: replaySessionId,
+        changes: makeChangeLogDocument(changes, {
+          before: makeUtf8Fingerprint('ABCDEFGH'),
+          after: makeUtf8Fingerprint(transformed),
+        }),
+      })
+      assert.equal(replayResult.applied, true)
+      await assertToolkitText(toolkit, replaySessionId, transformed)
+    } finally {
+      if (sessionId) {
+        await toolkit.destroySession(sessionId).catch(() => undefined)
+      }
+      if (replaySessionId) {
+        await toolkit.destroySession(replaySessionId).catch(() => undefined)
+      }
+      await toolkit.stopServer().catch(() => undefined)
+      fs.rmSync(tempDir, { recursive: true, force: true })
+    }
+  })
+
+  it('undoes and redoes each first-class change-log primitive independently', async function () {
+    const port = await omegaEditClient.findFirstAvailablePort(19000, 19999)
+    assert.ok(port, 'expected an available port for OmegaEdit')
+
+    const toolkit = new OmegaEditToolkit({ port: port!, autoStart: true })
+    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'omega-edit-ai-'))
+    const cases: Array<{
+      name: string
+      before: string
+      after: string
+      change: ChangeLogEntry
+    }> = [
+      {
+        name: 'INSERT',
+        before: 'ABCDEF',
+        after: 'A12BCDEF',
+        change: {
+          kind: 'INSERT',
+          offset: 1,
+          length: 0,
+          data: Buffer.from('12', 'utf8').toString('hex'),
+        },
+      },
+      {
+        name: 'DELETE',
+        before: 'ABCDEF',
+        after: 'ADEF',
+        change: {
+          kind: 'DELETE',
+          offset: 1,
+          length: 2,
+          data: Buffer.from('BC', 'utf8').toString('hex'),
+        },
+      },
+      {
+        name: 'OVERWRITE',
+        before: 'ABCDEF',
+        after: 'ABxyEF',
+        change: {
+          kind: 'OVERWRITE',
+          offset: 2,
+          length: 2,
+          data: Buffer.from('xy', 'utf8').toString('hex'),
+        },
+      },
+      {
+        name: 'REPLACE',
+        before: 'ABCDEF',
+        after: 'ABXYZEF',
+        change: {
+          kind: 'REPLACE',
+          offset: 2,
+          length: 2,
+          data: Buffer.from('XYZ', 'utf8').toString('hex'),
+        },
+      },
+      {
+        name: 'TRANSFORM',
+        before: 'ABCDEFGH',
+        after: Buffer.from('ABCDEFGH', 'utf8').toString('base64'),
+        change: {
+          kind: 'TRANSFORM',
+          offset: 0,
+          length: 8,
+          data: makeTransformDataHex('omega.example.base64'),
+        },
+      },
+    ]
+
+    const sessionIds: string[] = []
+
+    try {
+      for (const testCase of cases) {
+        const inputPath = path.join(tempDir, `${testCase.name}.bin`)
+        fs.writeFileSync(inputPath, Buffer.from(testCase.before, 'utf8'))
+        const created = await toolkit.createSession(inputPath)
+        sessionIds.push(created.sessionId)
+
+        const result = await toolkit.applyChangeLog({
+          sessionId: created.sessionId,
+          changes: makeChangeLogDocument([testCase.change], {
+            before: makeUtf8Fingerprint(testCase.before),
+            after: makeUtf8Fingerprint(testCase.after),
+          }),
+        })
+        assert.equal(result.applied, true, testCase.name)
+        assert.equal(result.changeCount, 1, testCase.name)
+        await assertToolkitText(toolkit, created.sessionId, testCase.after)
+
+        await toolkit.undo(created.sessionId)
+        await assertToolkitText(toolkit, created.sessionId, testCase.before)
+        let status = await toolkit.sessionStatus(created.sessionId)
+        assert.equal(status.changeCount, 0, testCase.name)
+        assert.equal(
+          status.undoCount,
+          testCase.name === 'REPLACE' ? 2 : 1,
+          testCase.name
+        )
+
+        await toolkit.redo(created.sessionId)
+        await assertToolkitText(toolkit, created.sessionId, testCase.after)
+        status = await toolkit.sessionStatus(created.sessionId)
+        assert.equal(
+          status.changeCount,
+          testCase.name === 'REPLACE' ? 2 : 1,
+          testCase.name
+        )
+        assert.equal(status.undoCount, 0, testCase.name)
+      }
+    } finally {
+      for (const sessionId of sessionIds) {
+        await toolkit.destroySession(sessionId).catch(() => undefined)
       }
       await toolkit.stopServer().catch(() => undefined)
       fs.rmSync(tempDir, { recursive: true, force: true })
