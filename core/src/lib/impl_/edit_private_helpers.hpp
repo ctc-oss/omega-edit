@@ -52,15 +52,116 @@ namespace omega_edit::internal {
         } catch (const std::bad_alloc &) { return nullptr; }
     }
 
-    inline auto populate_change_bytes_(omega_change_t *change_ptr, const omega_byte_t *bytes) -> bool {
+    inline auto populate_payload_inline_(omega_byte_payload_struct *payload_ptr, const omega_byte_t *bytes,
+                                         int64_t data_length) -> bool {
+        if (!payload_ptr || !bytes || data_length <= 0) { return false; }
         try {
-            omega_data_create_(&change_ptr->data, change_ptr->length);
-            auto *const change_data = omega_data_get_data_(&change_ptr->data, change_ptr->length);
+            omega_data_create_(&payload_ptr->bytes, data_length);
+            auto *const change_data = omega_data_get_data_(&payload_ptr->bytes, data_length);
             if (!change_data) { return false; }
-            std::memcpy(change_data, bytes, change_ptr->length);
-            change_data[change_ptr->length] = '\0';
+            std::memcpy(change_data, bytes, data_length);
+            change_data[data_length] = '\0';
+            payload_ptr->length = data_length;
+            payload_ptr->storage = OMEGA_CHANGE_DATA_STORAGE_INLINE;
             return true;
         } catch (const std::bad_alloc &) { return false; }
+    }
+
+    inline auto populate_payload_file_backed_(omega_byte_payload_struct *payload_ptr, std::string file_path,
+                                              int64_t data_length) -> bool {
+        if (!payload_ptr || file_path.empty() || data_length <= 0) { return false; }
+        payload_ptr->file_path.swap(file_path);
+        payload_ptr->length = data_length;
+        payload_ptr->storage = OMEGA_CHANGE_DATA_STORAGE_FILE_BACKED;
+        return true;
+    }
+
+    inline auto populate_change_data_(omega_change_t *change_ptr, const omega_byte_t *bytes,
+                                      int64_t data_length) -> bool {
+        return change_ptr ? populate_payload_inline_(&change_ptr->data, bytes, data_length) : false;
+    }
+
+    inline auto populate_change_data_file_backed_(omega_change_t *change_ptr, std::string file_path,
+                                                  int64_t data_length) -> bool {
+        return change_ptr ? populate_payload_file_backed_(&change_ptr->data, std::move(file_path), data_length) : false;
+    }
+
+    inline auto del_(int64_t serial, int64_t offset, int64_t length, const omega_byte_t *deleted_bytes,
+                     int64_t deleted_byte_count, bool transaction_bit) -> const_omega_change_ptr_t {
+        auto change_ptr = del_(serial, offset, length, transaction_bit);
+        if (!change_ptr) { return nullptr; }
+        if (!deleted_bytes || deleted_byte_count != length ||
+            !populate_change_data_(change_ptr.get(), deleted_bytes, deleted_byte_count)) {
+            return nullptr;
+        }
+        return change_ptr;
+    }
+
+    inline auto del_(int64_t serial, int64_t offset, int64_t length, std::string deleted_bytes_file_path,
+                     int64_t deleted_byte_count, bool transaction_bit) -> const_omega_change_ptr_t {
+        auto change_ptr = del_(serial, offset, length, transaction_bit);
+        if (!change_ptr) {
+            if (!deleted_bytes_file_path.empty()) { omega_util_remove_file(deleted_bytes_file_path.c_str()); }
+            return nullptr;
+        }
+        if (deleted_byte_count != length || deleted_bytes_file_path.empty() ||
+            !populate_change_data_file_backed_(change_ptr.get(), std::move(deleted_bytes_file_path),
+                                               deleted_byte_count)) {
+            if (!deleted_bytes_file_path.empty()) { omega_util_remove_file(deleted_bytes_file_path.c_str()); }
+            return nullptr;
+        }
+        return change_ptr;
+    }
+
+    inline auto populate_change_bytes_(omega_change_t *change_ptr, const omega_byte_t *bytes) -> bool {
+        return change_ptr ? populate_change_data_(change_ptr, bytes, change_ptr->length) : false;
+    }
+
+    inline void append_json_escaped_string_(std::string &out, const std::string &value) {
+        for (const auto raw_ch : value) {
+            const auto ch = static_cast<unsigned char>(raw_ch);
+            switch (ch) {
+                case '"':
+                    out += "\\\"";
+                    break;
+                case '\\':
+                    out += "\\\\";
+                    break;
+                case '\b':
+                    out += "\\b";
+                    break;
+                case '\f':
+                    out += "\\f";
+                    break;
+                case '\n':
+                    out += "\\n";
+                    break;
+                case '\r':
+                    out += "\\r";
+                    break;
+                case '\t':
+                    out += "\\t";
+                    break;
+                default:
+                    if (ch < 0x20U) {
+                        char buffer[7];
+                        std::snprintf(buffer, sizeof(buffer), "\\u%04x", static_cast<unsigned>(ch));
+                        out += buffer;
+                    } else {
+                        out.push_back(static_cast<char>(ch));
+                    }
+                    break;
+            }
+        }
+    }
+
+    inline auto transform_change_data_json_(const omega_transform_change_data_struct &transform_data) -> std::string {
+        auto data_json = std::string(R"({"transformId":")");
+        append_json_escaped_string_(data_json, transform_data.transform_id);
+        data_json += R"(","args":)";
+        data_json += transform_data.options_json.empty() ? "{}" : transform_data.options_json;
+        data_json.push_back('}');
+        return data_json;
     }
 
     inline auto ins_(int64_t serial, int64_t offset, const omega_byte_t *bytes, int64_t length,
@@ -80,6 +181,7 @@ namespace omega_edit::internal {
     }
 
     inline auto ovr_(int64_t serial, int64_t offset, const omega_byte_t *bytes, int64_t length,
+                     const omega_byte_t *replaced_bytes, int64_t replaced_length,
                      bool transaction_bit) -> const_omega_change_ptr_t {
         if (!bytes) { return nullptr; }
         if (serial <= 0 || !valid_nonnegative_range_(offset, length)) { return nullptr; }
@@ -91,8 +193,29 @@ namespace omega_edit::internal {
             change_ptr->offset = offset;
             change_ptr->length = length;
             if (!populate_change_bytes_(change_ptr.get(), bytes)) { return nullptr; }
+            if (replaced_bytes && replaced_length > 0 &&
+                !populate_payload_inline_(&change_ptr->inverse_data, replaced_bytes, replaced_length)) {
+                return nullptr;
+            }
             return change_ptr;
         } catch (const std::bad_alloc &) { return nullptr; }
+    }
+
+    inline auto ovr_(int64_t serial, int64_t offset, const omega_byte_t *bytes, int64_t length,
+                     std::string replaced_bytes_file_path, int64_t replaced_length,
+                     bool transaction_bit) -> const_omega_change_ptr_t {
+        auto change_ptr = ovr_(serial, offset, bytes, length, nullptr, 0, transaction_bit);
+        if (!change_ptr) {
+            if (!replaced_bytes_file_path.empty()) { omega_util_remove_file(replaced_bytes_file_path.c_str()); }
+            return nullptr;
+        }
+        if (replaced_length > 0 &&
+            !populate_payload_file_backed_(&change_ptr->inverse_data, std::move(replaced_bytes_file_path),
+                                           replaced_length)) {
+            if (!replaced_bytes_file_path.empty()) { omega_util_remove_file(replaced_bytes_file_path.c_str()); }
+            return nullptr;
+        }
+        return change_ptr;
     }
 
     inline auto transform_(int64_t serial, int64_t offset, int64_t length, const char *transform_id,
@@ -117,6 +240,11 @@ namespace omega_edit::internal {
             change_ptr->transform_data->computed_file_size_before = file_size_before;
             change_ptr->transform_data->computed_file_size_after = file_size_after;
             change_ptr->transform_data->checkpoint_file_path = checkpoint_file_path;
+            const auto data_json = transform_change_data_json_(*change_ptr->transform_data);
+            if (!populate_change_data_(change_ptr.get(), reinterpret_cast<const omega_byte_t *>(data_json.data()),
+                                       static_cast<int64_t>(data_json.size()))) {
+                return nullptr;
+            }
             return change_ptr;
         } catch (const std::bad_alloc &) { return nullptr; }
     }

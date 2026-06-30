@@ -43,7 +43,8 @@ struct omega_session_struct {
     omega_models_t models_{};                  ///< Edit models (internal)
     int64_t num_changes_adjustment_{};         ///< Number of changes in checkpoints
     int64_t undo_snapshot_interval_{100};      ///< Undo model snapshot interval (0 = disabled, default 100)
-    int8_t session_flags_{};                   ///< Internal state flags
+    int64_t change_inline_payload_limit_{OMEGA_CHANGE_INLINE_PAYLOAD_LIMIT}; ///< Inline primitive payload threshold
+    int8_t session_flags_{};                                                 ///< Internal state flags
     omega_session_event_t batched_session_event_kind_{SESSION_EVT_UNDEFINED};///< Event kind currently being batched
     omega_session_event_t pending_session_event_kind_{SESSION_EVT_UNDEFINED};///< Deferred event to flush at batch end
     const void *pending_session_event_ptr_{};     ///< Deferred event payload to flush at batch end

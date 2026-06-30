@@ -466,8 +466,14 @@ function normalizeChangeLogEntry(
       : typeof data === 'string'
         ? parseInputData(data, 'hex')
         : new Uint8Array(0)
-  if ((kind === 'INSERT' || kind === 'OVERWRITE') && dataBytes.length === 0) {
+  if (
+    (kind === 'INSERT' || kind === 'DELETE' || kind === 'OVERWRITE') &&
+    dataBytes.length === 0
+  ) {
     throw new Error(`Change log entry ${index} ${kind} requires data`)
+  }
+  if (kind === 'DELETE' && dataBytes.length !== normalizedLength) {
+    throw new Error(`Change log entry ${index} DELETE data length mismatch`)
   }
 
   const normalized: ChangeLogEntry = {
@@ -632,9 +638,7 @@ function changeDetailsToLogEntry(
     kind,
     offset: change.getOffset(),
     length: kind === 'INSERT' ? 0 : change.getLength(),
-    data: Buffer.from(
-      kind === 'DELETE' ? new Uint8Array(0) : change.getData_asU8()
-    ).toString('hex'),
+    data: Buffer.from(change.getData_asU8()).toString('hex'),
   }
 }
 

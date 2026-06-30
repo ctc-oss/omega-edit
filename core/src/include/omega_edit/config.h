@@ -63,6 +63,11 @@
 #define OMEGA_MEMORY_BUFFER_LIMIT (64LL * 1024LL * 1024LL)
 #endif//OMEGA_MEMORY_BUFFER_LIMIT
 
+#ifndef OMEGA_CHANGE_INLINE_PAYLOAD_LIMIT
+/** Maximum primitive payload byte range stored inline before using file-backed storage. */
+#define OMEGA_CHANGE_INLINE_PAYLOAD_LIMIT OMEGA_MEMORY_BUFFER_LIMIT
+#endif//OMEGA_CHANGE_INLINE_PAYLOAD_LIMIT
+
 #ifndef OMEGA_BYTE_T
 /** Define the byte type to be used across the project */
 #define OMEGA_BYTE_T unsigned char

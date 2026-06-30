@@ -627,6 +627,8 @@ TEST_CASE("Null Pointer Safety", "[NullSafety]") {
     REQUIRE(-1 == omega_session_end_transaction(nullptr));
     REQUIRE(0 == omega_session_get_transaction_state(nullptr));
     REQUIRE(0 == omega_session_get_num_change_transactions(nullptr));
+    REQUIRE(0 == omega_session_get_change_inline_payload_limit(nullptr));
+    REQUIRE(0 == omega_session_set_change_inline_payload_limit(nullptr, 32));
 
     // These should not crash (void returns)
     omega_session_pause_viewport_event_callbacks(nullptr);
@@ -654,6 +656,9 @@ TEST_CASE("Null Pointer Safety", "[NullSafety]") {
     REQUIRE(0 == omega_change_get_length(nullptr));
     REQUIRE(0 == omega_change_get_serial(nullptr));
     REQUIRE(nullptr == omega_change_get_bytes(nullptr));
+    REQUIRE(nullptr == omega_change_get_data(nullptr));
+    REQUIRE(0 == omega_change_get_data_length(nullptr));
+    REQUIRE(OMEGA_CHANGE_DATA_STORAGE_NONE == omega_change_get_data_storage(nullptr));
     REQUIRE('\0' == omega_change_get_kind_as_char(nullptr));
     REQUIRE(0 == omega_change_get_transaction_bit(nullptr));
     REQUIRE(0 == omega_change_is_undone(nullptr));

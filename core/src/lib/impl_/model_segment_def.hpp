@@ -30,6 +30,7 @@ struct omega_model_segment_struct {
     int64_t computed_length{};            ///< Computed length can differ from the change as segments split
     int64_t change_offset{};              ///< Change offset is the offset in the change due to a split
     const_omega_change_ptr_t change_ptr{};///< Reference to parent change
+    omega_change_payload_role_t payload_role{OMEGA_CHANGE_PAYLOAD_DATA};
 };
 
 namespace omega_edit::internal {

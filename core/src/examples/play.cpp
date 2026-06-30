@@ -60,7 +60,7 @@ int save_changes_cbk(const omega_change_t *change_ptr, void *userdata) {
            omega_change_get_serial(change_ptr));
     // NOTE: This is for demonstration purposes only.  This is not a production-quality format.
     const auto bytes = omega_change_get_bytes(change_ptr);
-    const auto bytes_length = omega_change_get_length(change_ptr);
+    const auto bytes_length = omega_change_get_data_length(change_ptr);
     const auto required_buffer_size = bytes_length * 2 + 1;
     if (bytes) {
         if (required_buffer_size > file_info_ptr->bin_to_hex_buffer_size) {
