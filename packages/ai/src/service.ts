@@ -98,7 +98,7 @@ interface CollectedChangeLogEntries {
 }
 
 interface ParsedChangeLog {
-  changes: ChangeLogEntry[]
+  changes: NormalizedChangeLogEntry[]
   before?: ChangeLogFingerprint
   after?: ChangeLogFingerprint
 }
@@ -189,6 +189,10 @@ interface TransformPrimitiveDescriptor {
   optionsJson?: string
 }
 
+interface NormalizedChangeLogEntry extends ChangeLogEntry {
+  transformDescriptor?: TransformPrimitiveDescriptor
+}
+
 function parseJsonObject(text: string, name: string): Record<string, unknown> {
   assertJsonNestingLimit(text)
   let parsed: unknown
@@ -251,6 +255,30 @@ function parseTransformOptionsJson(
   return parseJsonObject(optionsJson, name)
 }
 
+function normalizeJsonForComparison(value: unknown): unknown {
+  if (Array.isArray(value)) {
+    return value.map(normalizeJsonForComparison)
+  }
+  if (!isRecord(value)) {
+    return value
+  }
+  return Object.fromEntries(
+    Object.keys(value)
+      .sort()
+      .map((key) => [key, normalizeJsonForComparison(value[key])])
+  )
+}
+
+function jsonObjectsEqual(
+  left: Record<string, unknown>,
+  right: Record<string, unknown>
+): boolean {
+  return (
+    JSON.stringify(normalizeJsonForComparison(left)) ===
+    JSON.stringify(normalizeJsonForComparison(right))
+  )
+}
+
 function transformOptionsMatchDescriptor(
   optionsJson: string | undefined,
   descriptorOptionsJson: string | undefined,
@@ -261,7 +289,40 @@ function transformOptionsMatchDescriptor(
     descriptorOptionsJson,
     name
   )
-  return JSON.stringify(options) === JSON.stringify(descriptorOptions)
+  return jsonObjectsEqual(options, descriptorOptions)
+}
+
+function assertTransformReplayResponse(
+  descriptor: TransformPrimitiveDescriptor,
+  offset: number,
+  length: number,
+  computedFileSizeBefore: number,
+  computedFileSizeAfter: number,
+  response: Awaited<ReturnType<typeof applyClientTransformPlugin>>
+): void {
+  if (response.pluginId !== descriptor.transformId) {
+    throw new Error(
+      `TRANSFORM ${descriptor.transformId} replay returned plugin ${response.pluginId}`
+    )
+  }
+  if (response.offset !== offset || response.length !== length) {
+    throw new Error(
+      `TRANSFORM ${descriptor.transformId} replay range mismatch: expected offset ${offset}, length ${length}; actual offset ${response.offset}, length ${response.length}`
+    )
+  }
+
+  const expectedFileSize =
+    computedFileSizeBefore - response.length + response.replacementLength
+  if (response.computedFileSize !== expectedFileSize) {
+    throw new Error(
+      `TRANSFORM ${descriptor.transformId} replay size mismatch: expected ${expectedFileSize}, actual ${response.computedFileSize}`
+    )
+  }
+  if (computedFileSizeAfter !== response.computedFileSize) {
+    throw new Error(
+      `TRANSFORM ${descriptor.transformId} replay session size mismatch: expected ${response.computedFileSize}, actual ${computedFileSizeAfter}`
+    )
+  }
 }
 
 function assertJsonNestingLimit(text: string): void {
@@ -500,7 +561,7 @@ function validateChangeLogDocumentMetadata(
 function normalizeChangeLogEntry(
   entry: unknown,
   index: number
-): ChangeLogEntry {
+): NormalizedChangeLogEntry {
   if (!isRecord(entry)) {
     throw new Error(`Change log entry ${index} must be an object`)
   }
@@ -536,7 +597,7 @@ function normalizeChangeLogEntry(
     throw new Error(`Change log entry ${index} DELETE data length mismatch`)
   }
 
-  const normalized: ChangeLogEntry = {
+  const normalized: NormalizedChangeLogEntry = {
     kind,
     offset: normalizedOffset,
     length: normalizedLength,
@@ -555,7 +616,7 @@ function normalizeChangeLogEntry(
         `Change log entry ${index} TRANSFORM metadata must be carried in data`
       )
     }
-    parseTransformPrimitiveDescriptor(
+    normalized.transformDescriptor = parseTransformPrimitiveDescriptor(
       dataBytes,
       `Change log entry ${index} TRANSFORM data`
     )
@@ -870,14 +931,19 @@ function createChangeLogDocument(
 }
 
 function serializeChangeLogEntry(entry: ChangeLogEntry): ChangeLogEntry {
-  return {
-    ...entry,
-    ...(entry.serial !== undefined
-      ? { serial: int64ToDecimal(entry.serial) }
-      : {}),
+  const serialized: ChangeLogEntry = {
+    kind: entry.kind,
     offset: int64ToDecimal(entry.offset),
     length: int64ToDecimal(entry.length),
+    data: entry.data,
   }
+  if (entry.serial !== undefined) {
+    serialized.serial = int64ToDecimal(entry.serial)
+  }
+  if (entry.groupId) {
+    serialized.groupId = entry.groupId
+  }
+  return serialized
 }
 
 function createChangeLogSummary(
@@ -1330,7 +1396,7 @@ export class OmegaEditToolkit {
     let appliedChangeCount = 0
     const startChangeCount = await getChangeCount(request.sessionId)
     try {
-      const applyChange = async (change: ChangeLogEntry) => {
+      const applyChange = async (change: NormalizedChangeLogEntry) => {
         const offset = normalizeNonNegativeInt64ForClient(
           change.offset,
           'change log entry offset'
@@ -1366,9 +1432,12 @@ export class OmegaEditToolkit {
             )
             return true
           case 'TRANSFORM': {
-            const descriptor = parseTransformPrimitiveDescriptor(
-              Buffer.from(change.data, 'hex'),
-              'TRANSFORM change data'
+            const descriptor = change.transformDescriptor
+            if (!descriptor) {
+              throw new Error('TRANSFORM change data was not normalized')
+            }
+            const computedFileSizeBefore = await getComputedFileSize(
+              request.sessionId
             )
             const response = await applyClientTransformPlugin(
               request.sessionId,
@@ -1382,17 +1451,28 @@ export class OmegaEditToolkit {
                 `TRANSFORM ${descriptor.transformId} replay produced no content change`
               )
             }
+            const computedFileSizeAfter = await getComputedFileSize(
+              request.sessionId
+            )
+            assertTransformReplayResponse(
+              descriptor,
+              offset,
+              length,
+              computedFileSizeBefore,
+              computedFileSizeAfter,
+              response
+            )
             return true
           }
         }
       }
-      const applyAndCountChange = async (change: ChangeLogEntry) => {
+      const applyAndCountChange = async (change: NormalizedChangeLogEntry) => {
         if (await applyChange(change)) {
           appliedChangeCount += 1
         }
       }
       if (changes.length > 0) {
-        let pendingBatch: ChangeLogEntry[] = []
+        let pendingBatch: NormalizedChangeLogEntry[] = []
         const flushBatch = async () => {
           if (pendingBatch.length === 0) {
             return

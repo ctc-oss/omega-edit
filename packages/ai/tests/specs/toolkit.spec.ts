@@ -1178,12 +1178,15 @@ describe('@omega-edit/ai toolkit', () => {
     const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'omega-edit-ai-'))
     const sourcePath = path.join(tempDir, 'source.bin')
     const replayPath = path.join(tempDir, 'replay.bin')
+    const mismatchReplayPath = path.join(tempDir, 'mismatch-replay.bin')
     const changeLogPath = path.join(tempDir, 'changes.json')
     fs.writeFileSync(sourcePath, Buffer.from('ABCDEFGH', 'utf8'))
     fs.writeFileSync(replayPath, Buffer.from('ABCDEFGH', 'utf8'))
+    fs.writeFileSync(mismatchReplayPath, Buffer.from('ABCDEFGH', 'utf8'))
 
     let sourceSessionId = ''
     let replaySessionId = ''
+    let mismatchReplaySessionId = ''
 
     try {
       const source = await toolkit.createSession(sourcePath)
@@ -1226,6 +1229,89 @@ describe('@omega-edit/ai toolkit', () => {
       assert.equal(replayedRange.data.utf8, 'QUJDREVGR0g=')
       const status = await toolkit.sessionStatus(replaySessionId)
       assert.equal(status.changeCount, 1)
+
+      const mismatchReplay = await toolkit.createSession(mismatchReplayPath)
+      mismatchReplaySessionId = mismatchReplay.sessionId
+      await assert.rejects(
+        () =>
+          toolkit.applyChangeLog({
+            sessionId: mismatchReplaySessionId,
+            changes: {
+              ...exportedLog,
+              after: makeUtf8Fingerprint('ZZZZZZZZZZZZ'),
+            },
+          }),
+        /after fingerprint mismatch/
+      )
+      await assertToolkitText(toolkit, mismatchReplaySessionId, 'ABCDEFGH')
+    } finally {
+      if (sourceSessionId) {
+        await toolkit.destroySession(sourceSessionId).catch(() => undefined)
+      }
+      if (replaySessionId) {
+        await toolkit.destroySession(replaySessionId).catch(() => undefined)
+      }
+      if (mismatchReplaySessionId) {
+        await toolkit
+          .destroySession(mismatchReplaySessionId)
+          .catch(() => undefined)
+      }
+      await toolkit.stopServer().catch(() => undefined)
+      fs.rmSync(tempDir, { recursive: true, force: true })
+    }
+  })
+
+  it('exports transform options using semantic descriptor comparison', async function () {
+    const port = await omegaEditClient.findFirstAvailablePort(19000, 19999)
+    assert.ok(port, 'expected an available port for OmegaEdit')
+
+    const toolkit = new OmegaEditToolkit({ port: port!, autoStart: true })
+    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'omega-edit-ai-'))
+    const sourcePath = path.join(tempDir, 'source.bin')
+    const replayPath = path.join(tempDir, 'replay.bin')
+    const changeLogPath = path.join(tempDir, 'changes.json')
+    fs.writeFileSync(sourcePath, Buffer.from('ABC', 'utf8'))
+    fs.writeFileSync(replayPath, Buffer.from('ABC', 'utf8'))
+
+    let sourceSessionId = ''
+    let replaySessionId = ''
+
+    try {
+      const source = await toolkit.createSession(sourcePath)
+      sourceSessionId = source.sessionId
+      await toolkit.applyTransformPlugin({
+        sessionId: sourceSessionId,
+        pluginId: 'omega.example.bitwise',
+        offset: 0,
+        length: 3,
+        optionsJson: JSON.stringify({ byte: '0x20', operator: 'xor' }),
+      })
+      await assertToolkitText(toolkit, sourceSessionId, 'abc')
+      await toolkit.exportChangeLog(sourceSessionId, changeLogPath, true)
+
+      const exportedLog = JSON.parse(
+        await fs.promises.readFile(changeLogPath, 'utf8')
+      )
+      const transformChange = exportedLog.changes.find(
+        (change: ChangeLogEntry) => change.kind === 'TRANSFORM'
+      )
+      assert.ok(transformChange, 'expected exported transform change')
+      const transformDescriptor = parseTransformDataHex(transformChange.data)
+      assert.equal(transformDescriptor.transformId, 'omega.example.bitwise')
+      assert.deepEqual(transformDescriptor.args, {
+        byte: '0x20',
+        operator: 'xor',
+      })
+
+      const replay = await toolkit.createSession(replayPath)
+      replaySessionId = replay.sessionId
+      const applyResult = await toolkit.applyChangeLog({
+        sessionId: replaySessionId,
+        changes: exportedLog,
+      })
+      assert.equal(applyResult.applied, true)
+      assert.equal(applyResult.changeCount, 1)
+      await assertToolkitText(toolkit, replaySessionId, 'abc')
     } finally {
       if (sourceSessionId) {
         await toolkit.destroySession(sourceSessionId).catch(() => undefined)

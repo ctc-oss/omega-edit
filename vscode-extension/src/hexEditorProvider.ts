@@ -48,6 +48,7 @@ import {
   getChangeCount,
   getChangeDetails,
   getClientVersion,
+  getComputedFileSize,
   getContentType,
   getCounts,
   getLanguage,
@@ -179,7 +180,7 @@ interface ChangeLogFingerprint {
 }
 
 interface ParsedChangeLog {
-  changes: ChangeRecord[]
+  changes: ParsedChangeRecord[]
   before?: ChangeLogFingerprint
   after?: ChangeLogFingerprint
 }
@@ -187,6 +188,10 @@ interface ParsedChangeLog {
 interface TransformPrimitiveDescriptor {
   transformId: string
   optionsJson?: string
+}
+
+interface ParsedChangeRecord extends ChangeRecord {
+  transformDescriptor?: TransformPrimitiveDescriptor
 }
 
 const SESSION_SYNC_TIMEOUT_MS = 2000
@@ -429,7 +434,64 @@ function transformOptionsMatchDescriptor(
     descriptorOptionsJson,
     name
   )
-  return JSON.stringify(options) === JSON.stringify(descriptorOptions)
+  return jsonObjectsEqual(options, descriptorOptions)
+}
+
+function normalizeJsonForComparison(value: unknown): unknown {
+  if (Array.isArray(value)) {
+    return value.map(normalizeJsonForComparison)
+  }
+  if (!isRecord(value)) {
+    return value
+  }
+  return Object.fromEntries(
+    Object.keys(value)
+      .sort()
+      .map((key) => [key, normalizeJsonForComparison(value[key])])
+  )
+}
+
+function jsonObjectsEqual(
+  left: Record<string, unknown>,
+  right: Record<string, unknown>
+): boolean {
+  return (
+    JSON.stringify(normalizeJsonForComparison(left)) ===
+    JSON.stringify(normalizeJsonForComparison(right))
+  )
+}
+
+function assertTransformReplayResponse(
+  descriptor: TransformPrimitiveDescriptor,
+  offset: number,
+  length: number,
+  computedFileSizeBefore: number,
+  computedFileSizeAfter: number,
+  response: Awaited<ReturnType<typeof applyTransformPlugin>>
+): void {
+  if (response.pluginId !== descriptor.transformId) {
+    throw new Error(
+      `Transform ${descriptor.transformId} replay returned plugin ${response.pluginId}`
+    )
+  }
+  if (response.offset !== offset || response.length !== length) {
+    throw new Error(
+      `Transform ${descriptor.transformId} replay range mismatch: expected offset ${offset}, length ${length}; actual offset ${response.offset}, length ${response.length}`
+    )
+  }
+
+  const expectedFileSize =
+    computedFileSizeBefore - response.length + response.replacementLength
+  if (response.computedFileSize !== expectedFileSize) {
+    throw new Error(
+      `Transform ${descriptor.transformId} replay size mismatch: expected ${expectedFileSize}, actual ${response.computedFileSize}`
+    )
+  }
+  if (computedFileSizeAfter !== response.computedFileSize) {
+    throw new Error(
+      `Transform ${descriptor.transformId} replay session size mismatch: expected ${response.computedFileSize}, actual ${computedFileSizeAfter}`
+    )
+  }
 }
 
 function initialWebviewState(bytesPerRow: BytesPerRow): WebviewEditorUiState {
@@ -1130,7 +1192,7 @@ function changeLogApplyErrorWithRollbackFailure(
   return error
 }
 
-function safeChangeRecord(value: unknown): ChangeRecord | undefined {
+function safeChangeRecord(value: unknown): ParsedChangeRecord | undefined {
   if (!isRecord(value)) {
     return undefined
   }
@@ -1253,15 +1315,34 @@ function safeChangeRecord(value: unknown): ChangeRecord | undefined {
           return undefined
         }
       }
+      let transformDescriptor: TransformPrimitiveDescriptor
       try {
-        parseTransformPrimitiveDescriptor(data, 'TRANSFORM change data')
+        transformDescriptor = parseTransformPrimitiveDescriptor(
+          data,
+          'TRANSFORM change data'
+        )
       } catch {
         return undefined
       }
 
       return groupId
-        ? { serial, kind: 'TRANSFORM', offset, length, data, groupId }
-        : { serial, kind: 'TRANSFORM', offset, length, data }
+        ? {
+            serial,
+            kind: 'TRANSFORM',
+            offset,
+            length,
+            data,
+            groupId,
+            transformDescriptor,
+          }
+        : {
+            serial,
+            kind: 'TRANSFORM',
+            offset,
+            length,
+            data,
+            transformDescriptor,
+          }
     }
     default:
       return undefined
@@ -4595,7 +4676,7 @@ export class HexEditorProvider
 
   private async applyChangeLogEntries(
     session: EditorSession,
-    changes: ChangeRecord[],
+    changes: ParsedChangeRecord[],
     expectedAfter?: ChangeLogFingerprint
   ): Promise<number> {
     if (!this.ensureSessionCanMutate(session, true)) {
@@ -4623,12 +4704,12 @@ export class HexEditorProvider
     }
 
     const applyOne = async (
-      change: ChangeRecord
+      change: ParsedChangeRecord
     ): Promise<ChangeRecord | undefined> => {
       const appliedChange = await this.applyChangeLogEntry(session, change)
       return appliedChange
     }
-    let pendingBatch: ChangeRecord[] = []
+    let pendingBatch: ParsedChangeRecord[] = []
     const flushBatch = async () => {
       if (pendingBatch.length === 0) {
         return
@@ -4699,7 +4780,7 @@ export class HexEditorProvider
 
   private async applyChangeLogEntry(
     session: EditorSession,
-    change: ChangeRecord
+    change: ParsedChangeRecord
   ): Promise<ChangeRecord | undefined> {
     switch (change.kind) {
       case 'INSERT': {
@@ -4753,11 +4834,14 @@ export class HexEditorProvider
           change.groupId
         )
       case 'TRANSFORM': {
-        const descriptor = parseTransformPrimitiveDescriptor(
-          change.data,
-          'TRANSFORM change data'
-        )
+        const descriptor = change.transformDescriptor
+        if (!descriptor) {
+          throw new Error('TRANSFORM change data was not normalized')
+        }
 
+        const computedFileSizeBefore = await getComputedFileSize(
+          session.sessionId
+        )
         const response = await applyTransformPlugin(
           session.sessionId,
           descriptor.transformId,
@@ -4773,6 +4857,17 @@ export class HexEditorProvider
         if (response.serial === undefined) {
           throw new Error('Transform did not return a change serial')
         }
+        const computedFileSizeAfter = await getComputedFileSize(
+          session.sessionId
+        )
+        assertTransformReplayResponse(
+          descriptor,
+          change.offset,
+          change.length,
+          computedFileSizeBefore,
+          computedFileSizeAfter,
+          response
+        )
 
         return {
           serial: response.serial,
