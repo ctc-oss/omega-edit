@@ -30,11 +30,6 @@ export interface EditorChangeRecord {
   offset: number
   length: number
   data: string
-  transformId?: string
-  optionsJson?: string
-  replacementLength?: number
-  computedFileSizeBefore?: number
-  computedFileSizeAfter?: number
   groupId?: string
 }
 

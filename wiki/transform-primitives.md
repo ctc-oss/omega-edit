@@ -31,6 +31,10 @@ arguments, for example:
 {"transformId":"builtin:ascii-to-lower","args":{}}
 ```
 
+Change-log entries use the same primitive shape. TRANSFORM entries do not carry
+`transformId`, `optionsJson`, replacement length, or computed-size side fields;
+the transform descriptor in `data` is the replay contract.
+
 The first implementation step makes `omega_change_get_bytes()` return the
 primitive payload. `omega_change_get_data()` is kept as an alias for callers that
 want a name tied to the primitive shape.
