@@ -1911,11 +1911,13 @@ button.dialog-backdrop:focus-visible {
 .byte.externalHighlight:not(.selected):not(.searchHit),
 .text-byte.externalHighlight:not(.selected):not(.searchHit) {
   border-top-color: var(--omega-external-highlight-accent);
+  border-bottom-color: var(--omega-external-highlight-accent);
   border-bottom-color: color-mix(
     in srgb,
     var(--omega-external-highlight-accent) 42%,
     transparent
   );
+  background: var(--omega-external-highlight-fill);
   background: color-mix(
     in srgb,
     var(--omega-external-highlight-fill) 20%,
@@ -1948,6 +1950,7 @@ button.dialog-backdrop:focus-visible {
 .byte.externalHighlightHovered:not(.selected),
 .text-byte.externalHighlightHovered:not(.selected) {
   border-color: var(--omega-external-highlight-accent);
+  background: var(--omega-external-highlight-fill);
   background: color-mix(
     in srgb,
     var(--omega-external-highlight-fill) 34%,
@@ -1958,11 +1961,13 @@ button.dialog-backdrop:focus-visible {
 .byte.externalStale:not(.selected),
 .text-byte.externalStale:not(.selected) {
   border-style: dashed;
+  border-color: var(--omega-external-highlight-accent);
   border-color: color-mix(
     in srgb,
     var(--omega-external-highlight-accent) 70%,
     var(--vscode-editor-background)
   );
+  background: var(--omega-external-highlight-fill);
   background: color-mix(
     in srgb,
     var(--omega-external-highlight-fill) 10%,
@@ -1977,6 +1982,7 @@ button.dialog-backdrop:focus-visible {
 
 .byte.externalStale.externalHighlightHovered:not(.selected),
 .text-byte.externalStale.externalHighlightHovered:not(.selected) {
+  background: var(--omega-external-highlight-fill);
   background: color-mix(
     in srgb,
     var(--omega-external-highlight-fill) 20%,

@@ -2,12 +2,15 @@ import type {
   ExternalHighlightKind,
   WebviewExternalHighlight,
 } from './webviewProtocol'
+import { MAX_LABEL_LENGTH } from './webviewProtocol'
 
 export const RANGE_MAP_FORMAT = 'omega-edit.range-map'
 export const RANGE_MAP_VERSION = 1
 const MAX_RANGE_MAP_NODES = 512
 const MAX_RANGE_MAP_DEPTH = 64
 const MAX_RANGE_MAP_LABEL_LENGTH = 128
+// MAX_RANGE_MAP_ID_LENGTH matches the protocol limit enforced by normalizeExternalHighlights
+const MAX_RANGE_MAP_ID_LENGTH = MAX_LABEL_LENGTH
 const MAX_RANGE_MAP_PATH_LENGTH = 512
 const MAX_RANGE_MAP_VALUE_LENGTH = 128
 
@@ -204,7 +207,7 @@ function makeRangeMapHighlightId(
   usedIds: Set<string>
 ): string {
   const preferredId =
-    node.path.length <= MAX_RANGE_MAP_LABEL_LENGTH
+    node.path.length <= MAX_RANGE_MAP_ID_LENGTH
       ? node.path
       : `range.${index}`
   if (!usedIds.has(preferredId)) {

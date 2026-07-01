@@ -593,7 +593,7 @@ const localeOverrides: Record<string, LocaleStringOverrides> = {
       controlByte: 'Byte de control',
       highBitByte: 'Byte de bit alto',
       externalHighlightStale:
-        'Obsoleto: el contenido cambio; vuelve a analizar para actualizar etiquetas',
+        'Obsoleto: el contenido cambió; vuelve a analizar para actualizar etiquetas',
     },
     inspector: {
       label: 'Inspector de byte seleccionado',

@@ -197,7 +197,7 @@ interface ParsedChangeRecord extends ChangeRecord {
 
 interface RangeMapLoadResult {
   state: WebviewEditorState
-  uri?: vscode.Uri
+  sourceUri?: vscode.Uri
   source?: string
   nodeCount: number
   highlightCount: number
@@ -2391,7 +2391,7 @@ export class HexEditorProvider
     session.externalHighlights = []
     this.postExternalHighlights(session)
 
-    if (unloadedCount > 0) {
+    if (unloadedCount > 0 && (!isRecord(options) || options.notify !== false)) {
       void vscode.window.showInformationMessage(
         vscode.l10n.t('Unloaded {count} range map label(s)', {
           count: unloadedCount,
@@ -2452,14 +2452,16 @@ export class HexEditorProvider
       highlights = normalizedHighlights
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error)
-      void vscode.window.showErrorMessage(
-        vscode.l10n.t('Could not load OmegaEdit range map: {message}', {
-          message,
-        })
-      )
+      if (!isRecord(options) || options.notify !== false) {
+        void vscode.window.showErrorMessage(
+          vscode.l10n.t('Could not load OmegaEdit range map: {message}', {
+            message,
+          })
+        )
+      }
       return {
         state: this.buildEditorState(session),
-        uri: rangeMapUri,
+        sourceUri: rangeMapUri,
         nodeCount: 0,
         highlightCount: 0,
         cancelled: true,
@@ -2493,7 +2495,7 @@ export class HexEditorProvider
 
     return {
       state: this.buildEditorState(session),
-      uri: rangeMapUri,
+      sourceUri: rangeMapUri,
       source: parsed.document.source,
       nodeCount: parsed.nodeCount,
       highlightCount: highlights.length,

@@ -43,10 +43,13 @@ export interface OmegaEditExternalHighlightRequest
 export interface OmegaEditRangeMapLoadOptions extends OmegaEditEditorSelector {
   sourceUri?: vscode.Uri | string
   reveal?: boolean
+  notify?: boolean
 }
 
 export interface OmegaEditRangeMapUnloadOptions
-  extends OmegaEditEditorSelector {}
+  extends OmegaEditEditorSelector {
+  notify?: boolean
+}
 
 export interface OmegaEditCheckpointOptions extends OmegaEditEditorSelector {}
 
@@ -104,7 +107,7 @@ export interface OmegaEditChangeLogResult {
 
 export interface OmegaEditRangeMapLoadResult {
   state?: OmegaEditEditorState
-  uri?: vscode.Uri
+  sourceUri?: vscode.Uri
   source?: string
   nodeCount: number
   highlightCount: number

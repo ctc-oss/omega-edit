@@ -4,6 +4,7 @@
   import type { BytesPerRow, WebviewExternalHighlight } from '../protocol'
 
   const FALLBACK_VISIBLE_ROWS = 16
+  // Must match the number of data-external-color selectors (0..N-1) defined in styles.css
   const EXTERNAL_HIGHLIGHT_COLOR_COUNT = 12
 
   interface Props {
