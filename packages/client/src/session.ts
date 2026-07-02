@@ -69,7 +69,7 @@ import {
   unsubscribeSession as rawUnsubscribeSession,
   endSessionTransaction as rawEndSessionTransaction,
 } from './protobuf_ts/session'
-import type { CancellableCallOptions } from './protobuf_ts/utils'
+import { makeCancellationError, type CancellableCallOptions } from './protobuf_ts/utils'
 import {
   wrapByteOrderMarkResponse,
   wrapCharacterCountResponse,
