@@ -500,7 +500,7 @@ export async function applyTransformPlugin(
 ): Promise<ApplyTransformPluginResponse> {
   return await enqueueSessionMutation(session_id, async () => {
     if (options.signal?.aborted) {
-      throw new Error('applyTransformPlugin error: cancelled')
+      throw makeCancellationError('applyTransformPlugin')
     }
     const response = await rawApplyTransformPlugin(
       session_id,
