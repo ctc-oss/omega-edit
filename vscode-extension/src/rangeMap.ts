@@ -1,6 +1,7 @@
 import type {
   ExternalHighlightKind,
   WebviewExternalHighlight,
+  WebviewRangeMapNode,
 } from './webviewProtocol'
 import { MAX_LABEL_LENGTH } from './webviewProtocol'
 
@@ -37,6 +38,7 @@ export interface RangeMapDocument {
 export interface ParsedRangeMap {
   document: RangeMapDocument
   highlights: WebviewExternalHighlight[]
+  tree: WebviewRangeMapNode[]
   selectedHighlight?: WebviewExternalHighlight
   nodeCount: number
 }
@@ -207,9 +209,7 @@ function makeRangeMapHighlightId(
   usedIds: Set<string>
 ): string {
   const preferredId =
-    node.path.length <= MAX_RANGE_MAP_ID_LENGTH
-      ? node.path
-      : `range.${index}`
+    node.path.length <= MAX_RANGE_MAP_ID_LENGTH ? node.path : `range.${index}`
   if (!usedIds.has(preferredId)) {
     usedIds.add(preferredId)
     return preferredId
@@ -227,10 +227,9 @@ function makeRangeMapHighlightId(
 
 function rangeMapNodeToHighlight(
   node: RangeMapNode,
-  index: number,
+  id: string,
   defaultSource: string | undefined,
-  selectedPath: string | undefined,
-  usedIds: Set<string>
+  selectedPath: string | undefined
 ): WebviewExternalHighlight {
   const selected = selectedPath !== undefined && node.path === selectedPath
   const typeSuffix = node.type ? ` (${node.type})` : ''
@@ -238,7 +237,7 @@ function rangeMapNodeToHighlight(
   const label = `${node.label}${typeSuffix}${valueSuffix}`
 
   return {
-    id: makeRangeMapHighlightId(node, index, usedIds),
+    id,
     offset: node.offset,
     length: node.length,
     kind: selected ? 'current' : node.kind,
@@ -247,6 +246,32 @@ function rangeMapNodeToHighlight(
         ? label
         : `${label.slice(0, MAX_RANGE_MAP_LABEL_LENGTH - 3)}...`,
     source: node.source ?? defaultSource,
+  }
+}
+
+function rangeMapNodeToWebviewNode(
+  node: RangeMapNode,
+  idByNode: Map<RangeMapNode, string>,
+  defaultSource: string | undefined,
+  selectedPath: string | undefined
+): WebviewRangeMapNode {
+  const id = idByNode.get(node) ?? node.path
+  return {
+    id,
+    path: node.path,
+    label: node.label,
+    offset: node.offset,
+    length: node.length,
+    kind:
+      selectedPath !== undefined && node.path === selectedPath
+        ? 'current'
+        : node.kind,
+    source: node.source ?? defaultSource,
+    type: node.type,
+    value: node.value,
+    children: node.children.map((child) =>
+      rangeMapNodeToWebviewNode(child, idByNode, defaultSource, selectedPath)
+    ),
   }
 }
 
@@ -305,15 +330,22 @@ export function parseRangeMapContent(content: Uint8Array): ParsedRangeMap {
     selectedPath,
     nodes,
   }
+  const defaultSource = source ?? 'Range map'
   const usedIds = new Set<string>()
-  const highlights = flattened.map((node, index) =>
+  const idByNode = new Map<RangeMapNode, string>()
+  flattened.forEach((node, index) => {
+    idByNode.set(node, makeRangeMapHighlightId(node, index, usedIds))
+  })
+  const highlights = flattened.map((node) =>
     rangeMapNodeToHighlight(
       node,
-      index,
-      source ?? 'Range map',
-      selectedPath,
-      usedIds
+      idByNode.get(node) ?? node.path,
+      defaultSource,
+      selectedPath
     )
+  )
+  const tree = nodes.map((node) =>
+    rangeMapNodeToWebviewNode(node, idByNode, defaultSource, selectedPath)
   )
   const selectedIndex = selectedPath
     ? flattened.findIndex((node) => node.path === selectedPath)
@@ -322,6 +354,7 @@ export function parseRangeMapContent(content: Uint8Array): ParsedRangeMap {
   return {
     document,
     highlights,
+    tree,
     selectedHighlight:
       selectedIndex >= 0 ? highlights[selectedIndex] : undefined,
     nodeCount: flattened.length,

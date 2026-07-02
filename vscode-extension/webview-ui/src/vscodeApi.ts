@@ -1,4 +1,8 @@
-import type { WebviewExternalHighlight, WebviewToHostMessage } from './protocol'
+import type {
+  WebviewExternalHighlight,
+  WebviewRangeMapNode,
+  WebviewToHostMessage,
+} from './protocol'
 
 export interface PersistedViewportSnapshot {
   fileSize: number
@@ -6,6 +10,7 @@ export interface PersistedViewportSnapshot {
   viewportOffset: number
   viewportData: number[]
   externalHighlights?: WebviewExternalHighlight[]
+  rangeMapTree?: WebviewRangeMapNode[]
 }
 
 export interface PersistedPreviewState {

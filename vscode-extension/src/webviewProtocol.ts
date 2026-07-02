@@ -86,6 +86,20 @@ export interface WebviewExternalHighlight {
   stale?: boolean
 }
 
+export interface WebviewRangeMapNode {
+  id: string
+  path: string
+  label: string
+  offset: number
+  length: number
+  kind: ExternalHighlightKind
+  source?: string
+  type?: string
+  value?: string
+  stale?: boolean
+  children: WebviewRangeMapNode[]
+}
+
 export interface WebviewEditorUiState {
   visibleOffset: number
   visibleByteCount: number
@@ -167,6 +181,8 @@ export type WebviewToHostMessage =
   | { type: 'restoreCheckpoint' }
   | { type: 'exportChangeLog' }
   | { type: 'applyChangeLog' }
+  | { type: 'loadRangeMap' }
+  | { type: 'unloadRangeMap' }
   | { type: 'toggleEditMode' }
   | { type: 'setInsertDirection'; insertDirection: InsertDirection }
   | {
@@ -218,6 +234,7 @@ export type HostToWebviewMessage =
       fileSize: number
       followingByteCount: number
       externalHighlights: WebviewExternalHighlight[]
+      rangeMapTree: WebviewRangeMapNode[]
       profile: {
         fetchDurationMs: number
         sentAt: number
@@ -349,6 +366,10 @@ export type HostToWebviewMessage =
   | {
       type: 'externalHighlights'
       highlights: WebviewExternalHighlight[]
+    }
+  | {
+      type: 'rangeMapTree'
+      tree: WebviewRangeMapNode[]
     }
   | {
       type: 'bytesPerRow'
@@ -843,6 +864,8 @@ export function normalizeWebviewMessage(
     case 'restoreCheckpoint':
     case 'exportChangeLog':
     case 'applyChangeLog':
+    case 'loadRangeMap':
+    case 'unloadRangeMap':
     case 'undo':
     case 'redo':
     case 'save':

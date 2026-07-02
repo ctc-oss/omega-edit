@@ -17,6 +17,7 @@
     type ServerHealthMessage,
     type WebviewEditorUiState,
     type WebviewExternalHighlight,
+    type WebviewRangeMapNode,
     type WebviewSessionContentInfo,
     type WebviewSessionContentSource,
     type WebviewTransformPlugin,
@@ -96,7 +97,7 @@
 
   const DEFAULT_ANALYSIS_SECTION_ORDER: AnalysisSectionOrder = {
     profile: ['viewport', 'classes', 'data', 'frequency'],
-    structure: ['visible', 'history', 'timing', 'server'],
+    structure: ['rangeMap', 'visible', 'history', 'timing', 'server'],
   }
 
   type ProfilerViewportSnapshot = ViewportDataMessage['profile'] & {
@@ -186,6 +187,9 @@
   ])
   let externalHighlights = $state<WebviewExternalHighlight[]>(
     restoredViewportSnapshot?.externalHighlights ?? []
+  )
+  let rangeMapTree = $state<WebviewRangeMapNode[]>(
+    restoredViewportSnapshot?.rangeMapTree ?? []
   )
   let viewportSnapshot = $state<PersistedViewportSnapshot | undefined>(
     restoredViewportSnapshot
@@ -476,6 +480,7 @@
       externalHighlights: normalizeExternalHighlights(
         snapshot.externalHighlights
       ),
+      rangeMapTree: normalizeRangeMapTree(snapshot.rangeMapTree),
     }
   }
 
@@ -518,6 +523,22 @@
       (highlight): highlight is WebviewExternalHighlight =>
         Boolean(highlight) && typeof highlight === 'object'
     ) as WebviewExternalHighlight[]
+  }
+
+  function normalizeRangeMapTree(value: unknown): WebviewRangeMapNode[] {
+    if (!Array.isArray(value)) {
+      return []
+    }
+
+    return value
+      .filter(
+        (node): node is WebviewRangeMapNode =>
+          Boolean(node) && typeof node === 'object'
+      )
+      .map((node) => ({
+        ...node,
+        children: normalizeRangeMapTree(node.children),
+      }))
   }
 
   function normalizeAnalysisSectionOrder(
@@ -1479,6 +1500,14 @@
     postToHost({ type: 'requestTransformPlugins' })
   }
 
+  function loadRangeMap(): void {
+    postToHost({ type: 'loadRangeMap' })
+  }
+
+  function unloadRangeMap(): void {
+    postToHost({ type: 'unloadRangeMap' })
+  }
+
   function applyTransform(
     pluginId: string,
     contentSource: WebviewSessionContentSource,
@@ -2216,6 +2245,7 @@
         viewportOffset = message.offset
         viewportData = message.data
         externalHighlights = message.externalHighlights
+        rangeMapTree = message.rangeMapTree
 
         if (
           requestedOffset !== undefined &&
@@ -2246,6 +2276,7 @@
           viewportOffset: message.offset,
           viewportData: message.data,
           externalHighlights: message.externalHighlights,
+          rangeMapTree: message.rangeMapTree,
         }
         savePreviewState()
         applyPendingSearchReveal()
@@ -2425,6 +2456,16 @@
           savePreviewState()
         }
         break
+      case 'rangeMapTree':
+        rangeMapTree = message.tree
+        if (viewportSnapshot) {
+          viewportSnapshot = {
+            ...viewportSnapshot,
+            rangeMapTree: message.tree,
+          }
+          savePreviewState()
+        }
+        break
       case 'bytesPerRow':
         bytesPerRowMode = 'fixed'
         bytesPerRow = normalizeBytesPerRow(message.bytesPerRow)
@@ -2596,6 +2637,7 @@
     inspectorStart={inspectorHighlightStart}
     inspectorEnd={inspectorHighlightEnd}
     {externalHighlights}
+    {rangeMapTree}
     preparing={preparingFile}
     {activePane}
     editMode={inspectorEditMode}
@@ -2620,6 +2662,9 @@
     {undoCount}
     {redoCount}
     onSelect={selectOffset}
+    onSelectRangeMapNode={(node) => selectRange(node.offset, node.length)}
+    onLoadRangeMap={loadRangeMap}
+    onUnloadRangeMap={unloadRangeMap}
     onActivePaneChange={setActivePane}
     onMoveSelection={moveSelection}
     onJumpToBoundary={jumpToBoundary}

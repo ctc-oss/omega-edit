@@ -1134,8 +1134,15 @@ button.dialog-backdrop:focus-visible {
   border-top: 1px solid var(--vscode-editorGroup-border);
 }
 
-.analysis-section.dragging {
-  opacity: 0.62;
+.analysis-section.dragging::before {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: -6px;
+  width: 2px;
+  background: var(--vscode-focusBorder);
+  content: "";
+  pointer-events: none;
 }
 
 .analysis-section-heading {
@@ -1480,6 +1487,146 @@ button.dialog-backdrop:focus-visible {
   color: var(--vscode-descriptionForeground);
   font-size: 11px;
   line-height: 1.45;
+}
+
+.range-map-tree {
+  display: grid;
+  gap: 2px;
+}
+
+.range-map-node-row {
+  display: grid;
+  grid-template-columns: 18px minmax(0, 1fr);
+  align-items: stretch;
+  min-height: 30px;
+  gap: 2px;
+}
+
+.range-map-node-row.depth-0 {
+  padding-left: 0;
+}
+
+.range-map-node-row.depth-1 {
+  padding-left: 14px;
+}
+
+.range-map-node-row.depth-2 {
+  padding-left: 28px;
+}
+
+.range-map-node-row.depth-3 {
+  padding-left: 42px;
+}
+
+.range-map-node-row.depth-4 {
+  padding-left: 56px;
+}
+
+.range-map-node-row.depth-5 {
+  padding-left: 70px;
+}
+
+.range-map-node-row.depth-6,
+.range-map-node-row.depth-7,
+.range-map-node-row.depth-8,
+.range-map-node-row.depth-9,
+.range-map-node-row.depth-10,
+.range-map-node-row.depth-11,
+.range-map-node-row.depth-12 {
+  padding-left: 84px;
+}
+
+.range-map-node-toggle,
+.range-map-node-toggle-spacer {
+  display: grid;
+  align-self: stretch;
+  width: 18px;
+  min-height: 30px;
+  place-items: center;
+}
+
+.range-map-node-toggle {
+  border: 1px solid transparent;
+  border-radius: 4px;
+  color: var(--vscode-descriptionForeground);
+  background: transparent;
+  font-size: 12px;
+  line-height: 1;
+}
+
+.range-map-node-toggle:hover,
+.range-map-node-toggle:focus {
+  border-color: var(--vscode-focusBorder);
+  color: var(--vscode-foreground);
+  background: var(--vscode-list-hoverBackground, var(--vscode-input-background));
+}
+
+.range-map-node {
+  display: grid;
+  grid-template-areas:
+    "label meta"
+    "value meta";
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  width: 100%;
+  min-height: 30px;
+  padding: 3px 6px;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  color: var(--vscode-foreground);
+  background: transparent;
+  column-gap: 8px;
+  text-align: left;
+}
+
+.range-map-node:hover,
+.range-map-node:focus {
+  border-color: var(--vscode-focusBorder);
+  background: var(--vscode-list-hoverBackground, var(--vscode-input-background));
+}
+
+.range-map-node-row.active .range-map-node {
+  border-color: var(--vscode-list-activeSelectionBackground);
+  background: var(--vscode-list-activeSelectionBackground);
+  color: var(--vscode-list-activeSelectionForeground, var(--vscode-foreground));
+}
+
+.range-map-node-row.active .range-map-node-meta,
+.range-map-node-row.active .range-map-node-value {
+  color: var(--vscode-list-activeSelectionForeground, var(--vscode-foreground));
+}
+
+.range-map-node-row.stale .range-map-node {
+  color: var(--vscode-descriptionForeground);
+  font-style: italic;
+}
+
+.range-map-node-label {
+  grid-area: label;
+  min-width: 0;
+  overflow: hidden;
+  font-size: 11px;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.range-map-node-value {
+  grid-area: value;
+  min-width: 0;
+  overflow: hidden;
+  color: var(--vscode-descriptionForeground);
+  font-size: 10px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.range-map-node-meta {
+  grid-area: meta;
+  color: var(--vscode-descriptionForeground);
+  font-size: 10px;
+  text-align: right;
+  white-space: nowrap;
 }
 
 .preview-grid {

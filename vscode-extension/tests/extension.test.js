@@ -54,6 +54,19 @@ function encodeRangeMap(rangeMap) {
   )
 }
 
+function findRangeMapTreeNode(nodes, id) {
+  for (const node of nodes) {
+    if (node.id === id) {
+      return node
+    }
+    const child = findRangeMapTreeNode(node.children || [], id)
+    if (child) {
+      return child
+    }
+  }
+  return undefined
+}
+
 test('package.json matches shared extension constants', () => {
   assert.equal(packageJson.main, './out/extension.js')
   assert.equal(packageJson.types, './out/api.d.ts')
@@ -624,6 +637,11 @@ test('compiled extension entrypoints exist after build', () => {
   assert.doesNotMatch(providerJs, /editor\.action\.toggleOvertypeInsertMode/)
   assert.match(providerJs, /normalizeExternalHighlights/)
   assert.match(providerJs, /type:\s*['"]externalHighlights['"]/)
+  assert.match(providerJs, /type:\s*['"]rangeMapTree['"]/)
+  assert.match(providerJs, /setSessionRangeMap/)
+  assert.match(providerJs, /case\s+['"]loadRangeMap['"]/)
+  assert.match(providerJs, /case\s+['"]unloadRangeMap['"]/)
+  assert.match(providerJs, /reconcileExternalHighlightStaleness/)
   assert.match(providerJs, /markExternalHighlightsStale/)
   assert.match(providerJs, /postBytesPerRow/)
   assert.doesNotMatch(providerJs, /AUTO_BYTES_PER_ROW_SETTING/)
@@ -643,6 +661,10 @@ test('compiled extension entrypoints exist after build', () => {
   assert.match(protocolJs, /normalizeExternalHighlights/)
   assert.match(protocolJs, /editorStateChanged/)
   assert.match(protocolSource, /externalHighlights/)
+  assert.match(protocolSource, /WebviewRangeMapNode/)
+  assert.match(protocolSource, /rangeMapTree/)
+  assert.match(protocolSource, /type: 'loadRangeMap'/)
+  assert.match(protocolSource, /type: 'unloadRangeMap'/)
   assert.match(protocolSource, /type: 'bytesPerRow'/)
   assert.match(protocolSource, /bytesPerRowMode: BytesPerRowMode/)
   assert.match(protocolSource, /stale\?: boolean/)
@@ -1008,6 +1030,10 @@ test('compiled extension entrypoints exist after build', () => {
   assert.match(svelteAppSource, /case 'serverHealth'/)
   assert.match(svelteAppSource, /serverHealth = message/)
   assert.match(svelteAppSource, /case 'externalHighlights'/)
+  assert.match(svelteAppSource, /case 'rangeMapTree'/)
+  assert.match(svelteAppSource, /rangeMapTree = \$state/)
+  assert.match(svelteAppSource, /postToHost\(\{ type: 'loadRangeMap' \}\)/)
+  assert.match(svelteAppSource, /postToHost\(\{ type: 'unloadRangeMap' \}\)/)
   assert.match(svelteAppSource, /case 'bytesPerRow'/)
   assert.match(svelteAppSource, /dataProfile=\{latestDataProfile\}/)
   assert.match(svelteAppSource, /viewportProfile=\{latestViewportProfile\}/)
@@ -1041,6 +1067,10 @@ test('compiled extension entrypoints exist after build', () => {
   assert.match(editorWorkspaceSource, /onMoveAnalysisSection/)
   assert.match(editorWorkspaceSource, /onReorderAnalysisSection/)
   assert.match(editorWorkspaceSource, /externalHighlights/)
+  assert.match(editorWorkspaceSource, /rangeMapTree/)
+  assert.match(editorWorkspaceSource, /onSelectRangeMapNode/)
+  assert.match(editorWorkspaceSource, /onLoadRangeMap/)
+  assert.match(editorWorkspaceSource, /onUnloadRangeMap/)
   assert.match(editorWorkspaceSource, /dataProfile/)
   assert.match(editorWorkspaceSource, /viewportProfile/)
   assert.match(editorWorkspaceSource, /serverHealth/)
@@ -1376,6 +1406,17 @@ test('compiled extension entrypoints exist after build', () => {
   assert.match(profilerPanelSource, /data-analysis-panel="profile"/)
   assert.match(profilerPanelSource, /data-analysis-panel="structure"/)
   assert.match(profilerPanelSource, /sectionId === 'frequency'/)
+  assert.match(profilerPanelSource, /sectionId === 'rangeMap'/)
+  assert.match(profilerPanelSource, /rangeMapRows/)
+  assert.match(profilerPanelSource, /range-map-tree/)
+  assert.match(profilerPanelSource, /range-map-node/)
+  assert.match(profilerPanelSource, /collapsedRangeMapNodes/)
+  assert.match(profilerPanelSource, /toggleRangeMapNode/)
+  assert.match(profilerPanelSource, /range-map-node-toggle/)
+  assert.match(profilerPanelSource, /onLoadRangeMap/)
+  assert.match(profilerPanelSource, /onUnloadRangeMap/)
+  assert.match(profilerPanelSource, /strings\.profiler\.loadRangeMap/)
+  assert.match(profilerPanelSource, /strings\.profiler\.unloadRangeMap/)
   assert.match(profilerPanelSource, /sectionId === 'server'/)
   assert.match(profilerPanelSource, /buildServerRows/)
   assert.match(profilerPanelSource, /serverRows/)
@@ -1394,7 +1435,7 @@ test('compiled extension entrypoints exist after build', () => {
   assert.equal(
     (profilerPanelSource.match(/class="analysis-collapse-button"/g) ?? [])
       .length,
-    8
+    9
   )
   assert.match(profilerPanelSource, /server-health-value/)
   assert.match(profilerPanelSource, /toggleSectionCollapsed/)
@@ -1404,9 +1445,20 @@ test('compiled extension entrypoints exist after build', () => {
   assert.match(profilerPanelSource, /data-analysis-drag="true"/)
   assert.match(profilerPanelSource, /function handleDragPointerDown/)
   assert.match(profilerPanelSource, /function handleDragPointerMove/)
+  assert.match(profilerPanelSource, /function clearAnalysisDrag/)
+  assert.match(
+    profilerPanelSource,
+    /<svelte:window[\s\S]*onpointerup=\{stopAnalysisDrag\}/
+  )
+  assert.match(profilerPanelSource, /onlostpointercapture=\{stopAnalysisDrag\}/)
   assert.match(profilerPanelSource, /function handleDragKeydown/)
   assert.match(profilerPanelSource, /onMoveSection/)
   assert.match(profilerPanelSource, /onReorderSection/)
+  assert.match(svelteStylesSource, /\.analysis-section\.dragging::before/)
+  assert.doesNotMatch(
+    svelteStylesSource,
+    /\.analysis-section\.dragging\s*\{[^}]*opacity/
+  )
   assert.match(profilerPanelSource, /frequencyScale/)
   assert.match(profilerPanelSource, /function analyzeBytes/)
   assert.match(profilerPanelSource, /function frequencyBarHeight/)
@@ -1527,6 +1579,7 @@ test('range map parser loads the OmegaEdit PNG logo fixture', () => {
   assert.equal(parsed.document.nodes.length, 34)
   assert.equal(parsed.nodeCount, 176)
   assert.equal(parsed.highlights.length, 176)
+  assert.equal(parsed.tree.length, 34)
   assert.deepEqual(parsed.selectedHighlight, {
     id: '/png/chunks[0]/data/width',
     offset: 16,
@@ -1548,6 +1601,23 @@ test('range map parser loads the OmegaEdit PNG logo fixture', () => {
   assert.ok(widthIndex >= 0)
   assert.ok(widthIndex < dataIndex)
   assert.ok(dataIndex < chunkIndex)
+
+  const widthTreeNode = findRangeMapTreeNode(
+    parsed.tree,
+    '/png/chunks[0]/data/width'
+  )
+  assert.deepEqual(widthTreeNode, {
+    id: '/png/chunks[0]/data/width',
+    path: '/png/chunks[0]/data/width',
+    label: 'IHDR width',
+    offset: 16,
+    length: 4,
+    kind: 'current',
+    source: 'images/OmegaEditLogo.png',
+    type: 'uint32',
+    value: '1002',
+    children: [],
+  })
 })
 
 test('range map parser rejects hostile node shapes before flattening', () => {

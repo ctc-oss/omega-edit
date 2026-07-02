@@ -5,6 +5,7 @@
     HostToWebviewMessage,
     ServerHealthMessage,
     WebviewExternalHighlight,
+    WebviewRangeMapNode,
   } from '../protocol'
   import { strings } from '../i18n'
   import FileScrollbar from './FileScrollbar.svelte'
@@ -49,6 +50,7 @@
     inspectorStart?: number
     inspectorEnd?: number
     externalHighlights?: WebviewExternalHighlight[]
+    rangeMapTree?: WebviewRangeMapNode[]
     preparing?: boolean
     activePane?: GridEditPane
     editMode?: InspectorEditMode
@@ -78,6 +80,9 @@
     readOnlyLabel?: string
     readOnlyTitle?: string
     onSelect: (offset: number, extend: boolean) => void
+    onSelectRangeMapNode: (node: WebviewRangeMapNode) => void
+    onLoadRangeMap: () => void
+    onUnloadRangeMap: () => void
     onActivePaneChange: (pane: GridEditPane) => void
     onMoveSelection: (delta: number, extend: boolean) => void
     onJumpToBoundary: (boundary: 'top' | 'bottom') => void
@@ -117,6 +122,7 @@
     inspectorStart = -1,
     inspectorEnd = -1,
     externalHighlights = [],
+    rangeMapTree = [],
     preparing = false,
     activePane = 'hex',
     editMode = 'insert',
@@ -146,6 +152,9 @@
     readOnlyLabel = strings.grid.readOnly,
     readOnlyTitle = readOnlyLabel,
     onSelect,
+    onSelectRangeMapNode,
+    onLoadRangeMap,
+    onUnloadRangeMap,
     onActivePaneChange,
     onMoveSelection,
     onJumpToBoundary,
@@ -383,6 +392,8 @@
     {visibleBytes}
     {selectedBytes}
     {selectionLength}
+    {selectionStart}
+    {selectionEnd}
     {dataProfile}
     {viewportProfile}
     {serverHealth}
@@ -390,8 +401,12 @@
     {canRedo}
     {undoCount}
     {redoCount}
+    {rangeMapTree}
     onToggleExpanded={onToggleProfilerExpanded}
     onModeChange={onProfilerModeChange}
+    onSelectRangeMapNode={onSelectRangeMapNode}
+    onLoadRangeMap={onLoadRangeMap}
+    onUnloadRangeMap={onUnloadRangeMap}
     onMoveSection={onMoveAnalysisSection}
     onReorderSection={onReorderAnalysisSection}
   />

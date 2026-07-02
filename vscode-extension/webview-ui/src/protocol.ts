@@ -8,6 +8,7 @@ export type {
   ServerHealthMessage,
   WebviewEditorUiState,
   WebviewExternalHighlight,
+  WebviewRangeMapNode,
   WebviewSessionContentInfo,
   WebviewSessionContentSource,
   WebviewTransformPlugin,

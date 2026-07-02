@@ -105,6 +105,7 @@ import {
   type WebviewEditorState,
   type WebviewEditorUiState,
   type WebviewExternalHighlight,
+  type WebviewRangeMapNode,
   type WebviewSessionContentInfo,
   type WebviewSessionContentSource,
   type WebviewTransformPlugin,
@@ -146,6 +147,8 @@ interface EditorSession {
   analysisProfileTask?: Promise<void>
   webviewState: WebviewEditorUiState
   externalHighlights: WebviewExternalHighlight[]
+  rangeMapTree: WebviewRangeMapNode[]
+  externalHighlightBaseline?: ExternalHighlightBaseline
   contentSources: WebviewSessionContentInfo[]
   transformPlugins: WebviewTransformPlugin[]
   transformInFlight: boolean
@@ -154,6 +157,13 @@ interface EditorSession {
   historyCommandTask?: Promise<void>
   contentType?: string
   language?: string
+}
+
+interface ExternalHighlightBaseline {
+  changeCount: number
+  fileSize: number
+  highlights: WebviewExternalHighlight[]
+  rangeMapTree: WebviewRangeMapNode[]
 }
 
 interface AnalysisProfileRequest {
@@ -2125,6 +2135,7 @@ export class HexEditorProvider
       search: new EditorSearchController(scope.sessionId),
       webviewState: initialWebviewState(bytesPerRow),
       externalHighlights: [],
+      rangeMapTree: [],
       contentSources: defaultContentSources(scope.model.fileSize),
       transformPlugins: [],
       transformInFlight: false,
@@ -2359,8 +2370,7 @@ export class HexEditorProvider
       throw new Error('Invalid external highlight request')
     }
 
-    session.externalHighlights = highlights
-    this.postExternalHighlights(session)
+    this.setSessionExternalHighlights(session, highlights)
 
     if (request.options.reveal && highlights.length > 0) {
       await this.scrollTo(session, highlights[0].offset)
@@ -2375,8 +2385,7 @@ export class HexEditorProvider
       return undefined
     }
 
-    session.externalHighlights = []
-    this.postExternalHighlights(session)
+    this.clearSessionExternalHighlights(session)
     return this.buildEditorState(session)
   }
 
@@ -2388,8 +2397,7 @@ export class HexEditorProvider
     }
 
     const unloadedCount = session.externalHighlights.length
-    session.externalHighlights = []
-    this.postExternalHighlights(session)
+    this.clearSessionExternalHighlights(session)
 
     if (unloadedCount > 0 && (!isRecord(options) || options.notify !== false)) {
       void vscode.window.showInformationMessage(
@@ -2475,8 +2483,7 @@ export class HexEditorProvider
         : highlights.find(
             (highlight) => highlight.id === parsed.selectedHighlight?.id
           )
-    session.externalHighlights = highlights
-    this.postExternalHighlights(session)
+    this.setSessionRangeMap(session, highlights, parsed.tree)
 
     const shouldReveal = !isRecord(options) || options.reveal !== false
     if (shouldReveal && selectedHighlight) {
@@ -3457,6 +3464,7 @@ export class HexEditorProvider
       fileSize: session.fileSize,
       followingByteCount: resp.getFollowingByteCount(),
       externalHighlights: session.externalHighlights,
+      rangeMapTree: session.rangeMapTree,
       profile: {
         fetchDurationMs,
         sentAt: Date.now(),
@@ -3504,6 +3512,115 @@ export class HexEditorProvider
     this.fireEditorStateChanged(session)
   }
 
+  private postRangeMapTree(session: EditorSession): void {
+    this.postWebviewMessage(session, {
+      type: 'rangeMapTree',
+      tree: session.rangeMapTree,
+    })
+    this.fireEditorStateChanged(session)
+  }
+
+  private cloneExternalHighlights(
+    highlights: WebviewExternalHighlight[]
+  ): WebviewExternalHighlight[] {
+    return highlights.map((highlight) => ({ ...highlight }))
+  }
+
+  private cloneRangeMapTree(
+    nodes: WebviewRangeMapNode[]
+  ): WebviewRangeMapNode[] {
+    return nodes.map((node) => ({
+      ...node,
+      children: this.cloneRangeMapTree(node.children),
+    }))
+  }
+
+  private markRangeMapTreeNodesStale(
+    nodes: WebviewRangeMapNode[]
+  ): WebviewRangeMapNode[] {
+    return nodes.map((node) => ({
+      ...node,
+      stale: true,
+      children: this.markRangeMapTreeNodesStale(node.children),
+    }))
+  }
+
+  private rangeMapTreeHasFreshNodes(nodes: WebviewRangeMapNode[]): boolean {
+    return nodes.some(
+      (node) =>
+        node.stale !== true || this.rangeMapTreeHasFreshNodes(node.children)
+    )
+  }
+
+  private setSessionExternalHighlights(
+    session: EditorSession,
+    highlights: WebviewExternalHighlight[]
+  ): void {
+    session.externalHighlights = this.cloneExternalHighlights(highlights)
+    session.rangeMapTree = []
+    session.externalHighlightBaseline =
+      highlights.length === 0
+        ? undefined
+        : {
+            changeCount: session.changeCount,
+            fileSize: session.fileSize,
+            highlights: this.cloneExternalHighlights(highlights),
+            rangeMapTree: [],
+          }
+    this.postExternalHighlights(session)
+    this.postRangeMapTree(session)
+  }
+
+  private setSessionRangeMap(
+    session: EditorSession,
+    highlights: WebviewExternalHighlight[],
+    tree: WebviewRangeMapNode[]
+  ): void {
+    session.externalHighlights = this.cloneExternalHighlights(highlights)
+    session.rangeMapTree = this.cloneRangeMapTree(tree)
+    session.externalHighlightBaseline =
+      highlights.length === 0
+        ? undefined
+        : {
+            changeCount: session.changeCount,
+            fileSize: session.fileSize,
+            highlights: this.cloneExternalHighlights(highlights),
+            rangeMapTree: this.cloneRangeMapTree(tree),
+          }
+    this.postExternalHighlights(session)
+    this.postRangeMapTree(session)
+  }
+
+  private clearSessionExternalHighlights(session: EditorSession): void {
+    session.externalHighlights = []
+    session.rangeMapTree = []
+    session.externalHighlightBaseline = undefined
+    this.postExternalHighlights(session)
+    this.postRangeMapTree(session)
+  }
+
+  private reconcileExternalHighlightStaleness(session: EditorSession): void {
+    const baseline = session.externalHighlightBaseline
+    if (!baseline || session.externalHighlights.length === 0) {
+      return
+    }
+
+    if (
+      session.changeCount === baseline.changeCount &&
+      session.fileSize === baseline.fileSize
+    ) {
+      session.externalHighlights = this.cloneExternalHighlights(
+        baseline.highlights
+      )
+      session.rangeMapTree = this.cloneRangeMapTree(baseline.rangeMapTree)
+      this.postExternalHighlights(session)
+      this.postRangeMapTree(session)
+      return
+    }
+
+    this.markExternalHighlightsStale(session)
+  }
+
   private postBytesPerRow(
     session: EditorSession,
     bytesPerRow = session.bytesPerRow
@@ -3516,20 +3633,30 @@ export class HexEditorProvider
   }
 
   private markExternalHighlightsStale(session: EditorSession): void {
-    if (
-      session.externalHighlights.length === 0 ||
-      session.externalHighlights.every((highlight) => highlight.stale === true)
-    ) {
+    const shouldMarkHighlights =
+      session.externalHighlights.length > 0 &&
+      !session.externalHighlights.every((highlight) => highlight.stale === true)
+    const shouldMarkTree = this.rangeMapTreeHasFreshNodes(session.rangeMapTree)
+
+    if (!shouldMarkHighlights && !shouldMarkTree) {
       return
     }
 
-    session.externalHighlights = session.externalHighlights.map(
-      (highlight) => ({
-        ...highlight,
-        stale: true,
-      })
-    )
-    this.postExternalHighlights(session)
+    if (shouldMarkHighlights) {
+      session.externalHighlights = session.externalHighlights.map(
+        (highlight) => ({
+          ...highlight,
+          stale: true,
+        })
+      )
+      this.postExternalHighlights(session)
+    }
+    if (shouldMarkTree) {
+      session.rangeMapTree = this.markRangeMapTreeNodesStale(
+        session.rangeMapTree
+      )
+      this.postRangeMapTree(session)
+    }
   }
 
   private postEditMode(session: EditorSession): void {
@@ -4753,6 +4880,7 @@ export class HexEditorProvider
     if (didUndo) {
       this.markExternalHighlightsStale(session)
       await this.waitForSessionSync(session, sessionSyncVersion)
+      this.reconcileExternalHighlightStaleness(session)
       this.clearSearchState(session)
     }
     this.postEditState(session)
@@ -4770,6 +4898,7 @@ export class HexEditorProvider
     if (didRedo) {
       this.markExternalHighlightsStale(session)
       await this.waitForSessionSync(session, sessionSyncVersion)
+      this.reconcileExternalHighlightStaleness(session)
       this.clearSearchState(session)
     }
     this.postEditState(session)
@@ -5481,6 +5610,16 @@ export class HexEditorProvider
 
         case 'applyChangeLog': {
           await this.applyChangeLog({ uri: session.document.uri })
+          break
+        }
+
+        case 'loadRangeMap': {
+          await this.loadRangeMap({ uri: session.document.uri })
+          break
+        }
+
+        case 'unloadRangeMap': {
+          this.unloadRangeMap({ uri: session.document.uri })
           break
         }
 
