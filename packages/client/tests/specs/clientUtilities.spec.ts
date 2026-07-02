@@ -34,6 +34,8 @@ const clientPackage =
   require('../../dist/cjs/index.js') as typeof import('../../src/index')
 const clientModule =
   require('../../dist/cjs/client.js') as typeof import('../../src/client')
+const clientUtilsModule =
+  require('../../dist/cjs/protobuf_ts/utils.js') as typeof import('../../src/protobuf_ts/utils')
 const grpcModule = require('@grpc/grpc-js') as typeof import('@grpc/grpc-js')
 const pinoModule = require('pino') as typeof import('pino')
 const grpcClientModule = require('../../dist/cjs/omega_edit_grpc_pb.js') as {
@@ -85,6 +87,24 @@ describe('Client Utilities', () => {
   it('should export shared default server connection constants', () => {
     expect(DEFAULT_HOST).to.equal('127.0.0.1')
     expect(DEFAULT_PORT).to.equal(9000)
+  })
+
+  it('should cancel unary calls when the cancellation signal aborts', () => {
+    let cancelCount = 0
+    const controller = new AbortController()
+    const removeCancellationListener = clientUtilsModule.cancelUnaryOnSignal(
+      {
+        cancel() {
+          cancelCount += 1
+        },
+      } as any,
+      controller.signal
+    )
+
+    controller.abort()
+    removeCancellationListener()
+
+    expect(cancelCount).to.equal(1)
   })
 
   const removeDirWithRetry = async (dirPath: string) => {

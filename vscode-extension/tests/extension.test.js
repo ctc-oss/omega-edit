@@ -587,6 +587,11 @@ test('compiled extension entrypoints exist after build', () => {
   assert.match(providerJs, /countCharacters/)
   assert.match(providerJs, /listTransformPlugins/)
   assert.match(providerJs, /applyTransformPlugin/)
+  assert.match(providerSource, /transformAbortController\?: AbortController/)
+  assert.match(providerSource, /new AbortController\(\)/)
+  assert.match(providerSource, /token\?\.onCancellationRequested/)
+  assert.match(providerSource, /case 'cancelTransform'/)
+  assert.match(providerSource, /cancellable: true/)
   assert.match(providerJs, /kind:\s*['"]TRANSFORM['"]/)
   assert.match(providerJs, /encodeTransformPrimitiveDataHex/)
   assert.match(providerJs, /formatTransformCompletionMessage/)
@@ -722,6 +727,7 @@ test('compiled extension entrypoints exist after build', () => {
   assert.match(protocolJs, /MAX_ANALYSIS_PROFILE_BYTES/)
   assert.match(protocolSource, /documentReverted/)
   assert.match(protocolJs, /case\s+['"]requestAnalysisProfile['"]/)
+  assert.match(protocolJs, /case\s+['"]cancelTransform['"]/)
   assert.match(protocolJs, /case\s+['"]applyTransform['"]/)
   assert.match(protocolJs, /case\s+['"]exportRange['"]/)
   assert.match(protocolJs, /case\s+['"]insertFile['"]/)
@@ -1922,6 +1928,12 @@ test('webview protocol normalizes editor commands and rejects invalid ranges', (
     normalizeWebviewMessage(context, { type: 'toggleEditMode' }),
     {
       type: 'toggleEditMode',
+    }
+  )
+  assert.deepEqual(
+    normalizeWebviewMessage(context, { type: 'cancelTransform' }),
+    {
+      type: 'cancelTransform',
     }
   )
   assert.deepEqual(

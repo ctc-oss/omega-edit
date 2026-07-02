@@ -152,6 +152,7 @@ interface EditorSession {
   contentSources: WebviewSessionContentInfo[]
   transformPlugins: WebviewTransformPlugin[]
   transformInFlight: boolean
+  transformAbortController?: AbortController
   pendingHistoryOperation?: 'undo' | 'redo'
   pendingHistoryCount?: number
   historyCommandTask?: Promise<void>
@@ -563,6 +564,17 @@ function isMutationWebviewMessage(message: WebviewToHostMessage): boolean {
     default:
       return false
   }
+}
+
+function isTransformCancellationError(error: unknown): boolean {
+  const code = (error as { code?: unknown })?.code
+  const causeCode = (error as { cause?: { code?: unknown } })?.cause?.code
+  if (code === 1 || causeCode === 1) {
+    return true
+  }
+  const message = error instanceof Error ? error.message : String(error)
+  const normalized = message.toLowerCase()
+  return normalized.includes('cancelled') || normalized.includes('canceled')
 }
 
 function safeInsertDirection(value: unknown): InsertDirection | undefined {
@@ -4041,11 +4053,21 @@ export class HexEditorProvider
     contentSource: WebviewSessionContentSource,
     offset: number,
     length: number,
-    optionsJson?: string
+    optionsJson?: string,
+    token?: vscode.CancellationToken
   ): Promise<void> {
     if (session.transformInFlight) {
       throw new Error('A transform is already in progress for this session')
     }
+
+    const abortController = new AbortController()
+    const cancellationListener = token?.onCancellationRequested(() => {
+      abortController.abort()
+    })
+    if (token?.isCancellationRequested) {
+      abortController.abort()
+    }
+    session.transformAbortController = abortController
 
     this.postTransformStatus(
       session,
@@ -4079,7 +4101,8 @@ export class HexEditorProvider
           pluginId,
           clampedOffset,
           originalLength,
-          optionsJson
+          optionsJson,
+          { signal: abortController.signal }
         )
 
         this.postWebviewMessage(session, {
@@ -4112,7 +4135,8 @@ export class HexEditorProvider
         pluginId,
         clampedOffset,
         originalLength,
-        optionsJson
+        optionsJson,
+        { signal: abortController.signal }
       )
 
       if (response.contentChanged) {
@@ -4153,10 +4177,48 @@ export class HexEditorProvider
         formatTransformCompletionMessage(response)
       )
     } catch (error) {
+      if (
+        abortController.signal.aborted ||
+        token?.isCancellationRequested ||
+        isTransformCancellationError(error)
+      ) {
+        failureMessage = vscode.l10n.t('Transform cancelled')
+        void vscode.window.showInformationMessage(failureMessage)
+        return
+      }
       failureMessage = error instanceof Error ? error.message : String(error)
       throw error
     } finally {
+      cancellationListener?.dispose()
+      if (session.transformAbortController === abortController) {
+        session.transformAbortController = undefined
+      }
       this.postTransformStatus(session, false, pluginId, failureMessage)
+    }
+  }
+
+  private cancelTransform(session: EditorSession): void {
+    if (!session.transformInFlight) {
+      return
+    }
+    const controller = session.transformAbortController
+    if (!controller) {
+      this.postTransformStatus(
+        session,
+        true,
+        undefined,
+        vscode.l10n.t('This action cannot be cancelled.')
+      )
+      return
+    }
+    if (!controller.signal.aborted) {
+      controller.abort()
+      this.postTransformStatus(
+        session,
+        true,
+        undefined,
+        vscode.l10n.t('Cancelling transform...')
+      )
     }
   }
 
@@ -5453,6 +5515,11 @@ export class HexEditorProvider
           break
         }
 
+        case 'cancelTransform': {
+          this.cancelTransform(session)
+          break
+        }
+
         case 'copySelection': {
           await this.postClipboardSelection(
             session,
@@ -5685,16 +5752,26 @@ export class HexEditorProvider
         }
 
         case 'applyTransform': {
-          await session.search.preserveState(async () => {
-            await this.applyTransformToRange(
-              session,
-              msg.pluginId,
-              msg.contentSource ?? 'computed',
-              msg.offset,
-              msg.length,
-              msg.optionsJson?.trim() || undefined
-            )
-          })
+          await vscode.window.withProgress(
+            {
+              location: vscode.ProgressLocation.Notification,
+              title: vscode.l10n.t('Applying transform...'),
+              cancellable: true,
+            },
+            async (_progress, token) => {
+              await session.search.preserveState(async () => {
+                await this.applyTransformToRange(
+                  session,
+                  msg.pluginId,
+                  msg.contentSource ?? 'computed',
+                  msg.offset,
+                  msg.length,
+                  msg.optionsJson?.trim() || undefined,
+                  token
+                )
+              })
+            }
+          )
           break
         }
 

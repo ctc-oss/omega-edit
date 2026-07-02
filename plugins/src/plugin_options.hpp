@@ -189,6 +189,7 @@ namespace omega_edit {
                 (request_ptr->input_length > 0 && !request_ptr->input_bytes)) {
                 return false;
             }
+            if (omega_transform_plugin_sdk_is_cancelled(request_ptr)) { return false; }
             out.assign(request_ptr->input_bytes, request_ptr->input_bytes + request_ptr->input_length);
             return true;
         }
@@ -208,6 +209,7 @@ namespace omega_edit {
             if (!request_ptr || request_ptr->session_length < 0 || request_ptr->input_length < 0) { return false; }
             if (!request_ptr->read) {
                 if (request_ptr->input_length > 0 && !request_ptr->input_bytes) { return false; }
+                if (omega_transform_plugin_sdk_is_cancelled(request_ptr)) { return false; }
                 return callback(request_ptr->input_bytes, request_ptr->input_length);
             }
 
@@ -218,6 +220,7 @@ namespace omega_edit {
             if (chunk_size > max_chunk) { chunk_size = max_chunk; }
             std::vector<omega_byte_t> buffer(static_cast<size_t>(chunk_size));
             for (int64_t position = 0; position < request_ptr->session_length;) {
+                if (omega_transform_plugin_sdk_is_cancelled(request_ptr)) { return false; }
                 const int64_t remaining = request_ptr->session_length - position;
                 const int64_t requested = remaining < chunk_size ? remaining : chunk_size;
                 const int64_t bytes_read =

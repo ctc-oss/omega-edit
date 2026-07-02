@@ -155,6 +155,7 @@ static int zlib_compress(const omega_transform_plugin_request_t *request_ptr,
                          omega_transform_plugin_response_t *response_ptr, int level) {
     uLong input_length = 0;
     if (input_length_to_ulong(request_ptr->input_length, &input_length) != 0) { return -1; }
+    if (omega_transform_plugin_sdk_is_cancelled(request_ptr)) { return -1; }
 
     uLongf output_length = compressBound(input_length);
     if ((uint64_t) output_length > INT64_MAX) { return -1; }
@@ -167,6 +168,7 @@ static int zlib_compress(const omega_transform_plugin_request_t *request_ptr,
     static const omega_byte_t empty_input = 0;
     const Bytef *input = request_ptr->input_length == 0 ? &empty_input : request_ptr->input_bytes;
     const int rc = compress2((Bytef *) response_ptr->replacement_bytes, &output_length, input, input_length, level);
+    if (omega_transform_plugin_sdk_is_cancelled(request_ptr)) { return -1; }
     if (rc != Z_OK || (uint64_t) output_length > INT64_MAX) { return -1; }
 
     response_ptr->replacement_length = (int64_t) output_length;
@@ -189,6 +191,7 @@ static int zlib_decompress(const omega_transform_plugin_request_t *request_ptr,
     int result = -1;
 
     while (1) {
+        if (omega_transform_plugin_sdk_is_cancelled(request_ptr)) { break; }
         if (stream.total_out >= capacity && grow_buffer(&output, &capacity) != 0) { break; }
 
         const uLong previous_total_in = stream.total_in;

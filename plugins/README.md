@@ -23,6 +23,12 @@ results. MD5 and SHA-1 are included for legacy formats, interoperability checks,
 and low-security data inspection workflows; do not use them for
 security-sensitive authentication or integrity decisions.
 
+Plugins should poll `omega_transform_plugin_sdk_is_cancelled()` during long
+loops, between streaming reads, and around expensive library calls. When it
+returns non-zero, stop promptly, release any resources not owned by the response,
+and return a non-zero apply result. The host releases SDK-allocated buffers that
+were not transferred in a successful response.
+
 ## Build
 
 Install dependencies with Conan, then configure this directory with the generated
