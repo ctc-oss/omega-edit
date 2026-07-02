@@ -1034,6 +1034,7 @@ test('compiled extension entrypoints exist after build', () => {
   assert.match(svelteAppSource, /rangeMapTree = \$state/)
   assert.match(svelteAppSource, /postToHost\(\{ type: 'loadRangeMap' \}\)/)
   assert.match(svelteAppSource, /postToHost\(\{ type: 'unloadRangeMap' \}\)/)
+  assert.doesNotMatch(svelteAppSource, /onSelectExternalHighlight/)
   assert.match(svelteAppSource, /case 'bytesPerRow'/)
   assert.match(svelteAppSource, /dataProfile=\{latestDataProfile\}/)
   assert.match(svelteAppSource, /viewportProfile=\{latestViewportProfile\}/)
@@ -1069,8 +1070,14 @@ test('compiled extension entrypoints exist after build', () => {
   assert.match(editorWorkspaceSource, /externalHighlights/)
   assert.match(editorWorkspaceSource, /rangeMapTree/)
   assert.match(editorWorkspaceSource, /onSelectRangeMapNode/)
+  assert.doesNotMatch(editorWorkspaceSource, /onSelectExternalHighlight/)
   assert.match(editorWorkspaceSource, /onLoadRangeMap/)
   assert.match(editorWorkspaceSource, /onUnloadRangeMap/)
+  assert.match(editorWorkspaceSource, /hoveredExternalHighlightId/)
+  assert.match(editorWorkspaceSource, /setHoveredExternalHighlightId/)
+  assert.match(editorWorkspaceSource, /emphasizedExternalHighlightId/)
+  assert.match(editorWorkspaceSource, /setEmphasizedExternalHighlightId/)
+  assert.match(editorWorkspaceSource, /activeExternalHighlightId/)
   assert.match(editorWorkspaceSource, /dataProfile/)
   assert.match(editorWorkspaceSource, /viewportProfile/)
   assert.match(editorWorkspaceSource, /serverHealth/)
@@ -1086,6 +1093,8 @@ test('compiled extension entrypoints exist after build', () => {
   assert.match(previewGridSource, /onpointermove/)
   assert.match(previewGridSource, /onpointerup/)
   assert.match(previewGridSource, /onpointercancel/)
+  assert.match(previewGridSource, /activeExternalHighlightId/)
+  assert.match(previewGridSource, /onExternalHighlightHover/)
   assert.match(previewGridSource, /onwheel/)
   assert.match(previewGridSource, /onMoveSelection/)
   assert.match(previewGridSource, /canScrollUp/)
@@ -1343,6 +1352,14 @@ test('compiled extension entrypoints exist after build', () => {
   assert.match(fileScrollbarSource, /role="scrollbar"/)
   assert.match(fileScrollbarSource, /aria-controls="previewGrid"/)
   assert.match(fileScrollbarSource, /strings\.navigation\.scrollbarLabel/)
+  assert.match(fileScrollbarSource, /WebviewExternalHighlight/)
+  assert.match(fileScrollbarSource, /rangeMarkers/)
+  assert.match(fileScrollbarSource, /file-scrollbar-range-marker/)
+  assert.match(fileScrollbarSource, /scrollToRangeMarker/)
+  assert.match(fileScrollbarSource, /activateRangeMarker/)
+  assert.match(fileScrollbarSource, /onExternalHighlightHover/)
+  assert.match(fileScrollbarSource, /onExternalHighlightEmphasis/)
+  assert.doesNotMatch(fileScrollbarSource, /onSelectExternalHighlight/)
   assert.match(fileScrollbarSource, /requestAnimationFrame/)
   assert.match(fileScrollbarSource, /ResizeObserver/)
   assert.match(fileScrollbarSource, /function scrollFromTrackPosition/)
@@ -1410,11 +1427,23 @@ test('compiled extension entrypoints exist after build', () => {
   assert.match(profilerPanelSource, /rangeMapRows/)
   assert.match(profilerPanelSource, /range-map-tree/)
   assert.match(profilerPanelSource, /range-map-node/)
+  assert.match(profilerPanelSource, /EXTERNAL_HIGHLIGHT_COLOR_COUNT = 12/)
+  assert.match(profilerPanelSource, /hashRangeMapNodeId/)
+  assert.match(profilerPanelSource, /rangeMapNodeColorSlot/)
+  assert.match(
+    profilerPanelSource,
+    /data-external-color=\{rangeMapNodeColorSlot\(row\.node\)\}/
+  )
   assert.match(profilerPanelSource, /collapsedRangeMapNodes/)
   assert.match(profilerPanelSource, /toggleRangeMapNode/)
+  assert.match(profilerPanelSource, /expandAllRangeMapNodes/)
+  assert.match(profilerPanelSource, /collapseAllRangeMapNodes/)
+  assert.match(profilerPanelSource, /rangeMapTreeAllExpandableNodesCollapsed/)
   assert.match(profilerPanelSource, /range-map-node-toggle/)
   assert.match(profilerPanelSource, /onLoadRangeMap/)
   assert.match(profilerPanelSource, /onUnloadRangeMap/)
+  assert.match(profilerPanelSource, /onRangeMapNodeHover/)
+  assert.match(profilerPanelSource, /rangeMapNodeHovered/)
   assert.match(profilerPanelSource, /strings\.profiler\.loadRangeMap/)
   assert.match(profilerPanelSource, /strings\.profiler\.unloadRangeMap/)
   assert.match(profilerPanelSource, /sectionId === 'server'/)
@@ -1455,6 +1484,17 @@ test('compiled extension entrypoints exist after build', () => {
   assert.match(profilerPanelSource, /onMoveSection/)
   assert.match(profilerPanelSource, /onReorderSection/)
   assert.match(svelteStylesSource, /\.analysis-section\.dragging::before/)
+  assert.match(svelteStylesSource, /\.analysis-icon-button/)
+  assert.match(svelteStylesSource, /\.file-scrollbar-range-marker/)
+  assert.match(
+    svelteStylesSource,
+    /\.range-map-node\[data-external-color="0"\]/
+  )
+  assert.match(
+    svelteStylesSource,
+    /\.range-map-node\[data-external-color="11"\]/
+  )
+  assert.match(svelteStylesSource, /\.range-map-node-row\.hovered/)
   assert.doesNotMatch(
     svelteStylesSource,
     /\.analysis-section\.dragging\s*\{[^}]*opacity/

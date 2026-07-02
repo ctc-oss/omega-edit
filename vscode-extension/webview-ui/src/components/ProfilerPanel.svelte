@@ -18,6 +18,8 @@
     profile: ['viewport', 'classes', 'data', 'frequency'],
     structure: ['rangeMap', 'visible', 'history', 'timing', 'server'],
   }
+  // Must match the number of data-external-color selectors (0..N-1) defined in styles.css
+  const EXTERNAL_HIGHLIGHT_COLOR_COUNT = 12
 
   interface ViewportProfilerSnapshot {
     fetchDurationMs: number
@@ -107,6 +109,7 @@
     selectionStart?: number
     selectionEnd?: number
     rangeMapTree?: WebviewRangeMapNode[]
+    hoveredExternalHighlightId?: string
     dataProfile?: AnalysisProfileMessage
     viewportProfile?: ViewportProfilerSnapshot
     serverHealth?: ServerHealthMessage
@@ -117,6 +120,7 @@
     onToggleExpanded: () => void
     onModeChange: (mode: AnalysisMode) => void
     onSelectRangeMapNode: (node: WebviewRangeMapNode) => void
+    onRangeMapNodeHover: (id: string | undefined) => void
     onLoadRangeMap: () => void
     onUnloadRangeMap: () => void
     onMoveSection: (
@@ -148,6 +152,7 @@
     selectionStart = -1,
     selectionEnd = -1,
     rangeMapTree = [],
+    hoveredExternalHighlightId,
     dataProfile,
     viewportProfile,
     serverHealth,
@@ -158,6 +163,7 @@
     onToggleExpanded,
     onModeChange,
     onSelectRangeMapNode,
+    onRangeMapNodeHover,
     onLoadRangeMap,
     onUnloadRangeMap,
     onMoveSection,
@@ -227,6 +233,16 @@
   const structureRows = $derived(buildStructureRows())
   const rangeMapRows = $derived(flattenRangeMapTree(rangeMapTree))
   const hasRangeMap = $derived(rangeMapTree.length > 0)
+  const rangeMapHasExpandableNodes = $derived(
+    rangeMapTreeHasExpandableNodes(rangeMapTree)
+  )
+  const rangeMapHasCollapsedNodes = $derived(
+    rangeMapTreeHasCollapsedNodes(rangeMapTree)
+  )
+  const rangeMapAllExpandableNodesCollapsed = $derived(
+    rangeMapHasExpandableNodes &&
+      rangeMapTreeAllExpandableNodesCollapsed(rangeMapTree)
+  )
   const historyRows = $derived([
     { label: strings.profiler.undo, value: formatNumber(undoCount) },
     { label: strings.profiler.redo, value: formatNumber(redoCount) },
@@ -528,6 +544,18 @@
     return suffixes.length > 0 ? suffixes.join(' | ') : ''
   }
 
+  function hashRangeMapNodeId(id: string): number {
+    let hash = 0
+    for (let index = 0; index < id.length; index += 1) {
+      hash = (hash * 31 + id.charCodeAt(index)) >>> 0
+    }
+    return hash
+  }
+
+  function rangeMapNodeColorSlot(node: WebviewRangeMapNode): string {
+    return String(hashRangeMapNodeId(node.id) % EXTERNAL_HIGHLIGHT_COLOR_COUNT)
+  }
+
   function rangeMapNodeTitle(node: WebviewRangeMapNode): string {
     return strings.profiler.rangeMapNodeTitle(
       node.label,
@@ -544,6 +572,10 @@
       selectionStart === node.offset &&
       selectionEnd === node.offset + node.length - 1
     )
+  }
+
+  function rangeMapNodeHovered(node: WebviewRangeMapNode): boolean {
+    return hoveredExternalHighlightId === node.id
   }
 
   function rangeMapNodeHasChildren(node: WebviewRangeMapNode): boolean {
@@ -565,6 +597,72 @@
       ...collapsedRangeMapNodes,
       [node.id]: !collapsedRangeMapNodes[node.id],
     }
+  }
+
+  function rangeMapTreeHasExpandableNodes(
+    nodes: WebviewRangeMapNode[]
+  ): boolean {
+    for (const node of nodes) {
+      if (
+        rangeMapNodeHasChildren(node) ||
+        rangeMapTreeHasExpandableNodes(node.children)
+      ) {
+        return true
+      }
+    }
+    return false
+  }
+
+  function rangeMapTreeHasCollapsedNodes(
+    nodes: WebviewRangeMapNode[]
+  ): boolean {
+    for (const node of nodes) {
+      if (
+        collapsedRangeMapNodes[node.id] ||
+        rangeMapTreeHasCollapsedNodes(node.children)
+      ) {
+        return true
+      }
+    }
+    return false
+  }
+
+  function rangeMapTreeAllExpandableNodesCollapsed(
+    nodes: WebviewRangeMapNode[]
+  ): boolean {
+    for (const node of nodes) {
+      if (rangeMapNodeHasChildren(node)) {
+        if (
+          !collapsedRangeMapNodes[node.id] ||
+          !rangeMapTreeAllExpandableNodesCollapsed(node.children)
+        ) {
+          return false
+        }
+      }
+    }
+    return true
+  }
+
+  function collectCollapsedRangeMapNodes(
+    nodes: WebviewRangeMapNode[],
+    collapsed: Record<string, boolean>
+  ): void {
+    for (const node of nodes) {
+      if (rangeMapNodeHasChildren(node)) {
+        collapsed[node.id] = true
+        collectCollapsedRangeMapNodes(node.children, collapsed)
+      }
+    }
+  }
+
+  function expandAllRangeMapNodes(): void {
+    collapsedRangeMapNodes = {}
+  }
+
+  function collapseAllRangeMapNodes(): void {
+    const collapsed: Record<string, boolean> = {}
+    collectCollapsedRangeMapNodes(rangeMapTree, collapsed)
+    collapsedRangeMapNodes = collapsed
   }
 
   function toHex2(byte: number): string {
@@ -1512,6 +1610,29 @@
                     </button>
                     <button
                       type="button"
+                      class="analysis-icon-button"
+                      aria-label={strings.profiler.expandRangeMapAllTitle}
+                      title={strings.profiler.expandRangeMapAllTitle}
+                      disabled={!rangeMapHasCollapsedNodes}
+                      onclick={expandAllRangeMapNodes}
+                    >
+                      ++
+                    </button>
+                    <button
+                      type="button"
+                      class="analysis-icon-button"
+                      aria-label={strings.profiler.collapseRangeMapAllTitle}
+                      title={strings.profiler.collapseRangeMapAllTitle}
+                      disabled={
+                        !rangeMapHasExpandableNodes ||
+                        rangeMapAllExpandableNodesCollapsed
+                      }
+                      onclick={collapseAllRangeMapNodes}
+                    >
+                      --
+                    </button>
+                    <button
+                      type="button"
                       class="analysis-collapse-button"
                       aria-expanded={!isSectionCollapsed(sectionId)}
                       aria-label={sectionCollapseLabel(sectionId)}
@@ -1550,13 +1671,17 @@
                         <div
                           class={`range-map-node-row ${rangeMapDepthClass(row.depth)}`}
                           class:active={rangeMapNodeSelected(row.node)}
+                          class:hovered={rangeMapNodeHovered(row.node)}
                           class:stale={row.node.stale === true}
                           role="treeitem"
+                          tabindex="-1"
                           aria-level={row.depth + 1}
                           aria-selected={rangeMapNodeSelected(row.node)}
                           aria-expanded={hasChildren
                             ? rangeMapNodeExpanded(row.node)
                             : undefined}
+                          onpointerenter={() => onRangeMapNodeHover(row.node.id)}
+                          onpointerleave={() => onRangeMapNodeHover(undefined)}
                         >
                           {#if hasChildren}
                             <button
@@ -1577,6 +1702,7 @@
                           <button
                             type="button"
                             class="range-map-node"
+                            data-external-color={rangeMapNodeColorSlot(row.node)}
                             title={rangeMapNodeTitle(row.node)}
                             onclick={() => onSelectRangeMapNode(row.node)}
                           >

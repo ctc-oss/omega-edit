@@ -2399,14 +2399,6 @@ export class HexEditorProvider
     const unloadedCount = session.externalHighlights.length
     this.clearSessionExternalHighlights(session)
 
-    if (unloadedCount > 0 && (!isRecord(options) || options.notify !== false)) {
-      void vscode.window.showInformationMessage(
-        vscode.l10n.t('Unloaded {count} range map label(s)', {
-          count: unloadedCount,
-        })
-      )
-    }
-
     return {
       state: this.buildEditorState(session),
       unloadedCount,

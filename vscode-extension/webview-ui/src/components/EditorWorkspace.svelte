@@ -176,7 +176,24 @@
   let autoFitOverflowCap = $state<
     { width: number; bytesPerRow: BytesPerRow } | undefined
   >(undefined)
+  let hoveredExternalHighlightId = $state<string | undefined>(undefined)
+  let emphasizedExternalHighlightId = $state<string | undefined>(undefined)
   const AUTO_FIT_WIDTH_GUARD_PX = 24
+  const activeExternalHighlightId = $derived(
+    hoveredExternalHighlightId ?? emphasizedExternalHighlightId
+  )
+
+  function setHoveredExternalHighlightId(id: string | undefined): void {
+    hoveredExternalHighlightId = id
+  }
+
+  function setEmphasizedExternalHighlightId(id: string | undefined): void {
+    emphasizedExternalHighlightId = id
+  }
+
+  function externalHighlightExists(id: string | undefined): boolean {
+    return !!id && externalHighlights.some((highlight) => highlight.id === id)
+  }
 
   function measureAutoFitBytesPerRow(): BytesPerRow | undefined {
     if (!gridScrollerElement || !autoFitBytesPerRow || preparing) {
@@ -289,6 +306,21 @@
 
   $effect(() => {
     if (
+      emphasizedExternalHighlightId &&
+      !externalHighlightExists(emphasizedExternalHighlightId)
+    ) {
+      emphasizedExternalHighlightId = undefined
+    }
+    if (
+      hoveredExternalHighlightId &&
+      !externalHighlightExists(hoveredExternalHighlightId)
+    ) {
+      hoveredExternalHighlightId = undefined
+    }
+  })
+
+  $effect(() => {
+    if (
       gridScrollerElement &&
       autoFitBytesPerRow &&
       !preparing &&
@@ -340,6 +372,7 @@
           inspectorStart={inspectorStart}
           inspectorEnd={inspectorEnd}
           {externalHighlights}
+          hoveredExternalHighlightId={activeExternalHighlightId}
           {pendingHexLabel}
           {canScrollUp}
           {canScrollDown}
@@ -353,6 +386,7 @@
           onDeleteByte={onDeleteByte}
           readOnly={editDisabled}
           onVisibleRowsChange={onVisibleRowsChange}
+          onExternalHighlightHover={setHoveredExternalHighlightId}
           editMode={editMode}
         />
       </div>
@@ -363,7 +397,13 @@
         {visibleRows}
         {visibleByteCount}
         {offsetRadix}
+        {selectionStart}
+        {selectionEnd}
+        {externalHighlights}
+        hoveredExternalHighlightId={activeExternalHighlightId}
         onScrollTo={onScrollTo}
+        onExternalHighlightHover={setHoveredExternalHighlightId}
+        onExternalHighlightEmphasis={setEmphasizedExternalHighlightId}
       />
       {#if editDisabled}
         <div
@@ -394,6 +434,7 @@
     {selectionLength}
     {selectionStart}
     {selectionEnd}
+    hoveredExternalHighlightId={activeExternalHighlightId}
     {dataProfile}
     {viewportProfile}
     {serverHealth}
@@ -405,6 +446,7 @@
     onToggleExpanded={onToggleProfilerExpanded}
     onModeChange={onProfilerModeChange}
     onSelectRangeMapNode={onSelectRangeMapNode}
+    onRangeMapNodeHover={setHoveredExternalHighlightId}
     onLoadRangeMap={onLoadRangeMap}
     onUnloadRangeMap={onUnloadRangeMap}
     onMoveSection={onMoveAnalysisSection}

@@ -399,6 +399,8 @@ const englishStrings = {
     unloadRangeMap: 'Unload',
     loadRangeMapTitle: 'Load range map',
     unloadRangeMapTitle: 'Unload range map',
+    expandRangeMapAllTitle: 'Expand all range map nodes',
+    collapseRangeMapAllTitle: 'Collapse all range map nodes',
     expandRangeMapNode: (label: string) => `Expand ${label}`,
     collapseRangeMapNode: (label: string) => `Collapse ${label}`,
     rangeMapNodeTitle: (label: string, offset: string, length: string) =>
@@ -649,6 +651,8 @@ const localeOverrides: Record<string, LocaleStringOverrides> = {
       unloadRangeMap: 'Quitar',
       loadRangeMapTitle: 'Cargar mapa de rangos',
       unloadRangeMapTitle: 'Quitar mapa de rangos',
+      expandRangeMapAllTitle: 'Expandir todos los nodos del mapa de rangos',
+      collapseRangeMapAllTitle: 'Contraer todos los nodos del mapa de rangos',
       expandRangeMapNode: (label: string) => `Expandir ${label}`,
       collapseRangeMapNode: (label: string) => `Contraer ${label}`,
       rangeMapNodeTitle: (label: string, offset: string, length: string) =>

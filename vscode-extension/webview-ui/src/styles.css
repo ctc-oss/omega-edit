@@ -974,6 +974,43 @@ button.dialog-backdrop:focus-visible {
   transition: fill 120ms ease;
 }
 
+.file-scrollbar-range-marker {
+  --omega-external-highlight-accent: var(--vscode-charts-blue, #3794ff);
+  fill: var(--omega-external-highlight-accent);
+  opacity: 0.42;
+  cursor: pointer;
+  pointer-events: all;
+  stroke: transparent;
+  stroke-width: 1;
+  transition:
+    opacity 120ms ease,
+    stroke 120ms ease;
+}
+
+.file-scrollbar-range-marker:hover,
+.file-scrollbar-range-marker:focus-visible,
+.file-scrollbar-range-marker.hovered {
+  opacity: 0.92;
+  outline: none;
+  stroke: var(--vscode-focusBorder, var(--omega-external-highlight-accent));
+}
+
+.file-scrollbar-range-marker.selected {
+  opacity: 1;
+  stroke: var(--vscode-list-activeSelectionForeground, var(--vscode-focusBorder));
+}
+
+.file-scrollbar-range-marker.stale {
+  opacity: 0.28;
+  stroke-dasharray: 1 2;
+}
+
+.file-scrollbar-range-marker.stale.hovered,
+.file-scrollbar-range-marker.stale:hover,
+.file-scrollbar-range-marker.stale:focus-visible {
+  opacity: 0.62;
+}
+
 .file-scrollbar-svg {
   position: absolute;
   inset: 0;
@@ -1177,6 +1214,27 @@ button.dialog-backdrop:focus-visible {
   background: transparent;
   border-color: var(--vscode-input-border, var(--vscode-editorGroup-border));
   font-size: 10px;
+}
+
+.analysis-icon-button {
+  display: inline-grid;
+  place-items: center;
+  width: 22px;
+  min-width: 22px;
+  height: 22px;
+  min-height: 22px;
+  padding: 0;
+  color: var(--vscode-descriptionForeground);
+  background: transparent;
+  border-color: var(--vscode-input-border, var(--vscode-editorGroup-border));
+  font-size: 10px;
+  line-height: 1;
+}
+
+.analysis-icon-button:hover:not(:disabled),
+.analysis-icon-button:focus:not(:disabled) {
+  color: var(--vscode-foreground);
+  background: var(--vscode-input-background);
 }
 
 .analysis-collapse-button {
@@ -1562,6 +1620,8 @@ button.dialog-backdrop:focus-visible {
 }
 
 .range-map-node {
+  --omega-external-highlight-accent: var(--vscode-charts-blue, #3794ff);
+  --omega-external-highlight-fill: var(--vscode-charts-blue, #3794ff);
   display: grid;
   grid-template-areas:
     "label meta"
@@ -1575,6 +1635,8 @@ button.dialog-backdrop:focus-visible {
   border-radius: 4px;
   color: var(--vscode-foreground);
   background: transparent;
+  box-shadow: inset 3px 0 0
+    color-mix(in srgb, var(--omega-external-highlight-accent) 80%, transparent);
   column-gap: 8px;
   text-align: left;
 }
@@ -1583,11 +1645,28 @@ button.dialog-backdrop:focus-visible {
 .range-map-node:focus {
   border-color: var(--vscode-focusBorder);
   background: var(--vscode-list-hoverBackground, var(--vscode-input-background));
+  box-shadow:
+    inset 3px 0 0 var(--omega-external-highlight-accent),
+    inset 0 0 0 1px
+    color-mix(in srgb, var(--omega-external-highlight-accent) 38%, transparent);
+}
+
+.range-map-node-row.hovered .range-map-node {
+  border-color: var(--vscode-focusBorder);
+  background: var(--vscode-list-hoverBackground, var(--vscode-input-background));
+  box-shadow:
+    inset 3px 0 0 var(--omega-external-highlight-accent),
+    inset 0 0 0 1px
+    color-mix(in srgb, var(--omega-external-highlight-accent) 38%, transparent);
 }
 
 .range-map-node-row.active .range-map-node {
   border-color: var(--vscode-list-activeSelectionBackground);
   background: var(--vscode-list-activeSelectionBackground);
+  box-shadow:
+    inset 3px 0 0 var(--omega-external-highlight-accent),
+    inset 0 0 0 1px
+    color-mix(in srgb, var(--omega-external-highlight-accent) 52%, transparent);
   color: var(--vscode-list-activeSelectionForeground, var(--vscode-foreground));
 }
 
@@ -1599,6 +1678,12 @@ button.dialog-backdrop:focus-visible {
 .range-map-node-row.stale .range-map-node {
   color: var(--vscode-descriptionForeground);
   font-style: italic;
+  box-shadow: inset 3px 0 0
+    color-mix(
+      in srgb,
+      var(--omega-external-highlight-accent) 42%,
+      transparent
+    );
 }
 
 .range-map-node-label {
@@ -2137,72 +2222,96 @@ button.dialog-backdrop:focus-visible {
   );
 }
 
+.file-scrollbar-range-marker[data-external-color="0"],
+.range-map-node[data-external-color="0"],
 .byte[data-external-color="0"],
 .text-byte[data-external-color="0"] {
   --omega-external-highlight-accent: var(--vscode-charts-blue, #3794ff);
   --omega-external-highlight-fill: var(--vscode-charts-blue, #3794ff);
 }
 
+.file-scrollbar-range-marker[data-external-color="1"],
+.range-map-node[data-external-color="1"],
 .byte[data-external-color="1"],
 .text-byte[data-external-color="1"] {
   --omega-external-highlight-accent: var(--vscode-charts-green, #89d185);
   --omega-external-highlight-fill: var(--vscode-charts-green, #89d185);
 }
 
+.file-scrollbar-range-marker[data-external-color="2"],
+.range-map-node[data-external-color="2"],
 .byte[data-external-color="2"],
 .text-byte[data-external-color="2"] {
   --omega-external-highlight-accent: var(--vscode-charts-yellow, #cca700);
   --omega-external-highlight-fill: var(--vscode-charts-yellow, #cca700);
 }
 
+.file-scrollbar-range-marker[data-external-color="3"],
+.range-map-node[data-external-color="3"],
 .byte[data-external-color="3"],
 .text-byte[data-external-color="3"] {
   --omega-external-highlight-accent: var(--vscode-charts-orange, #d18616);
   --omega-external-highlight-fill: var(--vscode-charts-orange, #d18616);
 }
 
+.file-scrollbar-range-marker[data-external-color="4"],
+.range-map-node[data-external-color="4"],
 .byte[data-external-color="4"],
 .text-byte[data-external-color="4"] {
   --omega-external-highlight-accent: var(--vscode-charts-purple, #b180d7);
   --omega-external-highlight-fill: var(--vscode-charts-purple, #b180d7);
 }
 
+.file-scrollbar-range-marker[data-external-color="5"],
+.range-map-node[data-external-color="5"],
 .byte[data-external-color="5"],
 .text-byte[data-external-color="5"] {
   --omega-external-highlight-accent: var(--vscode-charts-red, #f14c4c);
   --omega-external-highlight-fill: var(--vscode-charts-red, #f14c4c);
 }
 
+.file-scrollbar-range-marker[data-external-color="6"],
+.range-map-node[data-external-color="6"],
 .byte[data-external-color="6"],
 .text-byte[data-external-color="6"] {
   --omega-external-highlight-accent: var(--vscode-terminal-ansiCyan, #4fc1ff);
   --omega-external-highlight-fill: var(--vscode-terminal-ansiCyan, #4fc1ff);
 }
 
+.file-scrollbar-range-marker[data-external-color="7"],
+.range-map-node[data-external-color="7"],
 .byte[data-external-color="7"],
 .text-byte[data-external-color="7"] {
   --omega-external-highlight-accent: var(--vscode-terminal-ansiMagenta, #c586c0);
   --omega-external-highlight-fill: var(--vscode-terminal-ansiMagenta, #c586c0);
 }
 
+.file-scrollbar-range-marker[data-external-color="8"],
+.range-map-node[data-external-color="8"],
 .byte[data-external-color="8"],
 .text-byte[data-external-color="8"] {
   --omega-external-highlight-accent: var(--vscode-terminal-ansiBrightGreen, #b5cea8);
   --omega-external-highlight-fill: var(--vscode-terminal-ansiBrightGreen, #b5cea8);
 }
 
+.file-scrollbar-range-marker[data-external-color="9"],
+.range-map-node[data-external-color="9"],
 .byte[data-external-color="9"],
 .text-byte[data-external-color="9"] {
   --omega-external-highlight-accent: var(--vscode-terminal-ansiBrightBlue, #9cdcfe);
   --omega-external-highlight-fill: var(--vscode-terminal-ansiBrightBlue, #9cdcfe);
 }
 
+.file-scrollbar-range-marker[data-external-color="10"],
+.range-map-node[data-external-color="10"],
 .byte[data-external-color="10"],
 .text-byte[data-external-color="10"] {
   --omega-external-highlight-accent: var(--vscode-terminal-ansiBrightYellow, #dcdcaa);
   --omega-external-highlight-fill: var(--vscode-terminal-ansiBrightYellow, #dcdcaa);
 }
 
+.file-scrollbar-range-marker[data-external-color="11"],
+.range-map-node[data-external-color="11"],
 .byte[data-external-color="11"],
 .text-byte[data-external-color="11"] {
   --omega-external-highlight-accent: var(--vscode-terminal-ansiBrightRed, #f48771);

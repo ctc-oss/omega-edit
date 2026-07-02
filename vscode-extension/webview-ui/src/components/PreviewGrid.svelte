@@ -20,6 +20,7 @@
     inspectorStart?: number
     inspectorEnd?: number
     externalHighlights?: WebviewExternalHighlight[]
+    hoveredExternalHighlightId?: string
     activePane?: 'hex' | 'ascii'
     editMode?: 'insert' | 'overwrite'
     readOnly?: boolean
@@ -35,6 +36,7 @@
     canScrollUp?: boolean
     canScrollDown?: boolean
     onVisibleRowsChange: (visibleRows: number) => void
+    onExternalHighlightHover?: (id: string | undefined) => void
   }
 
   let {
@@ -50,6 +52,7 @@
     inspectorStart = -1,
     inspectorEnd = -1,
     externalHighlights = [],
+    hoveredExternalHighlightId,
     activePane = 'hex',
     editMode = 'insert',
     readOnly = false,
@@ -65,6 +68,7 @@
     canScrollUp = false,
     canScrollDown = false,
     onVisibleRowsChange,
+    onExternalHighlightHover = () => {},
   }: Props = $props()
 
   let gridElement = $state<HTMLDivElement>()
@@ -109,13 +113,16 @@
 
     return lookup
   })
-  const hoveredExternalHighlightId = $derived.by(() => {
+  const gridHoveredExternalHighlightId = $derived.by(() => {
     if (hoveredRowIndex < 0 || hoveredColumn < 0) {
       return undefined
     }
     const byteOffset = offset + hoveredRowIndex * bytesPerRow + hoveredColumn
     return externalHighlightFor(byteOffset)?.id
   })
+  const activeExternalHighlightId = $derived(
+    hoveredExternalHighlightId ?? gridHoveredExternalHighlightId
+  )
 
   function formatHex(byte: number): string {
     return byte.toString(16).toUpperCase().padStart(2, '0')
@@ -283,17 +290,20 @@
   function isExternalHighlightHovered(
     highlight: WebviewExternalHighlight | undefined
   ): boolean {
-    return !!highlight && hoveredExternalHighlightId === highlight.id
+    return !!highlight && activeExternalHighlightId === highlight.id
   }
 
   function updateHover(rowIndex: number, column: number): void {
     hoveredRowIndex = rowIndex
     hoveredColumn = column
+    const byteOffset = offset + rowIndex * bytesPerRow + column
+    onExternalHighlightHover(externalHighlightFor(byteOffset)?.id)
   }
 
   function clearHover(): void {
     hoveredRowIndex = -1
     hoveredColumn = -1
+    onExternalHighlightHover(undefined)
   }
 
   function isColumnHover(column: number): boolean {
