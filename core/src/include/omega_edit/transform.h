@@ -36,7 +36,7 @@ extern "C" {
 
 #endif
 
-#define OMEGA_TRANSFORM_PLUGIN_ABI_VERSION 3
+#define OMEGA_TRANSFORM_PLUGIN_ABI_VERSION 2
 
 typedef enum {
     OMEGA_TRANSFORM_PLUGIN_OPERATION_REPLACE = 1,
@@ -73,6 +73,7 @@ typedef struct {
 typedef void *(*omega_transform_plugin_alloc_t)(size_t size, void *user_data_ptr);
 typedef int64_t (*omega_transform_plugin_read_t)(int64_t relative_offset, omega_byte_t *buffer, int64_t length,
                                                  void *user_data_ptr);
+typedef int (*omega_transform_plugin_is_cancelled_t)(void *user_data_ptr);
 
 typedef enum {
     OMEGA_TRANSFORM_PROGRESS_HAS_PROCESSED_BYTES = 1,
@@ -117,6 +118,13 @@ typedef struct {
     /** Optional callback for reporting long-running transform progress. */
     omega_transform_plugin_progress_cbk_t progress;
     void *progress_user_data_ptr;
+    /**
+     * Optional callback plugins should poll during long-running work. A non-zero return value means the host requested
+     * cooperative cancellation. Plugins should stop promptly, release non-response resources, and return a non-zero
+     * apply result.
+     */
+    omega_transform_plugin_is_cancelled_t is_cancelled;
+    void *cancel_user_data_ptr;
 } omega_transform_plugin_request_t;
 
 /**
@@ -175,6 +183,12 @@ int omega_transform_plugin_registry_apply_to_session_with_progress_and_serial(
         int64_t offset, int64_t length, const char *options_json, omega_transform_plugin_progress_cbk_t progress,
         void *progress_user_data_ptr, omega_transform_plugin_response_t *response_ptr, int64_t *change_serial_out);
 
+int omega_transform_plugin_registry_apply_to_session_with_progress_cancel_and_serial(
+        omega_transform_plugin_registry_t *registry_ptr, const char *plugin_id, omega_session_t *session_ptr,
+        int64_t offset, int64_t length, const char *options_json, omega_transform_plugin_progress_cbk_t progress,
+        void *progress_user_data_ptr, omega_transform_plugin_is_cancelled_t is_cancelled, void *cancel_user_data_ptr,
+        omega_transform_plugin_response_t *response_ptr, int64_t *change_serial_out);
+
 int omega_transform_plugin_registry_inspect_reader(omega_transform_plugin_registry_t *registry_ptr,
                                                    const char *plugin_id, int64_t session_offset,
                                                    int64_t session_length, const char *options_json,
@@ -183,6 +197,14 @@ int omega_transform_plugin_registry_inspect_reader(omega_transform_plugin_regist
                                                    omega_transform_plugin_progress_cbk_t progress,
                                                    void *progress_user_data_ptr,
                                                    omega_transform_plugin_response_t *response_ptr);
+
+int omega_transform_plugin_registry_inspect_reader_with_cancel(
+        omega_transform_plugin_registry_t *registry_ptr, const char *plugin_id, int64_t session_offset,
+        int64_t session_length, const char *options_json, const char *checkpoint_directory,
+        omega_transform_plugin_read_t read, void *reader_user_data_ptr, int64_t preferred_chunk_size,
+        omega_transform_plugin_progress_cbk_t progress, void *progress_user_data_ptr,
+        omega_transform_plugin_is_cancelled_t is_cancelled, void *cancel_user_data_ptr,
+        omega_transform_plugin_response_t *response_ptr);
 
 /**
  * Release response-owned replacement/result buffers and reset all fields to zero/null.

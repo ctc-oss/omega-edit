@@ -85,6 +85,10 @@ async function assertToolkitText(
 }
 
 describe('@omega-edit/ai toolkit', () => {
+  afterEach(() => {
+    vi.restoreAllMocks()
+  })
+
   it('preserves the original connection failure as the cause', async function () {
     const port = await omegaEditClient.findFirstAvailablePort(19000, 19999)
     assert.ok(port, 'expected an available port for OmegaEdit')
@@ -102,6 +106,47 @@ describe('@omega-edit/ai toolkit', () => {
       )
       assert.ok((error as Error & { cause?: unknown }).cause instanceof Error)
     }
+  })
+
+  it('passes transform cancellation signals to the client', async function () {
+    const controller = new AbortController()
+    const applyTransformPlugin = vi
+      .spyOn(omegaEditClient, 'applyTransformPlugin')
+      .mockResolvedValue({
+        sessionId: 'session-id',
+        pluginId: 'omega.example.case',
+        offset: 1,
+        length: 2,
+        operation: 1,
+        contentChanged: true,
+        computedFileSize: 3,
+        replacementLength: 2,
+        result: new Uint8Array(0),
+      } as Awaited<ReturnType<typeof omegaEditClient.applyTransformPlugin>>)
+    const toolkit = new OmegaEditToolkit({ autoStart: false })
+    ;(
+      toolkit as unknown as { ensureServerRunning: () => Promise<void> }
+    ).ensureServerRunning = async () => undefined
+
+    const result = await toolkit.applyTransformPlugin({
+      sessionId: 'session-id',
+      pluginId: 'omega.example.case',
+      offset: 1,
+      length: 2,
+      optionsJson: '{"case":"upper"}',
+      signal: controller.signal,
+    })
+
+    assert.equal(result.sessionId, 'session-id')
+    assert.equal(applyTransformPlugin.mock.calls.length, 1)
+    assert.deepEqual(applyTransformPlugin.mock.calls[0], [
+      'session-id',
+      'omega.example.case',
+      1,
+      2,
+      '{"case":"upper"}',
+      { signal: controller.signal },
+    ])
   })
 
   it('rejects wrapped change logs with incompatible format metadata', async function () {

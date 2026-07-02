@@ -70,6 +70,10 @@ import {
   endSessionTransaction as rawEndSessionTransaction,
 } from './protobuf_ts/session'
 import {
+  makeCancellationError,
+  type CancellableCallOptions,
+} from './protobuf_ts/utils'
+import {
   wrapByteOrderMarkResponse,
   wrapCharacterCountResponse,
   wrapContentTypeResponse,
@@ -93,6 +97,11 @@ import {
 } from './safe_int'
 import { enqueueSessionMutation } from './mutation_queue'
 import { pauseViewportEvents, resumeViewportEvents } from './viewport'
+
+export type {
+  CancellationSignal,
+  CancellableCallOptions,
+} from './protobuf_ts/utils'
 
 export enum SaveStatus {
   SUCCESS = 0,
@@ -489,15 +498,20 @@ export async function applyTransformPlugin(
   plugin_id: string,
   offset: number = 0,
   length: number = 0,
-  options_json?: string
+  options_json?: string,
+  options: CancellableCallOptions = {}
 ): Promise<ApplyTransformPluginResponse> {
   return await enqueueSessionMutation(session_id, async () => {
+    if (options.signal?.aborted) {
+      throw makeCancellationError('applyTransformPlugin')
+    }
     const response = await rawApplyTransformPlugin(
       session_id,
       plugin_id,
       requireSafeIntegerInput('applyTransformPlugin offset', offset),
       requireSafeIntegerInput('applyTransformPlugin length', length),
-      options_json
+      options_json,
+      options
     )
     requireSafeIntegerOutput('applyTransformPlugin offset', response.offset)
     requireSafeIntegerOutput('applyTransformPlugin length', response.length)
@@ -522,15 +536,20 @@ export async function inspectSessionContent(
   plugin_id: string,
   offset: number = 0,
   length: number = 0,
-  options_json?: string
+  options_json?: string,
+  options: CancellableCallOptions = {}
 ): Promise<InspectSessionContentResponse> {
+  if (options.signal?.aborted) {
+    throw makeCancellationError('inspectSessionContent')
+  }
   const response = await rawInspectSessionContent(
     session_id,
     content,
     plugin_id,
     requireSafeIntegerInput('inspectSessionContent offset', offset),
     requireSafeIntegerInput('inspectSessionContent length', length),
-    options_json
+    options_json,
+    options
   )
   requireSafeIntegerOutput('inspectSessionContent offset', response.offset)
   requireSafeIntegerOutput('inspectSessionContent length', response.length)

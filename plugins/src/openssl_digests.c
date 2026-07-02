@@ -143,6 +143,10 @@ static int omega_digest_update_from_request(const omega_transform_plugin_request
         omega_byte_t *buffer = (omega_byte_t *) malloc((size_t) chunk_size);
         if (!buffer) { return -1; }
         for (int64_t position = 0; position < request_ptr->session_length;) {
+            if (omega_transform_plugin_sdk_is_cancelled(request_ptr)) {
+                free(buffer);
+                return -1;
+            }
             const int64_t remaining = request_ptr->session_length - position;
             const int64_t requested = remaining < chunk_size ? remaining : chunk_size;
             const int64_t bytes_read =
@@ -157,6 +161,7 @@ static int omega_digest_update_from_request(const omega_transform_plugin_request
         return 0;
     }
 
+    if (omega_transform_plugin_sdk_is_cancelled(request_ptr)) { return -1; }
     return omega_digest_update(context_ptr, request_ptr->input_bytes, request_ptr->input_length);
 }
 

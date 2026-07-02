@@ -320,6 +320,7 @@ static int omega_bitmask_apply_replace(const omega_transform_plugin_request_t *r
     if (!bytes) { return -1; }
 
     for (int64_t i = 0; i < request_ptr->input_length; ++i) {
+        if ((i & 0xFFF) == 0 && omega_transform_plugin_sdk_is_cancelled(request_ptr)) { return -1; }
         const omega_byte_t mask = mask_ptr->bytes[(size_t) i % mask_ptr->length];
         bytes[i] = omega_bitmask_apply_byte(request_ptr->input_bytes[i], mask, mask_ptr->operation);
     }

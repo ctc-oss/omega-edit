@@ -27,7 +27,7 @@ interface ToolDefinition {
   description: string
   inputSchema: JsonObject
   outputSchema?: JsonObject
-  run: (argumentsObject: JsonObject) => Promise<object>
+  run: (argumentsObject: JsonObject, signal?: AbortSignal) => Promise<object>
 }
 
 function sendMessage(message: JsonObject): void {
@@ -557,13 +557,14 @@ function buildTools(toolkit: OmegaEditToolkit): ToolDefinition[] {
         },
         required: ['sessionId', 'pluginId'],
       },
-      run: async (argumentsObject) => {
+      run: async (argumentsObject, signal) => {
         return await toolkit.applyTransformPlugin({
           sessionId: getString(argumentsObject, 'sessionId', true)!,
           pluginId: getString(argumentsObject, 'pluginId', true)!,
           offset: getNumber(argumentsObject, 'offset', false, 0),
           length: getNumber(argumentsObject, 'length', false, 0),
           optionsJson: getString(argumentsObject, 'optionsJson'),
+          signal,
         })
       },
     },
@@ -772,6 +773,7 @@ async function main(): Promise<void> {
 
   const tools = buildTools(toolkit)
   const toolMap = new Map(tools.map((tool) => [tool.name, tool]))
+  const activeToolRequests = new Map<unknown, AbortController>()
   let initializeComplete = false
   let receivedInitializedNotification = false
 
@@ -841,6 +843,12 @@ async function main(): Promise<void> {
         return
       }
 
+      if (method === 'notifications/cancelled') {
+        const params = asObject(message.params)
+        activeToolRequests.get(params.requestId)?.abort()
+        return
+      }
+
       if (method === 'ping') {
         sendMessage(makeResult(id, {}))
         return
@@ -884,9 +892,13 @@ async function main(): Promise<void> {
         }
 
         const argumentsObject = asObject(params.arguments)
+        const abortController = new AbortController()
+        if (id !== undefined && id !== null) {
+          activeToolRequests.set(id, abortController)
+        }
 
         try {
-          const result = await tool.run(argumentsObject)
+          const result = await tool.run(argumentsObject, abortController.signal)
           sendMessage(makeResult(id, toolResult(result)))
         } catch (error) {
           const messageText =
@@ -906,6 +918,10 @@ async function main(): Promise<void> {
               )
             )
           )
+        } finally {
+          if (activeToolRequests.get(id) === abortController) {
+            activeToolRequests.delete(id)
+          }
         }
         return
       }

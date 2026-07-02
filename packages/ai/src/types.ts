@@ -19,6 +19,16 @@ export interface ToolkitOptions {
   insecureAllowNonLoopback?: boolean
 }
 
+export interface CancellationSignal {
+  readonly aborted: boolean
+  addEventListener?(
+    type: string,
+    listener: (...args: any[]) => void,
+    options?: unknown
+  ): void
+  removeEventListener?(type: string, listener: (...args: any[]) => void): void
+}
+
 export interface EncodedData {
   byteLength: number
   hex: string
@@ -291,6 +301,7 @@ export interface ApplyTransformPluginRequest {
   offset?: number
   length?: number
   optionsJson?: string
+  signal?: CancellationSignal
 }
 
 export interface ApplyTransformPluginResult {

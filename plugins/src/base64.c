@@ -122,6 +122,7 @@ static int validate_base64(const omega_transform_plugin_request_t *request_ptr, 
     int saw_padding = 0;
 
     for (int64_t i = 0; i < request_ptr->input_length; ++i) {
+        if ((i & 0xFFF) == 0 && omega_transform_plugin_sdk_is_cancelled(request_ptr)) { return -1; }
         const omega_byte_t byte = request_ptr->input_bytes[i];
         if (is_base64_whitespace(byte)) { continue; }
         const int value = decode_base64_value(byte);
@@ -164,6 +165,7 @@ static int base64_encode(const omega_transform_plugin_request_t *request_ptr,
     int64_t input_index = 0;
     int64_t output_index = 0;
     while (input_index < request_ptr->input_length) {
+        if ((input_index & 0xFFF) == 0 && omega_transform_plugin_sdk_is_cancelled(request_ptr)) { return -1; }
         const unsigned int octet_a = request_ptr->input_bytes[input_index++];
         const int has_b = input_index < request_ptr->input_length;
         const unsigned int octet_b = has_b ? request_ptr->input_bytes[input_index++] : 0;
@@ -197,6 +199,7 @@ static int base64_decode(const omega_transform_plugin_request_t *request_ptr,
     int quartet_index = 0;
     int64_t output_index = 0;
     for (int64_t i = 0; i < request_ptr->input_length; ++i) {
+        if ((i & 0xFFF) == 0 && omega_transform_plugin_sdk_is_cancelled(request_ptr)) { return -1; }
         const omega_byte_t byte = request_ptr->input_bytes[i];
         if (is_base64_whitespace(byte)) { continue; }
         const int value = decode_base64_value(byte);
