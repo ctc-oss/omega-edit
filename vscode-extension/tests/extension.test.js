@@ -21,6 +21,7 @@ const {
   OMEGA_EDIT_GO_TO_OFFSET_COMMAND,
   OMEGA_EDIT_LOAD_RANGE_MAP_COMMAND,
   OMEGA_EDIT_OPEN_IN_HEX_EDITOR_COMMAND,
+  OMEGA_EDIT_PREVIEW_CHANGE_LOG_COMMAND,
   OMEGA_EDIT_REFRESH_TRANSFORM_PLUGINS_COMMAND,
   OMEGA_EDIT_REDO_COMMAND,
   OMEGA_EDIT_RESTORE_CHECKPOINT_COMMAND,
@@ -160,7 +161,7 @@ test('package.json matches shared extension constants', () => {
   )
   assert.equal(
     packageJson.contributes.commands[9].command,
-    OMEGA_EDIT_APPLY_CHANGE_LOG_COMMAND
+    OMEGA_EDIT_PREVIEW_CHANGE_LOG_COMMAND
   )
   assert.equal(
     packageJson.contributes.commands[9].enablement,
@@ -168,23 +169,23 @@ test('package.json matches shared extension constants', () => {
   )
   assert.equal(
     packageJson.contributes.commands[10].command,
-    OMEGA_EDIT_ROLLBACK_SESSION_COMMAND
+    OMEGA_EDIT_APPLY_CHANGE_LOG_COMMAND
   )
   assert.equal(
     packageJson.contributes.commands[10].enablement,
-    'omegaEdit.hexEditorActive && omegaEdit.hasPendingChanges && !omegaEdit.transformInFlight'
-  )
-  assert.equal(
-    packageJson.contributes.commands[11].command,
-    OMEGA_EDIT_ROLLBACK_CHECKPOINT_COMMAND
-  )
-  assert.equal(
-    packageJson.contributes.commands[11].enablement,
     'omegaEdit.hexEditorActive && !omegaEdit.transformInFlight'
   )
   assert.equal(
+    packageJson.contributes.commands[11].command,
+    OMEGA_EDIT_ROLLBACK_SESSION_COMMAND
+  )
+  assert.equal(
+    packageJson.contributes.commands[11].enablement,
+    'omegaEdit.hexEditorActive && omegaEdit.hasPendingChanges && !omegaEdit.transformInFlight'
+  )
+  assert.equal(
     packageJson.contributes.commands[12].command,
-    OMEGA_EDIT_RESTORE_CHECKPOINT_COMMAND
+    OMEGA_EDIT_ROLLBACK_CHECKPOINT_COMMAND
   )
   assert.equal(
     packageJson.contributes.commands[12].enablement,
@@ -192,14 +193,22 @@ test('package.json matches shared extension constants', () => {
   )
   assert.equal(
     packageJson.contributes.commands[13].command,
-    OMEGA_EDIT_CREATE_CHECKPOINT_COMMAND
+    OMEGA_EDIT_RESTORE_CHECKPOINT_COMMAND
   )
   assert.equal(
     packageJson.contributes.commands[13].enablement,
     'omegaEdit.hexEditorActive && !omegaEdit.transformInFlight'
   )
+  assert.equal(
+    packageJson.contributes.commands[14].command,
+    OMEGA_EDIT_CREATE_CHECKPOINT_COMMAND
+  )
+  assert.equal(
+    packageJson.contributes.commands[14].enablement,
+    'omegaEdit.hexEditorActive && !omegaEdit.transformInFlight'
+  )
   assert.deepEqual(
-    packageJson.contributes.commands.slice(14).map((entry) => entry.command),
+    packageJson.contributes.commands.slice(15).map((entry) => entry.command),
     [
       OMEGA_EDIT_GET_EDITOR_STATE_COMMAND,
       OMEGA_EDIT_GET_ASSISTANT_CONTEXT_COMMAND,
@@ -212,6 +221,10 @@ test('package.json matches shared extension constants', () => {
   assert.equal(
     packageNls['omegaEdit.command.toggleInsertDirection.title'],
     'OmegaEdit: Toggle Insert Direction'
+  )
+  assert.equal(
+    packageNls['omegaEdit.command.previewChangeLog.title'],
+    'OmegaEdit: Preview Change Log'
   )
   assert.equal(
     packageNls['omegaEdit.command.getEditorState.title'],

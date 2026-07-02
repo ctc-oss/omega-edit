@@ -17,6 +17,7 @@
   "omegaEdit.command.toggleInsertDirection.title": "OmegaEdit: Toggle Insert Direction",
   "omegaEdit.command.refreshTransformPlugins.title": "OmegaEdit: Refresh Transform List",
   "omegaEdit.command.exportChangeLog.title": "OmegaEdit: Export Change Log",
+  "omegaEdit.command.previewChangeLog.title": "OmegaEdit: Preview Change Log",
   "omegaEdit.command.applyChangeLog.title": "OmegaEdit: Apply Change Log",
   "omegaEdit.command.rollbackSession.title": "OmegaEdit: Roll Back Session",
   "omegaEdit.command.rollbackCheckpoint.title": "OmegaEdit: Roll Back Last Checkpoint",

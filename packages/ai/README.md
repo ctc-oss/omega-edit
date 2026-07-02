@@ -69,6 +69,7 @@ oe create-checkpoint --session <session-id>
 oe restore-checkpoint --session <session-id>
 oe rollback-checkpoint --session <session-id>
 oe export-change-log --session <session-id> --output ./changes.json --overwrite
+oe preview-change-log --session <session-id> --input ./changes.json
 oe apply-change-log --session <session-id> --input ./changes.json
 
 # Undo if needed
@@ -95,7 +96,10 @@ sizes do not depend on JavaScript number precision. File-backed exports stream
 entries to a temporary file and rename only after the log is complete; the
 returned tool result is a summary rather than another in-memory copy of the
 entry array. Export fails instead of writing an incomplete replay log when any
-change details are unavailable.
+change details are unavailable. Change-log preview reports primitive counts,
+expected fingerprints and size delta, transform descriptors from first-class
+`data`, required and missing plugins, unavailable primitive serials, and
+rollback protection before replay.
 
 ## MCP Quick Start
 

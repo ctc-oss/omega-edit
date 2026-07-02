@@ -3,7 +3,7 @@
 import { parseArgs } from 'node:util'
 import { parseInputData } from './codec'
 import { DEFAULT_HOST, DEFAULT_PORT } from './constants'
-import { OmegaEditToolkit } from './service'
+import { ChangeLogReplayError, OmegaEditToolkit } from './service'
 import { InputEncoding, PatchKind } from './types'
 
 type CommandResult = object
@@ -21,7 +21,18 @@ function printJson(value: unknown): void {
 
 function printError(error: unknown): void {
   const message = error instanceof Error ? error.message : String(error)
-  process.stderr.write(`${JSON.stringify({ error: message }, null, 2)}\n`)
+  process.stderr.write(
+    `${JSON.stringify(
+      {
+        error: message,
+        ...(error instanceof ChangeLogReplayError
+          ? { result: error.result }
+          : {}),
+      },
+      null,
+      2
+    )}\n`
+  )
 }
 
 function usage(): string {
@@ -40,6 +51,7 @@ function usage(): string {
     '  rollback-checkpoint --session <id>  # roll back the most recent checkpoint',
     '  restore-checkpoint --session <id>   # restore content to the most recent checkpoint',
     '  export-change-log --session <id> [--output <path>] [--overwrite]',
+    '  preview-change-log --session <id> --input <path>',
     '  apply-change-log --session <id> --input <path> [--dry-run]',
     '  diff-session --session <id>',
     '  view --session <id> --offset <n> --length <n>',
@@ -356,6 +368,27 @@ async function runCommand(
           'input'
         ),
         dryRun: Boolean(parsed.values['dry-run']),
+      })
+    }
+    case 'preview-change-log': {
+      const parsed = parseArgs({
+        args,
+        options: {
+          ...commonOptions,
+          session: { type: 'string' as const },
+          input: { type: 'string' as const },
+        },
+        allowPositionals: false,
+      })
+      return await getToolkit(parsed.values).previewChangeLog({
+        sessionId: requireStringOption(
+          parsed.values.session as string | undefined,
+          'session'
+        ),
+        inputPath: requireStringOption(
+          parsed.values.input as string | undefined,
+          'input'
+        ),
       })
     }
     case 'view': {

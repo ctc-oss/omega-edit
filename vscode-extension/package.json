@@ -128,6 +128,11 @@
         "enablement": "omegaEdit.hexEditorActive && !omegaEdit.transformInFlight"
       },
       {
+        "command": "omegaEdit.previewChangeLog",
+        "title": "%omegaEdit.command.previewChangeLog.title%",
+        "enablement": "omegaEdit.hexEditorActive && !omegaEdit.transformInFlight"
+      },
+      {
         "command": "omegaEdit.applyChangeLog",
         "title": "%omegaEdit.command.applyChangeLog.title%",
         "enablement": "omegaEdit.hexEditorActive && !omegaEdit.transformInFlight"
@@ -229,6 +234,10 @@
         },
         {
           "command": "omegaEdit.exportChangeLog",
+          "when": "omegaEdit.hexEditorActive && !omegaEdit.transformInFlight"
+        },
+        {
+          "command": "omegaEdit.previewChangeLog",
           "when": "omegaEdit.hexEditorActive && !omegaEdit.transformInFlight"
         },
         {
