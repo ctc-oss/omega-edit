@@ -537,7 +537,7 @@ export async function inspectSessionContent(
   options: CancellableCallOptions = {}
 ): Promise<InspectSessionContentResponse> {
   if (options.signal?.aborted) {
-    throw new Error('inspectSessionContent error: cancelled')
+    throw makeCancellationError('inspectSessionContent')
   }
   const response = await rawInspectSessionContent(
     session_id,
