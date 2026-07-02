@@ -128,7 +128,7 @@
 
   let {
     initialBytesPerRow = 16,
-    initialBytesPerRowMode = 'fixed',
+    initialBytesPerRowMode: _initialBytesPerRowMode = 'fixed',
   }: Props = $props()
 
   const restoredState = getPreviewState()
@@ -139,7 +139,6 @@
   const configuredBytesPerRow = normalizeBytesPerRow(
     untrack(() => initialBytesPerRow)
   )
-  untrack(() => initialBytesPerRowMode)
   let bytesPerRowMode = $state<BytesPerRowMode>('fixed')
   let bytesPerRow = $state<BytesPerRow>(
     normalizeBytesPerRow(

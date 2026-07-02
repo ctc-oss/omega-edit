@@ -687,6 +687,10 @@ test('compiled extension entrypoints exist after build', () => {
     providerSource,
     /options\.notify !== false[\s\S]*showInformationMessage\(message\)/
   )
+  assert.match(
+    providerSource,
+    /unloadedCount > 0 && \(!isRecord\(options\) \|\| options\.notify !== false\)[\s\S]*showInformationMessage/
+  )
   assert.match(providerJs, /reconcileExternalHighlightStaleness/)
   assert.match(providerJs, /markExternalHighlightsStale/)
   assert.match(providerJs, /postBytesPerRow/)

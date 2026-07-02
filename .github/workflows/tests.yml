@@ -117,13 +117,26 @@ jobs:
           cp "$src" "$dest"
           echo "PLATFORM_BINARY=$dest" >> "$GITHUB_ENV"
 
-      - name: Upload platform server binary artifact
-        uses: actions/upload-artifact@v7
-        with:
-          name: vscode-server-${{ matrix.platform }}
-          path: ${{ env.PLATFORM_BINARY }}
-          retention-days: 14
-          if-no-files-found: error
+      - name: Upload platform server binary artifact (with retry)
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          for attempt in 1 2 3; do
+            if gh run upload-artifact \
+              --repo "${{ github.repository }}" \
+              --name "vscode-server-${{ matrix.platform }}" \
+              "${{ env.PLATFORM_BINARY }}"; then
+              exit 0
+            fi
+            if [ "$attempt" -eq 3 ]; then
+              echo "Artifact upload failed after 3 attempts" >&2
+              exit 1
+            fi
+            echo "Artifact upload failed on attempt $attempt; retrying in 15s..." >&2
+            sleep 15
+          done
 
       - name: Stage platform transform plugins
         shell: bash

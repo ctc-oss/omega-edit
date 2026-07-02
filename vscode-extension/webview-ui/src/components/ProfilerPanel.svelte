@@ -1797,13 +1797,7 @@
                           class:hovered={rangeMapNodeHovered(row.node)}
                           class:focused={rangeMapNodeFocused(row.node)}
                           class:stale={row.node.stale === true}
-                          role="treeitem"
-                          tabindex="-1"
-                          aria-level={row.depth + 1}
-                          aria-selected={rangeMapNodeSelected(row.node)}
-                          aria-expanded={hasChildren
-                            ? rangeMapNodeExpanded(row.node)
-                            : undefined}
+                          role="presentation"
                           onpointerenter={() => onRangeMapNodeHover(row.node.id)}
                           onpointerleave={clearRangeMapNodePointerHover}
                         >
@@ -1827,9 +1821,15 @@
                           <button
                             type="button"
                             class="range-map-node"
+                            role="treeitem"
                             tabindex={rangeMapNodeTabIndex(index, row.node)}
                             data-range-map-row-index={index}
                             data-external-color={rangeMapNodeColorSlot(row.node)}
+                            aria-level={row.depth + 1}
+                            aria-selected={rangeMapNodeSelected(row.node)}
+                            aria-expanded={hasChildren
+                              ? rangeMapNodeExpanded(row.node)
+                              : undefined}
                             title={rangeMapNodeTitle(row.node)}
                             onfocus={() => setFocusedRangeMapNode(row.node.id)}
                             onkeydown={(event) =>
