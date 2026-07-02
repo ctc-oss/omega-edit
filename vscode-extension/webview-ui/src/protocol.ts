@@ -1,6 +1,7 @@
 export type {
   BytesPerRow,
   BytesPerRowMode,
+  ExternalHighlightKind,
   HostToWebviewMessage,
   InsertDirection,
   ServerHealthMetric,

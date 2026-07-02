@@ -2490,7 +2490,9 @@ export class HexEditorProvider
       : vscode.l10n.t('Loaded {count} range map label(s)', {
           count: highlights.length,
         })
-    void vscode.window.showInformationMessage(message)
+    if (!isRecord(options) || options.notify !== false) {
+      void vscode.window.showInformationMessage(message)
+    }
 
     return {
       state: this.buildEditorState(session),

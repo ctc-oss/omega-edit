@@ -1635,6 +1635,7 @@ button.dialog-backdrop:focus-visible {
   border-radius: 4px;
   color: var(--vscode-foreground);
   background: transparent;
+  box-shadow: inset 3px 0 0 var(--omega-external-highlight-accent);
   box-shadow: inset 3px 0 0
     color-mix(in srgb, var(--omega-external-highlight-accent) 80%, transparent);
   column-gap: 8px;
@@ -1647,6 +1648,9 @@ button.dialog-backdrop:focus-visible {
   background: var(--vscode-list-hoverBackground, var(--vscode-input-background));
   box-shadow:
     inset 3px 0 0 var(--omega-external-highlight-accent),
+    inset 0 0 0 1px var(--omega-external-highlight-accent);
+  box-shadow:
+    inset 3px 0 0 var(--omega-external-highlight-accent),
     inset 0 0 0 1px
     color-mix(in srgb, var(--omega-external-highlight-accent) 38%, transparent);
 }
@@ -1656,6 +1660,9 @@ button.dialog-backdrop:focus-visible {
   background: var(--vscode-list-hoverBackground, var(--vscode-input-background));
   box-shadow:
     inset 3px 0 0 var(--omega-external-highlight-accent),
+    inset 0 0 0 1px var(--omega-external-highlight-accent);
+  box-shadow:
+    inset 3px 0 0 var(--omega-external-highlight-accent),
     inset 0 0 0 1px
     color-mix(in srgb, var(--omega-external-highlight-accent) 38%, transparent);
 }
@@ -1663,6 +1670,9 @@ button.dialog-backdrop:focus-visible {
 .range-map-node-row.active .range-map-node {
   border-color: var(--vscode-list-activeSelectionBackground);
   background: var(--vscode-list-activeSelectionBackground);
+  box-shadow:
+    inset 3px 0 0 var(--omega-external-highlight-accent),
+    inset 0 0 0 1px var(--omega-external-highlight-accent);
   box-shadow:
     inset 3px 0 0 var(--omega-external-highlight-accent),
     inset 0 0 0 1px
@@ -1678,6 +1688,7 @@ button.dialog-backdrop:focus-visible {
 .range-map-node-row.stale .range-map-node {
   color: var(--vscode-descriptionForeground);
   font-style: italic;
+  box-shadow: inset 3px 0 0 var(--omega-external-highlight-accent);
   box-shadow: inset 3px 0 0
     color-mix(
       in srgb,

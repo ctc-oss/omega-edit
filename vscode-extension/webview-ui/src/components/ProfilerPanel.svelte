@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { tick } from 'svelte'
   import { formatNumber, strings } from '../i18n'
   import type {
     HostToWebviewMessage,
@@ -184,6 +185,8 @@
   >(undefined)
   let collapsedSections = $state<Record<string, boolean>>({})
   let collapsedRangeMapNodes = $state<Record<string, boolean>>({})
+  let rangeMapTreeElement = $state<HTMLDivElement>()
+  let focusedRangeMapNodeId = $state<string | undefined>(undefined)
 
   const analysisBytes = $derived(
     selectedBytes.length > 1 ? selectedBytes : visibleBytes
@@ -576,6 +579,121 @@
 
   function rangeMapNodeHovered(node: WebviewRangeMapNode): boolean {
     return hoveredExternalHighlightId === node.id
+  }
+
+  function rangeMapNodeFocused(node: WebviewRangeMapNode): boolean {
+    return focusedRangeMapNodeId === node.id
+  }
+
+  function rangeMapNodeTabIndex(index: number, node: WebviewRangeMapNode): 0 | -1 {
+    if (rangeMapRows.some((row) => row.node.id === focusedRangeMapNodeId)) {
+      return focusedRangeMapNodeId === node.id ? 0 : -1
+    }
+    return index === 0 ? 0 : -1
+  }
+
+  function setFocusedRangeMapNode(id: string): void {
+    focusedRangeMapNodeId = id
+    onRangeMapNodeHover(id)
+  }
+
+  async function focusRangeMapRow(index: number): Promise<void> {
+    const clampedIndex = Math.max(0, Math.min(rangeMapRows.length - 1, index))
+    const row = rangeMapRows[clampedIndex]
+    if (!row) {
+      return
+    }
+
+    setFocusedRangeMapNode(row.node.id)
+    await tick()
+    rangeMapTreeElement
+      ?.querySelector<HTMLButtonElement>(
+        `[data-range-map-row-index="${clampedIndex}"]`
+      )
+      ?.focus()
+  }
+
+  function rangeMapNodeParentIndex(index: number): number {
+    const row = rangeMapRows[index]
+    if (!row || row.depth === 0) {
+      return index
+    }
+    for (let candidate = index - 1; candidate >= 0; candidate -= 1) {
+      if (rangeMapRows[candidate]?.depth === row.depth - 1) {
+        return candidate
+      }
+    }
+    return index
+  }
+
+  function clearRangeMapNodePointerHover(): void {
+    onRangeMapNodeHover(focusedRangeMapNodeId)
+  }
+
+  function handleRangeMapTreeFocusOut(event: FocusEvent): void {
+    const nextTarget = event.relatedTarget
+    if (
+      nextTarget instanceof Node &&
+      event.currentTarget instanceof Node &&
+      event.currentTarget.contains(nextTarget)
+    ) {
+      return
+    }
+    focusedRangeMapNodeId = undefined
+    onRangeMapNodeHover(undefined)
+  }
+
+  function handleRangeMapNodeKeydown(
+    event: KeyboardEvent,
+    row: RangeMapTreeRow,
+    index: number
+  ): void {
+    const hasChildren = rangeMapNodeHasChildren(row.node)
+    switch (event.key) {
+      case 'ArrowDown':
+        event.preventDefault()
+        void focusRangeMapRow(index + 1)
+        break
+      case 'ArrowUp':
+        event.preventDefault()
+        void focusRangeMapRow(index - 1)
+        break
+      case 'ArrowRight':
+        event.preventDefault()
+        if (hasChildren && !rangeMapNodeExpanded(row.node)) {
+          toggleRangeMapNode(row.node)
+        } else {
+          void focusRangeMapRow(index + 1)
+        }
+        break
+      case 'ArrowLeft':
+        event.preventDefault()
+        if (hasChildren && rangeMapNodeExpanded(row.node)) {
+          toggleRangeMapNode(row.node)
+        } else {
+          void focusRangeMapRow(rangeMapNodeParentIndex(index))
+        }
+        break
+      case 'Home':
+        event.preventDefault()
+        void focusRangeMapRow(0)
+        break
+      case 'End':
+        event.preventDefault()
+        void focusRangeMapRow(rangeMapRows.length - 1)
+        break
+      case 'Enter':
+        event.preventDefault()
+        onSelectRangeMapNode(row.node)
+        break
+      case ' ':
+      case 'Spacebar':
+        event.preventDefault()
+        if (hasChildren) {
+          toggleRangeMapNode(row.node)
+        }
+        break
+    }
   }
 
   function rangeMapNodeHasChildren(node: WebviewRangeMapNode): boolean {
@@ -1663,8 +1781,13 @@
                   {#if rangeMapRows.length === 0}
                     <div class="analysis-note">{strings.profiler.noRangeMap}</div>
                   {:else}
-                    <div class="range-map-tree" role="tree">
-                      {#each rangeMapRows as row (row.node.id)}
+                    <div
+                      bind:this={rangeMapTreeElement}
+                      class="range-map-tree"
+                      role="tree"
+                      onfocusout={handleRangeMapTreeFocusOut}
+                    >
+                      {#each rangeMapRows as row, index (row.node.id)}
                         {@const nodeValue = rangeMapNodeValue(row.node)}
                         {@const hasChildren = rangeMapNodeHasChildren(row.node)}
                         {@const toggleLabel = rangeMapNodeToggleLabel(row.node)}
@@ -1672,6 +1795,7 @@
                           class={`range-map-node-row ${rangeMapDepthClass(row.depth)}`}
                           class:active={rangeMapNodeSelected(row.node)}
                           class:hovered={rangeMapNodeHovered(row.node)}
+                          class:focused={rangeMapNodeFocused(row.node)}
                           class:stale={row.node.stale === true}
                           role="treeitem"
                           tabindex="-1"
@@ -1681,12 +1805,13 @@
                             ? rangeMapNodeExpanded(row.node)
                             : undefined}
                           onpointerenter={() => onRangeMapNodeHover(row.node.id)}
-                          onpointerleave={() => onRangeMapNodeHover(undefined)}
+                          onpointerleave={clearRangeMapNodePointerHover}
                         >
                           {#if hasChildren}
                             <button
                               type="button"
                               class="range-map-node-toggle"
+                              tabindex="-1"
                               aria-label={toggleLabel}
                               title={toggleLabel}
                               onclick={() => toggleRangeMapNode(row.node)}
@@ -1702,8 +1827,13 @@
                           <button
                             type="button"
                             class="range-map-node"
+                            tabindex={rangeMapNodeTabIndex(index, row.node)}
+                            data-range-map-row-index={index}
                             data-external-color={rangeMapNodeColorSlot(row.node)}
                             title={rangeMapNodeTitle(row.node)}
+                            onfocus={() => setFocusedRangeMapNode(row.node.id)}
+                            onkeydown={(event) =>
+                              handleRangeMapNodeKeydown(event, row, index)}
                             onclick={() => onSelectRangeMapNode(row.node)}
                           >
                             <span class="range-map-node-label">{row.node.label}</span>

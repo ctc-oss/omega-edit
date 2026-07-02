@@ -191,6 +191,20 @@
     emphasizedExternalHighlightId = id
   }
 
+  function clearExternalHighlightEmphasis(): void {
+    emphasizedExternalHighlightId = undefined
+  }
+
+  function selectGridOffset(offset: number, extend: boolean): void {
+    clearExternalHighlightEmphasis()
+    onSelect(offset, extend)
+  }
+
+  function selectRangeMapNode(node: WebviewRangeMapNode): void {
+    clearExternalHighlightEmphasis()
+    onSelectRangeMapNode(node)
+  }
+
   function externalHighlightExists(id: string | undefined): boolean {
     return !!id && externalHighlights.some((highlight) => highlight.id === id)
   }
@@ -376,7 +390,7 @@
           {pendingHexLabel}
           {canScrollUp}
           {canScrollDown}
-          onSelect={onSelect}
+          onSelect={selectGridOffset}
           onActivePaneChange={onActivePaneChange}
           onMoveSelection={onMoveSelection}
           onJumpToBoundary={onJumpToBoundary}
@@ -445,7 +459,7 @@
     {rangeMapTree}
     onToggleExpanded={onToggleProfilerExpanded}
     onModeChange={onProfilerModeChange}
-    onSelectRangeMapNode={onSelectRangeMapNode}
+    onSelectRangeMapNode={selectRangeMapNode}
     onRangeMapNodeHover={setHoveredExternalHighlightId}
     onLoadRangeMap={onLoadRangeMap}
     onUnloadRangeMap={onUnloadRangeMap}

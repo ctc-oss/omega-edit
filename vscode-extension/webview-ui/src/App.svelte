@@ -12,6 +12,7 @@
     normalizeBytesPerRow,
     type BytesPerRow,
     type BytesPerRowMode,
+    type ExternalHighlightKind,
     type HostToWebviewMessage,
     type InsertDirection,
     type ServerHealthMessage,
@@ -32,6 +33,17 @@
   const DEFAULT_VISIBLE_ROWS = 16
   const INTERNAL_HEX_CLIPBOARD_FORMAT = 'application/x-omega-edit-hex'
   const TRANSFORM_RESULT_HISTORY_LIMIT = 8
+  const MAX_PERSISTED_RANGE_MAP_NODES = 5000
+  const MAX_PERSISTED_RANGE_MAP_DEPTH = 64
+  const MAX_PERSISTED_RANGE_MAP_TEXT_LENGTH = 4096
+  const EXTERNAL_HIGHLIGHT_KINDS: readonly ExternalHighlightKind[] = [
+    'current',
+    'parsed',
+    'error',
+    'warning',
+    'breakpoint',
+    'secondary',
+  ]
 
   type SearchResultsMessage = Extract<
     HostToWebviewMessage,
@@ -525,20 +537,95 @@
     ) as WebviewExternalHighlight[]
   }
 
-  function normalizeRangeMapTree(value: unknown): WebviewRangeMapNode[] {
-    if (!Array.isArray(value)) {
+  function normalizeRangeMapTree(
+    value: unknown,
+    depth = 0,
+    budget = { remaining: MAX_PERSISTED_RANGE_MAP_NODES }
+  ): WebviewRangeMapNode[] {
+    if (!Array.isArray(value) || depth > MAX_PERSISTED_RANGE_MAP_DEPTH) {
       return []
     }
 
-    return value
-      .filter(
-        (node): node is WebviewRangeMapNode =>
-          Boolean(node) && typeof node === 'object'
-      )
-      .map((node) => ({
-        ...node,
-        children: normalizeRangeMapTree(node.children),
-      }))
+    const nodes: WebviewRangeMapNode[] = []
+    for (const node of value) {
+      if (budget.remaining <= 0) {
+        break
+      }
+      const normalized = normalizeRangeMapNode(node, depth, budget)
+      if (normalized) {
+        nodes.push(normalized)
+      }
+    }
+    return nodes
+  }
+
+  function normalizeRangeMapNode(
+    value: unknown,
+    depth: number,
+    budget: { remaining: number }
+  ): WebviewRangeMapNode | undefined {
+    if (!value || typeof value !== 'object' || Array.isArray(value)) {
+      return undefined
+    }
+
+    const node = value as Record<string, unknown>
+    const id = safeRequiredRangeMapText(node.id)
+    const path = safeRequiredRangeMapText(node.path)
+    const label = safeRequiredRangeMapText(node.label)
+    const offset = safeInteger(node.offset)
+    const length = safeInteger(node.length)
+    const kind = safeExternalHighlightKind(node.kind)
+
+    if (
+      id === undefined ||
+      path === undefined ||
+      label === undefined ||
+      offset === undefined ||
+      length === undefined ||
+      kind === undefined
+    ) {
+      return undefined
+    }
+
+    budget.remaining -= 1
+    const source = safeOptionalRangeMapText(node.source)
+    const type = safeOptionalRangeMapText(node.type)
+    const valueText = safeOptionalRangeMapText(node.value)
+
+    return {
+      id,
+      path,
+      label,
+      offset,
+      length,
+      kind,
+      ...(source === undefined ? {} : { source }),
+      ...(type === undefined ? {} : { type }),
+      ...(valueText === undefined ? {} : { value: valueText }),
+      ...(node.stale === true ? { stale: true } : {}),
+      children: normalizeRangeMapTree(node.children, depth + 1, budget),
+    }
+  }
+
+  function safeRequiredRangeMapText(value: unknown): string | undefined {
+    const text = safeOptionalRangeMapText(value)
+    return text && text.length > 0 ? text : undefined
+  }
+
+  function safeOptionalRangeMapText(value: unknown): string | undefined {
+    return typeof value === 'string' &&
+      value.length <= MAX_PERSISTED_RANGE_MAP_TEXT_LENGTH
+      ? value
+      : undefined
+  }
+
+  function safeExternalHighlightKind(
+    value: unknown
+  ): ExternalHighlightKind | undefined {
+    return typeof value === 'string' &&
+      EXTERNAL_HIGHLIGHT_KINDS.includes(value as ExternalHighlightKind)
+      ? (value as ExternalHighlightKind)
+      : undefined
   }
 
   function normalizeAnalysisSectionOrder(

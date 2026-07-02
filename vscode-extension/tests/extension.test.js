@@ -401,6 +401,10 @@ test('compiled extension entrypoints exist after build', () => {
     path.resolve(__dirname, '../out/hexEditorProvider.js'),
     'utf8'
   )
+  const providerSource = fs.readFileSync(
+    path.resolve(__dirname, '../src/hexEditorProvider.ts'),
+    'utf8'
+  )
   const protocolJs = fs.readFileSync(
     path.resolve(__dirname, '../out/webviewProtocol.js'),
     'utf8'
@@ -536,6 +540,44 @@ test('compiled extension entrypoints exist after build', () => {
       `${name} should avoid runtime inline style mutation`
     )
   }
+
+  const externalHighlightColorCountSources = [
+    ['PreviewGrid.svelte', previewGridSource],
+    ['FileScrollbar.svelte', fileScrollbarSource],
+    ['ProfilerPanel.svelte', profilerPanelSource],
+  ]
+  const externalHighlightColorCounts = externalHighlightColorCountSources.map(
+    ([name, source]) => {
+      const match = source.match(/EXTERNAL_HIGHLIGHT_COLOR_COUNT = (\d+)/)
+      assert.ok(match, `${name} should define external highlight color count`)
+      return Number(match[1])
+    }
+  )
+  assert.deepEqual(
+    externalHighlightColorCounts,
+    externalHighlightColorCounts.map(() => externalHighlightColorCounts[0])
+  )
+  assert.deepEqual(
+    [
+      ...new Set(
+        [...svelteStylesSource.matchAll(/data-external-color="(\d+)"/g)].map(
+          (match) => Number(match[1])
+        )
+      ),
+    ].sort((left, right) => left - right),
+    Array.from(
+      { length: externalHighlightColorCounts[0] },
+      (_unused, index) => index
+    )
+  )
+  assert.match(
+    svelteStylesSource,
+    /box-shadow: inset 3px 0 0 var\(--omega-external-highlight-accent\);/
+  )
+  assert.match(
+    svelteStylesSource,
+    /box-shadow:\s+inset 3px 0 0 var\(--omega-external-highlight-accent\),\s+inset 0 0 0 1px var\(--omega-external-highlight-accent\);/
+  )
   assert.match(providerJs, /editSimple/)
   assert.match(providerJs, /getSegment/)
   assert.match(providerJs, /kind:\s*['"]REPLACE['"]/)
@@ -641,6 +683,10 @@ test('compiled extension entrypoints exist after build', () => {
   assert.match(providerJs, /setSessionRangeMap/)
   assert.match(providerJs, /case\s+['"]loadRangeMap['"]/)
   assert.match(providerJs, /case\s+['"]unloadRangeMap['"]/)
+  assert.match(
+    providerSource,
+    /options\.notify !== false[\s\S]*showInformationMessage\(message\)/
+  )
   assert.match(providerJs, /reconcileExternalHighlightStaleness/)
   assert.match(providerJs, /markExternalHighlightsStale/)
   assert.match(providerJs, /postBytesPerRow/)
@@ -686,6 +732,11 @@ test('compiled extension entrypoints exist after build', () => {
   assert.match(apiDts, /OmegaEditRangeMapLoadResult/)
   assert.match(apiDts, /OmegaEditRangeMapUnloadResult/)
   assert.match(apiDts, /OmegaEditExternalHighlightKind/)
+  const rangeMapLoadResultDts =
+    apiDts.match(/interface OmegaEditRangeMapLoadResult \{[\s\S]*?\n\}/)?.[0] ??
+    ''
+  assert.match(rangeMapLoadResultDts, /sourceUri\?: vscode\.Uri/)
+  assert.doesNotMatch(rangeMapLoadResultDts, /\n\s*uri\?:/)
   assert.match(svelteHostJs, /svelte-webview/)
   assert.match(svelteHostJs, /Content-Security-Policy/)
   assert.doesNotMatch(svelteHostJs, /unsafe-inline/)
@@ -1032,6 +1083,11 @@ test('compiled extension entrypoints exist after build', () => {
   assert.match(svelteAppSource, /case 'externalHighlights'/)
   assert.match(svelteAppSource, /case 'rangeMapTree'/)
   assert.match(svelteAppSource, /rangeMapTree = \$state/)
+  assert.match(svelteAppSource, /MAX_PERSISTED_RANGE_MAP_NODES/)
+  assert.match(svelteAppSource, /MAX_PERSISTED_RANGE_MAP_DEPTH/)
+  assert.match(svelteAppSource, /normalizeRangeMapNode/)
+  assert.match(svelteAppSource, /safeExternalHighlightKind/)
+  assert.match(svelteAppSource, /budget\.remaining/)
   assert.match(svelteAppSource, /postToHost\(\{ type: 'loadRangeMap' \}\)/)
   assert.match(svelteAppSource, /postToHost\(\{ type: 'unloadRangeMap' \}\)/)
   assert.doesNotMatch(svelteAppSource, /onSelectExternalHighlight/)
@@ -1077,6 +1133,12 @@ test('compiled extension entrypoints exist after build', () => {
   assert.match(editorWorkspaceSource, /setHoveredExternalHighlightId/)
   assert.match(editorWorkspaceSource, /emphasizedExternalHighlightId/)
   assert.match(editorWorkspaceSource, /setEmphasizedExternalHighlightId/)
+  assert.match(editorWorkspaceSource, /clearExternalHighlightEmphasis/)
+  assert.match(editorWorkspaceSource, /onSelect=\{selectGridOffset\}/)
+  assert.match(
+    editorWorkspaceSource,
+    /onSelectRangeMapNode=\{selectRangeMapNode\}/
+  )
   assert.match(editorWorkspaceSource, /activeExternalHighlightId/)
   assert.match(editorWorkspaceSource, /dataProfile/)
   assert.match(editorWorkspaceSource, /viewportProfile/)
@@ -1440,6 +1502,13 @@ test('compiled extension entrypoints exist after build', () => {
   assert.match(profilerPanelSource, /collapseAllRangeMapNodes/)
   assert.match(profilerPanelSource, /rangeMapTreeAllExpandableNodesCollapsed/)
   assert.match(profilerPanelSource, /range-map-node-toggle/)
+  assert.match(profilerPanelSource, /focusedRangeMapNodeId/)
+  assert.match(profilerPanelSource, /focusRangeMapRow/)
+  assert.match(profilerPanelSource, /handleRangeMapNodeKeydown/)
+  assert.match(profilerPanelSource, /ArrowDown/)
+  assert.match(profilerPanelSource, /ArrowRight/)
+  assert.match(profilerPanelSource, /Spacebar/)
+  assert.match(profilerPanelSource, /data-range-map-row-index/)
   assert.match(profilerPanelSource, /onLoadRangeMap/)
   assert.match(profilerPanelSource, /onUnloadRangeMap/)
   assert.match(profilerPanelSource, /onRangeMapNodeHover/)
