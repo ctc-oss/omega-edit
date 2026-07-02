@@ -18,7 +18,6 @@ export const MAX_TRANSFORM_OPTIONS_LENGTH = 256 * 1024
 export const MAX_ANALYSIS_PROFILE_BYTES = 64 * 1024
 export const MAX_LABEL_LENGTH = 128
 export const MAX_EXTERNAL_HIGHLIGHTS = 512
-export const AUTO_BYTES_PER_ROW_SETTING = 0
 export const MIN_BYTES_PER_ROW = 8
 export const MAX_BYTES_PER_ROW = 64
 export const DEFAULT_BYTES_PER_ROW = 16
@@ -84,6 +83,21 @@ export interface WebviewExternalHighlight {
   kind: ExternalHighlightKind
   label: string
   source?: string
+  stale?: boolean
+}
+
+export interface WebviewRangeMapNode {
+  id: string
+  path: string
+  label: string
+  offset: number
+  length: number
+  kind: ExternalHighlightKind
+  source?: string
+  type?: string
+  value?: string
+  stale?: boolean
+  children: WebviewRangeMapNode[]
 }
 
 export interface WebviewEditorUiState {
@@ -167,6 +181,8 @@ export type WebviewToHostMessage =
   | { type: 'restoreCheckpoint' }
   | { type: 'exportChangeLog' }
   | { type: 'applyChangeLog' }
+  | { type: 'loadRangeMap' }
+  | { type: 'unloadRangeMap' }
   | { type: 'toggleEditMode' }
   | { type: 'setInsertDirection'; insertDirection: InsertDirection }
   | {
@@ -218,6 +234,7 @@ export type HostToWebviewMessage =
       fileSize: number
       followingByteCount: number
       externalHighlights: WebviewExternalHighlight[]
+      rangeMapTree: WebviewRangeMapNode[]
       profile: {
         fetchDurationMs: number
         sentAt: number
@@ -351,6 +368,15 @@ export type HostToWebviewMessage =
       highlights: WebviewExternalHighlight[]
     }
   | {
+      type: 'rangeMapTree'
+      tree: WebviewRangeMapNode[]
+    }
+  | {
+      type: 'bytesPerRow'
+      bytesPerRow: BytesPerRow
+      bytesPerRowMode: BytesPerRowMode
+    }
+  | {
       type: 'editMode'
       editMode: WebviewEditMode
     }
@@ -405,20 +431,16 @@ export function normalizeBytesPerRow(value: unknown): BytesPerRow {
 }
 
 export function normalizeBytesPerRowSetting(value: unknown): number {
-  return value === AUTO_BYTES_PER_ROW_SETTING
-    ? AUTO_BYTES_PER_ROW_SETTING
-    : normalizeBytesPerRow(value)
+  return normalizeBytesPerRow(value)
 }
 
 export function bytesPerRowFromSetting(value: unknown): BytesPerRow {
-  const setting = normalizeBytesPerRowSetting(value)
-  return setting === AUTO_BYTES_PER_ROW_SETTING
-    ? DEFAULT_BYTES_PER_ROW
-    : setting
+  return normalizeBytesPerRowSetting(value)
 }
 
 export function normalizeBytesPerRowMode(value: unknown): BytesPerRowMode {
-  return value === 'auto' ? 'auto' : 'fixed'
+  void value
+  return 'fixed'
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -751,6 +773,7 @@ export function normalizeExternalHighlights(
       kind,
       label: label || kind,
       source,
+      ...(rawHighlight.stale === true ? { stale: true } : {}),
     })
   }
 
@@ -806,7 +829,7 @@ export function normalizeWebviewMessage(
     }
 
     case 'setBytesPerRowMode': {
-      return raw.mode === 'fixed' || raw.mode === 'auto'
+      return raw.mode === 'fixed'
         ? { type: 'setBytesPerRowMode', mode: raw.mode }
         : undefined
     }
@@ -841,6 +864,8 @@ export function normalizeWebviewMessage(
     case 'restoreCheckpoint':
     case 'exportChangeLog':
     case 'applyChangeLog':
+    case 'loadRangeMap':
+    case 'unloadRangeMap':
     case 'undo':
     case 'redo':
     case 'save':

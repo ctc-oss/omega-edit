@@ -29,8 +29,6 @@ const englishStrings = {
     label: 'OmegaEdit editor toolbar',
     bytesPerRow: 'Bytes per row',
     bytesPerRowTitle: (count: number) => `Show ${count} bytes per row`,
-    autoBytesPerRow: 'Auto',
-    autoBytesPerRowTitle: 'Fit bytes per row to the editor width',
     customBytesPerRow: 'Custom bytes per row',
     customBytesPerRowTitle: (min: number, max: number) =>
       `Set bytes per row from ${min} to ${max}`,
@@ -291,6 +289,7 @@ const englishStrings = {
       `${pane}\nOffset: ${offset}\nValue: 0x${hex} / ${decimal} / ${binary}\nText: ${text}\nClass: ${byteClass}\nMode: ${mode}`,
     externalHighlight: (label: string, source?: string) =>
       source ? `External: ${label} (${source})` : `External: ${label}`,
+    externalHighlightStale: 'Stale: content changed; reparse to refresh labels',
   },
   inspector: {
     label: 'Selected byte inspector',
@@ -394,6 +393,18 @@ const englishStrings = {
     history: 'History',
     timing: 'Timing',
     server: 'Server',
+    rangeMap: 'Range Map',
+    noRangeMap: 'No range map loaded.',
+    loadRangeMap: 'Load',
+    unloadRangeMap: 'Unload',
+    loadRangeMapTitle: 'Load range map',
+    unloadRangeMapTitle: 'Unload range map',
+    expandRangeMapAllTitle: 'Expand all range map nodes',
+    collapseRangeMapAllTitle: 'Collapse all range map nodes',
+    expandRangeMapNode: (label: string) => `Expand ${label}`,
+    collapseRangeMapNode: (label: string) => `Collapse ${label}`,
+    rangeMapNodeTitle: (label: string, offset: string, length: string) =>
+      `${label} | ${offset} | ${length}`,
     liveStatus: 'Live Status',
     currentInstance: 'Current Instance',
     hostAndBuild: 'Host and Build',
@@ -484,8 +495,6 @@ const localeOverrides: Record<string, LocaleStringOverrides> = {
       bytesPerRow: 'Bytes por fila',
       bytesPerRowTitle: (count: number) =>
         `Mostrar ${formatNumber(count)} bytes por fila`,
-      autoBytesPerRow: 'Auto',
-      autoBytesPerRowTitle: 'Ajustar bytes por fila al ancho del editor',
       customBytesPerRow: 'Bytes por fila personalizados',
       customBytesPerRowTitle: (min: number, max: number) =>
         `Establecer bytes por fila de ${formatNumber(min)} a ${formatNumber(max)}`,
@@ -595,6 +604,8 @@ const localeOverrides: Record<string, LocaleStringOverrides> = {
       printableByte: 'ASCII imprimible',
       controlByte: 'Byte de control',
       highBitByte: 'Byte de bit alto',
+      externalHighlightStale:
+        'Obsoleto: el contenido cambió; vuelve a analizar para actualizar etiquetas',
     },
     inspector: {
       label: 'Inspector de byte seleccionado',
@@ -634,6 +645,18 @@ const localeOverrides: Record<string, LocaleStringOverrides> = {
       history: 'Historial',
       timing: 'Tiempos',
       server: 'Servidor',
+      rangeMap: 'Mapa de rangos',
+      noRangeMap: 'No hay mapa de rangos cargado.',
+      loadRangeMap: 'Cargar',
+      unloadRangeMap: 'Quitar',
+      loadRangeMapTitle: 'Cargar mapa de rangos',
+      unloadRangeMapTitle: 'Quitar mapa de rangos',
+      expandRangeMapAllTitle: 'Expandir todos los nodos del mapa de rangos',
+      collapseRangeMapAllTitle: 'Contraer todos los nodos del mapa de rangos',
+      expandRangeMapNode: (label: string) => `Expandir ${label}`,
+      collapseRangeMapNode: (label: string) => `Contraer ${label}`,
+      rangeMapNodeTitle: (label: string, offset: string, length: string) =>
+        `${label} | ${offset} | ${length}`,
       details: 'Detalles',
       status: 'Estado',
       pending: 'Pendiente',

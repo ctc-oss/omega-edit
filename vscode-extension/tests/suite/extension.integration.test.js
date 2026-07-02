@@ -19,9 +19,11 @@ const {
   OMEGA_EDIT_EXPORT_CHANGE_LOG_COMMAND,
   OMEGA_EDIT_GET_EDITOR_STATE_COMMAND,
   OMEGA_EDIT_GO_TO_OFFSET_COMMAND,
+  OMEGA_EDIT_LOAD_RANGE_MAP_COMMAND,
   OMEGA_EDIT_OPEN_IN_HEX_EDITOR_COMMAND,
   OMEGA_EDIT_ROLLBACK_SESSION_COMMAND,
   OMEGA_EDIT_SET_EXTERNAL_HIGHLIGHTS_COMMAND,
+  OMEGA_EDIT_UNLOAD_RANGE_MAP_COMMAND,
   OMEGA_EDIT_VIEW_TYPE,
 } = require('../../out/constants.js')
 
@@ -91,6 +93,8 @@ suite('OmegaEdit VS Code extension', () => {
     assert.equal(typeof extensionApi.getEditorState, 'function')
     assert.equal(typeof extensionApi.setExternalHighlights, 'function')
     assert.equal(typeof extensionApi.clearExternalHighlights, 'function')
+    assert.equal(typeof extensionApi.loadRangeMap, 'function')
+    assert.equal(typeof extensionApi.unloadRangeMap, 'function')
     assert.equal(typeof extensionApi.createCheckpoint, 'function')
     assert.equal(typeof extensionApi.rollbackCheckpoint, 'function')
     assert.equal(typeof extensionApi.restoreCheckpoint, 'function')
@@ -113,6 +117,8 @@ suite('OmegaEdit VS Code extension', () => {
     assert.ok(commands.includes(OMEGA_EDIT_GET_EDITOR_STATE_COMMAND))
     assert.ok(commands.includes(OMEGA_EDIT_SET_EXTERNAL_HIGHLIGHTS_COMMAND))
     assert.ok(commands.includes(OMEGA_EDIT_CLEAR_EXTERNAL_HIGHLIGHTS_COMMAND))
+    assert.ok(commands.includes(OMEGA_EDIT_LOAD_RANGE_MAP_COMMAND))
+    assert.ok(commands.includes(OMEGA_EDIT_UNLOAD_RANGE_MAP_COMMAND))
   })
 
   test('exposes a typed extension API for generic debugger integration', async () => {
@@ -185,6 +191,116 @@ suite('OmegaEdit VS Code extension', () => {
           source: 'Generic parser',
         },
       ])
+
+      const rangeMapPath = path.join(tmpDir, 'typed-api.range-map.json')
+      await fs.writeFile(
+        rangeMapPath,
+        JSON.stringify(
+          {
+            format: 'omega-edit.range-map',
+            version: 1,
+            source: 'synthetic.dfdl',
+            selectedPath: '/doc/body',
+            nodes: [
+              {
+                path: '/doc/header',
+                label: 'Header',
+                offset: 0,
+                length: 2,
+                kind: 'parsed',
+                type: 'ascii',
+                value: 'ab',
+              },
+              {
+                path: '/doc/body',
+                label: 'Body',
+                offset: 2,
+                length: 2,
+                kind: 'parsed',
+                type: 'ascii',
+                value: 'cd',
+              },
+            ],
+          },
+          null,
+          2
+        )
+      )
+      const rangeMapResult = await extensionApi.loadRangeMap({
+        uri,
+        sourceUri: vscode.Uri.file(rangeMapPath),
+        reveal: true,
+      })
+      assert.equal(rangeMapResult.nodeCount, 2)
+      assert.equal(rangeMapResult.highlightCount, 2)
+      assert.equal(rangeMapResult.selectedPath, '/doc/body')
+      assert.deepEqual(rangeMapResult.selectedRange, { offset: 2, length: 2 })
+      const expectedRangeMapHighlights = [
+        {
+          id: '/doc/header',
+          offset: 0,
+          length: 2,
+          kind: 'parsed',
+          label: 'Header (ascii) = ab',
+          source: 'synthetic.dfdl',
+        },
+        {
+          id: '/doc/body',
+          offset: 2,
+          length: 2,
+          kind: 'current',
+          label: 'Body (ascii) = cd',
+          source: 'synthetic.dfdl',
+        },
+      ]
+      assert.deepEqual(
+        rangeMapResult.state.externalHighlights,
+        expectedRangeMapHighlights
+      )
+
+      const badRangeMapPath = path.join(tmpDir, 'typed-api.bad-range-map.json')
+      await fs.writeFile(
+        badRangeMapPath,
+        JSON.stringify(
+          {
+            format: 'omega-edit.range-map',
+            version: 1,
+            nodes: [
+              {
+                path: '/doc/out-of-bounds',
+                label: 'Out of bounds',
+                offset: 6,
+                length: 1,
+              },
+            ],
+          },
+          null,
+          2
+        )
+      )
+      const badRangeMapResult = await extensionApi.loadRangeMap({
+        uri,
+        sourceUri: vscode.Uri.file(badRangeMapPath),
+      })
+      assert.equal(badRangeMapResult.cancelled, true)
+      assert.match(
+        badRangeMapResult.message,
+        /\/doc\/out-of-bounds \[6, 7\) is outside file bounds \(6 bytes\)/
+      )
+      assert.deepEqual(
+        badRangeMapResult.state.externalHighlights,
+        expectedRangeMapHighlights
+      )
+
+      const unloadedRangeMap = extensionApi.unloadRangeMap({ uri })
+      assert.equal(unloadedRangeMap.unloadedCount, 2)
+      assert.equal(unloadedRangeMap.highlightCount, 0)
+      assert.deepEqual(unloadedRangeMap.state.externalHighlights, [])
+
+      const secondUnloadRangeMap = extensionApi.unloadRangeMap({ uri })
+      assert.equal(secondUnloadRangeMap.unloadedCount, 0)
+      assert.equal(secondUnloadRangeMap.highlightCount, 0)
+      assert.deepEqual(secondUnloadRangeMap.state.externalHighlights, [])
 
       const revealedState = await extensionApi.reveal(uri, 5)
       assert.equal(revealedState.uri, uri.toString())
@@ -1504,6 +1620,66 @@ suite('OmegaEdit VS Code extension', () => {
         { uri: uri.toString() }
       )
       assert.deepEqual(stateAfterClear.externalHighlights, [])
+
+      const rangeMapPath = path.join(tmpDir, 'external-state.range-map.json')
+      await fs.writeFile(
+        rangeMapPath,
+        JSON.stringify(
+          {
+            format: 'omega-edit.range-map',
+            version: 1,
+            source: 'command.dfdl',
+            nodes: [
+              {
+                path: '/doc/signature',
+                label: 'Signature',
+                offset: 0,
+                length: 3,
+                kind: 'parsed',
+                type: 'ascii',
+                value: 'abc',
+              },
+            ],
+          },
+          null,
+          2
+        )
+      )
+      const commandLoadedRangeMap = await vscode.commands.executeCommand(
+        OMEGA_EDIT_LOAD_RANGE_MAP_COMMAND,
+        {
+          uri: uri.toString(),
+          sourceUri: vscode.Uri.file(rangeMapPath),
+          reveal: false,
+        }
+      )
+      assert.equal(commandLoadedRangeMap.highlightCount, 1)
+      assert.deepEqual(commandLoadedRangeMap.state.externalHighlights, [
+        {
+          id: '/doc/signature',
+          offset: 0,
+          length: 3,
+          kind: 'parsed',
+          label: 'Signature (ascii) = abc',
+          source: 'command.dfdl',
+        },
+      ])
+
+      const commandUnloadRangeMap = await vscode.commands.executeCommand(
+        OMEGA_EDIT_UNLOAD_RANGE_MAP_COMMAND,
+        { uri: uri.toString() }
+      )
+      assert.equal(commandUnloadRangeMap.unloadedCount, 1)
+      assert.equal(commandUnloadRangeMap.highlightCount, 0)
+      assert.deepEqual(commandUnloadRangeMap.state.externalHighlights, [])
+
+      const commandUnloadAfterClear = await vscode.commands.executeCommand(
+        OMEGA_EDIT_UNLOAD_RANGE_MAP_COMMAND,
+        { uri: uri.toString() }
+      )
+      assert.equal(commandUnloadAfterClear.unloadedCount, 0)
+      assert.equal(commandUnloadAfterClear.highlightCount, 0)
+      assert.deepEqual(commandUnloadAfterClear.state.externalHighlights, [])
     } finally {
       await vscode.commands.executeCommand('workbench.action.closeActiveEditor')
       await fs.rm(tmpDir, { recursive: true, force: true })
@@ -1661,6 +1837,55 @@ suite('OmegaEdit VS Code extension', () => {
         refreshedViewportMessages.at(-1).data,
         Array.from(Buffer.from('ready bytes', 'utf8'))
       )
+    } finally {
+      await panel.fireDidDispose()
+      await fs.rm(tmpDir, { recursive: true, force: true })
+    }
+  })
+
+  test('updates bytes per row without replacing the live webview', async () => {
+    const tmpDir = await fs.mkdtemp(
+      path.join(os.tmpdir(), 'omega-edit-vscode-bytes-row-')
+    )
+    const samplePath = path.join(tmpDir, 'bytes-row.bin')
+    await fs.writeFile(samplePath, Buffer.from('bytes per row', 'utf8'))
+
+    const provider = new HexEditorProvider({ subscriptions: [] }, testPort)
+    const panel = createMockWebviewPanel()
+    const document = await provider.openCustomDocument(
+      vscode.Uri.file(samplePath),
+      { backupId: undefined, untitledDocumentData: undefined },
+      new vscode.CancellationTokenSource().token
+    )
+
+    try {
+      await provider.resolveCustomEditor(
+        document,
+        panel,
+        new vscode.CancellationTokenSource().token
+      )
+
+      const initialHtml = panel.webview.html
+      const session = provider.getSessionForTesting(document.uri)
+      assert.ok(
+        session,
+        'Expected a live session for the bytes-per-row refresh test'
+      )
+      session.bytesPerRowSetting = 0
+      session.bytesPerRow = 32
+
+      provider.refreshBytesPerRow(0)
+
+      assert.equal(panel.webview.html, initialHtml)
+      const bytesPerRowMessage = lastMessageOfType(
+        panel.messages,
+        'bytesPerRow'
+      )
+      assert.deepEqual(bytesPerRowMessage, {
+        type: 'bytesPerRow',
+        bytesPerRow: 16,
+        bytesPerRowMode: 'fixed',
+      })
     } finally {
       await panel.fireDidDispose()
       await fs.rm(tmpDir, { recursive: true, force: true })
