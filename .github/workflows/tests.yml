@@ -117,26 +117,45 @@ jobs:
           cp "$src" "$dest"
           echo "PLATFORM_BINARY=$dest" >> "$GITHUB_ENV"
 
-      - name: Upload platform server binary artifact (with retry)
+      - name: Upload platform server binary artifact (attempt 1)
+        id: upload_server_binary_1
+        continue-on-error: true
+        uses: actions/upload-artifact@v7
+        with:
+          name: vscode-server-${{ matrix.platform }}
+          path: ${{ env.PLATFORM_BINARY }}
+          overwrite: true
+          retention-days: 14
+          if-no-files-found: error
+
+      - name: Upload platform server binary artifact (attempt 2)
+        id: upload_server_binary_2
+        if: ${{ steps.upload_server_binary_1.outcome == 'failure' }}
+        continue-on-error: true
+        uses: actions/upload-artifact@v7
+        with:
+          name: vscode-server-${{ matrix.platform }}
+          path: ${{ env.PLATFORM_BINARY }}
+          overwrite: true
+          retention-days: 14
+          if-no-files-found: error
+
+      - name: Upload platform server binary artifact (attempt 3)
+        id: upload_server_binary_3
+        if: ${{ steps.upload_server_binary_1.outcome == 'failure' && steps.upload_server_binary_2.outcome == 'failure' }}
+        continue-on-error: true
+        uses: actions/upload-artifact@v7
+        with:
+          name: vscode-server-${{ matrix.platform }}
+          path: ${{ env.PLATFORM_BINARY }}
+          overwrite: true
+          retention-days: 14
+          if-no-files-found: error
+
+      - name: Fail if platform server binary upload retries are exhausted
+        if: ${{ steps.upload_server_binary_1.outcome == 'failure' && steps.upload_server_binary_2.outcome == 'failure' && steps.upload_server_binary_3.outcome == 'failure' }}
         shell: bash
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          set -euo pipefail
-          for attempt in 1 2 3; do
-            if gh run upload-artifact \
-              --repo "${{ github.repository }}" \
-              --name "vscode-server-${{ matrix.platform }}" \
-              "${{ env.PLATFORM_BINARY }}"; then
-              exit 0
-            fi
-            if [ "$attempt" -eq 3 ]; then
-              echo "Artifact upload failed after 3 attempts" >&2
-              exit 1
-            fi
-            echo "Artifact upload failed on attempt $attempt; retrying in 15s..." >&2
-            sleep 15
-          done
+        run: exit 1
 
       - name: Stage platform transform plugins
         shell: bash
@@ -154,13 +173,45 @@ jobs:
           test "$(find "$dest" -maxdepth 1 -type f | wc -l)" -gt 0
           echo "TRANSFORM_PLUGIN_ARTIFACT_DIR=$dest" >> "$GITHUB_ENV"
 
-      - name: Upload platform transform plugin artifact
+      - name: Upload platform transform plugin artifact (attempt 1)
+        id: upload_transform_plugins_1
+        continue-on-error: true
         uses: actions/upload-artifact@v7
         with:
           name: vscode-transforms-${{ matrix.platform }}
           path: ${{ env.TRANSFORM_PLUGIN_ARTIFACT_DIR }}/*
+          overwrite: true
           retention-days: 14
           if-no-files-found: error
+
+      - name: Upload platform transform plugin artifact (attempt 2)
+        id: upload_transform_plugins_2
+        if: ${{ steps.upload_transform_plugins_1.outcome == 'failure' }}
+        continue-on-error: true
+        uses: actions/upload-artifact@v7
+        with:
+          name: vscode-transforms-${{ matrix.platform }}
+          path: ${{ env.TRANSFORM_PLUGIN_ARTIFACT_DIR }}/*
+          overwrite: true
+          retention-days: 14
+          if-no-files-found: error
+
+      - name: Upload platform transform plugin artifact (attempt 3)
+        id: upload_transform_plugins_3
+        if: ${{ steps.upload_transform_plugins_1.outcome == 'failure' && steps.upload_transform_plugins_2.outcome == 'failure' }}
+        continue-on-error: true
+        uses: actions/upload-artifact@v7
+        with:
+          name: vscode-transforms-${{ matrix.platform }}
+          path: ${{ env.TRANSFORM_PLUGIN_ARTIFACT_DIR }}/*
+          overwrite: true
+          retention-days: 14
+          if-no-files-found: error
+
+      - name: Fail if transform plugin artifact upload retries are exhausted
+        if: ${{ steps.upload_transform_plugins_1.outcome == 'failure' && steps.upload_transform_plugins_2.outcome == 'failure' && steps.upload_transform_plugins_3.outcome == 'failure' }}
+        shell: bash
+        run: exit 1
 
   vscode-extension-package:
     name: Package VS Code extension VSIX
