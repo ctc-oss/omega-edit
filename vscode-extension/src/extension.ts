@@ -30,6 +30,7 @@ import {
   type OmegaEditExtensionApi,
   type OmegaEditExternalHighlightRequest,
   type OmegaEditOpenOptions,
+  type OmegaEditChangeLogPreviewOptions,
   type OmegaEditRangeMapLoadOptions,
   type OmegaEditRangeMapUnloadOptions,
   type OmegaEditRevealOptions,
@@ -43,6 +44,7 @@ import {
   OMEGA_EDIT_GO_TO_OFFSET_COMMAND,
   OMEGA_EDIT_LOAD_RANGE_MAP_COMMAND,
   OMEGA_EDIT_OPEN_IN_HEX_EDITOR_COMMAND,
+  OMEGA_EDIT_PREVIEW_CHANGE_LOG_COMMAND,
   OMEGA_EDIT_REFRESH_TRANSFORM_PLUGINS_COMMAND,
   OMEGA_EDIT_REDO_COMMAND,
   OMEGA_EDIT_RESTORE_CHECKPOINT_COMMAND,
@@ -577,6 +579,9 @@ function createOmegaEditExtensionApi(
     async exportChangeLog(options) {
       return provider.exportChangeLog(options)
     },
+    async previewChangeLog(options?: OmegaEditChangeLogPreviewOptions) {
+      return provider.previewChangeLog(options)
+    },
     async applyChangeLog(options) {
       return provider.applyChangeLog(options)
     },
@@ -793,6 +798,15 @@ export async function activate(
       OMEGA_EDIT_EXPORT_CHANGE_LOG_COMMAND,
       async (options?: unknown) => {
         await provider.exportChangeLog(options)
+      }
+    )
+  )
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand(
+      OMEGA_EDIT_PREVIEW_CHANGE_LOG_COMMAND,
+      async (options?: unknown) => {
+        return await provider.previewChangeLog(options)
       }
     )
   )

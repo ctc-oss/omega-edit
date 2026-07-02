@@ -10,7 +10,7 @@ export const OMEGA_EDIT_EXTENSION_PUBLISHER = 'ctc-oss'
 export const OMEGA_EDIT_EXTENSION_NAME = 'omega-edit-data-editor'
 export const OMEGA_EDIT_EXTENSION_ID =
   `${OMEGA_EDIT_EXTENSION_PUBLISHER}.${OMEGA_EDIT_EXTENSION_NAME}` as const
-export const OMEGA_EDIT_EXTENSION_API_VERSION = 4
+export const OMEGA_EDIT_EXTENSION_API_VERSION = 2
 
 export type OmegaEditExternalHighlightKind = ExternalHighlightKind
 export type OmegaEditExternalHighlight = WebviewExternalHighlight
@@ -63,6 +63,11 @@ export interface OmegaEditChangeLogApplyOptions
   sourceUri?: vscode.Uri | string
 }
 
+export interface OmegaEditChangeLogPreviewOptions
+  extends OmegaEditEditorSelector {
+  sourceUri?: vscode.Uri | string
+}
+
 export interface OmegaEditCheckpointResult {
   state?: OmegaEditEditorState
   checkpointCount: number
@@ -92,10 +97,64 @@ export interface OmegaEditChangeLogFingerprint {
   digest: OmegaEditChangeLogDigest
 }
 
+export interface OmegaEditChangeLogPrimitiveCounts {
+  total: number
+  insert: number
+  delete: number
+  overwrite: number
+  replace: number
+  transform: number
+}
+
+export interface OmegaEditChangeLogPreview {
+  state?: OmegaEditEditorState
+  uri?: vscode.Uri
+  format: 'omega-edit.change-log'
+  version: 2
+  complete: boolean
+  canApply: boolean
+  primitiveCounts: OmegaEditChangeLogPrimitiveCounts
+  before: OmegaEditChangeLogFingerprint
+  after: OmegaEditChangeLogFingerprint
+  current?: OmegaEditChangeLogFingerprint
+  expectedSize: {
+    beforeByteLength: string
+    afterByteLength: string
+    deltaBytes: string
+  }
+  transformDescriptors: Array<{
+    index: number
+    serial?: number | string
+    offset: number | string
+    length: number | string
+    transformId: string
+    optionsJson?: string
+    descriptorSource: 'data'
+  }>
+  requiredPlugins: string[]
+  missingPlugins: string[]
+  unavailablePrimitives: {
+    count: number | string
+    serials: Array<number | string>
+  }
+  rollbackProtection: {
+    available: boolean
+    strategy: 'restore-to-change-count' | 'not-inspected'
+    targetChangeCount?: number
+    checkpointCount?: number
+  }
+  safetyIssues: Array<{
+    severity: 'error' | 'warning'
+    code: string
+    message: string
+  }>
+}
+
 export interface OmegaEditChangeLogResult {
   state?: OmegaEditEditorState
   uri?: vscode.Uri
   changeCount: number
+  appliedCount?: number
   sourceChangeCount?: number
   complete?: boolean
   before?: OmegaEditChangeLogFingerprint
@@ -103,6 +162,15 @@ export interface OmegaEditChangeLogResult {
   unavailableChangeCount?: number
   unavailableChangeSerials?: number[]
   cancelled?: boolean
+  preview?: OmegaEditChangeLogPreview
+  rollback?: {
+    attempted: boolean
+    succeeded?: boolean
+    rolledBack?: boolean
+    targetChangeCount?: number
+    error?: string
+  }
+  finalFingerprint?: OmegaEditChangeLogFingerprint
 }
 
 export interface OmegaEditRangeMapLoadResult {
@@ -179,6 +247,9 @@ export interface OmegaEditExtensionApi {
   exportChangeLog(
     options?: vscode.Uri | string | OmegaEditChangeLogExportOptions
   ): Promise<OmegaEditChangeLogResult | undefined>
+  previewChangeLog(
+    options?: vscode.Uri | string | OmegaEditChangeLogPreviewOptions
+  ): Promise<OmegaEditChangeLogPreview | undefined>
   applyChangeLog(
     options?: vscode.Uri | string | OmegaEditChangeLogApplyOptions
   ): Promise<OmegaEditChangeLogResult | undefined>

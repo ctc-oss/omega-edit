@@ -99,6 +99,7 @@ suite('OmegaEdit VS Code extension', () => {
     assert.equal(typeof extensionApi.rollbackCheckpoint, 'function')
     assert.equal(typeof extensionApi.restoreCheckpoint, 'function')
     assert.equal(typeof extensionApi.exportChangeLog, 'function')
+    assert.equal(typeof extensionApi.previewChangeLog, 'function')
     assert.equal(typeof extensionApi.applyChangeLog, 'function')
     assert.equal(typeof extensionApi.onDidChangeEditorState, 'function')
   })
@@ -757,13 +758,14 @@ suite('OmegaEdit VS Code extension', () => {
       new vscode.CancellationTokenSource().token
     )
 
-    await assert.rejects(
-      () =>
-        provider3.applyChangeLog({
-          uri: document3.uri,
-          sourceUri: vscode.Uri.file(tamperedScriptPath),
-        }),
-      /omega\.example\.missing|Failed to apply transform/i
+    const tamperedResult = await provider3.applyChangeLog({
+      uri: document3.uri,
+      sourceUri: vscode.Uri.file(tamperedScriptPath),
+    })
+    assert.equal(tamperedResult?.cancelled, true)
+    assert.equal(tamperedResult?.preview?.canApply, false)
+    assert.ok(
+      tamperedResult?.preview?.missingPlugins.includes('omega.example.missing')
     )
     const session3 = provider3.getSessionForTesting(document3.uri)
     assert.ok(session3, 'Expected a tampered replay session')
@@ -857,6 +859,19 @@ suite('OmegaEdit VS Code extension', () => {
       })
     )
 
+    const preview = await provider.previewChangeLog({
+      uri: document.uri,
+      sourceUri: vscode.Uri.file(scriptPath),
+    })
+    assert.equal(preview?.canApply, false)
+    assert.equal(preview?.unavailablePrimitives.count, '1')
+    assert.deepEqual(preview?.unavailablePrimitives.serials, ['1'])
+    assert.ok(
+      preview?.safetyIssues.some(
+        (issue) => issue.code === 'unavailable-primitives'
+      )
+    )
+
     const incompleteResult = await provider.applyChangeLog({
       uri: document.uri,
       sourceUri: vscode.Uri.file(scriptPath),
@@ -864,6 +879,7 @@ suite('OmegaEdit VS Code extension', () => {
 
     assert.equal(incompleteResult?.cancelled, true)
     assert.equal(incompleteResult?.changeCount, 0)
+    assert.equal(incompleteResult?.preview?.canApply, false)
     await assertSessionText(session.sessionId, 'abc')
 
     await panel.fireDidDispose()

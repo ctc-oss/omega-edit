@@ -175,19 +175,25 @@ describe('@omega-edit/ai toolkit', () => {
     assert.equal(wrappedDocument.changeCount, 0)
     assert.equal(wrappedDocument.inputChangeCount, 0)
 
-    await assert.rejects(
-      () =>
-        toolkit.applyChangeLog({
-          sessionId: 'session',
-          dryRun: true,
-          changes: makeChangeLogDocument([], {
-            complete: false,
-            sourceChangeCount: 1,
-            unavailableChangeCount: 1,
-            unavailableChangeSerials: [1],
-          }),
-        }),
-      /Change log is incomplete/
+    const incompletePreview = await toolkit.applyChangeLog({
+      sessionId: 'session',
+      dryRun: true,
+      changes: makeChangeLogDocument([], {
+        complete: false,
+        sourceChangeCount: 1,
+        unavailableChangeCount: 1,
+        unavailableChangeSerials: [1],
+      }),
+    })
+    assert.equal(incompletePreview.preview?.canApply, false)
+    assert.equal(incompletePreview.preview?.unavailablePrimitives.count, '1')
+    assert.deepEqual(incompletePreview.preview?.unavailablePrimitives.serials, [
+      '1',
+    ])
+    assert.ok(
+      incompletePreview.preview?.safetyIssues.some(
+        (issue) => issue.code === 'unavailable-primitives'
+      )
     )
 
     await assert.rejects(
@@ -552,32 +558,54 @@ describe('@omega-edit/ai toolkit', () => {
       const created = await toolkit.createSession(inputPath)
       createdSessionId = created.sessionId
 
-      await assert.rejects(
-        () =>
-          toolkit.applyChangeLog({
-            sessionId: createdSessionId,
-            changes: makeChangeLogDocument(
-              [
-                {
-                  kind: 'INSERT',
-                  offset: 1,
-                  length: 0,
-                  data: Buffer.from('ZZ', 'utf8').toString('hex'),
-                },
-                {
-                  kind: 'DELETE',
-                  offset: 1000,
-                  length: 1,
-                  data: Buffer.from('x', 'utf8').toString('hex'),
-                },
-              ],
+      try {
+        await toolkit.applyChangeLog({
+          sessionId: createdSessionId,
+          changes: makeChangeLogDocument(
+            [
               {
-                before: ABCDEF_SHA256_FINGERPRINT,
+                kind: 'INSERT',
+                offset: 1,
+                length: 0,
+                data: Buffer.from('ZZ', 'utf8').toString('hex'),
+              },
+              {
+                kind: 'DELETE',
+                offset: 1000,
+                length: 1,
+                data: Buffer.from('x', 'utf8').toString('hex'),
+              },
+            ],
+            {
+              before: ABCDEF_SHA256_FINGERPRINT,
+            }
+          ),
+        })
+        assert.fail('Expected change-log replay to fail')
+      } catch (error) {
+        assert.ok(error instanceof Error)
+        assert.match(
+          error.message,
+          /delete failed|change operation failed|invalid change arguments/i
+        )
+        const result = (
+          error as Error & {
+            result?: {
+              appliedCount?: number
+              rollback?: {
+                attempted?: boolean
+                succeeded?: boolean
+                rolledBack?: boolean
               }
-            ),
-          }),
-        /delete failed|change operation failed|invalid change arguments/i
-      )
+              finalFingerprint?: unknown
+            }
+          }
+        ).result
+        assert.equal(result?.appliedCount, 1)
+        assert.equal(result?.rollback?.attempted, true)
+        assert.equal(result?.rollback?.succeeded, true)
+        assert.ok(result?.finalFingerprint)
+      }
 
       const range = await toolkit.readRange(createdSessionId, 0, 6)
       assert.equal(range.data.utf8, 'abcdef')
@@ -1115,6 +1143,16 @@ describe('@omega-edit/ai toolkit', () => {
     })
     assert.equal(dryRun.applied, false)
     assert.equal(dryRun.inputChangeCount, 1)
+    assert.equal(dryRun.preview?.primitiveCounts.transform, 1)
+    assert.equal(
+      dryRun.preview?.transformDescriptors[0]?.transformId,
+      'omega.example.base64'
+    )
+    assert.equal(
+      dryRun.preview?.transformDescriptors[0]?.descriptorSource,
+      'data'
+    )
+    assert.equal(dryRun.preview?.requiredPlugins[0], 'omega.example.base64')
 
     await assert.rejects(
       () =>
