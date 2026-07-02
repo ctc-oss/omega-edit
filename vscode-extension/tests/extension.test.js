@@ -16,6 +16,7 @@ const {
   OMEGA_EDIT_CREATE_CHECKPOINT_COMMAND,
   OMEGA_EDIT_CLEAR_EXTERNAL_HIGHLIGHTS_COMMAND,
   OMEGA_EDIT_EXPORT_CHANGE_LOG_COMMAND,
+  OMEGA_EDIT_GET_ASSISTANT_CONTEXT_COMMAND,
   OMEGA_EDIT_GET_EDITOR_STATE_COMMAND,
   OMEGA_EDIT_GO_TO_OFFSET_COMMAND,
   OMEGA_EDIT_LOAD_RANGE_MAP_COMMAND,
@@ -70,7 +71,7 @@ function findRangeMapTreeNode(nodes, id) {
 test('package.json matches shared extension constants', () => {
   assert.equal(packageJson.main, './out/extension.js')
   assert.equal(packageJson.types, './out/api.d.ts')
-  assert.equal(OMEGA_EDIT_EXTENSION_API_VERSION, 4)
+  assert.equal(OMEGA_EDIT_EXTENSION_API_VERSION, 2)
   assert.equal(packageJson.name, OMEGA_EDIT_EXTENSION_NAME)
   assert.equal(packageJson.publisher, OMEGA_EDIT_EXTENSION_PUBLISHER)
   assert.equal(
@@ -201,6 +202,7 @@ test('package.json matches shared extension constants', () => {
     packageJson.contributes.commands.slice(14).map((entry) => entry.command),
     [
       OMEGA_EDIT_GET_EDITOR_STATE_COMMAND,
+      OMEGA_EDIT_GET_ASSISTANT_CONTEXT_COMMAND,
       OMEGA_EDIT_SET_EXTERNAL_HIGHLIGHTS_COMMAND,
       OMEGA_EDIT_CLEAR_EXTERNAL_HIGHLIGHTS_COMMAND,
       OMEGA_EDIT_LOAD_RANGE_MAP_COMMAND,
@@ -214,6 +216,10 @@ test('package.json matches shared extension constants', () => {
   assert.equal(
     packageNls['omegaEdit.command.getEditorState.title'],
     'OmegaEdit: Get Editor State'
+  )
+  assert.equal(
+    packageNls['omegaEdit.command.getAssistantContext.title'],
+    'OmegaEdit: Get Assistant Context'
   )
   assert.equal(
     packageNls['omegaEdit.command.setExternalHighlights.title'],
@@ -309,6 +315,7 @@ test('package.json matches shared extension constants', () => {
   assert.deepEqual(
     [
       OMEGA_EDIT_GET_EDITOR_STATE_COMMAND,
+      OMEGA_EDIT_GET_ASSISTANT_CONTEXT_COMMAND,
       OMEGA_EDIT_SET_EXTERNAL_HIGHLIGHTS_COMMAND,
       OMEGA_EDIT_CLEAR_EXTERNAL_HIGHLIGHTS_COMMAND,
     ].map((command) =>
@@ -318,6 +325,7 @@ test('package.json matches shared extension constants', () => {
     ),
     [
       { command: OMEGA_EDIT_GET_EDITOR_STATE_COMMAND, when: 'false' },
+      { command: OMEGA_EDIT_GET_ASSISTANT_CONTEXT_COMMAND, when: 'false' },
       { command: OMEGA_EDIT_SET_EXTERNAL_HIGHLIGHTS_COMMAND, when: 'false' },
       { command: OMEGA_EDIT_CLEAR_EXTERNAL_HIGHLIGHTS_COMMAND, when: 'false' },
     ]
@@ -1632,11 +1640,13 @@ test('compiled extension entrypoints exist after build', () => {
   assert.match(extensionJs, /OMEGA_EDIT_ROLLBACK_CHECKPOINT_COMMAND/)
   assert.match(extensionJs, /OMEGA_EDIT_CREATE_CHECKPOINT_COMMAND/)
   assert.match(extensionJs, /OMEGA_EDIT_GET_EDITOR_STATE_COMMAND/)
+  assert.match(extensionJs, /OMEGA_EDIT_GET_ASSISTANT_CONTEXT_COMMAND/)
   assert.match(extensionJs, /OMEGA_EDIT_SET_EXTERNAL_HIGHLIGHTS_COMMAND/)
   assert.match(extensionJs, /OMEGA_EDIT_CLEAR_EXTERNAL_HIGHLIGHTS_COMMAND/)
   assert.match(extensionJs, /OMEGA_EDIT_LOAD_RANGE_MAP_COMMAND/)
   assert.match(extensionJs, /OMEGA_EDIT_UNLOAD_RANGE_MAP_COMMAND/)
   assert.match(extensionJs, /getEditorState/)
+  assert.match(extensionJs, /getAssistantContext/)
   assert.match(extensionJs, /setExternalHighlights/)
   assert.match(extensionJs, /clearExternalHighlights/)
   assert.match(extensionJs, /loadRangeMap/)

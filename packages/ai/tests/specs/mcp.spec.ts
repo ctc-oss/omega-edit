@@ -177,6 +177,10 @@ describe('@omega-edit/ai mcp server', () => {
         tools.some((tool) => tool.name === 'omega_edit_apply_change_log'),
         'expected omega_edit_apply_change_log in tool list'
       )
+      assert.ok(
+        tools.some((tool) => tool.name === 'omega_edit_session_context'),
+        'expected omega_edit_session_context in tool list'
+      )
 
       const createSessionResponse = await sendRequest('tools/call', {
         name: 'omega_edit_create_session',
@@ -189,6 +193,40 @@ describe('@omega-edit/ai mcp server', () => {
       ).structuredContent as Record<string, unknown>) || { sessionId: '' }
       createdSessionId = createStructured.sessionId as string
       assert.ok(createdSessionId.length > 0)
+
+      const sessionContextResponse = await sendRequest('tools/call', {
+        name: 'omega_edit_session_context',
+        arguments: {
+          sessionId: createdSessionId,
+          filePath: inputPath,
+        },
+      })
+      const sessionContextStructured =
+        ((sessionContextResponse.result as Record<string, unknown>)
+          .structuredContent as Record<string, unknown>) || {}
+      assert.equal(sessionContextStructured.version, 1)
+      assert.equal(
+        (sessionContextStructured.session as Record<string, unknown>).id,
+        createdSessionId
+      )
+      assert.equal(
+        (sessionContextStructured.session as Record<string, unknown>).filePath,
+        inputPath
+      )
+      assert.equal(
+        (sessionContextStructured.sizes as Record<string, unknown>).computed,
+        Buffer.byteLength('hello world hello', 'utf8')
+      )
+      assert.ok(
+        (
+          (sessionContextStructured.commands as Array<
+            Record<string, unknown>
+          >) || []
+        ).some(
+          (entry) =>
+            entry.cli === 'oe session-context --session <id> [--file <path>]'
+        )
+      )
 
       const listPluginsResponse = await sendRequest('tools/call', {
         name: 'omega_edit_list_transform_plugins',

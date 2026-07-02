@@ -36,6 +36,9 @@ yarn add @omega-edit/ai
 # Create a session against a file
 oe create-session --file ./sample.bin
 
+# Ask what this session is and which command surfaces are available
+oe session-context --session <session-id> --file ./sample.bin
+
 # Inspect a bounded range
 oe view --session <session-id> --offset 0 --length 64
 
@@ -78,6 +81,12 @@ for the ABI, SDK helpers, plugin directory layout, and exemplar plugin IDs for
 codecs, transcodes, record/message helpers, and digest/checksum inspectors.
 
 All CLI commands emit JSON to stdout and return non-zero exit codes on failure.
+`oe session-context` returns the compact assistant-readable session snapshot:
+session id, optional file path, computed/original sizes, dirty/history state,
+viewport availability, transform availability, change-log status, and the
+command/API equivalents for major editor actions. The MCP server exposes the
+same payload through `omega_edit_session_context`, so chat assistants can
+operate from structured JSON instead of scraping the VS Code webview.
 Exported change logs are portable `omega-edit.change-log` documents containing
 the byte operations needed to apply the same edits to another session, another
 file, or a fleet of compatible files. Change-log integer fields are decimal

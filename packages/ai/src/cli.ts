@@ -35,6 +35,7 @@ function usage(): string {
     '  create-session --file <path>',
     '  destroy-session --session <id>',
     '  session-status --session <id>',
+    '  session-context --session <id> [--file <path>]',
     '  create-checkpoint --session <id>',
     '  rollback-checkpoint --session <id>  # roll back the most recent checkpoint',
     '  restore-checkpoint --session <id>   # restore content to the most recent checkpoint',
@@ -247,6 +248,24 @@ async function runCommand(
             diffMode: 'last-change-summary',
           }
         : result
+    }
+    case 'session-context': {
+      const parsed = parseArgs({
+        args,
+        options: {
+          ...commonOptions,
+          session: { type: 'string' as const },
+          file: { type: 'string' as const },
+        },
+        allowPositionals: false,
+      })
+      return await getToolkit(parsed.values).assistantContext(
+        requireStringOption(
+          parsed.values.session as string | undefined,
+          'session'
+        ),
+        parsed.values.file as string | undefined
+      )
     }
     case 'create-checkpoint': {
       const parsed = parseArgs({

@@ -17,6 +17,7 @@ const {
   OMEGA_EDIT_APPLY_CHANGE_LOG_COMMAND,
   OMEGA_EDIT_CLEAR_EXTERNAL_HIGHLIGHTS_COMMAND,
   OMEGA_EDIT_EXPORT_CHANGE_LOG_COMMAND,
+  OMEGA_EDIT_GET_ASSISTANT_CONTEXT_COMMAND,
   OMEGA_EDIT_GET_EDITOR_STATE_COMMAND,
   OMEGA_EDIT_GO_TO_OFFSET_COMMAND,
   OMEGA_EDIT_LOAD_RANGE_MAP_COMMAND,
@@ -91,6 +92,7 @@ suite('OmegaEdit VS Code extension', () => {
     assert.equal(typeof extensionApi.open, 'function')
     assert.equal(typeof extensionApi.reveal, 'function')
     assert.equal(typeof extensionApi.getEditorState, 'function')
+    assert.equal(typeof extensionApi.getAssistantContext, 'function')
     assert.equal(typeof extensionApi.setExternalHighlights, 'function')
     assert.equal(typeof extensionApi.clearExternalHighlights, 'function')
     assert.equal(typeof extensionApi.loadRangeMap, 'function')
@@ -115,6 +117,7 @@ suite('OmegaEdit VS Code extension', () => {
     assert.ok(commands.includes(OMEGA_EDIT_APPLY_CHANGE_LOG_COMMAND))
     assert.ok(commands.includes(OMEGA_EDIT_ROLLBACK_SESSION_COMMAND))
     assert.ok(commands.includes(OMEGA_EDIT_GET_EDITOR_STATE_COMMAND))
+    assert.ok(commands.includes(OMEGA_EDIT_GET_ASSISTANT_CONTEXT_COMMAND))
     assert.ok(commands.includes(OMEGA_EDIT_SET_EXTERNAL_HIGHLIGHTS_COMMAND))
     assert.ok(commands.includes(OMEGA_EDIT_CLEAR_EXTERNAL_HIGHLIGHTS_COMMAND))
     assert.ok(commands.includes(OMEGA_EDIT_LOAD_RANGE_MAP_COMMAND))
@@ -166,6 +169,34 @@ suite('OmegaEdit VS Code extension', () => {
       assert.equal(selectedState.editMode, 'insert')
       assert.equal(selectedState.selectionStart, 1)
       assert.equal(selectedState.selectionEnd, 3)
+
+      const assistantContext = extensionApi.getAssistantContext({ uri })
+      assert.equal(assistantContext.version, 1)
+      assert.equal(assistantContext.session.id, session.sessionId)
+      assert.equal(assistantContext.session.uri, uri.toString())
+      assert.equal(assistantContext.session.filePath, samplePath)
+      assert.equal(assistantContext.sizes.computed, 6)
+      assert.equal(assistantContext.sizes.original, 6)
+      assert.deepEqual(assistantContext.selection, {
+        offset: 1,
+        start: 1,
+        end: 3,
+        length: 3,
+      })
+      assert.equal(
+        assistantContext.viewport.activeViewportId,
+        session.viewportId
+      )
+      assert.equal(assistantContext.history.undoCount, 0)
+      assert.equal(assistantContext.history.redoCount, 0)
+      assert.equal(assistantContext.changeLog.format, 'omega-edit.change-log')
+      assert.ok(
+        assistantContext.commands.some(
+          (entry) =>
+            entry.vscodeCommand === OMEGA_EDIT_GET_ASSISTANT_CONTEXT_COMMAND &&
+            entry.extensionApi === 'getAssistantContext'
+        )
+      )
 
       const highlightedState = await extensionApi.setExternalHighlights({
         uri,
@@ -462,13 +493,37 @@ suite('OmegaEdit VS Code extension', () => {
       assert.equal(initialState.uri, uri.toString())
       assert.equal(initialState.fileSize, 8)
 
-      await vscode.commands.executeCommand(
+      const revealState = await vscode.commands.executeCommand(
+        OMEGA_EDIT_GO_TO_OFFSET_COMMAND,
+        { uri, offset: 2 }
+      )
+      assert.equal(revealState.uri, uri.toString())
+      assert.equal(typeof revealState.visibleOffset, 'number')
+
+      const initialContext = await vscode.commands.executeCommand(
+        OMEGA_EDIT_GET_ASSISTANT_CONTEXT_COMMAND,
+        { uri }
+      )
+      assert.equal(initialContext.session.id, session.sessionId)
+      assert.equal(initialContext.session.filePath, samplePath)
+      assert.equal(initialContext.sizes.computed, 8)
+      assert.equal(initialContext.selection, null)
+      assert.equal(initialContext.history.pendingChanges, false)
+      assert.ok(
+        initialContext.commands.some(
+          (entry) => entry.mcpTool === 'omega_edit_session_context'
+        )
+      )
+
+      const applyResult = await vscode.commands.executeCommand(
         OMEGA_EDIT_APPLY_CHANGE_LOG_COMMAND,
         {
           uri,
           sourceUri: vscode.Uri.file(changeLogPath),
         }
       )
+      assert.equal(applyResult.changeCount, 5)
+      assert.equal(applyResult.state.uri, uri.toString())
       await assertSessionText(session.sessionId, transformed)
 
       const highlightedState = await vscode.commands.executeCommand(
@@ -500,6 +555,20 @@ suite('OmegaEdit VS Code extension', () => {
       ])
       assert.equal(highlightedState.undoCount, 2)
       assert.equal(highlightedState.redoCount, 0)
+      const changedContext = await vscode.commands.executeCommand(
+        OMEGA_EDIT_GET_ASSISTANT_CONTEXT_COMMAND,
+        { uri }
+      )
+      assert.equal(changedContext.history.undoCount, 2)
+      assert.equal(changedContext.history.redoCount, 0)
+      assert.equal(
+        changedContext.changeLog.sourceChangeCount,
+        changedContext.history.changeCount
+      )
+      assert.ok(
+        changedContext.changeLog.sourceChangeCount >=
+          applyResult.sourceChangeCount
+      )
 
       await provider.dispatchWebviewMessageForTesting(uri, { type: 'undo' })
       await assertSessionText(session.sessionId, replaced)

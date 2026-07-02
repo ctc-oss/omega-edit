@@ -23,6 +23,7 @@
   "omegaEdit.command.restoreCheckpoint.title": "OmegaEdit: Restore Last Checkpoint",
   "omegaEdit.command.createCheckpoint.title": "OmegaEdit: Create Checkpoint",
   "omegaEdit.command.getEditorState.title": "OmegaEdit: Get Editor State",
+  "omegaEdit.command.getAssistantContext.title": "OmegaEdit: Get Assistant Context",
   "omegaEdit.command.setExternalHighlights.title": "OmegaEdit: Set External Highlights",
   "omegaEdit.command.clearExternalHighlights.title": "OmegaEdit: Clear External Highlights",
   "omegaEdit.command.loadRangeMap.title": "OmegaEdit: Load Range Map",

@@ -60,6 +60,8 @@ import {
 } from './constants'
 import { concatBytes, encodeData, parseInputData } from './codec'
 import {
+  AssistantCommandSurfaceEntry,
+  AssistantSessionContext,
   ApplyTransformPluginRequest,
   ApplyTransformPluginResult,
   ApplyChangeLogRequest,
@@ -88,9 +90,116 @@ import {
 const MAX_CHANGE_LOG_JSON_NESTING = 256
 const CHANGE_LOG_FORMAT = 'omega-edit.change-log'
 const CHANGE_LOG_VERSION = 2
+const ASSISTANT_CONTEXT_VERSION = 1
 const DEFAULT_CHANGE_LOG_DIGEST_ALGORITHM = 'sha256'
 const GRPC_NOT_FOUND = 5
 const MAX_INT64 = 9_223_372_036_854_775_807n
+
+const ASSISTANT_COMMAND_SURFACES: readonly AssistantCommandSurfaceEntry[] = [
+  {
+    action: 'openSession',
+    ui: 'Open in Data Editor',
+    vscodeCommand: 'omegaEdit.openInHexEditor',
+    extensionApi: 'open',
+    cli: 'oe create-session --file <path>',
+    mcpTool: 'omega_edit_create_session',
+    result: 'structured session id and file path',
+  },
+  {
+    action: 'assistantContext',
+    vscodeCommand: 'omegaEdit.getAssistantContext',
+    extensionApi: 'getAssistantContext',
+    cli: 'oe session-context --session <id> [--file <path>]',
+    mcpTool: 'omega_edit_session_context',
+    result: 'stable assistant-readable session context JSON',
+  },
+  {
+    action: 'editorState',
+    vscodeCommand: 'omegaEdit.getEditorState',
+    extensionApi: 'getEditorState',
+    result: 'raw editor state JSON for VS Code integrations',
+  },
+  {
+    action: 'navigateRange',
+    ui: 'Go to Offset',
+    vscodeCommand: 'omegaEdit.goToOffset',
+    extensionApi: 'reveal',
+    cli: 'oe view --session <id> --offset <n> --length <n>',
+    mcpTool: 'omega_edit_read_range',
+    result: 'selected offset or bounded range bytes',
+  },
+  {
+    action: 'profileRange',
+    cli: 'oe profile-range --session <id> --offset <n> --length <n>',
+    mcpTool: 'omega_edit_profile_range',
+    result: 'bounded range profile metrics',
+  },
+  {
+    action: 'search',
+    ui: 'Search',
+    cli: 'oe search --session <id> --text <value>',
+    mcpTool: 'omega_edit_search',
+    result: 'structured match offsets and lengths',
+  },
+  {
+    action: 'patchRange',
+    ui: 'Insert, delete, overwrite, or replace bytes',
+    cli: 'oe patch --session <id> --offset <n> --operation <kind>',
+    mcpTool: 'omega_edit_apply_patch',
+    result: 'operation kind, range, serial, preview, and resulting state',
+  },
+  {
+    action: 'undoRedo',
+    ui: 'Undo / Redo',
+    vscodeCommand: 'omegaEdit.undo / omegaEdit.redo',
+    cli: 'oe undo --session <id> / oe redo --session <id>',
+    mcpTool: 'omega_edit_undo / omega_edit_redo',
+    result: 'serial and updated history counts',
+  },
+  {
+    action: 'transforms',
+    ui: 'Refresh or apply transform plugins',
+    vscodeCommand: 'omegaEdit.refreshTransformPlugins',
+    cli: 'oe list-transform-plugins / oe apply-transform-plugin --session <id> --plugin <id>',
+    mcpTool:
+      'omega_edit_list_transform_plugins / omega_edit_apply_transform_plugin',
+    result: 'plugin metadata or transform operation result',
+  },
+  {
+    action: 'checkpoints',
+    ui: 'Create, restore, or roll back checkpoints',
+    vscodeCommand:
+      'omegaEdit.createCheckpoint / omegaEdit.restoreCheckpoint / omegaEdit.rollbackCheckpoint',
+    extensionApi: 'createCheckpoint / restoreCheckpoint / rollbackCheckpoint',
+    cli: 'oe create-checkpoint / oe restore-checkpoint / oe rollback-checkpoint',
+    mcpTool:
+      'omega_edit_create_checkpoint / omega_edit_restore_checkpoint / omega_edit_rollback_checkpoint',
+    result: 'checkpoint count and resulting state',
+  },
+  {
+    action: 'changeLog',
+    ui: 'Export or apply change log',
+    vscodeCommand: 'omegaEdit.exportChangeLog / omegaEdit.applyChangeLog',
+    extensionApi: 'exportChangeLog / applyChangeLog',
+    cli: 'oe export-change-log / oe apply-change-log',
+    mcpTool: 'omega_edit_export_change_log / omega_edit_apply_change_log',
+    result: 'change-log format, source counts, fingerprints, and state',
+  },
+  {
+    action: 'rollbackSession',
+    ui: 'Roll Back Session',
+    vscodeCommand: 'omegaEdit.rollbackSession',
+    result: 'resulting editor state',
+  },
+  {
+    action: 'annotations',
+    vscodeCommand:
+      'omegaEdit.setExternalHighlights / omegaEdit.clearExternalHighlights / omegaEdit.loadRangeMap / omegaEdit.unloadRangeMap',
+    extensionApi:
+      'setExternalHighlights / clearExternalHighlights / loadRangeMap / unloadRangeMap',
+    result: 'annotation counts, selected range, and resulting editor state',
+  },
+]
 
 interface CollectedChangeLogEntries {
   changes?: ChangeLogEntry[]
@@ -1236,6 +1345,97 @@ export class OmegaEditToolkit {
       viewportCount,
       checkpointCount,
       lastChange,
+    }
+  }
+
+  async assistantContext(
+    sessionId: string,
+    filePath?: string
+  ): Promise<AssistantSessionContext> {
+    const status = await this.sessionStatus(sessionId)
+    const [rawPlugins, originalFingerprint] = await Promise.all([
+      listClientTransformPlugins(),
+      getChangeLogFingerprint(
+        sessionId,
+        SessionFingerprintContent.ORIGINAL
+      ).catch(() => undefined),
+    ])
+    const plugins = rawPlugins.map((plugin) => ({
+      id: plugin.id,
+      name: plugin.name,
+      description: plugin.description,
+      operation: plugin.operation,
+      operationName:
+        transformPluginOperationNames.get(plugin.operation) ||
+        `${plugin.operation}`,
+      flags: plugin.flags,
+      abiVersion: plugin.abiVersion,
+    }))
+
+    return {
+      version: ASSISTANT_CONTEXT_VERSION,
+      session: {
+        id: sessionId,
+        uri: null,
+        filePath: filePath || null,
+        contentType: null,
+        language: null,
+      },
+      sizes: {
+        computed: status.computedSize,
+        original: originalFingerprint
+          ? int64ToDecimal(originalFingerprint.byteLength)
+          : null,
+      },
+      dirty: status.changeCount > 0,
+      selection: null,
+      viewport: {
+        count: status.viewportCount,
+        activeViewportId: null,
+        visibleOffset: null,
+        visibleByteCount: null,
+        bytesPerRow: null,
+        offsetRadix: null,
+        activePane: null,
+        editMode: null,
+        insertDirection: null,
+      },
+      history: {
+        changeCount: status.changeCount,
+        undoCount: status.changeCount,
+        redoCount: status.undoCount,
+        canUndo: status.changeCount > 0,
+        canRedo: status.undoCount > 0,
+        checkpointCount: status.checkpointCount,
+        checkpointAvailable: status.checkpointCount > 0,
+        savedChangeDepth: null,
+        pendingChanges: status.changeCount > 0,
+        pendingOperation: null,
+        pendingCount: 0,
+      },
+      transforms: {
+        inFlight: false,
+        available: plugins.length > 0,
+        pluginCount: plugins.length,
+        plugins: plugins.map((plugin) => ({
+          id: plugin.id,
+          name: plugin.name,
+          description: plugin.description,
+          operation: plugin.operation,
+          operationName: plugin.operationName,
+          flags: plugin.flags,
+          abiVersion: plugin.abiVersion,
+        })),
+      },
+      changeLog: {
+        format: CHANGE_LOG_FORMAT,
+        version: CHANGE_LOG_VERSION,
+        exportAvailable: true,
+        applyAvailable: true,
+        sourceChangeCount: status.changeCount,
+        completeExportAvailable: true,
+      },
+      commands: ASSISTANT_COMMAND_SURFACES.map((entry) => ({ ...entry })),
     }
   }
 

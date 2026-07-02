@@ -1,4 +1,5 @@
 import type * as vscode from 'vscode'
+import type { AssistantSessionContext } from './assistantContext'
 import type {
   ExternalHighlightKind,
   InsertDirection,
@@ -10,12 +11,13 @@ export const OMEGA_EDIT_EXTENSION_PUBLISHER = 'ctc-oss'
 export const OMEGA_EDIT_EXTENSION_NAME = 'omega-edit-data-editor'
 export const OMEGA_EDIT_EXTENSION_ID =
   `${OMEGA_EDIT_EXTENSION_PUBLISHER}.${OMEGA_EDIT_EXTENSION_NAME}` as const
-export const OMEGA_EDIT_EXTENSION_API_VERSION = 4
+export const OMEGA_EDIT_EXTENSION_API_VERSION = 2
 
 export type OmegaEditExternalHighlightKind = ExternalHighlightKind
 export type OmegaEditExternalHighlight = WebviewExternalHighlight
 export type OmegaEditEditorState = WebviewEditorState
 export type OmegaEditInsertDirection = InsertDirection
+export type OmegaEditAssistantContext = AssistantSessionContext
 
 export interface OmegaEditEditorSelector {
   uri?: vscode.Uri | string
@@ -147,6 +149,9 @@ export interface OmegaEditExtensionApi {
   getEditorState(
     options?: vscode.Uri | string | OmegaEditEditorSelector
   ): OmegaEditEditorState | undefined
+  getAssistantContext(
+    options?: vscode.Uri | string | OmegaEditEditorSelector
+  ): OmegaEditAssistantContext | undefined
   setExternalHighlights(
     request: OmegaEditExternalHighlightRequest
   ): Promise<OmegaEditEditorState | undefined>

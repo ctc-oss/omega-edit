@@ -39,6 +39,7 @@ import {
   OMEGA_EDIT_APPLY_CHANGE_LOG_COMMAND,
   OMEGA_EDIT_CLEAR_EXTERNAL_HIGHLIGHTS_COMMAND,
   OMEGA_EDIT_EXPORT_CHANGE_LOG_COMMAND,
+  OMEGA_EDIT_GET_ASSISTANT_CONTEXT_COMMAND,
   OMEGA_EDIT_GET_EDITOR_STATE_COMMAND,
   OMEGA_EDIT_GO_TO_OFFSET_COMMAND,
   OMEGA_EDIT_LOAD_RANGE_MAP_COMMAND,
@@ -550,6 +551,9 @@ function createOmegaEditExtensionApi(
     getEditorState(options) {
       return provider.getEditorState(options)
     },
+    getAssistantContext(options) {
+      return provider.getAssistantContext(options)
+    },
     async setExternalHighlights(request: OmegaEditExternalHighlightRequest) {
       return provider.setExternalHighlights(request)
     },
@@ -725,7 +729,23 @@ export async function activate(
   context.subscriptions.push(
     vscode.commands.registerCommand(
       OMEGA_EDIT_GO_TO_OFFSET_COMMAND,
-      async () => {
+      async (options?: unknown, offset?: number) => {
+        if (typeof options === 'number') {
+          return provider.revealOffset({ offset: options })
+        }
+
+        if (
+          offset !== undefined ||
+          (isRecord(options) && 'offset' in options)
+        ) {
+          return provider.revealOffset(
+            normalizeRevealOptions(
+              options as vscode.Uri | string | OmegaEditRevealOptions,
+              offset
+            )
+          )
+        }
+
         const input = await vscode.window.showInputBox({
           prompt: vscode.l10n.t('Enter byte offset (decimal or 0x hex)'),
           placeHolder: '0x0000',
@@ -740,22 +760,23 @@ export async function activate(
         if (input !== undefined) {
           const offset = parseOffsetInput(input)
           if (offset !== undefined) {
-            provider.goToOffset(offset)
+            return provider.revealOffset({ offset })
           }
         }
+        return undefined
       }
     )
   )
 
   context.subscriptions.push(
     vscode.commands.registerCommand(OMEGA_EDIT_UNDO_COMMAND, async () => {
-      await provider.undoActive()
+      return await provider.undoActive()
     })
   )
 
   context.subscriptions.push(
     vscode.commands.registerCommand(OMEGA_EDIT_REDO_COMMAND, async () => {
-      await provider.redoActive()
+      return await provider.redoActive()
     })
   )
 
@@ -769,13 +790,13 @@ export async function activate(
 
   context.subscriptions.push(
     vscode.commands.registerCommand(OMEGA_EDIT_SEARCH_NEXT_COMMAND, () => {
-      provider.searchNextActive()
+      return provider.searchNextActive()
     })
   )
 
   context.subscriptions.push(
     vscode.commands.registerCommand(OMEGA_EDIT_SEARCH_PREVIOUS_COMMAND, () => {
-      provider.searchPreviousActive()
+      return provider.searchPreviousActive()
     })
   )
 
@@ -783,7 +804,7 @@ export async function activate(
     vscode.commands.registerCommand(
       OMEGA_EDIT_REFRESH_TRANSFORM_PLUGINS_COMMAND,
       async () => {
-        await provider.refreshActiveTransformPlugins()
+        return await provider.refreshActiveTransformPlugins()
       }
     )
   )
@@ -792,7 +813,7 @@ export async function activate(
     vscode.commands.registerCommand(
       OMEGA_EDIT_EXPORT_CHANGE_LOG_COMMAND,
       async (options?: unknown) => {
-        await provider.exportChangeLog(options)
+        return await provider.exportChangeLog(options)
       }
     )
   )
@@ -801,7 +822,7 @@ export async function activate(
     vscode.commands.registerCommand(
       OMEGA_EDIT_APPLY_CHANGE_LOG_COMMAND,
       async (options?: unknown) => {
-        await provider.applyChangeLog(options)
+        return await provider.applyChangeLog(options)
       }
     )
   )
@@ -810,7 +831,7 @@ export async function activate(
     vscode.commands.registerCommand(
       OMEGA_EDIT_ROLLBACK_SESSION_COMMAND,
       async () => {
-        await provider.rollbackActiveSession()
+        return await provider.rollbackActiveSession()
       }
     )
   )
@@ -819,7 +840,7 @@ export async function activate(
     vscode.commands.registerCommand(
       OMEGA_EDIT_ROLLBACK_CHECKPOINT_COMMAND,
       async (options?: unknown) => {
-        await provider.rollbackCheckpoint(options)
+        return await provider.rollbackCheckpoint(options)
       }
     )
   )
@@ -828,7 +849,7 @@ export async function activate(
     vscode.commands.registerCommand(
       OMEGA_EDIT_RESTORE_CHECKPOINT_COMMAND,
       async (options?: unknown) => {
-        await provider.restoreCheckpoint(options)
+        return await provider.restoreCheckpoint(options)
       }
     )
   )
@@ -837,7 +858,7 @@ export async function activate(
     vscode.commands.registerCommand(
       OMEGA_EDIT_CREATE_CHECKPOINT_COMMAND,
       async (options?: unknown) => {
-        await provider.createCheckpoint(options)
+        return await provider.createCheckpoint(options)
       }
     )
   )
@@ -846,6 +867,13 @@ export async function activate(
     vscode.commands.registerCommand(
       OMEGA_EDIT_GET_EDITOR_STATE_COMMAND,
       (options?: unknown) => provider.getEditorState(options)
+    )
+  )
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand(
+      OMEGA_EDIT_GET_ASSISTANT_CONTEXT_COMMAND,
+      (options?: unknown) => provider.getAssistantContext(options)
     )
   )
 

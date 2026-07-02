@@ -218,6 +218,36 @@ describe('@omega-edit/ai CLI', () => {
       ])
       assert.equal(status.computedSize, Buffer.byteLength(transformed, 'utf8'))
       assert.equal(status.undoCount, 0)
+
+      const context = await runOe([
+        'session-context',
+        ...common,
+        '--session',
+        sessionId,
+        '--file',
+        inputPath,
+      ])
+      assert.equal(context.version, 1)
+      assert.equal((context.session as Record<string, unknown>).id, sessionId)
+      assert.equal(
+        (context.session as Record<string, unknown>).filePath,
+        inputPath
+      )
+      assert.equal(
+        (context.sizes as Record<string, unknown>).computed,
+        Buffer.byteLength(transformed, 'utf8')
+      )
+      assert.equal(
+        (context.history as Record<string, unknown>).undoCount,
+        status.changeCount
+      )
+      assert.equal((context.history as Record<string, unknown>).redoCount, 0)
+      assert.equal(context.selection, null)
+      assert.ok(
+        ((context.commands as Array<Record<string, unknown>>) || []).some(
+          (entry) => entry.mcpTool === 'omega_edit_session_context'
+        )
+      )
     } finally {
       if (sessionId) {
         await runOe([
