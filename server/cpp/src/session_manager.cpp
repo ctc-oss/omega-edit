@@ -635,9 +635,8 @@ namespace omega_edit {
             return session_id;
         }
 
-        bool SessionManager::destroy_session_locked(
-                const std::map<std::string, std::shared_ptr<SessionInfo>>::iterator &it) {
-            auto info = it->second;
+        void SessionManager::destroy_session_info(const std::shared_ptr<SessionInfo> &info) {
+            if (!info) { return; }
             std::lock_guard<std::mutex> core_lock(info->core_mutex);
 
             // Close event queues
@@ -668,7 +667,15 @@ namespace omega_edit {
                 info->session = nullptr;
             }
             if (info->owns_checkpoint_directory) { cleanup_directory_best_effort(info->checkpoint_directory); }
+        }
 
+        bool SessionManager::destroy_session_locked(
+                std::unique_lock<std::mutex> &lock,
+                const std::map<std::string, std::shared_ptr<SessionInfo>>::iterator &it) {
+            auto info = it->second;
+            if (info->transform_cancel_requested) {
+                info->transform_cancel_requested->store(true, std::memory_order_relaxed);
+            }
             if (!info->canonical_file_path.empty()) {
                 auto canonical_it = file_sessions_by_path_.find(info->canonical_file_path);
                 if (canonical_it != file_sessions_by_path_.end() && canonical_it->second == info->session_id) {
@@ -677,21 +684,24 @@ namespace omega_edit {
             }
 
             sessions_.erase(it);
+            lock.unlock();
+            destroy_session_info(info);
+            lock.lock();
             cleanup_managed_server_root_if_empty();
             return true;
         }
 
         bool SessionManager::destroy_session(const std::string &session_id) {
-            std::lock_guard<std::mutex> lock(mutex_);
+            std::unique_lock<std::mutex> lock(mutex_);
 
             auto it = sessions_.find(session_id);
             if (it == sessions_.end()) return false;
 
-            return destroy_session_locked(it);
+            return destroy_session_locked(lock, it);
         }
 
         bool SessionManager::detach_session(const std::string &session_id) {
-            std::lock_guard<std::mutex> lock(mutex_);
+            std::unique_lock<std::mutex> lock(mutex_);
 
             auto it = sessions_.find(session_id);
             if (it == sessions_.end()) return false;
@@ -702,7 +712,7 @@ namespace omega_edit {
                 return true;
             }
 
-            return destroy_session_locked(it);
+            return destroy_session_locked(lock, it);
         }
 
         omega_session_t *SessionManager::get_session(const std::string &session_id) {
@@ -759,6 +769,9 @@ namespace omega_edit {
             if (info->active_mutations > 0) {
                 return SessionOperationGuard(this, session_id, SessionOperationKind::TRANSFORM,
                                              SessionOperationStartResult::MUTATION_IN_PROGRESS);
+            }
+            if (info->transform_cancel_requested) {
+                info->transform_cancel_requested->store(false, std::memory_order_relaxed);
             }
             info->transform_in_progress = true;
             info->last_activity = std::chrono::steady_clock::now();
@@ -1145,35 +1158,27 @@ namespace omega_edit {
         }
 
         void SessionManager::destroy_all() {
-            std::lock_guard<std::mutex> lock(mutex_);
-
-            for (auto &pair : sessions_) {
-                auto &info = pair.second;
-                std::lock_guard<std::mutex> core_lock(info->core_mutex);
-                {
-                    std::lock_guard<std::mutex> subscription_lock(info->session_subscription_mutex);
-                    for (auto &subscription : info->session_subscriptions) {
-                        if (subscription.event_queue) subscription.event_queue->close();
+            std::vector<std::shared_ptr<SessionInfo>> infos;
+            {
+                std::lock_guard<std::mutex> lock(mutex_);
+                infos.reserve(sessions_.size());
+                for (auto &pair : sessions_) {
+                    auto &info = pair.second;
+                    if (info->transform_cancel_requested) {
+                        info->transform_cancel_requested->store(true, std::memory_order_relaxed);
                     }
-                    info->session_subscriptions.clear();
+                    infos.push_back(info);
                 }
-                for (auto &vp : info->viewports) {
-                    std::lock_guard<std::mutex> subscription_lock(vp.second->viewport_subscription_mutex);
-                    for (auto &subscription : vp.second->viewport_subscriptions) {
-                        if (subscription.event_queue) subscription.event_queue->close();
-                    }
-                    vp.second->viewport_subscriptions.clear();
-                    vp.second->viewport = nullptr;
-                }
-                if (info->session) {
-                    omega_edit_destroy_session(info->session);
-                    info->session = nullptr;
-                }
-                if (info->owns_checkpoint_directory) { cleanup_directory_best_effort(info->checkpoint_directory); }
+                sessions_.clear();
+                file_sessions_by_path_.clear();
             }
-            sessions_.clear();
-            file_sessions_by_path_.clear();
-            cleanup_managed_server_root_if_empty();
+
+            for (const auto &info : infos) { destroy_session_info(info); }
+
+            {
+                std::lock_guard<std::mutex> lock(mutex_);
+                cleanup_managed_server_root_if_empty();
+            }
         }
 
         void SessionManager::touch_session(const std::string &session_id) {

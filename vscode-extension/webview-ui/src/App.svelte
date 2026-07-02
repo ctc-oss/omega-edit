@@ -185,6 +185,7 @@
   let transformPluginError = $state('')
   let transformFeedback = $state('')
   let transformInFlight = $state(false)
+  let transformCancelable = $state(false)
   let transformResult = $state<TransformResultState | undefined>(undefined)
   let transformResultHistory = $state<TransformResultState[]>([])
   let transformResultSequence = $state(0)
@@ -1620,6 +1621,7 @@
 
     const plugin = transformPlugins.find((entry) => entry.id === pluginId)
     transformInFlight = true
+    transformCancelable = true
     transformFeedback = strings.transform.applying(plugin?.name || pluginId)
     transformResult = undefined
     postToHost({
@@ -1630,6 +1632,14 @@
       length,
       optionsJson,
     })
+  }
+
+  function cancelTransform(): void {
+    if (!transformInFlight || !transformCancelable) {
+      return
+    }
+    transformFeedback = strings.transform.cancelling
+    postToHost({ type: 'cancelTransform' })
   }
 
   function exportRange(offset: number, length: number): void {
@@ -1647,6 +1657,7 @@
     }
 
     transformInFlight = true
+    transformCancelable = false
     transformFeedback = strings.transform.exportingRange
     postToHost({ type: 'exportRange', offset, length })
   }
@@ -1661,6 +1672,7 @@
     }
 
     transformInFlight = true
+    transformCancelable = false
     transformFeedback = strings.transform.insertingFile
     postToHost({ type: 'insertFile', offset })
   }
@@ -1680,6 +1692,7 @@
     }
 
     transformInFlight = true
+    transformCancelable = false
     transformFeedback = strings.transform.replacingWithFile
     postToHost({ type: 'replaceRangeWithFile', offset, length })
   }
@@ -1690,6 +1703,7 @@
     }
 
     transformInFlight = true
+    transformCancelable = false
     transformFeedback = strings.transform.creatingCheckpoint
     postToHost({ type: 'createCheckpoint' })
   }
@@ -1700,6 +1714,7 @@
     }
 
     transformInFlight = true
+    transformCancelable = false
     transformFeedback = strings.transform.rollingBackCheckpoint
     postToHost({ type: 'rollbackCheckpoint' })
   }
@@ -1710,6 +1725,7 @@
     }
 
     transformInFlight = true
+    transformCancelable = false
     transformFeedback = strings.transform.restoringCheckpoint
     postToHost({ type: 'restoreCheckpoint' })
   }
@@ -1720,6 +1736,7 @@
     }
 
     transformInFlight = true
+    transformCancelable = false
     transformFeedback = strings.transform.exportingChangeLog
     postToHost({ type: 'exportChangeLog' })
   }
@@ -1730,6 +1747,7 @@
     }
 
     transformInFlight = true
+    transformCancelable = false
     transformFeedback = strings.transform.applyingChangeLog
     postToHost({ type: 'applyChangeLog' })
   }
@@ -2165,6 +2183,7 @@
 
     replaceMessage = ''
     transformInFlight = true
+    transformCancelable = false
     transformFeedback = strings.search.replacingAll
     postToHost({
       type: 'replaceAllMatches',
@@ -2405,6 +2424,9 @@
         break
       case 'transformStatus':
         transformInFlight = message.inFlight
+        if (!message.inFlight) {
+          transformCancelable = false
+        }
         if (
           message.inFlight ||
           message.message ||
@@ -2438,6 +2460,7 @@
         break
       case 'replaceComplete': {
         transformInFlight = false
+        transformCancelable = false
         transformFeedback = ''
         const replacedCount = message.replacedCount ?? 0
         replaceMessage = strings.search.replaceSummary(replacedCount)
@@ -2475,6 +2498,7 @@
       }
       case 'transformComplete':
         transformInFlight = false
+        transformCancelable = false
         if (message.contentChanged) {
           clearSearchResults()
         }
@@ -2494,6 +2518,7 @@
         break
       case 'fileActionComplete':
         transformInFlight = false
+        transformCancelable = false
         transformFeedback = message.cancelled
           ? ''
           : describeFileActionComplete(message)
@@ -2517,6 +2542,7 @@
         break
       case 'sessionActionComplete':
         transformInFlight = false
+        transformCancelable = false
         transformFeedback = ''
         if (
           !message.cancelled &&
@@ -2638,6 +2664,7 @@
     {transformPluginsLoaded}
     {transformPluginsLoading}
     {transformInFlight}
+    {transformCancelable}
     {transformPluginError}
     {transformFeedback}
     transformResults={displayTransformResultHistory}
@@ -2652,6 +2679,7 @@
     onInsertDirection={setInsertDirection}
     onGoToOffset={goToOffset}
     onRequestTransforms={requestTransformPlugins}
+    onCancelTransform={cancelTransform}
     onApplyTransform={applyTransform}
     onExportRange={exportRange}
     onInsertFile={insertFile}

@@ -36,6 +36,7 @@
     transformPluginsLoaded?: boolean
     transformPluginsLoading?: boolean
     transformInFlight?: boolean
+    transformCancelable?: boolean
     transformPluginError?: string
     transformFeedback?: string
     transformResults?: TransformResultHistoryItem[]
@@ -50,6 +51,7 @@
     onInsertDirection: (direction: InsertDirection) => void
     onGoToOffset: (offset: number) => void
     onRequestTransforms: () => void
+    onCancelTransform: () => void
     onApplyTransform: (
       pluginId: string,
       contentSource: WebviewSessionContentSource,
@@ -80,6 +82,7 @@
     transformPluginsLoaded = false,
     transformPluginsLoading = false,
     transformInFlight = false,
+    transformCancelable = false,
     transformPluginError = '',
     transformFeedback = '',
     transformResults = [],
@@ -94,6 +97,7 @@
     onInsertDirection,
     onGoToOffset,
     onRequestTransforms,
+    onCancelTransform,
     onApplyTransform,
     onExportRange,
     onInsertFile,
@@ -252,6 +256,7 @@
       pluginsLoaded={transformPluginsLoaded}
       pluginsLoading={transformPluginsLoading}
       busy={transformInFlight}
+      cancelable={transformCancelable}
       error={transformPluginError}
       {fileSize}
       {selectedOffset}
@@ -263,6 +268,7 @@
       results={transformResults}
       {activeTransformResultId}
       {onRequestTransforms}
+      {onCancelTransform}
       {onApplyTransform}
       {onExportRange}
       {onInsertFile}

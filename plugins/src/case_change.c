@@ -131,6 +131,7 @@ OMEGA_TRANSFORM_PLUGIN_EXPORT int omega_transform_plugin_apply(const omega_trans
 
     int has_change = 0;
     for (int64_t i = 0; i < request_ptr->input_length; ++i) {
+        if ((i & 0xFFF) == 0 && omega_transform_plugin_sdk_is_cancelled(request_ptr)) { return -1; }
         if (case_change_byte(request_ptr->input_bytes[i], mode) != request_ptr->input_bytes[i]) {
             has_change = 1;
             break;
@@ -142,6 +143,7 @@ OMEGA_TRANSFORM_PLUGIN_EXPORT int omega_transform_plugin_apply(const omega_trans
             (omega_byte_t *) omega_transform_plugin_sdk_alloc(request_ptr, (size_t) request_ptr->input_length);
     if (!output) { return -1; }
     for (int64_t i = 0; i < request_ptr->input_length; ++i) {
+        if ((i & 0xFFF) == 0 && omega_transform_plugin_sdk_is_cancelled(request_ptr)) { return -1; }
         output[i] = case_change_byte(request_ptr->input_bytes[i], mode);
     }
     response_ptr->replacement_bytes = output;

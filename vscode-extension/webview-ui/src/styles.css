@@ -386,6 +386,12 @@ button:focus-visible {
   white-space: nowrap;
 }
 
+.transform-cancel {
+  min-width: 56px;
+  height: 26px;
+  flex: 0 0 auto;
+}
+
 .transform-result-history {
   position: relative;
   min-width: 0;

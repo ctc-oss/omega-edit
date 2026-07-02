@@ -57,9 +57,12 @@ import {
 import { debugLog, getLogger } from '../logger'
 import { getClient } from '../client'
 import {
+  type CancellableCallOptions,
+  cancelUnaryOnSignal,
   getSingleId,
   getUnsubscribeTimeoutMs,
   callUnary,
+  makeCancellationError,
   makeWrappedError,
   requireResponse,
 } from './utils'
@@ -930,7 +933,8 @@ export async function applyTransformPlugin(
   pluginId: string,
   offset: number = 0,
   length: number = 0,
-  optionsJson?: string
+  optionsJson?: string,
+  options: CancellableCallOptions = {}
 ): Promise<ApplyTransformPluginResponse> {
   const log = getLogger()
   const request = {
@@ -944,38 +948,52 @@ export async function applyTransformPlugin(
     fn: 'protobufTs.applyTransformPlugin',
     rqst: request,
   }))
+  if (options.signal?.aborted) {
+    throw makeCancellationError('applyTransformPlugin')
+  }
   const client = await getClient()
+  if (options.signal?.aborted) {
+    throw makeCancellationError('applyTransformPlugin')
+  }
 
   return new Promise<ApplyTransformPluginResponse>((resolve, reject) => {
-    callUnary(client, client.applyTransformPlugin, request, (err, response) => {
-      if (err) {
-        log.error({
-          fn: 'protobufTs.applyTransformPlugin',
-          rqst: request,
-          err: {
-            msg: err.message,
-            details: err.details,
-            code: err.code,
-            stack: err.stack,
-          },
-        })
-        return reject(makeWrappedError('applyTransformPlugin', err))
-      }
+    let removeCancellationListener: () => void = () => undefined
+    const call = callUnary(
+      client,
+      client.applyTransformPlugin,
+      request,
+      (err, response) => {
+        removeCancellationListener()
+        if (err) {
+          log.error({
+            fn: 'protobufTs.applyTransformPlugin',
+            rqst: request,
+            err: {
+              msg: err.message,
+              details: err.details,
+              code: err.code,
+              stack: err.stack,
+            },
+          })
+          return reject(makeWrappedError('applyTransformPlugin', err))
+        }
 
-      try {
-        const required = requireResponse(
-          response as ApplyTransformPluginResponse | undefined,
-          'applyTransformPlugin'
-        )
-        debugLog(log, () => ({
-          fn: 'protobufTs.applyTransformPlugin',
-          resp: required,
-        }))
-        return resolve(required)
-      } catch (error) {
-        return reject(makeWrappedError('applyTransformPlugin', error))
+        try {
+          const required = requireResponse(
+            response as ApplyTransformPluginResponse | undefined,
+            'applyTransformPlugin'
+          )
+          debugLog(log, () => ({
+            fn: 'protobufTs.applyTransformPlugin',
+            resp: required,
+          }))
+          return resolve(required)
+        } catch (error) {
+          return reject(makeWrappedError('applyTransformPlugin', error))
+        }
       }
-    })
+    )
+    removeCancellationListener = cancelUnaryOnSignal(call, options.signal)
   })
 }
 
@@ -985,7 +1003,8 @@ export async function inspectSessionContent(
   pluginId: string,
   offset: number = 0,
   length: number = 0,
-  optionsJson?: string
+  optionsJson?: string,
+  options: CancellableCallOptions = {}
 ): Promise<InspectSessionContentResponse> {
   const log = getLogger()
   const request = {
@@ -1000,14 +1019,22 @@ export async function inspectSessionContent(
     fn: 'protobufTs.inspectSessionContent',
     rqst: request,
   }))
+  if (options.signal?.aborted) {
+    throw makeCancellationError('inspectSessionContent')
+  }
   const client = await getClient()
+  if (options.signal?.aborted) {
+    throw makeCancellationError('inspectSessionContent')
+  }
 
   return new Promise<InspectSessionContentResponse>((resolve, reject) => {
-    callUnary(
+    let removeCancellationListener: () => void = () => undefined
+    const call = callUnary(
       client,
       client.inspectSessionContent,
       request,
       (err, response) => {
+        removeCancellationListener()
         if (err) {
           log.error({
             fn: 'protobufTs.inspectSessionContent',
@@ -1037,6 +1064,7 @@ export async function inspectSessionContent(
         }
       }
     )
+    removeCancellationListener = cancelUnaryOnSignal(call, options.signal)
   })
 }
 

@@ -1780,7 +1780,8 @@ export class OmegaEditToolkit {
       request.pluginId,
       offset,
       length,
-      request.optionsJson
+      request.optionsJson,
+      { signal: request.signal }
     )
 
     return {

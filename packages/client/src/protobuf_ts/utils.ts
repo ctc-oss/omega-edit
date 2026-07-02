@@ -27,6 +27,20 @@ export type UnaryCallback<Response> = (
   response?: Response
 ) => void
 
+export interface CancellationSignal {
+  readonly aborted: boolean
+  addEventListener?(
+    type: string,
+    listener: (...args: any[]) => void,
+    options?: unknown
+  ): void
+  removeEventListener?(type: string, listener: (...args: any[]) => void): void
+}
+
+export interface CancellableCallOptions {
+  signal?: CancellationSignal
+}
+
 type UnaryMethod<Request, Response> = {
   (
     request: Request,
@@ -89,6 +103,30 @@ export function callUnary<Request, Response>(
     return invoker.call(client, request, callback)
   }
   return invoker.call(client, request, getUnaryCallOptions(), callback)
+}
+
+export function makeCancellationError(fn: string): Error {
+  const error = new Error(`${fn} error: cancelled`)
+  error.name = 'AbortError'
+  return error
+}
+
+export function cancelUnaryOnSignal(
+  call: grpc.ClientUnaryCall,
+  signal?: CancellationSignal
+): () => void {
+  if (!signal) {
+    return () => undefined
+  }
+
+  const abort = () => call.cancel()
+  if (signal.aborted) {
+    abort()
+    return () => undefined
+  }
+
+  signal.addEventListener?.('abort', abort, { once: true })
+  return () => signal.removeEventListener?.('abort', abort)
 }
 
 export function getUnsubscribeTimeoutMs(): number {

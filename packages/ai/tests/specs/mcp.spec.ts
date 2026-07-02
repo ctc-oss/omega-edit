@@ -19,6 +19,27 @@ type PendingMap = Map<
 >
 
 describe('@omega-edit/ai mcp server', () => {
+  it('wires MCP cancellation notifications to tool abort signals', () => {
+    const source = fs.readFileSync(
+      path.resolve(__dirname, '../../src/mcp.ts'),
+      'utf8'
+    )
+
+    assert.match(
+      source,
+      /activeToolRequests = new Map<unknown, AbortController>/
+    )
+    assert.match(source, /method === 'notifications\/cancelled'/)
+    assert.match(
+      source,
+      /activeToolRequests\.get\(params\.requestId\)\?\.abort\(\)/
+    )
+    assert.match(
+      source,
+      /tool\.run\(argumentsObject, abortController\.signal\)/
+    )
+  })
+
   it('serves OmegaEdit operations over MCP stdio', async function () {
     const port = await findFirstAvailablePort(20000, 20999)
     assert.ok(port, 'expected an available port for MCP test')

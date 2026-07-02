@@ -62,6 +62,11 @@ static inline int omega_transform_plugin_sdk_report_progress(const omega_transfo
     return request_ptr->progress(progress_ptr, request_ptr->progress_user_data_ptr);
 }
 
+static inline int omega_transform_plugin_sdk_is_cancelled(const omega_transform_plugin_request_t *request_ptr) {
+    if (!request_ptr || !request_ptr->is_cancelled) { return 0; }
+    return request_ptr->is_cancelled(request_ptr->cancel_user_data_ptr) != 0 ? 1 : 0;
+}
+
 static inline int omega_transform_plugin_sdk_report_byte_progress(const omega_transform_plugin_request_t *request_ptr,
                                                                   int64_t processed_bytes, int64_t total_bytes,
                                                                   const char *phase, const char *message) {

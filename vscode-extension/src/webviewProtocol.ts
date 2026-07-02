@@ -157,6 +157,7 @@ export type WebviewToHostMessage =
       isCapped: boolean
     }
   | { type: 'requestTransformPlugins' }
+  | { type: 'cancelTransform' }
   | {
       type: 'copySelection'
       offset: number
@@ -859,6 +860,7 @@ export function normalizeWebviewMessage(
     }
 
     case 'requestTransformPlugins':
+    case 'cancelTransform':
     case 'createCheckpoint':
     case 'rollbackCheckpoint':
     case 'restoreCheckpoint':

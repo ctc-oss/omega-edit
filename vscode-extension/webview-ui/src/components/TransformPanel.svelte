@@ -68,6 +68,7 @@
     pluginsLoaded?: boolean
     pluginsLoading?: boolean
     busy?: boolean
+    cancelable?: boolean
     error?: string
     fileSize?: number
     contentSources?: WebviewSessionContentInfo[]
@@ -80,6 +81,7 @@
     results?: TransformResultHistoryItem[]
     activeTransformResultId?: string
     onRequestTransforms: () => void
+    onCancelTransform: () => void
     onApplyTransform: (
       pluginId: string,
       contentSource: WebviewSessionContentSource,
@@ -120,6 +122,7 @@
     pluginsLoaded = false,
     pluginsLoading = false,
     busy = false,
+    cancelable = false,
     error = '',
     fileSize = 0,
     contentSources = [],
@@ -132,6 +135,7 @@
     results = [],
     activeTransformResultId = '',
     onRequestTransforms,
+    onCancelTransform,
     onApplyTransform,
     onExportRange,
     onInsertFile,
@@ -226,7 +230,7 @@
   )
   const statusMessage = $derived(
     busy
-      ? strings.transform.inFlight
+      ? feedback || strings.transform.inFlight
       : error || feedback || (pluginsLoading ? strings.transform.loading : '')
   )
   const latestResult = $derived(results[0])
@@ -1448,6 +1452,16 @@
       {/each}
     {/if}
   </select>
+  {#if busy && cancelable}
+    <button
+      type="button"
+      class="secondary transform-cancel"
+      title={strings.transform.cancelInFlightTitle}
+      onclick={onCancelTransform}
+    >
+      {strings.transform.cancelInFlight}
+    </button>
+  {/if}
   {#if results.length > 0}
     <details bind:this={resultHistoryMenu} class="transform-result-history">
       <summary

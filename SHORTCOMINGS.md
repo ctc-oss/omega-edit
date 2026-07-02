@@ -29,11 +29,9 @@ Risk guide:
 1. **Undo performance batch**: implement the low-risk undo pieces first
    (transaction extents, redo batching, snapshot telemetry), then tackle
    in-place inverse undo.
-2. **Plugin cancellation**: add cooperative cancellation to the transform plugin
-   request path and SDK helpers.
-3. **Streaming import**: pair existing streaming export with a streaming/chunked
+2. **Streaming import**: pair existing streaming export with a streaming/chunked
    import path.
-4. **Checkpoint caps/dedupe**: add server/API guardrails for unbounded checkpoint
+3. **Checkpoint caps/dedupe**: add server/API guardrails for unbounded checkpoint
    creation.
 
 The first batch gives a useful blend: high user-visible impact from undo work,
@@ -91,31 +89,7 @@ Suggested fix:
   cheap references instead of deep clones.
 - Surface basic metrics for snapshot count/bytes in tests or debug logs.
 
-### 3. Transform plugins have no cooperative cancellation
-
-**Impact:** High
-**Risk:** Medium
-**Area:** Core transform plugin SDK/server integration
-
-Plugin execution has progress callbacks and chunked helpers, but
-`omega_transform_plugin_request_t` exposes no cancellation token/callback.
-Session destroy, checkpoint cleanup, or user cancel cannot politely ask an
-in-flight plugin to stop. For third-party plugins that hold external resources
-such as database handles, transactions, or file handles, forceful interruption is
-not a safe design.
-
-Relevant code:
-- `core/src/include/omega_edit/transform.h`
-- `core/src/include/omega_edit/transform_plugin_sdk.h`
-- `core/src/lib/transform.cpp`
-
-Suggested fix:
-- Add a host-owned cancellation callback/token to the plugin request.
-- Add SDK helper functions such as `omega_transform_plugin_sdk_is_cancelled`.
-- Check cancellation in built-in streaming loops between chunks.
-- Document plugin cleanup expectations on cancellation.
-
-### 4. Change-log import is still full-document JSON parsing
+### 3. Change-log import is still full-document JSON parsing
 
 **Impact:** High
 **Risk:** Medium to High
@@ -136,7 +110,7 @@ Suggested fix:
 - Validate document header/fingerprint before reading all entries.
 - Replay entries incrementally while preserving atomic rollback semantics.
 
-### 5. TypeScript live client still has a 2^53 int64 ceiling
+### 4. TypeScript live client still has a 2^53 int64 ceiling
 
 **Impact:** High for the "massive files" promise
 **Risk:** High
@@ -163,7 +137,7 @@ Suggested fix:
 
 ## P2 Medium-Impact / Medium-Risk Work
 
-### 6. Transform change replay is metadata-aware but not native-first
+### 5. Transform change replay is metadata-aware but not native-first
 
 **Impact:** Medium to High
 **Risk:** Medium to High
@@ -180,7 +154,7 @@ Suggested fix:
   operation end to end.
 - Keep verifying replayed size/replacement metadata after import.
 
-### 7. File-backed plugin allocation tracking is process-global
+### 6. File-backed plugin allocation tracking is process-global
 
 **Impact:** Medium
 **Risk:** Medium
@@ -200,7 +174,7 @@ Suggested fix:
 - Add stress coverage for concurrent transforms that allocate file-backed
   buffers.
 
-### 8. Server checkpoint creation has no cap or dedupe policy
+### 7. Server checkpoint creation has no cap or dedupe policy
 
 **Impact:** Medium
 **Risk:** Medium
@@ -220,7 +194,7 @@ Suggested fix:
 - Consider dedupe when the computed content equals the latest checkpoint.
 - Return explicit "not needed" or "limit reached" results where appropriate.
 
-### 9. C-string and byte edit APIs encode different zero-length semantics
+### 8. C-string and byte edit APIs encode different zero-length semantics
 
 **Impact:** Medium
 **Risk:** Low to Medium
@@ -239,7 +213,7 @@ Suggested fix:
 - Keep byte APIs explicit-only.
 - Add examples that steer binary callers to `_bytes` variants.
 
-### 10. Long positional argument lists remain hard to use safely
+### 9. Long positional argument lists remain hard to use safely
 
 **Impact:** Medium
 **Risk:** Low to Medium
@@ -258,7 +232,7 @@ Suggested fix:
 - Preserve existing positional APIs for ABI compatibility.
 - Use enum/boolean-like typed fields in the options structs.
 
-### 11. Viewport dirty state uses a negative-capacity sentinel
+### 10. Viewport dirty state uses a negative-capacity sentinel
 
 **Impact:** Medium
 **Risk:** Low to Medium
@@ -283,7 +257,7 @@ Suggested fix:
 
 ## P3 Low-Risk / Opportunistic Work
 
-### 12. Snapshot allocation failure silently degrades undo speed
+### 11. Snapshot allocation failure silently degrades undo speed
 
 **Impact:** Low to Medium
 **Risk:** Low
@@ -299,7 +273,7 @@ Suggested fix:
 - Emit a debug/warn log or session diagnostic event when snapshot capture fails.
 - Add a test hook or allocator-failure test if the existing harness supports it.
 
-### 13. Transaction-boundary scan is linear per undo
+### 12. Transaction-boundary scan is linear per undo
 
 **Impact:** Low to Medium
 **Risk:** Low to Medium
@@ -315,7 +289,7 @@ Suggested fix:
 - Store transaction extents or cached transaction change counts.
 - Reuse the same metadata for redo batching.
 
-### 14. Redo still replays one change at a time
+### 13. Redo still replays one change at a time
 
 **Impact:** Low to Medium
 **Risk:** Low to Medium
@@ -358,5 +332,9 @@ These areas were in the old document but are no longer open backlog items:
 - Core memory ownership issues around `omega_data_t`, reverse visitor cleanup,
   const-cast destruction, and allocation failure boundaries.
 - Transform option regex hardening.
+- Transform plugin cooperative cancellation in the core request ABI, SDK helper,
+  server gRPC/session-destroy cancellation paths, and bundled plugin polling
+  loops, with TypeScript client, AI/MCP, and VS Code webview cancellation wired
+  through to the same RPC cancellation path.
 - Event mask signed `ALL_EVENTS` ambiguity.
 - Output collision suffix range and deprecated protobuf generator dependencies.
