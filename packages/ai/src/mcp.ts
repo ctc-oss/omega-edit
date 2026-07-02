@@ -9,7 +9,7 @@ import {
   DEFAULT_PROTOCOL_VERSION,
   TOOLING_VERSION,
 } from './constants'
-import { OmegaEditToolkit } from './service'
+import { ChangeLogReplayError, OmegaEditToolkit } from './service'
 import { parseInputData } from './codec'
 import { ChangeLogDocument, InputEncoding, PatchKind } from './types'
 
@@ -340,6 +340,27 @@ function buildTools(toolkit: OmegaEditToolkit): ToolDefinition[] {
           getString(argumentsObject, 'outputPath'),
           getBoolean(argumentsObject, 'overwriteExisting') || false
         )
+      },
+    },
+    {
+      name: 'omega_edit_preview_change_log',
+      description:
+        'Preview a versioned OmegaEdit change-log document before replay, including primitive counts, fingerprints, size delta, transform plugins, unavailable primitives, and rollback protection.',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          sessionId: { type: 'string' },
+          inputPath: { type: 'string' },
+          changeLog: { type: 'object' },
+        },
+        required: ['sessionId'],
+      },
+      run: async (argumentsObject) => {
+        return await toolkit.previewChangeLog({
+          sessionId: getString(argumentsObject, 'sessionId', true)!,
+          inputPath: getString(argumentsObject, 'inputPath'),
+          changes: getChangeLogDocument(argumentsObject, 'changeLog'),
+        })
       },
     },
     {
@@ -889,6 +910,9 @@ async function main(): Promise<void> {
                 {
                   tool: name,
                   error: messageText,
+                  ...(error instanceof ChangeLogReplayError
+                    ? { result: error.result }
+                    : {}),
                 },
                 true
               )

@@ -193,8 +193,21 @@ interface ChangeLogFingerprint {
 
 interface ParsedChangeLog {
   changes: ParsedChangeRecord[]
-  before?: ChangeLogFingerprint
-  after?: ChangeLogFingerprint
+  complete: boolean
+  before: ChangeLogFingerprint
+  after: ChangeLogFingerprint
+  changeCount: string
+  sourceChangeCount: string
+  unavailableChangeCount: string
+  unavailableChangeSerials: number[]
+}
+
+interface ChangeLogDocumentMetadata {
+  complete: boolean
+  changeCount: string
+  sourceChangeCount: string
+  unavailableChangeCount: string
+  unavailableChangeSerials: number[]
 }
 
 interface TransformPrimitiveDescriptor {
@@ -204,6 +217,101 @@ interface TransformPrimitiveDescriptor {
 
 interface ParsedChangeRecord extends ChangeRecord {
   transformDescriptor?: TransformPrimitiveDescriptor
+}
+
+interface ChangeLogPrimitiveCounts {
+  total: number
+  insert: number
+  delete: number
+  overwrite: number
+  replace: number
+  transform: number
+}
+
+interface ChangeLogSizeDelta {
+  beforeByteLength: string
+  afterByteLength: string
+  deltaBytes: string
+}
+
+interface ChangeLogTransformDescriptorPreview {
+  index: number
+  serial?: number | string
+  offset: number | string
+  length: number | string
+  transformId: string
+  optionsJson?: string
+  descriptorSource: 'data'
+}
+
+interface ChangeLogSafetyIssue {
+  severity: 'error' | 'warning'
+  code: string
+  message: string
+}
+
+interface ChangeLogRollbackProtection {
+  available: boolean
+  strategy: 'restore-to-change-count' | 'not-inspected'
+  targetChangeCount?: number
+  checkpointCount?: number
+}
+
+interface ChangeLogPreview {
+  state?: WebviewEditorState
+  uri?: vscode.Uri
+  format: 'omega-edit.change-log'
+  version: 2
+  complete: boolean
+  canApply: boolean
+  primitiveCounts: ChangeLogPrimitiveCounts
+  before: ChangeLogFingerprint
+  after: ChangeLogFingerprint
+  current?: ChangeLogFingerprint
+  expectedSize: ChangeLogSizeDelta
+  transformDescriptors: ChangeLogTransformDescriptorPreview[]
+  requiredPlugins: string[]
+  missingPlugins: string[]
+  unavailablePrimitives: {
+    count: number | string
+    serials: Array<number | string>
+  }
+  rollbackProtection: ChangeLogRollbackProtection
+  safetyIssues: ChangeLogSafetyIssue[]
+}
+
+interface ChangeLogApplyResult {
+  state: WebviewEditorState
+  uri?: vscode.Uri
+  changeCount: number
+  appliedCount?: number
+  sourceChangeCount?: number
+  complete?: boolean
+  before?: ChangeLogFingerprint
+  after?: ChangeLogFingerprint
+  unavailableChangeCount?: number
+  unavailableChangeSerials?: number[]
+  cancelled?: boolean
+  preview?: ChangeLogPreview
+  rollback?: {
+    attempted: boolean
+    succeeded?: boolean
+    rolledBack?: boolean
+    targetChangeCount?: number
+    error?: string
+  }
+  finalFingerprint?: ChangeLogFingerprint
+}
+
+interface ChangeLogReplayFailureDetails {
+  appliedCount: number
+  rollback: NonNullable<ChangeLogApplyResult['rollback']>
+  finalFingerprint?: ChangeLogFingerprint
+}
+
+type ChangeLogReplayError = Error & {
+  changeLogReplay?: ChangeLogReplayFailureDetails
+  result?: ChangeLogApplyResult
 }
 
 interface RangeMapLoadResult {
@@ -1236,6 +1344,23 @@ function changeLogApplyErrorWithRollbackFailure(
   return error
 }
 
+function replayErrorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error)
+}
+
+function replayError(error: unknown): ChangeLogReplayError {
+  return error instanceof Error ? error : new Error(String(error))
+}
+
+function attachChangeLogReplayDetails(
+  error: Error,
+  details: ChangeLogReplayFailureDetails
+): ChangeLogReplayError {
+  const detailed = error as ChangeLogReplayError
+  detailed.changeLogReplay = details
+  return detailed
+}
+
 function safeChangeRecord(value: unknown): ParsedChangeRecord | undefined {
   if (!isRecord(value)) {
     return undefined
@@ -1534,6 +1659,12 @@ function describeUnavailableSerials(serials: number[]): string {
   return preview ? ` (serials: ${preview}${suffix})` : ''
 }
 
+function incompleteChangeLogMessage(action: 'export' | 'apply'): string {
+  return action === 'export'
+    ? 'Change log export is incomplete: the server no longer has details for every reported change'
+    : 'Change log is incomplete: unavailable change details cannot be replayed safely'
+}
+
 function assertCompleteChangeLog(
   action: 'export' | 'apply',
   unavailableChangeSerials: number[]
@@ -1543,11 +1674,9 @@ function assertCompleteChangeLog(
   }
 
   throw new Error(
-    `${
-      action === 'export'
-        ? 'Change log export is incomplete: the server no longer has details for every reported change'
-        : 'Change log is incomplete: unavailable change details cannot be replayed safely'
-    }${describeUnavailableSerials(unavailableChangeSerials)}`
+    `${incompleteChangeLogMessage(action)}${describeUnavailableSerials(
+      unavailableChangeSerials
+    )}`
   )
 }
 
@@ -1585,6 +1714,17 @@ function fingerprintsMatch(
   )
 }
 
+function changeLogFingerprintMismatchMessage(
+  actual: ChangeLogFingerprint,
+  expected: ChangeLogFingerprint,
+  phase: 'before' | 'after'
+): string {
+  const preposition = phase === 'before' ? 'before applying' : 'after applying'
+  return `Change log ${phase} fingerprint mismatch ${preposition}: expected ${fingerprintLabel(
+    expected
+  )}, actual ${fingerprintLabel(actual)}`
+}
+
 async function assertCurrentSessionFingerprint(
   sessionId: string,
   expected: ChangeLogFingerprint,
@@ -1599,12 +1739,7 @@ async function assertCurrentSessionFingerprint(
     return
   }
 
-  const preposition = phase === 'before' ? 'before applying' : 'after applying'
-  throw new Error(
-    `Change log ${phase} fingerprint mismatch ${preposition}: expected ${fingerprintLabel(
-      expected
-    )}, actual ${fingerprintLabel(actual)}`
-  )
+  throw new Error(changeLogFingerprintMismatchMessage(actual, expected, phase))
 }
 
 async function assertChangeLogExportStable(
@@ -1633,10 +1768,110 @@ async function assertChangeLogExportStable(
   }
 }
 
+function createPrimitiveCounts(
+  changes: ParsedChangeRecord[]
+): ChangeLogPrimitiveCounts {
+  const counts: ChangeLogPrimitiveCounts = {
+    total: changes.length,
+    insert: 0,
+    delete: 0,
+    overwrite: 0,
+    replace: 0,
+    transform: 0,
+  }
+  for (const change of changes) {
+    switch (change.kind) {
+      case 'INSERT':
+        counts.insert += 1
+        break
+      case 'DELETE':
+        counts.delete += 1
+        break
+      case 'OVERWRITE':
+        counts.overwrite += 1
+        break
+      case 'REPLACE':
+        counts.replace += 1
+        break
+      case 'TRANSFORM':
+        counts.transform += 1
+        break
+    }
+  }
+  return counts
+}
+
+function createExpectedSizeDelta(parsed: ParsedChangeLog): ChangeLogSizeDelta {
+  const beforeByteLength = parseNonNegativeInt64(
+    parsed.before.byteLength,
+    'Change log before.byteLength'
+  )
+  const afterByteLength = parseNonNegativeInt64(
+    parsed.after.byteLength,
+    'Change log after.byteLength'
+  )
+  return {
+    beforeByteLength: beforeByteLength.toString(),
+    afterByteLength: afterByteLength.toString(),
+    deltaBytes: (afterByteLength - beforeByteLength).toString(),
+  }
+}
+
+function createTransformDescriptorPreviews(
+  changes: ParsedChangeRecord[]
+): ChangeLogTransformDescriptorPreview[] {
+  return changes.flatMap((change, index) => {
+    if (change.kind !== 'TRANSFORM' || !change.transformDescriptor) {
+      return []
+    }
+    return [
+      {
+        index,
+        ...(change.serial ? { serial: int64ToDecimal(change.serial) } : {}),
+        offset: int64ToDecimal(change.offset),
+        length: int64ToDecimal(change.length),
+        transformId: change.transformDescriptor.transformId,
+        ...(change.transformDescriptor.optionsJson
+          ? { optionsJson: change.transformDescriptor.optionsJson }
+          : {}),
+        descriptorSource: 'data' as const,
+      },
+    ]
+  })
+}
+
+function createRequiredPlugins(
+  descriptors: ChangeLogTransformDescriptorPreview[]
+): string[] {
+  return Array.from(
+    new Set(descriptors.map((descriptor) => descriptor.transformId))
+  ).sort()
+}
+
+function replayPreviewErrorMessage(preview: ChangeLogPreview): string {
+  const issueSummary = preview.safetyIssues
+    .filter((issue) => issue.severity === 'error')
+    .map((issue) => issue.message)
+    .join('; ')
+  return issueSummary
+    ? `Change log preview found unsafe replay: ${issueSummary}`
+    : 'Change log preview found unsafe replay'
+}
+
+function serializeChangeLogPreviewForDisplay(
+  preview: ChangeLogPreview
+): Record<string, unknown> {
+  const { state: _state, uri, ...displayPreview } = preview
+  return {
+    ...displayPreview,
+    ...(uri ? { uri: uri.toString() } : {}),
+  }
+}
+
 function validateChangeLogDocumentMetadata(
   document: Record<string, unknown>,
   changes: ChangeRecord[]
-): void {
+): ChangeLogDocumentMetadata {
   if (typeof document.complete !== 'boolean') {
     throw new Error('Change log complete must be a boolean')
   }
@@ -1672,7 +1907,13 @@ function validateChangeLogDocumentMetadata(
     )
   }
 
-  assertCompleteChangeLog('apply', unavailableChangeSerials)
+  return {
+    complete: document.complete,
+    changeCount: changeCount.toString(),
+    sourceChangeCount: sourceChangeCount.toString(),
+    unavailableChangeCount: unavailableChangeCount.toString(),
+    unavailableChangeSerials,
+  }
 }
 
 function parseChangeLog(content: Uint8Array): ParsedChangeLog {
@@ -1712,14 +1953,17 @@ function parseChangeLog(content: Uint8Array): ParsedChangeLog {
   })
   validateChangeRecordMetadata(changes, entries)
   if (document) {
-    validateChangeLogDocumentMetadata(document, changes)
+    const metadata = validateChangeLogDocumentMetadata(document, changes)
     return {
       changes,
+      ...metadata,
       before: normalizeChangeLogFingerprint(document.before, 'before'),
       after: normalizeChangeLogFingerprint(document.after, 'after'),
     }
   }
-  return { changes }
+  throw new Error(
+    'Change log must be a versioned omega-edit.change-log document'
+  )
 }
 
 function backupIdToFilePath(backupId: string | undefined): string | undefined {
@@ -2605,6 +2849,203 @@ export class HexEditorProvider
     }
   }
 
+  private async createChangeLogPreview(
+    session: EditorSession,
+    parsed: ParsedChangeLog,
+    scriptUri: vscode.Uri | undefined
+  ): Promise<ChangeLogPreview> {
+    const safetyIssues: ChangeLogSafetyIssue[] = []
+    const transformDescriptors = createTransformDescriptorPreviews(
+      parsed.changes
+    )
+    const requiredPlugins = createRequiredPlugins(transformDescriptors)
+    let missingPlugins: string[] = []
+
+    if (parsed.unavailableChangeSerials.length > 0) {
+      safetyIssues.push({
+        severity: 'error',
+        code: 'unavailable-primitives',
+        message: `${incompleteChangeLogMessage(
+          'apply'
+        )}${describeUnavailableSerials(parsed.unavailableChangeSerials)}`,
+      })
+    }
+
+    const current = await getChangeLogFingerprint(
+      session.sessionId,
+      SessionFingerprintContent.COMPUTED,
+      parsed.before.digest.algorithm
+    )
+    if (!fingerprintsMatch(current, parsed.before)) {
+      safetyIssues.push({
+        severity: 'error',
+        code: 'before-fingerprint-mismatch',
+        message: changeLogFingerprintMismatchMessage(
+          current,
+          parsed.before,
+          'before'
+        ),
+      })
+    }
+
+    const [targetChangeCount, checkpointCount, plugins] = await Promise.all([
+      getChangeCount(session.sessionId),
+      this.getCheckpointCount(session),
+      listTransformPlugins(),
+    ])
+    const installedPluginIds = new Set(plugins.map((plugin) => plugin.id))
+    missingPlugins = requiredPlugins.filter(
+      (pluginId) => !installedPluginIds.has(pluginId)
+    )
+    for (const pluginId of missingPlugins) {
+      safetyIssues.push({
+        severity: 'error',
+        code: 'missing-transform-plugin',
+        message: `Required transform plugin is unavailable: ${pluginId}`,
+      })
+    }
+
+    const errorCount = safetyIssues.filter(
+      (issue) => issue.severity === 'error'
+    ).length
+
+    return {
+      state: this.buildEditorState(session),
+      ...(scriptUri ? { uri: scriptUri } : {}),
+      format: CHANGE_LOG_FORMAT,
+      version: CHANGE_LOG_VERSION,
+      complete: parsed.complete,
+      canApply: errorCount === 0,
+      primitiveCounts: createPrimitiveCounts(parsed.changes),
+      before: parsed.before,
+      after: parsed.after,
+      current,
+      expectedSize: createExpectedSizeDelta(parsed),
+      transformDescriptors,
+      requiredPlugins,
+      missingPlugins,
+      unavailablePrimitives: {
+        count: parsed.unavailableChangeCount,
+        serials: parsed.unavailableChangeSerials.map((serial) =>
+          serial.toString()
+        ),
+      },
+      rollbackProtection: {
+        available: true,
+        strategy: 'restore-to-change-count',
+        targetChangeCount,
+        checkpointCount,
+      },
+      safetyIssues,
+    }
+  }
+
+  private async showChangeLogPreviewDocument(
+    preview: ChangeLogPreview
+  ): Promise<void> {
+    const document = await vscode.workspace.openTextDocument({
+      language: 'json',
+      content: JSON.stringify(
+        serializeChangeLogPreviewForDisplay(preview),
+        null,
+        2
+      ),
+    })
+    await vscode.window.showTextDocument(document, {
+      preview: true,
+      viewColumn: vscode.ViewColumn.Beside,
+    })
+  }
+
+  async previewChangeLog(
+    options?: unknown
+  ): Promise<ChangeLogPreview | undefined> {
+    const session = this.resolveCommandSession(options)
+    if (!session) {
+      void vscode.window.showWarningMessage(openEditorFirstMessage())
+      return
+    }
+
+    const providedScriptUri = parseCommandOptionUri(options, 'sourceUri')
+    const scriptUri =
+      providedScriptUri ??
+      (
+        await vscode.window.showOpenDialog({
+          canSelectMany: false,
+          filters: { JSON: ['json'] },
+          openLabel: vscode.l10n.t('Preview Change Log'),
+          title: vscode.l10n.t('Preview OmegaEdit change log'),
+        })
+      )?.[0]
+
+    if (!scriptUri) {
+      return {
+        state: this.buildEditorState(session),
+        format: CHANGE_LOG_FORMAT,
+        version: CHANGE_LOG_VERSION,
+        complete: false,
+        canApply: false,
+        primitiveCounts: {
+          total: 0,
+          insert: 0,
+          delete: 0,
+          overwrite: 0,
+          replace: 0,
+          transform: 0,
+        },
+        before: {
+          byteLength: '0',
+          digest: {
+            algorithm: DEFAULT_CHANGE_LOG_DIGEST_ALGORITHM,
+            value: '',
+          },
+        },
+        after: {
+          byteLength: '0',
+          digest: {
+            algorithm: DEFAULT_CHANGE_LOG_DIGEST_ALGORITHM,
+            value: '',
+          },
+        },
+        expectedSize: {
+          beforeByteLength: '0',
+          afterByteLength: '0',
+          deltaBytes: '0',
+        },
+        transformDescriptors: [],
+        requiredPlugins: [],
+        missingPlugins: [],
+        unavailablePrimitives: {
+          count: 0,
+          serials: [],
+        },
+        rollbackProtection: {
+          available: false,
+          strategy: 'not-inspected',
+        },
+        safetyIssues: [
+          {
+            severity: 'warning',
+            code: 'cancelled',
+            message: vscode.l10n.t('Change log preview cancelled'),
+          },
+        ],
+      }
+    }
+
+    const content = await vscode.workspace.fs.readFile(scriptUri)
+    const parsed = parseChangeLog(content)
+    const preview = await this.createChangeLogPreview(
+      session,
+      parsed,
+      scriptUri
+    )
+    if (!providedScriptUri) {
+      await this.showChangeLogPreviewDocument(preview)
+    }
+    return preview
+  }
+
   async exportChangeLog(options?: unknown): Promise<
     | {
         state: WebviewEditorState
@@ -2814,16 +3255,9 @@ export class HexEditorProvider
     }
   }
 
-  async applyChangeLog(options?: unknown): Promise<
-    | {
-        state: WebviewEditorState
-        uri?: vscode.Uri
-        changeCount: number
-        sourceChangeCount?: number
-        cancelled?: boolean
-      }
-    | undefined
-  > {
+  async applyChangeLog(
+    options?: unknown
+  ): Promise<ChangeLogApplyResult | undefined> {
     const session = this.resolveCommandSession(options)
     if (!session) {
       void vscode.window.showWarningMessage(openEditorFirstMessage())
@@ -2833,8 +3267,9 @@ export class HexEditorProvider
       return
     }
 
+    const providedScriptUri = parseCommandOptionUri(options, 'sourceUri')
     const scriptUri =
-      parseCommandOptionUri(options, 'sourceUri') ??
+      providedScriptUri ??
       (
         await vscode.window.showOpenDialog({
           canSelectMany: false,
@@ -2854,7 +3289,11 @@ export class HexEditorProvider
       return {
         state: this.buildEditorState(session),
         changeCount: 0,
+        appliedCount: 0,
         cancelled: true,
+        rollback: {
+          attempted: false,
+        },
       }
     }
 
@@ -2879,34 +3318,135 @@ export class HexEditorProvider
         state: this.buildEditorState(session),
         uri: scriptUri,
         changeCount: 0,
+        appliedCount: 0,
         cancelled: true,
+        rollback: {
+          attempted: false,
+        },
       }
     }
     const { changes } = parsed
-    if (parsed.before) {
-      await assertCurrentSessionFingerprint(
-        session.sessionId,
-        parsed.before,
-        'before'
+
+    const preview = await this.createChangeLogPreview(
+      session,
+      parsed,
+      scriptUri
+    )
+    if (!providedScriptUri) {
+      await this.showChangeLogPreviewDocument(preview)
+    }
+    const baseResult = (
+      appliedCount: number,
+      rollback: NonNullable<ChangeLogApplyResult['rollback']>,
+      finalFingerprint?: ChangeLogFingerprint,
+      cancelled?: boolean
+    ): ChangeLogApplyResult => ({
+      state: this.buildEditorState(session),
+      uri: scriptUri,
+      changeCount: appliedCount,
+      appliedCount,
+      sourceChangeCount: changes.length,
+      complete: parsed.complete,
+      before: parsed.before,
+      after: parsed.after,
+      unavailableChangeCount: parsed.unavailableChangeSerials.length,
+      unavailableChangeSerials: parsed.unavailableChangeSerials,
+      ...(cancelled !== undefined ? { cancelled } : {}),
+      preview,
+      rollback,
+      ...(finalFingerprint ? { finalFingerprint } : {}),
+    })
+
+    if (!preview.canApply) {
+      const message = replayPreviewErrorMessage(preview)
+      this.postSessionActionComplete(session, {
+        action: 'applyChangeLog',
+        changeCount: 0,
+        cancelled: true,
+        message,
+      })
+      void vscode.window.showErrorMessage(message)
+      return baseResult(
+        0,
+        {
+          attempted: false,
+          targetChangeCount: preview.rollbackProtection.targetChangeCount,
+        },
+        preview.current,
+        true
       )
     }
 
-    let appliedChangeCount = 0
-    await vscode.window.withProgress(
-      {
-        location: vscode.ProgressLocation.Notification,
-        title: vscode.l10n.t('Applying {count} change log entries…', {
-          count: changes.length,
-        }),
-        cancellable: false,
-      },
-      async () => {
-        appliedChangeCount = await this.applyChangeLogEntries(
-          session,
-          changes,
-          parsed.after
+    if (!providedScriptUri) {
+      const applyLabel = vscode.l10n.t('Apply')
+      const choice = await vscode.window.showInformationMessage(
+        vscode.l10n.t(
+          'Change log preview: {count} change(s), {delta} byte size change, {plugins} required transform plugin(s).',
+          {
+            count: preview.primitiveCounts.total,
+            delta: preview.expectedSize.deltaBytes,
+            plugins: preview.requiredPlugins.length,
+          }
+        ),
+        { modal: true },
+        applyLabel
+      )
+      if (choice !== applyLabel) {
+        this.postSessionActionComplete(session, {
+          action: 'applyChangeLog',
+          changeCount: 0,
+          cancelled: true,
+          message: vscode.l10n.t('Change log apply cancelled'),
+        })
+        return baseResult(
+          0,
+          {
+            attempted: false,
+            targetChangeCount: preview.rollbackProtection.targetChangeCount,
+          },
+          preview.current,
+          true
         )
       }
+    }
+
+    let appliedChangeCount = 0
+    try {
+      await vscode.window.withProgress(
+        {
+          location: vscode.ProgressLocation.Notification,
+          title: vscode.l10n.t('Applying {count} change log entries…', {
+            count: changes.length,
+          }),
+          cancellable: false,
+        },
+        async () => {
+          appliedChangeCount = await this.applyChangeLogEntries(
+            session,
+            changes,
+            parsed.after
+          )
+        }
+      )
+    } catch (error) {
+      const detailedError = replayError(error)
+      const details = detailedError.changeLogReplay
+      const result = baseResult(
+        details?.appliedCount ?? appliedChangeCount,
+        details?.rollback ?? {
+          attempted: false,
+          targetChangeCount: preview.rollbackProtection.targetChangeCount,
+        },
+        details?.finalFingerprint
+      )
+      detailedError.result = result
+      throw detailedError
+    }
+
+    const finalFingerprint = await getChangeLogFingerprint(
+      session.sessionId,
+      SessionFingerprintContent.COMPUTED,
+      parsed.after.digest.algorithm
     )
     this.postSessionActionComplete(session, {
       action: 'applyChangeLog',
@@ -2924,7 +3464,19 @@ export class HexEditorProvider
       state: this.buildEditorState(session),
       uri: scriptUri,
       changeCount: appliedChangeCount,
+      appliedCount: appliedChangeCount,
       sourceChangeCount: changes.length,
+      complete: parsed.complete,
+      before: parsed.before,
+      after: parsed.after,
+      unavailableChangeCount: parsed.unavailableChangeSerials.length,
+      unavailableChangeSerials: parsed.unavailableChangeSerials,
+      preview,
+      rollback: {
+        attempted: false,
+        targetChangeCount: preview.rollbackProtection.targetChangeCount,
+      },
+      finalFingerprint,
     }
   }
 
@@ -5059,6 +5611,15 @@ export class HexEditorProvider
     const startChangeCount = await getChangeCount(session.sessionId)
     const sessionSyncVersion = session.sessionSyncVersion
     const appliedTransactions: ChangeRecord[][] = []
+    let appliedChangeCount = 0
+    const getFinalFingerprint = async () =>
+      expectedAfter
+        ? await getChangeLogFingerprint(
+            session.sessionId,
+            SessionFingerprintContent.COMPUTED,
+            expectedAfter.digest.algorithm
+          ).catch(() => undefined)
+        : undefined
     const recordAppliedChanges = async () => {
       if (appliedTransactions.length === 0) {
         return
@@ -5093,6 +5654,7 @@ export class HexEditorProvider
           const appliedChange = await applyOne(change)
           if (appliedChange) {
             appliedBatch.push(appliedChange)
+            appliedChangeCount += 1
           }
         }
       })
@@ -5109,6 +5671,7 @@ export class HexEditorProvider
             const appliedChange = await applyOne(change)
             if (appliedChange) {
               appliedTransactions.push([appliedChange])
+              appliedChangeCount += 1
             }
           } else {
             pendingBatch.push(change)
@@ -5124,6 +5687,7 @@ export class HexEditorProvider
         )
       }
     } catch (error) {
+      let rollbackDetails: ChangeLogReplayFailureDetails
       try {
         const rolledBack = await rollbackSessionToChangeCount(
           session.sessionId,
@@ -5135,17 +5699,41 @@ export class HexEditorProvider
           this.clearSearchState(session)
           this.postEditState(session)
         }
+        rollbackDetails = {
+          appliedCount: appliedChangeCount,
+          rollback: {
+            attempted: true,
+            succeeded: true,
+            rolledBack,
+            targetChangeCount: startChangeCount,
+          },
+          ...(await getFinalFingerprint().then((finalFingerprint) =>
+            finalFingerprint ? { finalFingerprint } : {}
+          )),
+        }
       } catch (rollbackError) {
-        throw changeLogApplyErrorWithRollbackFailure(error, rollbackError)
+        const combinedError = changeLogApplyErrorWithRollbackFailure(
+          error,
+          rollbackError
+        )
+        throw attachChangeLogReplayDetails(combinedError, {
+          appliedCount: appliedChangeCount,
+          rollback: {
+            attempted: true,
+            succeeded: false,
+            targetChangeCount: startChangeCount,
+            error: replayErrorMessage(rollbackError),
+          },
+          ...(await getFinalFingerprint().then((finalFingerprint) =>
+            finalFingerprint ? { finalFingerprint } : {}
+          )),
+        })
       }
-      throw error
+      throw attachChangeLogReplayDetails(replayError(error), rollbackDetails)
     }
 
     await recordAppliedChanges()
-    return appliedTransactions.reduce(
-      (count, transaction) => count + transaction.length,
-      0
-    )
+    return appliedChangeCount
   }
 
   private async applyChangeLogEntry(

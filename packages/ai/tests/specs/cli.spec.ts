@@ -210,6 +210,31 @@ describe('@omega-edit/ai CLI', () => {
       assert.equal(exported.complete, true)
       assert.equal(fs.existsSync(changeLogPath), true)
 
+      const preview = await runOe([
+        'preview-change-log',
+        ...common,
+        '--session',
+        sessionId,
+        '--input',
+        changeLogPath,
+      ])
+      assert.equal(preview.format, 'omega-edit.change-log')
+      assert.equal(
+        (preview.primitiveCounts as Record<string, unknown>).transform,
+        1
+      )
+      assert.equal(
+        (preview.transformDescriptors as Array<Record<string, unknown>>)[0]
+          .descriptorSource,
+        'data'
+      )
+      assert.equal(preview.canApply, false)
+      assert.ok(
+        (preview.safetyIssues as Array<Record<string, unknown>>).some(
+          (issue) => issue.code === 'before-fingerprint-mismatch'
+        )
+      )
+
       const status = await runOe([
         'session-status',
         ...common,

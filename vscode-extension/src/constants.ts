@@ -10,6 +10,8 @@ export const OMEGA_EDIT_TOGGLE_INSERT_DIRECTION_COMMAND =
 export const OMEGA_EDIT_REFRESH_TRANSFORM_PLUGINS_COMMAND =
   'omegaEdit.refreshTransformPlugins'
 export const OMEGA_EDIT_EXPORT_CHANGE_LOG_COMMAND = 'omegaEdit.exportChangeLog'
+export const OMEGA_EDIT_PREVIEW_CHANGE_LOG_COMMAND =
+  'omegaEdit.previewChangeLog'
 export const OMEGA_EDIT_APPLY_CHANGE_LOG_COMMAND = 'omegaEdit.applyChangeLog'
 export const OMEGA_EDIT_ROLLBACK_SESSION_COMMAND = 'omegaEdit.rollbackSession'
 export const OMEGA_EDIT_ROLLBACK_CHECKPOINT_COMMAND =

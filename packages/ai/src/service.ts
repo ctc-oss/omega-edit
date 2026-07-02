@@ -64,14 +64,21 @@ import {
   ApplyTransformPluginResult,
   ApplyChangeLogRequest,
   ApplyChangeLogResult,
+  ChangeLogPreview,
+  ChangeLogPrimitiveCounts,
   ChangeLogDocument,
   ChangeLogEntry,
   ChangeLogFingerprint,
   ChangeLogResult,
+  ChangeLogRollbackProtection,
+  ChangeLogSafetyIssue,
+  ChangeLogSizeDelta,
+  ChangeLogTransformDescriptorPreview,
   CheckpointResult,
   PatchPreview,
   PatchRequest,
   PatchResult,
+  PreviewChangeLogRequest,
   ProfileRangeResult,
   ReadRangeResult,
   ReplaceSessionRequest,
@@ -99,8 +106,21 @@ interface CollectedChangeLogEntries {
 
 interface ParsedChangeLog {
   changes: NormalizedChangeLogEntry[]
-  before?: ChangeLogFingerprint
-  after?: ChangeLogFingerprint
+  complete: boolean
+  before: ChangeLogFingerprint
+  after: ChangeLogFingerprint
+  changeCount: string
+  sourceChangeCount: string
+  unavailableChangeCount: string
+  unavailableChangeSerials: number[]
+}
+
+interface ChangeLogDocumentMetadata {
+  complete: boolean
+  changeCount: string
+  sourceChangeCount: string
+  unavailableChangeCount: string
+  unavailableChangeSerials: number[]
 }
 
 const changeKindNames = new Map<number, string>(
@@ -382,14 +402,17 @@ function normalizeChangeLogEntries(value: unknown): ParsedChangeLog {
   )
   validateChangeLogMetadata(normalized)
   if (document) {
-    validateChangeLogDocumentMetadata(document, normalized)
+    const metadata = validateChangeLogDocumentMetadata(document, normalized)
     return {
       changes: normalized,
+      ...metadata,
       before: normalizeChangeLogFingerprint(document.before, 'before'),
       after: normalizeChangeLogFingerprint(document.after, 'after'),
     }
   }
-  return { changes: normalized }
+  throw new Error(
+    'Change log must be a versioned omega-edit.change-log document'
+  )
 }
 
 function readDocumentCount(
@@ -522,7 +545,7 @@ async function assertSessionModelValidForChangeLogExport(
 function validateChangeLogDocumentMetadata(
   document: Record<string, unknown>,
   changes: ChangeLogEntry[]
-): void {
+): ChangeLogDocumentMetadata {
   if (typeof document.complete !== 'boolean') {
     throw new Error('Change log complete must be a boolean')
   }
@@ -555,7 +578,13 @@ function validateChangeLogDocumentMetadata(
     )
   }
 
-  assertCompleteChangeLog('apply', unavailableChangeSerials)
+  return {
+    complete: document.complete,
+    changeCount: changeCount.toString(),
+    sourceChangeCount: sourceChangeCount.toString(),
+    unavailableChangeCount: unavailableChangeCount.toString(),
+    unavailableChangeSerials,
+  }
 }
 
 function normalizeChangeLogEntry(
@@ -695,6 +724,14 @@ async function readChangeLogFile(inputPath: string): Promise<ParsedChangeLog> {
     throw new Error(`Invalid change log JSON: ${message}`)
   }
   return normalizeChangeLogEntries(parsed)
+}
+
+async function readChangeLogRequest(
+  request: PreviewChangeLogRequest
+): Promise<ParsedChangeLog> {
+  return request.inputPath
+    ? await readChangeLogFile(request.inputPath)
+    : normalizeChangeLogEntries(request.changes)
 }
 
 function changeDetailsToLogEntry(
@@ -859,6 +896,17 @@ function fingerprintsMatch(
   )
 }
 
+function changeLogFingerprintMismatchMessage(
+  actual: ChangeLogFingerprint,
+  expected: ChangeLogFingerprint,
+  phase: 'before' | 'after'
+): string {
+  const preposition = phase === 'before' ? 'before applying' : 'after applying'
+  return `Change log ${phase} fingerprint mismatch ${preposition}: expected ${fingerprintLabel(
+    expected
+  )}, actual ${fingerprintLabel(actual)}`
+}
+
 async function assertCurrentSessionFingerprint(
   sessionId: string,
   expected: ChangeLogFingerprint,
@@ -873,12 +921,7 @@ async function assertCurrentSessionFingerprint(
     return
   }
 
-  const preposition = phase === 'before' ? 'before applying' : 'after applying'
-  throw new Error(
-    `Change log ${phase} fingerprint mismatch ${preposition}: expected ${fingerprintLabel(
-      expected
-    )}, actual ${fingerprintLabel(actual)}`
-  )
+  throw new Error(changeLogFingerprintMismatchMessage(actual, expected, phase))
 }
 
 async function assertChangeLogExportStable(
@@ -904,6 +947,119 @@ async function assertChangeLogExportStable(
         expectedAfter
       )}, found ${fingerprintLabel(finalAfter)}`
     )
+  }
+}
+
+function createPrimitiveCounts(
+  changes: NormalizedChangeLogEntry[]
+): ChangeLogPrimitiveCounts {
+  const counts: ChangeLogPrimitiveCounts = {
+    total: changes.length,
+    insert: 0,
+    delete: 0,
+    overwrite: 0,
+    replace: 0,
+    transform: 0,
+  }
+  for (const change of changes) {
+    switch (change.kind) {
+      case 'INSERT':
+        counts.insert += 1
+        break
+      case 'DELETE':
+        counts.delete += 1
+        break
+      case 'OVERWRITE':
+        counts.overwrite += 1
+        break
+      case 'REPLACE':
+        counts.replace += 1
+        break
+      case 'TRANSFORM':
+        counts.transform += 1
+        break
+    }
+  }
+  return counts
+}
+
+function createExpectedSizeDelta(parsed: ParsedChangeLog): ChangeLogSizeDelta {
+  const beforeByteLength = parseNonNegativeInt64(
+    parsed.before.byteLength,
+    'Change log before.byteLength'
+  )
+  const afterByteLength = parseNonNegativeInt64(
+    parsed.after.byteLength,
+    'Change log after.byteLength'
+  )
+  return {
+    beforeByteLength: beforeByteLength.toString(),
+    afterByteLength: afterByteLength.toString(),
+    deltaBytes: (afterByteLength - beforeByteLength).toString(),
+  }
+}
+
+function createTransformDescriptorPreviews(
+  changes: NormalizedChangeLogEntry[]
+): ChangeLogTransformDescriptorPreview[] {
+  return changes.flatMap((change, index) => {
+    if (change.kind !== 'TRANSFORM' || !change.transformDescriptor) {
+      return []
+    }
+    return [
+      {
+        index,
+        ...(change.serial !== undefined
+          ? { serial: int64ToDecimal(change.serial) }
+          : {}),
+        offset: int64ToDecimal(change.offset),
+        length: int64ToDecimal(change.length),
+        transformId: change.transformDescriptor.transformId,
+        ...(change.transformDescriptor.optionsJson
+          ? { optionsJson: change.transformDescriptor.optionsJson }
+          : {}),
+        descriptorSource: 'data' as const,
+      },
+    ]
+  })
+}
+
+function createRequiredPlugins(
+  descriptors: ChangeLogTransformDescriptorPreview[]
+): string[] {
+  return Array.from(
+    new Set(descriptors.map((descriptor) => descriptor.transformId))
+  ).sort()
+}
+
+function uniqueSortedStrings(values: string[]): string[] {
+  return Array.from(new Set(values)).sort()
+}
+
+function replayPreviewErrorMessage(preview: ChangeLogPreview): string {
+  const issueSummary = preview.safetyIssues
+    .filter((issue) => issue.severity === 'error')
+    .map((issue) => issue.message)
+    .join('; ')
+  return issueSummary
+    ? `Change log preview found unsafe replay: ${issueSummary}`
+    : 'Change log preview found unsafe replay'
+}
+
+function replayErrorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error)
+}
+
+export class ChangeLogReplayError extends Error {
+  readonly result: ApplyChangeLogResult
+
+  constructor(message: string, result: ApplyChangeLogResult, cause?: unknown) {
+    super(message)
+    this.name = 'ChangeLogReplayError'
+    this.result = result
+    if (cause !== undefined) {
+      ;(this as Error & { cause?: unknown }).cause = cause
+    }
   }
 }
 
@@ -1244,6 +1400,121 @@ export class OmegaEditToolkit {
     return counts[0]?.getCount() ?? 0
   }
 
+  private async createChangeLogPreview(
+    sessionId: string,
+    parsed: ParsedChangeLog,
+    inputPath: string | undefined,
+    inspectSession: boolean
+  ): Promise<ChangeLogPreview> {
+    const safetyIssues: ChangeLogSafetyIssue[] = []
+    const transformDescriptors = createTransformDescriptorPreviews(
+      parsed.changes
+    )
+    const requiredPlugins = createRequiredPlugins(transformDescriptors)
+    let missingPlugins: string[] = []
+    let current: ChangeLogFingerprint | undefined
+    let rollbackProtection: ChangeLogRollbackProtection = {
+      available: false,
+      strategy: 'not-inspected',
+    }
+
+    if (parsed.unavailableChangeSerials.length > 0) {
+      safetyIssues.push({
+        severity: 'error',
+        code: 'unavailable-primitives',
+        message: `${incompleteChangeLogMessage(
+          'apply'
+        )}${describeUnavailableSerials(parsed.unavailableChangeSerials)}`,
+      })
+    }
+
+    if (inspectSession) {
+      current = await getChangeLogFingerprint(
+        sessionId,
+        SessionFingerprintContent.COMPUTED,
+        parsed.before.digest.algorithm
+      )
+      if (!fingerprintsMatch(current, parsed.before)) {
+        safetyIssues.push({
+          severity: 'error',
+          code: 'before-fingerprint-mismatch',
+          message: changeLogFingerprintMismatchMessage(
+            current,
+            parsed.before,
+            'before'
+          ),
+        })
+      }
+
+      const [targetChangeCount, checkpointCount, plugins] = await Promise.all([
+        getChangeCount(sessionId),
+        this.getCheckpointCount(sessionId),
+        listClientTransformPlugins(),
+      ])
+      rollbackProtection = {
+        available: true,
+        strategy: 'restore-to-change-count',
+        targetChangeCount,
+        checkpointCount,
+      }
+
+      const installedPluginIds = new Set(plugins.map((plugin) => plugin.id))
+      missingPlugins = requiredPlugins.filter(
+        (pluginId) => !installedPluginIds.has(pluginId)
+      )
+      for (const pluginId of missingPlugins) {
+        safetyIssues.push({
+          severity: 'error',
+          code: 'missing-transform-plugin',
+          message: `Required transform plugin is unavailable: ${pluginId}`,
+        })
+      }
+    }
+
+    const unavailableSerials = parsed.unavailableChangeSerials.map((serial) =>
+      serial.toString()
+    )
+    const errorCount = safetyIssues.filter(
+      (issue) => issue.severity === 'error'
+    ).length
+
+    return {
+      sessionId,
+      ...(inputPath ? { inputPath } : {}),
+      format: CHANGE_LOG_FORMAT,
+      version: CHANGE_LOG_VERSION,
+      complete: parsed.complete,
+      canApply: errorCount === 0,
+      primitiveCounts: createPrimitiveCounts(parsed.changes),
+      before: parsed.before,
+      after: parsed.after,
+      ...(current ? { current } : {}),
+      expectedSize: createExpectedSizeDelta(parsed),
+      transformDescriptors,
+      requiredPlugins,
+      missingPlugins: uniqueSortedStrings(missingPlugins),
+      unavailablePrimitives: {
+        count: parsed.unavailableChangeCount,
+        serials: unavailableSerials,
+      },
+      rollbackProtection,
+      safetyIssues,
+    }
+  }
+
+  async previewChangeLog(
+    request: PreviewChangeLogRequest
+  ): Promise<ChangeLogPreview> {
+    const parsed = await readChangeLogRequest(request)
+    await this.ensureServerRunning()
+    return await this.createChangeLogPreview(
+      request.sessionId,
+      parsed,
+      request.inputPath,
+      true
+    )
+  }
+
   async createCheckpoint(sessionId: string): Promise<CheckpointResult> {
     await this.ensureServerRunning()
     return {
@@ -1368,33 +1639,81 @@ export class OmegaEditToolkit {
   async applyChangeLog(
     request: ApplyChangeLogRequest
   ): Promise<ApplyChangeLogResult> {
-    const parsed = request.inputPath
-      ? await readChangeLogFile(request.inputPath)
-      : normalizeChangeLogEntries(request.changes)
+    const parsed = await readChangeLogRequest(request)
     const { changes } = parsed
+    const inputChangeCount = changes.length
 
     if (request.dryRun) {
+      const preview = await this.createChangeLogPreview(
+        request.sessionId,
+        parsed,
+        request.inputPath,
+        false
+      )
       return {
         sessionId: request.sessionId,
         applied: false,
+        appliedCount: 0,
         changeCount: 0,
-        inputChangeCount: changes.length,
+        inputChangeCount,
         inputPath: request.inputPath,
+        preview,
+        rollback: {
+          attempted: false,
+        },
       }
     }
 
     await this.ensureServerRunning()
+    const preview = await this.createChangeLogPreview(
+      request.sessionId,
+      parsed,
+      request.inputPath,
+      true
+    )
 
-    if (parsed.before) {
-      await assertCurrentSessionFingerprint(
+    const startChangeCount =
+      preview.rollbackProtection.targetChangeCount ??
+      (await getChangeCount(request.sessionId))
+    const getFinalFingerprint = async () =>
+      await getChangeLogFingerprint(
         request.sessionId,
-        parsed.before,
-        'before'
+        SessionFingerprintContent.COMPUTED,
+        parsed.after.digest.algorithm
+      ).catch(() => undefined)
+    const createReplayResult = (
+      applied: boolean,
+      appliedCount: number,
+      rollback: ApplyChangeLogResult['rollback'],
+      finalFingerprint?: ChangeLogFingerprint
+    ): ApplyChangeLogResult => ({
+      sessionId: request.sessionId,
+      applied,
+      appliedCount,
+      changeCount: appliedCount,
+      inputChangeCount,
+      inputPath: request.inputPath,
+      preview,
+      rollback,
+      ...(finalFingerprint ? { finalFingerprint } : {}),
+    })
+
+    if (!preview.canApply) {
+      throw new ChangeLogReplayError(
+        replayPreviewErrorMessage(preview),
+        createReplayResult(
+          false,
+          0,
+          {
+            attempted: false,
+            targetChangeCount: startChangeCount,
+          },
+          preview.current
+        )
       )
     }
 
     let appliedChangeCount = 0
-    const startChangeCount = await getChangeCount(request.sessionId)
     try {
       const applyChange = async (change: NormalizedChangeLogEntry) => {
         const offset = normalizeNonNegativeInt64ForClient(
@@ -1498,28 +1817,75 @@ export class OmegaEditToolkit {
         await flushBatch()
       }
 
-      if (parsed.after) {
-        await assertCurrentSessionFingerprint(
+      await assertCurrentSessionFingerprint(
+        request.sessionId,
+        parsed.after,
+        'after'
+      )
+    } catch (error) {
+      let finalFingerprint: ChangeLogFingerprint | undefined
+      try {
+        const rolledBack = await rollbackSessionToChangeCount(
           request.sessionId,
-          parsed.after,
-          'after'
+          startChangeCount
+        )
+        finalFingerprint = await getFinalFingerprint()
+        throw new ChangeLogReplayError(
+          replayErrorMessage(error),
+          createReplayResult(
+            false,
+            appliedChangeCount,
+            {
+              attempted: true,
+              succeeded: true,
+              rolledBack,
+              targetChangeCount: startChangeCount,
+            },
+            finalFingerprint
+          ),
+          error
+        )
+      } catch (rollbackError) {
+        if (rollbackError instanceof ChangeLogReplayError) {
+          throw rollbackError
+        }
+        finalFingerprint = await getFinalFingerprint()
+        const combinedError = changeLogApplyErrorWithRollbackFailure(
+          error,
+          rollbackError
+        )
+        throw new ChangeLogReplayError(
+          combinedError.message,
+          createReplayResult(
+            false,
+            appliedChangeCount,
+            {
+              attempted: true,
+              succeeded: false,
+              targetChangeCount: startChangeCount,
+              error: replayErrorMessage(rollbackError),
+            },
+            finalFingerprint
+          ),
+          error
         )
       }
-    } catch (error) {
-      try {
-        await rollbackSessionToChangeCount(request.sessionId, startChangeCount)
-      } catch (rollbackError) {
-        throw changeLogApplyErrorWithRollbackFailure(error, rollbackError)
-      }
-      throw error
     }
 
+    const finalFingerprint = await getFinalFingerprint()
     return {
       sessionId: request.sessionId,
       applied: true,
+      appliedCount: appliedChangeCount,
       changeCount: appliedChangeCount,
-      inputChangeCount: changes.length,
+      inputChangeCount,
       inputPath: request.inputPath,
+      preview,
+      rollback: {
+        attempted: false,
+        targetChangeCount: startChangeCount,
+      },
+      ...(finalFingerprint ? { finalFingerprint } : {}),
     }
   }
 
