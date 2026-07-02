@@ -10,7 +10,6 @@
     MAX_BYTES_PER_ROW,
     MAX_ANALYSIS_PROFILE_BYTES,
     normalizeBytesPerRow,
-    normalizeBytesPerRowMode,
     type BytesPerRow,
     type BytesPerRowMode,
     type HostToWebviewMessage,
@@ -18,6 +17,7 @@
     type ServerHealthMessage,
     type WebviewEditorUiState,
     type WebviewExternalHighlight,
+    type WebviewRangeMapNode,
     type WebviewSessionContentInfo,
     type WebviewSessionContentSource,
     type WebviewTransformPlugin,
@@ -97,7 +97,7 @@
 
   const DEFAULT_ANALYSIS_SECTION_ORDER: AnalysisSectionOrder = {
     profile: ['viewport', 'classes', 'data', 'frequency'],
-    structure: ['visible', 'history', 'timing', 'server'],
+    structure: ['rangeMap', 'visible', 'history', 'timing', 'server'],
   }
 
   type ProfilerViewportSnapshot = ViewportDataMessage['profile'] & {
@@ -127,15 +127,11 @@
   const configuredBytesPerRow = normalizeBytesPerRow(
     untrack(() => initialBytesPerRow)
   )
-  const configuredBytesPerRowMode = normalizeBytesPerRowMode(
-    untrack(() => initialBytesPerRowMode)
-  )
-  let bytesPerRowMode = $state<BytesPerRowMode>(configuredBytesPerRowMode)
+  untrack(() => initialBytesPerRowMode)
+  let bytesPerRowMode = $state<BytesPerRowMode>('fixed')
   let bytesPerRow = $state<BytesPerRow>(
     normalizeBytesPerRow(
-      configuredBytesPerRowMode === 'auto'
-        ? restoredState?.bytesPerRow ?? configuredBytesPerRow
-        : configuredBytesPerRow
+      restoredState?.bytesPerRow ?? configuredBytesPerRow
     )
   )
   const initialFileSize = restoredViewportSnapshot?.fileSize ?? 0
@@ -192,6 +188,9 @@
   let externalHighlights = $state<WebviewExternalHighlight[]>(
     restoredViewportSnapshot?.externalHighlights ?? []
   )
+  let rangeMapTree = $state<WebviewRangeMapNode[]>(
+    restoredViewportSnapshot?.rangeMapTree ?? []
+  )
   let viewportSnapshot = $state<PersistedViewportSnapshot | undefined>(
     restoredViewportSnapshot
   )
@@ -224,7 +223,6 @@
   let replaceMessage = $state('')
   let clipboardMessage = $state('')
   let lastPostedEditorStateKey = $state('')
-  let lastPostedAutoFitBytesPerRow = $state<number | undefined>(undefined)
 
   const selectionStart = $derived(
     selectionAnchor >= 0 && selectedOffset >= 0
@@ -359,50 +357,30 @@
     return source.slice(start, start + rowWidth * rows)
   }
 
-  function setBytesPerRow(bytes: BytesPerRow): void {
+  function applyBytesPerRow(
+    bytes: BytesPerRow,
+    options: { mode: BytesPerRowMode; persist: boolean }
+  ): void {
     const normalizedBytes = normalizeBytesPerRow(bytes)
-    bytesPerRowMode = 'fixed'
+    bytesPerRowMode = options.mode
     bytesPerRow = normalizedBytes
-    lastPostedAutoFitBytesPerRow = undefined
     savePreviewState({
       bytesPerRow: normalizedBytes,
       bytesPerRowMode,
     })
-    postToHost({ type: 'setBytesPerRow', bytesPerRow: normalizedBytes })
-  }
-
-  function setBytesPerRowMode(mode: BytesPerRowMode): void {
-    const normalizedMode = normalizeBytesPerRowMode(mode)
-    bytesPerRowMode = normalizedMode
-    lastPostedAutoFitBytesPerRow = undefined
-    savePreviewState({ bytesPerRowMode })
-    if (normalizedMode === 'auto') {
-      postToHost({ type: 'setBytesPerRowMode', mode: 'auto' })
-    } else {
-      setBytesPerRow(bytesPerRow)
-    }
-  }
-
-  function applyAutoFitBytesPerRow(bytes: BytesPerRow): void {
-    if (bytesPerRowMode !== 'auto') {
-      return
-    }
-
-    const normalizedBytes = normalizeBytesPerRow(bytes)
-    if (normalizedBytes !== bytesPerRow) {
-      bytesPerRow = normalizedBytes
-      savePreviewState({ bytesPerRow: normalizedBytes })
-    }
-    if (lastPostedAutoFitBytesPerRow === normalizedBytes) {
-      return
-    }
-
-    lastPostedAutoFitBytesPerRow = normalizedBytes
     postToHost({
       type: 'setBytesPerRow',
       bytesPerRow: normalizedBytes,
-      persist: false,
+      ...(options.persist ? {} : { persist: false }),
     })
+  }
+
+  function setBytesPerRow(bytes: BytesPerRow): void {
+    applyBytesPerRow(bytes, { mode: 'fixed', persist: true })
+  }
+
+  function applyAutoFitBytesPerRow(bytes: BytesPerRow): void {
+    void bytes
   }
 
   function toggleProfilerExpanded(): void {
@@ -502,6 +480,7 @@
       externalHighlights: normalizeExternalHighlights(
         snapshot.externalHighlights
       ),
+      rangeMapTree: normalizeRangeMapTree(snapshot.rangeMapTree),
     }
   }
 
@@ -544,6 +523,22 @@
       (highlight): highlight is WebviewExternalHighlight =>
         Boolean(highlight) && typeof highlight === 'object'
     ) as WebviewExternalHighlight[]
+  }
+
+  function normalizeRangeMapTree(value: unknown): WebviewRangeMapNode[] {
+    if (!Array.isArray(value)) {
+      return []
+    }
+
+    return value
+      .filter(
+        (node): node is WebviewRangeMapNode =>
+          Boolean(node) && typeof node === 'object'
+      )
+      .map((node) => ({
+        ...node,
+        children: normalizeRangeMapTree(node.children),
+      }))
   }
 
   function normalizeAnalysisSectionOrder(
@@ -1505,6 +1500,14 @@
     postToHost({ type: 'requestTransformPlugins' })
   }
 
+  function loadRangeMap(): void {
+    postToHost({ type: 'loadRangeMap' })
+  }
+
+  function unloadRangeMap(): void {
+    postToHost({ type: 'unloadRangeMap' })
+  }
+
   function applyTransform(
     pluginId: string,
     contentSource: WebviewSessionContentSource,
@@ -2242,6 +2245,7 @@
         viewportOffset = message.offset
         viewportData = message.data
         externalHighlights = message.externalHighlights
+        rangeMapTree = message.rangeMapTree
 
         if (
           requestedOffset !== undefined &&
@@ -2272,6 +2276,7 @@
           viewportOffset: message.offset,
           viewportData: message.data,
           externalHighlights: message.externalHighlights,
+          rangeMapTree: message.rangeMapTree,
         }
         savePreviewState()
         applyPendingSearchReveal()
@@ -2451,6 +2456,21 @@
           savePreviewState()
         }
         break
+      case 'rangeMapTree':
+        rangeMapTree = message.tree
+        if (viewportSnapshot) {
+          viewportSnapshot = {
+            ...viewportSnapshot,
+            rangeMapTree: message.tree,
+          }
+          savePreviewState()
+        }
+        break
+      case 'bytesPerRow':
+        bytesPerRowMode = 'fixed'
+        bytesPerRow = normalizeBytesPerRow(message.bytesPerRow)
+        savePreviewState({ bytesPerRow, bytesPerRowMode })
+        break
       case 'editMode':
         setInspectorEditMode(message.editMode)
         break
@@ -2542,7 +2562,6 @@
     {selectionEnd}
     {selectionLength}
     onBytesPerRow={setBytesPerRow}
-    onBytesPerRowMode={setBytesPerRowMode}
     onOffsetRadix={setOffsetRadix}
     onInsertDirection={setInsertDirection}
     onGoToOffset={goToOffset}
@@ -2607,7 +2626,7 @@
     {visibleOffset}
     scrollOffset={navigationOffset}
     {bytesPerRow}
-    autoFitBytesPerRow={bytesPerRowMode === 'auto'}
+    autoFitBytesPerRow={false}
     maxBytesPerRow={MAX_BYTES_PER_ROW}
     {offsetRadix}
     {selectedOffset}
@@ -2618,6 +2637,7 @@
     inspectorStart={inspectorHighlightStart}
     inspectorEnd={inspectorHighlightEnd}
     {externalHighlights}
+    {rangeMapTree}
     preparing={preparingFile}
     {activePane}
     editMode={inspectorEditMode}
@@ -2642,6 +2662,9 @@
     {undoCount}
     {redoCount}
     onSelect={selectOffset}
+    onSelectRangeMapNode={(node) => selectRange(node.offset, node.length)}
+    onLoadRangeMap={loadRangeMap}
+    onUnloadRangeMap={unloadRangeMap}
     onActivePaneChange={setActivePane}
     onMoveSelection={moveSelection}
     onJumpToBoundary={jumpToBoundary}

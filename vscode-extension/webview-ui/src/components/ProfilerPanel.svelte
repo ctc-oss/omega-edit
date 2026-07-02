@@ -4,6 +4,7 @@
     HostToWebviewMessage,
     ServerHealthMessage,
     ServerHealthMetricId,
+    WebviewRangeMapNode,
   } from '../protocol'
 
   type AnalysisProfileMessage = Extract<
@@ -15,8 +16,10 @@
 
   const DEFAULT_ANALYSIS_SECTION_ORDER: AnalysisSectionOrder = {
     profile: ['viewport', 'classes', 'data', 'frequency'],
-    structure: ['visible', 'history', 'timing', 'server'],
+    structure: ['rangeMap', 'visible', 'history', 'timing', 'server'],
   }
+  // Must match the number of data-external-color selectors (0..N-1) defined in styles.css
+  const EXTERNAL_HIGHLIGHT_COLOR_COUNT = 12
 
   interface ViewportProfilerSnapshot {
     fetchDurationMs: number
@@ -39,6 +42,11 @@
     value: string
     kind?: 'heading'
     severity?: ServerHealthMessage['severity'] | 'pending'
+  }
+
+  interface RangeMapTreeRow {
+    node: WebviewRangeMapNode
+    depth: number
   }
 
   const SERVER_LIVE_STATUS_METRIC_IDS: readonly ServerHealthMetricId[] = [
@@ -98,6 +106,10 @@
     visibleBytes?: number[]
     selectedBytes?: number[]
     selectionLength?: number
+    selectionStart?: number
+    selectionEnd?: number
+    rangeMapTree?: WebviewRangeMapNode[]
+    hoveredExternalHighlightId?: string
     dataProfile?: AnalysisProfileMessage
     viewportProfile?: ViewportProfilerSnapshot
     serverHealth?: ServerHealthMessage
@@ -107,6 +119,10 @@
     redoCount?: number
     onToggleExpanded: () => void
     onModeChange: (mode: AnalysisMode) => void
+    onSelectRangeMapNode: (node: WebviewRangeMapNode) => void
+    onRangeMapNodeHover: (id: string | undefined) => void
+    onLoadRangeMap: () => void
+    onUnloadRangeMap: () => void
     onMoveSection: (
       mode: AnalysisMode,
       sectionId: string,
@@ -133,6 +149,10 @@
     visibleBytes = [],
     selectedBytes = [],
     selectionLength = 0,
+    selectionStart = -1,
+    selectionEnd = -1,
+    rangeMapTree = [],
+    hoveredExternalHighlightId,
     dataProfile,
     viewportProfile,
     serverHealth,
@@ -142,6 +162,10 @@
     redoCount = 0,
     onToggleExpanded,
     onModeChange,
+    onSelectRangeMapNode,
+    onRangeMapNodeHover,
+    onLoadRangeMap,
+    onUnloadRangeMap,
     onMoveSection,
     onReorderSection,
   }: Props = $props()
@@ -159,6 +183,7 @@
     | undefined
   >(undefined)
   let collapsedSections = $state<Record<string, boolean>>({})
+  let collapsedRangeMapNodes = $state<Record<string, boolean>>({})
 
   const analysisBytes = $derived(
     selectedBytes.length > 1 ? selectedBytes : visibleBytes
@@ -206,6 +231,18 @@
     }))
   )
   const structureRows = $derived(buildStructureRows())
+  const rangeMapRows = $derived(flattenRangeMapTree(rangeMapTree))
+  const hasRangeMap = $derived(rangeMapTree.length > 0)
+  const rangeMapHasExpandableNodes = $derived(
+    rangeMapTreeHasExpandableNodes(rangeMapTree)
+  )
+  const rangeMapHasCollapsedNodes = $derived(
+    rangeMapTreeHasCollapsedNodes(rangeMapTree)
+  )
+  const rangeMapAllExpandableNodesCollapsed = $derived(
+    rangeMapHasExpandableNodes &&
+      rangeMapTreeAllExpandableNodesCollapsed(rangeMapTree)
+  )
   const historyRows = $derived([
     { label: strings.profiler.undo, value: formatNumber(undoCount) },
     { label: strings.profiler.redo, value: formatNumber(redoCount) },
@@ -279,6 +316,8 @@
         return strings.profiler.frequency
       case 'visible':
         return structureScopeLabel
+      case 'rangeMap':
+        return strings.profiler.rangeMap
       case 'history':
         return strings.profiler.history
       case 'timing':
@@ -410,6 +449,10 @@
     draggingSection = undefined
   }
 
+  function clearAnalysisDrag(): void {
+    draggingSection = undefined
+  }
+
   function handleDragKeydown(
     event: KeyboardEvent,
     sectionMode: AnalysisMode,
@@ -470,6 +513,156 @@
     return offsetRadix === 'dec'
       ? formatNumber(offset)
       : `0x${offset.toString(16).toUpperCase()}`
+  }
+
+  function flattenRangeMapTree(
+    nodes: WebviewRangeMapNode[],
+    depth = 0
+  ): RangeMapTreeRow[] {
+    const rows: RangeMapTreeRow[] = []
+    for (const node of nodes) {
+      rows.push({ node, depth })
+      if (!collapsedRangeMapNodes[node.id]) {
+        rows.push(...flattenRangeMapTree(node.children, depth + 1))
+      }
+    }
+    return rows
+  }
+
+  function rangeMapNodeLength(node: WebviewRangeMapNode): string {
+    return formatByteSize(node.length)
+  }
+
+  function rangeMapDepthClass(depth: number): string {
+    return `depth-${clamp(0, depth, 12)}`
+  }
+
+  function rangeMapNodeValue(node: WebviewRangeMapNode): string {
+    const suffixes = [node.type, node.value].filter(
+      (value): value is string => Boolean(value)
+    )
+    return suffixes.length > 0 ? suffixes.join(' | ') : ''
+  }
+
+  function hashRangeMapNodeId(id: string): number {
+    let hash = 0
+    for (let index = 0; index < id.length; index += 1) {
+      hash = (hash * 31 + id.charCodeAt(index)) >>> 0
+    }
+    return hash
+  }
+
+  function rangeMapNodeColorSlot(node: WebviewRangeMapNode): string {
+    return String(hashRangeMapNodeId(node.id) % EXTERNAL_HIGHLIGHT_COLOR_COUNT)
+  }
+
+  function rangeMapNodeTitle(node: WebviewRangeMapNode): string {
+    return strings.profiler.rangeMapNodeTitle(
+      node.label,
+      formatOffset(node.offset),
+      rangeMapNodeLength(node)
+    )
+  }
+
+  function rangeMapNodeSelected(node: WebviewRangeMapNode): boolean {
+    if (selectionStart < 0 || selectionEnd < selectionStart) {
+      return false
+    }
+    return (
+      selectionStart === node.offset &&
+      selectionEnd === node.offset + node.length - 1
+    )
+  }
+
+  function rangeMapNodeHovered(node: WebviewRangeMapNode): boolean {
+    return hoveredExternalHighlightId === node.id
+  }
+
+  function rangeMapNodeHasChildren(node: WebviewRangeMapNode): boolean {
+    return node.children.length > 0
+  }
+
+  function rangeMapNodeExpanded(node: WebviewRangeMapNode): boolean {
+    return !collapsedRangeMapNodes[node.id]
+  }
+
+  function rangeMapNodeToggleLabel(node: WebviewRangeMapNode): string {
+    return rangeMapNodeExpanded(node)
+      ? strings.profiler.collapseRangeMapNode(node.label)
+      : strings.profiler.expandRangeMapNode(node.label)
+  }
+
+  function toggleRangeMapNode(node: WebviewRangeMapNode): void {
+    collapsedRangeMapNodes = {
+      ...collapsedRangeMapNodes,
+      [node.id]: !collapsedRangeMapNodes[node.id],
+    }
+  }
+
+  function rangeMapTreeHasExpandableNodes(
+    nodes: WebviewRangeMapNode[]
+  ): boolean {
+    for (const node of nodes) {
+      if (
+        rangeMapNodeHasChildren(node) ||
+        rangeMapTreeHasExpandableNodes(node.children)
+      ) {
+        return true
+      }
+    }
+    return false
+  }
+
+  function rangeMapTreeHasCollapsedNodes(
+    nodes: WebviewRangeMapNode[]
+  ): boolean {
+    for (const node of nodes) {
+      if (
+        collapsedRangeMapNodes[node.id] ||
+        rangeMapTreeHasCollapsedNodes(node.children)
+      ) {
+        return true
+      }
+    }
+    return false
+  }
+
+  function rangeMapTreeAllExpandableNodesCollapsed(
+    nodes: WebviewRangeMapNode[]
+  ): boolean {
+    for (const node of nodes) {
+      if (rangeMapNodeHasChildren(node)) {
+        if (
+          !collapsedRangeMapNodes[node.id] ||
+          !rangeMapTreeAllExpandableNodesCollapsed(node.children)
+        ) {
+          return false
+        }
+      }
+    }
+    return true
+  }
+
+  function collectCollapsedRangeMapNodes(
+    nodes: WebviewRangeMapNode[],
+    collapsed: Record<string, boolean>
+  ): void {
+    for (const node of nodes) {
+      if (rangeMapNodeHasChildren(node)) {
+        collapsed[node.id] = true
+        collectCollapsedRangeMapNodes(node.children, collapsed)
+      }
+    }
+  }
+
+  function expandAllRangeMapNodes(): void {
+    collapsedRangeMapNodes = {}
+  }
+
+  function collapseAllRangeMapNodes(): void {
+    const collapsed: Record<string, boolean> = {}
+    collectCollapsedRangeMapNodes(rangeMapTree, collapsed)
+    collapsedRangeMapNodes = collapsed
   }
 
   function toHex2(byte: number): string {
@@ -1026,6 +1219,12 @@
   }
 </script>
 
+<svelte:window
+  onblur={clearAnalysisDrag}
+  onpointercancel={stopAnalysisDrag}
+  onpointerup={stopAnalysisDrag}
+/>
+
 <aside
   class="profiler-panel"
   class:collapsed={!expanded}
@@ -1117,6 +1316,7 @@
                       onpointermove={handleDragPointerMove}
                       onpointerup={stopAnalysisDrag}
                       onpointercancel={stopAnalysisDrag}
+                      onlostpointercapture={stopAnalysisDrag}
                       onkeydown={(event) =>
                         handleDragKeydown(event, 'profile', sectionId)}
                     ></button>
@@ -1162,6 +1362,7 @@
                       onpointermove={handleDragPointerMove}
                       onpointerup={stopAnalysisDrag}
                       onpointercancel={stopAnalysisDrag}
+                      onlostpointercapture={stopAnalysisDrag}
                       onkeydown={(event) =>
                         handleDragKeydown(event, 'profile', sectionId)}
                     ></button>
@@ -1230,6 +1431,7 @@
                       onpointermove={handleDragPointerMove}
                       onpointerup={stopAnalysisDrag}
                       onpointercancel={stopAnalysisDrag}
+                      onlostpointercapture={stopAnalysisDrag}
                       onkeydown={(event) =>
                         handleDragKeydown(event, 'profile', sectionId)}
                     ></button>
@@ -1291,6 +1493,7 @@
                       onpointermove={handleDragPointerMove}
                       onpointerup={stopAnalysisDrag}
                       onpointercancel={stopAnalysisDrag}
+                      onlostpointercapture={stopAnalysisDrag}
                       onkeydown={(event) =>
                         handleDragKeydown(event, 'profile', sectionId)}
                     ></button>
@@ -1381,7 +1584,143 @@
       {:else}
         <section class="analysis-panel active" data-analysis-panel="structure">
           {#each structureSectionOrder as sectionId (sectionId)}
-            {#if sectionId === 'visible'}
+            {#if sectionId === 'rangeMap'}
+              <div
+                class="analysis-section"
+                class:dragging={isDraggingSection('structure', sectionId)}
+                data-analysis-section={sectionId}
+              >
+                <div class="analysis-section-heading">
+                  <div class="analysis-section-title">{sectionTitle(sectionId)}</div>
+                  <div class="analysis-section-actions">
+                    <button
+                      type="button"
+                      class="analysis-mini-button"
+                      aria-label={hasRangeMap
+                        ? strings.profiler.unloadRangeMapTitle
+                        : strings.profiler.loadRangeMapTitle}
+                      title={hasRangeMap
+                        ? strings.profiler.unloadRangeMapTitle
+                        : strings.profiler.loadRangeMapTitle}
+                      onclick={hasRangeMap ? onUnloadRangeMap : onLoadRangeMap}
+                    >
+                      {hasRangeMap
+                        ? strings.profiler.unloadRangeMap
+                        : strings.profiler.loadRangeMap}
+                    </button>
+                    <button
+                      type="button"
+                      class="analysis-icon-button"
+                      aria-label={strings.profiler.expandRangeMapAllTitle}
+                      title={strings.profiler.expandRangeMapAllTitle}
+                      disabled={!rangeMapHasCollapsedNodes}
+                      onclick={expandAllRangeMapNodes}
+                    >
+                      ++
+                    </button>
+                    <button
+                      type="button"
+                      class="analysis-icon-button"
+                      aria-label={strings.profiler.collapseRangeMapAllTitle}
+                      title={strings.profiler.collapseRangeMapAllTitle}
+                      disabled={
+                        !rangeMapHasExpandableNodes ||
+                        rangeMapAllExpandableNodesCollapsed
+                      }
+                      onclick={collapseAllRangeMapNodes}
+                    >
+                      --
+                    </button>
+                    <button
+                      type="button"
+                      class="analysis-collapse-button"
+                      aria-expanded={!isSectionCollapsed(sectionId)}
+                      aria-label={sectionCollapseLabel(sectionId)}
+                      title={sectionCollapseLabel(sectionId)}
+                      onclick={() => toggleSectionCollapsed(sectionId)}
+                    >
+                      {sectionCollapseGlyph(sectionId)}
+                    </button>
+                    <button
+                      type="button"
+                      class="analysis-drag-handle"
+                      class:dragging={isDraggingSection('structure', sectionId)}
+                      data-analysis-drag="true"
+                      aria-label={strings.profiler.moveSection(sectionTitle(sectionId))}
+                      title={strings.profiler.moveSectionTitle}
+                      onpointerdown={(event) =>
+                        handleDragPointerDown(event, 'structure', sectionId)}
+                      onpointermove={handleDragPointerMove}
+                      onpointerup={stopAnalysisDrag}
+                      onpointercancel={stopAnalysisDrag}
+                      onlostpointercapture={stopAnalysisDrag}
+                      onkeydown={(event) =>
+                        handleDragKeydown(event, 'structure', sectionId)}
+                    ></button>
+                  </div>
+                </div>
+                {#if !isSectionCollapsed(sectionId)}
+                  {#if rangeMapRows.length === 0}
+                    <div class="analysis-note">{strings.profiler.noRangeMap}</div>
+                  {:else}
+                    <div class="range-map-tree" role="tree">
+                      {#each rangeMapRows as row (row.node.id)}
+                        {@const nodeValue = rangeMapNodeValue(row.node)}
+                        {@const hasChildren = rangeMapNodeHasChildren(row.node)}
+                        {@const toggleLabel = rangeMapNodeToggleLabel(row.node)}
+                        <div
+                          class={`range-map-node-row ${rangeMapDepthClass(row.depth)}`}
+                          class:active={rangeMapNodeSelected(row.node)}
+                          class:hovered={rangeMapNodeHovered(row.node)}
+                          class:stale={row.node.stale === true}
+                          role="treeitem"
+                          tabindex="-1"
+                          aria-level={row.depth + 1}
+                          aria-selected={rangeMapNodeSelected(row.node)}
+                          aria-expanded={hasChildren
+                            ? rangeMapNodeExpanded(row.node)
+                            : undefined}
+                          onpointerenter={() => onRangeMapNodeHover(row.node.id)}
+                          onpointerleave={() => onRangeMapNodeHover(undefined)}
+                        >
+                          {#if hasChildren}
+                            <button
+                              type="button"
+                              class="range-map-node-toggle"
+                              aria-label={toggleLabel}
+                              title={toggleLabel}
+                              onclick={() => toggleRangeMapNode(row.node)}
+                            >
+                              {rangeMapNodeExpanded(row.node) ? '-' : '+'}
+                            </button>
+                          {:else}
+                            <span
+                              class="range-map-node-toggle-spacer"
+                              aria-hidden="true"
+                            ></span>
+                          {/if}
+                          <button
+                            type="button"
+                            class="range-map-node"
+                            data-external-color={rangeMapNodeColorSlot(row.node)}
+                            title={rangeMapNodeTitle(row.node)}
+                            onclick={() => onSelectRangeMapNode(row.node)}
+                          >
+                            <span class="range-map-node-label">{row.node.label}</span>
+                            {#if nodeValue}
+                              <span class="range-map-node-value">{nodeValue}</span>
+                            {/if}
+                            <span class="range-map-node-meta">
+                              {formatOffset(row.node.offset)} | {rangeMapNodeLength(row.node)}
+                            </span>
+                          </button>
+                        </div>
+                      {/each}
+                    </div>
+                  {/if}
+                {/if}
+              </div>
+            {:else if sectionId === 'visible'}
               <div
                 class="analysis-section"
                 class:dragging={isDraggingSection('structure', sectionId)}
@@ -1412,6 +1751,7 @@
                       onpointermove={handleDragPointerMove}
                       onpointerup={stopAnalysisDrag}
                       onpointercancel={stopAnalysisDrag}
+                      onlostpointercapture={stopAnalysisDrag}
                       onkeydown={(event) =>
                         handleDragKeydown(event, 'structure', sectionId)}
                     ></button>
@@ -1457,6 +1797,7 @@
                       onpointermove={handleDragPointerMove}
                       onpointerup={stopAnalysisDrag}
                       onpointercancel={stopAnalysisDrag}
+                      onlostpointercapture={stopAnalysisDrag}
                       onkeydown={(event) =>
                         handleDragKeydown(event, 'structure', sectionId)}
                     ></button>
@@ -1502,6 +1843,7 @@
                       onpointermove={handleDragPointerMove}
                       onpointerup={stopAnalysisDrag}
                       onpointercancel={stopAnalysisDrag}
+                      onlostpointercapture={stopAnalysisDrag}
                       onkeydown={(event) =>
                         handleDragKeydown(event, 'structure', sectionId)}
                     ></button>
@@ -1547,6 +1889,7 @@
                       onpointermove={handleDragPointerMove}
                       onpointerup={stopAnalysisDrag}
                       onpointercancel={stopAnalysisDrag}
+                      onlostpointercapture={stopAnalysisDrag}
                       onkeydown={(event) =>
                         handleDragKeydown(event, 'structure', sectionId)}
                     ></button>

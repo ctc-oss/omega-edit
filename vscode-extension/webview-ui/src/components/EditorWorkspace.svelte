@@ -5,6 +5,7 @@
     HostToWebviewMessage,
     ServerHealthMessage,
     WebviewExternalHighlight,
+    WebviewRangeMapNode,
   } from '../protocol'
   import { strings } from '../i18n'
   import FileScrollbar from './FileScrollbar.svelte'
@@ -49,6 +50,7 @@
     inspectorStart?: number
     inspectorEnd?: number
     externalHighlights?: WebviewExternalHighlight[]
+    rangeMapTree?: WebviewRangeMapNode[]
     preparing?: boolean
     activePane?: GridEditPane
     editMode?: InspectorEditMode
@@ -78,6 +80,9 @@
     readOnlyLabel?: string
     readOnlyTitle?: string
     onSelect: (offset: number, extend: boolean) => void
+    onSelectRangeMapNode: (node: WebviewRangeMapNode) => void
+    onLoadRangeMap: () => void
+    onUnloadRangeMap: () => void
     onActivePaneChange: (pane: GridEditPane) => void
     onMoveSelection: (delta: number, extend: boolean) => void
     onJumpToBoundary: (boundary: 'top' | 'bottom') => void
@@ -117,6 +122,7 @@
     inspectorStart = -1,
     inspectorEnd = -1,
     externalHighlights = [],
+    rangeMapTree = [],
     preparing = false,
     activePane = 'hex',
     editMode = 'insert',
@@ -146,6 +152,9 @@
     readOnlyLabel = strings.grid.readOnly,
     readOnlyTitle = readOnlyLabel,
     onSelect,
+    onSelectRangeMapNode,
+    onLoadRangeMap,
+    onUnloadRangeMap,
     onActivePaneChange,
     onMoveSelection,
     onJumpToBoundary,
@@ -167,7 +176,24 @@
   let autoFitOverflowCap = $state<
     { width: number; bytesPerRow: BytesPerRow } | undefined
   >(undefined)
+  let hoveredExternalHighlightId = $state<string | undefined>(undefined)
+  let emphasizedExternalHighlightId = $state<string | undefined>(undefined)
   const AUTO_FIT_WIDTH_GUARD_PX = 24
+  const activeExternalHighlightId = $derived(
+    hoveredExternalHighlightId ?? emphasizedExternalHighlightId
+  )
+
+  function setHoveredExternalHighlightId(id: string | undefined): void {
+    hoveredExternalHighlightId = id
+  }
+
+  function setEmphasizedExternalHighlightId(id: string | undefined): void {
+    emphasizedExternalHighlightId = id
+  }
+
+  function externalHighlightExists(id: string | undefined): boolean {
+    return !!id && externalHighlights.some((highlight) => highlight.id === id)
+  }
 
   function measureAutoFitBytesPerRow(): BytesPerRow | undefined {
     if (!gridScrollerElement || !autoFitBytesPerRow || preparing) {
@@ -280,12 +306,25 @@
 
   $effect(() => {
     if (
+      emphasizedExternalHighlightId &&
+      !externalHighlightExists(emphasizedExternalHighlightId)
+    ) {
+      emphasizedExternalHighlightId = undefined
+    }
+    if (
+      hoveredExternalHighlightId &&
+      !externalHighlightExists(hoveredExternalHighlightId)
+    ) {
+      hoveredExternalHighlightId = undefined
+    }
+  })
+
+  $effect(() => {
+    if (
       gridScrollerElement &&
       autoFitBytesPerRow &&
       !preparing &&
-      profilerExpanded !== undefined &&
-      bytesPerRow >= 0 &&
-      data.length >= 0
+      profilerExpanded !== undefined
     ) {
       queueAutoFitBytesPerRow()
     }
@@ -333,6 +372,7 @@
           inspectorStart={inspectorStart}
           inspectorEnd={inspectorEnd}
           {externalHighlights}
+          hoveredExternalHighlightId={activeExternalHighlightId}
           {pendingHexLabel}
           {canScrollUp}
           {canScrollDown}
@@ -346,6 +386,7 @@
           onDeleteByte={onDeleteByte}
           readOnly={editDisabled}
           onVisibleRowsChange={onVisibleRowsChange}
+          onExternalHighlightHover={setHoveredExternalHighlightId}
           editMode={editMode}
         />
       </div>
@@ -356,7 +397,13 @@
         {visibleRows}
         {visibleByteCount}
         {offsetRadix}
+        {selectionStart}
+        {selectionEnd}
+        {externalHighlights}
+        hoveredExternalHighlightId={activeExternalHighlightId}
         onScrollTo={onScrollTo}
+        onExternalHighlightHover={setHoveredExternalHighlightId}
+        onExternalHighlightEmphasis={setEmphasizedExternalHighlightId}
       />
       {#if editDisabled}
         <div
@@ -385,6 +432,9 @@
     {visibleBytes}
     {selectedBytes}
     {selectionLength}
+    {selectionStart}
+    {selectionEnd}
+    hoveredExternalHighlightId={activeExternalHighlightId}
     {dataProfile}
     {viewportProfile}
     {serverHealth}
@@ -392,8 +442,13 @@
     {canRedo}
     {undoCount}
     {redoCount}
+    {rangeMapTree}
     onToggleExpanded={onToggleProfilerExpanded}
     onModeChange={onProfilerModeChange}
+    onSelectRangeMapNode={onSelectRangeMapNode}
+    onRangeMapNodeHover={setHoveredExternalHighlightId}
+    onLoadRangeMap={onLoadRangeMap}
+    onUnloadRangeMap={onUnloadRangeMap}
     onMoveSection={onMoveAnalysisSection}
     onReorderSection={onReorderAnalysisSection}
   />
