@@ -30,6 +30,9 @@ import {
   type OmegaEditExtensionApi,
   type OmegaEditExternalHighlightRequest,
   type OmegaEditOpenOptions,
+  type OmegaEditChangeLogPreviewOptions,
+  type OmegaEditRangeMapLoadOptions,
+  type OmegaEditRangeMapUnloadOptions,
   type OmegaEditRevealOptions,
 } from './api'
 import {
@@ -39,7 +42,9 @@ import {
   OMEGA_EDIT_EXPORT_CHANGE_LOG_COMMAND,
   OMEGA_EDIT_GET_EDITOR_STATE_COMMAND,
   OMEGA_EDIT_GO_TO_OFFSET_COMMAND,
+  OMEGA_EDIT_LOAD_RANGE_MAP_COMMAND,
   OMEGA_EDIT_OPEN_IN_HEX_EDITOR_COMMAND,
+  OMEGA_EDIT_PREVIEW_CHANGE_LOG_COMMAND,
   OMEGA_EDIT_REFRESH_TRANSFORM_PLUGINS_COMMAND,
   OMEGA_EDIT_REDO_COMMAND,
   OMEGA_EDIT_RESTORE_CHECKPOINT_COMMAND,
@@ -50,6 +55,7 @@ import {
   OMEGA_EDIT_ROLLBACK_CHECKPOINT_COMMAND,
   OMEGA_EDIT_TOGGLE_INSERT_DIRECTION_COMMAND,
   OMEGA_EDIT_UNDO_COMMAND,
+  OMEGA_EDIT_UNLOAD_RANGE_MAP_COMMAND,
   OMEGA_EDIT_VIEW_TYPE,
 } from './constants'
 import { HexEditorProvider } from './hexEditorProvider'
@@ -552,6 +558,12 @@ function createOmegaEditExtensionApi(
     clearExternalHighlights(options) {
       return provider.clearExternalHighlights(options)
     },
+    async loadRangeMap(options?: OmegaEditRangeMapLoadOptions) {
+      return provider.loadRangeMap(options)
+    },
+    unloadRangeMap(options?: OmegaEditRangeMapUnloadOptions) {
+      return provider.unloadRangeMap(options)
+    },
     setInsertDirection(directionOrOptions, options) {
       return provider.setInsertDirection(directionOrOptions, options)
     },
@@ -566,6 +578,9 @@ function createOmegaEditExtensionApi(
     },
     async exportChangeLog(options) {
       return provider.exportChangeLog(options)
+    },
+    async previewChangeLog(options?: OmegaEditChangeLogPreviewOptions) {
+      return provider.previewChangeLog(options)
     },
     async applyChangeLog(options) {
       return provider.applyChangeLog(options)
@@ -789,6 +804,15 @@ export async function activate(
 
   context.subscriptions.push(
     vscode.commands.registerCommand(
+      OMEGA_EDIT_PREVIEW_CHANGE_LOG_COMMAND,
+      async (options?: unknown) => {
+        return await provider.previewChangeLog(options)
+      }
+    )
+  )
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand(
       OMEGA_EDIT_APPLY_CHANGE_LOG_COMMAND,
       async (options?: unknown) => {
         await provider.applyChangeLog(options)
@@ -851,6 +875,20 @@ export async function activate(
     vscode.commands.registerCommand(
       OMEGA_EDIT_CLEAR_EXTERNAL_HIGHLIGHTS_COMMAND,
       (options?: unknown) => provider.clearExternalHighlights(options)
+    )
+  )
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand(
+      OMEGA_EDIT_LOAD_RANGE_MAP_COMMAND,
+      async (options?: unknown) => provider.loadRangeMap(options)
+    )
+  )
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand(
+      OMEGA_EDIT_UNLOAD_RANGE_MAP_COMMAND,
+      (options?: unknown) => provider.unloadRangeMap(options)
     )
   )
 

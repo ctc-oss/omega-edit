@@ -37,6 +37,7 @@ import {
   replaceSession as replaceWholeSession,
   resetClient,
   restoreLastCheckpoint as restoreClientCheckpoint,
+  restoreToChangeCount,
   runSessionTransaction,
   saveSession,
   searchSession,
@@ -63,14 +64,21 @@ import {
   ApplyTransformPluginResult,
   ApplyChangeLogRequest,
   ApplyChangeLogResult,
+  ChangeLogPreview,
+  ChangeLogPrimitiveCounts,
   ChangeLogDocument,
   ChangeLogEntry,
   ChangeLogFingerprint,
   ChangeLogResult,
+  ChangeLogRollbackProtection,
+  ChangeLogSafetyIssue,
+  ChangeLogSizeDelta,
+  ChangeLogTransformDescriptorPreview,
   CheckpointResult,
   PatchPreview,
   PatchRequest,
   PatchResult,
+  PreviewChangeLogRequest,
   ProfileRangeResult,
   ReadRangeResult,
   ReplaceSessionRequest,
@@ -97,9 +105,22 @@ interface CollectedChangeLogEntries {
 }
 
 interface ParsedChangeLog {
-  changes: ChangeLogEntry[]
-  before?: ChangeLogFingerprint
-  after?: ChangeLogFingerprint
+  changes: NormalizedChangeLogEntry[]
+  complete: boolean
+  before: ChangeLogFingerprint
+  after: ChangeLogFingerprint
+  changeCount: string
+  sourceChangeCount: string
+  unavailableChangeCount: string
+  unavailableChangeSerials: number[]
+}
+
+interface ChangeLogDocumentMetadata {
+  complete: boolean
+  changeCount: string
+  sourceChangeCount: string
+  unavailableChangeCount: string
+  unavailableChangeSerials: number[]
 }
 
 const changeKindNames = new Map<number, string>(
@@ -183,6 +204,147 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
 }
 
+interface TransformPrimitiveDescriptor {
+  transformId: string
+  optionsJson?: string
+}
+
+interface NormalizedChangeLogEntry extends ChangeLogEntry {
+  transformDescriptor?: TransformPrimitiveDescriptor
+}
+
+function parseJsonObject(text: string, name: string): Record<string, unknown> {
+  assertJsonNestingLimit(text)
+  let parsed: unknown
+  try {
+    parsed = JSON.parse(text)
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error)
+    throw new Error(`${name} must be valid JSON: ${message}`)
+  }
+  if (!isRecord(parsed)) {
+    throw new Error(`${name} must be a JSON object`)
+  }
+  return parsed
+}
+
+function transformOptionsToJson(
+  args: Record<string, unknown>
+): string | undefined {
+  return Object.keys(args).length > 0 ? JSON.stringify(args) : undefined
+}
+
+function parseTransformPrimitiveDescriptor(
+  dataBytes: Uint8Array,
+  name: string
+): TransformPrimitiveDescriptor {
+  if (dataBytes.length === 0) {
+    throw new Error(`${name} requires data`)
+  }
+
+  const descriptorText = Buffer.from(dataBytes).toString('utf8')
+  const descriptor = parseJsonObject(descriptorText, name)
+  if (
+    typeof descriptor.transformId !== 'string' ||
+    !descriptor.transformId.trim()
+  ) {
+    throw new Error(`${name} requires transformId`)
+  }
+
+  const args = descriptor.args === undefined ? {} : descriptor.args
+  if (!isRecord(args)) {
+    throw new Error(`${name} args must be a JSON object`)
+  }
+
+  return {
+    transformId: descriptor.transformId.trim(),
+    optionsJson: transformOptionsToJson(args),
+  }
+}
+
+function parseTransformOptionsJson(
+  optionsJson: string | undefined,
+  name: string
+): Record<string, unknown> {
+  if (optionsJson === undefined || optionsJson === '') {
+    return {}
+  }
+  if (typeof optionsJson !== 'string') {
+    throw new Error(`${name} must be a string`)
+  }
+  return parseJsonObject(optionsJson, name)
+}
+
+function normalizeJsonForComparison(value: unknown): unknown {
+  if (Array.isArray(value)) {
+    return value.map(normalizeJsonForComparison)
+  }
+  if (!isRecord(value)) {
+    return value
+  }
+  return Object.fromEntries(
+    Object.keys(value)
+      .sort()
+      .map((key) => [key, normalizeJsonForComparison(value[key])])
+  )
+}
+
+function jsonObjectsEqual(
+  left: Record<string, unknown>,
+  right: Record<string, unknown>
+): boolean {
+  return (
+    JSON.stringify(normalizeJsonForComparison(left)) ===
+    JSON.stringify(normalizeJsonForComparison(right))
+  )
+}
+
+function transformOptionsMatchDescriptor(
+  optionsJson: string | undefined,
+  descriptorOptionsJson: string | undefined,
+  name: string
+): boolean {
+  const options = parseTransformOptionsJson(optionsJson, name)
+  const descriptorOptions = parseTransformOptionsJson(
+    descriptorOptionsJson,
+    name
+  )
+  return jsonObjectsEqual(options, descriptorOptions)
+}
+
+function assertTransformReplayResponse(
+  descriptor: TransformPrimitiveDescriptor,
+  offset: number,
+  length: number,
+  computedFileSizeBefore: number,
+  computedFileSizeAfter: number,
+  response: Awaited<ReturnType<typeof applyClientTransformPlugin>>
+): void {
+  if (response.pluginId !== descriptor.transformId) {
+    throw new Error(
+      `TRANSFORM ${descriptor.transformId} replay returned plugin ${response.pluginId}`
+    )
+  }
+  if (response.offset !== offset || response.length !== length) {
+    throw new Error(
+      `TRANSFORM ${descriptor.transformId} replay range mismatch: expected offset ${offset}, length ${length}; actual offset ${response.offset}, length ${response.length}`
+    )
+  }
+
+  const expectedFileSize =
+    computedFileSizeBefore - response.length + response.replacementLength
+  if (response.computedFileSize !== expectedFileSize) {
+    throw new Error(
+      `TRANSFORM ${descriptor.transformId} replay size mismatch: expected ${expectedFileSize}, actual ${response.computedFileSize}`
+    )
+  }
+  if (computedFileSizeAfter !== response.computedFileSize) {
+    throw new Error(
+      `TRANSFORM ${descriptor.transformId} replay session size mismatch: expected ${response.computedFileSize}, actual ${computedFileSizeAfter}`
+    )
+  }
+}
+
 function assertJsonNestingLimit(text: string): void {
   let depth = 0
   let inString = false
@@ -240,14 +402,17 @@ function normalizeChangeLogEntries(value: unknown): ParsedChangeLog {
   )
   validateChangeLogMetadata(normalized)
   if (document) {
-    validateChangeLogDocumentMetadata(document, normalized)
+    const metadata = validateChangeLogDocumentMetadata(document, normalized)
     return {
       changes: normalized,
+      ...metadata,
       before: normalizeChangeLogFingerprint(document.before, 'before'),
       after: normalizeChangeLogFingerprint(document.after, 'after'),
     }
   }
-  return { changes: normalized }
+  throw new Error(
+    'Change log must be a versioned omega-edit.change-log document'
+  )
 }
 
 function readDocumentCount(
@@ -380,7 +545,7 @@ async function assertSessionModelValidForChangeLogExport(
 function validateChangeLogDocumentMetadata(
   document: Record<string, unknown>,
   changes: ChangeLogEntry[]
-): void {
+): ChangeLogDocumentMetadata {
   if (typeof document.complete !== 'boolean') {
     throw new Error('Change log complete must be a boolean')
   }
@@ -413,30 +578,24 @@ function validateChangeLogDocumentMetadata(
     )
   }
 
-  assertCompleteChangeLog('apply', unavailableChangeSerials)
+  return {
+    complete: document.complete,
+    changeCount: changeCount.toString(),
+    sourceChangeCount: sourceChangeCount.toString(),
+    unavailableChangeCount: unavailableChangeCount.toString(),
+    unavailableChangeSerials,
+  }
 }
 
 function normalizeChangeLogEntry(
   entry: unknown,
   index: number
-): ChangeLogEntry {
+): NormalizedChangeLogEntry {
   if (!isRecord(entry)) {
     throw new Error(`Change log entry ${index} must be an object`)
   }
 
-  const {
-    kind,
-    offset,
-    length,
-    serial,
-    data,
-    groupId,
-    transformId,
-    optionsJson,
-    replacementLength,
-    computedFileSizeBefore,
-    computedFileSizeAfter,
-  } = entry
+  const { kind, offset, length, serial, data, groupId } = entry
   if (
     kind !== 'INSERT' &&
     kind !== 'DELETE' &&
@@ -455,65 +614,41 @@ function normalizeChangeLogEntry(
     `change log entry ${index} length`
   )
 
-  if (kind === 'TRANSFORM' && data !== undefined && data !== '') {
-    throw new Error(`Change log entry ${index} TRANSFORM does not carry data`)
-  }
-
   const dataBytes =
-    kind === 'TRANSFORM'
-      ? new Uint8Array(0)
-      : typeof data === 'string'
-        ? parseInputData(data, 'hex')
-        : new Uint8Array(0)
-  if ((kind === 'INSERT' || kind === 'OVERWRITE') && dataBytes.length === 0) {
+    typeof data === 'string' ? parseInputData(data, 'hex') : new Uint8Array(0)
+  if (
+    (kind === 'INSERT' || kind === 'DELETE' || kind === 'OVERWRITE') &&
+    dataBytes.length === 0
+  ) {
     throw new Error(`Change log entry ${index} ${kind} requires data`)
   }
+  if (kind === 'DELETE' && dataBytes.length !== normalizedLength) {
+    throw new Error(`Change log entry ${index} DELETE data length mismatch`)
+  }
 
-  const normalized: ChangeLogEntry = {
+  const normalized: NormalizedChangeLogEntry = {
     kind,
     offset: normalizedOffset,
     length: normalizedLength,
     data: Buffer.from(dataBytes).toString('hex'),
   }
   if (kind === 'TRANSFORM') {
-    if (typeof transformId !== 'string' || !transformId.trim()) {
+    const legacyFields = [
+      'transformId',
+      'optionsJson',
+      'replacementLength',
+      'computedFileSizeBefore',
+      'computedFileSizeAfter',
+    ].filter((field) => Object.prototype.hasOwnProperty.call(entry, field))
+    if (legacyFields.length > 0) {
       throw new Error(
-        `Change log entry ${index} TRANSFORM requires transformId`
+        `Change log entry ${index} TRANSFORM metadata must be carried in data`
       )
     }
-    normalized.transformId = transformId.trim()
-
-    if (optionsJson !== undefined) {
-      if (typeof optionsJson !== 'string') {
-        throw new Error(
-          `Change log entry ${index} optionsJson must be a string`
-        )
-      }
-      normalized.optionsJson = optionsJson
-    }
-
-    for (const [key, value] of Object.entries({
-      replacementLength,
-      computedFileSizeBefore,
-      computedFileSizeAfter,
-    }) as Array<
-      [
-        (
-          | 'replacementLength'
-          | 'computedFileSizeBefore'
-          | 'computedFileSizeAfter'
-        ),
-        unknown,
-      ]
-    >) {
-      if (value === undefined) {
-        continue
-      }
-      normalized[key] = normalizeNonNegativeInt64ForClient(
-        value,
-        `change log entry ${index} ${key}`
-      )
-    }
+    normalized.transformDescriptor = parseTransformPrimitiveDescriptor(
+      dataBytes,
+      `Change log entry ${index} TRANSFORM data`
+    )
   }
   if (serial !== undefined) {
     normalized.serial = normalizePositiveInt64ForClient(
@@ -591,6 +726,14 @@ async function readChangeLogFile(inputPath: string): Promise<ParsedChangeLog> {
   return normalizeChangeLogEntries(parsed)
 }
 
+async function readChangeLogRequest(
+  request: PreviewChangeLogRequest
+): Promise<ParsedChangeLog> {
+  return request.inputPath
+    ? await readChangeLogFile(request.inputPath)
+    : normalizeChangeLogEntries(request.changes)
+}
+
 function changeDetailsToLogEntry(
   change: Awaited<ReturnType<typeof getChangeDetails>>
 ): ChangeLogEntry {
@@ -609,20 +752,31 @@ function changeDetailsToLogEntry(
     if (!transform?.transformId) {
       throw new Error('Transform change is missing transform metadata')
     }
+    const data = change.getData_asU8()
+    const descriptor = parseTransformPrimitiveDescriptor(
+      data,
+      'Transform change data'
+    )
+    if (transform.transformId !== descriptor.transformId) {
+      throw new Error('Transform change metadata does not match data')
+    }
+    if (
+      transform.optionsJson !== undefined &&
+      !transformOptionsMatchDescriptor(
+        transform.optionsJson,
+        descriptor.optionsJson,
+        'Transform change optionsJson'
+      )
+    ) {
+      throw new Error('Transform change options metadata does not match data')
+    }
 
     return {
       serial: change.getSerial(),
       kind,
       offset: change.getOffset(),
       length: change.getLength(),
-      data: '',
-      transformId: transform.transformId,
-      ...(transform.optionsJson !== undefined
-        ? { optionsJson: transform.optionsJson }
-        : {}),
-      replacementLength: transform.replacementLength,
-      computedFileSizeBefore: transform.computedFileSizeBefore,
-      computedFileSizeAfter: transform.computedFileSizeAfter,
+      data: Buffer.from(data).toString('hex'),
     }
   }
 
@@ -631,9 +785,7 @@ function changeDetailsToLogEntry(
     kind,
     offset: change.getOffset(),
     length: kind === 'INSERT' ? 0 : change.getLength(),
-    data: Buffer.from(
-      kind === 'DELETE' ? new Uint8Array(0) : change.getData_asU8()
-    ).toString('hex'),
+    data: Buffer.from(change.getData_asU8()).toString('hex'),
   }
 }
 
@@ -683,27 +835,14 @@ async function rollbackSessionToChangeCount(
   sessionId: string,
   targetChangeCount: number
 ): Promise<boolean> {
-  let currentChangeCount = await getChangeCount(sessionId)
-  let rolledBack = false
-  while (currentChangeCount > targetChangeCount) {
-    await undo(sessionId)
-    rolledBack = true
-    const nextChangeCount = await getChangeCount(sessionId)
-    if (nextChangeCount >= currentChangeCount) {
-      throw new Error(
-        `Rollback did not reduce change count from ${currentChangeCount}`
-      )
-    }
-    currentChangeCount = nextChangeCount
-  }
-
-  if (currentChangeCount !== targetChangeCount) {
+  const response = await restoreToChangeCount(sessionId, targetChangeCount)
+  if (response.changeCount !== targetChangeCount) {
     throw new Error(
-      `Rollback ended at change count ${currentChangeCount}, expected ${targetChangeCount}`
+      `Rollback ended at change count ${response.changeCount}, expected ${targetChangeCount}`
     )
   }
 
-  return rolledBack
+  return response.discardedChangeCount > 0 || response.discardedUndoCount > 0
 }
 
 function changeLogApplyErrorWithRollbackFailure(
@@ -757,6 +896,17 @@ function fingerprintsMatch(
   )
 }
 
+function changeLogFingerprintMismatchMessage(
+  actual: ChangeLogFingerprint,
+  expected: ChangeLogFingerprint,
+  phase: 'before' | 'after'
+): string {
+  const preposition = phase === 'before' ? 'before applying' : 'after applying'
+  return `Change log ${phase} fingerprint mismatch ${preposition}: expected ${fingerprintLabel(
+    expected
+  )}, actual ${fingerprintLabel(actual)}`
+}
+
 async function assertCurrentSessionFingerprint(
   sessionId: string,
   expected: ChangeLogFingerprint,
@@ -771,12 +921,7 @@ async function assertCurrentSessionFingerprint(
     return
   }
 
-  const preposition = phase === 'before' ? 'before applying' : 'after applying'
-  throw new Error(
-    `Change log ${phase} fingerprint mismatch ${preposition}: expected ${fingerprintLabel(
-      expected
-    )}, actual ${fingerprintLabel(actual)}`
-  )
+  throw new Error(changeLogFingerprintMismatchMessage(actual, expected, phase))
 }
 
 async function assertChangeLogExportStable(
@@ -805,6 +950,119 @@ async function assertChangeLogExportStable(
   }
 }
 
+function createPrimitiveCounts(
+  changes: NormalizedChangeLogEntry[]
+): ChangeLogPrimitiveCounts {
+  const counts: ChangeLogPrimitiveCounts = {
+    total: changes.length,
+    insert: 0,
+    delete: 0,
+    overwrite: 0,
+    replace: 0,
+    transform: 0,
+  }
+  for (const change of changes) {
+    switch (change.kind) {
+      case 'INSERT':
+        counts.insert += 1
+        break
+      case 'DELETE':
+        counts.delete += 1
+        break
+      case 'OVERWRITE':
+        counts.overwrite += 1
+        break
+      case 'REPLACE':
+        counts.replace += 1
+        break
+      case 'TRANSFORM':
+        counts.transform += 1
+        break
+    }
+  }
+  return counts
+}
+
+function createExpectedSizeDelta(parsed: ParsedChangeLog): ChangeLogSizeDelta {
+  const beforeByteLength = parseNonNegativeInt64(
+    parsed.before.byteLength,
+    'Change log before.byteLength'
+  )
+  const afterByteLength = parseNonNegativeInt64(
+    parsed.after.byteLength,
+    'Change log after.byteLength'
+  )
+  return {
+    beforeByteLength: beforeByteLength.toString(),
+    afterByteLength: afterByteLength.toString(),
+    deltaBytes: (afterByteLength - beforeByteLength).toString(),
+  }
+}
+
+function createTransformDescriptorPreviews(
+  changes: NormalizedChangeLogEntry[]
+): ChangeLogTransformDescriptorPreview[] {
+  return changes.flatMap((change, index) => {
+    if (change.kind !== 'TRANSFORM' || !change.transformDescriptor) {
+      return []
+    }
+    return [
+      {
+        index,
+        ...(change.serial !== undefined
+          ? { serial: int64ToDecimal(change.serial) }
+          : {}),
+        offset: int64ToDecimal(change.offset),
+        length: int64ToDecimal(change.length),
+        transformId: change.transformDescriptor.transformId,
+        ...(change.transformDescriptor.optionsJson
+          ? { optionsJson: change.transformDescriptor.optionsJson }
+          : {}),
+        descriptorSource: 'data' as const,
+      },
+    ]
+  })
+}
+
+function createRequiredPlugins(
+  descriptors: ChangeLogTransformDescriptorPreview[]
+): string[] {
+  return Array.from(
+    new Set(descriptors.map((descriptor) => descriptor.transformId))
+  ).sort()
+}
+
+function uniqueSortedStrings(values: string[]): string[] {
+  return Array.from(new Set(values)).sort()
+}
+
+function replayPreviewErrorMessage(preview: ChangeLogPreview): string {
+  const issueSummary = preview.safetyIssues
+    .filter((issue) => issue.severity === 'error')
+    .map((issue) => issue.message)
+    .join('; ')
+  return issueSummary
+    ? `Change log preview found unsafe replay: ${issueSummary}`
+    : 'Change log preview found unsafe replay'
+}
+
+function replayErrorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error)
+}
+
+export class ChangeLogReplayError extends Error {
+  readonly result: ApplyChangeLogResult
+
+  constructor(message: string, result: ApplyChangeLogResult, cause?: unknown) {
+    super(message)
+    this.name = 'ChangeLogReplayError'
+    this.result = result
+    if (cause !== undefined) {
+      ;(this as Error & { cause?: unknown }).cause = cause
+    }
+  }
+}
+
 function createChangeLogDocument(
   changes: ChangeLogEntry[],
   sourceChangeCount: number,
@@ -829,27 +1087,19 @@ function createChangeLogDocument(
 }
 
 function serializeChangeLogEntry(entry: ChangeLogEntry): ChangeLogEntry {
-  return {
-    ...entry,
-    ...(entry.serial !== undefined
-      ? { serial: int64ToDecimal(entry.serial) }
-      : {}),
+  const serialized: ChangeLogEntry = {
+    kind: entry.kind,
     offset: int64ToDecimal(entry.offset),
     length: int64ToDecimal(entry.length),
-    ...(entry.replacementLength !== undefined
-      ? { replacementLength: int64ToDecimal(entry.replacementLength) }
-      : {}),
-    ...(entry.computedFileSizeBefore !== undefined
-      ? {
-          computedFileSizeBefore: int64ToDecimal(entry.computedFileSizeBefore),
-        }
-      : {}),
-    ...(entry.computedFileSizeAfter !== undefined
-      ? {
-          computedFileSizeAfter: int64ToDecimal(entry.computedFileSizeAfter),
-        }
-      : {}),
+    data: entry.data,
   }
+  if (entry.serial !== undefined) {
+    serialized.serial = int64ToDecimal(entry.serial)
+  }
+  if (entry.groupId) {
+    serialized.groupId = entry.groupId
+  }
+  return serialized
 }
 
 function createChangeLogSummary(
@@ -1150,6 +1400,121 @@ export class OmegaEditToolkit {
     return counts[0]?.getCount() ?? 0
   }
 
+  private async createChangeLogPreview(
+    sessionId: string,
+    parsed: ParsedChangeLog,
+    inputPath: string | undefined,
+    inspectSession: boolean
+  ): Promise<ChangeLogPreview> {
+    const safetyIssues: ChangeLogSafetyIssue[] = []
+    const transformDescriptors = createTransformDescriptorPreviews(
+      parsed.changes
+    )
+    const requiredPlugins = createRequiredPlugins(transformDescriptors)
+    let missingPlugins: string[] = []
+    let current: ChangeLogFingerprint | undefined
+    let rollbackProtection: ChangeLogRollbackProtection = {
+      available: false,
+      strategy: 'not-inspected',
+    }
+
+    if (parsed.unavailableChangeSerials.length > 0) {
+      safetyIssues.push({
+        severity: 'error',
+        code: 'unavailable-primitives',
+        message: `${incompleteChangeLogMessage(
+          'apply'
+        )}${describeUnavailableSerials(parsed.unavailableChangeSerials)}`,
+      })
+    }
+
+    if (inspectSession) {
+      current = await getChangeLogFingerprint(
+        sessionId,
+        SessionFingerprintContent.COMPUTED,
+        parsed.before.digest.algorithm
+      )
+      if (!fingerprintsMatch(current, parsed.before)) {
+        safetyIssues.push({
+          severity: 'error',
+          code: 'before-fingerprint-mismatch',
+          message: changeLogFingerprintMismatchMessage(
+            current,
+            parsed.before,
+            'before'
+          ),
+        })
+      }
+
+      const [targetChangeCount, checkpointCount, plugins] = await Promise.all([
+        getChangeCount(sessionId),
+        this.getCheckpointCount(sessionId),
+        listClientTransformPlugins(),
+      ])
+      rollbackProtection = {
+        available: true,
+        strategy: 'restore-to-change-count',
+        targetChangeCount,
+        checkpointCount,
+      }
+
+      const installedPluginIds = new Set(plugins.map((plugin) => plugin.id))
+      missingPlugins = requiredPlugins.filter(
+        (pluginId) => !installedPluginIds.has(pluginId)
+      )
+      for (const pluginId of missingPlugins) {
+        safetyIssues.push({
+          severity: 'error',
+          code: 'missing-transform-plugin',
+          message: `Required transform plugin is unavailable: ${pluginId}`,
+        })
+      }
+    }
+
+    const unavailableSerials = parsed.unavailableChangeSerials.map((serial) =>
+      serial.toString()
+    )
+    const errorCount = safetyIssues.filter(
+      (issue) => issue.severity === 'error'
+    ).length
+
+    return {
+      sessionId,
+      ...(inputPath ? { inputPath } : {}),
+      format: CHANGE_LOG_FORMAT,
+      version: CHANGE_LOG_VERSION,
+      complete: parsed.complete,
+      canApply: errorCount === 0,
+      primitiveCounts: createPrimitiveCounts(parsed.changes),
+      before: parsed.before,
+      after: parsed.after,
+      ...(current ? { current } : {}),
+      expectedSize: createExpectedSizeDelta(parsed),
+      transformDescriptors,
+      requiredPlugins,
+      missingPlugins: uniqueSortedStrings(missingPlugins),
+      unavailablePrimitives: {
+        count: parsed.unavailableChangeCount,
+        serials: unavailableSerials,
+      },
+      rollbackProtection,
+      safetyIssues,
+    }
+  }
+
+  async previewChangeLog(
+    request: PreviewChangeLogRequest
+  ): Promise<ChangeLogPreview> {
+    const parsed = await readChangeLogRequest(request)
+    await this.ensureServerRunning()
+    return await this.createChangeLogPreview(
+      request.sessionId,
+      parsed,
+      request.inputPath,
+      true
+    )
+  }
+
   async createCheckpoint(sessionId: string): Promise<CheckpointResult> {
     await this.ensureServerRunning()
     return {
@@ -1274,35 +1639,83 @@ export class OmegaEditToolkit {
   async applyChangeLog(
     request: ApplyChangeLogRequest
   ): Promise<ApplyChangeLogResult> {
-    const parsed = request.inputPath
-      ? await readChangeLogFile(request.inputPath)
-      : normalizeChangeLogEntries(request.changes)
+    const parsed = await readChangeLogRequest(request)
     const { changes } = parsed
+    const inputChangeCount = changes.length
 
     if (request.dryRun) {
+      const preview = await this.createChangeLogPreview(
+        request.sessionId,
+        parsed,
+        request.inputPath,
+        false
+      )
       return {
         sessionId: request.sessionId,
         applied: false,
+        appliedCount: 0,
         changeCount: 0,
-        inputChangeCount: changes.length,
+        inputChangeCount,
         inputPath: request.inputPath,
+        preview,
+        rollback: {
+          attempted: false,
+        },
       }
     }
 
     await this.ensureServerRunning()
+    const preview = await this.createChangeLogPreview(
+      request.sessionId,
+      parsed,
+      request.inputPath,
+      true
+    )
 
-    if (parsed.before) {
-      await assertCurrentSessionFingerprint(
+    const startChangeCount =
+      preview.rollbackProtection.targetChangeCount ??
+      (await getChangeCount(request.sessionId))
+    const getFinalFingerprint = async () =>
+      await getChangeLogFingerprint(
         request.sessionId,
-        parsed.before,
-        'before'
+        SessionFingerprintContent.COMPUTED,
+        parsed.after.digest.algorithm
+      ).catch(() => undefined)
+    const createReplayResult = (
+      applied: boolean,
+      appliedCount: number,
+      rollback: ApplyChangeLogResult['rollback'],
+      finalFingerprint?: ChangeLogFingerprint
+    ): ApplyChangeLogResult => ({
+      sessionId: request.sessionId,
+      applied,
+      appliedCount,
+      changeCount: appliedCount,
+      inputChangeCount,
+      inputPath: request.inputPath,
+      preview,
+      rollback,
+      ...(finalFingerprint ? { finalFingerprint } : {}),
+    })
+
+    if (!preview.canApply) {
+      throw new ChangeLogReplayError(
+        replayPreviewErrorMessage(preview),
+        createReplayResult(
+          false,
+          0,
+          {
+            attempted: false,
+            targetChangeCount: startChangeCount,
+          },
+          preview.current
+        )
       )
     }
 
     let appliedChangeCount = 0
-    const startChangeCount = await getChangeCount(request.sessionId)
     try {
-      const applyChange = async (change: ChangeLogEntry) => {
+      const applyChange = async (change: NormalizedChangeLogEntry) => {
         const offset = normalizeNonNegativeInt64ForClient(
           change.offset,
           'change log entry offset'
@@ -1338,73 +1751,47 @@ export class OmegaEditToolkit {
             )
             return true
           case 'TRANSFORM': {
-            if (!change.transformId) {
-              throw new Error('TRANSFORM change requires transformId')
+            const descriptor = change.transformDescriptor
+            if (!descriptor) {
+              throw new Error('TRANSFORM change data was not normalized')
             }
-            const expectedSizeBefore =
-              change.computedFileSizeBefore !== undefined
-                ? normalizeNonNegativeInt64ForClient(
-                    change.computedFileSizeBefore,
-                    'change log entry computedFileSizeBefore'
-                  )
-                : undefined
-            if (expectedSizeBefore !== undefined) {
-              const actualSizeBefore = await getComputedFileSize(
-                request.sessionId
-              )
-              if (actualSizeBefore !== expectedSizeBefore) {
-                throw new Error(
-                  `TRANSFORM ${change.transformId} expected pre-transform size ${expectedSizeBefore}, found ${actualSizeBefore}`
-                )
-              }
-            }
+            const computedFileSizeBefore = await getComputedFileSize(
+              request.sessionId
+            )
             const response = await applyClientTransformPlugin(
               request.sessionId,
-              change.transformId,
+              descriptor.transformId,
               offset,
               length,
-              change.optionsJson
+              descriptor.optionsJson
             )
             if (!response.contentChanged) {
               throw new Error(
-                `TRANSFORM ${change.transformId} replay produced no content change`
+                `TRANSFORM ${descriptor.transformId} replay produced no content change`
               )
             }
-            if (
-              change.replacementLength !== undefined &&
-              response.replacementLength !==
-                normalizeNonNegativeInt64ForClient(
-                  change.replacementLength,
-                  'change log entry replacementLength'
-                )
-            ) {
-              throw new Error(
-                `TRANSFORM ${change.transformId} replacement length mismatch`
-              )
-            }
-            if (
-              change.computedFileSizeAfter !== undefined &&
-              response.computedFileSize !==
-                normalizeNonNegativeInt64ForClient(
-                  change.computedFileSizeAfter,
-                  'change log entry computedFileSizeAfter'
-                )
-            ) {
-              throw new Error(
-                `TRANSFORM ${change.transformId} post-transform size mismatch`
-              )
-            }
+            const computedFileSizeAfter = await getComputedFileSize(
+              request.sessionId
+            )
+            assertTransformReplayResponse(
+              descriptor,
+              offset,
+              length,
+              computedFileSizeBefore,
+              computedFileSizeAfter,
+              response
+            )
             return true
           }
         }
       }
-      const applyAndCountChange = async (change: ChangeLogEntry) => {
+      const applyAndCountChange = async (change: NormalizedChangeLogEntry) => {
         if (await applyChange(change)) {
           appliedChangeCount += 1
         }
       }
       if (changes.length > 0) {
-        let pendingBatch: ChangeLogEntry[] = []
+        let pendingBatch: NormalizedChangeLogEntry[] = []
         const flushBatch = async () => {
           if (pendingBatch.length === 0) {
             return
@@ -1430,28 +1817,75 @@ export class OmegaEditToolkit {
         await flushBatch()
       }
 
-      if (parsed.after) {
-        await assertCurrentSessionFingerprint(
+      await assertCurrentSessionFingerprint(
+        request.sessionId,
+        parsed.after,
+        'after'
+      )
+    } catch (error) {
+      let finalFingerprint: ChangeLogFingerprint | undefined
+      try {
+        const rolledBack = await rollbackSessionToChangeCount(
           request.sessionId,
-          parsed.after,
-          'after'
+          startChangeCount
+        )
+        finalFingerprint = await getFinalFingerprint()
+        throw new ChangeLogReplayError(
+          replayErrorMessage(error),
+          createReplayResult(
+            false,
+            appliedChangeCount,
+            {
+              attempted: true,
+              succeeded: true,
+              rolledBack,
+              targetChangeCount: startChangeCount,
+            },
+            finalFingerprint
+          ),
+          error
+        )
+      } catch (rollbackError) {
+        if (rollbackError instanceof ChangeLogReplayError) {
+          throw rollbackError
+        }
+        finalFingerprint = await getFinalFingerprint()
+        const combinedError = changeLogApplyErrorWithRollbackFailure(
+          error,
+          rollbackError
+        )
+        throw new ChangeLogReplayError(
+          combinedError.message,
+          createReplayResult(
+            false,
+            appliedChangeCount,
+            {
+              attempted: true,
+              succeeded: false,
+              targetChangeCount: startChangeCount,
+              error: replayErrorMessage(rollbackError),
+            },
+            finalFingerprint
+          ),
+          error
         )
       }
-    } catch (error) {
-      try {
-        await rollbackSessionToChangeCount(request.sessionId, startChangeCount)
-      } catch (rollbackError) {
-        throw changeLogApplyErrorWithRollbackFailure(error, rollbackError)
-      }
-      throw error
     }
 
+    const finalFingerprint = await getFinalFingerprint()
     return {
       sessionId: request.sessionId,
       applied: true,
+      appliedCount: appliedChangeCount,
       changeCount: appliedChangeCount,
-      inputChangeCount: changes.length,
+      inputChangeCount,
       inputPath: request.inputPath,
+      preview,
+      rollback: {
+        attempted: false,
+        targetChangeCount: startChangeCount,
+      },
+      ...(finalFingerprint ? { finalFingerprint } : {}),
     }
   }
 
@@ -1712,7 +2146,8 @@ export class OmegaEditToolkit {
       request.pluginId,
       offset,
       length,
-      request.optionsJson
+      request.optionsJson,
+      { signal: request.signal }
     )
 
     return {

@@ -5,7 +5,7 @@
   "omegaEdit.configuration.title": "Ωedit™ Data Editor",
   "omegaEdit.configuration.serverPort.description": "TCP port for the OmegaEdit gRPC server; explicitly setting it opts out of Unix socket transport on macOS/Linux",
   "omegaEdit.configuration.logLevel.description": "Log level for the OmegaEdit client",
-  "omegaEdit.configuration.bytesPerRow.description": "Number of bytes displayed per row in the hex view. Use 0 to automatically fit the editor width; fixed values must be 8 through 64.",
+  "omegaEdit.configuration.bytesPerRow.description": "Number of bytes displayed per row in the hex view. Values must be 8 through 64.",
   "omegaEdit.configuration.language.description": "Language for the Svelte data editor UI. Use auto to follow VS Code's display language.",
   "omegaEdit.configuration.transformPluginDirectories.description": "Directories containing OmegaEdit transform plugin shared libraries",
   "omegaEdit.command.openInHexEditor.title": "OmegaEdit: Open in Data Editor",
@@ -17,6 +17,7 @@
   "omegaEdit.command.toggleInsertDirection.title": "OmegaEdit: Toggle Insert Direction",
   "omegaEdit.command.refreshTransformPlugins.title": "OmegaEdit: Refresh Transform List",
   "omegaEdit.command.exportChangeLog.title": "OmegaEdit: Export Change Log",
+  "omegaEdit.command.previewChangeLog.title": "OmegaEdit: Preview Change Log",
   "omegaEdit.command.applyChangeLog.title": "OmegaEdit: Apply Change Log",
   "omegaEdit.command.rollbackSession.title": "OmegaEdit: Roll Back Session",
   "omegaEdit.command.rollbackCheckpoint.title": "OmegaEdit: Roll Back Last Checkpoint",
@@ -24,5 +25,7 @@
   "omegaEdit.command.createCheckpoint.title": "OmegaEdit: Create Checkpoint",
   "omegaEdit.command.getEditorState.title": "OmegaEdit: Get Editor State",
   "omegaEdit.command.setExternalHighlights.title": "OmegaEdit: Set External Highlights",
-  "omegaEdit.command.clearExternalHighlights.title": "OmegaEdit: Clear External Highlights"
+  "omegaEdit.command.clearExternalHighlights.title": "OmegaEdit: Clear External Highlights",
+  "omegaEdit.command.loadRangeMap.title": "OmegaEdit: Load Range Map",
+  "omegaEdit.command.unloadRangeMap.title": "OmegaEdit: Unload Range Map"
 }

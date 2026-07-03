@@ -17,7 +17,8 @@
 
 std::string omega_change_get_string(const omega_change_t *change_ptr) noexcept {
     if (const auto change_bytes = omega_change_get_bytes(change_ptr)) {
-        return {reinterpret_cast<const char *>(change_bytes), static_cast<size_t>(omega_change_get_length(change_ptr))};
+        return {reinterpret_cast<const char *>(change_bytes),
+                static_cast<size_t>(omega_change_get_data_length(change_ptr))};
     }
     return {};
 }

@@ -10,14 +10,15 @@
     MAX_BYTES_PER_ROW,
     MAX_ANALYSIS_PROFILE_BYTES,
     normalizeBytesPerRow,
-    normalizeBytesPerRowMode,
     type BytesPerRow,
     type BytesPerRowMode,
+    type ExternalHighlightKind,
     type HostToWebviewMessage,
     type InsertDirection,
     type ServerHealthMessage,
     type WebviewEditorUiState,
     type WebviewExternalHighlight,
+    type WebviewRangeMapNode,
     type WebviewSessionContentInfo,
     type WebviewSessionContentSource,
     type WebviewTransformPlugin,
@@ -32,6 +33,17 @@
   const DEFAULT_VISIBLE_ROWS = 16
   const INTERNAL_HEX_CLIPBOARD_FORMAT = 'application/x-omega-edit-hex'
   const TRANSFORM_RESULT_HISTORY_LIMIT = 8
+  const MAX_PERSISTED_RANGE_MAP_NODES = 5000
+  const MAX_PERSISTED_RANGE_MAP_DEPTH = 64
+  const MAX_PERSISTED_RANGE_MAP_TEXT_LENGTH = 4096
+  const EXTERNAL_HIGHLIGHT_KINDS: readonly ExternalHighlightKind[] = [
+    'current',
+    'parsed',
+    'error',
+    'warning',
+    'breakpoint',
+    'secondary',
+  ]
 
   type SearchResultsMessage = Extract<
     HostToWebviewMessage,
@@ -97,7 +109,7 @@
 
   const DEFAULT_ANALYSIS_SECTION_ORDER: AnalysisSectionOrder = {
     profile: ['viewport', 'classes', 'data', 'frequency'],
-    structure: ['visible', 'history', 'timing', 'server'],
+    structure: ['rangeMap', 'visible', 'history', 'timing', 'server'],
   }
 
   type ProfilerViewportSnapshot = ViewportDataMessage['profile'] & {
@@ -116,7 +128,7 @@
 
   let {
     initialBytesPerRow = 16,
-    initialBytesPerRowMode = 'fixed',
+    initialBytesPerRowMode: _initialBytesPerRowMode = 'fixed',
   }: Props = $props()
 
   const restoredState = getPreviewState()
@@ -127,15 +139,10 @@
   const configuredBytesPerRow = normalizeBytesPerRow(
     untrack(() => initialBytesPerRow)
   )
-  const configuredBytesPerRowMode = normalizeBytesPerRowMode(
-    untrack(() => initialBytesPerRowMode)
-  )
-  let bytesPerRowMode = $state<BytesPerRowMode>(configuredBytesPerRowMode)
+  let bytesPerRowMode = $state<BytesPerRowMode>('fixed')
   let bytesPerRow = $state<BytesPerRow>(
     normalizeBytesPerRow(
-      configuredBytesPerRowMode === 'auto'
-        ? restoredState?.bytesPerRow ?? configuredBytesPerRow
-        : configuredBytesPerRow
+      restoredState?.bytesPerRow ?? configuredBytesPerRow
     )
   )
   const initialFileSize = restoredViewportSnapshot?.fileSize ?? 0
@@ -163,7 +170,7 @@
   let inspectorHighlightStart = $state(-1)
   let inspectorHighlightEnd = $state(-1)
   let inspectorExpanded = $state(true)
-  let searchPanelVisible = $state(restoredState?.searchPanelVisible ?? true)
+  let searchPanelVisible = $state(restoredState?.searchPanelVisible ?? false)
   let profilerExpanded = $state(restoredState?.profilerExpanded ?? true)
   let profilerMode = $state<AnalysisMode>('profile')
   let analysisSectionOrder = $state<AnalysisSectionOrder>(
@@ -178,6 +185,7 @@
   let transformPluginError = $state('')
   let transformFeedback = $state('')
   let transformInFlight = $state(false)
+  let transformCancelable = $state(false)
   let transformResult = $state<TransformResultState | undefined>(undefined)
   let transformResultHistory = $state<TransformResultState[]>([])
   let transformResultSequence = $state(0)
@@ -191,6 +199,9 @@
   ])
   let externalHighlights = $state<WebviewExternalHighlight[]>(
     restoredViewportSnapshot?.externalHighlights ?? []
+  )
+  let rangeMapTree = $state<WebviewRangeMapNode[]>(
+    restoredViewportSnapshot?.rangeMapTree ?? []
   )
   let viewportSnapshot = $state<PersistedViewportSnapshot | undefined>(
     restoredViewportSnapshot
@@ -224,7 +235,6 @@
   let replaceMessage = $state('')
   let clipboardMessage = $state('')
   let lastPostedEditorStateKey = $state('')
-  let lastPostedAutoFitBytesPerRow = $state<number | undefined>(undefined)
 
   const selectionStart = $derived(
     selectionAnchor >= 0 && selectedOffset >= 0
@@ -359,50 +369,30 @@
     return source.slice(start, start + rowWidth * rows)
   }
 
-  function setBytesPerRow(bytes: BytesPerRow): void {
+  function applyBytesPerRow(
+    bytes: BytesPerRow,
+    options: { mode: BytesPerRowMode; persist: boolean }
+  ): void {
     const normalizedBytes = normalizeBytesPerRow(bytes)
-    bytesPerRowMode = 'fixed'
+    bytesPerRowMode = options.mode
     bytesPerRow = normalizedBytes
-    lastPostedAutoFitBytesPerRow = undefined
     savePreviewState({
       bytesPerRow: normalizedBytes,
       bytesPerRowMode,
     })
-    postToHost({ type: 'setBytesPerRow', bytesPerRow: normalizedBytes })
-  }
-
-  function setBytesPerRowMode(mode: BytesPerRowMode): void {
-    const normalizedMode = normalizeBytesPerRowMode(mode)
-    bytesPerRowMode = normalizedMode
-    lastPostedAutoFitBytesPerRow = undefined
-    savePreviewState({ bytesPerRowMode })
-    if (normalizedMode === 'auto') {
-      postToHost({ type: 'setBytesPerRowMode', mode: 'auto' })
-    } else {
-      setBytesPerRow(bytesPerRow)
-    }
-  }
-
-  function applyAutoFitBytesPerRow(bytes: BytesPerRow): void {
-    if (bytesPerRowMode !== 'auto') {
-      return
-    }
-
-    const normalizedBytes = normalizeBytesPerRow(bytes)
-    if (normalizedBytes !== bytesPerRow) {
-      bytesPerRow = normalizedBytes
-      savePreviewState({ bytesPerRow: normalizedBytes })
-    }
-    if (lastPostedAutoFitBytesPerRow === normalizedBytes) {
-      return
-    }
-
-    lastPostedAutoFitBytesPerRow = normalizedBytes
     postToHost({
       type: 'setBytesPerRow',
       bytesPerRow: normalizedBytes,
-      persist: false,
+      ...(options.persist ? {} : { persist: false }),
     })
+  }
+
+  function setBytesPerRow(bytes: BytesPerRow): void {
+    applyBytesPerRow(bytes, { mode: 'fixed', persist: true })
+  }
+
+  function applyAutoFitBytesPerRow(bytes: BytesPerRow): void {
+    void bytes
   }
 
   function toggleProfilerExpanded(): void {
@@ -502,6 +492,7 @@
       externalHighlights: normalizeExternalHighlights(
         snapshot.externalHighlights
       ),
+      rangeMapTree: normalizeRangeMapTree(snapshot.rangeMapTree),
     }
   }
 
@@ -544,6 +535,97 @@
       (highlight): highlight is WebviewExternalHighlight =>
         Boolean(highlight) && typeof highlight === 'object'
     ) as WebviewExternalHighlight[]
+  }
+
+  function normalizeRangeMapTree(
+    value: unknown,
+    depth = 0,
+    budget = { remaining: MAX_PERSISTED_RANGE_MAP_NODES }
+  ): WebviewRangeMapNode[] {
+    if (!Array.isArray(value) || depth > MAX_PERSISTED_RANGE_MAP_DEPTH) {
+      return []
+    }
+
+    const nodes: WebviewRangeMapNode[] = []
+    for (const node of value) {
+      if (budget.remaining <= 0) {
+        break
+      }
+      const normalized = normalizeRangeMapNode(node, depth, budget)
+      if (normalized) {
+        nodes.push(normalized)
+      }
+    }
+    return nodes
+  }
+
+  function normalizeRangeMapNode(
+    value: unknown,
+    depth: number,
+    budget: { remaining: number }
+  ): WebviewRangeMapNode | undefined {
+    if (!value || typeof value !== 'object' || Array.isArray(value)) {
+      return undefined
+    }
+
+    const node = value as Record<string, unknown>
+    const id = safeRequiredRangeMapText(node.id)
+    const path = safeRequiredRangeMapText(node.path)
+    const label = safeRequiredRangeMapText(node.label)
+    const offset = safeInteger(node.offset)
+    const length = safeInteger(node.length)
+    const kind = safeExternalHighlightKind(node.kind)
+
+    if (
+      id === undefined ||
+      path === undefined ||
+      label === undefined ||
+      offset === undefined ||
+      length === undefined ||
+      kind === undefined
+    ) {
+      return undefined
+    }
+
+    budget.remaining -= 1
+    const source = safeOptionalRangeMapText(node.source)
+    const type = safeOptionalRangeMapText(node.type)
+    const valueText = safeOptionalRangeMapText(node.value)
+
+    return {
+      id,
+      path,
+      label,
+      offset,
+      length,
+      kind,
+      ...(source === undefined ? {} : { source }),
+      ...(type === undefined ? {} : { type }),
+      ...(valueText === undefined ? {} : { value: valueText }),
+      ...(node.stale === true ? { stale: true } : {}),
+      children: normalizeRangeMapTree(node.children, depth + 1, budget),
+    }
+  }
+
+  function safeRequiredRangeMapText(value: unknown): string | undefined {
+    const text = safeOptionalRangeMapText(value)
+    return text && text.length > 0 ? text : undefined
+  }
+
+  function safeOptionalRangeMapText(value: unknown): string | undefined {
+    return typeof value === 'string' &&
+      value.length <= MAX_PERSISTED_RANGE_MAP_TEXT_LENGTH
+      ? value
+      : undefined
+  }
+
+  function safeExternalHighlightKind(
+    value: unknown
+  ): ExternalHighlightKind | undefined {
+    return typeof value === 'string' &&
+      EXTERNAL_HIGHLIGHT_KINDS.includes(value as ExternalHighlightKind)
+      ? (value as ExternalHighlightKind)
+      : undefined
   }
 
   function normalizeAnalysisSectionOrder(
@@ -1505,6 +1587,14 @@
     postToHost({ type: 'requestTransformPlugins' })
   }
 
+  function loadRangeMap(): void {
+    postToHost({ type: 'loadRangeMap' })
+  }
+
+  function unloadRangeMap(): void {
+    postToHost({ type: 'unloadRangeMap' })
+  }
+
   function applyTransform(
     pluginId: string,
     contentSource: WebviewSessionContentSource,
@@ -1531,6 +1621,7 @@
 
     const plugin = transformPlugins.find((entry) => entry.id === pluginId)
     transformInFlight = true
+    transformCancelable = true
     transformFeedback = strings.transform.applying(plugin?.name || pluginId)
     transformResult = undefined
     postToHost({
@@ -1541,6 +1632,14 @@
       length,
       optionsJson,
     })
+  }
+
+  function cancelTransform(): void {
+    if (!transformInFlight || !transformCancelable) {
+      return
+    }
+    transformFeedback = strings.transform.cancelling
+    postToHost({ type: 'cancelTransform' })
   }
 
   function exportRange(offset: number, length: number): void {
@@ -1558,6 +1657,7 @@
     }
 
     transformInFlight = true
+    transformCancelable = false
     transformFeedback = strings.transform.exportingRange
     postToHost({ type: 'exportRange', offset, length })
   }
@@ -1572,6 +1672,7 @@
     }
 
     transformInFlight = true
+    transformCancelable = false
     transformFeedback = strings.transform.insertingFile
     postToHost({ type: 'insertFile', offset })
   }
@@ -1591,6 +1692,7 @@
     }
 
     transformInFlight = true
+    transformCancelable = false
     transformFeedback = strings.transform.replacingWithFile
     postToHost({ type: 'replaceRangeWithFile', offset, length })
   }
@@ -1601,6 +1703,7 @@
     }
 
     transformInFlight = true
+    transformCancelable = false
     transformFeedback = strings.transform.creatingCheckpoint
     postToHost({ type: 'createCheckpoint' })
   }
@@ -1611,6 +1714,7 @@
     }
 
     transformInFlight = true
+    transformCancelable = false
     transformFeedback = strings.transform.rollingBackCheckpoint
     postToHost({ type: 'rollbackCheckpoint' })
   }
@@ -1621,6 +1725,7 @@
     }
 
     transformInFlight = true
+    transformCancelable = false
     transformFeedback = strings.transform.restoringCheckpoint
     postToHost({ type: 'restoreCheckpoint' })
   }
@@ -1631,6 +1736,7 @@
     }
 
     transformInFlight = true
+    transformCancelable = false
     transformFeedback = strings.transform.exportingChangeLog
     postToHost({ type: 'exportChangeLog' })
   }
@@ -1641,6 +1747,7 @@
     }
 
     transformInFlight = true
+    transformCancelable = false
     transformFeedback = strings.transform.applyingChangeLog
     postToHost({ type: 'applyChangeLog' })
   }
@@ -1827,21 +1934,6 @@
       target instanceof HTMLTextAreaElement ||
       target instanceof HTMLSelectElement
     )
-  }
-
-  function historyShortcut(event: KeyboardEvent): 'undo' | 'redo' | undefined {
-    if ((!event.ctrlKey && !event.metaKey) || event.altKey) {
-      return undefined
-    }
-
-    const key = event.key.toLowerCase()
-    if (key === 'z') {
-      return event.shiftKey ? 'redo' : 'undo'
-    }
-    if (key === 'y' && !event.shiftKey) {
-      return 'redo'
-    }
-    return undefined
   }
 
   function normalizeHexInput(
@@ -2091,6 +2183,7 @@
 
     replaceMessage = ''
     transformInFlight = true
+    transformCancelable = false
     transformFeedback = strings.search.replacingAll
     postToHost({
       type: 'replaceAllMatches',
@@ -2257,6 +2350,7 @@
         viewportOffset = message.offset
         viewportData = message.data
         externalHighlights = message.externalHighlights
+        rangeMapTree = message.rangeMapTree
 
         if (
           requestedOffset !== undefined &&
@@ -2287,6 +2381,7 @@
           viewportOffset: message.offset,
           viewportData: message.data,
           externalHighlights: message.externalHighlights,
+          rangeMapTree: message.rangeMapTree,
         }
         savePreviewState()
         applyPendingSearchReveal()
@@ -2329,6 +2424,9 @@
         break
       case 'transformStatus':
         transformInFlight = message.inFlight
+        if (!message.inFlight) {
+          transformCancelable = false
+        }
         if (
           message.inFlight ||
           message.message ||
@@ -2362,6 +2460,7 @@
         break
       case 'replaceComplete': {
         transformInFlight = false
+        transformCancelable = false
         transformFeedback = ''
         const replacedCount = message.replacedCount ?? 0
         replaceMessage = strings.search.replaceSummary(replacedCount)
@@ -2399,6 +2498,7 @@
       }
       case 'transformComplete':
         transformInFlight = false
+        transformCancelable = false
         if (message.contentChanged) {
           clearSearchResults()
         }
@@ -2418,6 +2518,7 @@
         break
       case 'fileActionComplete':
         transformInFlight = false
+        transformCancelable = false
         transformFeedback = message.cancelled
           ? ''
           : describeFileActionComplete(message)
@@ -2441,6 +2542,7 @@
         break
       case 'sessionActionComplete':
         transformInFlight = false
+        transformCancelable = false
         transformFeedback = ''
         if (
           !message.cancelled &&
@@ -2465,6 +2567,21 @@
           }
           savePreviewState()
         }
+        break
+      case 'rangeMapTree':
+        rangeMapTree = message.tree
+        if (viewportSnapshot) {
+          viewportSnapshot = {
+            ...viewportSnapshot,
+            rangeMapTree: message.tree,
+          }
+          savePreviewState()
+        }
+        break
+      case 'bytesPerRow':
+        bytesPerRowMode = 'fixed'
+        bytesPerRow = normalizeBytesPerRow(message.bytesPerRow)
+        savePreviewState({ bytesPerRow, bytesPerRowMode })
         break
       case 'editMode':
         setInspectorEditMode(message.editMode)
@@ -2495,17 +2612,6 @@
       handleHostMessage(event.data)
     }
     const keyListener = (event: KeyboardEvent) => {
-      const historyAction = historyShortcut(event)
-      if (historyAction && !isEditableTarget(event.target)) {
-        event.preventDefault()
-        if (transformInFlight) {
-          clipboardMessage = strings.transform.inFlight
-          replaceMessage = strings.transform.inFlight
-          return
-        }
-        postToHost({ type: historyAction })
-        return
-      }
       if (
         event.defaultPrevented ||
         event.key !== 'Insert' ||
@@ -2558,6 +2664,7 @@
     {transformPluginsLoaded}
     {transformPluginsLoading}
     {transformInFlight}
+    {transformCancelable}
     {transformPluginError}
     {transformFeedback}
     transformResults={displayTransformResultHistory}
@@ -2568,11 +2675,11 @@
     {selectionEnd}
     {selectionLength}
     onBytesPerRow={setBytesPerRow}
-    onBytesPerRowMode={setBytesPerRowMode}
     onOffsetRadix={setOffsetRadix}
     onInsertDirection={setInsertDirection}
     onGoToOffset={goToOffset}
     onRequestTransforms={requestTransformPlugins}
+    onCancelTransform={cancelTransform}
     onApplyTransform={applyTransform}
     onExportRange={exportRange}
     onInsertFile={insertFile}
@@ -2633,7 +2740,7 @@
     {visibleOffset}
     scrollOffset={navigationOffset}
     {bytesPerRow}
-    autoFitBytesPerRow={bytesPerRowMode === 'auto'}
+    autoFitBytesPerRow={false}
     maxBytesPerRow={MAX_BYTES_PER_ROW}
     {offsetRadix}
     {selectedOffset}
@@ -2644,6 +2751,7 @@
     inspectorStart={inspectorHighlightStart}
     inspectorEnd={inspectorHighlightEnd}
     {externalHighlights}
+    {rangeMapTree}
     preparing={preparingFile}
     {activePane}
     editMode={inspectorEditMode}
@@ -2668,6 +2776,9 @@
     {undoCount}
     {redoCount}
     onSelect={selectOffset}
+    onSelectRangeMapNode={(node) => selectRange(node.offset, node.length)}
+    onLoadRangeMap={loadRangeMap}
+    onUnloadRangeMap={unloadRangeMap}
     onActivePaneChange={setActivePane}
     onMoveSelection={moveSelection}
     onJumpToBoundary={jumpToBoundary}

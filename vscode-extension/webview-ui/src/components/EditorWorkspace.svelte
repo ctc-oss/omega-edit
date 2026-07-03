@@ -5,6 +5,7 @@
     HostToWebviewMessage,
     ServerHealthMessage,
     WebviewExternalHighlight,
+    WebviewRangeMapNode,
   } from '../protocol'
   import { strings } from '../i18n'
   import FileScrollbar from './FileScrollbar.svelte'
@@ -49,6 +50,7 @@
     inspectorStart?: number
     inspectorEnd?: number
     externalHighlights?: WebviewExternalHighlight[]
+    rangeMapTree?: WebviewRangeMapNode[]
     preparing?: boolean
     activePane?: GridEditPane
     editMode?: InspectorEditMode
@@ -78,6 +80,9 @@
     readOnlyLabel?: string
     readOnlyTitle?: string
     onSelect: (offset: number, extend: boolean) => void
+    onSelectRangeMapNode: (node: WebviewRangeMapNode) => void
+    onLoadRangeMap: () => void
+    onUnloadRangeMap: () => void
     onActivePaneChange: (pane: GridEditPane) => void
     onMoveSelection: (delta: number, extend: boolean) => void
     onJumpToBoundary: (boundary: 'top' | 'bottom') => void
@@ -117,6 +122,7 @@
     inspectorStart = -1,
     inspectorEnd = -1,
     externalHighlights = [],
+    rangeMapTree = [],
     preparing = false,
     activePane = 'hex',
     editMode = 'insert',
@@ -146,6 +152,9 @@
     readOnlyLabel = strings.grid.readOnly,
     readOnlyTitle = readOnlyLabel,
     onSelect,
+    onSelectRangeMapNode,
+    onLoadRangeMap,
+    onUnloadRangeMap,
     onActivePaneChange,
     onMoveSelection,
     onJumpToBoundary,
@@ -164,6 +173,41 @@
 
   let gridScrollerElement = $state<HTMLDivElement>()
   let autoFitFrame = $state<number | undefined>(undefined)
+  let autoFitOverflowCap = $state<
+    { width: number; bytesPerRow: BytesPerRow } | undefined
+  >(undefined)
+  let hoveredExternalHighlightId = $state<string | undefined>(undefined)
+  let emphasizedExternalHighlightId = $state<string | undefined>(undefined)
+  const AUTO_FIT_WIDTH_GUARD_PX = 24
+  const activeExternalHighlightId = $derived(
+    hoveredExternalHighlightId ?? emphasizedExternalHighlightId
+  )
+
+  function setHoveredExternalHighlightId(id: string | undefined): void {
+    hoveredExternalHighlightId = id
+  }
+
+  function setEmphasizedExternalHighlightId(id: string | undefined): void {
+    emphasizedExternalHighlightId = id
+  }
+
+  function clearExternalHighlightEmphasis(): void {
+    emphasizedExternalHighlightId = undefined
+  }
+
+  function selectGridOffset(offset: number, extend: boolean): void {
+    clearExternalHighlightEmphasis()
+    onSelect(offset, extend)
+  }
+
+  function selectRangeMapNode(node: WebviewRangeMapNode): void {
+    clearExternalHighlightEmphasis()
+    onSelectRangeMapNode(node)
+  }
+
+  function externalHighlightExists(id: string | undefined): boolean {
+    return !!id && externalHighlights.some((highlight) => highlight.id === id)
+  }
 
   function measureAutoFitBytesPerRow(): BytesPerRow | undefined {
     if (!gridScrollerElement || !autoFitBytesPerRow || preparing) {
@@ -171,9 +215,8 @@
     }
 
     const grid = gridScrollerElement.querySelector('.preview-grid')
-    const row =
-      gridScrollerElement.querySelector('.grid-row') ||
-      gridScrollerElement.querySelector('.grid-header')
+    const header = gridScrollerElement.querySelector('.grid-header')
+    const row = gridScrollerElement.querySelector('.grid-row') || header
     const hexCells = row?.querySelector('.hex-cells, .hex-heading')
     const asciiCells = row?.querySelector('.ascii')
     const offsetCell = row?.querySelector('.offset, .offset-heading')
@@ -186,19 +229,71 @@
     const horizontalPadding =
       (Number.parseFloat(gridStyle.paddingLeft) || 0) +
       (Number.parseFloat(gridStyle.paddingRight) || 0)
-    const gap = Number.parseFloat(rowStyle.columnGap) || 0
+    const gapFromStyle = Number.parseFloat(rowStyle.columnGap)
     const hexWidth = hexCells.getBoundingClientRect().width
     const asciiWidth =
       asciiCells?.getBoundingClientRect().width ||
       Math.max(1, hexWidth / Math.max(1, bytesPerRow) / 3) * bytesPerRow
+    const measuredRowWidth = row.getBoundingClientRect().width
+    const measuredGap = Math.max(
+      0,
+      (measuredRowWidth -
+        offsetCell.getBoundingClientRect().width -
+        hexWidth -
+        asciiWidth) /
+        2
+    )
+    const gap = Number.isFinite(gapFromStyle) ? gapFromStyle : measuredGap
+    const hexByteWidth =
+      row.querySelector('.byte, .hex-heading span')?.getBoundingClientRect()
+        .width || hexWidth / Math.max(1, bytesPerRow)
+    const asciiByteWidth =
+      row.querySelector('.text-byte')?.getBoundingClientRect().width ||
+      asciiWidth / Math.max(1, bytesPerRow)
     const perByteWidth = Math.max(
       1,
-      (hexWidth + asciiWidth) / Math.max(1, bytesPerRow)
+      hexByteWidth + asciiByteWidth
     )
     const fixedWidth =
-      offsetCell.getBoundingClientRect().width + gap * 2 + horizontalPadding
+      Math.max(
+        offsetCell.getBoundingClientRect().width,
+        header
+          ?.querySelector('.offset-heading')
+          ?.getBoundingClientRect().width ?? 0
+      ) +
+      gap * 2 +
+      horizontalPadding +
+      AUTO_FIT_WIDTH_GUARD_PX
     const availableWidth = Math.max(0, gridScrollerElement.clientWidth)
+    const overflowWidth = Math.max(
+      0,
+      gridScrollerElement.scrollWidth - availableWidth
+    )
+    if (overflowWidth > 1) {
+      const overflowBytes = Math.ceil(overflowWidth / perByteWidth)
+      const cappedBytesPerRow = Math.max(
+        8,
+        Math.min(maxBytesPerRow, bytesPerRow - overflowBytes)
+      )
+      autoFitOverflowCap = {
+        width: availableWidth,
+        bytesPerRow: cappedBytesPerRow,
+      }
+      return cappedBytesPerRow
+    }
+
     const rawFit = Math.floor((availableWidth - fixedWidth) / perByteWidth)
+    if (
+      autoFitOverflowCap &&
+      Math.abs(availableWidth - autoFitOverflowCap.width) <= perByteWidth
+    ) {
+      return Math.max(
+        8,
+        Math.min(maxBytesPerRow, rawFit, autoFitOverflowCap.bytesPerRow)
+      )
+    }
+
+    autoFitOverflowCap = undefined
     return Math.max(8, Math.min(maxBytesPerRow, rawFit))
   }
 
@@ -225,12 +320,25 @@
 
   $effect(() => {
     if (
+      emphasizedExternalHighlightId &&
+      !externalHighlightExists(emphasizedExternalHighlightId)
+    ) {
+      emphasizedExternalHighlightId = undefined
+    }
+    if (
+      hoveredExternalHighlightId &&
+      !externalHighlightExists(hoveredExternalHighlightId)
+    ) {
+      hoveredExternalHighlightId = undefined
+    }
+  })
+
+  $effect(() => {
+    if (
       gridScrollerElement &&
       autoFitBytesPerRow &&
       !preparing &&
-      profilerExpanded !== undefined &&
-      bytesPerRow >= 0 &&
-      data.length >= 0
+      profilerExpanded !== undefined
     ) {
       queueAutoFitBytesPerRow()
     }
@@ -278,10 +386,11 @@
           inspectorStart={inspectorStart}
           inspectorEnd={inspectorEnd}
           {externalHighlights}
+          hoveredExternalHighlightId={activeExternalHighlightId}
           {pendingHexLabel}
           {canScrollUp}
           {canScrollDown}
-          onSelect={onSelect}
+          onSelect={selectGridOffset}
           onActivePaneChange={onActivePaneChange}
           onMoveSelection={onMoveSelection}
           onJumpToBoundary={onJumpToBoundary}
@@ -291,6 +400,7 @@
           onDeleteByte={onDeleteByte}
           readOnly={editDisabled}
           onVisibleRowsChange={onVisibleRowsChange}
+          onExternalHighlightHover={setHoveredExternalHighlightId}
           editMode={editMode}
         />
       </div>
@@ -301,7 +411,13 @@
         {visibleRows}
         {visibleByteCount}
         {offsetRadix}
+        {selectionStart}
+        {selectionEnd}
+        {externalHighlights}
+        hoveredExternalHighlightId={activeExternalHighlightId}
         onScrollTo={onScrollTo}
+        onExternalHighlightHover={setHoveredExternalHighlightId}
+        onExternalHighlightEmphasis={setEmphasizedExternalHighlightId}
       />
       {#if editDisabled}
         <div
@@ -330,6 +446,9 @@
     {visibleBytes}
     {selectedBytes}
     {selectionLength}
+    {selectionStart}
+    {selectionEnd}
+    hoveredExternalHighlightId={activeExternalHighlightId}
     {dataProfile}
     {viewportProfile}
     {serverHealth}
@@ -337,8 +456,13 @@
     {canRedo}
     {undoCount}
     {redoCount}
+    {rangeMapTree}
     onToggleExpanded={onToggleProfilerExpanded}
     onModeChange={onProfilerModeChange}
+    onSelectRangeMapNode={selectRangeMapNode}
+    onRangeMapNodeHover={setHoveredExternalHighlightId}
+    onLoadRangeMap={onLoadRangeMap}
+    onUnloadRangeMap={onUnloadRangeMap}
     onMoveSection={onMoveAnalysisSection}
     onReorderSection={onReorderAnalysisSection}
   />

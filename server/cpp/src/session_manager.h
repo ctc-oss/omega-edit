@@ -184,6 +184,7 @@ namespace omega_edit {
             size_t attachment_count{0};
             std::map<std::string, std::shared_ptr<ViewportInfo>> viewports;
             bool transform_in_progress{false};
+            std::shared_ptr<std::atomic_bool> transform_cancel_requested{std::make_shared<std::atomic_bool>(false)};
             size_t active_mutations{0};
             // Serializes all access to the underlying non-thread-safe omega_session_t and its viewports.
             std::mutex core_mutex;
@@ -343,7 +344,9 @@ namespace omega_edit {
             static std::string create_server_root_name();
             std::string create_managed_checkpoint_directory();
             void cleanup_managed_server_root_if_empty();
-            bool destroy_session_locked(const std::map<std::string, std::shared_ptr<SessionInfo>>::iterator &it);
+            void destroy_session_info(const std::shared_ptr<SessionInfo> &info);
+            bool destroy_session_locked(std::unique_lock<std::mutex> &lock,
+                                        const std::map<std::string, std::shared_ptr<SessionInfo>>::iterator &it);
             void finish_operation(const std::string &session_id, SessionOperationKind kind);
 
             // Callbacks

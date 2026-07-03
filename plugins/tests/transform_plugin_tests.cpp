@@ -24,6 +24,20 @@
 #include <string>
 #include <vector>
 
+namespace {
+    struct cancellation_state_t {
+        int calls{};
+        int cancel_after{};
+    };
+
+    int cancel_after_callback(void *user_data_ptr) {
+        auto *state = static_cast<cancellation_state_t *>(user_data_ptr);
+        if (!state) { return 0; }
+        ++state->calls;
+        return state->calls > state->cancel_after ? 1 : 0;
+    }
+}// namespace
+
 TEST_CASE("Packaged Transform Plugins", "[TransformPlugin]") {
     REQUIRE(std::filesystem::is_directory(PLUGIN_DIR));
 
@@ -189,6 +203,28 @@ TEST_CASE("Packaged Transform Plugins", "[TransformPlugin]") {
     REQUIRE((response.flags & OMEGA_TRANSFORM_PLUGIN_RESPONSE_NO_CONTENT_CHANGE) != 0U);
     REQUIRE(uppercase_change_count == omega_session_get_num_changes(case_session_ptr));
     omega_transform_plugin_response_clear(&response);
+
+    const auto cancel_session_ptr = omega_edit_create_session(nullptr, nullptr, nullptr, NO_EVENTS, nullptr);
+    REQUIRE(cancel_session_ptr);
+    REQUIRE(0 < omega_edit_insert_string(cancel_session_ptr, 0, "abcdef"));
+    const auto cancel_change_count = omega_session_get_num_changes(cancel_session_ptr);
+    omega_transform_plugin_request_t sdk_cancel_request{};
+    cancellation_state_t sdk_cancel_state{0, 0};
+    sdk_cancel_request.is_cancelled = cancel_after_callback;
+    sdk_cancel_request.cancel_user_data_ptr = &sdk_cancel_state;
+    REQUIRE(1 == omega_transform_plugin_sdk_is_cancelled(&sdk_cancel_request));
+    cancellation_state_t cancel_state{0, 5};
+    int64_t cancelled_serial = -1;
+    REQUIRE(-1 == omega_transform_plugin_registry_apply_to_session_with_progress_cancel_and_serial(
+                          registry_ptr, "omega.example.case_change", cancel_session_ptr, 0, 6, "{\"case\":\"upper\"}",
+                          nullptr, nullptr, cancel_after_callback, &cancel_state, &response, &cancelled_serial));
+    REQUIRE(cancel_state.calls > cancel_state.cancel_after);
+    REQUIRE(0 == cancelled_serial);
+    REQUIRE(cancel_change_count == omega_session_get_num_changes(cancel_session_ptr));
+    REQUIRE("abcdef" == omega_session_get_segment_string(cancel_session_ptr, 0,
+                                                         omega_session_get_computed_file_size(cancel_session_ptr)));
+    omega_transform_plugin_response_clear(&response);
+    omega_edit_destroy_session(cancel_session_ptr);
 
     int64_t lower_serial = 0;
     REQUIRE(0 == omega_transform_plugin_registry_apply_to_session_with_progress_and_serial(

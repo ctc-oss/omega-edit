@@ -1,4 +1,5 @@
 const assert = require('node:assert/strict')
+const { createHash } = require('node:crypto')
 const fs = require('node:fs/promises')
 const os = require('node:os')
 const path = require('node:path')
@@ -18,9 +19,11 @@ const {
   OMEGA_EDIT_EXPORT_CHANGE_LOG_COMMAND,
   OMEGA_EDIT_GET_EDITOR_STATE_COMMAND,
   OMEGA_EDIT_GO_TO_OFFSET_COMMAND,
+  OMEGA_EDIT_LOAD_RANGE_MAP_COMMAND,
   OMEGA_EDIT_OPEN_IN_HEX_EDITOR_COMMAND,
   OMEGA_EDIT_ROLLBACK_SESSION_COMMAND,
   OMEGA_EDIT_SET_EXTERNAL_HIGHLIGHTS_COMMAND,
+  OMEGA_EDIT_UNLOAD_RANGE_MAP_COMMAND,
   OMEGA_EDIT_VIEW_TYPE,
 } = require('../../out/constants.js')
 
@@ -39,6 +42,27 @@ const ABC_SHA256_FINGERPRINT = {
     algorithm: 'sha256',
     value: 'ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad',
   },
+}
+
+function makeUtf8Fingerprint(text) {
+  const data = Buffer.from(text, 'utf8')
+  return {
+    byteLength: data.byteLength.toString(),
+    digest: {
+      algorithm: 'sha256',
+      value: createHash('sha256').update(data).digest('hex'),
+    },
+  }
+}
+
+function makeTransformDataHex(transformId, args = {}) {
+  return Buffer.from(JSON.stringify({ transformId, args }), 'utf8').toString(
+    'hex'
+  )
+}
+
+function parseTransformDataHex(data) {
+  return JSON.parse(Buffer.from(data, 'hex').toString('utf8'))
 }
 
 suite('OmegaEdit VS Code extension', () => {
@@ -69,10 +93,13 @@ suite('OmegaEdit VS Code extension', () => {
     assert.equal(typeof extensionApi.getEditorState, 'function')
     assert.equal(typeof extensionApi.setExternalHighlights, 'function')
     assert.equal(typeof extensionApi.clearExternalHighlights, 'function')
+    assert.equal(typeof extensionApi.loadRangeMap, 'function')
+    assert.equal(typeof extensionApi.unloadRangeMap, 'function')
     assert.equal(typeof extensionApi.createCheckpoint, 'function')
     assert.equal(typeof extensionApi.rollbackCheckpoint, 'function')
     assert.equal(typeof extensionApi.restoreCheckpoint, 'function')
     assert.equal(typeof extensionApi.exportChangeLog, 'function')
+    assert.equal(typeof extensionApi.previewChangeLog, 'function')
     assert.equal(typeof extensionApi.applyChangeLog, 'function')
     assert.equal(typeof extensionApi.onDidChangeEditorState, 'function')
   })
@@ -91,6 +118,8 @@ suite('OmegaEdit VS Code extension', () => {
     assert.ok(commands.includes(OMEGA_EDIT_GET_EDITOR_STATE_COMMAND))
     assert.ok(commands.includes(OMEGA_EDIT_SET_EXTERNAL_HIGHLIGHTS_COMMAND))
     assert.ok(commands.includes(OMEGA_EDIT_CLEAR_EXTERNAL_HIGHLIGHTS_COMMAND))
+    assert.ok(commands.includes(OMEGA_EDIT_LOAD_RANGE_MAP_COMMAND))
+    assert.ok(commands.includes(OMEGA_EDIT_UNLOAD_RANGE_MAP_COMMAND))
   })
 
   test('exposes a typed extension API for generic debugger integration', async () => {
@@ -164,6 +193,116 @@ suite('OmegaEdit VS Code extension', () => {
         },
       ])
 
+      const rangeMapPath = path.join(tmpDir, 'typed-api.range-map.json')
+      await fs.writeFile(
+        rangeMapPath,
+        JSON.stringify(
+          {
+            format: 'omega-edit.range-map',
+            version: 1,
+            source: 'synthetic.dfdl',
+            selectedPath: '/doc/body',
+            nodes: [
+              {
+                path: '/doc/header',
+                label: 'Header',
+                offset: 0,
+                length: 2,
+                kind: 'parsed',
+                type: 'ascii',
+                value: 'ab',
+              },
+              {
+                path: '/doc/body',
+                label: 'Body',
+                offset: 2,
+                length: 2,
+                kind: 'parsed',
+                type: 'ascii',
+                value: 'cd',
+              },
+            ],
+          },
+          null,
+          2
+        )
+      )
+      const rangeMapResult = await extensionApi.loadRangeMap({
+        uri,
+        sourceUri: vscode.Uri.file(rangeMapPath),
+        reveal: true,
+      })
+      assert.equal(rangeMapResult.nodeCount, 2)
+      assert.equal(rangeMapResult.highlightCount, 2)
+      assert.equal(rangeMapResult.selectedPath, '/doc/body')
+      assert.deepEqual(rangeMapResult.selectedRange, { offset: 2, length: 2 })
+      const expectedRangeMapHighlights = [
+        {
+          id: '/doc/header',
+          offset: 0,
+          length: 2,
+          kind: 'parsed',
+          label: 'Header (ascii) = ab',
+          source: 'synthetic.dfdl',
+        },
+        {
+          id: '/doc/body',
+          offset: 2,
+          length: 2,
+          kind: 'current',
+          label: 'Body (ascii) = cd',
+          source: 'synthetic.dfdl',
+        },
+      ]
+      assert.deepEqual(
+        rangeMapResult.state.externalHighlights,
+        expectedRangeMapHighlights
+      )
+
+      const badRangeMapPath = path.join(tmpDir, 'typed-api.bad-range-map.json')
+      await fs.writeFile(
+        badRangeMapPath,
+        JSON.stringify(
+          {
+            format: 'omega-edit.range-map',
+            version: 1,
+            nodes: [
+              {
+                path: '/doc/out-of-bounds',
+                label: 'Out of bounds',
+                offset: 6,
+                length: 1,
+              },
+            ],
+          },
+          null,
+          2
+        )
+      )
+      const badRangeMapResult = await extensionApi.loadRangeMap({
+        uri,
+        sourceUri: vscode.Uri.file(badRangeMapPath),
+      })
+      assert.equal(badRangeMapResult.cancelled, true)
+      assert.match(
+        badRangeMapResult.message,
+        /\/doc\/out-of-bounds \[6, 7\) is outside file bounds \(6 bytes\)/
+      )
+      assert.deepEqual(
+        badRangeMapResult.state.externalHighlights,
+        expectedRangeMapHighlights
+      )
+
+      const unloadedRangeMap = extensionApi.unloadRangeMap({ uri })
+      assert.equal(unloadedRangeMap.unloadedCount, 2)
+      assert.equal(unloadedRangeMap.highlightCount, 0)
+      assert.deepEqual(unloadedRangeMap.state.externalHighlights, [])
+
+      const secondUnloadRangeMap = extensionApi.unloadRangeMap({ uri })
+      assert.equal(secondUnloadRangeMap.unloadedCount, 0)
+      assert.equal(secondUnloadRangeMap.highlightCount, 0)
+      assert.deepEqual(secondUnloadRangeMap.state.externalHighlights, [])
+
       const revealedState = await extensionApi.reveal(uri, 5)
       assert.equal(revealedState.uri, uri.toString())
       await assert.rejects(
@@ -230,6 +369,162 @@ suite('OmegaEdit VS Code extension', () => {
       )
     } finally {
       disposable.dispose()
+      await vscode.commands.executeCommand('workbench.action.closeActiveEditor')
+      await fs.rm(tmpDir, { recursive: true, force: true })
+    }
+  })
+
+  test('lets a code assistant operate the editor through public VS Code commands', async () => {
+    const provider = getHexEditorProviderForTesting()
+    assert.ok(
+      provider,
+      'Expected the activated extension to expose its provider'
+    )
+
+    const tmpDir = await fs.mkdtemp(
+      path.join(os.tmpdir(), 'omega-edit-vscode-assistant-')
+    )
+    const samplePath = path.join(tmpDir, 'assistant.bin')
+    const changeLogPath = path.join(tmpDir, 'assistant-change-log.json')
+    await fs.writeFile(samplePath, Buffer.from('ABCDEFGH', 'utf8'))
+    const uri = vscode.Uri.file(samplePath)
+
+    const replaced = 'A12DxyZZZ'
+    const transformed = Buffer.from(replaced, 'utf8').toString('base64')
+    const changes = [
+      {
+        serial: '1',
+        kind: 'INSERT',
+        offset: '1',
+        length: '0',
+        data: Buffer.from('12', 'utf8').toString('hex'),
+      },
+      {
+        serial: '2',
+        kind: 'DELETE',
+        offset: '3',
+        length: '2',
+        data: Buffer.from('BC', 'utf8').toString('hex'),
+      },
+      {
+        serial: '3',
+        kind: 'OVERWRITE',
+        offset: '4',
+        length: '2',
+        data: Buffer.from('xy', 'utf8').toString('hex'),
+      },
+      {
+        serial: '4',
+        kind: 'REPLACE',
+        offset: '6',
+        length: '2',
+        data: Buffer.from('ZZZ', 'utf8').toString('hex'),
+      },
+      {
+        serial: '5',
+        kind: 'TRANSFORM',
+        offset: '0',
+        length: String(Buffer.byteLength(replaced, 'utf8')),
+        data: makeTransformDataHex('omega.example.base64'),
+      },
+    ]
+    await fs.writeFile(
+      changeLogPath,
+      JSON.stringify(
+        {
+          format: 'omega-edit.change-log',
+          version: 2,
+          complete: true,
+          before: makeUtf8Fingerprint('ABCDEFGH'),
+          after: makeUtf8Fingerprint(transformed),
+          changeCount: String(changes.length),
+          sourceChangeCount: String(changes.length),
+          unavailableChangeCount: '0',
+          unavailableChangeSerials: [],
+          changes,
+        },
+        null,
+        2
+      )
+    )
+
+    try {
+      await vscode.commands.executeCommand(
+        OMEGA_EDIT_OPEN_IN_HEX_EDITOR_COMMAND,
+        uri
+      )
+      const session = await waitForSession(provider, uri)
+      assert.ok(session, 'Expected a live session for the assistant test')
+
+      const initialState = await vscode.commands.executeCommand(
+        OMEGA_EDIT_GET_EDITOR_STATE_COMMAND,
+        { uri }
+      )
+      assert.equal(initialState.uri, uri.toString())
+      assert.equal(initialState.fileSize, 8)
+
+      await vscode.commands.executeCommand(
+        OMEGA_EDIT_APPLY_CHANGE_LOG_COMMAND,
+        {
+          uri,
+          sourceUri: vscode.Uri.file(changeLogPath),
+        }
+      )
+      await assertSessionText(session.sessionId, transformed)
+
+      const highlightedState = await vscode.commands.executeCommand(
+        OMEGA_EDIT_SET_EXTERNAL_HIGHLIGHTS_COMMAND,
+        {
+          uri: uri.toString(),
+          reveal: true,
+          highlights: [
+            {
+              id: 'assistant.generated-change',
+              offset: 0,
+              length: Buffer.byteLength(transformed, 'utf8'),
+              kind: 'parsed',
+              label: 'Assistant-applied edit',
+              source: 'Code assistant',
+            },
+          ],
+        }
+      )
+      assert.deepEqual(highlightedState.externalHighlights, [
+        {
+          id: 'assistant.generated-change',
+          offset: 0,
+          length: Buffer.byteLength(transformed, 'utf8'),
+          kind: 'parsed',
+          label: 'Assistant-applied edit',
+          source: 'Code assistant',
+        },
+      ])
+      assert.equal(highlightedState.undoCount, 2)
+      assert.equal(highlightedState.redoCount, 0)
+
+      await provider.dispatchWebviewMessageForTesting(uri, { type: 'undo' })
+      await assertSessionText(session.sessionId, replaced)
+      let state = await vscode.commands.executeCommand(
+        OMEGA_EDIT_GET_EDITOR_STATE_COMMAND,
+        { uri }
+      )
+      assert.equal(state.undoCount, 1)
+      assert.equal(state.redoCount, 1)
+
+      await provider.dispatchWebviewMessageForTesting(uri, { type: 'undo' })
+      await assertSessionText(session.sessionId, 'ABCDEFGH')
+      state = await vscode.commands.executeCommand(
+        OMEGA_EDIT_GET_EDITOR_STATE_COMMAND,
+        { uri }
+      )
+      assert.equal(state.undoCount, 0)
+      assert.equal(state.redoCount, 2)
+
+      await provider.dispatchWebviewMessageForTesting(uri, { type: 'redo' })
+      await assertSessionText(session.sessionId, replaced)
+      await provider.dispatchWebviewMessageForTesting(uri, { type: 'redo' })
+      await assertSessionText(session.sessionId, transformed)
+    } finally {
       await vscode.commands.executeCommand('workbench.action.closeActiveEditor')
       await fs.rm(tmpDir, { recursive: true, force: true })
     }
@@ -376,7 +671,9 @@ suite('OmegaEdit VS Code extension', () => {
     )
     assert.ok(
       script.changes.every((change) =>
-        ['DELETE', 'INSERT', 'OVERWRITE', 'TRANSFORM'].includes(change.kind)
+        ['DELETE', 'INSERT', 'OVERWRITE', 'REPLACE', 'TRANSFORM'].includes(
+          change.kind
+        )
       ),
       'Expected exported change kinds to stay within OmegaEdit operations'
     )
@@ -384,14 +681,21 @@ suite('OmegaEdit VS Code extension', () => {
       (change) => change.kind === 'TRANSFORM'
     )
     assert.ok(transformChange, 'Expected the base64 transform to be exported')
-    assert.equal(transformChange.transformId, 'omega.example.base64')
     assert.equal(transformChange.offset, '0')
     assert.equal(transformChange.length, '8')
-    assert.equal(transformChange.data, '')
-    assert.equal(transformChange.replacementLength, '12')
-    assert.equal(transformChange.computedFileSizeBefore, '8')
-    assert.equal(transformChange.computedFileSizeAfter, '12')
+    assert.notEqual(transformChange.data, '')
+    assert.deepEqual(parseTransformDataHex(transformChange.data), {
+      transformId: 'omega.example.base64',
+      args: {},
+    })
+    assert.equal(Object.hasOwn(transformChange, 'transformId'), false)
     assert.equal(Object.hasOwn(transformChange, 'optionsJson'), false)
+    assert.equal(Object.hasOwn(transformChange, 'replacementLength'), false)
+    assert.equal(
+      Object.hasOwn(transformChange, 'computedFileSizeBefore'),
+      false
+    )
+    assert.equal(Object.hasOwn(transformChange, 'computedFileSizeAfter'), false)
 
     const provider2 = new HexEditorProvider({ subscriptions: [] }, testPort)
     const panel2 = createMockWebviewPanel()
@@ -434,7 +738,7 @@ suite('OmegaEdit VS Code extension', () => {
       tamperedTransformChange,
       'Expected a transform change to tamper with'
     )
-    tamperedTransformChange.replacementLength = '999'
+    tamperedTransformChange.data = makeTransformDataHex('omega.example.missing')
     await fs.writeFile(
       tamperedScriptPath,
       JSON.stringify(tamperedScript, null, 2)
@@ -454,13 +758,14 @@ suite('OmegaEdit VS Code extension', () => {
       new vscode.CancellationTokenSource().token
     )
 
-    await assert.rejects(
-      () =>
-        provider3.applyChangeLog({
-          uri: document3.uri,
-          sourceUri: vscode.Uri.file(tamperedScriptPath),
-        }),
-      /replacement length mismatch/
+    const tamperedResult = await provider3.applyChangeLog({
+      uri: document3.uri,
+      sourceUri: vscode.Uri.file(tamperedScriptPath),
+    })
+    assert.equal(tamperedResult?.cancelled, true)
+    assert.equal(tamperedResult?.preview?.canApply, false)
+    assert.ok(
+      tamperedResult?.preview?.missingPlugins.includes('omega.example.missing')
     )
     const session3 = provider3.getSessionForTesting(document3.uri)
     assert.ok(session3, 'Expected a tampered replay session')
@@ -554,6 +859,19 @@ suite('OmegaEdit VS Code extension', () => {
       })
     )
 
+    const preview = await provider.previewChangeLog({
+      uri: document.uri,
+      sourceUri: vscode.Uri.file(scriptPath),
+    })
+    assert.equal(preview?.canApply, false)
+    assert.equal(preview?.unavailablePrimitives.count, '1')
+    assert.deepEqual(preview?.unavailablePrimitives.serials, ['1'])
+    assert.ok(
+      preview?.safetyIssues.some(
+        (issue) => issue.code === 'unavailable-primitives'
+      )
+    )
+
     const incompleteResult = await provider.applyChangeLog({
       uri: document.uri,
       sourceUri: vscode.Uri.file(scriptPath),
@@ -561,6 +879,7 @@ suite('OmegaEdit VS Code extension', () => {
 
     assert.equal(incompleteResult?.cancelled, true)
     assert.equal(incompleteResult?.changeCount, 0)
+    assert.equal(incompleteResult?.preview?.canApply, false)
     await assertSessionText(session.sessionId, 'abc')
 
     await panel.fireDidDispose()
@@ -1317,6 +1636,66 @@ suite('OmegaEdit VS Code extension', () => {
         { uri: uri.toString() }
       )
       assert.deepEqual(stateAfterClear.externalHighlights, [])
+
+      const rangeMapPath = path.join(tmpDir, 'external-state.range-map.json')
+      await fs.writeFile(
+        rangeMapPath,
+        JSON.stringify(
+          {
+            format: 'omega-edit.range-map',
+            version: 1,
+            source: 'command.dfdl',
+            nodes: [
+              {
+                path: '/doc/signature',
+                label: 'Signature',
+                offset: 0,
+                length: 3,
+                kind: 'parsed',
+                type: 'ascii',
+                value: 'abc',
+              },
+            ],
+          },
+          null,
+          2
+        )
+      )
+      const commandLoadedRangeMap = await vscode.commands.executeCommand(
+        OMEGA_EDIT_LOAD_RANGE_MAP_COMMAND,
+        {
+          uri: uri.toString(),
+          sourceUri: vscode.Uri.file(rangeMapPath),
+          reveal: false,
+        }
+      )
+      assert.equal(commandLoadedRangeMap.highlightCount, 1)
+      assert.deepEqual(commandLoadedRangeMap.state.externalHighlights, [
+        {
+          id: '/doc/signature',
+          offset: 0,
+          length: 3,
+          kind: 'parsed',
+          label: 'Signature (ascii) = abc',
+          source: 'command.dfdl',
+        },
+      ])
+
+      const commandUnloadRangeMap = await vscode.commands.executeCommand(
+        OMEGA_EDIT_UNLOAD_RANGE_MAP_COMMAND,
+        { uri: uri.toString() }
+      )
+      assert.equal(commandUnloadRangeMap.unloadedCount, 1)
+      assert.equal(commandUnloadRangeMap.highlightCount, 0)
+      assert.deepEqual(commandUnloadRangeMap.state.externalHighlights, [])
+
+      const commandUnloadAfterClear = await vscode.commands.executeCommand(
+        OMEGA_EDIT_UNLOAD_RANGE_MAP_COMMAND,
+        { uri: uri.toString() }
+      )
+      assert.equal(commandUnloadAfterClear.unloadedCount, 0)
+      assert.equal(commandUnloadAfterClear.highlightCount, 0)
+      assert.deepEqual(commandUnloadAfterClear.state.externalHighlights, [])
     } finally {
       await vscode.commands.executeCommand('workbench.action.closeActiveEditor')
       await fs.rm(tmpDir, { recursive: true, force: true })
@@ -1474,6 +1853,55 @@ suite('OmegaEdit VS Code extension', () => {
         refreshedViewportMessages.at(-1).data,
         Array.from(Buffer.from('ready bytes', 'utf8'))
       )
+    } finally {
+      await panel.fireDidDispose()
+      await fs.rm(tmpDir, { recursive: true, force: true })
+    }
+  })
+
+  test('updates bytes per row without replacing the live webview', async () => {
+    const tmpDir = await fs.mkdtemp(
+      path.join(os.tmpdir(), 'omega-edit-vscode-bytes-row-')
+    )
+    const samplePath = path.join(tmpDir, 'bytes-row.bin')
+    await fs.writeFile(samplePath, Buffer.from('bytes per row', 'utf8'))
+
+    const provider = new HexEditorProvider({ subscriptions: [] }, testPort)
+    const panel = createMockWebviewPanel()
+    const document = await provider.openCustomDocument(
+      vscode.Uri.file(samplePath),
+      { backupId: undefined, untitledDocumentData: undefined },
+      new vscode.CancellationTokenSource().token
+    )
+
+    try {
+      await provider.resolveCustomEditor(
+        document,
+        panel,
+        new vscode.CancellationTokenSource().token
+      )
+
+      const initialHtml = panel.webview.html
+      const session = provider.getSessionForTesting(document.uri)
+      assert.ok(
+        session,
+        'Expected a live session for the bytes-per-row refresh test'
+      )
+      session.bytesPerRowSetting = 0
+      session.bytesPerRow = 32
+
+      provider.refreshBytesPerRow(0)
+
+      assert.equal(panel.webview.html, initialHtml)
+      const bytesPerRowMessage = lastMessageOfType(
+        panel.messages,
+        'bytesPerRow'
+      )
+      assert.deepEqual(bytesPerRowMessage, {
+        type: 'bytesPerRow',
+        bytesPerRow: 16,
+        bytesPerRowMode: 'fixed',
+      })
     } finally {
       await panel.fireDidDispose()
       await fs.rm(tmpDir, { recursive: true, force: true })

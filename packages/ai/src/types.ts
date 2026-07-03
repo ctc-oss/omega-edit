@@ -19,6 +19,16 @@ export interface ToolkitOptions {
   insecureAllowNonLoopback?: boolean
 }
 
+export interface CancellationSignal {
+  readonly aborted: boolean
+  addEventListener?(
+    type: string,
+    listener: (...args: any[]) => void,
+    options?: unknown
+  ): void
+  removeEventListener?(type: string, listener: (...args: any[]) => void): void
+}
+
 export interface EncodedData {
   byteLength: number
   hex: string
@@ -47,11 +57,6 @@ export interface ChangeLogEntry {
   offset: ChangeLogInt64
   length: ChangeLogInt64
   data: string
-  transformId?: string
-  optionsJson?: string
-  replacementLength?: ChangeLogInt64
-  computedFileSizeBefore?: ChangeLogInt64
-  computedFileSizeAfter?: ChangeLogInt64
   groupId?: string
 }
 
@@ -93,6 +98,75 @@ export interface ChangeLogResult {
   outputPath?: string
 }
 
+export interface ChangeLogPrimitiveCounts {
+  total: number
+  insert: number
+  delete: number
+  overwrite: number
+  replace: number
+  transform: number
+}
+
+export interface ChangeLogSizeDelta {
+  beforeByteLength: string
+  afterByteLength: string
+  deltaBytes: string
+}
+
+export interface ChangeLogTransformDescriptorPreview {
+  index: number
+  serial?: ChangeLogInt64
+  offset: ChangeLogInt64
+  length: ChangeLogInt64
+  transformId: string
+  optionsJson?: string
+  descriptorSource: 'data'
+}
+
+export interface ChangeLogUnavailablePrimitives {
+  count: ChangeLogInt64
+  serials: ChangeLogInt64[]
+}
+
+export interface ChangeLogSafetyIssue {
+  severity: 'error' | 'warning'
+  code: string
+  message: string
+}
+
+export interface ChangeLogRollbackProtection {
+  available: boolean
+  strategy: 'restore-to-change-count' | 'not-inspected'
+  targetChangeCount?: number
+  checkpointCount?: number
+}
+
+export interface ChangeLogPreview {
+  sessionId: string
+  inputPath?: string
+  format: 'omega-edit.change-log'
+  version: 2
+  complete: boolean
+  canApply: boolean
+  primitiveCounts: ChangeLogPrimitiveCounts
+  before: ChangeLogFingerprint
+  after: ChangeLogFingerprint
+  current?: ChangeLogFingerprint
+  expectedSize: ChangeLogSizeDelta
+  transformDescriptors: ChangeLogTransformDescriptorPreview[]
+  requiredPlugins: string[]
+  missingPlugins: string[]
+  unavailablePrimitives: ChangeLogUnavailablePrimitives
+  rollbackProtection: ChangeLogRollbackProtection
+  safetyIssues: ChangeLogSafetyIssue[]
+}
+
+export interface PreviewChangeLogRequest {
+  sessionId: string
+  changes?: ChangeLogDocument
+  inputPath?: string
+}
+
 export interface ApplyChangeLogRequest {
   sessionId: string
   changes?: ChangeLogDocument
@@ -103,9 +177,19 @@ export interface ApplyChangeLogRequest {
 export interface ApplyChangeLogResult {
   sessionId: string
   applied: boolean
+  appliedCount: number
   changeCount: number
   inputChangeCount: number
   inputPath?: string
+  preview?: ChangeLogPreview
+  rollback: {
+    attempted: boolean
+    succeeded?: boolean
+    rolledBack?: boolean
+    targetChangeCount?: number
+    error?: string
+  }
+  finalFingerprint?: ChangeLogFingerprint
 }
 
 export interface CheckpointResult {
@@ -217,6 +301,7 @@ export interface ApplyTransformPluginRequest {
   offset?: number
   length?: number
   optionsJson?: string
+  signal?: CancellationSignal
 }
 
 export interface ApplyTransformPluginResult {

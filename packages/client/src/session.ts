@@ -30,6 +30,7 @@ import {
   type GetSessionFingerprintResponse as RawGetSessionFingerprintResponse,
   type InspectSessionContentResponse as RawInspectSessionContentResponse,
   type RestoreLastCheckpointResponse as RawRestoreLastCheckpointResponse,
+  type RestoreToChangeCountResponse as RawRestoreToChangeCountResponse,
   type SessionContentInfo as RawSessionContentInfo,
   type SessionContentFingerprint as RawSessionContentFingerprint,
   type TransformProgress,
@@ -61,12 +62,17 @@ import {
   replaceSession as rawReplaceSession,
   replaceSessionCheckpointed as rawReplaceSessionCheckpointed,
   restoreLastCheckpoint as rawRestoreLastCheckpoint,
+  restoreToChangeCount as rawRestoreToChangeCount,
   resumeSessionChanges as rawResumeSessionChanges,
   saveSession as rawSaveSession,
   searchSession as rawSearchSession,
   unsubscribeSession as rawUnsubscribeSession,
   endSessionTransaction as rawEndSessionTransaction,
 } from './protobuf_ts/session'
+import {
+  makeCancellationError,
+  type CancellableCallOptions,
+} from './protobuf_ts/utils'
 import {
   wrapByteOrderMarkResponse,
   wrapCharacterCountResponse,
@@ -91,6 +97,11 @@ import {
 } from './safe_int'
 import { enqueueSessionMutation } from './mutation_queue'
 import { pauseViewportEvents, resumeViewportEvents } from './viewport'
+
+export type {
+  CancellationSignal,
+  CancellableCallOptions,
+} from './protobuf_ts/utils'
 
 export enum SaveStatus {
   SUCCESS = 0,
@@ -171,6 +182,7 @@ export type TransformPluginOperation =
 export type TransformPluginInfo = RawTransformPluginInfo
 export type ApplyTransformPluginResponse = RawApplyTransformPluginResponse
 export type RestoreLastCheckpointResponse = RawRestoreLastCheckpointResponse
+export type RestoreToChangeCountResponse = RawRestoreToChangeCountResponse
 export type CheckSessionModelResponse = RawCheckSessionModelResponse
 export type SessionContentInfo = RawSessionContentInfo
 export type GetSessionContentInfoResponse = RawGetSessionContentInfoResponse
@@ -305,6 +317,32 @@ export async function restoreLastCheckpoint(
     requireSafeIntegerOutput(
       'discarded change count',
       response.discardedChangeCount
+    )
+    return response
+  })
+}
+
+export async function restoreToChangeCount(
+  session_id: string,
+  change_count: number
+): Promise<RestoreToChangeCountResponse> {
+  return await enqueueSessionMutation(session_id, async () => {
+    const response = await rawRestoreToChangeCount(
+      session_id,
+      requireSafeIntegerInput('restore change count', change_count)
+    )
+    requireSafeIntegerOutput('change count', response.changeCount)
+    requireSafeIntegerOutput(
+      'discarded change count',
+      response.discardedChangeCount
+    )
+    requireSafeIntegerOutput(
+      'discarded undo count',
+      response.discardedUndoCount
+    )
+    requireSafeIntegerOutput(
+      'remaining checkpoint count',
+      response.remainingCheckpointCount
     )
     return response
   })
@@ -460,15 +498,20 @@ export async function applyTransformPlugin(
   plugin_id: string,
   offset: number = 0,
   length: number = 0,
-  options_json?: string
+  options_json?: string,
+  options: CancellableCallOptions = {}
 ): Promise<ApplyTransformPluginResponse> {
   return await enqueueSessionMutation(session_id, async () => {
+    if (options.signal?.aborted) {
+      throw makeCancellationError('applyTransformPlugin')
+    }
     const response = await rawApplyTransformPlugin(
       session_id,
       plugin_id,
       requireSafeIntegerInput('applyTransformPlugin offset', offset),
       requireSafeIntegerInput('applyTransformPlugin length', length),
-      options_json
+      options_json,
+      options
     )
     requireSafeIntegerOutput('applyTransformPlugin offset', response.offset)
     requireSafeIntegerOutput('applyTransformPlugin length', response.length)
@@ -493,15 +536,20 @@ export async function inspectSessionContent(
   plugin_id: string,
   offset: number = 0,
   length: number = 0,
-  options_json?: string
+  options_json?: string,
+  options: CancellableCallOptions = {}
 ): Promise<InspectSessionContentResponse> {
+  if (options.signal?.aborted) {
+    throw makeCancellationError('inspectSessionContent')
+  }
   const response = await rawInspectSessionContent(
     session_id,
     content,
     plugin_id,
     requireSafeIntegerInput('inspectSessionContent offset', offset),
     requireSafeIntegerInput('inspectSessionContent length', length),
-    options_json
+    options_json,
+    options
   )
   requireSafeIntegerOutput('inspectSessionContent offset', response.offset)
   requireSafeIntegerOutput('inspectSessionContent length', response.length)

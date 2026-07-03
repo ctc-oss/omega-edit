@@ -55,7 +55,40 @@ function makeChangeLogDocument(
   return { ...document, ...overrides }
 }
 
+function makeTransformDataHex(
+  transformId: string,
+  args: Record<string, unknown> = {}
+) {
+  return Buffer.from(JSON.stringify({ transformId, args }), 'utf8').toString(
+    'hex'
+  )
+}
+
+function parseTransformDataHex(data: string) {
+  return JSON.parse(Buffer.from(data, 'hex').toString('utf8')) as {
+    transformId?: unknown
+    args?: unknown
+  }
+}
+
+async function assertToolkitText(
+  toolkit: OmegaEditToolkit,
+  sessionId: string,
+  expected: string
+) {
+  const expectedLength = Buffer.byteLength(expected, 'utf8')
+  const status = await toolkit.sessionStatus(sessionId)
+  assert.equal(status.computedSize, expectedLength)
+  const range = await toolkit.readRange(sessionId, 0, expectedLength)
+  assert.equal(range.actualLength, expectedLength)
+  assert.equal(range.data.utf8, expected)
+}
+
 describe('@omega-edit/ai toolkit', () => {
+  afterEach(() => {
+    vi.restoreAllMocks()
+  })
+
   it('preserves the original connection failure as the cause', async function () {
     const port = await omegaEditClient.findFirstAvailablePort(19000, 19999)
     assert.ok(port, 'expected an available port for OmegaEdit')
@@ -73,6 +106,47 @@ describe('@omega-edit/ai toolkit', () => {
       )
       assert.ok((error as Error & { cause?: unknown }).cause instanceof Error)
     }
+  })
+
+  it('passes transform cancellation signals to the client', async function () {
+    const controller = new AbortController()
+    const applyTransformPlugin = vi
+      .spyOn(omegaEditClient, 'applyTransformPlugin')
+      .mockResolvedValue({
+        sessionId: 'session-id',
+        pluginId: 'omega.example.case',
+        offset: 1,
+        length: 2,
+        operation: 1,
+        contentChanged: true,
+        computedFileSize: 3,
+        replacementLength: 2,
+        result: new Uint8Array(0),
+      } as Awaited<ReturnType<typeof omegaEditClient.applyTransformPlugin>>)
+    const toolkit = new OmegaEditToolkit({ autoStart: false })
+    ;(
+      toolkit as unknown as { ensureServerRunning: () => Promise<void> }
+    ).ensureServerRunning = async () => undefined
+
+    const result = await toolkit.applyTransformPlugin({
+      sessionId: 'session-id',
+      pluginId: 'omega.example.case',
+      offset: 1,
+      length: 2,
+      optionsJson: '{"case":"upper"}',
+      signal: controller.signal,
+    })
+
+    assert.equal(result.sessionId, 'session-id')
+    assert.equal(applyTransformPlugin.mock.calls.length, 1)
+    assert.deepEqual(applyTransformPlugin.mock.calls[0], [
+      'session-id',
+      'omega.example.case',
+      1,
+      2,
+      '{"case":"upper"}',
+      { signal: controller.signal },
+    ])
   })
 
   it('rejects wrapped change logs with incompatible format metadata', async function () {
@@ -146,19 +220,25 @@ describe('@omega-edit/ai toolkit', () => {
     assert.equal(wrappedDocument.changeCount, 0)
     assert.equal(wrappedDocument.inputChangeCount, 0)
 
-    await assert.rejects(
-      () =>
-        toolkit.applyChangeLog({
-          sessionId: 'session',
-          dryRun: true,
-          changes: makeChangeLogDocument([], {
-            complete: false,
-            sourceChangeCount: 1,
-            unavailableChangeCount: 1,
-            unavailableChangeSerials: [1],
-          }),
-        }),
-      /Change log is incomplete/
+    const incompletePreview = await toolkit.applyChangeLog({
+      sessionId: 'session',
+      dryRun: true,
+      changes: makeChangeLogDocument([], {
+        complete: false,
+        sourceChangeCount: 1,
+        unavailableChangeCount: 1,
+        unavailableChangeSerials: [1],
+      }),
+    })
+    assert.equal(incompletePreview.preview?.canApply, false)
+    assert.equal(incompletePreview.preview?.unavailablePrimitives.count, '1')
+    assert.deepEqual(incompletePreview.preview?.unavailablePrimitives.serials, [
+      '1',
+    ])
+    assert.ok(
+      incompletePreview.preview?.safetyIssues.some(
+        (issue) => issue.code === 'unavailable-primitives'
+      )
     )
 
     await assert.rejects(
@@ -523,32 +603,54 @@ describe('@omega-edit/ai toolkit', () => {
       const created = await toolkit.createSession(inputPath)
       createdSessionId = created.sessionId
 
-      await assert.rejects(
-        () =>
-          toolkit.applyChangeLog({
-            sessionId: createdSessionId,
-            changes: makeChangeLogDocument(
-              [
-                {
-                  kind: 'INSERT',
-                  offset: 1,
-                  length: 0,
-                  data: Buffer.from('ZZ', 'utf8').toString('hex'),
-                },
-                {
-                  kind: 'DELETE',
-                  offset: 1000,
-                  length: 1,
-                  data: '',
-                },
-              ],
+      try {
+        await toolkit.applyChangeLog({
+          sessionId: createdSessionId,
+          changes: makeChangeLogDocument(
+            [
               {
-                before: ABCDEF_SHA256_FINGERPRINT,
+                kind: 'INSERT',
+                offset: 1,
+                length: 0,
+                data: Buffer.from('ZZ', 'utf8').toString('hex'),
+              },
+              {
+                kind: 'DELETE',
+                offset: 1000,
+                length: 1,
+                data: Buffer.from('x', 'utf8').toString('hex'),
+              },
+            ],
+            {
+              before: ABCDEF_SHA256_FINGERPRINT,
+            }
+          ),
+        })
+        assert.fail('Expected change-log replay to fail')
+      } catch (error) {
+        assert.ok(error instanceof Error)
+        assert.match(
+          error.message,
+          /delete failed|change operation failed|invalid change arguments/i
+        )
+        const result = (
+          error as Error & {
+            result?: {
+              appliedCount?: number
+              rollback?: {
+                attempted?: boolean
+                succeeded?: boolean
+                rolledBack?: boolean
               }
-            ),
-          }),
-        /delete failed|change operation failed|invalid change arguments/i
-      )
+              finalFingerprint?: unknown
+            }
+          }
+        ).result
+        assert.equal(result?.appliedCount, 1)
+        assert.equal(result?.rollback?.attempted, true)
+        assert.equal(result?.rollback?.succeeded, true)
+        assert.ok(result?.finalFingerprint)
+      }
 
       const range = await toolkit.readRange(createdSessionId, 0, 6)
       assert.equal(range.data.utf8, 'abcdef')
@@ -826,7 +928,332 @@ describe('@omega-edit/ai toolkit', () => {
     }
   })
 
-  it('rejects transform change logs when replay metadata differs', async function () {
+  it('round-trips every first-class primitive through change logs and undo/redo', async function () {
+    const port = await omegaEditClient.findFirstAvailablePort(19000, 19999)
+    assert.ok(port, 'expected an available port for OmegaEdit')
+
+    const toolkit = new OmegaEditToolkit({ port: port!, autoStart: true })
+    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'omega-edit-ai-'))
+    const inputPath = path.join(tempDir, 'input.bin')
+    const replayPath = path.join(tempDir, 'replay.bin')
+    fs.writeFileSync(inputPath, Buffer.from('ABCDEFGH', 'utf8'))
+    fs.writeFileSync(replayPath, Buffer.from('ABCDEFGH', 'utf8'))
+
+    const replaced = 'A12DxyZZZ'
+    const transformed = Buffer.from(replaced, 'utf8').toString('base64')
+    const changes: ChangeLogEntry[] = [
+      {
+        serial: 1,
+        kind: 'INSERT',
+        offset: 1,
+        length: 0,
+        data: Buffer.from('12', 'utf8').toString('hex'),
+      },
+      {
+        serial: 2,
+        kind: 'DELETE',
+        offset: 3,
+        length: 2,
+        data: Buffer.from('BC', 'utf8').toString('hex'),
+      },
+      {
+        serial: 3,
+        kind: 'OVERWRITE',
+        offset: 4,
+        length: 2,
+        data: Buffer.from('xy', 'utf8').toString('hex'),
+      },
+      {
+        serial: 4,
+        kind: 'REPLACE',
+        offset: 6,
+        length: 2,
+        data: Buffer.from('ZZZ', 'utf8').toString('hex'),
+      },
+      {
+        serial: 5,
+        kind: 'TRANSFORM',
+        offset: 0,
+        length: Buffer.byteLength(replaced, 'utf8'),
+        data: makeTransformDataHex('omega.example.base64'),
+      },
+    ]
+
+    let sessionId = ''
+    let replaySessionId = ''
+
+    try {
+      const created = await toolkit.createSession(inputPath)
+      sessionId = created.sessionId
+
+      const result = await toolkit.applyChangeLog({
+        sessionId,
+        changes: makeChangeLogDocument(changes, {
+          before: makeUtf8Fingerprint('ABCDEFGH'),
+          after: makeUtf8Fingerprint(transformed),
+        }),
+      })
+      assert.equal(result.applied, true)
+      assert.equal(result.changeCount, 5)
+      assert.equal(result.inputChangeCount, 5)
+      await assertToolkitText(toolkit, sessionId, transformed)
+
+      let status = await toolkit.sessionStatus(sessionId)
+      assert.equal(status.changeCount, 6)
+      assert.equal(status.undoCount, 0)
+
+      await toolkit.undo(sessionId)
+      await assertToolkitText(toolkit, sessionId, replaced)
+      status = await toolkit.sessionStatus(sessionId)
+      assert.equal(status.changeCount, 5)
+      assert.equal(status.undoCount, 1)
+
+      await toolkit.undo(sessionId)
+      await assertToolkitText(toolkit, sessionId, 'ABCDEFGH')
+      status = await toolkit.sessionStatus(sessionId)
+      assert.equal(status.changeCount, 0)
+      assert.equal(status.undoCount, 6)
+
+      await toolkit.redo(sessionId)
+      await assertToolkitText(toolkit, sessionId, replaced)
+      status = await toolkit.sessionStatus(sessionId)
+      assert.equal(status.changeCount, 5)
+      assert.equal(status.undoCount, 1)
+
+      await toolkit.redo(sessionId)
+      await assertToolkitText(toolkit, sessionId, transformed)
+      status = await toolkit.sessionStatus(sessionId)
+      assert.equal(status.changeCount, 6)
+      assert.equal(status.undoCount, 0)
+
+      const replay = await toolkit.createSession(replayPath)
+      replaySessionId = replay.sessionId
+      const replayResult = await toolkit.applyChangeLog({
+        sessionId: replaySessionId,
+        changes: makeChangeLogDocument(changes, {
+          before: makeUtf8Fingerprint('ABCDEFGH'),
+          after: makeUtf8Fingerprint(transformed),
+        }),
+      })
+      assert.equal(replayResult.applied, true)
+      await assertToolkitText(toolkit, replaySessionId, transformed)
+    } finally {
+      if (sessionId) {
+        await toolkit.destroySession(sessionId).catch(() => undefined)
+      }
+      if (replaySessionId) {
+        await toolkit.destroySession(replaySessionId).catch(() => undefined)
+      }
+      await toolkit.stopServer().catch(() => undefined)
+      fs.rmSync(tempDir, { recursive: true, force: true })
+    }
+  })
+
+  it('undoes and redoes each first-class change-log primitive independently', async function () {
+    const port = await omegaEditClient.findFirstAvailablePort(19000, 19999)
+    assert.ok(port, 'expected an available port for OmegaEdit')
+
+    const toolkit = new OmegaEditToolkit({ port: port!, autoStart: true })
+    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'omega-edit-ai-'))
+    const cases: Array<{
+      name: string
+      before: string
+      after: string
+      change: ChangeLogEntry
+    }> = [
+      {
+        name: 'INSERT',
+        before: 'ABCDEF',
+        after: 'A12BCDEF',
+        change: {
+          kind: 'INSERT',
+          offset: 1,
+          length: 0,
+          data: Buffer.from('12', 'utf8').toString('hex'),
+        },
+      },
+      {
+        name: 'DELETE',
+        before: 'ABCDEF',
+        after: 'ADEF',
+        change: {
+          kind: 'DELETE',
+          offset: 1,
+          length: 2,
+          data: Buffer.from('BC', 'utf8').toString('hex'),
+        },
+      },
+      {
+        name: 'OVERWRITE',
+        before: 'ABCDEF',
+        after: 'ABxyEF',
+        change: {
+          kind: 'OVERWRITE',
+          offset: 2,
+          length: 2,
+          data: Buffer.from('xy', 'utf8').toString('hex'),
+        },
+      },
+      {
+        name: 'REPLACE',
+        before: 'ABCDEF',
+        after: 'ABXYZEF',
+        change: {
+          kind: 'REPLACE',
+          offset: 2,
+          length: 2,
+          data: Buffer.from('XYZ', 'utf8').toString('hex'),
+        },
+      },
+      {
+        name: 'TRANSFORM',
+        before: 'ABCDEFGH',
+        after: Buffer.from('ABCDEFGH', 'utf8').toString('base64'),
+        change: {
+          kind: 'TRANSFORM',
+          offset: 0,
+          length: 8,
+          data: makeTransformDataHex('omega.example.base64'),
+        },
+      },
+    ]
+
+    const sessionIds: string[] = []
+
+    try {
+      for (const testCase of cases) {
+        const inputPath = path.join(tempDir, `${testCase.name}.bin`)
+        fs.writeFileSync(inputPath, Buffer.from(testCase.before, 'utf8'))
+        const created = await toolkit.createSession(inputPath)
+        sessionIds.push(created.sessionId)
+
+        const result = await toolkit.applyChangeLog({
+          sessionId: created.sessionId,
+          changes: makeChangeLogDocument([testCase.change], {
+            before: makeUtf8Fingerprint(testCase.before),
+            after: makeUtf8Fingerprint(testCase.after),
+          }),
+        })
+        assert.equal(result.applied, true, testCase.name)
+        assert.equal(result.changeCount, 1, testCase.name)
+        await assertToolkitText(toolkit, created.sessionId, testCase.after)
+
+        await toolkit.undo(created.sessionId)
+        await assertToolkitText(toolkit, created.sessionId, testCase.before)
+        let status = await toolkit.sessionStatus(created.sessionId)
+        assert.equal(status.changeCount, 0, testCase.name)
+        assert.equal(
+          status.undoCount,
+          testCase.name === 'REPLACE' ? 2 : 1,
+          testCase.name
+        )
+
+        await toolkit.redo(created.sessionId)
+        await assertToolkitText(toolkit, created.sessionId, testCase.after)
+        status = await toolkit.sessionStatus(created.sessionId)
+        assert.equal(
+          status.changeCount,
+          testCase.name === 'REPLACE' ? 2 : 1,
+          testCase.name
+        )
+        assert.equal(status.undoCount, 0, testCase.name)
+      }
+    } finally {
+      for (const sessionId of sessionIds) {
+        await toolkit.destroySession(sessionId).catch(() => undefined)
+      }
+      await toolkit.stopServer().catch(() => undefined)
+      fs.rmSync(tempDir, { recursive: true, force: true })
+    }
+  })
+
+  it('treats transform change-log data as the canonical descriptor', async function () {
+    const toolkit = new OmegaEditToolkit({ autoStart: false })
+    const transformData = makeTransformDataHex('omega.example.base64', {
+      direction: 'encode',
+    })
+
+    const dryRun = await toolkit.applyChangeLog({
+      sessionId: 'dry-run-session',
+      dryRun: true,
+      changes: makeChangeLogDocument([
+        {
+          serial: 1,
+          kind: 'TRANSFORM',
+          offset: 0,
+          length: 8,
+          data: transformData,
+        },
+      ]),
+    })
+    assert.equal(dryRun.applied, false)
+    assert.equal(dryRun.inputChangeCount, 1)
+    assert.equal(dryRun.preview?.primitiveCounts.transform, 1)
+    assert.equal(
+      dryRun.preview?.transformDescriptors[0]?.transformId,
+      'omega.example.base64'
+    )
+    assert.equal(
+      dryRun.preview?.transformDescriptors[0]?.descriptorSource,
+      'data'
+    )
+    assert.equal(dryRun.preview?.requiredPlugins[0], 'omega.example.base64')
+
+    await assert.rejects(
+      () =>
+        toolkit.applyChangeLog({
+          sessionId: 'dry-run-session',
+          dryRun: true,
+          changes: makeChangeLogDocument([
+            {
+              kind: 'TRANSFORM',
+              offset: 0,
+              length: 8,
+              data: '',
+            },
+          ]),
+        }),
+      /TRANSFORM data requires data/
+    )
+
+    await assert.rejects(
+      () =>
+        toolkit.applyChangeLog({
+          sessionId: 'dry-run-session',
+          dryRun: true,
+          changes: makeChangeLogDocument([
+            {
+              kind: 'TRANSFORM',
+              offset: 0,
+              length: 8,
+              data: transformData,
+              transformId: 'omega.example.base64',
+            } as unknown as ChangeLogEntry,
+          ]),
+        }),
+      /metadata must be carried in data/
+    )
+
+    await assert.rejects(
+      () =>
+        toolkit.applyChangeLog({
+          sessionId: 'dry-run-session',
+          dryRun: true,
+          changes: makeChangeLogDocument([
+            {
+              kind: 'TRANSFORM',
+              offset: 0,
+              length: 8,
+              data: transformData,
+              replacementLength: 12,
+            } as unknown as ChangeLogEntry,
+          ]),
+        }),
+      /metadata must be carried in data/
+    )
+  })
+
+  it('exports and replays transform change logs with first-class data', async function () {
     const port = await omegaEditClient.findFirstAvailablePort(19000, 19999)
     assert.ok(port, 'expected an available port for OmegaEdit')
 
@@ -834,12 +1261,15 @@ describe('@omega-edit/ai toolkit', () => {
     const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'omega-edit-ai-'))
     const sourcePath = path.join(tempDir, 'source.bin')
     const replayPath = path.join(tempDir, 'replay.bin')
+    const mismatchReplayPath = path.join(tempDir, 'mismatch-replay.bin')
     const changeLogPath = path.join(tempDir, 'changes.json')
     fs.writeFileSync(sourcePath, Buffer.from('ABCDEFGH', 'utf8'))
     fs.writeFileSync(replayPath, Buffer.from('ABCDEFGH', 'utf8'))
+    fs.writeFileSync(mismatchReplayPath, Buffer.from('ABCDEFGH', 'utf8'))
 
     let sourceSessionId = ''
     let replaySessionId = ''
+    let mismatchReplaySessionId = ''
 
     try {
       const source = await toolkit.createSession(sourcePath)
@@ -852,30 +1282,119 @@ describe('@omega-edit/ai toolkit', () => {
       })
       await toolkit.exportChangeLog(sourceSessionId, changeLogPath, true)
 
-      const tamperedLog = JSON.parse(
+      const exportedLog = JSON.parse(
         await fs.promises.readFile(changeLogPath, 'utf8')
       )
-      const transformChange = tamperedLog.changes.find(
+      const transformChange = exportedLog.changes.find(
         (change: ChangeLogEntry) => change.kind === 'TRANSFORM'
       )
       assert.ok(transformChange, 'expected exported transform change')
-      transformChange.replacementLength = '999'
+      assert.notEqual(transformChange.data, '')
+      const transformDescriptor = parseTransformDataHex(transformChange.data)
+      assert.equal(transformDescriptor.transformId, 'omega.example.base64')
+      assert.deepEqual(transformDescriptor.args, {})
+      assert.equal('transformId' in transformChange, false)
+      assert.equal('optionsJson' in transformChange, false)
+      assert.equal('replacementLength' in transformChange, false)
+      assert.equal('computedFileSizeBefore' in transformChange, false)
+      assert.equal('computedFileSizeAfter' in transformChange, false)
 
       const replay = await toolkit.createSession(replayPath)
       replaySessionId = replay.sessionId
+      const applyResult = await toolkit.applyChangeLog({
+        sessionId: replaySessionId,
+        changes: exportedLog,
+      })
+      assert.equal(applyResult.applied, true)
+      assert.equal(applyResult.changeCount, 1)
+
+      const replayedRange = await toolkit.readRange(replaySessionId, 0, 12)
+      assert.equal(replayedRange.data.utf8, 'QUJDREVGR0g=')
+      const status = await toolkit.sessionStatus(replaySessionId)
+      assert.equal(status.changeCount, 1)
+
+      const mismatchReplay = await toolkit.createSession(mismatchReplayPath)
+      mismatchReplaySessionId = mismatchReplay.sessionId
       await assert.rejects(
         () =>
           toolkit.applyChangeLog({
-            sessionId: replaySessionId,
-            changes: tamperedLog,
+            sessionId: mismatchReplaySessionId,
+            changes: {
+              ...exportedLog,
+              after: makeUtf8Fingerprint('ZZZZZZZZZZZZ'),
+            },
           }),
-        /replacement length mismatch/
+        /after fingerprint mismatch/
       )
+      await assertToolkitText(toolkit, mismatchReplaySessionId, 'ABCDEFGH')
+    } finally {
+      if (sourceSessionId) {
+        await toolkit.destroySession(sourceSessionId).catch(() => undefined)
+      }
+      if (replaySessionId) {
+        await toolkit.destroySession(replaySessionId).catch(() => undefined)
+      }
+      if (mismatchReplaySessionId) {
+        await toolkit
+          .destroySession(mismatchReplaySessionId)
+          .catch(() => undefined)
+      }
+      await toolkit.stopServer().catch(() => undefined)
+      fs.rmSync(tempDir, { recursive: true, force: true })
+    }
+  })
 
-      const replayedRange = await toolkit.readRange(replaySessionId, 0, 8)
-      assert.equal(replayedRange.data.utf8, 'ABCDEFGH')
-      const status = await toolkit.sessionStatus(replaySessionId)
-      assert.equal(status.changeCount, 0)
+  it('exports transform options using semantic descriptor comparison', async function () {
+    const port = await omegaEditClient.findFirstAvailablePort(19000, 19999)
+    assert.ok(port, 'expected an available port for OmegaEdit')
+
+    const toolkit = new OmegaEditToolkit({ port: port!, autoStart: true })
+    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'omega-edit-ai-'))
+    const sourcePath = path.join(tempDir, 'source.bin')
+    const replayPath = path.join(tempDir, 'replay.bin')
+    const changeLogPath = path.join(tempDir, 'changes.json')
+    fs.writeFileSync(sourcePath, Buffer.from('ABC', 'utf8'))
+    fs.writeFileSync(replayPath, Buffer.from('ABC', 'utf8'))
+
+    let sourceSessionId = ''
+    let replaySessionId = ''
+
+    try {
+      const source = await toolkit.createSession(sourcePath)
+      sourceSessionId = source.sessionId
+      await toolkit.applyTransformPlugin({
+        sessionId: sourceSessionId,
+        pluginId: 'omega.example.bitwise',
+        offset: 0,
+        length: 3,
+        optionsJson: JSON.stringify({ byte: '0x20', operator: 'xor' }),
+      })
+      await assertToolkitText(toolkit, sourceSessionId, 'abc')
+      await toolkit.exportChangeLog(sourceSessionId, changeLogPath, true)
+
+      const exportedLog = JSON.parse(
+        await fs.promises.readFile(changeLogPath, 'utf8')
+      )
+      const transformChange = exportedLog.changes.find(
+        (change: ChangeLogEntry) => change.kind === 'TRANSFORM'
+      )
+      assert.ok(transformChange, 'expected exported transform change')
+      const transformDescriptor = parseTransformDataHex(transformChange.data)
+      assert.equal(transformDescriptor.transformId, 'omega.example.bitwise')
+      assert.deepEqual(transformDescriptor.args, {
+        byte: '0x20',
+        operator: 'xor',
+      })
+
+      const replay = await toolkit.createSession(replayPath)
+      replaySessionId = replay.sessionId
+      const applyResult = await toolkit.applyChangeLog({
+        sessionId: replaySessionId,
+        changes: exportedLog,
+      })
+      assert.equal(applyResult.applied, true)
+      assert.equal(applyResult.changeCount, 1)
+      await assertToolkitText(toolkit, replaySessionId, 'abc')
     } finally {
       if (sourceSessionId) {
         await toolkit.destroySession(sourceSessionId).catch(() => undefined)

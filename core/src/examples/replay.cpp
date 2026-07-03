@@ -38,13 +38,14 @@ void session_change_cbk(const omega_session_t *session_ptr, omega_session_event_
             auto file_info_ptr = reinterpret_cast<file_info_t *>(omega_session_get_user_data_ptr(session_ptr));
             const auto change_ptr = reinterpret_cast<const omega_change_t *>(session_event_ptr);
             const auto bytes = omega_change_get_bytes(change_ptr);
-            const auto bytes_length = omega_change_get_length(change_ptr);
+            const auto bytes_length = omega_change_get_data_length(change_ptr);
             // NOTE: This is for demonstration purposes only.  This is not production safe JSON.
             clog << dec << R"({ "filename" : ")" << file_info_ptr->in_filename << R"(", "num_changes" : )"
                  << omega_session_get_num_changes(session_ptr) << R"(, "computed_file_size": )"
                  << omega_session_get_computed_file_size(session_ptr) << R"(, "change_serial": )"
                  << omega_change_get_serial(change_ptr) << R"(, "kind": ")" << omega_change_get_kind_as_char(change_ptr)
-                 << R"(", "offset": )" << omega_change_get_offset(change_ptr) << R"(, "length": )" << bytes_length;
+                 << R"(", "offset": )" << omega_change_get_offset(change_ptr) << R"(, "length": )"
+                 << omega_change_get_length(change_ptr);
             if (bytes) { clog << R"(, "bytes": ")" << string((const char *) bytes, bytes_length) << R"(")"; }
             clog << "}" << endl;
         }

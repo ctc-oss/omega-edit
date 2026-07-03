@@ -36,6 +36,7 @@
     transformPluginsLoaded?: boolean
     transformPluginsLoading?: boolean
     transformInFlight?: boolean
+    transformCancelable?: boolean
     transformPluginError?: string
     transformFeedback?: string
     transformResults?: TransformResultHistoryItem[]
@@ -46,11 +47,11 @@
     selectionEnd?: number
     selectionLength?: number
     onBytesPerRow: (bytesPerRow: BytesPerRow) => void
-    onBytesPerRowMode: (mode: BytesPerRowMode) => void
     onOffsetRadix: (radix: 'hex' | 'dec') => void
     onInsertDirection: (direction: InsertDirection) => void
     onGoToOffset: (offset: number) => void
     onRequestTransforms: () => void
+    onCancelTransform: () => void
     onApplyTransform: (
       pluginId: string,
       contentSource: WebviewSessionContentSource,
@@ -81,21 +82,22 @@
     transformPluginsLoaded = false,
     transformPluginsLoading = false,
     transformInFlight = false,
+    transformCancelable = false,
     transformPluginError = '',
     transformFeedback = '',
     transformResults = [],
     activeTransformResultId = '',
-    searchPanelVisible = true,
+    searchPanelVisible = false,
     selectedOffset = -1,
     selectionStart = -1,
     selectionEnd = -1,
     selectionLength = 0,
     onBytesPerRow,
-    onBytesPerRowMode,
     onOffsetRadix,
     onInsertDirection,
     onGoToOffset,
     onRequestTransforms,
+    onCancelTransform,
     onApplyTransform,
     onExportRange,
     onInsertFile,
@@ -130,11 +132,7 @@
       Number.parseInt(customBytesPerRowValue, 10)
     )
     customBytesPerRowValue = String(nextBytesPerRow)
-    if (
-      !force &&
-      bytesPerRowMode === 'auto' &&
-      nextBytesPerRow === bytesPerRow
-    ) {
+    if (!force && nextBytesPerRow === bytesPerRow) {
       return
     }
     onBytesPerRow(nextBytesPerRow)
@@ -159,15 +157,6 @@
 <div class="toolbar" role="toolbar" aria-label={strings.toolbar.label}>
   <div class="bytes-per-row-control">
     <div class="segmented" aria-label={strings.toolbar.bytesPerRow}>
-      <button
-        type="button"
-        class:active={bytesPerRowMode === 'auto'}
-        aria-pressed={bytesPerRowMode === 'auto'}
-        title={strings.toolbar.autoBytesPerRowTitle}
-        onclick={() => onBytesPerRowMode('auto')}
-      >
-        {strings.toolbar.autoBytesPerRow}
-      </button>
       {#each rowOptions as option}
         <button
           type="button"
@@ -267,6 +256,7 @@
       pluginsLoaded={transformPluginsLoaded}
       pluginsLoading={transformPluginsLoading}
       busy={transformInFlight}
+      cancelable={transformCancelable}
       error={transformPluginError}
       {fileSize}
       {selectedOffset}
@@ -278,6 +268,7 @@
       results={transformResults}
       {activeTransformResultId}
       {onRequestTransforms}
+      {onCancelTransform}
       {onApplyTransform}
       {onExportRange}
       {onInsertFile}

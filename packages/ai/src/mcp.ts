@@ -9,7 +9,7 @@ import {
   DEFAULT_PROTOCOL_VERSION,
   TOOLING_VERSION,
 } from './constants'
-import { OmegaEditToolkit } from './service'
+import { ChangeLogReplayError, OmegaEditToolkit } from './service'
 import { parseInputData } from './codec'
 import { ChangeLogDocument, InputEncoding, PatchKind } from './types'
 
@@ -27,7 +27,7 @@ interface ToolDefinition {
   description: string
   inputSchema: JsonObject
   outputSchema?: JsonObject
-  run: (argumentsObject: JsonObject) => Promise<object>
+  run: (argumentsObject: JsonObject, signal?: AbortSignal) => Promise<object>
 }
 
 function sendMessage(message: JsonObject): void {
@@ -343,6 +343,27 @@ function buildTools(toolkit: OmegaEditToolkit): ToolDefinition[] {
       },
     },
     {
+      name: 'omega_edit_preview_change_log',
+      description:
+        'Preview a versioned OmegaEdit change-log document before replay, including primitive counts, fingerprints, size delta, transform plugins, unavailable primitives, and rollback protection.',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          sessionId: { type: 'string' },
+          inputPath: { type: 'string' },
+          changeLog: { type: 'object' },
+        },
+        required: ['sessionId'],
+      },
+      run: async (argumentsObject) => {
+        return await toolkit.previewChangeLog({
+          sessionId: getString(argumentsObject, 'sessionId', true)!,
+          inputPath: getString(argumentsObject, 'inputPath'),
+          changes: getChangeLogDocument(argumentsObject, 'changeLog'),
+        })
+      },
+    },
+    {
       name: 'omega_edit_apply_change_log',
       description:
         'Apply a versioned OmegaEdit change-log document to a session from an inputPath or inline changeLog object.',
@@ -536,13 +557,14 @@ function buildTools(toolkit: OmegaEditToolkit): ToolDefinition[] {
         },
         required: ['sessionId', 'pluginId'],
       },
-      run: async (argumentsObject) => {
+      run: async (argumentsObject, signal) => {
         return await toolkit.applyTransformPlugin({
           sessionId: getString(argumentsObject, 'sessionId', true)!,
           pluginId: getString(argumentsObject, 'pluginId', true)!,
           offset: getNumber(argumentsObject, 'offset', false, 0),
           length: getNumber(argumentsObject, 'length', false, 0),
           optionsJson: getString(argumentsObject, 'optionsJson'),
+          signal,
         })
       },
     },
@@ -751,6 +773,7 @@ async function main(): Promise<void> {
 
   const tools = buildTools(toolkit)
   const toolMap = new Map(tools.map((tool) => [tool.name, tool]))
+  const activeToolRequests = new Map<unknown, AbortController>()
   let initializeComplete = false
   let receivedInitializedNotification = false
 
@@ -820,6 +843,12 @@ async function main(): Promise<void> {
         return
       }
 
+      if (method === 'notifications/cancelled') {
+        const params = asObject(message.params)
+        activeToolRequests.get(params.requestId)?.abort()
+        return
+      }
+
       if (method === 'ping') {
         sendMessage(makeResult(id, {}))
         return
@@ -863,9 +892,13 @@ async function main(): Promise<void> {
         }
 
         const argumentsObject = asObject(params.arguments)
+        const abortController = new AbortController()
+        if (id !== undefined && id !== null) {
+          activeToolRequests.set(id, abortController)
+        }
 
         try {
-          const result = await tool.run(argumentsObject)
+          const result = await tool.run(argumentsObject, abortController.signal)
           sendMessage(makeResult(id, toolResult(result)))
         } catch (error) {
           const messageText =
@@ -877,11 +910,18 @@ async function main(): Promise<void> {
                 {
                   tool: name,
                   error: messageText,
+                  ...(error instanceof ChangeLogReplayError
+                    ? { result: error.result }
+                    : {}),
                 },
                 true
               )
             )
           )
+        } finally {
+          if (activeToolRequests.get(id) === abortController) {
+            activeToolRequests.delete(id)
+          }
         }
         return
       }

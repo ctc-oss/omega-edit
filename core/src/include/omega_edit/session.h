@@ -357,6 +357,24 @@ int64_t omega_session_get_undo_snapshot_interval(const omega_session_t *session_
  */
 int64_t omega_session_set_undo_snapshot_interval(omega_session_t *session_ptr, int64_t interval);
 
+/**
+ * Given a session, return the inline primitive payload threshold. Change payloads larger than this threshold are stored
+ * in session-owned backing files when possible.
+ * @param session_ptr session to get the inline primitive payload threshold for
+ * @return threshold in bytes, or 0 for null sessions
+ */
+int64_t omega_session_get_change_inline_payload_limit(const omega_session_t *session_ptr);
+
+/**
+ * Set the inline primitive payload threshold for a session. A value of 0 stores every non-empty captured primitive
+ * payload in a backing file. Values above OMEGA_MEMORY_BUFFER_LIMIT are accepted, but materialized public byte buffers
+ * are still limited by OMEGA_MEMORY_BUFFER_LIMIT.
+ * @param session_ptr session to set the inline primitive payload threshold for
+ * @param limit threshold in bytes
+ * @return the new threshold, or 0 on error
+ */
+int64_t omega_session_set_change_inline_payload_limit(omega_session_t *session_ptr, int64_t limit);
+
 #ifdef __cplusplus
 }
 #endif

@@ -10,7 +10,7 @@ export const OMEGA_EDIT_EXTENSION_PUBLISHER = 'ctc-oss'
 export const OMEGA_EDIT_EXTENSION_NAME = 'omega-edit-data-editor'
 export const OMEGA_EDIT_EXTENSION_ID =
   `${OMEGA_EDIT_EXTENSION_PUBLISHER}.${OMEGA_EDIT_EXTENSION_NAME}` as const
-export const OMEGA_EDIT_EXTENSION_API_VERSION = 3
+export const OMEGA_EDIT_EXTENSION_API_VERSION = 2
 
 export type OmegaEditExternalHighlightKind = ExternalHighlightKind
 export type OmegaEditExternalHighlight = WebviewExternalHighlight
@@ -40,6 +40,17 @@ export interface OmegaEditExternalHighlightRequest
   reveal?: boolean
 }
 
+export interface OmegaEditRangeMapLoadOptions extends OmegaEditEditorSelector {
+  sourceUri?: vscode.Uri | string
+  reveal?: boolean
+  notify?: boolean
+}
+
+export interface OmegaEditRangeMapUnloadOptions
+  extends OmegaEditEditorSelector {
+  notify?: boolean
+}
+
 export interface OmegaEditCheckpointOptions extends OmegaEditEditorSelector {}
 
 export interface OmegaEditChangeLogExportOptions
@@ -48,6 +59,11 @@ export interface OmegaEditChangeLogExportOptions
 }
 
 export interface OmegaEditChangeLogApplyOptions
+  extends OmegaEditEditorSelector {
+  sourceUri?: vscode.Uri | string
+}
+
+export interface OmegaEditChangeLogPreviewOptions
   extends OmegaEditEditorSelector {
   sourceUri?: vscode.Uri | string
 }
@@ -81,10 +97,64 @@ export interface OmegaEditChangeLogFingerprint {
   digest: OmegaEditChangeLogDigest
 }
 
+export interface OmegaEditChangeLogPrimitiveCounts {
+  total: number
+  insert: number
+  delete: number
+  overwrite: number
+  replace: number
+  transform: number
+}
+
+export interface OmegaEditChangeLogPreview {
+  state?: OmegaEditEditorState
+  uri?: vscode.Uri
+  format: 'omega-edit.change-log'
+  version: 2
+  complete: boolean
+  canApply: boolean
+  primitiveCounts: OmegaEditChangeLogPrimitiveCounts
+  before: OmegaEditChangeLogFingerprint
+  after: OmegaEditChangeLogFingerprint
+  current?: OmegaEditChangeLogFingerprint
+  expectedSize: {
+    beforeByteLength: string
+    afterByteLength: string
+    deltaBytes: string
+  }
+  transformDescriptors: Array<{
+    index: number
+    serial?: number | string
+    offset: number | string
+    length: number | string
+    transformId: string
+    optionsJson?: string
+    descriptorSource: 'data'
+  }>
+  requiredPlugins: string[]
+  missingPlugins: string[]
+  unavailablePrimitives: {
+    count: number | string
+    serials: Array<number | string>
+  }
+  rollbackProtection: {
+    available: boolean
+    strategy: 'restore-to-change-count' | 'not-inspected'
+    targetChangeCount?: number
+    checkpointCount?: number
+  }
+  safetyIssues: Array<{
+    severity: 'error' | 'warning'
+    code: string
+    message: string
+  }>
+}
+
 export interface OmegaEditChangeLogResult {
   state?: OmegaEditEditorState
   uri?: vscode.Uri
   changeCount: number
+  appliedCount?: number
   sourceChangeCount?: number
   complete?: boolean
   before?: OmegaEditChangeLogFingerprint
@@ -92,6 +162,36 @@ export interface OmegaEditChangeLogResult {
   unavailableChangeCount?: number
   unavailableChangeSerials?: number[]
   cancelled?: boolean
+  preview?: OmegaEditChangeLogPreview
+  rollback?: {
+    attempted: boolean
+    succeeded?: boolean
+    rolledBack?: boolean
+    targetChangeCount?: number
+    error?: string
+  }
+  finalFingerprint?: OmegaEditChangeLogFingerprint
+}
+
+export interface OmegaEditRangeMapLoadResult {
+  state?: OmegaEditEditorState
+  sourceUri?: vscode.Uri
+  source?: string
+  nodeCount: number
+  highlightCount: number
+  selectedPath?: string
+  selectedRange?: {
+    offset: number
+    length: number
+  }
+  cancelled?: boolean
+  message?: string
+}
+
+export interface OmegaEditRangeMapUnloadResult {
+  state?: OmegaEditEditorState
+  unloadedCount: number
+  highlightCount: number
 }
 
 export interface OmegaEditExtensionApi {
@@ -121,6 +221,12 @@ export interface OmegaEditExtensionApi {
   clearExternalHighlights(
     options?: vscode.Uri | string | OmegaEditEditorSelector
   ): OmegaEditEditorState | undefined
+  loadRangeMap(
+    options?: vscode.Uri | string | OmegaEditRangeMapLoadOptions
+  ): Promise<OmegaEditRangeMapLoadResult | undefined>
+  unloadRangeMap(
+    options?: vscode.Uri | string | OmegaEditRangeMapUnloadOptions
+  ): OmegaEditRangeMapUnloadResult | undefined
   setInsertDirection(
     directionOrOptions?:
       | OmegaEditInsertDirection
@@ -141,6 +247,9 @@ export interface OmegaEditExtensionApi {
   exportChangeLog(
     options?: vscode.Uri | string | OmegaEditChangeLogExportOptions
   ): Promise<OmegaEditChangeLogResult | undefined>
+  previewChangeLog(
+    options?: vscode.Uri | string | OmegaEditChangeLogPreviewOptions
+  ): Promise<OmegaEditChangeLogPreview | undefined>
   applyChangeLog(
     options?: vscode.Uri | string | OmegaEditChangeLogApplyOptions
   ): Promise<OmegaEditChangeLogResult | undefined>

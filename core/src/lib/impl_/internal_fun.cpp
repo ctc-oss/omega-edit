@@ -113,8 +113,11 @@ namespace omega_edit::internal {
                     // segment
                     int64_t change_offset = 0;
                     if (!safe_add_int64_((*iter)->change_offset, delta, change_offset)) { return -1; }
-                    memcpy(data_segment_buffer + data_segment_ptr->length,
-                           omega_change_get_bytes((*iter)->change_ptr.get()) + change_offset, amount);
+                    if (omega_change_copy_payload_bytes_((*iter)->change_ptr.get(), (*iter)->payload_role,
+                                                         change_offset, data_segment_buffer + data_segment_ptr->length,
+                                                         amount) != 0) {
+                        return -1;
+                    }
                     break;
                 }
                 default:
@@ -142,8 +145,8 @@ namespace omega_edit::internal {
                    << omega_change_get_kind_as_char(change_ptr) << R"(", "offset": )"
                    << omega_change_get_offset(change_ptr) << R"(, "length": )" << omega_change_get_length(change_ptr);
         if (const auto bytes = omega_change_get_bytes(change_ptr); bytes) {
-            out_stream << R"(, "bytes": ")" << std::string((char const *) bytes, omega_change_get_length(change_ptr))
-                       << R"(")";
+            out_stream << R"(, "bytes": ")"
+                       << std::string((char const *) bytes, omega_change_get_data_length(change_ptr)) << R"(")";
         }
         out_stream << "}";
     }

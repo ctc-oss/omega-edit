@@ -1,6 +1,7 @@
 export type {
   BytesPerRow,
   BytesPerRowMode,
+  ExternalHighlightKind,
   HostToWebviewMessage,
   InsertDirection,
   ServerHealthMetric,
@@ -8,6 +9,7 @@ export type {
   ServerHealthMessage,
   WebviewEditorUiState,
   WebviewExternalHighlight,
+  WebviewRangeMapNode,
   WebviewSessionContentInfo,
   WebviewSessionContentSource,
   WebviewTransformPlugin,
@@ -15,7 +17,6 @@ export type {
 } from '../../src/webviewProtocol'
 
 export {
-  AUTO_BYTES_PER_ROW_SETTING,
   DEFAULT_BYTES_PER_ROW,
   FIXED_BYTES_PER_ROW_OPTIONS,
   MAX_ANALYSIS_PROFILE_BYTES,

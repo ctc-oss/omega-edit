@@ -859,6 +859,8 @@ namespace {
         int64_t furthest_read{};
         omega_transform_plugin_progress_cbk_t progress{};
         void *progress_user_data_ptr{};
+        omega_transform_plugin_is_cancelled_t is_cancelled{};
+        void *cancel_user_data_ptr{};
     };
 
     struct materialized_input_t {
@@ -890,8 +892,10 @@ namespace {
 
     auto read_session_range_(const omega_session_t *session_ptr, int64_t offset, int64_t length,
                              omega_transform_plugin_progress_cbk_t progress, void *progress_user_data_ptr,
+                             omega_transform_plugin_is_cancelled_t is_cancelled, void *cancel_user_data_ptr,
                              materialized_input_t &input) -> int {
         if (!session_ptr || offset < 0 || length < 0) { return -1; }
+        if (is_cancelled && is_cancelled(cancel_user_data_ptr) != 0) { return -1; }
 
         const auto computed_file_size = omega_session_get_computed_file_size(session_ptr);
         if (computed_file_size < 0 || offset > computed_file_size) { return -1; }
@@ -918,9 +922,12 @@ namespace {
             destination = input.file_backed->data();
         }
 
-        session_range_reader_t reader{session_ptr, offset, requested_length, 0, progress, progress_user_data_ptr};
+        session_range_reader_t reader{
+                session_ptr,         offset, requested_length, 0, progress, progress_user_data_ptr, is_cancelled,
+                cancel_user_data_ptr};
         int64_t copied_length = 0;
         while (copied_length < requested_length) {
+            if (is_cancelled && is_cancelled(cancel_user_data_ptr) != 0) { return -1; }
             const auto chunk_length = std::min(TRANSFORM_PLUGIN_STREAM_CHUNK_BYTES, requested_length - copied_length);
             const auto read_length =
                     read_session_range_chunk_(copied_length, destination + copied_length, chunk_length, &reader);
@@ -938,6 +945,7 @@ namespace {
             relative_offset > reader->length) {
             return -1;
         }
+        if (reader->is_cancelled && reader->is_cancelled(reader->cancel_user_data_ptr) != 0) { return -1; }
 
         const auto remaining = reader->length - relative_offset;
         const auto read_length = std::min(std::min(length, remaining), TRANSFORM_PLUGIN_STREAM_CHUNK_BYTES);
@@ -1078,9 +1086,20 @@ int omega_transform_plugin_registry_apply_to_session_with_progress_and_serial(
         omega_transform_plugin_registry_t *registry_ptr, const char *plugin_id, omega_session_t *session_ptr,
         int64_t offset, int64_t length, const char *options_json, omega_transform_plugin_progress_cbk_t progress,
         void *progress_user_data_ptr, omega_transform_plugin_response_t *response_ptr, int64_t *change_serial_out) {
+    return omega_transform_plugin_registry_apply_to_session_with_progress_cancel_and_serial(
+            registry_ptr, plugin_id, session_ptr, offset, length, options_json, progress, progress_user_data_ptr,
+            nullptr, nullptr, response_ptr, change_serial_out);
+}
+
+int omega_transform_plugin_registry_apply_to_session_with_progress_cancel_and_serial(
+        omega_transform_plugin_registry_t *registry_ptr, const char *plugin_id, omega_session_t *session_ptr,
+        int64_t offset, int64_t length, const char *options_json, omega_transform_plugin_progress_cbk_t progress,
+        void *progress_user_data_ptr, omega_transform_plugin_is_cancelled_t is_cancelled, void *cancel_user_data_ptr,
+        omega_transform_plugin_response_t *response_ptr, int64_t *change_serial_out) {
     if (response_ptr) { omega_transform_plugin_response_clear(response_ptr); }
     if (change_serial_out) { *change_serial_out = 0; }
     if (!registry_ptr || !plugin_id || !*plugin_id || !session_ptr || offset < 0 || length < 0) { return -1; }
+    if (is_cancelled && is_cancelled(cancel_user_data_ptr) != 0) { return -1; }
 
     // The registry owns plugin lookup/lifetime, but omega_session_t itself is not thread-safe.
     // Callers that share sessions across threads must hold their session/core lock across this call.
@@ -1099,12 +1118,14 @@ int omega_transform_plugin_registry_apply_to_session_with_progress_and_serial(
     const auto should_materialize = !can_stream || requested_length <= TRANSFORM_PLUGIN_CONTIGUOUS_INPUT_LIMIT_BYTES;
 
     materialized_input_t input;
-    if (should_materialize &&
-        0 != read_session_range_(session_ptr, offset, length, progress, progress_user_data_ptr, input)) {
+    if (should_materialize && 0 != read_session_range_(session_ptr, offset, length, progress, progress_user_data_ptr,
+                                                       is_cancelled, cancel_user_data_ptr, input)) {
         return -1;
     }
 
-    session_range_reader_t reader{session_ptr, offset, requested_length, 0, progress, progress_user_data_ptr};
+    session_range_reader_t reader{
+            session_ptr,         offset, requested_length, 0, progress, progress_user_data_ptr, is_cancelled,
+            cancel_user_data_ptr};
     plugin_allocator_state_t allocator_state{omega_session_get_checkpoint_directory(session_ptr), {}};
 
     omega_transform_plugin_request_t request{};
@@ -1120,9 +1141,17 @@ int omega_transform_plugin_registry_apply_to_session_with_progress_and_serial(
     request.preferred_chunk_size = TRANSFORM_PLUGIN_STREAM_CHUNK_BYTES;
     request.progress = progress;
     request.progress_user_data_ptr = progress_user_data_ptr;
+    request.is_cancelled = is_cancelled;
+    request.cancel_user_data_ptr = cancel_user_data_ptr;
 
     omega_transform_plugin_response_t plugin_response{};
+    if (is_cancelled && is_cancelled(cancel_user_data_ptr) != 0) { return -1; }
     if (0 != (*iter)->apply(&request, &plugin_response)) {
+        release_unclaimed_plugin_allocations_(allocator_state, plugin_response);
+        omega_transform_plugin_response_clear(&plugin_response);
+        return -1;
+    }
+    if (is_cancelled && is_cancelled(cancel_user_data_ptr) != 0) {
         release_unclaimed_plugin_allocations_(allocator_state, plugin_response);
         omega_transform_plugin_response_clear(&plugin_response);
         return -1;
@@ -1176,8 +1205,22 @@ int omega_transform_plugin_registry_inspect_reader(omega_transform_plugin_regist
                                                    omega_transform_plugin_progress_cbk_t progress,
                                                    void *progress_user_data_ptr,
                                                    omega_transform_plugin_response_t *response_ptr) {
+    return omega_transform_plugin_registry_inspect_reader_with_cancel(
+            registry_ptr, plugin_id, session_offset, session_length, options_json, checkpoint_directory, read,
+            reader_user_data_ptr, preferred_chunk_size, progress, progress_user_data_ptr, nullptr, nullptr,
+            response_ptr);
+}
+
+int omega_transform_plugin_registry_inspect_reader_with_cancel(
+        omega_transform_plugin_registry_t *registry_ptr, const char *plugin_id, int64_t session_offset,
+        int64_t session_length, const char *options_json, const char *checkpoint_directory,
+        omega_transform_plugin_read_t read, void *reader_user_data_ptr, int64_t preferred_chunk_size,
+        omega_transform_plugin_progress_cbk_t progress, void *progress_user_data_ptr,
+        omega_transform_plugin_is_cancelled_t is_cancelled, void *cancel_user_data_ptr,
+        omega_transform_plugin_response_t *response_ptr) {
     if (response_ptr) { omega_transform_plugin_response_clear(response_ptr); }
     if (!registry_ptr || !plugin_id || !*plugin_id || session_offset < 0 || session_length < 0 || !read) { return -1; }
+    if (is_cancelled && is_cancelled(cancel_user_data_ptr) != 0) { return -1; }
 
     auto iter = std::find_if(registry_ptr->plugins.begin(), registry_ptr->plugins.end(),
                              [plugin_id](const auto &plugin) { return plugin->info.id == std::string(plugin_id); });
@@ -1202,9 +1245,17 @@ int omega_transform_plugin_registry_inspect_reader(omega_transform_plugin_regist
                                            : TRANSFORM_PLUGIN_STREAM_CHUNK_BYTES;
     request.progress = progress;
     request.progress_user_data_ptr = progress_user_data_ptr;
+    request.is_cancelled = is_cancelled;
+    request.cancel_user_data_ptr = cancel_user_data_ptr;
 
     omega_transform_plugin_response_t plugin_response{};
+    if (is_cancelled && is_cancelled(cancel_user_data_ptr) != 0) { return -1; }
     if (0 != (*iter)->apply(&request, &plugin_response)) {
+        release_unclaimed_plugin_allocations_(allocator_state, plugin_response);
+        omega_transform_plugin_response_clear(&plugin_response);
+        return -1;
+    }
+    if (is_cancelled && is_cancelled(cancel_user_data_ptr) != 0) {
         release_unclaimed_plugin_allocations_(allocator_state, plugin_response);
         omega_transform_plugin_response_clear(&plugin_response);
         return -1;

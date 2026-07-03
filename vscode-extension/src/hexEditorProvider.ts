@@ -70,6 +70,7 @@ import {
   replaceSessionCheckpointed,
   redo,
   restoreLastCheckpoint,
+  restoreToChangeCount,
   runSessionTransaction,
   saveSession,
   SessionContentSource,
@@ -94,6 +95,7 @@ import {
   getSvelteWebviewContent,
   getSvelteWebviewLocalResourceRoot,
 } from './svelteWebview'
+import { assertRangeMapFitsFile, parseRangeMapContent } from './rangeMap'
 import {
   MAX_ANALYSIS_PROFILE_BYTES,
   MAX_LABEL_LENGTH,
@@ -103,6 +105,7 @@ import {
   type WebviewEditorState,
   type WebviewEditorUiState,
   type WebviewExternalHighlight,
+  type WebviewRangeMapNode,
   type WebviewSessionContentInfo,
   type WebviewSessionContentSource,
   type WebviewTransformPlugin,
@@ -144,14 +147,24 @@ interface EditorSession {
   analysisProfileTask?: Promise<void>
   webviewState: WebviewEditorUiState
   externalHighlights: WebviewExternalHighlight[]
+  rangeMapTree: WebviewRangeMapNode[]
+  externalHighlightBaseline?: ExternalHighlightBaseline
   contentSources: WebviewSessionContentInfo[]
   transformPlugins: WebviewTransformPlugin[]
   transformInFlight: boolean
+  transformAbortController?: AbortController
   pendingHistoryOperation?: 'undo' | 'redo'
   pendingHistoryCount?: number
   historyCommandTask?: Promise<void>
   contentType?: string
   language?: string
+}
+
+interface ExternalHighlightBaseline {
+  changeCount: number
+  fileSize: number
+  highlights: WebviewExternalHighlight[]
+  rangeMapTree: WebviewRangeMapNode[]
 }
 
 interface AnalysisProfileRequest {
@@ -179,9 +192,147 @@ interface ChangeLogFingerprint {
 }
 
 interface ParsedChangeLog {
-  changes: ChangeRecord[]
+  changes: ParsedChangeRecord[]
+  complete: boolean
+  before: ChangeLogFingerprint
+  after: ChangeLogFingerprint
+  changeCount: string
+  sourceChangeCount: string
+  unavailableChangeCount: string
+  unavailableChangeSerials: number[]
+}
+
+interface ChangeLogDocumentMetadata {
+  complete: boolean
+  changeCount: string
+  sourceChangeCount: string
+  unavailableChangeCount: string
+  unavailableChangeSerials: number[]
+}
+
+interface TransformPrimitiveDescriptor {
+  transformId: string
+  optionsJson?: string
+}
+
+interface ParsedChangeRecord extends ChangeRecord {
+  transformDescriptor?: TransformPrimitiveDescriptor
+}
+
+interface ChangeLogPrimitiveCounts {
+  total: number
+  insert: number
+  delete: number
+  overwrite: number
+  replace: number
+  transform: number
+}
+
+interface ChangeLogSizeDelta {
+  beforeByteLength: string
+  afterByteLength: string
+  deltaBytes: string
+}
+
+interface ChangeLogTransformDescriptorPreview {
+  index: number
+  serial?: number | string
+  offset: number | string
+  length: number | string
+  transformId: string
+  optionsJson?: string
+  descriptorSource: 'data'
+}
+
+interface ChangeLogSafetyIssue {
+  severity: 'error' | 'warning'
+  code: string
+  message: string
+}
+
+interface ChangeLogRollbackProtection {
+  available: boolean
+  strategy: 'restore-to-change-count' | 'not-inspected'
+  targetChangeCount?: number
+  checkpointCount?: number
+}
+
+interface ChangeLogPreview {
+  state?: WebviewEditorState
+  uri?: vscode.Uri
+  format: 'omega-edit.change-log'
+  version: 2
+  complete: boolean
+  canApply: boolean
+  primitiveCounts: ChangeLogPrimitiveCounts
+  before: ChangeLogFingerprint
+  after: ChangeLogFingerprint
+  current?: ChangeLogFingerprint
+  expectedSize: ChangeLogSizeDelta
+  transformDescriptors: ChangeLogTransformDescriptorPreview[]
+  requiredPlugins: string[]
+  missingPlugins: string[]
+  unavailablePrimitives: {
+    count: number | string
+    serials: Array<number | string>
+  }
+  rollbackProtection: ChangeLogRollbackProtection
+  safetyIssues: ChangeLogSafetyIssue[]
+}
+
+interface ChangeLogApplyResult {
+  state: WebviewEditorState
+  uri?: vscode.Uri
+  changeCount: number
+  appliedCount?: number
+  sourceChangeCount?: number
+  complete?: boolean
   before?: ChangeLogFingerprint
   after?: ChangeLogFingerprint
+  unavailableChangeCount?: number
+  unavailableChangeSerials?: number[]
+  cancelled?: boolean
+  preview?: ChangeLogPreview
+  rollback?: {
+    attempted: boolean
+    succeeded?: boolean
+    rolledBack?: boolean
+    targetChangeCount?: number
+    error?: string
+  }
+  finalFingerprint?: ChangeLogFingerprint
+}
+
+interface ChangeLogReplayFailureDetails {
+  appliedCount: number
+  rollback: NonNullable<ChangeLogApplyResult['rollback']>
+  finalFingerprint?: ChangeLogFingerprint
+}
+
+type ChangeLogReplayError = Error & {
+  changeLogReplay?: ChangeLogReplayFailureDetails
+  result?: ChangeLogApplyResult
+}
+
+interface RangeMapLoadResult {
+  state: WebviewEditorState
+  sourceUri?: vscode.Uri
+  source?: string
+  nodeCount: number
+  highlightCount: number
+  selectedPath?: string
+  selectedRange?: {
+    offset: number
+    length: number
+  }
+  cancelled?: boolean
+  message?: string
+}
+
+interface RangeMapUnloadResult {
+  state: WebviewEditorState
+  unloadedCount: number
+  highlightCount: number
 }
 
 const SESSION_SYNC_TIMEOUT_MS = 2000
@@ -342,6 +493,148 @@ function safeHexString(
   return text
 }
 
+function parseJsonObject(text: string, name: string): Record<string, unknown> {
+  let parsed: unknown
+  try {
+    parsed = JSON.parse(text)
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error)
+    throw new Error(`${name} must be valid JSON: ${message}`)
+  }
+  if (!isRecord(parsed)) {
+    throw new Error(`${name} must be a JSON object`)
+  }
+  return parsed
+}
+
+function transformOptionsToJson(
+  args: Record<string, unknown>
+): string | undefined {
+  return Object.keys(args).length > 0 ? JSON.stringify(args) : undefined
+}
+
+function parseTransformOptionsJson(
+  optionsJson: string | undefined,
+  name: string
+): Record<string, unknown> {
+  if (optionsJson === undefined || optionsJson === '') {
+    return {}
+  }
+  return parseJsonObject(optionsJson, name)
+}
+
+function encodeTransformPrimitiveDataHex(
+  transformId: string,
+  optionsJson?: string
+): string {
+  const args = parseTransformOptionsJson(optionsJson, 'transform options')
+  return Buffer.from(
+    JSON.stringify({
+      transformId: transformId.trim(),
+      args,
+    }),
+    'utf8'
+  ).toString('hex')
+}
+
+function parseTransformPrimitiveDescriptor(
+  dataHex: string,
+  name: string
+): TransformPrimitiveDescriptor {
+  const data = Buffer.from(dataHex, 'hex')
+  if (data.length === 0) {
+    throw new Error(`${name} requires data`)
+  }
+
+  const descriptor = parseJsonObject(data.toString('utf8'), name)
+  if (
+    typeof descriptor.transformId !== 'string' ||
+    !descriptor.transformId.trim()
+  ) {
+    throw new Error(`${name} requires transformId`)
+  }
+
+  const args = descriptor.args === undefined ? {} : descriptor.args
+  if (!isRecord(args)) {
+    throw new Error(`${name} args must be a JSON object`)
+  }
+
+  return {
+    transformId: descriptor.transformId.trim(),
+    optionsJson: transformOptionsToJson(args),
+  }
+}
+
+function transformOptionsMatchDescriptor(
+  optionsJson: string | undefined,
+  descriptorOptionsJson: string | undefined,
+  name: string
+): boolean {
+  const options = parseTransformOptionsJson(optionsJson, name)
+  const descriptorOptions = parseTransformOptionsJson(
+    descriptorOptionsJson,
+    name
+  )
+  return jsonObjectsEqual(options, descriptorOptions)
+}
+
+function normalizeJsonForComparison(value: unknown): unknown {
+  if (Array.isArray(value)) {
+    return value.map(normalizeJsonForComparison)
+  }
+  if (!isRecord(value)) {
+    return value
+  }
+  return Object.fromEntries(
+    Object.keys(value)
+      .sort()
+      .map((key) => [key, normalizeJsonForComparison(value[key])])
+  )
+}
+
+function jsonObjectsEqual(
+  left: Record<string, unknown>,
+  right: Record<string, unknown>
+): boolean {
+  return (
+    JSON.stringify(normalizeJsonForComparison(left)) ===
+    JSON.stringify(normalizeJsonForComparison(right))
+  )
+}
+
+function assertTransformReplayResponse(
+  descriptor: TransformPrimitiveDescriptor,
+  offset: number,
+  length: number,
+  computedFileSizeBefore: number,
+  computedFileSizeAfter: number,
+  response: Awaited<ReturnType<typeof applyTransformPlugin>>
+): void {
+  if (response.pluginId !== descriptor.transformId) {
+    throw new Error(
+      `Transform ${descriptor.transformId} replay returned plugin ${response.pluginId}`
+    )
+  }
+  if (response.offset !== offset || response.length !== length) {
+    throw new Error(
+      `Transform ${descriptor.transformId} replay range mismatch: expected offset ${offset}, length ${length}; actual offset ${response.offset}, length ${response.length}`
+    )
+  }
+
+  const expectedFileSize =
+    computedFileSizeBefore - response.length + response.replacementLength
+  if (response.computedFileSize !== expectedFileSize) {
+    throw new Error(
+      `Transform ${descriptor.transformId} replay size mismatch: expected ${expectedFileSize}, actual ${response.computedFileSize}`
+    )
+  }
+  if (computedFileSizeAfter !== response.computedFileSize) {
+    throw new Error(
+      `Transform ${descriptor.transformId} replay session size mismatch: expected ${response.computedFileSize}, actual ${computedFileSizeAfter}`
+    )
+  }
+}
+
 function initialWebviewState(bytesPerRow: BytesPerRow): WebviewEditorUiState {
   return {
     visibleOffset: 0,
@@ -379,6 +672,17 @@ function isMutationWebviewMessage(message: WebviewToHostMessage): boolean {
     default:
       return false
   }
+}
+
+function isTransformCancellationError(error: unknown): boolean {
+  const code = (error as { code?: unknown })?.code
+  const causeCode = (error as { cause?: { code?: unknown } })?.cause?.code
+  if (code === 1 || causeCode === 1) {
+    return true
+  }
+  const message = error instanceof Error ? error.message : String(error)
+  const normalized = message.toLowerCase()
+  return normalized.includes('cancelled') || normalized.includes('canceled')
 }
 
 function safeInsertDirection(value: unknown): InsertDirection | undefined {
@@ -834,8 +1138,29 @@ function changeDetailsToChangeRecord(
 
   if (kind === 'TRANSFORM') {
     const transform = change.getTransform()
+    const data = Buffer.from(change.getData_asU8()).toString('hex')
+    const descriptor = parseTransformPrimitiveDescriptor(
+      data,
+      'TRANSFORM change data'
+    )
     if (!transform?.transformId) {
       throw new Error('Transform change is missing transform metadata')
+    }
+    if (descriptor.transformId !== transform.transformId) {
+      throw new Error(
+        `Transform metadata mismatch: descriptor ${descriptor.transformId} does not match change ${transform.transformId}`
+      )
+    }
+    if (
+      !transformOptionsMatchDescriptor(
+        transform.optionsJson,
+        descriptor.optionsJson,
+        'transform options'
+      )
+    ) {
+      throw new Error(
+        `Transform metadata mismatch: options for ${transform.transformId} do not match change data`
+      )
     }
 
     return {
@@ -843,14 +1168,7 @@ function changeDetailsToChangeRecord(
       kind,
       offset: change.getOffset(),
       length: change.getLength(),
-      data: '',
-      transformId: transform.transformId,
-      ...(transform.optionsJson !== undefined
-        ? { optionsJson: transform.optionsJson }
-        : {}),
-      replacementLength: transform.replacementLength,
-      computedFileSizeBefore: transform.computedFileSizeBefore,
-      computedFileSizeAfter: transform.computedFileSizeAfter,
+      data,
     }
   }
 
@@ -859,10 +1177,7 @@ function changeDetailsToChangeRecord(
     kind,
     offset: change.getOffset(),
     length: kind === 'INSERT' ? 0 : change.getLength(),
-    data:
-      kind === 'DELETE'
-        ? ''
-        : Buffer.from(change.getData_asU8()).toString('hex'),
+    data: Buffer.from(change.getData_asU8()).toString('hex'),
   }
 }
 
@@ -915,23 +1230,12 @@ function serializeChangeLogRecord(
   record: ChangeRecord
 ): Record<string, unknown> {
   return {
-    ...record,
     serial: int64ToDecimal(record.serial),
+    kind: record.kind,
     offset: int64ToDecimal(record.offset),
     length: int64ToDecimal(record.length),
-    ...(record.replacementLength !== undefined
-      ? { replacementLength: int64ToDecimal(record.replacementLength) }
-      : {}),
-    ...(record.computedFileSizeBefore !== undefined
-      ? {
-          computedFileSizeBefore: int64ToDecimal(record.computedFileSizeBefore),
-        }
-      : {}),
-    ...(record.computedFileSizeAfter !== undefined
-      ? {
-          computedFileSizeAfter: int64ToDecimal(record.computedFileSizeAfter),
-        }
-      : {}),
+    data: record.data,
+    ...(record.groupId ? { groupId: record.groupId } : {}),
   }
 }
 
@@ -1013,27 +1317,14 @@ async function rollbackSessionToChangeCount(
   sessionId: string,
   targetChangeCount: number
 ): Promise<boolean> {
-  let currentChangeCount = await getChangeCount(sessionId)
-  let rolledBack = false
-  while (currentChangeCount > targetChangeCount) {
-    await undo(sessionId)
-    rolledBack = true
-    const nextChangeCount = await getChangeCount(sessionId)
-    if (nextChangeCount >= currentChangeCount) {
-      throw new Error(
-        `Rollback did not reduce change count from ${currentChangeCount}`
-      )
-    }
-    currentChangeCount = nextChangeCount
-  }
-
-  if (currentChangeCount !== targetChangeCount) {
+  const response = await restoreToChangeCount(sessionId, targetChangeCount)
+  if (response.changeCount !== targetChangeCount) {
     throw new Error(
-      `Rollback ended at change count ${currentChangeCount}, expected ${targetChangeCount}`
+      `Rollback ended at change count ${response.changeCount}, expected ${targetChangeCount}`
     )
   }
 
-  return rolledBack
+  return response.discardedChangeCount > 0 || response.discardedUndoCount > 0
 }
 
 function changeLogApplyErrorWithRollbackFailure(
@@ -1053,7 +1344,24 @@ function changeLogApplyErrorWithRollbackFailure(
   return error
 }
 
-function safeChangeRecord(value: unknown): ChangeRecord | undefined {
+function replayErrorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error)
+}
+
+function replayError(error: unknown): ChangeLogReplayError {
+  return error instanceof Error ? error : new Error(String(error))
+}
+
+function attachChangeLogReplayDetails(
+  error: Error,
+  details: ChangeLogReplayFailureDetails
+): ChangeLogReplayError {
+  const detailed = error as ChangeLogReplayError
+  detailed.changeLogReplay = details
+  return detailed
+}
+
+function safeChangeRecord(value: unknown): ParsedChangeRecord | undefined {
   if (!isRecord(value)) {
     return undefined
   }
@@ -1103,9 +1411,13 @@ function safeChangeRecord(value: unknown): ChangeRecord | undefined {
       } catch {
         return undefined
       }
+      const data = safeHexString(value.data, Number.POSITIVE_INFINITY)
+      if (!data || data.length / 2 !== length) {
+        return undefined
+      }
       return groupId
-        ? { serial, kind: 'DELETE', offset, length, data: '', groupId }
-        : { serial, kind: 'DELETE', offset, length, data: '' }
+        ? { serial, kind: 'DELETE', offset, length, data, groupId }
+        : { serial, kind: 'DELETE', offset, length, data }
     }
     case 'OVERWRITE': {
       const data = safeHexString(value.data, Number.POSITIVE_INFINITY)
@@ -1157,61 +1469,49 @@ function safeChangeRecord(value: unknown): ChangeRecord | undefined {
       } catch {
         return undefined
       }
-      const transformId = safeString(value.transformId, MAX_LABEL_LENGTH)
-      const optionsJson =
-        value.optionsJson === undefined
-          ? undefined
-          : safeString(value.optionsJson, Number.POSITIVE_INFINITY, true)
-      if (
-        length === undefined ||
-        !transformId ||
-        (value.optionsJson !== undefined && optionsJson === undefined) ||
-        (value.data !== undefined && value.data !== '')
-      ) {
+      const data = safeHexString(value.data, Number.POSITIVE_INFINITY)
+      if (!data) {
+        return undefined
+      }
+      for (const key of [
+        'transformId',
+        'optionsJson',
+        'replacementLength',
+        'computedFileSizeBefore',
+        'computedFileSizeAfter',
+      ] as const) {
+        if (value[key] !== undefined) {
+          return undefined
+        }
+      }
+      let transformDescriptor: TransformPrimitiveDescriptor
+      try {
+        transformDescriptor = parseTransformPrimitiveDescriptor(
+          data,
+          'TRANSFORM change data'
+        )
+      } catch {
         return undefined
       }
 
-      const record: ChangeRecord = groupId
+      return groupId
         ? {
             serial,
             kind: 'TRANSFORM',
             offset,
             length,
-            data: '',
-            transformId,
+            data,
             groupId,
+            transformDescriptor,
           }
         : {
             serial,
             kind: 'TRANSFORM',
             offset,
             length,
-            data: '',
-            transformId,
+            data,
+            transformDescriptor,
           }
-      if (optionsJson !== undefined) {
-        record.optionsJson = optionsJson
-      }
-
-      for (const key of [
-        'replacementLength',
-        'computedFileSizeBefore',
-        'computedFileSizeAfter',
-      ] as const) {
-        if (value[key] === undefined) {
-          continue
-        }
-        try {
-          record[key] = normalizeNonNegativeInt64ForClient(
-            value[key],
-            `change log entry ${key}`
-          )
-        } catch {
-          return undefined
-        }
-      }
-
-      return record
     }
     default:
       return undefined
@@ -1359,6 +1659,12 @@ function describeUnavailableSerials(serials: number[]): string {
   return preview ? ` (serials: ${preview}${suffix})` : ''
 }
 
+function incompleteChangeLogMessage(action: 'export' | 'apply'): string {
+  return action === 'export'
+    ? 'Change log export is incomplete: the server no longer has details for every reported change'
+    : 'Change log is incomplete: unavailable change details cannot be replayed safely'
+}
+
 function assertCompleteChangeLog(
   action: 'export' | 'apply',
   unavailableChangeSerials: number[]
@@ -1368,11 +1674,9 @@ function assertCompleteChangeLog(
   }
 
   throw new Error(
-    `${
-      action === 'export'
-        ? 'Change log export is incomplete: the server no longer has details for every reported change'
-        : 'Change log is incomplete: unavailable change details cannot be replayed safely'
-    }${describeUnavailableSerials(unavailableChangeSerials)}`
+    `${incompleteChangeLogMessage(action)}${describeUnavailableSerials(
+      unavailableChangeSerials
+    )}`
   )
 }
 
@@ -1410,6 +1714,17 @@ function fingerprintsMatch(
   )
 }
 
+function changeLogFingerprintMismatchMessage(
+  actual: ChangeLogFingerprint,
+  expected: ChangeLogFingerprint,
+  phase: 'before' | 'after'
+): string {
+  const preposition = phase === 'before' ? 'before applying' : 'after applying'
+  return `Change log ${phase} fingerprint mismatch ${preposition}: expected ${fingerprintLabel(
+    expected
+  )}, actual ${fingerprintLabel(actual)}`
+}
+
 async function assertCurrentSessionFingerprint(
   sessionId: string,
   expected: ChangeLogFingerprint,
@@ -1424,12 +1739,7 @@ async function assertCurrentSessionFingerprint(
     return
   }
 
-  const preposition = phase === 'before' ? 'before applying' : 'after applying'
-  throw new Error(
-    `Change log ${phase} fingerprint mismatch ${preposition}: expected ${fingerprintLabel(
-      expected
-    )}, actual ${fingerprintLabel(actual)}`
-  )
+  throw new Error(changeLogFingerprintMismatchMessage(actual, expected, phase))
 }
 
 async function assertChangeLogExportStable(
@@ -1458,10 +1768,110 @@ async function assertChangeLogExportStable(
   }
 }
 
+function createPrimitiveCounts(
+  changes: ParsedChangeRecord[]
+): ChangeLogPrimitiveCounts {
+  const counts: ChangeLogPrimitiveCounts = {
+    total: changes.length,
+    insert: 0,
+    delete: 0,
+    overwrite: 0,
+    replace: 0,
+    transform: 0,
+  }
+  for (const change of changes) {
+    switch (change.kind) {
+      case 'INSERT':
+        counts.insert += 1
+        break
+      case 'DELETE':
+        counts.delete += 1
+        break
+      case 'OVERWRITE':
+        counts.overwrite += 1
+        break
+      case 'REPLACE':
+        counts.replace += 1
+        break
+      case 'TRANSFORM':
+        counts.transform += 1
+        break
+    }
+  }
+  return counts
+}
+
+function createExpectedSizeDelta(parsed: ParsedChangeLog): ChangeLogSizeDelta {
+  const beforeByteLength = parseNonNegativeInt64(
+    parsed.before.byteLength,
+    'Change log before.byteLength'
+  )
+  const afterByteLength = parseNonNegativeInt64(
+    parsed.after.byteLength,
+    'Change log after.byteLength'
+  )
+  return {
+    beforeByteLength: beforeByteLength.toString(),
+    afterByteLength: afterByteLength.toString(),
+    deltaBytes: (afterByteLength - beforeByteLength).toString(),
+  }
+}
+
+function createTransformDescriptorPreviews(
+  changes: ParsedChangeRecord[]
+): ChangeLogTransformDescriptorPreview[] {
+  return changes.flatMap((change, index) => {
+    if (change.kind !== 'TRANSFORM' || !change.transformDescriptor) {
+      return []
+    }
+    return [
+      {
+        index,
+        ...(change.serial ? { serial: int64ToDecimal(change.serial) } : {}),
+        offset: int64ToDecimal(change.offset),
+        length: int64ToDecimal(change.length),
+        transformId: change.transformDescriptor.transformId,
+        ...(change.transformDescriptor.optionsJson
+          ? { optionsJson: change.transformDescriptor.optionsJson }
+          : {}),
+        descriptorSource: 'data' as const,
+      },
+    ]
+  })
+}
+
+function createRequiredPlugins(
+  descriptors: ChangeLogTransformDescriptorPreview[]
+): string[] {
+  return Array.from(
+    new Set(descriptors.map((descriptor) => descriptor.transformId))
+  ).sort()
+}
+
+function replayPreviewErrorMessage(preview: ChangeLogPreview): string {
+  const issueSummary = preview.safetyIssues
+    .filter((issue) => issue.severity === 'error')
+    .map((issue) => issue.message)
+    .join('; ')
+  return issueSummary
+    ? `Change log preview found unsafe replay: ${issueSummary}`
+    : 'Change log preview found unsafe replay'
+}
+
+function serializeChangeLogPreviewForDisplay(
+  preview: ChangeLogPreview
+): Record<string, unknown> {
+  const { state: _state, uri, ...displayPreview } = preview
+  return {
+    ...displayPreview,
+    ...(uri ? { uri: uri.toString() } : {}),
+  }
+}
+
 function validateChangeLogDocumentMetadata(
   document: Record<string, unknown>,
   changes: ChangeRecord[]
-): void {
+): ChangeLogDocumentMetadata {
   if (typeof document.complete !== 'boolean') {
     throw new Error('Change log complete must be a boolean')
   }
@@ -1497,7 +1907,13 @@ function validateChangeLogDocumentMetadata(
     )
   }
 
-  assertCompleteChangeLog('apply', unavailableChangeSerials)
+  return {
+    complete: document.complete,
+    changeCount: changeCount.toString(),
+    sourceChangeCount: sourceChangeCount.toString(),
+    unavailableChangeCount: unavailableChangeCount.toString(),
+    unavailableChangeSerials,
+  }
 }
 
 function parseChangeLog(content: Uint8Array): ParsedChangeLog {
@@ -1537,14 +1953,17 @@ function parseChangeLog(content: Uint8Array): ParsedChangeLog {
   })
   validateChangeRecordMetadata(changes, entries)
   if (document) {
-    validateChangeLogDocumentMetadata(document, changes)
+    const metadata = validateChangeLogDocumentMetadata(document, changes)
     return {
       changes,
+      ...metadata,
       before: normalizeChangeLogFingerprint(document.before, 'before'),
       after: normalizeChangeLogFingerprint(document.after, 'after'),
     }
   }
-  return { changes }
+  throw new Error(
+    'Change log must be a versioned omega-edit.change-log document'
+  )
 }
 
 function backupIdToFilePath(backupId: string | undefined): string | undefined {
@@ -1660,12 +2079,19 @@ export class HexEditorProvider
     bytesPerRow: BytesPerRow
   ): Promise<void> {
     const normalizedBytesPerRow = normalizeBytesPerRow(bytesPerRow)
+    const capacity = this.getViewportCapacity(normalizedBytesPerRow)
+    const bytesPerRowChanged = session.bytesPerRow !== normalizedBytesPerRow
     session.bytesPerRow = normalizedBytesPerRow
     session.webviewState = {
       ...session.webviewState,
       bytesPerRow: normalizedBytesPerRow,
     }
-    session.capacity = this.getViewportCapacity(normalizedBytesPerRow)
+    if (!bytesPerRowChanged && session.capacity === capacity) {
+      this.postEditState(session)
+      return
+    }
+
+    session.capacity = capacity
     session.bufferOffset = -1
     await this.scrollTo(session, session.offset)
     this.postEditState(session)
@@ -1965,6 +2391,7 @@ export class HexEditorProvider
       search: new EditorSearchController(scope.sessionId),
       webviewState: initialWebviewState(bytesPerRow),
       externalHighlights: [],
+      rangeMapTree: [],
       contentSources: defaultContentSources(scope.model.fileSize),
       transformPlugins: [],
       transformInFlight: false,
@@ -2199,8 +2626,7 @@ export class HexEditorProvider
       throw new Error('Invalid external highlight request')
     }
 
-    session.externalHighlights = highlights
-    this.postExternalHighlights(session)
+    this.setSessionExternalHighlights(session, highlights)
 
     if (request.options.reveal && highlights.length > 0) {
       await this.scrollTo(session, highlights[0].offset)
@@ -2215,9 +2641,137 @@ export class HexEditorProvider
       return undefined
     }
 
-    session.externalHighlights = []
-    this.postExternalHighlights(session)
+    this.clearSessionExternalHighlights(session)
     return this.buildEditorState(session)
+  }
+
+  unloadRangeMap(options?: unknown): RangeMapUnloadResult | undefined {
+    const session = this.resolveCommandSession(options)
+    if (!session) {
+      void vscode.window.showWarningMessage(openEditorFirstMessage())
+      return
+    }
+
+    const unloadedCount = session.externalHighlights.length
+    this.clearSessionExternalHighlights(session)
+
+    if (unloadedCount > 0 && (!isRecord(options) || options.notify !== false)) {
+      void vscode.window.showInformationMessage(
+        vscode.l10n.t('Unloaded {count} range map label(s)', {
+          count: unloadedCount,
+        })
+      )
+    }
+
+    return {
+      state: this.buildEditorState(session),
+      unloadedCount,
+      highlightCount: 0,
+    }
+  }
+
+  async loadRangeMap(
+    options?: unknown
+  ): Promise<RangeMapLoadResult | undefined> {
+    const session = this.resolveCommandSession(options)
+    if (!session) {
+      void vscode.window.showWarningMessage(openEditorFirstMessage())
+      return
+    }
+
+    const rangeMapUri =
+      parseCommandOptionUri(options, 'sourceUri') ??
+      (
+        await vscode.window.showOpenDialog({
+          canSelectMany: false,
+          filters: { JSON: ['json'] },
+          openLabel: vscode.l10n.t('Load Range Map'),
+          title: vscode.l10n.t('Load OmegaEdit range map'),
+        })
+      )?.[0]
+
+    if (!rangeMapUri) {
+      return {
+        state: this.buildEditorState(session),
+        nodeCount: 0,
+        highlightCount: 0,
+        cancelled: true,
+      }
+    }
+
+    let parsed: ReturnType<typeof parseRangeMapContent>
+    let highlights: NonNullable<ReturnType<typeof normalizeExternalHighlights>>
+    try {
+      parsed = parseRangeMapContent(
+        await vscode.workspace.fs.readFile(rangeMapUri)
+      )
+      assertRangeMapFitsFile(parsed, session.fileSize)
+      const normalizedHighlights = normalizeExternalHighlights(
+        { fileSize: session.fileSize },
+        parsed.highlights
+      )
+      if (!normalizedHighlights) {
+        throw new Error('Range map highlights failed validation')
+      }
+      highlights = normalizedHighlights
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error)
+      if (!isRecord(options) || options.notify !== false) {
+        void vscode.window.showErrorMessage(
+          vscode.l10n.t('Could not load OmegaEdit range map: {message}', {
+            message,
+          })
+        )
+      }
+      return {
+        state: this.buildEditorState(session),
+        sourceUri: rangeMapUri,
+        nodeCount: 0,
+        highlightCount: 0,
+        cancelled: true,
+        message,
+      }
+    }
+
+    const selectedHighlight =
+      parsed.selectedHighlight === undefined
+        ? undefined
+        : highlights.find(
+            (highlight) => highlight.id === parsed.selectedHighlight?.id
+          )
+    this.setSessionRangeMap(session, highlights, parsed.tree)
+
+    const shouldReveal = !isRecord(options) || options.reveal !== false
+    if (shouldReveal && selectedHighlight) {
+      await this.scrollTo(session, selectedHighlight.offset)
+    }
+
+    const message = selectedHighlight
+      ? vscode.l10n.t('Loaded {count} range map label(s); selected {path}', {
+          count: highlights.length,
+          path: parsed.document.selectedPath ?? selectedHighlight.label,
+        })
+      : vscode.l10n.t('Loaded {count} range map label(s)', {
+          count: highlights.length,
+        })
+    if (!isRecord(options) || options.notify !== false) {
+      void vscode.window.showInformationMessage(message)
+    }
+
+    return {
+      state: this.buildEditorState(session),
+      sourceUri: rangeMapUri,
+      source: parsed.document.source,
+      nodeCount: parsed.nodeCount,
+      highlightCount: highlights.length,
+      selectedPath: parsed.document.selectedPath,
+      selectedRange: selectedHighlight
+        ? {
+            offset: selectedHighlight.offset,
+            length: selectedHighlight.length,
+          }
+        : undefined,
+    }
   }
 
   setInsertDirection(
@@ -2250,27 +2804,15 @@ export class HexEditorProvider
   }
 
   /** Re-read bytesPerRow from config and refresh all open editors */
-  refreshBytesPerRow(): void {
-    const config = vscode.workspace.getConfiguration('omegaEdit')
+  refreshBytesPerRow(bytesPerRowSettingOverride?: number): void {
     const bytesPerRowSetting = normalizeBytesPerRowSetting(
-      config.get('bytesPerRow')
+      bytesPerRowSettingOverride ??
+        vscode.workspace.getConfiguration('omegaEdit').get('bytesPerRow')
     )
-    const bytesPerRow = bytesPerRowFromSetting(bytesPerRowSetting)
     for (const session of this.sessions.values()) {
+      const bytesPerRow = bytesPerRowFromSetting(bytesPerRowSetting)
       session.bytesPerRowSetting = bytesPerRowSetting
-      session.bytesPerRow = bytesPerRow
-      session.webviewState = {
-        ...session.webviewState,
-        bytesPerRow,
-      }
-      session.panel.webview.options = {
-        ...session.panel.webview.options,
-        localResourceRoots: this.getLocalResourceRoots(),
-      }
-      session.panel.webview.html = this.renderWebviewHtml(
-        session.panel.webview,
-        bytesPerRowSetting
-      )
+      this.postBytesPerRow(session, bytesPerRow)
       this.postTransformStatus(
         session,
         session.transformInFlight,
@@ -2305,6 +2847,203 @@ export class HexEditorProvider
       void this.sendViewportData(session)
       this.postEditState(session)
     }
+  }
+
+  private async createChangeLogPreview(
+    session: EditorSession,
+    parsed: ParsedChangeLog,
+    scriptUri: vscode.Uri | undefined
+  ): Promise<ChangeLogPreview> {
+    const safetyIssues: ChangeLogSafetyIssue[] = []
+    const transformDescriptors = createTransformDescriptorPreviews(
+      parsed.changes
+    )
+    const requiredPlugins = createRequiredPlugins(transformDescriptors)
+    let missingPlugins: string[] = []
+
+    if (parsed.unavailableChangeSerials.length > 0) {
+      safetyIssues.push({
+        severity: 'error',
+        code: 'unavailable-primitives',
+        message: `${incompleteChangeLogMessage(
+          'apply'
+        )}${describeUnavailableSerials(parsed.unavailableChangeSerials)}`,
+      })
+    }
+
+    const current = await getChangeLogFingerprint(
+      session.sessionId,
+      SessionFingerprintContent.COMPUTED,
+      parsed.before.digest.algorithm
+    )
+    if (!fingerprintsMatch(current, parsed.before)) {
+      safetyIssues.push({
+        severity: 'error',
+        code: 'before-fingerprint-mismatch',
+        message: changeLogFingerprintMismatchMessage(
+          current,
+          parsed.before,
+          'before'
+        ),
+      })
+    }
+
+    const [targetChangeCount, checkpointCount, plugins] = await Promise.all([
+      getChangeCount(session.sessionId),
+      this.getCheckpointCount(session),
+      listTransformPlugins(),
+    ])
+    const installedPluginIds = new Set(plugins.map((plugin) => plugin.id))
+    missingPlugins = requiredPlugins.filter(
+      (pluginId) => !installedPluginIds.has(pluginId)
+    )
+    for (const pluginId of missingPlugins) {
+      safetyIssues.push({
+        severity: 'error',
+        code: 'missing-transform-plugin',
+        message: `Required transform plugin is unavailable: ${pluginId}`,
+      })
+    }
+
+    const errorCount = safetyIssues.filter(
+      (issue) => issue.severity === 'error'
+    ).length
+
+    return {
+      state: this.buildEditorState(session),
+      ...(scriptUri ? { uri: scriptUri } : {}),
+      format: CHANGE_LOG_FORMAT,
+      version: CHANGE_LOG_VERSION,
+      complete: parsed.complete,
+      canApply: errorCount === 0,
+      primitiveCounts: createPrimitiveCounts(parsed.changes),
+      before: parsed.before,
+      after: parsed.after,
+      current,
+      expectedSize: createExpectedSizeDelta(parsed),
+      transformDescriptors,
+      requiredPlugins,
+      missingPlugins,
+      unavailablePrimitives: {
+        count: parsed.unavailableChangeCount,
+        serials: parsed.unavailableChangeSerials.map((serial) =>
+          serial.toString()
+        ),
+      },
+      rollbackProtection: {
+        available: true,
+        strategy: 'restore-to-change-count',
+        targetChangeCount,
+        checkpointCount,
+      },
+      safetyIssues,
+    }
+  }
+
+  private async showChangeLogPreviewDocument(
+    preview: ChangeLogPreview
+  ): Promise<void> {
+    const document = await vscode.workspace.openTextDocument({
+      language: 'json',
+      content: JSON.stringify(
+        serializeChangeLogPreviewForDisplay(preview),
+        null,
+        2
+      ),
+    })
+    await vscode.window.showTextDocument(document, {
+      preview: true,
+      viewColumn: vscode.ViewColumn.Beside,
+    })
+  }
+
+  async previewChangeLog(
+    options?: unknown
+  ): Promise<ChangeLogPreview | undefined> {
+    const session = this.resolveCommandSession(options)
+    if (!session) {
+      void vscode.window.showWarningMessage(openEditorFirstMessage())
+      return
+    }
+
+    const providedScriptUri = parseCommandOptionUri(options, 'sourceUri')
+    const scriptUri =
+      providedScriptUri ??
+      (
+        await vscode.window.showOpenDialog({
+          canSelectMany: false,
+          filters: { JSON: ['json'] },
+          openLabel: vscode.l10n.t('Preview Change Log'),
+          title: vscode.l10n.t('Preview OmegaEdit change log'),
+        })
+      )?.[0]
+
+    if (!scriptUri) {
+      return {
+        state: this.buildEditorState(session),
+        format: CHANGE_LOG_FORMAT,
+        version: CHANGE_LOG_VERSION,
+        complete: false,
+        canApply: false,
+        primitiveCounts: {
+          total: 0,
+          insert: 0,
+          delete: 0,
+          overwrite: 0,
+          replace: 0,
+          transform: 0,
+        },
+        before: {
+          byteLength: '0',
+          digest: {
+            algorithm: DEFAULT_CHANGE_LOG_DIGEST_ALGORITHM,
+            value: '',
+          },
+        },
+        after: {
+          byteLength: '0',
+          digest: {
+            algorithm: DEFAULT_CHANGE_LOG_DIGEST_ALGORITHM,
+            value: '',
+          },
+        },
+        expectedSize: {
+          beforeByteLength: '0',
+          afterByteLength: '0',
+          deltaBytes: '0',
+        },
+        transformDescriptors: [],
+        requiredPlugins: [],
+        missingPlugins: [],
+        unavailablePrimitives: {
+          count: 0,
+          serials: [],
+        },
+        rollbackProtection: {
+          available: false,
+          strategy: 'not-inspected',
+        },
+        safetyIssues: [
+          {
+            severity: 'warning',
+            code: 'cancelled',
+            message: vscode.l10n.t('Change log preview cancelled'),
+          },
+        ],
+      }
+    }
+
+    const content = await vscode.workspace.fs.readFile(scriptUri)
+    const parsed = parseChangeLog(content)
+    const preview = await this.createChangeLogPreview(
+      session,
+      parsed,
+      scriptUri
+    )
+    if (!providedScriptUri) {
+      await this.showChangeLogPreviewDocument(preview)
+    }
+    return preview
   }
 
   async exportChangeLog(options?: unknown): Promise<
@@ -2516,16 +3255,9 @@ export class HexEditorProvider
     }
   }
 
-  async applyChangeLog(options?: unknown): Promise<
-    | {
-        state: WebviewEditorState
-        uri?: vscode.Uri
-        changeCount: number
-        sourceChangeCount?: number
-        cancelled?: boolean
-      }
-    | undefined
-  > {
+  async applyChangeLog(
+    options?: unknown
+  ): Promise<ChangeLogApplyResult | undefined> {
     const session = this.resolveCommandSession(options)
     if (!session) {
       void vscode.window.showWarningMessage(openEditorFirstMessage())
@@ -2535,8 +3267,9 @@ export class HexEditorProvider
       return
     }
 
+    const providedScriptUri = parseCommandOptionUri(options, 'sourceUri')
     const scriptUri =
-      parseCommandOptionUri(options, 'sourceUri') ??
+      providedScriptUri ??
       (
         await vscode.window.showOpenDialog({
           canSelectMany: false,
@@ -2556,7 +3289,11 @@ export class HexEditorProvider
       return {
         state: this.buildEditorState(session),
         changeCount: 0,
+        appliedCount: 0,
         cancelled: true,
+        rollback: {
+          attempted: false,
+        },
       }
     }
 
@@ -2581,34 +3318,135 @@ export class HexEditorProvider
         state: this.buildEditorState(session),
         uri: scriptUri,
         changeCount: 0,
+        appliedCount: 0,
         cancelled: true,
+        rollback: {
+          attempted: false,
+        },
       }
     }
     const { changes } = parsed
-    if (parsed.before) {
-      await assertCurrentSessionFingerprint(
-        session.sessionId,
-        parsed.before,
-        'before'
+
+    const preview = await this.createChangeLogPreview(
+      session,
+      parsed,
+      scriptUri
+    )
+    if (!providedScriptUri) {
+      await this.showChangeLogPreviewDocument(preview)
+    }
+    const baseResult = (
+      appliedCount: number,
+      rollback: NonNullable<ChangeLogApplyResult['rollback']>,
+      finalFingerprint?: ChangeLogFingerprint,
+      cancelled?: boolean
+    ): ChangeLogApplyResult => ({
+      state: this.buildEditorState(session),
+      uri: scriptUri,
+      changeCount: appliedCount,
+      appliedCount,
+      sourceChangeCount: changes.length,
+      complete: parsed.complete,
+      before: parsed.before,
+      after: parsed.after,
+      unavailableChangeCount: parsed.unavailableChangeSerials.length,
+      unavailableChangeSerials: parsed.unavailableChangeSerials,
+      ...(cancelled !== undefined ? { cancelled } : {}),
+      preview,
+      rollback,
+      ...(finalFingerprint ? { finalFingerprint } : {}),
+    })
+
+    if (!preview.canApply) {
+      const message = replayPreviewErrorMessage(preview)
+      this.postSessionActionComplete(session, {
+        action: 'applyChangeLog',
+        changeCount: 0,
+        cancelled: true,
+        message,
+      })
+      void vscode.window.showErrorMessage(message)
+      return baseResult(
+        0,
+        {
+          attempted: false,
+          targetChangeCount: preview.rollbackProtection.targetChangeCount,
+        },
+        preview.current,
+        true
       )
     }
 
-    let appliedChangeCount = 0
-    await vscode.window.withProgress(
-      {
-        location: vscode.ProgressLocation.Notification,
-        title: vscode.l10n.t('Applying {count} change log entries…', {
-          count: changes.length,
-        }),
-        cancellable: false,
-      },
-      async () => {
-        appliedChangeCount = await this.applyChangeLogEntries(
-          session,
-          changes,
-          parsed.after
+    if (!providedScriptUri) {
+      const applyLabel = vscode.l10n.t('Apply')
+      const choice = await vscode.window.showInformationMessage(
+        vscode.l10n.t(
+          'Change log preview: {count} change(s), {delta} byte size change, {plugins} required transform plugin(s).',
+          {
+            count: preview.primitiveCounts.total,
+            delta: preview.expectedSize.deltaBytes,
+            plugins: preview.requiredPlugins.length,
+          }
+        ),
+        { modal: true },
+        applyLabel
+      )
+      if (choice !== applyLabel) {
+        this.postSessionActionComplete(session, {
+          action: 'applyChangeLog',
+          changeCount: 0,
+          cancelled: true,
+          message: vscode.l10n.t('Change log apply cancelled'),
+        })
+        return baseResult(
+          0,
+          {
+            attempted: false,
+            targetChangeCount: preview.rollbackProtection.targetChangeCount,
+          },
+          preview.current,
+          true
         )
       }
+    }
+
+    let appliedChangeCount = 0
+    try {
+      await vscode.window.withProgress(
+        {
+          location: vscode.ProgressLocation.Notification,
+          title: vscode.l10n.t('Applying {count} change log entries…', {
+            count: changes.length,
+          }),
+          cancellable: false,
+        },
+        async () => {
+          appliedChangeCount = await this.applyChangeLogEntries(
+            session,
+            changes,
+            parsed.after
+          )
+        }
+      )
+    } catch (error) {
+      const detailedError = replayError(error)
+      const details = detailedError.changeLogReplay
+      const result = baseResult(
+        details?.appliedCount ?? appliedChangeCount,
+        details?.rollback ?? {
+          attempted: false,
+          targetChangeCount: preview.rollbackProtection.targetChangeCount,
+        },
+        details?.finalFingerprint
+      )
+      detailedError.result = result
+      throw detailedError
+    }
+
+    const finalFingerprint = await getChangeLogFingerprint(
+      session.sessionId,
+      SessionFingerprintContent.COMPUTED,
+      parsed.after.digest.algorithm
     )
     this.postSessionActionComplete(session, {
       action: 'applyChangeLog',
@@ -2626,7 +3464,19 @@ export class HexEditorProvider
       state: this.buildEditorState(session),
       uri: scriptUri,
       changeCount: appliedChangeCount,
+      appliedCount: appliedChangeCount,
       sourceChangeCount: changes.length,
+      complete: parsed.complete,
+      before: parsed.before,
+      after: parsed.after,
+      unavailableChangeCount: parsed.unavailableChangeSerials.length,
+      unavailableChangeSerials: parsed.unavailableChangeSerials,
+      preview,
+      rollback: {
+        attempted: false,
+        targetChangeCount: preview.rollbackProtection.targetChangeCount,
+      },
+      finalFingerprint,
     }
   }
 
@@ -3180,6 +4030,7 @@ export class HexEditorProvider
       fileSize: session.fileSize,
       followingByteCount: resp.getFollowingByteCount(),
       externalHighlights: session.externalHighlights,
+      rangeMapTree: session.rangeMapTree,
       profile: {
         fetchDurationMs,
         sentAt: Date.now(),
@@ -3225,6 +4076,153 @@ export class HexEditorProvider
       highlights: session.externalHighlights,
     })
     this.fireEditorStateChanged(session)
+  }
+
+  private postRangeMapTree(session: EditorSession): void {
+    this.postWebviewMessage(session, {
+      type: 'rangeMapTree',
+      tree: session.rangeMapTree,
+    })
+    this.fireEditorStateChanged(session)
+  }
+
+  private cloneExternalHighlights(
+    highlights: WebviewExternalHighlight[]
+  ): WebviewExternalHighlight[] {
+    return highlights.map((highlight) => ({ ...highlight }))
+  }
+
+  private cloneRangeMapTree(
+    nodes: WebviewRangeMapNode[]
+  ): WebviewRangeMapNode[] {
+    return nodes.map((node) => ({
+      ...node,
+      children: this.cloneRangeMapTree(node.children),
+    }))
+  }
+
+  private markRangeMapTreeNodesStale(
+    nodes: WebviewRangeMapNode[]
+  ): WebviewRangeMapNode[] {
+    return nodes.map((node) => ({
+      ...node,
+      stale: true,
+      children: this.markRangeMapTreeNodesStale(node.children),
+    }))
+  }
+
+  private rangeMapTreeHasFreshNodes(nodes: WebviewRangeMapNode[]): boolean {
+    return nodes.some(
+      (node) =>
+        node.stale !== true || this.rangeMapTreeHasFreshNodes(node.children)
+    )
+  }
+
+  private setSessionExternalHighlights(
+    session: EditorSession,
+    highlights: WebviewExternalHighlight[]
+  ): void {
+    session.externalHighlights = this.cloneExternalHighlights(highlights)
+    session.rangeMapTree = []
+    session.externalHighlightBaseline =
+      highlights.length === 0
+        ? undefined
+        : {
+            changeCount: session.changeCount,
+            fileSize: session.fileSize,
+            highlights: this.cloneExternalHighlights(highlights),
+            rangeMapTree: [],
+          }
+    this.postExternalHighlights(session)
+    this.postRangeMapTree(session)
+  }
+
+  private setSessionRangeMap(
+    session: EditorSession,
+    highlights: WebviewExternalHighlight[],
+    tree: WebviewRangeMapNode[]
+  ): void {
+    session.externalHighlights = this.cloneExternalHighlights(highlights)
+    session.rangeMapTree = this.cloneRangeMapTree(tree)
+    session.externalHighlightBaseline =
+      highlights.length === 0
+        ? undefined
+        : {
+            changeCount: session.changeCount,
+            fileSize: session.fileSize,
+            highlights: this.cloneExternalHighlights(highlights),
+            rangeMapTree: this.cloneRangeMapTree(tree),
+          }
+    this.postExternalHighlights(session)
+    this.postRangeMapTree(session)
+  }
+
+  private clearSessionExternalHighlights(session: EditorSession): void {
+    session.externalHighlights = []
+    session.rangeMapTree = []
+    session.externalHighlightBaseline = undefined
+    this.postExternalHighlights(session)
+    this.postRangeMapTree(session)
+  }
+
+  private reconcileExternalHighlightStaleness(session: EditorSession): void {
+    const baseline = session.externalHighlightBaseline
+    if (!baseline || session.externalHighlights.length === 0) {
+      return
+    }
+
+    if (
+      session.changeCount === baseline.changeCount &&
+      session.fileSize === baseline.fileSize
+    ) {
+      session.externalHighlights = this.cloneExternalHighlights(
+        baseline.highlights
+      )
+      session.rangeMapTree = this.cloneRangeMapTree(baseline.rangeMapTree)
+      this.postExternalHighlights(session)
+      this.postRangeMapTree(session)
+      return
+    }
+
+    this.markExternalHighlightsStale(session)
+  }
+
+  private postBytesPerRow(
+    session: EditorSession,
+    bytesPerRow = session.bytesPerRow
+  ): void {
+    this.postWebviewMessage(session, {
+      type: 'bytesPerRow',
+      bytesPerRow,
+      bytesPerRowMode: 'fixed',
+    })
+  }
+
+  private markExternalHighlightsStale(session: EditorSession): void {
+    const shouldMarkHighlights =
+      session.externalHighlights.length > 0 &&
+      !session.externalHighlights.every((highlight) => highlight.stale === true)
+    const shouldMarkTree = this.rangeMapTreeHasFreshNodes(session.rangeMapTree)
+
+    if (!shouldMarkHighlights && !shouldMarkTree) {
+      return
+    }
+
+    if (shouldMarkHighlights) {
+      session.externalHighlights = session.externalHighlights.map(
+        (highlight) => ({
+          ...highlight,
+          stale: true,
+        })
+      )
+      this.postExternalHighlights(session)
+    }
+    if (shouldMarkTree) {
+      session.rangeMapTree = this.markRangeMapTreeNodesStale(
+        session.rangeMapTree
+      )
+      this.postRangeMapTree(session)
+    }
   }
 
   private postEditMode(session: EditorSession): void {
@@ -3607,11 +4605,21 @@ export class HexEditorProvider
     contentSource: WebviewSessionContentSource,
     offset: number,
     length: number,
-    optionsJson?: string
+    optionsJson?: string,
+    token?: vscode.CancellationToken
   ): Promise<void> {
     if (session.transformInFlight) {
       throw new Error('A transform is already in progress for this session')
     }
+
+    const abortController = new AbortController()
+    const cancellationListener = token?.onCancellationRequested(() => {
+      abortController.abort()
+    })
+    if (token?.isCancellationRequested) {
+      abortController.abort()
+    }
+    session.transformAbortController = abortController
 
     this.postTransformStatus(
       session,
@@ -3638,7 +4646,6 @@ export class HexEditorProvider
       const originalLength =
         length === 0 ? remainingLength : Math.min(length, remainingLength)
       const sessionSyncVersion = session.sessionSyncVersion
-      const computedFileSizeBefore = session.fileSize
       if (inspectOnly) {
         const response = await inspectSessionContent(
           session.sessionId,
@@ -3646,7 +4653,8 @@ export class HexEditorProvider
           pluginId,
           clampedOffset,
           originalLength,
-          optionsJson
+          optionsJson,
+          { signal: abortController.signal }
         )
 
         this.postWebviewMessage(session, {
@@ -3679,7 +4687,8 @@ export class HexEditorProvider
         pluginId,
         clampedOffset,
         originalLength,
-        optionsJson
+        optionsJson,
+        { signal: abortController.signal }
       )
 
       if (response.contentChanged) {
@@ -3691,12 +4700,7 @@ export class HexEditorProvider
           kind: 'TRANSFORM',
           offset: response.offset,
           length: response.length,
-          data: '',
-          transformId: response.pluginId,
-          ...(optionsJson !== undefined ? { optionsJson } : {}),
-          replacementLength: response.replacementLength,
-          computedFileSizeBefore,
-          computedFileSizeAfter: response.computedFileSize,
+          data: encodeTransformPrimitiveDataHex(response.pluginId, optionsJson),
         })
         this.postEditState(session)
         this.notifyDocumentChanged(session)
@@ -3725,10 +4729,48 @@ export class HexEditorProvider
         formatTransformCompletionMessage(response)
       )
     } catch (error) {
+      if (
+        abortController.signal.aborted ||
+        token?.isCancellationRequested ||
+        isTransformCancellationError(error)
+      ) {
+        failureMessage = vscode.l10n.t('Transform cancelled')
+        void vscode.window.showInformationMessage(failureMessage)
+        return
+      }
       failureMessage = error instanceof Error ? error.message : String(error)
       throw error
     } finally {
+      cancellationListener?.dispose()
+      if (session.transformAbortController === abortController) {
+        session.transformAbortController = undefined
+      }
       this.postTransformStatus(session, false, pluginId, failureMessage)
+    }
+  }
+
+  private cancelTransform(session: EditorSession): void {
+    if (!session.transformInFlight) {
+      return
+    }
+    const controller = session.transformAbortController
+    if (!controller) {
+      this.postTransformStatus(
+        session,
+        true,
+        undefined,
+        vscode.l10n.t('This action cannot be cancelled.')
+      )
+      return
+    }
+    if (!controller.signal.aborted) {
+      controller.abort()
+      this.postTransformStatus(
+        session,
+        true,
+        undefined,
+        vscode.l10n.t('Cancelling transform...')
+      )
     }
   }
 
@@ -4452,7 +5494,9 @@ export class HexEditorProvider
       this.makeHistoryExecutor(session)
     )
     if (didUndo) {
+      this.markExternalHighlightsStale(session)
       await this.waitForSessionSync(session, sessionSyncVersion)
+      this.reconcileExternalHighlightStaleness(session)
       this.clearSearchState(session)
     }
     this.postEditState(session)
@@ -4468,7 +5512,9 @@ export class HexEditorProvider
       this.makeHistoryExecutor(session)
     )
     if (didRedo) {
+      this.markExternalHighlightsStale(session)
       await this.waitForSessionSync(session, sessionSyncVersion)
+      this.reconcileExternalHighlightStaleness(session)
       this.clearSearchState(session)
     }
     this.postEditState(session)
@@ -4542,6 +5588,7 @@ export class HexEditorProvider
   }
 
   private notifyDocumentChanged(session: EditorSession): void {
+    this.markExternalHighlightsStale(session)
     this._onDidChangeCustomDocument.fire({
       document: session.document,
       undo: () => this.performUndoOnSession(session),
@@ -4551,7 +5598,7 @@ export class HexEditorProvider
 
   private async applyChangeLogEntries(
     session: EditorSession,
-    changes: ChangeRecord[],
+    changes: ParsedChangeRecord[],
     expectedAfter?: ChangeLogFingerprint
   ): Promise<number> {
     if (!this.ensureSessionCanMutate(session, true)) {
@@ -4563,26 +5610,37 @@ export class HexEditorProvider
 
     const startChangeCount = await getChangeCount(session.sessionId)
     const sessionSyncVersion = session.sessionSyncVersion
-    const appliedChanges: ChangeRecord[] = []
+    const appliedTransactions: ChangeRecord[][] = []
+    let appliedChangeCount = 0
+    const getFinalFingerprint = async () =>
+      expectedAfter
+        ? await getChangeLogFingerprint(
+            session.sessionId,
+            SessionFingerprintContent.COMPUTED,
+            expectedAfter.digest.algorithm
+          ).catch(() => undefined)
+        : undefined
     const recordAppliedChanges = async () => {
-      if (appliedChanges.length === 0) {
+      if (appliedTransactions.length === 0) {
         return
       }
 
-      session.history.recordLocalChanges(appliedChanges)
+      for (const transaction of appliedTransactions) {
+        session.history.recordLocalChanges(transaction)
+      }
       this.postEditState(session)
       this.notifyDocumentChanged(session)
       await this.waitForSessionSync(session, sessionSyncVersion)
       this.clearSearchState(session)
     }
 
-    const applyOne = async (change: ChangeRecord) => {
+    const applyOne = async (
+      change: ParsedChangeRecord
+    ): Promise<ChangeRecord | undefined> => {
       const appliedChange = await this.applyChangeLogEntry(session, change)
-      if (appliedChange) {
-        appliedChanges.push(appliedChange)
-      }
+      return appliedChange
     }
-    let pendingBatch: ChangeRecord[] = []
+    let pendingBatch: ParsedChangeRecord[] = []
     const flushBatch = async () => {
       if (pendingBatch.length === 0) {
         return
@@ -4590,11 +5648,19 @@ export class HexEditorProvider
 
       const batch = pendingBatch
       pendingBatch = []
+      const appliedBatch: ChangeRecord[] = []
       await runSessionTransaction(session.sessionId, async () => {
         for (const change of batch) {
-          await applyOne(change)
+          const appliedChange = await applyOne(change)
+          if (appliedChange) {
+            appliedBatch.push(appliedChange)
+            appliedChangeCount += 1
+          }
         }
       })
+      if (appliedBatch.length > 0) {
+        appliedTransactions.push(appliedBatch)
+      }
     }
 
     try {
@@ -4602,7 +5668,11 @@ export class HexEditorProvider
         for (const change of changes) {
           if (change.kind === 'TRANSFORM') {
             await flushBatch()
-            await applyOne(change)
+            const appliedChange = await applyOne(change)
+            if (appliedChange) {
+              appliedTransactions.push([appliedChange])
+              appliedChangeCount += 1
+            }
           } else {
             pendingBatch.push(change)
           }
@@ -4617,6 +5687,7 @@ export class HexEditorProvider
         )
       }
     } catch (error) {
+      let rollbackDetails: ChangeLogReplayFailureDetails
       try {
         const rolledBack = await rollbackSessionToChangeCount(
           session.sessionId,
@@ -4628,19 +5699,46 @@ export class HexEditorProvider
           this.clearSearchState(session)
           this.postEditState(session)
         }
+        rollbackDetails = {
+          appliedCount: appliedChangeCount,
+          rollback: {
+            attempted: true,
+            succeeded: true,
+            rolledBack,
+            targetChangeCount: startChangeCount,
+          },
+          ...(await getFinalFingerprint().then((finalFingerprint) =>
+            finalFingerprint ? { finalFingerprint } : {}
+          )),
+        }
       } catch (rollbackError) {
-        throw changeLogApplyErrorWithRollbackFailure(error, rollbackError)
+        const combinedError = changeLogApplyErrorWithRollbackFailure(
+          error,
+          rollbackError
+        )
+        throw attachChangeLogReplayDetails(combinedError, {
+          appliedCount: appliedChangeCount,
+          rollback: {
+            attempted: true,
+            succeeded: false,
+            targetChangeCount: startChangeCount,
+            error: replayErrorMessage(rollbackError),
+          },
+          ...(await getFinalFingerprint().then((finalFingerprint) =>
+            finalFingerprint ? { finalFingerprint } : {}
+          )),
+        })
       }
-      throw error
+      throw attachChangeLogReplayDetails(replayError(error), rollbackDetails)
     }
 
     await recordAppliedChanges()
-    return appliedChanges.length
+    return appliedChangeCount
   }
 
   private async applyChangeLogEntry(
     session: EditorSession,
-    change: ChangeRecord
+    change: ParsedChangeRecord
   ): Promise<ChangeRecord | undefined> {
     switch (change.kind) {
       case 'INSERT': {
@@ -4669,7 +5767,7 @@ export class HexEditorProvider
           kind: 'DELETE',
           offset: change.offset,
           length: change.length,
-          data: '',
+          data: change.data,
           ...(change.groupId ? { groupId: change.groupId } : {}),
         }
       }
@@ -4694,80 +5792,47 @@ export class HexEditorProvider
           change.groupId
         )
       case 'TRANSFORM': {
-        if (!change.transformId) {
-          throw new Error('Transform change is missing transformId')
+        const descriptor = change.transformDescriptor
+        if (!descriptor) {
+          throw new Error('TRANSFORM change data was not normalized')
         }
 
-        const expectedSizeBefore =
-          change.computedFileSizeBefore !== undefined
-            ? normalizeNonNegativeInt64ForClient(
-                change.computedFileSizeBefore,
-                'change log entry computedFileSizeBefore'
-              )
-            : undefined
-        const actualSizeBefore = await getComputedFileSize(session.sessionId)
-        if (
-          expectedSizeBefore !== undefined &&
-          actualSizeBefore !== expectedSizeBefore
-        ) {
-          throw new Error(
-            `Transform ${change.transformId} expected pre-transform size ${expectedSizeBefore}, found ${actualSizeBefore}`
-          )
-        }
-
+        const computedFileSizeBefore = await getComputedFileSize(
+          session.sessionId
+        )
         const response = await applyTransformPlugin(
           session.sessionId,
-          change.transformId,
+          descriptor.transformId,
           change.offset,
           change.length,
-          change.optionsJson
+          descriptor.optionsJson
         )
         if (!response.contentChanged) {
           throw new Error(
-            `Transform ${change.transformId} replay produced no content change`
+            `Transform ${descriptor.transformId} replay produced no content change`
           )
         }
         if (response.serial === undefined) {
           throw new Error('Transform did not return a change serial')
         }
-        if (
-          change.replacementLength !== undefined &&
-          response.replacementLength !==
-            normalizeNonNegativeInt64ForClient(
-              change.replacementLength,
-              'change log entry replacementLength'
-            )
-        ) {
-          throw new Error(
-            `Transform ${change.transformId} replacement length mismatch`
-          )
-        }
-        if (
-          change.computedFileSizeAfter !== undefined &&
-          response.computedFileSize !==
-            normalizeNonNegativeInt64ForClient(
-              change.computedFileSizeAfter,
-              'change log entry computedFileSizeAfter'
-            )
-        ) {
-          throw new Error(
-            `Transform ${change.transformId} post-transform size mismatch`
-          )
-        }
+        const computedFileSizeAfter = await getComputedFileSize(
+          session.sessionId
+        )
+        assertTransformReplayResponse(
+          descriptor,
+          change.offset,
+          change.length,
+          computedFileSizeBefore,
+          computedFileSizeAfter,
+          response
+        )
 
         return {
           serial: response.serial,
           kind: 'TRANSFORM',
           offset: response.offset,
           length: response.length,
-          data: '',
-          transformId: response.pluginId,
-          ...(change.optionsJson !== undefined
-            ? { optionsJson: change.optionsJson }
-            : {}),
-          replacementLength: response.replacementLength,
-          computedFileSizeBefore: actualSizeBefore,
-          computedFileSizeAfter: response.computedFileSize,
+          data: change.data,
           ...(change.groupId ? { groupId: change.groupId } : {}),
         }
       }
@@ -5001,16 +6066,11 @@ export class HexEditorProvider
         }
 
         case 'setBytesPerRowMode': {
-          if (msg.mode === 'auto') {
-            session.bytesPerRowSetting = 0
-            await this.updateBytesPerRowConfiguration(session, 0)
-          } else {
-            session.bytesPerRowSetting = session.bytesPerRow
-            await this.updateBytesPerRowConfiguration(
-              session,
-              session.bytesPerRow
-            )
-          }
+          session.bytesPerRowSetting = session.bytesPerRow
+          await this.updateBytesPerRowConfiguration(
+            session,
+            session.bytesPerRow
+          )
           break
         }
 
@@ -5040,6 +6100,11 @@ export class HexEditorProvider
 
         case 'requestTransformPlugins': {
           await this.sendTransformPlugins(session)
+          break
+        }
+
+        case 'cancelTransform': {
+          this.cancelTransform(session)
           break
         }
 
@@ -5205,6 +6270,16 @@ export class HexEditorProvider
           break
         }
 
+        case 'loadRangeMap': {
+          await this.loadRangeMap({ uri: session.document.uri })
+          break
+        }
+
+        case 'unloadRangeMap': {
+          this.unloadRangeMap({ uri: session.document.uri })
+          break
+        }
+
         case 'replaceAllMatches': {
           this.postTransformStatus(
             session,
@@ -5265,16 +6340,26 @@ export class HexEditorProvider
         }
 
         case 'applyTransform': {
-          await session.search.preserveState(async () => {
-            await this.applyTransformToRange(
-              session,
-              msg.pluginId,
-              msg.contentSource ?? 'computed',
-              msg.offset,
-              msg.length,
-              msg.optionsJson?.trim() || undefined
-            )
-          })
+          await vscode.window.withProgress(
+            {
+              location: vscode.ProgressLocation.Notification,
+              title: vscode.l10n.t('Applying transform...'),
+              cancellable: true,
+            },
+            async (_progress, token) => {
+              await session.search.preserveState(async () => {
+                await this.applyTransformToRange(
+                  session,
+                  msg.pluginId,
+                  msg.contentSource ?? 'computed',
+                  msg.offset,
+                  msg.length,
+                  msg.optionsJson?.trim() || undefined,
+                  token
+                )
+              })
+            }
+          )
           break
         }
 

@@ -59,15 +59,8 @@
         "omegaEdit.bytesPerRow": {
           "type": "number",
           "default": 16,
-          "anyOf": [
-            {
-              "const": 0
-            },
-            {
-              "minimum": 8,
-              "maximum": 64
-            }
-          ],
+          "minimum": 8,
+          "maximum": 64,
           "description": "%omegaEdit.configuration.bytesPerRow.description%"
         },
         "omegaEdit.language": {
@@ -135,6 +128,11 @@
         "enablement": "omegaEdit.hexEditorActive && !omegaEdit.transformInFlight"
       },
       {
+        "command": "omegaEdit.previewChangeLog",
+        "title": "%omegaEdit.command.previewChangeLog.title%",
+        "enablement": "omegaEdit.hexEditorActive && !omegaEdit.transformInFlight"
+      },
+      {
         "command": "omegaEdit.applyChangeLog",
         "title": "%omegaEdit.command.applyChangeLog.title%",
         "enablement": "omegaEdit.hexEditorActive && !omegaEdit.transformInFlight"
@@ -170,6 +168,16 @@
       {
         "command": "omegaEdit.clearExternalHighlights",
         "title": "%omegaEdit.command.clearExternalHighlights.title%"
+      },
+      {
+        "command": "omegaEdit.loadRangeMap",
+        "title": "%omegaEdit.command.loadRangeMap.title%",
+        "enablement": "omegaEdit.hexEditorActive"
+      },
+      {
+        "command": "omegaEdit.unloadRangeMap",
+        "title": "%omegaEdit.command.unloadRangeMap.title%",
+        "enablement": "omegaEdit.hexEditorActive"
       }
     ],
     "menus": {
@@ -222,6 +230,10 @@
         },
         {
           "command": "omegaEdit.exportChangeLog",
+          "when": "omegaEdit.hexEditorActive && !omegaEdit.transformInFlight"
+        },
+        {
+          "command": "omegaEdit.previewChangeLog",
           "when": "omegaEdit.hexEditorActive && !omegaEdit.transformInFlight"
         },
         {

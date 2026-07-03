@@ -1,575 +1,340 @@
-# OmegaEdit — Shortcomings, Bugs, Gaps & Missed Opportunities
+# OmegaEdit Current Shortcomings
 
-Living backlog of issues found while reviewing the `codex/checkpoint-change-log-actions`
-work, the follow-up audit, and the surrounding transform / change-log / checkpoint code.
-Grouped by theme, roughly prioritized within each group. File:line references point at the
-offending code.
+This is the current actionable backlog. It replaces the older historical audit,
+which had grown into a mix of fixed findings, follow-up notes, and a second
+prioritized review appended at the bottom.
 
-Status notes:
-- `Fixed` means the current follow-up branch addresses the item directly.
-- `Partially fixed` means the branch reduces the risk but leaves a larger design gap.
-- `New` means the item is validated against the current tree but has not been addressed.
+Items already fixed by recent work have been removed from the open list. In
+particular, the transform/change-log/checkpoint audit items that now have
+regression coverage are not repeated here. The recent VS Code extension issues
+around the initial Find toggle state, auto bytes-per-row overfitting, and the
+duplicate Ctrl-Z undo toast are also treated as fixed by the current extension
+branch/PR and are not listed as open.
 
----
+Priority guide:
+- **P0**: correctness, data integrity, or behavior that can mislead callers.
+- **P1**: high-impact product, performance, or robustness work.
+- **P2**: meaningful API or architecture improvement.
+- **P3**: polish, telemetry, or opportunistic cleanup.
 
-## A. Transforms (correctness — "sometimes don't run / don't create changes")
-
-This is the reported bug. Root causes are spread across all three layers.
-
-1. **`content_changed` is inferred, never confirmed against the core.**
-   `server/cpp/src/editor_service.cpp:1834` sets
-   `content_changed = operation_replaces && (effective_length > 0 || replacement_length > 0)`.
-   It does **not** check whether `omega_edit_replace_bytes` actually recorded a change
-   (no change-serial / change-count delta is consulted). A replace whose replacement is
-   byte-identical to the source, or a core replace that no-ops, still reports
-   `content_changed = true` — and the reverse can happen too. The server should report
-   change-happened based on the core change count before/after, not arithmetic on lengths.
-   **Status: Fixed.** The server now reports `content_changed` from observed session
-   change/checkpoint/file-size deltas around the transform operation.
-
-2. **Core silently treats "no replacement" as success with no change.**
-   `core/src/lib/transform.cpp:1001-1006`: when `requested_length == 0 && replacement_length == 0`
-   the code returns `0` (success) without recording any change. The plugin "ran" but nothing
-   happened, and nothing upstream can distinguish that from a real edit. There is no
-   change-count/serial returned from the apply call to disambiguate.
-   **Status: Fixed.** Replace/inspect plugins must now set the no-content-change response
-   flag for intentional zero-length no-ops; ambiguous zero-length replace responses fail.
-
-3. **Client-side no-op detection *undoes* real work and is silently size-gated.**
-   `vscode-extension/src/hexEditorProvider.ts:2296-2322`. After a successful transform the
-   extension re-reads the range, compares bytes, and if equal calls `undo()`. Problems:
-   - The comparison is only performed when both sides are `<= MAX_TRANSFORM_NOOP_COMPARE_BYTES`
-     (1 MiB, line 145). Above that, `canCompareNoOp` is false, the change is *kept* even if it
-     is a true no-op — so behavior flips based on size (a "limit" leaking into correctness).
-   - When it *does* fire, it issues an `undo()` to roll back the just-applied change. If the
-     plugin legitimately replaced bytes with equal bytes (e.g. idempotent normalize), the user
-   sees "nothing happened" even though the operation was valid. This is almost certainly a
-   contributor to "transforms don't create changes when they should."
-   - The undo is a second async round-trip gated on `waitForSessionSync`; if sync versioning
-     races, the wrong change can be undone.
-   **Status: Fixed.** The extension no longer performs the post-transform byte compare or
-   undoes a completed transform as a client-side no-op.
-
-4. **Transform is recorded only as a generic `REPLACE` in local history, losing identity.**
-   `vscode-extension/src/hexEditorProvider.ts:2324-2333` records the transform result as a
-   `REPLACE` change record with raw replacement bytes. The plugin id and options are dropped.
-   See gap G1 below (first-class Transform change kind).
-   **Status: Fixed.** Direct VS Code transform application now records a lightweight
-   `TRANSFORM` history entry with plugin id, options, replacement length, and size metadata
-   instead of materializing replacement bytes as a generic `REPLACE`.
-
-5. **Whole-replacement is buffered in memory as hex.**
-   The extension reads the entire replacement back via `getSegment` and stores it hex-encoded
-   in the in-memory change log (2× the byte size). For large transforms this is a latent OOM
-   and conflicts with the large-file promise. (Same hex-doubling appears in the AI change log.)
-   **Status: Partially fixed.** Direct VS Code transforms no longer read replacements back into
-   local history at all; general hex/in-memory change-log storage remains.
-
-6. **No surfaced reason when a transform genuinely does nothing.**
-   When `content_changed` is false there is no message explaining *why* (schema mismatch vs.
-   inspect-only plugin vs. true no-op). The webview just shows the transform "completed" with
-   no change. Users read this as "the transform didn't run."
-   **Status: Fixed.** The webview/toast path now distinguishes inspect-only calculations from
-   true no-content-change transforms, and bitwise/case-change identity paths report
-   no-content-change from the server.
-
-7. **Transform concurrency guard returns INTERNAL, not a typed state.**
-   `editor_service.cpp:1739` funnels "transform already in progress" through
-   `status_for_session_operation_start`, which can surface as a generic error string the UI
-   only pattern-matches on. Easy to misclassify as a failure.
-   **Status: Fixed.** The server operation-start guard maps transform/mutation busy states to
-   `FAILED_PRECONDITION`, and transform precondition rejection is now covered by client
-   integration coverage.
+Risk guide:
+- **Low**: mostly additive, localized, or test-only.
+- **Medium**: touches shared behavior but has clear boundaries.
+- **High**: broad API, format, or core model changes.
 
 ---
 
-## B. Atomicity / transactions (first-class, reversible operations)
+## Start Here
 
-8. **`applyChangeLog` is not atomic (AI).**
-   `packages/ai/src/service.ts` applies entries in a bare `for` loop of `insert/del/overwrite/replace`
-   with no transaction and no rollback. A failure midway leaves a partially-applied session
-   and no record of how far it got. Should wrap in a begin/end transaction (core supports
-   transaction state — see `omega_session_get_transaction_state` usage in the server) or, at
-   minimum, checkpoint before and restore on failure.
-   **Status: Fixed.** AI change-log apply now verifies the before fingerprint, applies normal
-   edit batches inside server transactions, verifies the after fingerprint before reporting
-   success, and rolls back to the starting change count on any apply/postcondition failure.
+1. **Undo performance batch**: implement the low-risk undo pieces first
+   (transaction extents, redo batching, snapshot telemetry), then tackle
+   in-place inverse undo.
+2. **Streaming import**: pair existing streaming export with a streaming/chunked
+   import path.
+3. **Checkpoint caps/dedupe**: add server/API guardrails for unbounded checkpoint
+   creation.
 
-9. **`applyChangeLog` is not atomic (extension).**
-   `vscode-extension/src/hexEditorProvider.ts` `applyChangeLogEntries` has the same
-   sequential, non-transactional shape.
-   **Status: Fixed.** Extension import now verifies the before fingerprint, applies normal edit
-   batches inside server transactions, verifies the after fingerprint before recording local
-   history, and rolls back to the starting change count on any apply/postcondition failure.
+The first batch gives a useful blend: high user-visible impact from undo work,
+plus lower-risk cleanup that reduces future surprises.
 
-10. **Transforms are not atomic/first-class.** (User-requested flag — see G1.)
-    A transform that internally expands/shrinks/replaces is recorded as one opaque `REPLACE`
-    instead of a reversible, replayable `Transform` operation. Undo works by byte-replacement,
-    not by re-running/inverting the transform, so the change log cannot reproduce the transform
-    on a *different* file (the whole point of a portable change log).
-    **Status: Partially fixed.** Core/proto/server/client/export/import paths now carry
-    `TRANSFORM` metadata, and direct VS Code transforms now record that metadata locally.
-    Import now replays transforms through the server and verifies the replayed size/replacement
-    metadata before reporting success. Transform replay still depends on the target having the
-    same plugin semantics, and rollback still uses undo-to-start-count compensation rather than
-    a dedicated native import primitive.
+## P1 High-Impact Work
 
-11. **Checkpoint rollback names must not promise snapshot restore semantics.**
-    The checkpoint operation calls `destroyLastCheckpoint`; there is no snapshot/restore
-    semantics here, just rollback of the current checkpoint model.
-    **Status: Fixed.** The AI toolkit/CLI/MCP tool, VS Code command/API/webview protocol,
-    toolbar, progress, and toasts now use rollback-checkpoint naming throughout.
+### 1. Undo still rebuilds the model instead of applying inverse edits
 
-12. **Checkpoint creation is unconditional and unbounded.**
-    No cap on number of checkpoints, no dedupe, no "checkpoint only if dirty since last."
-    Repeated `createCheckpoint` calls grow state without feedback on cost.
-    **Status: Partially fixed.** VS Code now skips explicit checkpoint creation when the
-    session has no dirty changes and reports that no checkpoint was needed; server/API caps and
-    dedupe remain open.
+**Impact:** High
+**Risk:** High
+**Area:** Core undo/redo
 
----
+Undo pops the trailing change transaction, then rebuilds the computed model to
+the remaining change count with `rebuild_model_to_change_count_`. That routine
+clones the nearest snapshot and replays forward from it. The current default
+snapshot interval is non-zero (`100`), so the worst case is bounded by snapshot
+spacing, but a single undo can still replay many changes and full snapshots are
+deep clones of the segment tree.
 
-## C. UX / notifications
+Relevant code:
+- `core/src/lib/edit.cpp:655`
+- `core/src/lib/edit.cpp:719`
+- `core/src/lib/edit.cpp:2162`
+- `core/src/lib/impl_/session_def.hpp:45`
 
-13. **Checkpoint & change-log confirmations land in the results pull-down, not a toast.**
-    (User-requested flag.) `hexEditorProvider.postSessionActionComplete` posts
-    `sessionActionComplete`, and `App.svelte:2124-2137` writes it into `transformFeedback`
-    (the transform/results feedback strip, rendered at `App.svelte:2147`). For
-    `rollbackCheckpoint` / session rollback the confirmation should pop as a VS Code toast
-    (`showInformationMessage`) instead of (or in addition to) the inline strip.
-    Note the host already fires a toast for some actions, so the two paths are inconsistent:
-    some actions toast + strip, some strip-only. Pick one rule and apply it uniformly.
-    **Status: Fixed.** Session action completions now rely on host toasts and no longer
-    populate the transform/results feedback strip; the Recent Transform Results control is
-    result-history only and no longer borrows transient status text.
+Suggested fix:
+- Implement in-place inverse application for ordinary changes:
+  delete inverse for insert, insert inverse for delete, restore original bytes
+  for overwrite/replace.
+- Keep checkpoint-backed transform undo on its existing checkpoint path unless
+  or until transform changes get a dedicated inverse/replay primitive.
+- Use model integrity tests around mixed insert/delete/overwrite/replace
+  sequences before replacing the rebuild path.
 
-14. **Inconsistent "rollback" vs "restore" vocabulary across the codebase.**
-    The checkpoint path previously mixed rollback and restore vocabulary for closely-related
-    concepts, confusing users and future maintainers.
-    **Status: Fixed.** The checkpoint command/API/protocol/tooling path now consistently uses
-    rollback terminology for drop-last-checkpoint behavior; restore terminology is reserved for
-    the true snapshot-restore API.
+### 2. Undo snapshot strategy is count-only and memory-blind
 
-15. **Cancelled actions are reported as success-ish.**
-    `exportChangeLog` cancel returns `{ cancelled: true }` but still posts a
-    `sessionActionComplete` that the webview renders as feedback text; easy to misread.
-    **Status: Fixed.** Cancelled session actions now clear inline feedback instead of rendering
-    success-like completion text.
+**Impact:** High
+**Risk:** Medium to High
+**Area:** Core undo/redo memory behavior
 
-16. **No progress for `exportChangeLog`.**
-    `collectChangeLogEntries` loops `getChangeDetails` serial-by-serial (one RPC per change,
-    up to 100k). For large sessions this is a long, silent, blocking operation with no progress
-    notification (apply has a progress bar; export does not).
-    **Status: Fixed.** VS Code export now wraps change-detail collection in a progress
-    notification.
+Snapshots are full deep clones of the model segment tree and are taken only by
+change count. This ignores model size, segment count, and memory pressure. The
+current default interval is useful, but the policy is still crude for very large
+files or very dense edit histories.
 
----
+Relevant code:
+- `core/src/lib/edit.cpp:719`
+- `core/src/lib/impl_/session_def.hpp:45`
 
-## D. The "remove limits" promise (hard caps that betray the mission)
+Suggested fix:
+- Make snapshot policy adaptive: change count plus approximate segment/tree
+  size or memory budget.
+- Consider structural sharing or copy-on-write segment nodes so snapshots are
+  cheap references instead of deep clones.
+- Surface basic metrics for snapshot count/bytes in tests or debug logs.
 
-17. **JS `Number.isSafeInteger` ceiling (2^53) on every offset/length.**
-    `packages/client/src/safe_int.ts` throws on any offset/length/count beyond 2^53 on both
-    input and output. The core is 64-bit (`int64_t`). Any file or offset past ~9 PB is
-    unreachable from the TS client. Defensible today, but it is a real ceiling that contradicts
-    "remove limits." Consider `BigInt` on the boundaries that can legitimately exceed 2^53.
-    **Status: Partially fixed.** Versioned change-log documents now accept decimal int64 strings
-    and export integer metadata/entry coordinates as decimal strings, so JSON precision is no
-    longer the change-log format boundary. The generated TypeScript gRPC client still uses
-    `long_type_number`; replay refuses values beyond the safe-number transport boundary instead
-    of rounding them. Full BigInt client APIs remain a deliberate protobuf/client migration.
+### 3. Change-log import is still full-document JSON parsing
 
-18. **Change-log entry/byte caps.**
-    AI: `MAX_CHANGE_LOG_ENTRIES = 100_000`, `MAX_CHANGE_LOG_ENTRY_BYTES = 32 MiB`,
-    `MAX_CHANGE_LOG_BYTES = 96 MiB` (`packages/ai/src/service.ts`). Extension mirrors these
-    (`hexEditorProvider.ts:146-148`). A session with >100k changes still cannot export a
-    non-streaming log. Export now fails loudly instead of hiding dropped changes, but for a tool
-    whose pitch is massive files, a 100k-change ceiling is low.
-    **Status: Fixed.** AI and VS Code change-log import/export no longer impose the former
-    entry-count, per-entry-byte, or document-byte caps. They still reject invalid JSON shape,
-    incomplete change details, and values that cannot be replayed safely through the current TS
-    transport.
+**Impact:** High
+**Risk:** Medium to High
+**Area:** AI service, VS Code extension, change-log format
 
-19. **In-memory hex doubling everywhere.**
-    Change-log data is stored/transported as hex strings (2× bytes) in both AI and extension,
-    and transform replacements are fully materialized client-side. Streaming / chunked /
-    file-backed change logs would honor the large-file promise.
-    **Status: Partially fixed.** AI file-backed export and VS Code local-file export now stream
-    entries to a temporary file and return summary metadata instead of echoing the full entry
-    array back to the caller. The v2 JSON payload still encodes bytes as hex, and import still
-    parses the full JSON document before replay; chunked/binary or streaming-import formats
-    remain future API work.
+Change-log export can stream entries to a local file and former hard caps have
+been removed. Import still parses the entire JSON document before replay, and
+payload bytes are still hex encoded. That means large imports can be memory-heavy
+even though export no longer has to be.
+
+Relevant code:
+- `packages/ai/src/service.ts`
+- `vscode-extension/src/hexEditorProvider.ts`
+
+Suggested fix:
+- Introduce a streaming/chunked import reader for the current JSON format, or
+  define a v3 chunked/binary format if streaming JSON is too contorted.
+- Validate document header/fingerprint before reading all entries.
+- Replay entries incrementally while preserving atomic rollback semantics.
+
+### 4. TypeScript live client still has a 2^53 int64 ceiling
+
+**Impact:** High for the "massive files" promise
+**Risk:** High
+**Area:** TypeScript protobuf/client API
+
+Change-log documents now accept decimal int64 strings, but the generated
+protobuf-ts client is still generated with `long_type_number`. The compatibility
+wrappers reject unsafe integer values rather than rounding them, which is the
+right failure mode, but live TS clients still cannot address offsets, lengths, or
+counts beyond `Number.MAX_SAFE_INTEGER`.
+
+Relevant code:
+- `packages/client/src/safe_int.ts`
+- `packages/client/src/protobuf_ts/generated/omega_edit/v1/omega_edit.ts`
+- `buf.gen.yaml`
+
+Suggested fix:
+- Plan a BigInt-capable protobuf/client migration.
+- Decide whether public TS APIs become BigInt-first, accept `number | bigint`,
+  or expose parallel BigInt methods.
+- Keep safe-number wrappers for legacy callers during the transition.
 
 ---
 
-## E. Change-log fidelity & format
+## P2 Medium-Impact / Medium-Risk Work
 
-20. **Export is lossy and silently so.**
-    `exportChangeLog` reconstructs entries from `getChangeDetails`, which only yields
-    INSERT/DELETE/OVERWRITE — never REPLACE or Transform. Changes absorbed into a checkpoint
-    baseline are dropped and only counted in `foldedChangeCount`. The exported log therefore
-    cannot faithfully reproduce a session that used checkpoints or transforms. This is presented
-    in the README as a feature ("portable…apply to a fleet of files"), which overstates fidelity.
-    **Status: Fixed.** Export now checks the core model first, rejects unavailable serials /
-    missing details instead of emitting an incomplete log, writes explicit completeness metadata,
-    and includes server-computed before/after size+digest fingerprints for non-streaming logs.
-    The old folded-count path has been removed.
+### 5. Transform change replay is metadata-aware but not native-first
 
-21. **No schema validation / versioning enforcement on import.**
-    `normalizeChangeLogEntries` accepts an array *or* `{changes:[...]}` but does not check
-    `format`/`version` fields it itself writes. A v2 document or a foreign JSON array would be
-    applied (or partially applied) without a compatibility gate.
-    **Status: Fixed.** Imports must now match the OmegaEdit change-log format and version;
-    bare JSON arrays are rejected.
+**Impact:** Medium to High
+**Risk:** Medium to High
+**Area:** Core/proto/server/change-log replay
 
-22. **`groupId` and `serial` are carried but not honored.**
-    Import preserves `serial`/`groupId` (`service.ts` normalize) but apply ignores them — no
-    grouping/transaction reconstruction, serials are not validated for monotonicity or gaps.
-    **Status: Fixed.** AI and VS Code imports now reject partial, non-contiguous, or gapped
-    serial metadata; `groupId` metadata is validated for contiguous groups and preserved on
-    applied VS Code history records while the import remains one atomic server transaction.
+Transform metadata is now carried through core/proto/server/client/export/import,
+and import can replay transforms through the server. The remaining gap is that
+replay still depends on the target environment having compatible plugin
+semantics rather than a dedicated native replay/import primitive.
 
-23. **Error sniffing by string match.**
-    `isMissingChangeDetailsError` matches `'NOT_FOUND'` / `'change not found'` substrings
-    (AI and extension). Brittle: depends on server message wording, not gRPC status codes.
-    **Status: Fixed.** `getChangeDetails` preserves the original gRPC error as `cause`, and
-    AI/extension importers now classify missing change details by gRPC status code only.
+Suggested fix:
+- Define the guarantees expected of portable transform replay.
+- Add a native transform replay/import primitive if the server should own the
+  operation end to end.
+- Keep verifying replayed size/replacement metadata after import.
 
-24. **`getChangeDetails` request sends dummy fields.**
-    `packages/client/src/protobuf_ts/change.ts` fills `sessionEventKind`, `computedFileSize`,
-    `changeCount`, `undoCount` with zeros just to satisfy the shared request message. Harmless
-    now but couples a read to an event-shaped message; a stricter server could reject it.
-    **Status: Fixed.** `GetChangeDetailsRequest` now carries only `session_id` and optional
-    `serial`.
+### 6. File-backed plugin allocation tracking is process-global
 
----
+**Impact:** Medium
+**Risk:** Medium
+**Area:** Core transform plugin allocation
 
-## F. Testing / build confidence
+Large plugin allocations are tracked in a process-wide map protected by a single
+mutex. Unrelated sessions and plugins therefore contend on one global lock, and
+ownership boundaries are less clear than they could be.
 
-25. **No test asserts the transform-no-op / content_changed path.**
-    The reported bug area (A1–A3, A6) has no regression test. Add coverage for: identical-bytes
-    replace, inspect-only plugin, >1 MiB replace (no-op gate flips), and content_changed accuracy.
-    **Status: Fixed.** Added regression coverage for identical-byte transforms,
-    bitwise/case-change identity transforms, inspect-only/no-content-change reporting, and a
-    >1 MiB no-op transform to guard the former client-side size gate.
+Relevant code:
+- `core/src/lib/transform.cpp:800`
 
-26. **Branch could not be type-checked/tested here.**
-    Node is v22 in this environment; repo requires 24, deps not installed. CI must run
-    `yarn workspace @omega-edit/ai test`, vscode-extension build+tests, and `yarn lint` before merge.
-    **Status: Fixed.** Local checks now run through `nvm` on Node 24; PR CI is queued.
+Suggested fix:
+- Move allocation ownership to a per-operation, per-session, or per-registry
+  structure.
+- Keep a narrow compatibility shim for response cleanup.
+- Add stress coverage for concurrent transforms that allocate file-backed
+  buffers.
 
-27. **`applyChangeLog` round-trip test only covers the happy path.**
-    `packages/ai/tests/specs/toolkit.spec.ts` exercises a single OVERWRITE. No test for
-    multi-entry logs, REPLACE entries, partial-failure/atomicity, or the entry/byte caps.
-    **Status: Partially fixed.** Added malformed wrapped-change-log import coverage, a
-    partial-failure rollback regression, multi-entry/REPLACE atomicity coverage, transform
-    replay-metadata mismatch coverage, and true checkpoint-restore coverage. Cap-removal and
-    streaming-import coverage remain open.
+### 7. Server checkpoint creation has no cap or dedupe policy
 
----
+**Impact:** Medium
+**Risk:** Medium
+**Area:** Core/server/client checkpoint lifecycle
 
-## G. Gaps / future work (noted, not to implement now)
+VS Code skips explicit checkpoint creation when the session is clean, but the
+server/core API still allows unbounded checkpoint creation. Repeated checkpoint
+calls can grow state without a cost signal or cap.
 
-- **G1 — First-class `Transform` change kind.** (User-requested.) Treat Transform as a peer of
-  Insert/Delete/Overwrite/Replace: a change record `{ kind: 'TRANSFORM', offset, length,
-  pluginId, optionsJson }` carrying exactly the arguments needed to *re-run* the transform,
-  so the change log can reproduce it on another file rather than baking in resulting bytes.
-  Requires: core/proto change-kind support, server to record transform-as-change, client wrapper,
-  AI + extension change-log encode/decode, and undo-by-inverse-or-rerun semantics.
-- **G2 — True checkpoint restore** (snapshot + restore-to), distinct from drop-last-checkpoint.
-  **Status: Fixed.** Core/proto/server/client/AI/VS Code now expose restore-to-latest-checkpoint
-  semantics that keep the checkpoint snapshot, discard later edits/redo, refresh viewports, and
-  emit a distinct restore event.
-- **G3 — Streaming / file-backed change logs** to drop the in-memory and entry-count caps.
-  **Status: Partially fixed.** File-backed export streams entries and the former hard caps are
-  gone; streaming import/chunked payloads still need a format/API decision.
-- **G4 — BigInt offsets/lengths** at the TS boundary to lift the 2^53 ceiling.
-  **Status: Partially fixed for change-log documents.** Serialized change-log int64 fields accept
-  decimal strings, but the generated TypeScript gRPC client still uses `long_type_number`, so full
-  BigInt replay/client APIs remain open.
-- **G5 — Transactional `applyChangeLog`** (begin/end transaction or checkpoint-guarded) for atomicity.
-  **Status: Fixed for change-log import.** Normal edit batches are transactional and the whole
-  import rolls back on failure; a future native "restore to starting serial and discard redo"
-  primitive would still make rollback cheaper and more direct.
-- **G6 — gRPC status-code based error handling.** **Status: Fixed.** Missing change-detail
-  handling now follows preserved gRPC status codes instead of message text.
+Relevant code:
+- `core/src/lib/edit.cpp:2235`
+- `proto/omega_edit/v1/omega_edit.proto`
+- `server/cpp/src/editor_service.cpp`
 
----
+Suggested fix:
+- Add configurable checkpoint count/bytes caps.
+- Consider dedupe when the computed content equals the latest checkpoint.
+- Return explicit "not needed" or "limit reached" results where appropriate.
 
-## H. Concurrency / lock ordering
+### 8. C-string and byte edit APIs encode different zero-length semantics
 
-28. **Session event subscription lock order can deadlock against core callbacks.**
-    `server/cpp/src/session_manager.cpp:417-460` builds session event notifications while
-    taking `session_subscription_mutex`. Core mutations call into the session event callback
-    while the handler already holds `core_mutex` through `lock_session`, so that path is
-    effectively `core_mutex -> session_subscription_mutex`. Subscription management takes the
-    reverse order: `subscribe_session_events` takes `session_subscription_mutex` and then
-    `core_mutex` to update event interest (`session_manager.cpp:963-982`), and the targeted
-    unsubscribe path does the same (`session_manager.cpp:1011-1034`). A concurrent edit event
-    plus subscribe/unsubscribe can therefore park each thread on the other's lock. The session
-    event path needs one consistent lock order, or the core event-interest update needs to be
-    split so subscription bookkeeping is never held while acquiring `core_mutex`.
-    **Status: Fixed.** Session event callbacks now copy matching subscriber queues while holding
-    only the subscription mutex and push after releasing it; subscription management releases
-    the subscription mutex before taking `core_mutex`.
+**Impact:** Medium
+**Risk:** Low to Medium
+**Area:** Core C API
 
-29. **Transform progress publishing relies on an implicit core lock.**
-    `server/cpp/src/session_manager.cpp:777-816` reads `omega_session_get_computed_file_size`,
-    `omega_session_get_num_changes`, and `omega_session_get_num_undone_changes` from
-    `info->session` without taking `core_mutex`. Today `ApplyTransformPlugin` calls it while a
-    `LockedSession` is alive (`editor_service.cpp:1742-1865`), but the method is exposed on
-    `SessionManager` with no contract enforcing that precondition. A future caller could race
-    session mutation or destruction and make progress reporting touch the non-thread-safe core
-    session outside its guard.
-    **Status: Fixed.** Transform progress publishing no longer reads core session state; progress
-    events carry lifecycle/progress payloads only, while normal core session events provide
-    authoritative size/change counters.
+The C-string helpers infer length with `strlen` when the length argument is zero,
+while `_bytes` variants treat length zero as an explicit no-op. The headers warn
+about this now, but the API shape is still easy to misuse with embedded NULs or
+when callers expect zero to mean the same thing everywhere.
+
+Relevant code:
+- `core/src/include/omega_edit/edit.h`
+
+Suggested fix:
+- Add safer, clearly named APIs for inferred-length text edits.
+- Keep byte APIs explicit-only.
+- Add examples that steer binary callers to `_bytes` variants.
+
+### 9. Long positional argument lists remain hard to use safely
+
+**Impact:** Medium
+**Risk:** Low to Medium
+**Area:** Core C API ergonomics
+
+Search/replace and viewport APIs still use long positional lists and `int`
+booleans for options such as floating, ordering, and overwrite mode. Argument
+swaps are easy to miss at call sites.
+
+Relevant code:
+- `core/src/include/omega_edit/edit.h`
+- `core/src/include/omega_edit/viewport.h`
+
+Suggested fix:
+- Add options-struct APIs for new callers.
+- Preserve existing positional APIs for ABI compatibility.
+- Use enum/boolean-like typed fields in the options structs.
+
+### 10. Viewport dirty state uses a negative-capacity sentinel
+
+**Impact:** Medium
+**Risk:** Low to Medium
+**Area:** Core viewport internals
+
+Viewport data dirtiness is encoded by negating `data_segment.capacity`, while
+public capacity reads hide that with `abs`. This couples a state flag to a size
+field and requires every internal user to remember the convention.
+
+Relevant code:
+- `core/src/lib/edit.cpp:1443`
+- `core/src/lib/edit.cpp:2155`
+- `core/src/lib/edit.cpp:2259`
+- `core/src/lib/viewport.cpp:122`
+
+Suggested fix:
+- Add an explicit dirty flag to the viewport/data-segment structure.
+- Keep capacity non-negative internally.
+- Update tests that currently force dirty state by negating capacity.
 
 ---
 
-## I. Session / subscription lifecycle
+## P3 Low-Risk / Opportunistic Work
 
-30. **Managed checkpoint root can be left behind on per-session directory creation failure.**
-    `create_managed_checkpoint_directory` creates and stores `managed_server_root_`, then creates
-    a per-session checkpoint directory under it (`session_manager.cpp:361-395`). If the server
-    root succeeds but the per-session directory creation fails, `create_session` erases the
-    pending session and returns (`session_manager.cpp:580-586`) without calling
-    `cleanup_managed_server_root_if_empty`. That can strand an empty managed root until a later
-    cleanup pass or process exit.
-    **Status: Fixed.** Session creation now attempts managed-root cleanup after erasing the
-    pending session when per-session checkpoint directory creation fails.
+### 11. Snapshot allocation failure silently degrades undo speed
 
-31. **Viewport recreation drops the old subscription before the new one is confirmed.**
-    `packages/client/src/subscriptions.ts:224-247` cancels the current viewport subscription
-    before `subscribeViewportEvents` for the replacement viewport has succeeded. The caller
-    already documents the consequence in `editor_scoped_session.ts:232-242`: if
-    `setViewportId` fails, the newly-created viewport is destroyed, but the old viewport stream
-    has already been cancelled and the editor is left without active viewport events until
-    another recreation succeeds. The handoff should keep the old subscription live until the new
-    stream is confirmed.
-    **Status: Fixed.** Client viewport subscription handoff now keeps the active stream alive
-    until the replacement stream subscribes successfully.
+**Impact:** Low to Medium
+**Risk:** Low
+**Area:** Core undo telemetry
 
-32. **Explicit viewport unsubscribe clears but does not close the active queue.**
-    `SessionManager::unsubscribe_viewport_events` clears the viewport event queue and disables
-    core interest, but leaves the queue open (`session_manager.cpp:1060-1075`). The streaming RPC
-    only exits when the client context is cancelled or the queue closes
-    (`editor_service.cpp:2071-2116`), while the explicit `UnsubscribeToViewportEvents` RPC just
-    calls that clear-only path (`editor_service.cpp:2127-2135`). A client that uses explicit
-    unsubscribe while a stream is still open can leave the old stream blocked, and a later
-    resubscribe reuses the same queue so multiple readers can compete for events.
-    **Status: Fixed.** Viewport event streams now use per-subscription queues; explicit
-    unsubscribe closes active viewport queues, while stream cleanup removes only the queue for
-    that stream.
+When snapshot allocation fails, the snapshot is erased and undo performance can
+fall back to longer replay distances without any visible signal.
 
-33. **Subscription callbacks have no backpressure or sequential delivery contract.**
-    `packages/client/src/subscriptions.ts:147-161` schedules every incoming event handler through
-    a detached promise. Errors are routed to `onError`, so they are not silently swallowed, but
-    async `onEvent` work is not awaited before the next event is dispatched. Callers that do
-    asynchronous model or UI work can observe overlapping callbacks and out-of-order completion
-    even though the underlying stream delivered events in order.
-    **Status: Fixed.** Subscription event callbacks now run through a per-stream promise chain,
-    preserving delivery order and avoiding overlapping async handler execution.
+Relevant code:
+- `core/src/lib/edit.cpp:724`
 
----
+Suggested fix:
+- Emit a debug/warn log or session diagnostic event when snapshot capture fails.
+- Add a test hook or allocator-failure test if the existing harness supports it.
 
-## J. Validation / configuration hygiene
+### 12. Transaction-boundary scan is linear per undo
 
-34. **Caller-provided IDs and paths are only minimally validated.**
-    Desired session IDs and viewport IDs are accepted so long as they do not contain the `:`
-    separator (`session_manager.cpp:552-563`, `session_manager.cpp:848-866`), and most other
-    RPCs accept `session_id` strings directly for map lookups and error messages. The client
-    wrappers also pass `filePath`, `sessionIdDesired`, and `checkpointDirectory` through with no
-    shared maximum length, NUL-character, printable/opaque-ID, or log-safe policy. Generated IDs
-    are bounded, but caller-supplied IDs and paths can still be excessively large or log-hostile,
-    and tightening creation-time validation would contain that shape for all later operations.
-    **Status: Fixed.** Desired session and viewport IDs are now bounded caller tokens
-    (1-128 bytes; letters, digits, `_`, `.`, and `-` only), while `file_path` and
-    `checkpoint_directory` reject overlong, NUL-containing, or control-character inputs before
-    filesystem/core API use. Client integration coverage now asserts accepted safe IDs and
-    rejected unsafe IDs/path arguments.
+**Impact:** Low to Medium
+**Risk:** Low to Medium
+**Area:** Core undo performance
 
-35. **Default server host/port constants are duplicated across packages.**
-    `packages/client/src/server.ts:47-48`, `packages/client/src/protobuf_ts/client.ts:36-37`,
-    and `packages/ai/src/constants.ts:1-2` each define `127.0.0.1:9000` independently. A future
-    default change can silently diverge between the legacy client, protobuf-ts client, and AI
-    tooling unless the defaults move to one shared source.
-    **Status: Fixed.** Default server host/port values now live in the shared client constants
-    module; the legacy client, protobuf-ts client, and AI tooling consume that single source.
+Undo scans backward to find the current transaction extent each time. For very
+large transactions this is a repeated tail scan.
 
-36. **Change-log JSON import is byte-bounded but not structure-bounded.**
-    `packages/ai/src/service.ts:254-268` caps change-log file size and entry count, then parses
-    the full file with `JSON.parse` before validating shape. A deeply nested but byte-small JSON
-    document can still spend parser/normalizer CPU or trip runtime recursion limits before the
-    normal entry caps are enforced. A streaming parser, nesting-depth guard, or pre-parse
-    structural limit would make the import boundary less fragile.
-    **Status: Fixed.** Change-log file imports now reject JSON nesting deeper than the supported
-    limit before calling `JSON.parse`.
+Relevant code:
+- `core/src/lib/edit.cpp:2176`
 
-37. **Unary protobuf-ts RPCs have connection readiness deadlines but no per-call deadlines.**
-    `packages/client/src/protobuf_ts/client.ts:70-84` applies a 10-second deadline to
-    `waitForReady`, but the individual unary wrappers in `protobuf_ts/session.ts`,
-    `protobuf_ts/change.ts`, and `protobuf_ts/viewport.ts` call methods such as `saveSession`,
-    `replaceSession`, and `getSegment` without per-call gRPC deadlines or cancellation handles.
-    Once a client is considered ready, a hung server-side unary can keep the returned promise
-    pending indefinitely.
-    **Status: Fixed.** Hand-written protobuf-ts unary wrappers now pass a default deadline, with
-    `OMEGA_EDIT_UNARY_RPC_TIMEOUT_MS=0` available to disable it when needed.
+Suggested fix:
+- Store transaction extents or cached transaction change counts.
+- Reuse the same metadata for redo batching.
+
+### 13. Redo still replays one change at a time
+
+**Impact:** Low to Medium
+**Risk:** Low to Medium
+**Area:** Core redo performance
+
+Redo loops through `changes_undone` and calls `update_` one change at a time,
+paying repeated checks and per-change update overhead.
+
+Relevant code:
+- `core/src/lib/edit.cpp:2220`
+
+Suggested fix:
+- Batch redo by transaction.
+- Reuse notification batching and viewport-update coalescing where possible.
 
 ---
 
-## K. Core memory / lifetime correctness
+## Recently Fixed And Removed From The Open List
 
-38. **`omega_data_t` ownership is external and implicitly copyable.**
-    `core/src/lib/impl_/data_def.hpp:31-34` defines `omega_data_t` as a trivially copyable union
-    whose active storage is inferred from a separate length/capacity value stored in the owning
-    `omega_change_t` or `omega_segment_t`. Accidental value copies of `omega_change_t`,
-    `omega_segment_t`, or the union itself duplicate the raw pointer without duplicating ownership
-    state, while destruction is manual through `omega_data_destroy_`. The current code avoids many
-    obvious copies, but the type does not make ownership or non-copyability explicit, leaving a
-    latent double-free/aliasing trap for future maintenance.
-    **Status: Fixed.** `omega_data_t` is now a move-only RAII owner with explicit borrowed-buffer
-    support for scratch views. Owned byte storage releases in the member destructor/reset path, so
-    future accidental value copies fail at compile time instead of duplicating raw ownership.
+These areas were in the old document but are no longer open backlog items:
 
-39. **Reverse change visitors leak their iterator allocation.**
-    `core/src/lib/visit.cpp:77-84` allocates `change_iter.riter_ptr` for reverse iteration, but
-    `omega_visit_change_destroy_context` deletes only `change_iter.iter_ptr`
-    (`core/src/lib/visit.cpp:132-137`). A reverse visit context therefore leaks one
-    `omega_changes_t::const_reverse_iterator` each time it is destroyed.
-    **Status: Fixed.** Reverse visit contexts now delete `riter_ptr`; forward contexts continue
-    deleting `iter_ptr`.
-
-40. **Internal change destruction casts away const ownership.**
-    Change history is stored as `std::shared_ptr<const omega_change_t>`, but cleanup paths in
-    `core/src/lib/edit.cpp:588-599` use `const_cast` to call `omega_data_destroy_` on change data.
-    The implementation currently creates non-const heap objects before storing them as const
-    shared pointers, so this works by convention, but the type system advertises immutable changes
-    while destruction still mutates their internals. Internal ownership should stay mutable or move
-    byte ownership into a self-destroying RAII member.
-    **Status: Fixed.** Internal change pointers now keep mutable ownership, and byte storage lives
-    in self-destroying `omega_data_t` members. Cleanup paths no longer cast away const to release
-    insert/overwrite bytes.
-
-41. **C API allocation failures can escape through C entry points inconsistently.**
-    `omega_data_create_` throws `std::bad_array_new_length` for unrepresentable capacities
-    (`core/src/lib/impl_/data_def.hpp:45-48`) and other paths allocate with throwing `new[]`.
-    Some entry points, such as `omega_segment_create`, catch allocation failures and return
-    `nullptr`, while edit/change creation helpers in `core/src/lib/edit.cpp` do not consistently
-    translate allocation exceptions into C-style error returns. The public C API should not rely
-    on C++ exceptions escaping safely across callers.
-    **Status: Fixed.** Core C entry points and helpers that allocate change data, sessions,
-    viewports, segments, search contexts, checkpoint models, undo bookkeeping, and fixed-size I/O
-    buffers now translate allocation failures into `nullptr`/negative C-style returns and clean up
-    partially-created files/contexts.
-
-42. **`omega_session_get_file_path` returns an internal string pointer without a lifetime contract.**
-    `core/src/lib/session.cpp:105` returns `models_.back()->file_path.c_str()` directly. The
-    header says only that callers receive the file path, not that the pointer is borrowed and can
-    be invalidated by later session mutation, save/checkpoint model changes, or session
-    destruction. Either the documentation needs a clear borrowed-pointer lifetime note or the API
-    should return caller-owned storage.
-    **Status: Fixed.** The public header now documents the returned path as a session-owned
-    borrowed pointer with mutation/destruction lifetime limits.
-
----
-
-## L. Transform plugin hardening / performance
-
-43. **Plugin option regex validation recompiles unbounded patterns.**
-    `core/src/lib/transform.cpp:503-508` reads a `pattern` string from a plugin argument schema
-    and constructs `std::regex(pattern_text)` during each validation. There is no pattern length
-    cap, compiled-regex cache, or timeout/backtracking guard. A plugin schema with a pathological
-    pattern can make option validation unexpectedly expensive, and repeated transforms pay the
-    regex compilation cost every time.
-    **Status: Fixed.** Schema regex validation now rejects oversized patterns, caches compiled
-    regex objects across validation calls, and applies a conservative safety gate before
-    compilation/evaluation that rejects backreferences, lookaround-style groups, and quantified
-    groups containing quantifiers or alternation. Native coverage asserts safe validation still
-    works and the risky pattern families are rejected.
-
-44. **File-backed plugin allocation tracking is process-global.**
-    Large plugin allocations are tracked through the process-wide
-    `g_file_backed_allocations` map and `g_file_backed_allocations_mutex`
-    (`core/src/lib/transform.cpp:659-661`). This serializes allocation bookkeeping across all
-    sessions and plugins, so unrelated transforms on different sessions still contend on one
-    global lock. Per-operation or per-registry ownership would reduce contention and make cleanup
-    boundaries clearer.
-    **Status: New.**
-
-45. **Plugin calculations/transforms need cooperative cancellation.**
-    Session destroy, checkpoint cleanup, or user cancellation should be able to ask outstanding
-    inspect calculations and transform plugin calls to stop politely. Today plugin execution has
-    progress callbacks and chunked readers, but no explicit cancellation token/callback in
-    `omega_transform_plugin_request_t`; forcing a native plugin to die mid-call would be unsafe
-    for third-party plugins that hold database connections, file handles, transactions, or other
-    external resources. Add a host-owned cancellation signal, have SDK helpers and built-in
-    streaming loops check it between chunks, and document that plugins should roll back/close
-    external resources before returning a cancelled status.
-    **Status: New.**
-
----
-
-## M. API design / portability
-
-46. **Event interest masks use signed integers and `ALL_EVENTS (~0)`.**
-    `core/src/include/omega_edit/fwd_defs.h:64-67` defines `ALL_EVENTS` as `~0`, while session
-    and viewport interest APIs store masks in `int32_t`. The current event values fit below the
-    sign bit, but the all-events sentinel relies on signed representation and differs from the
-    TypeScript `ALL_EVENTS = ~NO_EVENTS` expression's 32-bit JavaScript behavior. A `uint32_t`
-    mask or explicit all-events constant would make the ABI clearer.
-    **Status: Fixed.** The C API now exposes explicit `SESSION_EVENTS_ALL` and
-    `VIEWPORT_EVENTS_ALL` masks, with `ALL_EVENTS` preserved as their positive union for source
-    compatibility. The TypeScript client derives the matching masks from generated proto enums,
-    and event-mask tests now assert the explicit known-bit behavior instead of `~0`.
-
-47. **Edit APIs mix serial-returning and status-code-returning conventions.**
-    Core mutators such as `omega_edit_insert`, `omega_edit_delete`, and `omega_edit_replace`
-    return a positive change serial on success, `0` for no-op/rejected-without-error cases, and
-    `-1` for invalid arguments. Batch/checkpoint helpers such as
-    `omega_edit_replace_bytes_checkpointed`, `omega_edit_apply_script`, and
-    `omega_edit_replace_all_bytes` return `0` on success and non-zero on failure. Callers cannot
-    use one success predicate across editing APIs, and mistakes can invert success handling.
-    **Status: New.**
-
-48. **C-string and byte edit APIs encode different length semantics.**
-    The C-string helpers infer a length with `strlen` when the length argument is zero, while the
-    `_bytes` variants treat length zero as an explicit no-op. The current header documents the
-    difference, but the overload-like API shape remains easy to misuse for buffers that may contain
-    embedded NUL bytes or for callers expecting zero length to mean the same thing everywhere.
-    **Status: New.**
-
-49. **Search/replace and viewport APIs rely on long positional argument lists and `int` booleans.**
-    `omega_edit_replace_matches` / `omega_edit_replace_matches_bytes` take a long sequence of
-    positional range, matching, ordering, output-count, and mode arguments, while viewport creation
-    and modification use `int is_floating` rather than a boolean or options struct. These signatures
-    are hard to read at call sites and make argument swaps or non-boolean values easy to miss.
-    **Status: New.**
-
-50. **Viewport dirty state is encoded as a negative capacity sentinel.**
-    `core/src/lib/viewport.cpp:117` negates `data_segment.capacity` to mark viewport data dirty,
-    and `omega_viewport_get_capacity` hides that by returning `std::abs(...)`. This couples a
-    state flag to a conceptually non-negative size field and requires every data-segment user to
-    remember the convention. A separate dirty flag would be more type-safe and less surprising.
-    **Status: New.**
-
-51. **Output path collision handling stops after 999 suffixes.**
-    `core/src/lib/edit.cpp:189-206` and `core/src/lib/filesystem.cpp:313-321` try numeric suffixes
-    only from 1 through 999 before returning `EEXIST`/`nullptr`. Busy output directories or stale
-    temp/checkpoint files can exhaust that small namespace even though a timestamp, UUID, or wider
-    suffix range would still produce a valid path.
-    **Status: Fixed.** Output and available-filename helpers now search a much wider suffix range
-    before reporting collision exhaustion.
-
----
-
-## N. Build / dependency hygiene
-
-52. **Deprecated or aging generator dependencies remain in the workspace.**
-    Root `package.json` still carries `@types/glob` even though modern `glob` ships its own types,
-    and `packages/client/package.json` still depends on `grpc-tools` for protobuf generation while
-    the runtime stack has otherwise moved to `@grpc/grpc-js`/protobuf-ts. These are not immediate
-    runtime bugs, but they keep extra native tooling and deprecated type packages in the install
-    surface.
-    **Status: Fixed.** Removed the direct root `@types/glob` dependency/resolution and moved
-    protobuf generation from `grpc-tools` to the pinned `@protobuf-ts/protoc` compiler used with
-    `@protobuf-ts/plugin`.
+- Transform no-op/content-changed accuracy and client-side no-op undo.
+- Transform identity/history metadata in VS Code and change-log export/import.
+- Checkpoint rollback/restore naming and true restore-to-latest-checkpoint.
+- Atomic fingerprinted change-log apply with rollback compensation.
+- Change-log version enforcement, serial/group validation, completeness metadata,
+  and status-code-based missing-detail handling.
+- Former hard change-log entry/byte caps on export/import.
+- Service-wide transform plugin execution locking; server plugin calls now
+  snapshot registry metadata under a short lock and execute under session/content
+  guards.
+- Missing explicit undo-to-baseline reset path.
+- Mixed edit API success conventions; serial-returning and status-returning core
+  APIs now have explicit success predicates.
+- Undo-based change-log rollback; AI and VS Code imports now use a native
+  restore-to-change-count primitive that discards redo.
+- Session/viewport subscription lock ordering, handoff, queue closure, and
+  ordered callback delivery.
+- Desired ID/path validation and default host/port duplication.
+- Core memory ownership issues around `omega_data_t`, reverse visitor cleanup,
+  const-cast destruction, and allocation failure boundaries.
+- Transform option regex hardening.
+- Transform plugin cooperative cancellation in the core request ABI, SDK helper,
+  server gRPC/session-destroy cancellation paths, and bundled plugin polling
+  loops, with TypeScript client, AI/MCP, and VS Code webview cancellation wired
+  through to the same RPC cancellation path.
+- Event mask signed `ALL_EVENTS` ambiguity.
+- Output collision suffix range and deprecated protobuf generator dependencies.

@@ -1,5 +1,6 @@
 import { strict as assert } from 'assert'
 import { spawn } from 'child_process'
+import { createHash } from 'crypto'
 import * as fs from 'fs'
 import * as os from 'os'
 import * as path from 'path'
@@ -18,7 +19,39 @@ type PendingMap = Map<
   }
 >
 
+function makeUtf8Fingerprint(text: string) {
+  const data = Buffer.from(text, 'utf8')
+  return {
+    byteLength: data.byteLength,
+    digest: {
+      algorithm: 'sha256',
+      value: createHash('sha256').update(data).digest('hex'),
+    },
+  }
+}
+
 describe('@omega-edit/ai mcp server', () => {
+  it('wires MCP cancellation notifications to tool abort signals', () => {
+    const source = fs.readFileSync(
+      path.resolve(__dirname, '../../src/mcp.ts'),
+      'utf8'
+    )
+
+    assert.match(
+      source,
+      /activeToolRequests = new Map<unknown, AbortController>/
+    )
+    assert.match(source, /method === 'notifications\/cancelled'/)
+    assert.match(
+      source,
+      /activeToolRequests\.get\(params\.requestId\)\?\.abort\(\)/
+    )
+    assert.match(
+      source,
+      /tool\.run\(argumentsObject, abortController\.signal\)/
+    )
+  })
+
   it('serves OmegaEdit operations over MCP stdio', async function () {
     const port = await findFirstAvailablePort(20000, 20999)
     assert.ok(port, 'expected an available port for MCP test')
@@ -153,6 +186,10 @@ describe('@omega-edit/ai mcp server', () => {
         'expected omega_edit_export_change_log in tool list'
       )
       assert.ok(
+        tools.some((tool) => tool.name === 'omega_edit_preview_change_log'),
+        'expected omega_edit_preview_change_log in tool list'
+      )
+      assert.ok(
         tools.some((tool) => tool.name === 'omega_edit_apply_change_log'),
         'expected omega_edit_apply_change_log in tool list'
       )
@@ -177,6 +214,35 @@ describe('@omega-edit/ai mcp server', () => {
         listPluginsResponse.result as Record<string, unknown>
       ).structuredContent as Record<string, unknown>) || { plugins: [] }
       assert.ok(Array.isArray(listPluginsStructured.plugins))
+
+      const currentFingerprint = makeUtf8Fingerprint('hello world hello')
+      const previewChangeLogResponse = await sendRequest('tools/call', {
+        name: 'omega_edit_preview_change_log',
+        arguments: {
+          sessionId: createdSessionId,
+          changeLog: {
+            format: 'omega-edit.change-log',
+            version: 2,
+            complete: true,
+            before: currentFingerprint,
+            after: currentFingerprint,
+            changeCount: 0,
+            sourceChangeCount: 0,
+            unavailableChangeCount: 0,
+            unavailableChangeSerials: [],
+            changes: [],
+          },
+        },
+      })
+      const previewChangeLogStructured = ((
+        previewChangeLogResponse.result as Record<string, unknown>
+      ).structuredContent as Record<string, unknown>) || { canApply: false }
+      assert.equal(previewChangeLogStructured.canApply, true)
+      assert.equal(
+        ((previewChangeLogStructured.primitiveCounts as Record<string, unknown>)
+          .total as number) || 0,
+        0
+      )
 
       const missingPluginResponse = await sendRequest('tools/call', {
         name: 'omega_edit_apply_transform_plugin',
