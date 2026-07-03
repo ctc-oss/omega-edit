@@ -714,6 +714,9 @@
     if (event.key !== 'Enter') {
       return
     }
+    if (actionQuery.trim().length === 0) {
+      return
+    }
     const entry = firstEnabledAction()
     if (!entry) {
       return
@@ -1694,7 +1697,6 @@
     {#if actionPickerOpen && canUseActions}
       <div
         class="transform-action-menu"
-        role="listbox"
         aria-label={strings.transform.actionsLabel}
       >
         {#if actionPickerGroups.length === 0}
@@ -1711,9 +1713,7 @@
                 <button
                   type="button"
                   class="transform-action-item"
-                  role="option"
                   disabled={entry.disabled}
-                  aria-selected="false"
                   onmousedown={(event) => event.preventDefault()}
                   onclick={() => chooseAction(entry)}
                 >
