@@ -588,12 +588,15 @@ namespace {
             if (type == "object" && value.kind != json_value_t::kind_t::object) { return false; }
             if (type == "array" && value.kind != json_value_t::kind_t::array) { return false; }
             if (type == "string" && value.kind != json_value_t::kind_t::string) { return false; }
+            if (type == "boolean" && value.kind != json_value_t::kind_t::boolean) { return false; }
             if (type == "integer") {
                 if (value.kind != json_value_t::kind_t::number) { return false; }
                 const auto integer_value = static_cast<int64_t>(value.number_value);
                 if (value.number_value != static_cast<double>(integer_value)) { return false; }
             }
-            if (type != "object" && type != "array" && type != "string" && type != "integer") { return false; }
+            if (type != "object" && type != "array" && type != "string" && type != "integer" && type != "boolean") {
+                return false;
+            }
         }
 
         if (const auto *required = json_object_member_(schema, "required")) {

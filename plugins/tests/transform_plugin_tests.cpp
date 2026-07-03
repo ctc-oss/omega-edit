@@ -30,11 +30,40 @@ namespace {
         int cancel_after{};
     };
 
+    struct byte_reader_state_t {
+        const omega_byte_t *bytes{};
+        int64_t length{};
+        int calls{};
+    };
+
     int cancel_after_callback(void *user_data_ptr) {
         auto *state = static_cast<cancellation_state_t *>(user_data_ptr);
         if (!state) { return 0; }
         ++state->calls;
         return state->calls > state->cancel_after ? 1 : 0;
+    }
+
+    int64_t byte_reader_callback(int64_t relative_offset, omega_byte_t *buffer, int64_t length, void *user_data_ptr) {
+        auto *state = static_cast<byte_reader_state_t *>(user_data_ptr);
+        if (!state || !buffer || relative_offset < 0 || length <= 0 || relative_offset >= state->length) { return -1; }
+        ++state->calls;
+        const auto remaining = state->length - relative_offset;
+        const auto bytes_to_copy = remaining < length ? remaining : length;
+        std::memcpy(buffer, state->bytes + relative_offset, static_cast<size_t>(bytes_to_copy));
+        return bytes_to_copy;
+    }
+
+    std::string bytes_to_hex(const omega_byte_t *bytes, int64_t length) {
+        static const char hex[] = "0123456789abcdef";
+        std::string result;
+        if (!bytes || length <= 0) { return result; }
+        result.reserve(static_cast<size_t>(length) * 2);
+        for (int64_t index = 0; index < length; ++index) {
+            const auto byte = static_cast<unsigned char>(bytes[index]);
+            result.push_back(hex[(byte >> 4U) & 0x0FU]);
+            result.push_back(hex[byte & 0x0FU]);
+        }
+        return result;
     }
 }// namespace
 
@@ -44,7 +73,7 @@ TEST_CASE("Packaged Transform Plugins", "[TransformPlugin]") {
     const auto registry_ptr = omega_transform_plugin_registry_create();
     REQUIRE(registry_ptr);
     REQUIRE(0 < omega_transform_plugin_registry_register_directory(registry_ptr, PLUGIN_DIR.string().c_str()));
-    REQUIRE(13 <= omega_transform_plugin_registry_get_count(registry_ptr));
+    REQUIRE(14 <= omega_transform_plugin_registry_get_count(registry_ptr));
     REQUIRE(nullptr != omega_transform_plugin_registry_find_info(registry_ptr, "omega.example.base64"));
     REQUIRE(nullptr != omega_transform_plugin_registry_find_info(registry_ptr, "omega.example.bitwise"));
     REQUIRE(nullptr != omega_transform_plugin_registry_find_info(registry_ptr, "omega.example.case_change"));
@@ -53,6 +82,7 @@ TEST_CASE("Packaged Transform Plugins", "[TransformPlugin]") {
     REQUIRE(nullptr != omega_transform_plugin_registry_find_info(registry_ptr, "omega.example.decimal_codecs"));
     REQUIRE(nullptr != omega_transform_plugin_registry_find_info(registry_ptr, "omega.example.endian_swap"));
     REQUIRE(nullptr != omega_transform_plugin_registry_find_info(registry_ptr, "omega.example.format_inspectors"));
+    REQUIRE(nullptr != omega_transform_plugin_registry_find_info(registry_ptr, "omega.example.openssl_ciphers"));
     REQUIRE(nullptr != omega_transform_plugin_registry_find_info(registry_ptr, "omega.example.openssl_digests"));
     REQUIRE(nullptr != omega_transform_plugin_registry_find_info(registry_ptr, "omega.example.record_text_helpers"));
     REQUIRE(nullptr != omega_transform_plugin_registry_find_info(registry_ptr, "omega.example.text_codecs"));
@@ -74,6 +104,11 @@ TEST_CASE("Packaged Transform Plugins", "[TransformPlugin]") {
     REQUIRE(-1 == omega_transform_plugin_options_match_args_schema("[]", empty_object_schema));
     REQUIRE(-1 == omega_transform_plugin_options_match_args_schema("\"text\"", empty_object_schema));
     REQUIRE(-1 == omega_transform_plugin_options_match_args_schema("{\"extra\":true}", empty_object_schema));
+    const char *boolean_schema =
+            "{\"type\":\"object\",\"properties\":{\"enabled\":{\"type\":\"boolean\"}},\"additionalProperties\":false}";
+    REQUIRE(0 == omega_transform_plugin_options_match_args_schema("{\"enabled\":true}", boolean_schema));
+    REQUIRE(0 == omega_transform_plugin_options_match_args_schema("{\"enabled\":false}", boolean_schema));
+    REQUIRE(-1 == omega_transform_plugin_options_match_args_schema("{\"enabled\":\"true\"}", boolean_schema));
     for (int64_t index = 0; index < omega_transform_plugin_registry_get_count(registry_ptr); ++index) {
         const auto *info = omega_transform_plugin_registry_get_info(registry_ptr, index);
         REQUIRE(info);
@@ -137,6 +172,35 @@ TEST_CASE("Packaged Transform Plugins", "[TransformPlugin]") {
             omega_transform_plugin_options_match_args_schema("{\"action\":\"decompress\"}", zlib_info->args_schema));
     REQUIRE(-1 == omega_transform_plugin_options_match_args_schema("{\"action\":\"compress\",\"level\":10}",
                                                                    zlib_info->args_schema));
+    const auto cipher_info = omega_transform_plugin_registry_find_info(registry_ptr, "omega.example.openssl_ciphers");
+    REQUIRE("OpenSSL Ciphers" == std::string(cipher_info->name));
+    REQUIRE(std::string(cipher_info->description).find("Encrypt") != std::string::npos);
+    REQUIRE(std::string(cipher_info->args_schema).find("\"aes-256-ctr\"") != std::string::npos);
+    REQUIRE(std::string(cipher_info->args_schema).find("\"required\"") != std::string::npos);
+    REQUIRE(0 == omega_transform_plugin_options_match_args_schema(
+                         "{\"action\":\"encrypt\",\"algorithm\":\"aes-256-ctr\","
+                         "\"keyHex\":\"000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f\","
+                         "\"ivHex\":\"000102030405060708090a0b0c0d0e0f\"}",
+                         cipher_info->args_schema));
+    REQUIRE(0 == omega_transform_plugin_options_match_args_schema(
+                         "{\"action\":\"decrypt\",\"algorithm\":\"aes-128-cbc\","
+                         "\"keyHex\":\"2b7e151628aed2a6abf7158809cf4f3c\","
+                         "\"ivHex\":\"000102030405060708090a0b0c0d0e0f\",\"padding\":false}",
+                         cipher_info->args_schema));
+    REQUIRE(-1 == omega_transform_plugin_options_match_args_schema(
+                          "{\"algorithm\":\"aes-256-ctr\","
+                          "\"keyHex\":\"000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f\","
+                          "\"ivHex\":\"000102030405060708090a0b0c0d0e0f\"}",
+                          cipher_info->args_schema));
+    REQUIRE(-1 == omega_transform_plugin_options_match_args_schema(
+                          "{\"action\":\"encrypt\",\"algorithm\":\"aes-512-ctr\","
+                          "\"keyHex\":\"000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f\","
+                          "\"ivHex\":\"000102030405060708090a0b0c0d0e0f\"}",
+                          cipher_info->args_schema));
+    REQUIRE(-1 == omega_transform_plugin_options_match_args_schema(
+                          "{\"action\":\"encrypt\",\"algorithm\":\"aes-256-ctr\","
+                          "\"keyHex\":\"not-hex\",\"ivHex\":\"000102030405060708090a0b0c0d0e0f\"}",
+                          cipher_info->args_schema));
     const auto digest_info = omega_transform_plugin_registry_find_info(registry_ptr, "omega.example.openssl_digests");
     REQUIRE("OpenSSL Digests" == std::string(digest_info->name));
     REQUIRE(std::string(digest_info->description).find("SHA") != std::string::npos);
@@ -404,6 +468,122 @@ TEST_CASE("Packaged Transform Plugins", "[TransformPlugin]") {
                           "b6bd0092b49eac214c103ccfa3a365954bbbe52f74a2b3620c94");
     require_digest_result("blake2s-256", "blake2s-256",
                           "19213bacc58dee6dbde3ceb9a47cbb330b3d86f8cca8997eb00be456f140ca25");
+
+    const omega_byte_t digest_stream_bytes[] = {'a', 'b', 'c'};
+    byte_reader_state_t digest_reader{digest_stream_bytes, static_cast<int64_t>(sizeof(digest_stream_bytes)), 0};
+    REQUIRE(0 == omega_transform_plugin_registry_inspect_reader_with_cancel(
+                         registry_ptr, "omega.example.openssl_digests", 0,
+                         static_cast<int64_t>(sizeof(digest_stream_bytes)), "{\"algorithm\":\"sha256\"}", nullptr,
+                         byte_reader_callback, &digest_reader, 2, nullptr, nullptr, nullptr, nullptr, &response));
+    REQUIRE(2 <= digest_reader.calls);
+    REQUIRE("ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad" ==
+            std::string(reinterpret_cast<const char *>(response.result_bytes),
+                        static_cast<size_t>(response.result_length)));
+    REQUIRE("sha256" == std::string(response.result_label));
+    omega_transform_plugin_response_clear(&response);
+
+    byte_reader_state_t cancelled_digest_reader{digest_stream_bytes, static_cast<int64_t>(sizeof(digest_stream_bytes)),
+                                                0};
+    cancellation_state_t inspect_cancel_state{0, 0};
+    REQUIRE(-1 == omega_transform_plugin_registry_inspect_reader_with_cancel(
+                          registry_ptr, "omega.example.openssl_digests", 0,
+                          static_cast<int64_t>(sizeof(digest_stream_bytes)), "{\"algorithm\":\"sha256\"}", nullptr,
+                          byte_reader_callback, &cancelled_digest_reader, 2, nullptr, nullptr, cancel_after_callback,
+                          &inspect_cancel_state, &response));
+    REQUIRE(0 == cancelled_digest_reader.calls);
+    REQUIRE(inspect_cancel_state.calls > inspect_cancel_state.cancel_after);
+
+    const char *aes256_ctr_key = "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f";
+    const char *aes_iv = "000102030405060708090a0b0c0d0e0f";
+    const std::string aes256_ctr_encrypt_options =
+            std::string("{\"action\":\"encrypt\",\"algorithm\":\"aes-256-ctr\",\"keyHex\":\"") + aes256_ctr_key +
+            "\",\"ivHex\":\"" + aes_iv + "\"}";
+    const std::string aes256_ctr_decrypt_options =
+            std::string("{\"action\":\"decrypt\",\"algorithm\":\"aes-256-ctr\",\"keyHex\":\"") + aes256_ctr_key +
+            "\",\"ivHex\":\"" + aes_iv + "\"}";
+    const std::string short_aes128_key_options =
+            std::string("{\"action\":\"encrypt\",\"algorithm\":\"aes-128-ctr\",\"keyHex\":\"00\",\"ivHex\":\"") +
+            aes_iv + "\"}";
+    const std::string aes128_cbc_no_padding_options =
+            std::string("{\"action\":\"encrypt\",\"algorithm\":\"aes-128-cbc\","
+                        "\"keyHex\":\"2b7e151628aed2a6abf7158809cf4f3c\",\"ivHex\":\"") +
+            aes_iv + "\",\"padding\":false}";
+    const std::string aes128_cbc_padded_encrypt_options =
+            std::string("{\"action\":\"encrypt\",\"algorithm\":\"aes-128-cbc\","
+                        "\"keyHex\":\"2b7e151628aed2a6abf7158809cf4f3c\",\"ivHex\":\"") +
+            aes_iv + "\"}";
+    const std::string aes128_cbc_padded_decrypt_options =
+            std::string("{\"action\":\"decrypt\",\"algorithm\":\"aes-128-cbc\","
+                        "\"keyHex\":\"2b7e151628aed2a6abf7158809cf4f3c\",\"ivHex\":\"") +
+            aes_iv + "\"}";
+
+    const auto cipher_session_ptr = omega_edit_create_session(nullptr, nullptr, nullptr, NO_EVENTS, nullptr);
+    REQUIRE(cipher_session_ptr);
+    REQUIRE(0 < omega_edit_insert_string(cipher_session_ptr, 0, "hello"));
+    REQUIRE(-1 == omega_transform_plugin_registry_apply_to_session(registry_ptr, "omega.example.openssl_ciphers",
+                                                                   cipher_session_ptr, 0, 5,
+                                                                   short_aes128_key_options.c_str(), &response));
+    REQUIRE(-1 == omega_transform_plugin_registry_apply_to_session(registry_ptr, "omega.example.openssl_ciphers",
+                                                                   cipher_session_ptr, 0, 5,
+                                                                   aes128_cbc_no_padding_options.c_str(), &response));
+    REQUIRE(0 == omega_transform_plugin_registry_apply_to_session(registry_ptr, "omega.example.openssl_ciphers",
+                                                                  cipher_session_ptr, 0, 5,
+                                                                  aes256_ctr_encrypt_options.c_str(), &response));
+    REQUIRE(5 == response.replacement_length);
+    REQUIRE("320b683b67" == bytes_to_hex(response.replacement_bytes, response.replacement_length));
+    omega_transform_plugin_response_clear(&response);
+
+    REQUIRE(0 == omega_transform_plugin_registry_apply_to_session(registry_ptr, "omega.example.openssl_ciphers",
+                                                                  cipher_session_ptr, 0, 5,
+                                                                  aes256_ctr_decrypt_options.c_str(), &response));
+    REQUIRE(5 == response.replacement_length);
+    REQUIRE("hello" == omega_session_get_segment_string(cipher_session_ptr, 0,
+                                                        omega_session_get_computed_file_size(cipher_session_ptr)));
+    omega_transform_plugin_response_clear(&response);
+
+    REQUIRE(0 == omega_transform_plugin_registry_apply_to_session(
+                         registry_ptr, "omega.example.openssl_ciphers", cipher_session_ptr, 0, 5,
+                         aes128_cbc_padded_encrypt_options.c_str(), &response));
+    REQUIRE(16 == response.replacement_length);
+    REQUIRE("d8666ea8aad65cc08354b4bc43d4ff56" ==
+            bytes_to_hex(response.replacement_bytes, response.replacement_length));
+    omega_transform_plugin_response_clear(&response);
+
+    REQUIRE(0 == omega_transform_plugin_registry_apply_to_session(
+                         registry_ptr, "omega.example.openssl_ciphers", cipher_session_ptr, 0, 16,
+                         aes128_cbc_padded_decrypt_options.c_str(), &response));
+    REQUIRE(5 == response.replacement_length);
+    REQUIRE("hello" == omega_session_get_segment_string(cipher_session_ptr, 0,
+                                                        omega_session_get_computed_file_size(cipher_session_ptr)));
+    omega_transform_plugin_response_clear(&response);
+    omega_edit_destroy_session(cipher_session_ptr);
+
+    const omega_byte_t cbc_plaintext[] = {0x6b, 0xc1, 0xbe, 0xe2, 0x2e, 0x40, 0x9f, 0x96,
+                                          0xe9, 0x3d, 0x7e, 0x11, 0x73, 0x93, 0x17, 0x2a};
+    const auto cbc_vector_session_ptr = omega_edit_create_session(nullptr, nullptr, nullptr, NO_EVENTS, nullptr);
+    REQUIRE(cbc_vector_session_ptr);
+    REQUIRE(0 < omega_edit_insert_bytes(cbc_vector_session_ptr, 0, cbc_plaintext,
+                                        static_cast<int64_t>(sizeof(cbc_plaintext))));
+    REQUIRE(0 == omega_transform_plugin_registry_apply_to_session(registry_ptr, "omega.example.openssl_ciphers",
+                                                                  cbc_vector_session_ptr, 0, 16,
+                                                                  aes128_cbc_no_padding_options.c_str(), &response));
+    REQUIRE(16 == response.replacement_length);
+    REQUIRE("7649abac8119b246cee98e9b12e9197d" ==
+            bytes_to_hex(response.replacement_bytes, response.replacement_length));
+    omega_transform_plugin_response_clear(&response);
+
+    const std::string aes128_cbc_no_padding_decrypt_options =
+            std::string("{\"action\":\"decrypt\",\"algorithm\":\"aes-128-cbc\","
+                        "\"keyHex\":\"2b7e151628aed2a6abf7158809cf4f3c\",\"ivHex\":\"") +
+            aes_iv + "\",\"padding\":false}";
+    REQUIRE(0 == omega_transform_plugin_registry_apply_to_session(
+                         registry_ptr, "omega.example.openssl_ciphers", cbc_vector_session_ptr, 0, 16,
+                         aes128_cbc_no_padding_decrypt_options.c_str(), &response));
+    REQUIRE(16 == response.replacement_length);
+    REQUIRE("6bc1bee22e409f96e93d7e117393172a" ==
+            bytes_to_hex(response.replacement_bytes, response.replacement_length));
+    omega_transform_plugin_response_clear(&response);
+    omega_edit_destroy_session(cbc_vector_session_ptr);
 
     const auto large_session_ptr = omega_edit_create_session(nullptr, nullptr, nullptr, NO_EVENTS, nullptr);
     REQUIRE(large_session_ptr);
