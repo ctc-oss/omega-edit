@@ -92,6 +92,11 @@ import { finished } from 'node:stream/promises'
 import * as vscode from 'vscode'
 import { OMEGA_EDIT_VIEW_TYPE } from './constants'
 import {
+  type AssistantSessionContext,
+  cloneAssistantCommandSurfaces,
+  OMEGA_EDIT_ASSISTANT_CONTEXT_VERSION,
+} from './assistantContext'
+import {
   getSvelteWebviewContent,
   getSvelteWebviewLocalResourceRoot,
 } from './svelteWebview'
@@ -2221,18 +2226,22 @@ export class HexEditorProvider
     await this.handleWebviewMessage(session, msg)
   }
 
-  public async undoActive(): Promise<void> {
-    if (!this.activeSession) {
+  public async undoActive(): Promise<WebviewEditorState | undefined> {
+    const session = this.activeSession
+    if (!session) {
       return
     }
-    await this.enqueueHistoryCommand(this.activeSession, 'undo', true)
+    await this.enqueueHistoryCommand(session, 'undo', true)
+    return this.buildEditorState(session)
   }
 
-  public async redoActive(): Promise<void> {
-    if (!this.activeSession) {
+  public async redoActive(): Promise<WebviewEditorState | undefined> {
+    const session = this.activeSession
+    if (!session) {
       return
     }
-    await this.enqueueHistoryCommand(this.activeSession, 'redo', true)
+    await this.enqueueHistoryCommand(session, 'redo', true)
+    return this.buildEditorState(session)
   }
 
   public searchNextActive(): void {
@@ -2243,13 +2252,17 @@ export class HexEditorProvider
     this.postSearchNavigationCommand('backward')
   }
 
-  public async refreshActiveTransformPlugins(): Promise<void> {
-    if (!this.activeSession) {
+  public async refreshActiveTransformPlugins(): Promise<
+    WebviewEditorState | undefined
+  > {
+    const session = this.activeSession
+    if (!session) {
       void vscode.window.showWarningMessage(openEditorFirstMessage())
       return
     }
 
-    await this.sendTransformPlugins(this.activeSession)
+    await this.sendTransformPlugins(session)
+    return this.buildEditorState(session)
   }
 
   private postSearchNavigationCommand(direction: 'forward' | 'backward'): void {
@@ -2603,6 +2616,11 @@ export class HexEditorProvider
   getEditorState(options?: unknown): WebviewEditorState | undefined {
     const session = this.resolveCommandSession(options)
     return session ? this.buildEditorState(session) : undefined
+  }
+
+  getAssistantContext(options?: unknown): AssistantSessionContext | undefined {
+    const session = this.resolveCommandSession(options)
+    return session ? this.buildAssistantContext(session) : undefined
   }
 
   async setExternalHighlights(
@@ -3917,19 +3935,21 @@ export class HexEditorProvider
     }
   }
 
-  async rollbackActiveSession(): Promise<void> {
-    if (!this.activeSession) {
+  async rollbackActiveSession(): Promise<WebviewEditorState | undefined> {
+    const session = this.activeSession
+    if (!session) {
       void vscode.window.showWarningMessage(openEditorFirstMessage())
       return
     }
-    if (!this.ensureSessionCanMutate(this.activeSession, true)) {
+    if (!this.ensureSessionCanMutate(session, true)) {
       return
     }
 
-    await this.revertSessionChanges(this.activeSession, true)
+    await this.revertSessionChanges(session, true)
     void vscode.window.showInformationMessage(
       vscode.l10n.t('Rolled back OmegaEdit session')
     )
+    return this.buildEditorState(session)
   }
 
   // --- Event Subscriptions ---
@@ -4373,6 +4393,94 @@ export class HexEditorProvider
       contentSources: session.contentSources,
       contentType: session.contentType,
       language: session.language,
+    }
+  }
+
+  private buildAssistantContext(
+    session: EditorSession
+  ): AssistantSessionContext {
+    const editState = session.history.getEditState()
+    const originalSource = session.contentSources.find(
+      (source) => source.content === 'original' && source.available
+    )
+    const checkpointSource = session.contentSources.find(
+      (source) => source.content === 'latestCheckpoint' && source.available
+    )
+    const dirty = editState.isDirty || !!session.restoredFromBackup
+    const selection =
+      session.webviewState.selectedOffset >= 0
+        ? {
+            offset: session.webviewState.selectedOffset,
+            start: session.webviewState.selectionStart,
+            end: session.webviewState.selectionEnd,
+            length: session.webviewState.selectionLength,
+          }
+        : null
+
+    return {
+      version: OMEGA_EDIT_ASSISTANT_CONTEXT_VERSION,
+      session: {
+        id: session.sessionId,
+        uri: session.document.uri.toString(),
+        filePath: session.filePath,
+        contentType: session.contentType ?? null,
+        language: session.language ?? null,
+      },
+      sizes: {
+        computed: session.fileSize,
+        original: originalSource?.byteLength ?? null,
+      },
+      dirty,
+      selection,
+      viewport: {
+        count: 1,
+        activeViewportId: session.viewportId,
+        visibleOffset: session.webviewState.visibleOffset,
+        visibleByteCount: session.webviewState.visibleByteCount,
+        bytesPerRow: session.webviewState.bytesPerRow,
+        offsetRadix: session.webviewState.offsetRadix,
+        activePane: session.webviewState.activePane,
+        editMode: session.webviewState.editMode,
+        insertDirection: session.webviewState.insertDirection,
+      },
+      history: {
+        changeCount: session.changeCount,
+        undoCount: editState.undoCount,
+        redoCount: editState.redoCount,
+        undoStackDepth: editState.undoCount,
+        redoStackDepth: editState.redoCount,
+        canUndo: editState.canUndo,
+        canRedo: editState.canRedo,
+        checkpointCount: null,
+        checkpointAvailable: checkpointSource !== undefined,
+        savedChangeDepth: editState.savedChangeDepth,
+        pendingChanges: dirty,
+        pendingOperation: session.pendingHistoryOperation ?? null,
+        pendingCount: session.pendingHistoryCount ?? 0,
+      },
+      transforms: {
+        inFlight: session.transformInFlight,
+        available: session.transformPlugins.length > 0,
+        pluginCount: session.transformPlugins.length,
+        plugins: session.transformPlugins.map((plugin) => ({
+          id: plugin.id,
+          name: plugin.name,
+          description: plugin.description,
+          operation: plugin.operation,
+          operationName: `${plugin.operation}`,
+          flags: plugin.flags,
+          abiVersion: plugin.abiVersion,
+        })),
+      },
+      changeLog: {
+        format: CHANGE_LOG_FORMAT,
+        version: CHANGE_LOG_VERSION,
+        exportAvailable: !session.transformInFlight,
+        applyAvailable: !session.transformInFlight,
+        sourceChangeCount: session.changeCount,
+        completeExportAvailable: !session.transformInFlight,
+      },
+      commands: cloneAssistantCommandSurfaces(),
     }
   }
 

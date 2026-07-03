@@ -41,6 +41,8 @@ export interface SessionStatus {
   computedSize: number
   changeCount: number
   undoCount: number
+  undoStackDepth: number
+  redoStackDepth: number
   viewportCount: number
   checkpointCount: number
   lastChange?: {
@@ -49,6 +51,89 @@ export interface SessionStatus {
     length: number
     data: EncodedData
   }
+}
+
+export interface AssistantCommandSurfaceEntry {
+  action: string
+  ui?: string
+  vscodeCommands?: string[]
+  extensionApis?: string[]
+  cliCommands?: string[]
+  mcpTools?: string[]
+  result: string
+}
+
+export interface AssistantTransformPluginSummary {
+  id: string
+  name: string
+  description?: string
+  operation: number
+  operationName?: string
+  flags: number
+  abiVersion?: number
+}
+
+export interface AssistantSessionContext {
+  version: 1
+  session: {
+    id: string
+    uri: string | null
+    filePath: string | null
+    contentType: string | null
+    language: string | null
+  }
+  sizes: {
+    computed: number
+    original: number | string | null
+  }
+  dirty: boolean
+  selection: {
+    offset: number
+    start: number
+    end: number
+    length: number
+  } | null
+  viewport: {
+    count: number
+    activeViewportId: string | null
+    visibleOffset: number | null
+    visibleByteCount: number | null
+    bytesPerRow: number | null
+    offsetRadix: string | null
+    activePane: string | null
+    editMode: string | null
+    insertDirection: string | null
+  }
+  history: {
+    changeCount: number
+    undoCount: number
+    redoCount: number
+    undoStackDepth: number
+    redoStackDepth: number
+    canUndo: boolean
+    canRedo: boolean
+    checkpointCount: number | null
+    checkpointAvailable: boolean
+    savedChangeDepth: number | null
+    pendingChanges: boolean
+    pendingOperation: 'undo' | 'redo' | null
+    pendingCount: number
+  }
+  transforms: {
+    inFlight: boolean
+    available: boolean
+    pluginCount: number
+    plugins: AssistantTransformPluginSummary[]
+  }
+  changeLog: {
+    format: 'omega-edit.change-log'
+    version: 2
+    exportAvailable: boolean
+    applyAvailable: boolean
+    sourceChangeCount: number
+    completeExportAvailable: boolean
+  }
+  commands: AssistantCommandSurfaceEntry[]
 }
 
 export interface ChangeLogEntry {

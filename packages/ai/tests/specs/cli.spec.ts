@@ -5,6 +5,10 @@ import * as os from 'os'
 import * as path from 'path'
 import { fileURLToPath } from 'url'
 import { findFirstAvailablePort } from '@omega-edit/client'
+import {
+  assertAssistantCommandSurface,
+  assertAssistantContextPayloadBudget,
+} from './assistantCommandSurface'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const CLI_PATH = path.resolve(__dirname, '../../dist/cjs/cli.js')
@@ -243,6 +247,83 @@ describe('@omega-edit/ai CLI', () => {
       ])
       assert.equal(status.computedSize, Buffer.byteLength(transformed, 'utf8'))
       assert.equal(status.undoCount, 0)
+      assert.equal(status.undoStackDepth, status.changeCount)
+      assert.equal(status.redoStackDepth, status.undoCount)
+
+      const context = await runOe([
+        'session-context',
+        ...common,
+        '--session',
+        sessionId,
+        '--file',
+        inputPath,
+      ])
+      assert.equal(context.version, 1)
+      assert.equal((context.session as Record<string, unknown>).id, sessionId)
+      assert.equal(
+        (context.session as Record<string, unknown>).filePath,
+        inputPath
+      )
+      assert.equal(
+        (context.sizes as Record<string, unknown>).computed,
+        Buffer.byteLength(transformed, 'utf8')
+      )
+      assert.equal(
+        (context.history as Record<string, unknown>).undoCount,
+        status.changeCount
+      )
+      assert.equal((context.history as Record<string, unknown>).redoCount, 0)
+      assert.equal(
+        (context.history as Record<string, unknown>).undoStackDepth,
+        status.changeCount
+      )
+      assert.equal(
+        (context.history as Record<string, unknown>).redoStackDepth,
+        status.undoCount
+      )
+      assert.equal(context.selection, null)
+      assertAssistantCommandSurface(context.commands)
+      assertAssistantContextPayloadBudget(context)
+
+      await runOe(['undo', ...common, '--session', sessionId])
+      const undoneStatus = await runOe([
+        'session-status',
+        ...common,
+        '--session',
+        sessionId,
+      ])
+      assert.equal(undoneStatus.undoStackDepth, undoneStatus.changeCount)
+      assert.equal(undoneStatus.redoStackDepth, undoneStatus.undoCount)
+      assert.ok(
+        (undoneStatus.redoStackDepth as number) > 0,
+        'undo should expose redo stack depth'
+      )
+
+      const undoneContext = await runOe([
+        'session-context',
+        ...common,
+        '--session',
+        sessionId,
+        '--file',
+        inputPath,
+      ])
+      assert.equal(
+        (undoneContext.history as Record<string, unknown>).undoCount,
+        undoneStatus.changeCount
+      )
+      assert.equal(
+        (undoneContext.history as Record<string, unknown>).redoCount,
+        undoneStatus.undoCount
+      )
+      assert.equal(
+        (undoneContext.history as Record<string, unknown>).undoStackDepth,
+        undoneStatus.changeCount
+      )
+      assert.equal(
+        (undoneContext.history as Record<string, unknown>).redoStackDepth,
+        undoneStatus.undoCount
+      )
+      assertAssistantContextPayloadBudget(undoneContext)
     } finally {
       if (sessionId) {
         await runOe([

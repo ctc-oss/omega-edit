@@ -20,6 +20,8 @@ export const OMEGA_EDIT_RESTORE_CHECKPOINT_COMMAND =
   'omegaEdit.restoreCheckpoint'
 export const OMEGA_EDIT_CREATE_CHECKPOINT_COMMAND = 'omegaEdit.createCheckpoint'
 export const OMEGA_EDIT_GET_EDITOR_STATE_COMMAND = 'omegaEdit.getEditorState'
+export const OMEGA_EDIT_GET_ASSISTANT_CONTEXT_COMMAND =
+  'omegaEdit.getAssistantContext'
 export const OMEGA_EDIT_SET_EXTERNAL_HIGHLIGHTS_COMMAND =
   'omegaEdit.setExternalHighlights'
 export const OMEGA_EDIT_CLEAR_EXTERNAL_HIGHLIGHTS_COMMAND =

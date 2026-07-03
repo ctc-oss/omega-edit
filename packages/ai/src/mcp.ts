@@ -271,6 +271,25 @@ function buildTools(toolkit: OmegaEditToolkit): ToolDefinition[] {
       },
     },
     {
+      name: 'omega_edit_session_context',
+      description:
+        'Get stable assistant-readable context for a session, including history, viewport, transforms, change-log status, and command surfaces.',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          sessionId: { type: 'string' },
+          filePath: { type: 'string' },
+        },
+        required: ['sessionId'],
+      },
+      run: async (argumentsObject) => {
+        return await toolkit.assistantContext(
+          getString(argumentsObject, 'sessionId', true)!,
+          getString(argumentsObject, 'filePath')
+        )
+      },
+    },
+    {
       name: 'omega_edit_create_checkpoint',
       description:
         'Create an OmegaEdit checkpoint for the current session state.',

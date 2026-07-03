@@ -298,11 +298,12 @@ const extension = vscode.extensions.getExtension<OmegaEditExtensionApi>(
 )
 const omegaEdit = await extension?.activate()
 
-if (omegaEdit?.version !== 1) {
+if (omegaEdit?.version !== 2) {
   throw new Error('Unsupported OmegaEdit Data Editor API version')
 }
 
 await omegaEdit?.open(document.uri, { offset: 128 })
+const context = omegaEdit?.getAssistantContext({ uri: document.uri })
 await omegaEdit?.setExternalHighlights({
   uri: document.uri,
   reveal: true,
@@ -318,6 +319,28 @@ await omegaEdit?.setExternalHighlights({
   ],
 })
 ```
+
+### Assistant Command Parity
+
+Assistants and scripted integrations should use structured command/API results,
+not webview scraping. The `omegaEdit.getAssistantContext` command and
+`getAssistantContext()` extension API method return the current session id, file
+path, computed/original sizes, selection, active viewport, undo/redo counts,
+transform state, change-log status, and the command-surface map below.
+
+| UI action | VS Code command | Extension API | CLI / MCP equivalent |
+| --- | --- | --- | --- |
+| Open a file | `omegaEdit.openInHexEditor` | `open` | `oe create-session` / `omega_edit_create_session` |
+| Get assistant context | `omegaEdit.getAssistantContext` | `getAssistantContext` | `oe session-context` / `omega_edit_session_context` |
+| Get raw editor state | `omegaEdit.getEditorState` | `getEditorState` | Context fields from `oe session-context` |
+| Go to offset / read bytes | `omegaEdit.goToOffset` | `reveal` | `oe view` / `omega_edit_read_range` |
+| Profile or search bytes | Search UI commands | n/a | `oe profile-range`, `oe search` / `omega_edit_profile_range`, `omega_edit_search` |
+| Insert/delete/overwrite/replace | Webview edit actions | n/a | `oe patch` / `omega_edit_preview_patch`, `omega_edit_apply_patch` |
+| Undo / redo | `omegaEdit.undo`, `omegaEdit.redo` | n/a | `oe undo`, `oe redo` / `omega_edit_undo`, `omega_edit_redo` |
+| Transform plugins | `omegaEdit.refreshTransformPlugins` | n/a | `oe list-transform-plugins`, `oe apply-transform-plugin` / transform MCP tools |
+| Checkpoints | Checkpoint commands | `createCheckpoint`, `restoreCheckpoint`, `rollbackCheckpoint` | Checkpoint CLI / MCP tools |
+| Change logs | `omegaEdit.exportChangeLog`, `omegaEdit.applyChangeLog` | `exportChangeLog`, `applyChangeLog` | `oe export-change-log`, `oe apply-change-log` / change-log MCP tools |
+| External highlights / range maps | Hidden annotation commands | Highlight and range-map API methods | VS Code API only |
 
 ### Daffodil Integration Notes
 

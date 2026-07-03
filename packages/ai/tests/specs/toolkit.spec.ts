@@ -8,6 +8,10 @@ import * as omegaEditClient from '@omega-edit/client'
 import { OmegaEditToolkit } from '../../src/service'
 import { parseInputData } from '../../src/codec'
 import type { ChangeLogDocument, ChangeLogEntry } from '../../src/types'
+import {
+  assertAssistantCommandSurface,
+  assertAssistantContextPayloadBudget,
+} from './assistantCommandSurface'
 
 const EMPTY_SHA256_FINGERPRINT = {
   byteLength: 0,
@@ -584,6 +588,94 @@ describe('@omega-edit/ai toolkit', () => {
         await toolkit.destroySession(createdSessionId)
       }
       await toolkit.stopServer()
+      fs.rmSync(tempDir, { recursive: true, force: true })
+    }
+  })
+
+  it('keeps assistant context compact, cloned, and truthful through undo and redo', async function () {
+    const port = await omegaEditClient.findFirstAvailablePort(19000, 19999)
+    assert.ok(port, 'expected an available port for OmegaEdit')
+
+    const toolkit = new OmegaEditToolkit({ port: port!, autoStart: true })
+    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'omega-edit-ai-'))
+    const inputPath = path.join(tempDir, 'assistant.bin')
+    fs.writeFileSync(inputPath, Buffer.from('seed', 'utf8'))
+
+    let sessionId = ''
+
+    try {
+      const created = await toolkit.createSession(inputPath)
+      sessionId = created.sessionId
+
+      for (let index = 0; index < 96; index += 1) {
+        await toolkit.applyPatch({
+          sessionId,
+          kind: 'insert',
+          offset: 4 + index,
+          data: parseInputData(String.fromCharCode(65 + (index % 26)), 'utf8'),
+        })
+      }
+
+      let status = await toolkit.sessionStatus(sessionId)
+      assert.equal(status.changeCount, 96)
+      assert.equal(status.undoCount, 0)
+      assert.equal(status.undoStackDepth, 96)
+      assert.equal(status.redoStackDepth, 0)
+
+      const context = await toolkit.assistantContext(sessionId, inputPath)
+      assert.equal(context.history.changeCount, 96)
+      assert.equal(context.history.undoCount, 96)
+      assert.equal(context.history.redoCount, 0)
+      assert.equal(context.history.undoStackDepth, 96)
+      assert.equal(context.history.redoStackDepth, 0)
+      assert.equal(context.history.canUndo, true)
+      assert.equal(context.history.canRedo, false)
+      assert.equal(context.history.pendingChanges, true)
+      assert.equal(context.changeLog.sourceChangeCount, 96)
+      assertAssistantCommandSurface(context.commands)
+      assertAssistantContextPayloadBudget(context)
+
+      const assistantEntry = context.commands.find(
+        (entry) => entry.action === 'assistantContext'
+      )
+      assert.ok(assistantEntry)
+      assistantEntry.mcpTools?.push('omega_edit_poisoned_context')
+      const freshContext = await toolkit.assistantContext(sessionId, inputPath)
+      assert.deepEqual(
+        freshContext.commands.find(
+          (entry) => entry.action === 'assistantContext'
+        )?.mcpTools,
+        ['omega_edit_session_context']
+      )
+
+      await toolkit.undo(sessionId)
+      status = await toolkit.sessionStatus(sessionId)
+      assert.equal(status.changeCount, 95)
+      assert.equal(status.undoCount, 1)
+      assert.equal(status.undoStackDepth, 95)
+      assert.equal(status.redoStackDepth, 1)
+
+      const undoneContext = await toolkit.assistantContext(sessionId, inputPath)
+      assert.equal(undoneContext.history.changeCount, 95)
+      assert.equal(undoneContext.history.undoCount, 95)
+      assert.equal(undoneContext.history.redoCount, 1)
+      assert.equal(undoneContext.history.undoStackDepth, 95)
+      assert.equal(undoneContext.history.redoStackDepth, 1)
+      assert.equal(undoneContext.history.canUndo, true)
+      assert.equal(undoneContext.history.canRedo, true)
+      assertAssistantContextPayloadBudget(undoneContext)
+
+      await toolkit.redo(sessionId)
+      status = await toolkit.sessionStatus(sessionId)
+      assert.equal(status.changeCount, 96)
+      assert.equal(status.undoCount, 0)
+      assert.equal(status.undoStackDepth, 96)
+      assert.equal(status.redoStackDepth, 0)
+    } finally {
+      if (sessionId) {
+        await toolkit.destroySession(sessionId).catch(() => undefined)
+      }
+      await toolkit.stopServer().catch(() => undefined)
       fs.rmSync(tempDir, { recursive: true, force: true })
     }
   })
