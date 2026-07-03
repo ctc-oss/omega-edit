@@ -177,9 +177,13 @@ describe('Transform plugin gRPC integration', () => {
         (plugin) => plugin.id === 'omega.example.repeat'
       )
       expect(repeatPlugin?.defaultArgs).to.equal('')
-      expect(repeatPlugin?.argsSchema).to.include('"additionalProperties":false')
+      expect(repeatPlugin?.argsSchema).to.include(
+        '"additionalProperties":false'
+      )
       expect(
-        plugins.every((plugin) => JSON.parse(plugin.argsSchema).type === 'object')
+        plugins.every(
+          (plugin) => JSON.parse(plugin.argsSchema).type === 'object'
+        )
       ).to.equal(true)
 
       const ownedContentSession = await createSessionFromBytes(
