@@ -2244,18 +2244,12 @@ export class HexEditorProvider
     return this.buildEditorState(session)
   }
 
-  public searchNextActive(): WebviewEditorState | undefined {
+  public searchNextActive(): void {
     this.postSearchNavigationCommand('forward')
-    return this.activeSession
-      ? this.buildEditorState(this.activeSession)
-      : undefined
   }
 
-  public searchPreviousActive(): WebviewEditorState | undefined {
+  public searchPreviousActive(): void {
     this.postSearchNavigationCommand('backward')
-    return this.activeSession
-      ? this.buildEditorState(this.activeSession)
-      : undefined
   }
 
   public async refreshActiveTransformPlugins(): Promise<

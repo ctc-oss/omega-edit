@@ -801,13 +801,13 @@ export async function activate(
 
   context.subscriptions.push(
     vscode.commands.registerCommand(OMEGA_EDIT_SEARCH_NEXT_COMMAND, () => {
-      return provider.searchNextActive()
+      provider.searchNextActive()
     })
   )
 
   context.subscriptions.push(
     vscode.commands.registerCommand(OMEGA_EDIT_SEARCH_PREVIOUS_COMMAND, () => {
-      return provider.searchPreviousActive()
+      provider.searchPreviousActive()
     })
   )
 

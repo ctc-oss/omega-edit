@@ -162,7 +162,7 @@ export const OMEGA_EDIT_ASSISTANT_COMMAND_SURFACES: readonly AssistantCommandSur
       action: 'patchRange',
       ui: 'Insert, delete, overwrite, or replace bytes',
       cliCommands: ['oe patch --session <id> --offset <n> --operation <kind>'],
-      mcpTools: ['omega_edit_apply_patch'],
+      mcpTools: ['omega_edit_preview_patch', 'omega_edit_apply_patch'],
       result: 'operation kind, range, serial, preview, and resulting state',
     },
     {

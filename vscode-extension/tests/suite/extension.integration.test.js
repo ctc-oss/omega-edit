@@ -23,6 +23,8 @@ const {
   OMEGA_EDIT_LOAD_RANGE_MAP_COMMAND,
   OMEGA_EDIT_OPEN_IN_HEX_EDITOR_COMMAND,
   OMEGA_EDIT_ROLLBACK_SESSION_COMMAND,
+  OMEGA_EDIT_SEARCH_NEXT_COMMAND,
+  OMEGA_EDIT_SEARCH_PREVIOUS_COMMAND,
   OMEGA_EDIT_SET_EXTERNAL_HIGHLIGHTS_COMMAND,
   OMEGA_EDIT_UNLOAD_RANGE_MAP_COMMAND,
   OMEGA_EDIT_VIEW_TYPE,
@@ -141,6 +143,10 @@ function assertAssistantCommandSurface(commands) {
   ])
   assert.deepEqual(byAction.get('assistantContext')?.mcpTools, [
     'omega_edit_session_context',
+  ])
+  assert.deepEqual(byAction.get('patchRange')?.mcpTools, [
+    'omega_edit_preview_patch',
+    'omega_edit_apply_patch',
   ])
   assert.deepEqual(byAction.get('undoRedo')?.vscodeCommands, [
     'omegaEdit.undo',
@@ -587,6 +593,16 @@ suite('OmegaEdit VS Code extension', () => {
       )
       assert.equal(initialState.uri, uri.toString())
       assert.equal(initialState.fileSize, 8)
+      assert.equal(
+        await vscode.commands.executeCommand(OMEGA_EDIT_SEARCH_NEXT_COMMAND),
+        undefined
+      )
+      assert.equal(
+        await vscode.commands.executeCommand(
+          OMEGA_EDIT_SEARCH_PREVIOUS_COMMAND
+        ),
+        undefined
+      )
 
       const revealState = await vscode.commands.executeCommand(
         OMEGA_EDIT_GO_TO_OFFSET_COMMAND,
