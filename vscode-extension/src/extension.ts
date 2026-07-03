@@ -738,6 +738,12 @@ export async function activate(
         if (typeof options === 'number') {
           return provider.revealOffset({ offset: options })
         }
+        if (
+          (options === undefined || options === null) &&
+          offset !== undefined
+        ) {
+          return provider.revealOffset({ offset })
+        }
 
         if (
           offset !== undefined ||

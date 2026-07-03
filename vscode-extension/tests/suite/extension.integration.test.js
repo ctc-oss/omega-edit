@@ -66,6 +66,103 @@ function parseTransformDataHex(data) {
   return JSON.parse(Buffer.from(data, 'hex').toString('utf8'))
 }
 
+function assertSamePath(actual, expected) {
+  const normalizedActual = path.resolve(actual)
+  const normalizedExpected = path.resolve(expected)
+  if (process.platform === 'win32') {
+    assert.equal(
+      normalizedActual.toLowerCase(),
+      normalizedExpected.toLowerCase()
+    )
+    return
+  }
+  assert.equal(normalizedActual, normalizedExpected)
+}
+
+function assertAssistantCommandSurface(commands) {
+  assert.ok(Array.isArray(commands), 'expected assistant commands array')
+  assert.ok(commands.length > 0, 'expected assistant command entries')
+
+  for (const entry of commands) {
+    assert.equal(typeof entry.action, 'string', 'entry action is named')
+    assert.equal(typeof entry.result, 'string', `${entry.action}.result`)
+
+    for (const legacyField of [
+      'vscodeCommand',
+      'extensionApi',
+      'cli',
+      'mcpTool',
+    ]) {
+      assert.equal(
+        Object.hasOwn(entry, legacyField),
+        false,
+        `${entry.action}.${legacyField} must not leak legacy singular field`
+      )
+    }
+
+    for (const arrayField of [
+      'vscodeCommands',
+      'extensionApis',
+      'cliCommands',
+      'mcpTools',
+    ]) {
+      if (!Object.hasOwn(entry, arrayField)) {
+        continue
+      }
+
+      assert.ok(
+        Array.isArray(entry[arrayField]),
+        `${entry.action}.${arrayField}`
+      )
+      assert.ok(
+        entry[arrayField].length > 0,
+        `${entry.action}.${arrayField} not empty`
+      )
+      for (const value of entry[arrayField]) {
+        assert.equal(typeof value, 'string', `${entry.action}.${arrayField}`)
+        assert.equal(
+          value.includes(' / '),
+          false,
+          `${entry.action}.${arrayField} must use separate array values`
+        )
+      }
+    }
+  }
+
+  const byAction = new Map(commands.map((entry) => [entry.action, entry]))
+  assert.deepEqual(byAction.get('assistantContext')?.vscodeCommands, [
+    OMEGA_EDIT_GET_ASSISTANT_CONTEXT_COMMAND,
+  ])
+  assert.deepEqual(byAction.get('assistantContext')?.extensionApis, [
+    'getAssistantContext',
+  ])
+  assert.deepEqual(byAction.get('assistantContext')?.cliCommands, [
+    'oe session-context --session <id> [--file <path>]',
+  ])
+  assert.deepEqual(byAction.get('assistantContext')?.mcpTools, [
+    'omega_edit_session_context',
+  ])
+  assert.deepEqual(byAction.get('undoRedo')?.vscodeCommands, [
+    'omegaEdit.undo',
+    'omegaEdit.redo',
+  ])
+  assert.deepEqual(byAction.get('undoRedo')?.cliCommands, [
+    'oe undo --session <id>',
+    'oe redo --session <id>',
+  ])
+  assert.deepEqual(byAction.get('undoRedo')?.mcpTools, [
+    'omega_edit_undo',
+    'omega_edit_redo',
+  ])
+}
+
+function assertAssistantContextPayloadBudget(context) {
+  assert.ok(
+    Buffer.byteLength(JSON.stringify(context), 'utf8') < 32 * 1024,
+    'assistant context should stay compact for small sessions'
+  )
+}
+
 suite('OmegaEdit VS Code extension', () => {
   let testPort
   let extensionApi
@@ -175,7 +272,7 @@ suite('OmegaEdit VS Code extension', () => {
       assert.equal(assistantContext.version, 1)
       assert.equal(assistantContext.session.id, session.sessionId)
       assert.equal(assistantContext.session.uri, uri.toString())
-      assert.equal(assistantContext.session.filePath, samplePath)
+      assertSamePath(assistantContext.session.filePath, samplePath)
       assert.equal(assistantContext.sizes.computed, 6)
       assert.equal(assistantContext.sizes.original, 6)
       assert.deepEqual(assistantContext.selection, {
@@ -190,14 +287,11 @@ suite('OmegaEdit VS Code extension', () => {
       )
       assert.equal(assistantContext.history.undoCount, 0)
       assert.equal(assistantContext.history.redoCount, 0)
+      assert.equal(assistantContext.history.undoStackDepth, 0)
+      assert.equal(assistantContext.history.redoStackDepth, 0)
       assert.equal(assistantContext.changeLog.format, 'omega-edit.change-log')
-      assert.ok(
-        assistantContext.commands.some(
-          (entry) =>
-            entry.vscodeCommand === OMEGA_EDIT_GET_ASSISTANT_CONTEXT_COMMAND &&
-            entry.extensionApi === 'getAssistantContext'
-        )
-      )
+      assertAssistantCommandSurface(assistantContext.commands)
+      assertAssistantContextPayloadBudget(assistantContext)
 
       const highlightedState = await extensionApi.setExternalHighlights({
         uri,
@@ -500,21 +594,31 @@ suite('OmegaEdit VS Code extension', () => {
       )
       assert.equal(revealState.uri, uri.toString())
       assert.equal(typeof revealState.visibleOffset, 'number')
+      const numericRevealState = await vscode.commands.executeCommand(
+        OMEGA_EDIT_GO_TO_OFFSET_COMMAND,
+        3
+      )
+      assert.equal(numericRevealState.uri, uri.toString())
+      const offsetOnlyRevealState = await vscode.commands.executeCommand(
+        OMEGA_EDIT_GO_TO_OFFSET_COMMAND,
+        undefined,
+        4
+      )
+      assert.equal(offsetOnlyRevealState.uri, uri.toString())
 
       const initialContext = await vscode.commands.executeCommand(
         OMEGA_EDIT_GET_ASSISTANT_CONTEXT_COMMAND,
         { uri }
       )
       assert.equal(initialContext.session.id, session.sessionId)
-      assert.equal(initialContext.session.filePath, samplePath)
+      assertSamePath(initialContext.session.filePath, samplePath)
       assert.equal(initialContext.sizes.computed, 8)
       assert.equal(initialContext.selection, null)
       assert.equal(initialContext.history.pendingChanges, false)
-      assert.ok(
-        initialContext.commands.some(
-          (entry) => entry.mcpTool === 'omega_edit_session_context'
-        )
-      )
+      assert.equal(initialContext.history.undoStackDepth, 0)
+      assert.equal(initialContext.history.redoStackDepth, 0)
+      assertAssistantCommandSurface(initialContext.commands)
+      assertAssistantContextPayloadBudget(initialContext)
 
       const applyResult = await vscode.commands.executeCommand(
         OMEGA_EDIT_APPLY_CHANGE_LOG_COMMAND,
@@ -562,6 +666,9 @@ suite('OmegaEdit VS Code extension', () => {
       )
       assert.equal(changedContext.history.undoCount, 2)
       assert.equal(changedContext.history.redoCount, 0)
+      assert.equal(changedContext.history.undoStackDepth, 2)
+      assert.equal(changedContext.history.redoStackDepth, 0)
+      assertAssistantContextPayloadBudget(changedContext)
       assert.equal(
         changedContext.changeLog.sourceChangeCount,
         changedContext.history.changeCount
@@ -579,6 +686,14 @@ suite('OmegaEdit VS Code extension', () => {
       )
       assert.equal(state.undoCount, 1)
       assert.equal(state.redoCount, 1)
+      const onceUndoneContext = await vscode.commands.executeCommand(
+        OMEGA_EDIT_GET_ASSISTANT_CONTEXT_COMMAND,
+        { uri }
+      )
+      assert.equal(onceUndoneContext.history.undoCount, 1)
+      assert.equal(onceUndoneContext.history.redoCount, 1)
+      assert.equal(onceUndoneContext.history.undoStackDepth, 1)
+      assert.equal(onceUndoneContext.history.redoStackDepth, 1)
 
       await provider.dispatchWebviewMessageForTesting(uri, { type: 'undo' })
       await assertSessionText(session.sessionId, 'ABCDEFGH')
@@ -588,6 +703,14 @@ suite('OmegaEdit VS Code extension', () => {
       )
       assert.equal(state.undoCount, 0)
       assert.equal(state.redoCount, 2)
+      const fullyUndoneContext = await vscode.commands.executeCommand(
+        OMEGA_EDIT_GET_ASSISTANT_CONTEXT_COMMAND,
+        { uri }
+      )
+      assert.equal(fullyUndoneContext.history.undoCount, 0)
+      assert.equal(fullyUndoneContext.history.redoCount, 2)
+      assert.equal(fullyUndoneContext.history.undoStackDepth, 0)
+      assert.equal(fullyUndoneContext.history.redoStackDepth, 2)
 
       await provider.dispatchWebviewMessageForTesting(uri, { type: 'redo' })
       await assertSessionText(session.sessionId, replaced)

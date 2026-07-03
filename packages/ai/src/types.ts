@@ -41,6 +41,8 @@ export interface SessionStatus {
   computedSize: number
   changeCount: number
   undoCount: number
+  undoStackDepth: number
+  redoStackDepth: number
   viewportCount: number
   checkpointCount: number
   lastChange?: {
@@ -54,10 +56,10 @@ export interface SessionStatus {
 export interface AssistantCommandSurfaceEntry {
   action: string
   ui?: string
-  vscodeCommand?: string
-  extensionApi?: string
-  cli?: string
-  mcpTool?: string
+  vscodeCommands?: string[]
+  extensionApis?: string[]
+  cliCommands?: string[]
+  mcpTools?: string[]
   result: string
 }
 
@@ -106,6 +108,8 @@ export interface AssistantSessionContext {
     changeCount: number
     undoCount: number
     redoCount: number
+    undoStackDepth: number
+    redoStackDepth: number
     canUndo: boolean
     canRedo: boolean
     checkpointCount: number | null

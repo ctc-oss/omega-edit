@@ -102,111 +102,187 @@ const DEFAULT_CHANGE_LOG_DIGEST_ALGORITHM = 'sha256'
 const GRPC_NOT_FOUND = 5
 const MAX_INT64 = 9_223_372_036_854_775_807n
 
+const OMEGA_EDIT_OPEN_IN_HEX_EDITOR_COMMAND = 'omegaEdit.openInHexEditor'
+const OMEGA_EDIT_GET_ASSISTANT_CONTEXT_COMMAND = 'omegaEdit.getAssistantContext'
+const OMEGA_EDIT_GET_EDITOR_STATE_COMMAND = 'omegaEdit.getEditorState'
+const OMEGA_EDIT_GO_TO_OFFSET_COMMAND = 'omegaEdit.goToOffset'
+const OMEGA_EDIT_UNDO_COMMAND = 'omegaEdit.undo'
+const OMEGA_EDIT_REDO_COMMAND = 'omegaEdit.redo'
+const OMEGA_EDIT_REFRESH_TRANSFORM_PLUGINS_COMMAND =
+  'omegaEdit.refreshTransformPlugins'
+const OMEGA_EDIT_CREATE_CHECKPOINT_COMMAND = 'omegaEdit.createCheckpoint'
+const OMEGA_EDIT_RESTORE_CHECKPOINT_COMMAND = 'omegaEdit.restoreCheckpoint'
+const OMEGA_EDIT_ROLLBACK_CHECKPOINT_COMMAND = 'omegaEdit.rollbackCheckpoint'
+const OMEGA_EDIT_EXPORT_CHANGE_LOG_COMMAND = 'omegaEdit.exportChangeLog'
+const OMEGA_EDIT_APPLY_CHANGE_LOG_COMMAND = 'omegaEdit.applyChangeLog'
+const OMEGA_EDIT_ROLLBACK_SESSION_COMMAND = 'omegaEdit.rollbackSession'
+const OMEGA_EDIT_SET_EXTERNAL_HIGHLIGHTS_COMMAND =
+  'omegaEdit.setExternalHighlights'
+const OMEGA_EDIT_CLEAR_EXTERNAL_HIGHLIGHTS_COMMAND =
+  'omegaEdit.clearExternalHighlights'
+const OMEGA_EDIT_LOAD_RANGE_MAP_COMMAND = 'omegaEdit.loadRangeMap'
+const OMEGA_EDIT_UNLOAD_RANGE_MAP_COMMAND = 'omegaEdit.unloadRangeMap'
+
 const ASSISTANT_COMMAND_SURFACES: readonly AssistantCommandSurfaceEntry[] = [
   {
     action: 'openSession',
     ui: 'Open in Data Editor',
-    vscodeCommand: 'omegaEdit.openInHexEditor',
-    extensionApi: 'open',
-    cli: 'oe create-session --file <path>',
-    mcpTool: 'omega_edit_create_session',
+    vscodeCommands: [OMEGA_EDIT_OPEN_IN_HEX_EDITOR_COMMAND],
+    extensionApis: ['open'],
+    cliCommands: ['oe create-session --file <path>'],
+    mcpTools: ['omega_edit_create_session'],
     result: 'structured session id and file path',
   },
   {
     action: 'assistantContext',
-    vscodeCommand: 'omegaEdit.getAssistantContext',
-    extensionApi: 'getAssistantContext',
-    cli: 'oe session-context --session <id> [--file <path>]',
-    mcpTool: 'omega_edit_session_context',
+    vscodeCommands: [OMEGA_EDIT_GET_ASSISTANT_CONTEXT_COMMAND],
+    extensionApis: ['getAssistantContext'],
+    cliCommands: ['oe session-context --session <id> [--file <path>]'],
+    mcpTools: ['omega_edit_session_context'],
     result: 'stable assistant-readable session context JSON',
   },
   {
     action: 'editorState',
-    vscodeCommand: 'omegaEdit.getEditorState',
-    extensionApi: 'getEditorState',
+    vscodeCommands: [OMEGA_EDIT_GET_EDITOR_STATE_COMMAND],
+    extensionApis: ['getEditorState'],
     result: 'raw editor state JSON for VS Code integrations',
   },
   {
     action: 'navigateRange',
     ui: 'Go to Offset',
-    vscodeCommand: 'omegaEdit.goToOffset',
-    extensionApi: 'reveal',
-    cli: 'oe view --session <id> --offset <n> --length <n>',
-    mcpTool: 'omega_edit_read_range',
+    vscodeCommands: [OMEGA_EDIT_GO_TO_OFFSET_COMMAND],
+    extensionApis: ['reveal'],
+    cliCommands: ['oe view --session <id> --offset <n> --length <n>'],
+    mcpTools: ['omega_edit_read_range'],
     result: 'selected offset or bounded range bytes',
   },
   {
     action: 'profileRange',
-    cli: 'oe profile-range --session <id> --offset <n> --length <n>',
-    mcpTool: 'omega_edit_profile_range',
+    cliCommands: ['oe profile-range --session <id> --offset <n> --length <n>'],
+    mcpTools: ['omega_edit_profile_range'],
     result: 'bounded range profile metrics',
   },
   {
     action: 'search',
     ui: 'Search',
-    cli: 'oe search --session <id> --text <value>',
-    mcpTool: 'omega_edit_search',
+    cliCommands: ['oe search --session <id> --text <value>'],
+    mcpTools: ['omega_edit_search'],
     result: 'structured match offsets and lengths',
   },
   {
     action: 'patchRange',
     ui: 'Insert, delete, overwrite, or replace bytes',
-    cli: 'oe patch --session <id> --offset <n> --operation <kind>',
-    mcpTool: 'omega_edit_apply_patch',
+    cliCommands: ['oe patch --session <id> --offset <n> --operation <kind>'],
+    mcpTools: ['omega_edit_apply_patch'],
     result: 'operation kind, range, serial, preview, and resulting state',
   },
   {
     action: 'undoRedo',
     ui: 'Undo / Redo',
-    vscodeCommand: 'omegaEdit.undo / omegaEdit.redo',
-    cli: 'oe undo --session <id> / oe redo --session <id>',
-    mcpTool: 'omega_edit_undo / omega_edit_redo',
+    vscodeCommands: [OMEGA_EDIT_UNDO_COMMAND, OMEGA_EDIT_REDO_COMMAND],
+    cliCommands: ['oe undo --session <id>', 'oe redo --session <id>'],
+    mcpTools: ['omega_edit_undo', 'omega_edit_redo'],
     result: 'serial and updated history counts',
   },
   {
     action: 'transforms',
     ui: 'Refresh or apply transform plugins',
-    vscodeCommand: 'omegaEdit.refreshTransformPlugins',
-    cli: 'oe list-transform-plugins / oe apply-transform-plugin --session <id> --plugin <id>',
-    mcpTool:
-      'omega_edit_list_transform_plugins / omega_edit_apply_transform_plugin',
+    vscodeCommands: [OMEGA_EDIT_REFRESH_TRANSFORM_PLUGINS_COMMAND],
+    cliCommands: [
+      'oe list-transform-plugins',
+      'oe apply-transform-plugin --session <id> --plugin <id>',
+    ],
+    mcpTools: [
+      'omega_edit_list_transform_plugins',
+      'omega_edit_apply_transform_plugin',
+    ],
     result: 'plugin metadata or transform operation result',
   },
   {
     action: 'checkpoints',
     ui: 'Create, restore, or roll back checkpoints',
-    vscodeCommand:
-      'omegaEdit.createCheckpoint / omegaEdit.restoreCheckpoint / omegaEdit.rollbackCheckpoint',
-    extensionApi: 'createCheckpoint / restoreCheckpoint / rollbackCheckpoint',
-    cli: 'oe create-checkpoint / oe restore-checkpoint / oe rollback-checkpoint',
-    mcpTool:
-      'omega_edit_create_checkpoint / omega_edit_restore_checkpoint / omega_edit_rollback_checkpoint',
+    vscodeCommands: [
+      OMEGA_EDIT_CREATE_CHECKPOINT_COMMAND,
+      OMEGA_EDIT_RESTORE_CHECKPOINT_COMMAND,
+      OMEGA_EDIT_ROLLBACK_CHECKPOINT_COMMAND,
+    ],
+    extensionApis: [
+      'createCheckpoint',
+      'restoreCheckpoint',
+      'rollbackCheckpoint',
+    ],
+    cliCommands: [
+      'oe create-checkpoint',
+      'oe restore-checkpoint',
+      'oe rollback-checkpoint',
+    ],
+    mcpTools: [
+      'omega_edit_create_checkpoint',
+      'omega_edit_restore_checkpoint',
+      'omega_edit_rollback_checkpoint',
+    ],
     result: 'checkpoint count and resulting state',
   },
   {
     action: 'changeLog',
     ui: 'Export or apply change log',
-    vscodeCommand: 'omegaEdit.exportChangeLog / omegaEdit.applyChangeLog',
-    extensionApi: 'exportChangeLog / applyChangeLog',
-    cli: 'oe export-change-log / oe apply-change-log',
-    mcpTool: 'omega_edit_export_change_log / omega_edit_apply_change_log',
+    vscodeCommands: [
+      OMEGA_EDIT_EXPORT_CHANGE_LOG_COMMAND,
+      OMEGA_EDIT_APPLY_CHANGE_LOG_COMMAND,
+    ],
+    extensionApis: ['exportChangeLog', 'applyChangeLog'],
+    cliCommands: ['oe export-change-log', 'oe apply-change-log'],
+    mcpTools: ['omega_edit_export_change_log', 'omega_edit_apply_change_log'],
     result: 'change-log format, source counts, fingerprints, and state',
   },
   {
     action: 'rollbackSession',
     ui: 'Roll Back Session',
-    vscodeCommand: 'omegaEdit.rollbackSession',
+    vscodeCommands: [OMEGA_EDIT_ROLLBACK_SESSION_COMMAND],
     result: 'resulting editor state',
   },
   {
     action: 'annotations',
-    vscodeCommand:
-      'omegaEdit.setExternalHighlights / omegaEdit.clearExternalHighlights / omegaEdit.loadRangeMap / omegaEdit.unloadRangeMap',
-    extensionApi:
-      'setExternalHighlights / clearExternalHighlights / loadRangeMap / unloadRangeMap',
+    vscodeCommands: [
+      OMEGA_EDIT_SET_EXTERNAL_HIGHLIGHTS_COMMAND,
+      OMEGA_EDIT_CLEAR_EXTERNAL_HIGHLIGHTS_COMMAND,
+      OMEGA_EDIT_LOAD_RANGE_MAP_COMMAND,
+      OMEGA_EDIT_UNLOAD_RANGE_MAP_COMMAND,
+    ],
+    extensionApis: [
+      'setExternalHighlights',
+      'clearExternalHighlights',
+      'loadRangeMap',
+      'unloadRangeMap',
+    ],
     result: 'annotation counts, selected range, and resulting editor state',
   },
 ]
+
+function cloneAssistantCommandSurfaces(): AssistantCommandSurfaceEntry[] {
+  return ASSISTANT_COMMAND_SURFACES.map((entry) => {
+    const clone: AssistantCommandSurfaceEntry = {
+      action: entry.action,
+      result: entry.result,
+    }
+    if (entry.ui) {
+      clone.ui = entry.ui
+    }
+    if (entry.vscodeCommands) {
+      clone.vscodeCommands = [...entry.vscodeCommands]
+    }
+    if (entry.extensionApis) {
+      clone.extensionApis = [...entry.extensionApis]
+    }
+    if (entry.cliCommands) {
+      clone.cliCommands = [...entry.cliCommands]
+    }
+    if (entry.mcpTools) {
+      clone.mcpTools = [...entry.mcpTools]
+    }
+    return clone
+  })
+}
 
 interface CollectedChangeLogEntries {
   changes?: ChangeLogEntry[]
@@ -1498,6 +1574,10 @@ export class OmegaEditToolkit {
       computedSize,
       changeCount,
       undoCount,
+      // The backend's UNDOS count is the undone-change stack, which is
+      // exposed to editor users as redo stack depth.
+      undoStackDepth: changeCount,
+      redoStackDepth: undoCount,
       viewportCount,
       checkpointCount,
       lastChange,
@@ -1558,14 +1638,16 @@ export class OmegaEditToolkit {
       },
       history: {
         changeCount: status.changeCount,
-        undoCount: status.changeCount,
-        redoCount: status.undoCount,
-        canUndo: status.changeCount > 0,
-        canRedo: status.undoCount > 0,
+        undoCount: status.undoStackDepth,
+        redoCount: status.redoStackDepth,
+        undoStackDepth: status.undoStackDepth,
+        redoStackDepth: status.redoStackDepth,
+        canUndo: status.undoStackDepth > 0,
+        canRedo: status.redoStackDepth > 0,
         checkpointCount: status.checkpointCount,
         checkpointAvailable: status.checkpointCount > 0,
         savedChangeDepth: null,
-        pendingChanges: status.changeCount > 0,
+        pendingChanges: status.undoStackDepth > 0,
         pendingOperation: null,
         pendingCount: 0,
       },
@@ -1591,7 +1673,7 @@ export class OmegaEditToolkit {
         sourceChangeCount: status.changeCount,
         completeExportAvailable: true,
       },
-      commands: ASSISTANT_COMMAND_SURFACES.map((entry) => ({ ...entry })),
+      commands: cloneAssistantCommandSurfaces(),
     }
   }
 

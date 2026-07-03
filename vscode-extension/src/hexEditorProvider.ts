@@ -4453,6 +4453,8 @@ export class HexEditorProvider
         changeCount: session.changeCount,
         undoCount: editState.undoCount,
         redoCount: editState.redoCount,
+        undoStackDepth: editState.undoCount,
+        redoStackDepth: editState.redoCount,
         canUndo: editState.canUndo,
         canRedo: editState.canRedo,
         checkpointCount: null,

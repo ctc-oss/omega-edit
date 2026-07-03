@@ -8,6 +8,10 @@ import * as readline from 'readline'
 import { fileURLToPath } from 'url'
 import { findFirstAvailablePort } from '@omega-edit/client'
 import { OmegaEditToolkit } from '../../src/service'
+import {
+  assertAssistantCommandSurface,
+  assertAssistantContextPayloadBudget,
+} from './assistantCommandSurface'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
@@ -233,16 +237,18 @@ describe('@omega-edit/ai mcp server', () => {
         (sessionContextStructured.sizes as Record<string, unknown>).computed,
         Buffer.byteLength('hello world hello', 'utf8')
       )
-      assert.ok(
-        (
-          (sessionContextStructured.commands as Array<
-            Record<string, unknown>
-          >) || []
-        ).some(
-          (entry) =>
-            entry.cli === 'oe session-context --session <id> [--file <path>]'
-        )
+      assertAssistantCommandSurface(sessionContextStructured.commands)
+      assert.equal(
+        (sessionContextStructured.history as Record<string, unknown>)
+          .undoStackDepth,
+        (sessionContextStructured.history as Record<string, unknown>).undoCount
       )
+      assert.equal(
+        (sessionContextStructured.history as Record<string, unknown>)
+          .redoStackDepth,
+        (sessionContextStructured.history as Record<string, unknown>).redoCount
+      )
+      assertAssistantContextPayloadBudget(sessionContextStructured)
 
       const listPluginsResponse = await sendRequest('tools/call', {
         name: 'omega_edit_list_transform_plugins',
