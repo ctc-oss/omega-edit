@@ -241,6 +241,13 @@ function normalizeWindowsPath(directory: string): string {
     : directory
 }
 
+function splitPathList(value: string | undefined): string[] {
+  return (value ?? '')
+    .split(path.delimiter)
+    .map((directory) => normalizeWindowsPath(directory.trim()))
+    .filter((directory) => directory.length > 0)
+}
+
 function findRepositoryRoot(extensionPath: string): string {
   const candidates = [
     path.resolve(extensionPath, '..'),
@@ -261,7 +268,61 @@ function getDefaultTransformPluginDirectories(
 ): string[] {
   const repoRoot = findRepositoryRoot(context.extensionPath)
   const bundledPlatform = getSupportedTransformPluginPlatformId()
+  const envCandidates = [
+    ...splitPathList(process.env.OMEGA_EDIT_TRANSFORM_PLUGIN_DIRS),
+    ...splitPathList(process.env.OMEGA_EDIT_TRANSFORM_PLUGINS_DIR),
+    ...splitPathList(process.env.OMEGA_EDIT_TEST_PLUGIN_DIR),
+  ]
   const candidates = [
+    ...envCandidates,
+    bundledPlatform
+      ? path.join(
+          repoRoot,
+          'packages',
+          'server',
+          'out',
+          'transform-plugins',
+          bundledPlatform
+        )
+      : '',
+    path.join(
+      repoRoot,
+      '.codex-tmp',
+      'native-core-build',
+      'core',
+      'src',
+      'tests',
+      'plugins'
+    ),
+    path.join(repoRoot, '_build_core', 'plugins', 'plugins'),
+    path.join(repoRoot, '_build_core', 'core', 'src', 'tests', 'plugins'),
+    path.join(repoRoot, '_build', 'plugins', 'plugins'),
+    path.join(repoRoot, 'build', 'core', 'src', 'tests', 'plugins'),
+    path.join(repoRoot, 'build-coverage', 'core', 'src', 'tests', 'plugins'),
+    path.join(
+      repoRoot,
+      'build-shared-Debug',
+      'core',
+      'src',
+      'tests',
+      'plugins'
+    ),
+    path.join(
+      repoRoot,
+      'build-shared-Release',
+      'core',
+      'src',
+      'tests',
+      'plugins'
+    ),
+    path.join(
+      repoRoot,
+      'build-shared-RelWithDebInfo',
+      'core',
+      'src',
+      'tests',
+      'plugins'
+    ),
     bundledPlatform
       ? path.join(
           context.extensionPath,
@@ -270,15 +331,9 @@ function getDefaultTransformPluginDirectories(
           bundledPlatform
         )
       : '',
-    normalizeWindowsPath(process.env.OMEGA_EDIT_TEST_PLUGIN_DIR ?? ''),
-    path.join(repoRoot, '_build_core', 'plugins', 'plugins'),
-    path.join(repoRoot, '_build_core', 'core', 'src', 'tests', 'plugins'),
-    path.join(repoRoot, '_build', 'plugins', 'plugins'),
-    path.join(repoRoot, 'build', 'core', 'src', 'tests', 'plugins'),
-    path.join(repoRoot, 'build-coverage', 'core', 'src', 'tests', 'plugins'),
   ].filter(Boolean)
 
-  return candidates.filter(directoryHasTransformPlugin)
+  return Array.from(new Set(candidates)).filter(directoryHasTransformPlugin)
 }
 
 function resolveTransformPluginDirectories(

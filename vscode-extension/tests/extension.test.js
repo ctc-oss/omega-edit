@@ -1775,7 +1775,15 @@ test('compiled extension entrypoints exist after build', () => {
   assert.match(extensionJs, /path\.resolve\(extensionPath,\s*['"]\.\.['"]\)/)
   assert.match(extensionJs, /normalizeWindowsPath/)
   assert.match(extensionJs, /replace\(\/\\\/\/g,\s*['"]\\\\['"]\)/)
+  assert.match(extensionJs, /splitPathList/)
+  assert.match(extensionJs, /OMEGA_EDIT_TRANSFORM_PLUGIN_DIRS/)
+  assert.match(extensionJs, /OMEGA_EDIT_TRANSFORM_PLUGINS_DIR/)
   assert.match(extensionJs, /_build_core['"],\s*['"]plugins['"],\s*['"]plugins/)
+  assert.match(
+    extensionJs,
+    /packages['"],\s*['"]server['"],\s*['"]out['"],\s*['"]transform-plugins/
+  )
+  assert.match(extensionJs, /build-shared-Debug/)
   assert.match(extensionJs, /directoryHasTransformPlugin/)
   assert.match(extensionJs, /resolveServerConnection/)
   assert.match(extensionJs, /OMEGA_EDIT_SERVER_SOCKET/)
