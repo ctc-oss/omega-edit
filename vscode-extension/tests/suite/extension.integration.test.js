@@ -58,10 +58,29 @@ function makeUtf8Fingerprint(text) {
   }
 }
 
+function canonicalizeTransformDescriptorValue(value) {
+  if (Array.isArray(value)) {
+    return value.map(canonicalizeTransformDescriptorValue)
+  }
+  if (typeof value !== 'object' || value === null) {
+    return value
+  }
+  return Object.keys(value)
+    .sort()
+    .reduce((canonical, key) => {
+      canonical[key] = canonicalizeTransformDescriptorValue(value[key])
+      return canonical
+    }, {})
+}
+
 function makeTransformDataHex(transformId, args = {}) {
-  return Buffer.from(JSON.stringify({ transformId, args }), 'utf8').toString(
-    'hex'
-  )
+  return Buffer.from(
+    JSON.stringify({
+      transformId,
+      args: canonicalizeTransformDescriptorValue(args),
+    }),
+    'utf8'
+  ).toString('hex')
 }
 
 function parseTransformDataHex(data) {

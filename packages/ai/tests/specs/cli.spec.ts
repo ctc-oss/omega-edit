@@ -13,13 +13,34 @@ import {
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const CLI_PATH = path.resolve(__dirname, '../../dist/cjs/cli.js')
 
+function canonicalizeTransformDescriptorValue(value: unknown): unknown {
+  if (Array.isArray(value)) {
+    return value.map(canonicalizeTransformDescriptorValue)
+  }
+  if (typeof value !== 'object' || value === null) {
+    return value
+  }
+  return Object.keys(value)
+    .sort()
+    .reduce<Record<string, unknown>>((canonical, key) => {
+      canonical[key] = canonicalizeTransformDescriptorValue(
+        (value as Record<string, unknown>)[key]
+      )
+      return canonical
+    }, {})
+}
+
 function makeTransformDataHex(
   transformId: string,
   args: Record<string, unknown> = {}
 ) {
-  return Buffer.from(JSON.stringify({ transformId, args }), 'utf8').toString(
-    'hex'
-  )
+  return Buffer.from(
+    JSON.stringify({
+      transformId,
+      args: canonicalizeTransformDescriptorValue(args),
+    }),
+    'utf8'
+  ).toString('hex')
 }
 
 function runOe(args: string[]): Promise<Record<string, unknown>> {

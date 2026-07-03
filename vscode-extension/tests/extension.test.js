@@ -616,6 +616,7 @@ test('compiled extension entrypoints exist after build', () => {
   assert.match(providerJs, /kind:\s*['"]TRANSFORM['"]/)
   assert.match(providerJs, /encodeTransformPrimitiveDataHex/)
   assert.match(providerSource, /createTransformPrimitiveDescriptorJson/)
+  assert.match(providerSource, /canonicalizeTransformDescriptorArgs/)
   assert.match(providerSource, /descriptorJson/)
   assert.match(providerSource, /descriptorHex/)
   assert.match(providerJs, /formatTransformCompletionMessage/)
@@ -1004,6 +1005,11 @@ test('compiled extension entrypoints exist after build', () => {
   assert.match(svelteAppSource, /if \(transformPluginsLoading\)/)
   assert.match(svelteAppSource, /function applyTransform/)
   assert.match(svelteAppSource, /createTransformDescriptorMetadata/)
+  assert.match(svelteAppSource, /canonicalizeTransformDescriptorArgs/)
+  assert.match(
+    svelteAppSource,
+    /\.sort\(\(left, right\) => right\.createdAt - left\.createdAt\)/
+  )
   assert.match(svelteAppSource, /rememberTransformPreset/)
   assert.match(svelteAppSource, /type: 'applyTransform'/)
   assert.match(svelteAppSource, /function exportRange/)
@@ -1386,6 +1392,8 @@ test('compiled extension entrypoints exist after build', () => {
     transformPanelSource,
     /function createTransformDescriptorPreview/
   )
+  assert.match(transformPanelSource, /canonicalizeTransformDescriptorArgs/)
+  assert.match(transformPanelSource, /error instanceof Error/)
   assert.match(transformPanelSource, /function openTransformPreset/)
   assert.match(transformPanelSource, /interface TransformOptionField/)
   assert.match(transformPanelSource, /function buildTransformOptionFields/)

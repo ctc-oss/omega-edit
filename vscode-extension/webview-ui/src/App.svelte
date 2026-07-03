@@ -1952,6 +1952,7 @@
         }
       })
       .filter((entry): entry is TransformPresetState => Boolean(entry))
+      .sort((left, right) => right.createdAt - left.createdAt)
       .slice(0, TRANSFORM_PRESET_HISTORY_LIMIT)
   }
 
@@ -1965,6 +1966,27 @@
       throw new Error(strings.transform.schemaObject(strings.transform.optionsPath))
     }
     return parsed
+  }
+
+  function canonicalizeTransformDescriptorValue(value: unknown): unknown {
+    if (Array.isArray(value)) {
+      return value.map(canonicalizeTransformDescriptorValue)
+    }
+    if (!isJsonObject(value)) {
+      return value
+    }
+    return Object.keys(value)
+      .sort()
+      .reduce<Record<string, unknown>>((canonical, key) => {
+        canonical[key] = canonicalizeTransformDescriptorValue(value[key])
+        return canonical
+      }, {})
+  }
+
+  function canonicalizeTransformDescriptorArgs(
+    args: Record<string, unknown>
+  ): Record<string, unknown> {
+    return canonicalizeTransformDescriptorValue(args) as Record<string, unknown>
   }
 
   function utf8ToHex(value: string): string {
@@ -1985,12 +2007,16 @@
     | undefined {
     try {
       const args = parseTransformDescriptorArgs(optionsJson)
+      const canonicalArgs = canonicalizeTransformDescriptorArgs(args)
       const descriptorJson = JSON.stringify({
         transformId: pluginId.trim(),
-        args,
+        args: canonicalArgs,
       })
       return {
-        optionsJson: Object.keys(args).length > 0 ? JSON.stringify(args) : '',
+        optionsJson:
+          Object.keys(canonicalArgs).length > 0
+            ? JSON.stringify(canonicalArgs)
+            : '',
         descriptorJson,
         descriptorHex: utf8ToHex(descriptorJson),
       }

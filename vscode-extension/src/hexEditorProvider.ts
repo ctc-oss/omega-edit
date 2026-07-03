@@ -533,6 +533,27 @@ function parseTransformOptionsJson(
   return parseJsonObject(optionsJson, name)
 }
 
+function canonicalizeTransformDescriptorValue(value: unknown): unknown {
+  if (Array.isArray(value)) {
+    return value.map(canonicalizeTransformDescriptorValue)
+  }
+  if (!isRecord(value)) {
+    return value
+  }
+  return Object.keys(value)
+    .sort()
+    .reduce<Record<string, unknown>>((canonical, key) => {
+      canonical[key] = canonicalizeTransformDescriptorValue(value[key])
+      return canonical
+    }, {})
+}
+
+function canonicalizeTransformDescriptorArgs(
+  args: Record<string, unknown>
+): Record<string, unknown> {
+  return canonicalizeTransformDescriptorValue(args) as Record<string, unknown>
+}
+
 function createTransformPrimitivePayload(
   transformId: string,
   optionsJson?: string
@@ -540,7 +561,7 @@ function createTransformPrimitivePayload(
   const args = parseTransformOptionsJson(optionsJson, 'transform options')
   return {
     transformId: transformId.trim(),
-    args,
+    args: canonicalizeTransformDescriptorArgs(args),
   }
 }
 

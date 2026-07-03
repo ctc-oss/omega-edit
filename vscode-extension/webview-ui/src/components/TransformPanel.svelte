@@ -724,6 +724,25 @@
     return parsed
   }
 
+  function canonicalizeTransformDescriptorValue(value: unknown): unknown {
+    if (Array.isArray(value)) {
+      return value.map(canonicalizeTransformDescriptorValue)
+    }
+    if (!schemaObject(value)) {
+      return value
+    }
+    return Object.keys(value)
+      .sort()
+      .reduce<JsonObject>((canonical, key) => {
+        canonical[key] = canonicalizeTransformDescriptorValue(value[key])
+        return canonical
+      }, {})
+  }
+
+  function canonicalizeTransformDescriptorArgs(args: JsonObject): JsonObject {
+    return canonicalizeTransformDescriptorValue(args) as JsonObject
+  }
+
   function utf8ToHex(value: string): string {
     return Array.from(new TextEncoder().encode(value), (byte) =>
       byte.toString(16).padStart(2, '0')
@@ -735,20 +754,26 @@
     rawOptionsJson: string
   ): TransformDescriptorPreview {
     try {
+      const args = canonicalizeTransformDescriptorArgs(
+        parseTransformDescriptorArgs(rawOptionsJson)
+      )
       const descriptorJson = JSON.stringify({
         transformId: transformId.trim(),
-        args: parseTransformDescriptorArgs(rawOptionsJson),
+        args,
       })
       return {
         json: descriptorJson,
         hex: utf8ToHex(descriptorJson),
         error: '',
       }
-    } catch {
+    } catch (error) {
       return {
         json: '',
         hex: '',
-        error: strings.transform.invalidJson,
+        error:
+          error instanceof Error && error.message
+            ? error.message
+            : strings.transform.invalidJson,
       }
     }
   }
