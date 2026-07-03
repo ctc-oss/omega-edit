@@ -25,32 +25,6 @@
     historyLabel: string
   }
 
-  interface TransformPresetHistoryItem {
-    id: string
-    pluginId: string
-    pluginName: string
-    optionsJson: string
-    descriptorJson: string
-    descriptorHex: string
-    createdAtLabel: string
-    summary: string
-  }
-
-  interface TransformMetadataItem {
-    pluginName: string
-    operationLabel: string
-    contentSourceLabel: string
-    contentChangedLabel: string
-    serialLabel: string
-    rangeLabel: string
-    lengthLabel: string
-    replacementLengthLabel: string
-    computedFileSizeLabel: string
-    descriptorJson: string
-    descriptorHex: string
-    summary: string
-  }
-
   interface Props {
     bytesPerRow: BytesPerRow
     bytesPerRowMode: BytesPerRowMode
@@ -66,8 +40,6 @@
     transformPluginError?: string
     transformFeedback?: string
     transformResults?: TransformResultHistoryItem[]
-    transformPresets?: TransformPresetHistoryItem[]
-    transformMetadata?: TransformMetadataItem
     activeTransformResultId?: string
     searchPanelVisible?: boolean
     selectedOffset?: number
@@ -114,8 +86,6 @@
     transformPluginError = '',
     transformFeedback = '',
     transformResults = [],
-    transformPresets = [],
-    transformMetadata,
     activeTransformResultId = '',
     searchPanelVisible = false,
     selectedOffset = -1,
@@ -296,8 +266,6 @@
       {offsetRadix}
       feedback={transformFeedback}
       results={transformResults}
-      presets={transformPresets}
-      metadata={transformMetadata}
       {activeTransformResultId}
       {onRequestTransforms}
       {onCancelTransform}

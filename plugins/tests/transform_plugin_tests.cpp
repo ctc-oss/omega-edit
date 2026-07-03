@@ -58,6 +58,18 @@ TEST_CASE("Packaged Transform Plugins", "[TransformPlugin]") {
     REQUIRE(nullptr != omega_transform_plugin_registry_find_info(registry_ptr, "omega.example.text_codecs"));
     REQUIRE(nullptr != omega_transform_plugin_registry_find_info(registry_ptr, "omega.example.zlib"));
     REQUIRE(nullptr != omega_transform_plugin_registry_find_info(registry_ptr, "omega.example.repeat"));
+    REQUIRE(-1 == omega_transform_plugin_options_match_args_schema("{}", nullptr));
+    REQUIRE(-1 == omega_transform_plugin_options_match_args_schema("{}", ""));
+    REQUIRE(-1 == omega_transform_plugin_options_match_args_schema("{}", "[]"));
+    REQUIRE(-1 == omega_transform_plugin_options_match_args_schema("{}", "{\"type\":\"array\"}"));
+    for (int64_t index = 0; index < omega_transform_plugin_registry_get_count(registry_ptr); ++index) {
+        const auto *info = omega_transform_plugin_registry_get_info(registry_ptr, index);
+        REQUIRE(info);
+        REQUIRE(info->args_schema);
+        const std::string schema(info->args_schema);
+        REQUIRE(schema.find("\"type\"") != std::string::npos);
+        REQUIRE(schema.find("\"object\"") != std::string::npos);
+    }
     const auto base64_info = omega_transform_plugin_registry_find_info(registry_ptr, "omega.example.base64");
     REQUIRE("Base64" == std::string(base64_info->name));
     REQUIRE("{\"direction\":\"encode\"}" == std::string(base64_info->default_args));
@@ -93,6 +105,8 @@ TEST_CASE("Packaged Transform Plugins", "[TransformPlugin]") {
                                                                   common_checksums_info->args_schema));
     REQUIRE(-1 == omega_transform_plugin_options_match_args_schema("{\"algorithm\":\"not-a-checksum\"}",
                                                                    common_checksums_info->args_schema));
+    REQUIRE(-1 == omega_transform_plugin_options_match_args_schema(nullptr, common_checksums_info->args_schema));
+    REQUIRE(-1 == omega_transform_plugin_options_match_args_schema("", common_checksums_info->args_schema));
     const auto case_change_info = omega_transform_plugin_registry_find_info(registry_ptr, "omega.example.case_change");
     REQUIRE("Case Change" == std::string(case_change_info->name));
     REQUIRE("{\"case\":\"upper\"}" == std::string(case_change_info->default_args));
@@ -120,6 +134,12 @@ TEST_CASE("Packaged Transform Plugins", "[TransformPlugin]") {
             omega_transform_plugin_options_match_args_schema("{\"algorithm\":\"sha256\"}", digest_info->args_schema));
     REQUIRE(-1 ==
             omega_transform_plugin_options_match_args_schema("{\"algorithm\":\"sha0\"}", digest_info->args_schema));
+    const auto repeat_info = omega_transform_plugin_registry_find_info(registry_ptr, "omega.example.repeat");
+    REQUIRE("Repeat Range" == std::string(repeat_info->name));
+    REQUIRE(0 == omega_transform_plugin_options_match_args_schema(nullptr, repeat_info->args_schema));
+    REQUIRE(0 == omega_transform_plugin_options_match_args_schema("", repeat_info->args_schema));
+    REQUIRE(0 == omega_transform_plugin_options_match_args_schema("{}", repeat_info->args_schema));
+    REQUIRE(-1 == omega_transform_plugin_options_match_args_schema("{\"times\":2}", repeat_info->args_schema));
 
     const auto session_ptr = omega_edit_create_session(nullptr, nullptr, nullptr, NO_EVENTS, nullptr);
     REQUIRE(session_ptr);

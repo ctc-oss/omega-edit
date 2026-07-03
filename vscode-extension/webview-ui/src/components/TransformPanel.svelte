@@ -25,20 +25,33 @@
   const TRANSFORM_ACTION_PREFIX = 'transform:'
   const FILE_ACTION_PREFIX = 'file:'
   const SESSION_ACTION_PREFIX = 'session:'
+  const MAX_TRANSFORM_DESCRIPTOR_LENGTH = MAX_TRANSFORM_OPTIONS_LENGTH + 1024
 
   interface TransformOptionChoice {
     label: string
     value: string
   }
 
-  interface TransformPluginGroup {
-    label: string
-    plugins: WebviewTransformPlugin[]
-  }
-
   interface TransformOptionGroup {
     label: string
     options: TransformOptionChoice[]
+  }
+
+  interface ActionPickerEntry {
+    id: string
+    label: string
+    description: string
+    group: string
+    disabled: boolean
+    kind: 'transform' | 'file' | 'session'
+    pluginId?: string
+    fileAction?: FileSpliceActionId
+    sessionAction?: SessionActionId
+  }
+
+  interface ActionPickerGroup {
+    label: string
+    entries: ActionPickerEntry[]
   }
 
   interface TransformOptionField {
@@ -79,8 +92,6 @@
     offsetRadix?: OffsetRadix
     feedback?: string
     results?: TransformResultHistoryItem[]
-    presets?: TransformPresetHistoryItem[]
-    metadata?: TransformMetadataItem
     activeTransformResultId?: string
     onRequestTransforms: () => void
     onCancelTransform: () => void
@@ -112,35 +123,8 @@
     historyLabel: string
   }
 
-  interface TransformPresetHistoryItem {
-    id: string
-    pluginId: string
-    pluginName: string
+  interface TransformDescriptorInputState {
     optionsJson: string
-    descriptorJson: string
-    descriptorHex: string
-    createdAtLabel: string
-    summary: string
-  }
-
-  interface TransformMetadataItem {
-    pluginName: string
-    operationLabel: string
-    contentSourceLabel: string
-    contentChangedLabel: string
-    serialLabel: string
-    rangeLabel: string
-    lengthLabel: string
-    replacementLengthLabel: string
-    computedFileSizeLabel: string
-    descriptorJson: string
-    descriptorHex: string
-    summary: string
-  }
-
-  interface TransformDescriptorPreview {
-    json: string
-    hex: string
     error: string
   }
 
@@ -167,8 +151,6 @@
     offsetRadix = 'hex',
     feedback = '',
     results = [],
-    presets = [],
-    metadata,
     activeTransformResultId = '',
     onRequestTransforms,
     onCancelTransform,
@@ -188,16 +170,17 @@
   let selectedFileAction = $state<FileSpliceActionId | ''>('')
   let selectedContentSource = $state<WebviewSessionContentSource>('computed')
   let dialogOpen = $state(false)
-  let pluginSearch = $state('')
+  let actionQuery = $state('')
+  let actionPickerOpen = $state(false)
   let optionsJson = $state('')
+  let descriptorJson = $state('')
   let rangeStartInput = $state('')
   let rangeEndInput = $state('')
   let savedOptionsByPluginId = $state<Record<string, string>>({})
+  let actionPicker = $state<HTMLDivElement>()
   let optionsInput = $state<HTMLElement>()
   let applyButton = $state<HTMLButtonElement>()
   let resultHistoryMenu = $state<HTMLDetailsElement>()
-  let presetHistoryMenu = $state<HTMLDetailsElement>()
-  let metadataMenu = $state<HTMLDetailsElement>()
 
   const selectedPlugin = $derived(
     plugins.find((plugin) => plugin.id === selectedPluginId)
@@ -220,25 +203,11 @@
         ? (selectedContentInfo?.byteLength ?? 0)
         : fileSize
   )
-  const filteredTransformPlugins = $derived(
-    filterTransformPlugins(plugins, pluginSearch)
-  )
-  const groupedTransformPlugins = $derived(
-    groupTransformPlugins(filteredTransformPlugins)
-  )
-  const selectedActionValue = $derived(
-    selectedFileAction
-      ? `${FILE_ACTION_PREFIX}${selectedFileAction}`
-      : selectedPluginId
-        ? `${TRANSFORM_ACTION_PREFIX}${selectedPluginId}`
-        : ''
-  )
   const canTransformSelection = $derived(
     !busy && selectionStart >= 0 && selectionLength > 0
   )
   const canUseFileRangeAction = $derived(!busy && fileSize > 0)
   const canUseActions = $derived(!busy)
-  const hasOptionsSchema = $derived(Boolean(selectedPlugin?.argsSchema))
   const optionSchema = $derived(
     parseJsonObject(selectedPlugin?.argsSchema || '')
   )
@@ -255,17 +224,20 @@
   const optionsValidationError = $derived(
     selectedPlugin ? validateTransformOptions(selectedPlugin, optionsJson.trim()) : ''
   )
-  const descriptorPreview = $derived(
+  const descriptorInputState = $derived(
     selectedPlugin
-      ? createTransformDescriptorPreview(selectedPlugin.id, optionsJson)
+      ? parseTransformDescriptorInput(selectedPlugin, descriptorJson)
       : undefined
+  )
+  const actionPickerGroups = $derived(
+    buildActionPickerGroups(actionQuery)
   )
   const canApplyTransform = $derived(
     Boolean(selectedPlugin && canUseTransformPlugin(selectedPlugin)) &&
       transformRange.error === '' &&
       transformRange.length > 0 &&
       optionsValidationError === '' &&
-      descriptorPreview?.error === '' &&
+      descriptorInputState?.error === '' &&
       !busy
   )
   const canApplyFileAction = $derived(
@@ -286,9 +258,6 @@
   const latestResult = $derived(results[0])
   const resultHistorySummary = $derived(
     latestResult?.summary || strings.transform.resultHistoryLabel
-  )
-  const presetHistorySummary = $derived(
-    presets[0]?.pluginName || strings.transform.presetHistoryLabel
   )
 
   $effect(() => {
@@ -505,29 +474,6 @@
     })
   }
 
-  function filterTransformPlugins(
-    entries: WebviewTransformPlugin[],
-    query: string
-  ): WebviewTransformPlugin[] {
-    const normalizedQuery = query.trim().toLowerCase()
-    if (!normalizedQuery) {
-      return entries
-    }
-
-    return entries.filter((plugin) =>
-      [
-        plugin.id,
-        plugin.name,
-        plugin.description,
-        plugin.help,
-        transformOperationLabel(plugin.operation),
-      ]
-        .join(' ')
-        .toLowerCase()
-        .includes(normalizedQuery)
-    )
-  }
-
   function isMutatingTransform(plugin: WebviewTransformPlugin): boolean {
     return plugin.operation !== 2
   }
@@ -538,71 +484,17 @@
     return plugin?.operation === 2
   }
 
+  function hasTransformArgsSchema(plugin: WebviewTransformPlugin): boolean {
+    return parseJsonObject(plugin.argsSchema || '')?.type === 'object'
+  }
+
   function canUseTransformPlugin(plugin: WebviewTransformPlugin): boolean {
+    if (!hasTransformArgsSchema(plugin)) {
+      return false
+    }
     return isInspectOnlyTransform(plugin)
       ? canUseInspectableContent
       : canTransformSelection
-  }
-
-  function groupTransformPlugins(
-    entries: WebviewTransformPlugin[]
-  ): TransformPluginGroup[] {
-    const groups = [
-      {
-        label: strings.transform.calculationsGroup,
-        plugins: sortTransformPlugins(
-          entries.filter((plugin) => !isMutatingTransform(plugin))
-        ),
-      },
-      {
-        label: strings.transform.transformsGroup,
-        plugins: sortTransformPlugins(
-          entries.filter((plugin) => isMutatingTransform(plugin))
-        ),
-      },
-    ].filter((group) => group.plugins.length > 0)
-
-    return groups.sort((left, right) =>
-      left.label.localeCompare(right.label, undefined, { sensitivity: 'base' })
-    )
-  }
-
-  function transformActionValue(pluginId: string): string {
-    return `${TRANSFORM_ACTION_PREFIX}${pluginId}`
-  }
-
-  function fileActionValue(action: FileSpliceActionId): string {
-    return `${FILE_ACTION_PREFIX}${action}`
-  }
-
-  function sessionActionValue(action: SessionActionId): string {
-    return `${SESSION_ACTION_PREFIX}${action}`
-  }
-
-  function parseFileActionValue(value: string): FileSpliceActionId | undefined {
-    if (!value.startsWith(FILE_ACTION_PREFIX)) {
-      return undefined
-    }
-    const action = value.slice(FILE_ACTION_PREFIX.length)
-    return action === 'exportRange' ||
-      action === 'insertFile' ||
-      action === 'replaceRangeWithFile'
-      ? action
-      : undefined
-  }
-
-  function parseSessionActionValue(value: string): SessionActionId | undefined {
-    if (!value.startsWith(SESSION_ACTION_PREFIX)) {
-      return undefined
-    }
-    const action = value.slice(SESSION_ACTION_PREFIX.length)
-    return action === 'createCheckpoint' ||
-      action === 'rollbackCheckpoint' ||
-      action === 'restoreCheckpoint' ||
-      action === 'exportChangeLog' ||
-      action === 'applyChangeLog'
-      ? action
-      : undefined
   }
 
   function fileActionLabel(action: FileSpliceActionId | ''): string {
@@ -642,6 +534,200 @@
       default:
         return strings.transform.apply
     }
+  }
+
+  function sessionActionLabel(action: SessionActionId): string {
+    switch (action) {
+      case 'createCheckpoint':
+        return strings.transform.createCheckpoint
+      case 'rollbackCheckpoint':
+        return strings.transform.rollbackCheckpoint
+      case 'restoreCheckpoint':
+        return strings.transform.restoreCheckpoint
+      case 'exportChangeLog':
+        return strings.transform.exportChangeLog
+      case 'applyChangeLog':
+        return strings.transform.applyChangeLog
+    }
+  }
+
+  function sessionActionDescription(action: SessionActionId): string {
+    switch (action) {
+      case 'createCheckpoint':
+        return strings.transform.createCheckpointDescription
+      case 'rollbackCheckpoint':
+        return strings.transform.rollbackCheckpointDescription
+      case 'restoreCheckpoint':
+        return strings.transform.restoreCheckpointDescription
+      case 'exportChangeLog':
+        return strings.transform.exportChangeLogDescription
+      case 'applyChangeLog':
+        return strings.transform.applyChangeLogDescription
+    }
+  }
+
+  function transformPluginDescription(plugin: WebviewTransformPlugin): string {
+    const operation = transformOperationLabel(plugin.operation)
+    const description =
+      plugin.description || plugin.help || strings.transform.noDescription
+    return `${operation}: ${description}`
+  }
+
+  function actionEntryMatches(entry: ActionPickerEntry, query: string): boolean {
+    const normalizedQuery = query.trim().toLowerCase()
+    if (!normalizedQuery) {
+      return true
+    }
+    return [
+      entry.label,
+      entry.description,
+      entry.group,
+      entry.pluginId,
+      entry.fileAction,
+      entry.sessionAction,
+    ]
+      .filter(Boolean)
+      .join(' ')
+      .toLowerCase()
+      .includes(normalizedQuery)
+  }
+
+  function buildActionPickerGroups(query: string): ActionPickerGroup[] {
+    const sessionActions: SessionActionId[] = [
+      'createCheckpoint',
+      'rollbackCheckpoint',
+      'restoreCheckpoint',
+      'exportChangeLog',
+      'applyChangeLog',
+    ]
+    const fileActions: FileSpliceActionId[] = [
+      'exportRange',
+      'insertFile',
+      'replaceRangeWithFile',
+    ]
+
+    const groups: ActionPickerGroup[] = [
+      {
+        label: strings.transform.sessionGroup,
+        entries: sessionActions.map((action) => ({
+          id: `${SESSION_ACTION_PREFIX}${action}`,
+          label: sessionActionLabel(action),
+          description: sessionActionDescription(action),
+          group: strings.transform.sessionGroup,
+          disabled: !canUseActions,
+          kind: 'session',
+          sessionAction: action,
+        })),
+      },
+      {
+        label: strings.transform.fileSplicingGroup,
+        entries: fileActions.map((action) => ({
+          id: `${FILE_ACTION_PREFIX}${action}`,
+          label: fileActionLabel(action),
+          description: fileActionDescription(action),
+          group: strings.transform.fileSplicingGroup,
+          disabled:
+            action === 'insertFile' ? !canUseActions : !canUseFileRangeAction,
+          kind: 'file',
+          fileAction: action,
+        })),
+      },
+      {
+        label: strings.transform.calculationsGroup,
+        entries: sortTransformPlugins(
+          plugins.filter((plugin) => !isMutatingTransform(plugin))
+        ).map((plugin) => ({
+          id: `${TRANSFORM_ACTION_PREFIX}${plugin.id}`,
+          label: plugin.name || plugin.id,
+          description: transformPluginDescription(plugin),
+          group: strings.transform.calculationsGroup,
+          disabled: !canUseTransformPlugin(plugin),
+          kind: 'transform',
+          pluginId: plugin.id,
+        })),
+      },
+      {
+        label: strings.transform.transformsGroup,
+        entries: sortTransformPlugins(
+          plugins.filter((plugin) => isMutatingTransform(plugin))
+        ).map((plugin) => ({
+          id: `${TRANSFORM_ACTION_PREFIX}${plugin.id}`,
+          label: plugin.name || plugin.id,
+          description: transformPluginDescription(plugin),
+          group: strings.transform.transformsGroup,
+          disabled: !canUseTransformPlugin(plugin),
+          kind: 'transform',
+          pluginId: plugin.id,
+        })),
+      },
+    ]
+
+    return groups
+      .map((group) => ({
+        ...group,
+        entries: group.entries.filter((entry) => actionEntryMatches(entry, query)),
+      }))
+      .filter((group) => group.entries.length > 0)
+  }
+
+  function firstEnabledAction(): ActionPickerEntry | undefined {
+    return actionPickerGroups
+      .flatMap((group) => group.entries)
+      .find((entry) => !entry.disabled)
+  }
+
+  function openActionPicker(): void {
+    requestTransforms()
+    actionPickerOpen = true
+  }
+
+  function closeActionPicker(): void {
+    actionPickerOpen = false
+  }
+
+  function chooseAction(entry: ActionPickerEntry): void {
+    if (entry.disabled) {
+      return
+    }
+
+    actionQuery = ''
+    actionPickerOpen = false
+    if (entry.kind === 'session' && entry.sessionAction) {
+      runSessionAction(entry.sessionAction)
+      return
+    }
+    if (entry.kind === 'file' && entry.fileAction) {
+      void openFileActionDialog(entry.fileAction)
+      return
+    }
+    if (entry.kind === 'transform' && entry.pluginId) {
+      void openTransformDialog(entry.pluginId)
+    }
+  }
+
+  function handleActionPickerKeydown(event: KeyboardEvent): void {
+    if (event.key === 'Escape') {
+      event.preventDefault()
+      closeActionPicker()
+      return
+    }
+    if (event.key !== 'Enter') {
+      return
+    }
+    const entry = firstEnabledAction()
+    if (!entry) {
+      return
+    }
+    event.preventDefault()
+    chooseAction(entry)
+  }
+
+  function handleActionPickerFocusOut(event: FocusEvent): void {
+    const nextTarget = event.relatedTarget
+    if (nextTarget instanceof Node && actionPicker?.contains(nextTarget)) {
+      return
+    }
+    closeActionPicker()
   }
 
   function advertisedTransformExamples(
@@ -712,7 +798,7 @@
     }
   }
 
-  function parseTransformDescriptorArgs(rawOptionsJson: string): JsonObject {
+  function parseTransformOptionsArgs(rawOptionsJson: string): JsonObject {
     const text = rawOptionsJson.trim()
     if (!text) {
       return {}
@@ -743,38 +829,102 @@
     return canonicalizeTransformDescriptorValue(args) as JsonObject
   }
 
-  function utf8ToHex(value: string): string {
-    return Array.from(new TextEncoder().encode(value), (byte) =>
-      byte.toString(16).padStart(2, '0')
-    ).join('')
-  }
-
-  function createTransformDescriptorPreview(
+  function createTransformDescriptorJson(
     transformId: string,
     rawOptionsJson: string
-  ): TransformDescriptorPreview {
+  ): string {
+    const args = canonicalizeTransformDescriptorArgs(
+      parseTransformOptionsArgs(rawOptionsJson)
+    )
+    return JSON.stringify({
+      transformId: transformId.trim(),
+      args,
+    })
+  }
+
+  function parseTransformDescriptorInput(
+    plugin: WebviewTransformPlugin,
+    rawDescriptorJson: string
+  ): TransformDescriptorInputState {
+    const text = rawDescriptorJson.trim()
+    if (!text) {
+      return { optionsJson: '', error: strings.transform.invalidJson }
+    }
+    let parsed: unknown
     try {
-      const args = canonicalizeTransformDescriptorArgs(
-        parseTransformDescriptorArgs(rawOptionsJson)
-      )
-      const descriptorJson = JSON.stringify({
-        transformId: transformId.trim(),
-        args,
-      })
+      parsed = JSON.parse(text)
+    } catch {
+      return { optionsJson: '', error: strings.transform.invalidJson }
+    }
+    if (!schemaObject(parsed)) {
       return {
-        json: descriptorJson,
-        hex: utf8ToHex(descriptorJson),
-        error: '',
+        optionsJson: '',
+        error: strings.transform.schemaObject(strings.transform.descriptorPath),
       }
-    } catch (error) {
+    }
+    const unknownKey = Object.keys(parsed).find(
+      (key) => key !== 'transformId' && key !== 'args'
+    )
+    if (unknownKey) {
       return {
-        json: '',
-        hex: '',
-        error:
-          error instanceof Error && error.message
-            ? error.message
-            : strings.transform.invalidJson,
+        optionsJson: '',
+        error: strings.transform.schemaUnknown(
+          strings.transform.descriptorPath,
+          unknownKey
+        ),
       }
+    }
+    if (typeof parsed.transformId !== 'string') {
+      return {
+        optionsJson: '',
+        error: strings.transform.schemaString(
+          strings.transform.descriptorTransformPath
+        ),
+      }
+    }
+    if (parsed.transformId !== plugin.id) {
+      return {
+        optionsJson: '',
+        error: strings.transform.descriptorTransformMismatch,
+      }
+    }
+    const args = parsed.args === undefined ? {} : parsed.args
+    if (!schemaObject(args)) {
+      return {
+        optionsJson: '',
+        error: strings.transform.schemaObject(strings.transform.descriptorArgsPath),
+      }
+    }
+    const canonicalArgs = canonicalizeTransformDescriptorArgs(args)
+    return {
+      optionsJson:
+        Object.keys(canonicalArgs).length > 0 ? JSON.stringify(canonicalArgs) : '',
+      error: '',
+    }
+  }
+
+  function syncDescriptorJsonFromOptions(): void {
+    const plugin = selectedPlugin
+    if (!plugin) {
+      descriptorJson = ''
+      return
+    }
+    try {
+      descriptorJson = createTransformDescriptorJson(plugin.id, optionsJson)
+    } catch {
+      descriptorJson = ''
+    }
+  }
+
+  function setDescriptorJsonInput(value: string): void {
+    descriptorJson = value
+    const plugin = selectedPlugin
+    if (!plugin) {
+      return
+    }
+    const parsed = parseTransformDescriptorInput(plugin, value)
+    if (!parsed.error) {
+      optionsJson = parsed.optionsJson
     }
   }
 
@@ -969,23 +1119,22 @@
     plugin: WebviewTransformPlugin,
     rawOptionsJson: string
   ): string {
-    if (rawOptionsJson.length === 0) {
-      return ''
+    if (!plugin.argsSchema) {
+      return strings.transform.missingSchema
     }
 
     let parsedOptions: unknown
-    try {
-      parsedOptions = JSON.parse(rawOptionsJson)
-    } catch {
-      return strings.transform.invalidJson
-    }
-
-    if (!schemaObject(parsedOptions)) {
-      return strings.transform.schemaObject(strings.transform.optionsPath)
-    }
-
-    if (!plugin.argsSchema) {
-      return ''
+    if (rawOptionsJson.length === 0) {
+      parsedOptions = {}
+    } else {
+      try {
+        parsedOptions = JSON.parse(rawOptionsJson)
+      } catch {
+        return strings.transform.invalidJson
+      }
+      if (!schemaObject(parsedOptions)) {
+        return strings.transform.schemaObject(strings.transform.optionsPath)
+      }
     }
 
     let schema: unknown
@@ -1330,6 +1479,7 @@
       }
     }
     optionsJson = JSON.stringify(options)
+    syncDescriptorJsonFromOptions()
   }
 
   async function openTransformDialog(pluginId: string): Promise<void> {
@@ -1337,15 +1487,21 @@
     selectedPluginId = pluginId
     selectedFileAction = ''
     selectedContentSource = 'computed'
-    if (!plugin) {
+    if (!plugin || !canUseTransformPlugin(plugin)) {
+      selectedPluginId = ''
       return
     }
 
     optionsJson = savedOptionsByPluginId[plugin.id] ?? plugin.defaultArgs ?? ''
+    try {
+      descriptorJson = createTransformDescriptorJson(plugin.id, optionsJson)
+    } catch {
+      descriptorJson = ''
+    }
     resetRangeInputs()
     dialogOpen = true
     await tick()
-    if (plugin.argsSchema) {
+    if (hasOptionForm) {
       optionsInput?.focus()
     } else {
       applyButton?.focus()
@@ -1388,26 +1544,6 @@
     }
   }
 
-  function handleSelectChange(event: Event): void {
-    const select = event.currentTarget
-    if (!(select instanceof HTMLSelectElement)) {
-      return
-    }
-    const sessionAction = parseSessionActionValue(select.value)
-    if (sessionAction) {
-      runSessionAction(sessionAction)
-      return
-    }
-    const fileAction = parseFileActionValue(select.value)
-    if (fileAction) {
-      void openFileActionDialog(fileAction)
-      return
-    }
-    if (select.value.startsWith(TRANSFORM_ACTION_PREFIX)) {
-      void openTransformDialog(select.value.slice(TRANSFORM_ACTION_PREFIX.length))
-    }
-  }
-
   function handleContentSourceChange(event: Event): void {
     const select = event.currentTarget
     if (!(select instanceof HTMLSelectElement)) {
@@ -1428,6 +1564,7 @@
     selectedPluginId = ''
     selectedFileAction = ''
     optionsJson = ''
+    descriptorJson = ''
   }
 
   function useTransformOptionExample(index: number): void {
@@ -1435,24 +1572,8 @@
       return
     }
     optionsJson = advertisedExamples[index]
+    syncDescriptorJsonFromOptions()
     void tick().then(() => optionsInput?.focus())
-  }
-
-  async function openTransformPreset(
-    preset: TransformPresetHistoryItem
-  ): Promise<void> {
-    const plugin = plugins.find((entry) => entry.id === preset.pluginId)
-    if (!plugin) {
-      return
-    }
-
-    await openTransformDialog(plugin.id)
-    optionsJson = preset.optionsJson
-    if (presetHistoryMenu) {
-      presetHistoryMenu.open = false
-    }
-    await tick()
-    optionsInput?.focus()
   }
 
   function applySelectedTransform(): void {
@@ -1465,7 +1586,11 @@
       return
     }
 
-    const trimmedOptions = optionsJson.trim()
+    const descriptorState = parseTransformDescriptorInput(plugin, descriptorJson)
+    if (descriptorState.error) {
+      return
+    }
+    const trimmedOptions = descriptorState.optionsJson.trim()
     if (trimmedOptions) {
       savedOptionsByPluginId = {
         ...savedOptionsByPluginId,
@@ -1539,102 +1664,71 @@
 </script>
 
 <div class="transform-panel">
-  <label class="transform-label" for="transformSelect">
-    {strings.transform.label}
-  </label>
-  <input
-    class="transform-search"
-    type="search"
-    value={pluginSearch}
-    placeholder={strings.transform.searchTransforms}
-    aria-label={strings.transform.searchTransforms}
-    title={strings.transform.searchTransformsTitle}
-    disabled={!canUseActions}
-    onfocus={requestTransforms}
-    oninput={(event) => {
-      const input = event.currentTarget
-      if (input instanceof HTMLInputElement) {
-        pluginSearch = input.value
-      }
-    }}
-  />
-  <select
-    id="transformSelect"
-    class="transform-select"
-    disabled={!canUseActions}
-    title={controlTitle}
-    value={selectedActionValue}
-    onfocus={requestTransforms}
-    onpointerdown={requestTransforms}
-    onchange={handleSelectChange}
+  <div
+    bind:this={actionPicker}
+    class="transform-action-picker"
+    onfocusout={handleActionPickerFocusOut}
   >
-    <option value="">{strings.transform.choose}</option>
-    <optgroup label={strings.transform.sessionGroup}>
-      <option value={sessionActionValue('createCheckpoint')}>
-        {strings.transform.createCheckpoint}
-      </option>
-      <option value={sessionActionValue('rollbackCheckpoint')}>
-        {strings.transform.rollbackCheckpoint}
-      </option>
-      <option value={sessionActionValue('restoreCheckpoint')}>
-        {strings.transform.restoreCheckpoint}
-      </option>
-      <option value={sessionActionValue('exportChangeLog')}>
-        {strings.transform.exportChangeLog}
-      </option>
-      <option value={sessionActionValue('applyChangeLog')}>
-        {strings.transform.applyChangeLog}
-      </option>
-    </optgroup>
-    <optgroup label={strings.transform.fileSplicingGroup}>
-      <option
-        value={fileActionValue('exportRange')}
-        disabled={!canUseFileRangeAction}
+    <label class="transform-label" for="transformActionSearch">
+      {strings.transform.label}
+    </label>
+    <input
+      id="transformActionSearch"
+      class="transform-action-input"
+      type="search"
+      value={actionQuery}
+      placeholder={strings.transform.searchActions}
+      aria-label={strings.transform.searchActions}
+      title={controlTitle}
+      disabled={!canUseActions}
+      onfocus={openActionPicker}
+      oninput={(event) => {
+        const input = event.currentTarget
+        if (input instanceof HTMLInputElement) {
+          actionQuery = input.value
+          actionPickerOpen = true
+        }
+      }}
+      onkeydown={handleActionPickerKeydown}
+    />
+    {#if actionPickerOpen && canUseActions}
+      <div
+        class="transform-action-menu"
+        role="listbox"
+        aria-label={strings.transform.actionsLabel}
       >
-        {strings.transform.exportRange}
-      </option>
-      <option value={fileActionValue('insertFile')}>
-        {strings.transform.insertFile}
-      </option>
-      <option
-        value={fileActionValue('replaceRangeWithFile')}
-        disabled={!canUseFileRangeAction}
-      >
-        {strings.transform.replaceRangeWithFile}
-      </option>
-    </optgroup>
-    {#if plugins.length === 0}
-      <optgroup label={strings.transform.transformsGroup}>
-        <option value="" disabled>
-          {pluginsLoading
-            ? strings.transform.loading
-            : pluginsLoaded
-              ? strings.transform.noTransforms
-              : strings.transform.loadTransforms}
-        </option>
-      </optgroup>
-    {:else if filteredTransformPlugins.length === 0}
-      <optgroup label={strings.transform.transformsGroup}>
-        <option value="" disabled>
-          {strings.transform.noTransformMatches}
-        </option>
-      </optgroup>
-    {:else}
-      {#each groupedTransformPlugins as group (group.label)}
-        <optgroup label={group.label}>
-          {#each group.plugins as plugin (plugin.id)}
-            <option
-              value={transformActionValue(plugin.id)}
-              title={plugin.description || plugin.id}
-              disabled={!canUseTransformPlugin(plugin)}
-            >
-              {plugin.name || plugin.id}
-            </option>
+        {#if actionPickerGroups.length === 0}
+          <div class="transform-action-empty">
+            {pluginsLoading
+              ? strings.transform.loading
+              : strings.transform.noActionMatches}
+          </div>
+        {:else}
+          {#each actionPickerGroups as group (group.label)}
+            <div class="transform-action-group">
+              <div class="transform-action-group-label">{group.label}</div>
+              {#each group.entries as entry (entry.id)}
+                <button
+                  type="button"
+                  class="transform-action-item"
+                  role="option"
+                  disabled={entry.disabled}
+                  aria-selected="false"
+                  onmousedown={(event) => event.preventDefault()}
+                  onclick={() => chooseAction(entry)}
+                >
+                  <span class="transform-action-name">{entry.label}</span>
+                  <span class="transform-action-description">
+                    {entry.description}
+                  </span>
+                </button>
+              {/each}
+            </div>
           {/each}
-        </optgroup>
-      {/each}
+        {/if}
+      </div>
     {/if}
-  </select>
+  </div>
   {#if busy && cancelable}
     <button
       type="button"
@@ -1644,78 +1738,6 @@
     >
       {strings.transform.cancelInFlight}
     </button>
-  {/if}
-  {#if presets.length > 0}
-    <details bind:this={presetHistoryMenu} class="transform-preset-history">
-      <summary
-        aria-label={strings.transform.presetHistoryTitle}
-        title={strings.transform.presetHistoryTitle}
-      >
-        <span>{presetHistorySummary}</span>
-      </summary>
-      <div
-        class="transform-preset-history-menu"
-        role="menu"
-        aria-label={strings.transform.presetHistoryLabel}
-      >
-        {#each presets as preset (preset.id)}
-          <button
-            type="button"
-            role="menuitem"
-            title={strings.transform.openPreset(preset.pluginName)}
-            disabled={!plugins.some((plugin) => plugin.id === preset.pluginId)}
-            onclick={() => openTransformPreset(preset)}
-          >
-            <span class="transform-result-history-name">{preset.pluginName}</span>
-            <span class="transform-result-history-meta">
-              {preset.summary} | {preset.createdAtLabel}
-            </span>
-          </button>
-        {/each}
-      </div>
-    </details>
-  {/if}
-  {#if metadata}
-    <details bind:this={metadataMenu} class="transform-metadata">
-      <summary
-        aria-label={strings.transform.metadataTitle}
-        title={strings.transform.metadataTitle}
-      >
-        <span>{metadata.summary}</span>
-      </summary>
-      <div
-        class="transform-metadata-menu"
-        aria-label={strings.transform.metadataLabel}
-      >
-        <dl class="transform-metadata-grid">
-          <dt>{strings.transform.metadataOperation}</dt>
-          <dd>{metadata.operationLabel}</dd>
-          <dt>{strings.transform.contentSource}</dt>
-          <dd>{metadata.contentSourceLabel}</dd>
-          <dt>{strings.transform.metadataSerial}</dt>
-          <dd>{metadata.serialLabel}</dd>
-          <dt>{strings.transform.metadataRange}</dt>
-          <dd>{metadata.rangeLabel}</dd>
-          <dt>{strings.transform.length}</dt>
-          <dd>{metadata.lengthLabel}</dd>
-          <dt>{strings.transform.metadataReplacement}</dt>
-          <dd>{metadata.replacementLengthLabel}</dd>
-          <dt>{strings.transform.metadataComputedSize}</dt>
-          <dd>{metadata.computedFileSizeLabel}</dd>
-          <dt>{strings.transform.metadataContent}</dt>
-          <dd>{metadata.contentChangedLabel}</dd>
-        </dl>
-        <div class="help-section-title">{strings.transform.descriptor}</div>
-        <label class="transform-options-field">
-          <span>{strings.transform.descriptorJson}</span>
-          <textarea readonly rows="3" value={metadata.descriptorJson}></textarea>
-        </label>
-        <label class="transform-options-field">
-          <span>{strings.transform.descriptorHex}</span>
-          <textarea readonly rows="3" value={metadata.descriptorHex}></textarea>
-        </label>
-      </div>
-    </details>
   {/if}
   {#if results.length > 0}
     <details bind:this={resultHistoryMenu} class="transform-result-history">
@@ -1769,7 +1791,7 @@
     <h2 id="transformDialogTitle">{selectedPlugin.name || selectedPlugin.id}</h2>
     <div class="transform-dialog-body">
       <div class="help-muted">
-        {selectedPlugin.id} | {transformOperationLabel(selectedPlugin.operation)}
+        {transformOperationLabel(selectedPlugin.operation)}
       </div>
       <p>{optionHelp.description}</p>
 
@@ -1860,205 +1882,132 @@
         <div class="help-section-title">{strings.transform.examples}</div>
         <div class="help-examples">
           {#each advertisedExamples as example, index}
-            {#if hasOptionsSchema}
-              <button
-                type="button"
-                class="help-example"
+            <button
+              type="button"
+              class="help-example"
                 title={strings.transform.useExample}
                 onclick={() => useTransformOptionExample(index)}
               >
-                {example}
+                {strings.transform.exampleLabel(index + 1)}
               </button>
-            {:else}
-              <span class="help-example">{example}</span>
-            {/if}
           {/each}
         </div>
       {/if}
 
-      {#if hasOptionsSchema}
-        {#if hasOptionForm}
-          <div class="help-section-title">{strings.transform.options}</div>
-          <div class="transform-options-form">
-            {#each transformOptionFields as field (field.key)}
-              <div class="transform-option-field">
-                <label class="transform-option-label" for={field.id}>
-                  {field.label}
-                </label>
-                {#if field.control === 'select'}
-                  <select
-                    bind:this={optionsInput}
-                    id={field.id}
-                    value={field.value}
-                    aria-invalid={optionsValidationError ? 'true' : 'false'}
-                    onchange={(event) => {
-                      const select = event.currentTarget
-                      if (select instanceof HTMLSelectElement) {
-                        setOptionValue(field, select.value)
-                      }
-                    }}
-                    onkeydown={handleOptionsKeydown}
-                  >
-                    {#if !field.required}
-                      <option value="">{strings.transform.optionUnset}</option>
-                    {/if}
-                    {#if field.groups.length > 0}
-                      {#each field.groups as group}
-                        <optgroup label={group.label}>
-                          {#each group.options as choice}
-                            <option value={choice.value}>{choice.label}</option>
-                          {/each}
-                        </optgroup>
-                      {/each}
-                      {#each field.ungroupedChoices as choice}
-                        <option value={choice.value}>{choice.label}</option>
-                      {/each}
-                    {:else}
-                      {#each field.choices as choice}
-                        <option value={choice.value}>{choice.label}</option>
-                      {/each}
-                    {/if}
-                  </select>
-                {:else if field.control === 'checkbox'}
-                  <input
-                    bind:this={optionsInput}
-                    id={field.id}
-                    type="checkbox"
-                    checked={field.checked}
-                    aria-invalid={optionsValidationError ? 'true' : 'false'}
-                    onchange={(event) => {
-                      const input = event.currentTarget
-                      if (input instanceof HTMLInputElement) {
-                        setOptionValue(field, input.checked)
-                      }
-                    }}
-                    onkeydown={handleOptionsKeydown}
-                  />
-                {:else}
-                  <input
-                    bind:this={optionsInput}
-                    id={field.id}
-                    type={field.control === 'number' ? 'number' : 'text'}
-                    min={field.minimum}
-                    max={field.maximum}
-                    step={field.step}
-                    value={field.value}
-                    placeholder={field.placeholder}
-                    aria-invalid={optionsValidationError ? 'true' : 'false'}
-                    oninput={(event) => {
-                      const input = event.currentTarget
-                      if (input instanceof HTMLInputElement) {
-                        setOptionValue(field, input.value)
-                      }
-                    }}
-                    onkeydown={handleOptionsKeydown}
-                  />
-                {/if}
-                {#if field.description}
-                  <div class="transform-option-description">
-                    {field.description}
-                  </div>
-                {/if}
-              </div>
-            {/each}
-          </div>
-          <details class="transform-raw-options">
-            <summary>{strings.transform.advancedOptions}</summary>
-            <label class="transform-options-field">
-              <span>{strings.transform.optionsJson}</span>
-              <textarea
-                value={optionsJson}
-                maxlength={MAX_TRANSFORM_OPTIONS_LENGTH}
-                rows="3"
-                placeholder={advertisedExamples[0]
-                  ? strings.transform.examplePlaceholder(advertisedExamples[0])
-                  : strings.transform.optionsPlaceholder}
-                aria-invalid={optionsValidationError ? 'true' : 'false'}
-                oninput={(event) => {
-                  const input = event.currentTarget
-                  if (input instanceof HTMLTextAreaElement) {
-                    optionsJson = input.value
-                  }
-                }}
-                onkeydown={handleOptionsKeydown}
-              ></textarea>
-            </label>
-          </details>
-        {:else}
-          <details class="transform-raw-options">
-            <summary>{strings.transform.advancedOptions}</summary>
-            <label class="transform-options-field">
-              <span>{strings.transform.optionsJson}</span>
-              <textarea
-                bind:this={optionsInput}
-                value={optionsJson}
-                maxlength={MAX_TRANSFORM_OPTIONS_LENGTH}
-                rows="3"
-                placeholder={advertisedExamples[0]
-                  ? strings.transform.examplePlaceholder(advertisedExamples[0])
-                  : strings.transform.optionsPlaceholder}
-                aria-invalid={optionsValidationError ? 'true' : 'false'}
-                oninput={(event) => {
-                  const input = event.currentTarget
-                  if (input instanceof HTMLTextAreaElement) {
-                    optionsJson = input.value
-                  }
-                }}
-                onkeydown={handleOptionsKeydown}
-              ></textarea>
-            </label>
-          </details>
-        {/if}
-      {:else}
-        <details class="transform-raw-options">
-          <summary>{strings.transform.advancedOptions}</summary>
-          <label class="transform-options-field">
-            <span>{strings.transform.optionsJson}</span>
-            <textarea
-              bind:this={optionsInput}
-              value={optionsJson}
-              maxlength={MAX_TRANSFORM_OPTIONS_LENGTH}
-              rows="3"
-              placeholder={advertisedExamples[0]
-                ? strings.transform.examplePlaceholder(advertisedExamples[0])
-                : strings.transform.optionsPlaceholder}
-              aria-invalid={optionsValidationError ? 'true' : 'false'}
-              oninput={(event) => {
-                const input = event.currentTarget
-                if (input instanceof HTMLTextAreaElement) {
-                  optionsJson = input.value
-                }
-              }}
-              onkeydown={handleOptionsKeydown}
-            ></textarea>
-          </label>
-        </details>
+      {#if hasOptionForm}
+        <div class="help-section-title">{strings.transform.options}</div>
+        <div class="transform-options-form">
+          {#each transformOptionFields as field (field.key)}
+            <div class="transform-option-field">
+              <label class="transform-option-label" for={field.id}>
+                {field.label}
+              </label>
+              {#if field.control === 'select'}
+                <select
+                  bind:this={optionsInput}
+                  id={field.id}
+                  value={field.value}
+                  aria-invalid={optionsValidationError ? 'true' : 'false'}
+                  onchange={(event) => {
+                    const select = event.currentTarget
+                    if (select instanceof HTMLSelectElement) {
+                      setOptionValue(field, select.value)
+                    }
+                  }}
+                  onkeydown={handleOptionsKeydown}
+                >
+                  {#if !field.required}
+                    <option value="">{strings.transform.optionUnset}</option>
+                  {/if}
+                  {#if field.groups.length > 0}
+                    {#each field.groups as group}
+                      <optgroup label={group.label}>
+                        {#each group.options as choice}
+                          <option value={choice.value}>{choice.label}</option>
+                        {/each}
+                      </optgroup>
+                    {/each}
+                    {#each field.ungroupedChoices as choice}
+                      <option value={choice.value}>{choice.label}</option>
+                    {/each}
+                  {:else}
+                    {#each field.choices as choice}
+                      <option value={choice.value}>{choice.label}</option>
+                    {/each}
+                  {/if}
+                </select>
+              {:else if field.control === 'checkbox'}
+                <input
+                  bind:this={optionsInput}
+                  id={field.id}
+                  type="checkbox"
+                  checked={field.checked}
+                  aria-invalid={optionsValidationError ? 'true' : 'false'}
+                  onchange={(event) => {
+                    const input = event.currentTarget
+                    if (input instanceof HTMLInputElement) {
+                      setOptionValue(field, input.checked)
+                    }
+                  }}
+                  onkeydown={handleOptionsKeydown}
+                />
+              {:else}
+                <input
+                  bind:this={optionsInput}
+                  id={field.id}
+                  type={field.control === 'number' ? 'number' : 'text'}
+                  min={field.minimum}
+                  max={field.maximum}
+                  step={field.step}
+                  value={field.value}
+                  placeholder={field.placeholder}
+                  aria-invalid={optionsValidationError ? 'true' : 'false'}
+                  oninput={(event) => {
+                    const input = event.currentTarget
+                    if (input instanceof HTMLInputElement) {
+                      setOptionValue(field, input.value)
+                    }
+                  }}
+                  onkeydown={handleOptionsKeydown}
+                />
+              {/if}
+              {#if field.description}
+                <div class="transform-option-description">
+                  {field.description}
+                </div>
+              {/if}
+            </div>
+          {/each}
+        </div>
       {/if}
 
-      {#if descriptorPreview}
-        <div class="help-section-title">{strings.transform.descriptor}</div>
-        <p class="help-muted">
-          {isInspectOnlyTransform(selectedPlugin)
-            ? strings.transform.inspectDescriptorNotice
-            : strings.transform.transformDescriptorNotice}
-        </p>
-        {#if descriptorPreview.error}
+      <details class="transform-raw-options">
+        <summary>{strings.transform.advancedOptions}</summary>
+        <label class="transform-options-field">
+          <span>{strings.transform.descriptorJson}</span>
+          <textarea
+            value={descriptorJson}
+            maxlength={MAX_TRANSFORM_DESCRIPTOR_LENGTH}
+            rows="4"
+            placeholder={strings.transform.descriptorPlaceholder(
+              selectedPlugin.id
+            )}
+            aria-invalid={descriptorInputState?.error ? 'true' : 'false'}
+            oninput={(event) => {
+              const input = event.currentTarget
+              if (input instanceof HTMLTextAreaElement) {
+                setDescriptorJsonInput(input.value)
+              }
+            }}
+            onkeydown={handleOptionsKeydown}
+          ></textarea>
+        </label>
+        {#if descriptorInputState?.error}
           <div class="transform-error" aria-live="polite">
-            {descriptorPreview.error}
-          </div>
-        {:else}
-          <div class="transform-descriptor-preview">
-            <label class="transform-options-field">
-              <span>{strings.transform.descriptorJson}</span>
-              <textarea readonly rows="3" value={descriptorPreview.json}></textarea>
-            </label>
-            <label class="transform-options-field">
-              <span>{strings.transform.descriptorHex}</span>
-              <textarea readonly rows="3" value={descriptorPreview.hex}></textarea>
-            </label>
+            {descriptorInputState.error}
           </div>
         {/if}
-      {/if}
+      </details>
 
       {#if optionsValidationError}
         <div class="transform-error" aria-live="polite">{optionsValidationError}</div>

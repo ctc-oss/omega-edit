@@ -173,6 +173,14 @@ describe('Transform plugin gRPC integration', () => {
       )
       expect(digestPlugin?.defaultArgs).to.equal('{"algorithm":"sha256"}')
       expect(digestPlugin?.argsSchema).to.include('"x-omega-enumGroups"')
+      const repeatPlugin = plugins.find(
+        (plugin) => plugin.id === 'omega.example.repeat'
+      )
+      expect(repeatPlugin?.defaultArgs).to.equal('')
+      expect(repeatPlugin?.argsSchema).to.include('"additionalProperties":false')
+      expect(
+        plugins.every((plugin) => JSON.parse(plugin.argsSchema).type === 'object')
+      ).to.equal(true)
 
       const ownedContentSession = await createSessionFromBytes(
         Buffer.from('abc', 'utf8')
@@ -266,6 +274,18 @@ describe('Transform plugin gRPC integration', () => {
           JSON.stringify({ level: 9 })
         )
         expect.fail('unknown base64 options should be rejected')
+      } catch (err) {
+        expect((err as Error).message).to.include('INVALID_ARGUMENT')
+      }
+
+      try {
+        await applyTransformPlugin(
+          sessionId,
+          'omega.example.common_checksums',
+          0,
+          3
+        )
+        expect.fail('missing checksum options should be rejected')
       } catch (err) {
         expect((err as Error).message).to.include('INVALID_ARGUMENT')
       }

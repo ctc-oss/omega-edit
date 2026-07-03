@@ -367,9 +367,17 @@ button:focus-visible {
   text-transform: uppercase;
 }
 
-.transform-search {
-  width: clamp(120px, 14vw, 190px);
-  min-width: 96px;
+.transform-action-picker {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.transform-action-input {
+  width: clamp(190px, 24vw, 340px);
+  min-width: 150px;
   height: 26px;
   padding: 3px 7px;
   border: 1px solid var(--vscode-input-border, var(--vscode-editorGroup-border));
@@ -379,15 +387,97 @@ button:focus-visible {
   font: inherit;
 }
 
-.transform-select {
-  width: clamp(150px, 18vw, 240px);
-  min-width: 120px;
-  height: 26px;
-  border: 1px solid var(--vscode-dropdown-border, var(--vscode-editorGroup-border));
-  border-radius: 2px;
-  color: var(--vscode-dropdown-foreground);
+.transform-action-input:focus {
+  outline: 1px solid var(--vscode-focusBorder);
+  outline-offset: -1px;
+}
+
+.transform-action-menu {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  z-index: 24;
+  display: grid;
+  gap: 4px;
+  width: min(420px, calc(100vw - 16px));
+  max-height: min(360px, 58vh);
+  overflow: auto;
+  padding: 5px;
+  border: 1px solid var(--vscode-editorGroup-border);
+  border-radius: 4px;
   background: var(--vscode-dropdown-background);
-  font: inherit;
+  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.34);
+}
+
+.transform-action-group {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.transform-action-group + .transform-action-group {
+  padding-top: 4px;
+  border-top: 1px solid var(--vscode-editorGroup-border);
+}
+
+.transform-action-group-label {
+  padding: 2px 7px;
+  color: var(--vscode-descriptionForeground);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+
+.transform-action-item {
+  display: grid;
+  gap: 2px;
+  width: 100%;
+  min-height: 0;
+  padding: 6px 7px;
+  border-color: transparent;
+  color: var(--vscode-dropdown-foreground);
+  background: transparent;
+  text-align: left;
+}
+
+.transform-action-item:hover:not(:disabled),
+.transform-action-item:focus {
+  background: var(--vscode-list-hoverBackground);
+}
+
+.transform-action-item:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.transform-action-name,
+.transform-action-description,
+.transform-action-empty {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.transform-action-name {
+  color: var(--vscode-foreground);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.transform-action-description,
+.transform-action-empty {
+  color: var(--vscode-descriptionForeground);
+  font-size: 11px;
+  line-height: 1.35;
+}
+
+.transform-action-description {
+  white-space: normal;
+}
+
+.transform-action-empty {
+  padding: 8px;
 }
 
 .transform-status {
@@ -404,16 +494,12 @@ button:focus-visible {
   flex: 0 0 auto;
 }
 
-.transform-result-history,
-.transform-preset-history,
-.transform-metadata {
+.transform-result-history {
   position: relative;
   min-width: 0;
 }
 
-.transform-result-history summary,
-.transform-preset-history summary,
-.transform-metadata summary {
+.transform-result-history summary {
   display: inline-flex;
   align-items: center;
   gap: 6px;
@@ -429,24 +515,18 @@ button:focus-visible {
   list-style: none;
 }
 
-.transform-result-history summary::-webkit-details-marker,
-.transform-preset-history summary::-webkit-details-marker,
-.transform-metadata summary::-webkit-details-marker {
+.transform-result-history summary::-webkit-details-marker {
   display: none;
 }
 
-.transform-result-history summary span,
-.transform-preset-history summary span,
-.transform-metadata summary span {
+.transform-result-history summary span {
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.transform-result-history summary::after,
-.transform-preset-history summary::after,
-.transform-metadata summary::after {
+.transform-result-history summary::after {
   flex: 0 0 auto;
   width: 0;
   height: 0;
@@ -456,22 +536,16 @@ button:focus-visible {
   content: "";
 }
 
-.transform-result-history[open] summary,
-.transform-preset-history[open] summary,
-.transform-metadata[open] summary {
+.transform-result-history[open] summary {
   color: var(--vscode-foreground);
   border-color: var(--vscode-focusBorder);
 }
 
-.transform-result-history[open] summary::after,
-.transform-preset-history[open] summary::after,
-.transform-metadata[open] summary::after {
+.transform-result-history[open] summary::after {
   transform: rotate(180deg);
 }
 
-.transform-result-history-menu,
-.transform-preset-history-menu,
-.transform-metadata-menu {
+.transform-result-history-menu {
   position: absolute;
   top: calc(100% + 4px);
   right: 0;
@@ -488,13 +562,7 @@ button:focus-visible {
   box-shadow: 0 8px 22px rgba(0, 0, 0, 0.34);
 }
 
-.transform-metadata-menu {
-  width: min(520px, calc(100vw - 16px));
-  padding: 8px;
-}
-
-.transform-result-history-menu button,
-.transform-preset-history-menu button {
+.transform-result-history-menu button {
   display: grid;
   gap: 2px;
   width: 100%;
@@ -507,9 +575,7 @@ button:focus-visible {
 }
 
 .transform-result-history-menu button:hover,
-.transform-result-history-menu button:focus,
-.transform-preset-history-menu button:hover,
-.transform-preset-history-menu button:focus {
+.transform-result-history-menu button:focus {
   background: var(--vscode-list-hoverBackground);
 }
 
@@ -535,25 +601,6 @@ button:focus-visible {
 .transform-result-history-meta {
   color: var(--vscode-descriptionForeground);
   font-size: 11px;
-}
-
-.transform-metadata-grid {
-  display: grid;
-  grid-template-columns: max-content minmax(0, 1fr);
-  gap: 4px 10px;
-  margin: 0;
-}
-
-.transform-metadata-grid dt {
-  color: var(--vscode-descriptionForeground);
-}
-
-.transform-metadata-grid dd {
-  min-width: 0;
-  margin: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 .dialog-backdrop {
@@ -2711,9 +2758,8 @@ body.vscode-high-contrast-light .text-byte.selected:hover {
     grid-template-columns: minmax(0, 1fr);
   }
 
-  .transform-result-history-menu,
-  .transform-preset-history-menu,
-  .transform-metadata-menu {
+  .transform-action-menu,
+  .transform-result-history-menu {
     right: auto;
     left: 0;
   }

@@ -33,7 +33,6 @@
   const DEFAULT_VISIBLE_ROWS = 16
   const INTERNAL_HEX_CLIPBOARD_FORMAT = 'application/x-omega-edit-hex'
   const TRANSFORM_RESULT_HISTORY_LIMIT = 8
-  const TRANSFORM_PRESET_HISTORY_LIMIT = 8
   const MAX_PERSISTED_RANGE_MAP_NODES = 5000
   const MAX_PERSISTED_RANGE_MAP_DEPTH = 64
   const MAX_PERSISTED_RANGE_MAP_TEXT_LENGTH = 4096
@@ -100,51 +99,6 @@
     byteLength: number
     createdAtLabel: string
     historyLabel: string
-  }
-
-  interface TransformPresetState {
-    id: string
-    pluginId: string
-    pluginName: string
-    optionsJson: string
-    descriptorJson: string
-    descriptorHex: string
-    createdAt: number
-  }
-
-  interface DisplayTransformPresetState extends TransformPresetState {
-    createdAtLabel: string
-    summary: string
-  }
-
-  interface TransformRunMetadataState {
-    pluginId: string
-    pluginName: string
-    operation: number
-    contentSource: WebviewSessionContentSource
-    contentChanged: boolean
-    offset: number
-    length: number
-    replacementLength: number
-    computedFileSize: number
-    descriptorJson: string
-    descriptorHex: string
-    serial?: number
-  }
-
-  interface DisplayTransformRunMetadataState {
-    pluginName: string
-    operationLabel: string
-    contentSourceLabel: string
-    contentChangedLabel: string
-    serialLabel: string
-    rangeLabel: string
-    lengthLabel: string
-    replacementLengthLabel: string
-    computedFileSizeLabel: string
-    descriptorJson: string
-    descriptorHex: string
-    summary: string
   }
 
   interface DisplayTransformResultState extends TransformResultState {
@@ -234,12 +188,6 @@
   let transformCancelable = $state(false)
   let transformResult = $state<TransformResultState | undefined>(undefined)
   let transformResultHistory = $state<TransformResultState[]>([])
-  let transformPresetHistory = $state<TransformPresetState[]>(
-    normalizeTransformPresets(restoredState?.transformPresetHistory)
-  )
-  let transformRunMetadata = $state<TransformRunMetadataState | undefined>(
-    undefined
-  )
   let transformResultSequence = $state(0)
   let contentSources = $state<WebviewSessionContentInfo[]>([
     {
@@ -407,14 +355,6 @@
   const displayTransformResultHistory = $derived(
     transformResultHistory.map(formatTransformResult)
   )
-  const displayTransformPresetHistory = $derived(
-    transformPresetHistory.map(formatTransformPreset)
-  )
-  const displayTransformRunMetadata = $derived(
-    transformRunMetadata
-      ? formatTransformRunMetadata(transformRunMetadata)
-      : undefined
-  )
 
   let analysisProfileRequestTimer: ReturnType<typeof setTimeout> | undefined
 
@@ -482,7 +422,6 @@
       selectionAnchor: number
       selectedOffset: number
       viewportSnapshot: PersistedViewportSnapshot | undefined
-      transformPresetHistory: TransformPresetState[]
     }> = {}
   ): void {
     setPreviewState({
@@ -496,7 +435,6 @@
       selectionAnchor,
       selectedOffset,
       viewportSnapshot,
-      transformPresetHistory,
       ...overrides,
     })
   }
@@ -1682,29 +1620,17 @@
     }
 
     const plugin = transformPlugins.find((entry) => entry.id === pluginId)
-    const descriptorMetadata = createTransformDescriptorMetadata(
-      pluginId,
-      optionsJson
-    )
-    if (!descriptorMetadata) {
-      transformFeedback = strings.transform.invalidJson
-      return
-    }
-    if (plugin) {
-      rememberTransformPreset(plugin, descriptorMetadata)
-    }
     transformInFlight = true
     transformCancelable = true
     transformFeedback = strings.transform.applying(plugin?.name || pluginId)
     transformResult = undefined
-    transformRunMetadata = undefined
     postToHost({
       type: 'applyTransform',
       pluginId,
       contentSource,
       offset,
       length,
-      optionsJson: descriptorMetadata.optionsJson || undefined,
+      optionsJson: optionsJson?.trim() || undefined,
     })
   }
 
@@ -1904,227 +1830,6 @@
       minute: '2-digit',
       second: '2-digit',
     })
-  }
-
-  function isJsonObject(value: unknown): value is Record<string, unknown> {
-    return typeof value === 'object' && value !== null && !Array.isArray(value)
-  }
-
-  function normalizeTransformPresets(value: unknown): TransformPresetState[] {
-    if (!Array.isArray(value)) {
-      return []
-    }
-
-    return value
-      .map((entry): TransformPresetState | undefined => {
-        if (!isJsonObject(entry)) {
-          return undefined
-        }
-        const {
-          id,
-          pluginId,
-          pluginName,
-          optionsJson,
-          descriptorJson,
-          descriptorHex,
-          createdAt,
-        } = entry
-        if (
-          typeof id !== 'string' ||
-          typeof pluginId !== 'string' ||
-          typeof pluginName !== 'string' ||
-          typeof optionsJson !== 'string' ||
-          typeof descriptorJson !== 'string' ||
-          typeof descriptorHex !== 'string' ||
-          typeof createdAt !== 'number' ||
-          !pluginId
-        ) {
-          return undefined
-        }
-        return {
-          id,
-          pluginId,
-          pluginName,
-          optionsJson,
-          descriptorJson,
-          descriptorHex,
-          createdAt,
-        }
-      })
-      .filter((entry): entry is TransformPresetState => Boolean(entry))
-      .sort((left, right) => right.createdAt - left.createdAt)
-      .slice(0, TRANSFORM_PRESET_HISTORY_LIMIT)
-  }
-
-  function parseTransformDescriptorArgs(optionsJson?: string): Record<string, unknown> {
-    const rawOptions = optionsJson?.trim() ?? ''
-    if (!rawOptions) {
-      return {}
-    }
-    const parsed: unknown = JSON.parse(rawOptions)
-    if (!isJsonObject(parsed)) {
-      throw new Error(strings.transform.schemaObject(strings.transform.optionsPath))
-    }
-    return parsed
-  }
-
-  function canonicalizeTransformDescriptorValue(value: unknown): unknown {
-    if (Array.isArray(value)) {
-      return value.map(canonicalizeTransformDescriptorValue)
-    }
-    if (!isJsonObject(value)) {
-      return value
-    }
-    return Object.keys(value)
-      .sort()
-      .reduce<Record<string, unknown>>((canonical, key) => {
-        canonical[key] = canonicalizeTransformDescriptorValue(value[key])
-        return canonical
-      }, {})
-  }
-
-  function canonicalizeTransformDescriptorArgs(
-    args: Record<string, unknown>
-  ): Record<string, unknown> {
-    return canonicalizeTransformDescriptorValue(args) as Record<string, unknown>
-  }
-
-  function utf8ToHex(value: string): string {
-    return Array.from(new TextEncoder().encode(value), (byte) =>
-      byte.toString(16).padStart(2, '0')
-    ).join('')
-  }
-
-  function createTransformDescriptorMetadata(
-    pluginId: string,
-    optionsJson?: string
-  ):
-    | {
-        optionsJson: string
-        descriptorJson: string
-        descriptorHex: string
-      }
-    | undefined {
-    try {
-      const args = parseTransformDescriptorArgs(optionsJson)
-      const canonicalArgs = canonicalizeTransformDescriptorArgs(args)
-      const descriptorJson = JSON.stringify({
-        transformId: pluginId.trim(),
-        args: canonicalArgs,
-      })
-      return {
-        optionsJson:
-          Object.keys(canonicalArgs).length > 0
-            ? JSON.stringify(canonicalArgs)
-            : '',
-        descriptorJson,
-        descriptorHex: utf8ToHex(descriptorJson),
-      }
-    } catch {
-      return undefined
-    }
-  }
-
-  function rememberTransformPreset(
-    plugin: WebviewTransformPlugin,
-    metadata: { optionsJson: string; descriptorJson: string; descriptorHex: string }
-  ): void {
-    const createdAt = Date.now()
-    const preset: TransformPresetState = {
-      id: `${createdAt}-${plugin.id}`,
-      pluginId: plugin.id,
-      pluginName: plugin.name || plugin.id,
-      optionsJson: metadata.optionsJson,
-      descriptorJson: metadata.descriptorJson,
-      descriptorHex: metadata.descriptorHex,
-      createdAt,
-    }
-    transformPresetHistory = [
-      preset,
-      ...transformPresetHistory.filter(
-        (entry) =>
-          entry.pluginId !== preset.pluginId ||
-          entry.descriptorHex !== preset.descriptorHex
-      ),
-    ].slice(0, TRANSFORM_PRESET_HISTORY_LIMIT)
-    savePreviewState({ transformPresetHistory })
-  }
-
-  function formatTransformPreset(
-    preset: TransformPresetState
-  ): DisplayTransformPresetState {
-    return {
-      ...preset,
-      createdAtLabel: formatTransformResultTime(preset.createdAt),
-      summary: preset.optionsJson || strings.transform.noOptions,
-    }
-  }
-
-  function transformOperationLabel(operation: number): string {
-    switch (operation) {
-      case 1:
-        return strings.transform.operationReplace
-      case 2:
-        return strings.transform.operationInspect
-      case 3:
-        return strings.transform.operationReplaceInspect
-      default:
-        return strings.transform.operationTransform
-    }
-  }
-
-  function createTransformRunMetadata(
-    message: TransformCompleteMessage
-  ): TransformRunMetadataState {
-    return {
-      pluginId: message.pluginId,
-      pluginName: transformPluginTitle(message.pluginId),
-      operation: message.operation,
-      contentSource: message.contentSource || 'computed',
-      contentChanged: message.contentChanged,
-      offset: message.offset,
-      length: message.length,
-      replacementLength: message.replacementLength,
-      computedFileSize: message.computedFileSize,
-      descriptorJson: message.descriptorJson,
-      descriptorHex: message.descriptorHex,
-      ...(message.serial === undefined ? {} : { serial: message.serial }),
-    }
-  }
-
-  function formatTransformRange(offset: number, length: number): string {
-    const start = formatSearchOffset(offset)
-    const end = formatSearchOffset(Math.max(offset, offset + Math.max(1, length) - 1))
-    return `${start}-${end}`
-  }
-
-  function formatTransformRunMetadata(
-    metadata: TransformRunMetadataState
-  ): DisplayTransformRunMetadataState {
-    const serialLabel =
-      metadata.serial === undefined
-        ? strings.transform.metadataNoSerial
-        : formatNumber(metadata.serial)
-    const summary = strings.transform.metadataSummary(
-      metadata.pluginName,
-      serialLabel
-    )
-    return {
-      pluginName: metadata.pluginName,
-      operationLabel: transformOperationLabel(metadata.operation),
-      contentSourceLabel: transformResultContentSourceLabel(metadata.contentSource),
-      contentChangedLabel: metadata.contentChanged
-        ? strings.transform.contentChanged
-        : strings.transform.contentUnchanged,
-      serialLabel,
-      rangeLabel: formatTransformRange(metadata.offset, metadata.length),
-      lengthLabel: strings.transform.bytes(metadata.length),
-      replacementLengthLabel: strings.transform.bytes(metadata.replacementLength),
-      computedFileSizeLabel: strings.transform.bytes(metadata.computedFileSize),
-      descriptorJson: metadata.descriptorJson,
-      descriptorHex: metadata.descriptorHex,
-      summary,
-    }
   }
 
   function createTransformResult(
@@ -2797,7 +2502,6 @@
         if (message.contentChanged) {
           clearSearchResults()
         }
-        transformRunMetadata = createTransformRunMetadata(message)
         const shouldSelectRange = shouldSelectTransformResultRange(message)
         if (shouldSelectRange && message.offset >= 0) {
           const transformedLength = message.contentChanged
@@ -2964,8 +2668,6 @@
     {transformPluginError}
     {transformFeedback}
     transformResults={displayTransformResultHistory}
-    transformPresets={displayTransformPresetHistory}
-    transformMetadata={displayTransformRunMetadata}
     activeTransformResultId={displayTransformResult?.id}
     {searchPanelVisible}
     {selectedOffset}

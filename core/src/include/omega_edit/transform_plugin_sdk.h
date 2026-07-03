@@ -30,7 +30,8 @@
 #define OMEGA_TRANSFORM_PLUGIN_EXPORT __attribute__((visibility("default")))
 #endif
 
-static const char OMEGA_TRANSFORM_PLUGIN_NO_ARGS_SCHEMA[] = "";
+static const char OMEGA_TRANSFORM_PLUGIN_NO_ARGS_SCHEMA[] =
+        "{\"type\":\"object\",\"properties\":{},\"additionalProperties\":false}";
 
 static inline void *omega_transform_plugin_sdk_alloc(const omega_transform_plugin_request_t *request_ptr, size_t size) {
     if (!request_ptr || !request_ptr->alloc) { return NULL; }
