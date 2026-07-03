@@ -123,6 +123,7 @@ describe('@omega-edit/ai toolkit', () => {
         length: 2,
         operation: 1,
         contentChanged: true,
+        serial: 7,
         computedFileSize: 3,
         replacementLength: 2,
         result: new Uint8Array(0),
@@ -142,6 +143,16 @@ describe('@omega-edit/ai toolkit', () => {
     })
 
     assert.equal(result.sessionId, 'session-id')
+    assert.equal(result.serial, 7)
+    assert.deepEqual(result.transformDescriptor, {
+      transformId: 'omega.example.case',
+      args: { case: 'upper' },
+      json: JSON.stringify({
+        transformId: 'omega.example.case',
+        args: { case: 'upper' },
+      }),
+      dataHex: makeTransformDataHex('omega.example.case', { case: 'upper' }),
+    })
     assert.equal(applyTransformPlugin.mock.calls.length, 1)
     assert.deepEqual(applyTransformPlugin.mock.calls[0], [
       'session-id',
@@ -1366,11 +1377,19 @@ describe('@omega-edit/ai toolkit', () => {
     try {
       const source = await toolkit.createSession(sourcePath)
       sourceSessionId = source.sessionId
-      await toolkit.applyTransformPlugin({
+      const liveTransform = await toolkit.applyTransformPlugin({
         sessionId: sourceSessionId,
         pluginId: 'omega.example.base64',
         offset: 0,
         length: 8,
+      })
+      assert.equal(liveTransform.contentChanged, true)
+      assert.ok(liveTransform.serial && liveTransform.serial > 0)
+      assert.deepEqual(liveTransform.transformDescriptor, {
+        transformId: 'omega.example.base64',
+        args: {},
+        json: JSON.stringify({ transformId: 'omega.example.base64', args: {} }),
+        dataHex: makeTransformDataHex('omega.example.base64'),
       })
       await toolkit.exportChangeLog(sourceSessionId, changeLogPath, true)
 
@@ -1454,12 +1473,32 @@ describe('@omega-edit/ai toolkit', () => {
     try {
       const source = await toolkit.createSession(sourcePath)
       sourceSessionId = source.sessionId
-      await toolkit.applyTransformPlugin({
+      const liveTransform = await toolkit.applyTransformPlugin({
         sessionId: sourceSessionId,
         pluginId: 'omega.example.bitwise',
         offset: 0,
         length: 3,
         optionsJson: JSON.stringify({ byte: '0x20', operator: 'xor' }),
+      })
+      assert.equal(liveTransform.contentChanged, true)
+      assert.ok(liveTransform.serial && liveTransform.serial > 0)
+      assert.deepEqual(liveTransform.transformDescriptor, {
+        transformId: 'omega.example.bitwise',
+        args: {
+          byte: '0x20',
+          operator: 'xor',
+        },
+        json: JSON.stringify({
+          transformId: 'omega.example.bitwise',
+          args: {
+            byte: '0x20',
+            operator: 'xor',
+          },
+        }),
+        dataHex: makeTransformDataHex('omega.example.bitwise', {
+          byte: '0x20',
+          operator: 'xor',
+        }),
       })
       await assertToolkitText(toolkit, sourceSessionId, 'abc')
       await toolkit.exportChangeLog(sourceSessionId, changeLogPath, true)

@@ -24,6 +24,15 @@ export interface PersistedPreviewState {
   selectionAnchor?: number
   selectedOffset?: number
   viewportSnapshot?: PersistedViewportSnapshot
+  transformPresetHistory?: Array<{
+    id: string
+    pluginId: string
+    pluginName: string
+    optionsJson: string
+    descriptorJson: string
+    descriptorHex: string
+    createdAt: number
+  }>
 }
 
 const vscode = acquireVsCodeApi<PersistedPreviewState>()

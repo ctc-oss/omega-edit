@@ -79,6 +79,8 @@
     offsetRadix?: OffsetRadix
     feedback?: string
     results?: TransformResultHistoryItem[]
+    presets?: TransformPresetHistoryItem[]
+    metadata?: TransformMetadataItem
     activeTransformResultId?: string
     onRequestTransforms: () => void
     onCancelTransform: () => void
@@ -110,6 +112,38 @@
     historyLabel: string
   }
 
+  interface TransformPresetHistoryItem {
+    id: string
+    pluginId: string
+    pluginName: string
+    optionsJson: string
+    descriptorJson: string
+    descriptorHex: string
+    createdAtLabel: string
+    summary: string
+  }
+
+  interface TransformMetadataItem {
+    pluginName: string
+    operationLabel: string
+    contentSourceLabel: string
+    contentChangedLabel: string
+    serialLabel: string
+    rangeLabel: string
+    lengthLabel: string
+    replacementLengthLabel: string
+    computedFileSizeLabel: string
+    descriptorJson: string
+    descriptorHex: string
+    summary: string
+  }
+
+  interface TransformDescriptorPreview {
+    json: string
+    hex: string
+    error: string
+  }
+
   interface TransformRangeState {
     offset: number
     end: number
@@ -133,6 +167,8 @@
     offsetRadix = 'hex',
     feedback = '',
     results = [],
+    presets = [],
+    metadata,
     activeTransformResultId = '',
     onRequestTransforms,
     onCancelTransform,
@@ -152,6 +188,7 @@
   let selectedFileAction = $state<FileSpliceActionId | ''>('')
   let selectedContentSource = $state<WebviewSessionContentSource>('computed')
   let dialogOpen = $state(false)
+  let pluginSearch = $state('')
   let optionsJson = $state('')
   let rangeStartInput = $state('')
   let rangeEndInput = $state('')
@@ -159,6 +196,8 @@
   let optionsInput = $state<HTMLElement>()
   let applyButton = $state<HTMLButtonElement>()
   let resultHistoryMenu = $state<HTMLDetailsElement>()
+  let presetHistoryMenu = $state<HTMLDetailsElement>()
+  let metadataMenu = $state<HTMLDetailsElement>()
 
   const selectedPlugin = $derived(
     plugins.find((plugin) => plugin.id === selectedPluginId)
@@ -181,7 +220,12 @@
         ? (selectedContentInfo?.byteLength ?? 0)
         : fileSize
   )
-  const groupedTransformPlugins = $derived(groupTransformPlugins(plugins))
+  const filteredTransformPlugins = $derived(
+    filterTransformPlugins(plugins, pluginSearch)
+  )
+  const groupedTransformPlugins = $derived(
+    groupTransformPlugins(filteredTransformPlugins)
+  )
   const selectedActionValue = $derived(
     selectedFileAction
       ? `${FILE_ACTION_PREFIX}${selectedFileAction}`
@@ -211,11 +255,17 @@
   const optionsValidationError = $derived(
     selectedPlugin ? validateTransformOptions(selectedPlugin, optionsJson.trim()) : ''
   )
+  const descriptorPreview = $derived(
+    selectedPlugin
+      ? createTransformDescriptorPreview(selectedPlugin.id, optionsJson)
+      : undefined
+  )
   const canApplyTransform = $derived(
     Boolean(selectedPlugin && canUseTransformPlugin(selectedPlugin)) &&
       transformRange.error === '' &&
       transformRange.length > 0 &&
       optionsValidationError === '' &&
+      descriptorPreview?.error === '' &&
       !busy
   )
   const canApplyFileAction = $derived(
@@ -236,6 +286,9 @@
   const latestResult = $derived(results[0])
   const resultHistorySummary = $derived(
     latestResult?.summary || strings.transform.resultHistoryLabel
+  )
+  const presetHistorySummary = $derived(
+    presets[0]?.pluginName || strings.transform.presetHistoryLabel
   )
 
   $effect(() => {
@@ -452,6 +505,29 @@
     })
   }
 
+  function filterTransformPlugins(
+    entries: WebviewTransformPlugin[],
+    query: string
+  ): WebviewTransformPlugin[] {
+    const normalizedQuery = query.trim().toLowerCase()
+    if (!normalizedQuery) {
+      return entries
+    }
+
+    return entries.filter((plugin) =>
+      [
+        plugin.id,
+        plugin.name,
+        plugin.description,
+        plugin.help,
+        transformOperationLabel(plugin.operation),
+      ]
+        .join(' ')
+        .toLowerCase()
+        .includes(normalizedQuery)
+    )
+  }
+
   function isMutatingTransform(plugin: WebviewTransformPlugin): boolean {
     return plugin.operation !== 2
   }
@@ -633,6 +709,47 @@
       return schemaObject(parsed) ? parsed : undefined
     } catch {
       return undefined
+    }
+  }
+
+  function parseTransformDescriptorArgs(rawOptionsJson: string): JsonObject {
+    const text = rawOptionsJson.trim()
+    if (!text) {
+      return {}
+    }
+    const parsed: unknown = JSON.parse(text)
+    if (!schemaObject(parsed)) {
+      throw new Error(strings.transform.schemaObject(strings.transform.optionsPath))
+    }
+    return parsed
+  }
+
+  function utf8ToHex(value: string): string {
+    return Array.from(new TextEncoder().encode(value), (byte) =>
+      byte.toString(16).padStart(2, '0')
+    ).join('')
+  }
+
+  function createTransformDescriptorPreview(
+    transformId: string,
+    rawOptionsJson: string
+  ): TransformDescriptorPreview {
+    try {
+      const descriptorJson = JSON.stringify({
+        transformId: transformId.trim(),
+        args: parseTransformDescriptorArgs(rawOptionsJson),
+      })
+      return {
+        json: descriptorJson,
+        hex: utf8ToHex(descriptorJson),
+        error: '',
+      }
+    } catch {
+      return {
+        json: '',
+        hex: '',
+        error: strings.transform.invalidJson,
+      }
     }
   }
 
@@ -838,8 +955,12 @@
       return strings.transform.invalidJson
     }
 
+    if (!schemaObject(parsedOptions)) {
+      return strings.transform.schemaObject(strings.transform.optionsPath)
+    }
+
     if (!plugin.argsSchema) {
-      return strings.transform.noSchema
+      return ''
     }
 
     let schema: unknown
@@ -1195,9 +1316,7 @@
       return
     }
 
-    optionsJson = plugin.argsSchema
-      ? (savedOptionsByPluginId[plugin.id] ?? plugin.defaultArgs ?? '')
-      : ''
+    optionsJson = savedOptionsByPluginId[plugin.id] ?? plugin.defaultArgs ?? ''
     resetRangeInputs()
     dialogOpen = true
     await tick()
@@ -1287,11 +1406,28 @@
   }
 
   function useTransformOptionExample(index: number): void {
-    if (!hasOptionsSchema || index < 0 || index >= advertisedExamples.length) {
+    if (index < 0 || index >= advertisedExamples.length) {
       return
     }
     optionsJson = advertisedExamples[index]
     void tick().then(() => optionsInput?.focus())
+  }
+
+  async function openTransformPreset(
+    preset: TransformPresetHistoryItem
+  ): Promise<void> {
+    const plugin = plugins.find((entry) => entry.id === preset.pluginId)
+    if (!plugin) {
+      return
+    }
+
+    await openTransformDialog(plugin.id)
+    optionsJson = preset.optionsJson
+    if (presetHistoryMenu) {
+      presetHistoryMenu.open = false
+    }
+    await tick()
+    optionsInput?.focus()
   }
 
   function applySelectedTransform(): void {
@@ -1381,6 +1517,22 @@
   <label class="transform-label" for="transformSelect">
     {strings.transform.label}
   </label>
+  <input
+    class="transform-search"
+    type="search"
+    value={pluginSearch}
+    placeholder={strings.transform.searchTransforms}
+    aria-label={strings.transform.searchTransforms}
+    title={strings.transform.searchTransformsTitle}
+    disabled={!canUseActions}
+    onfocus={requestTransforms}
+    oninput={(event) => {
+      const input = event.currentTarget
+      if (input instanceof HTMLInputElement) {
+        pluginSearch = input.value
+      }
+    }}
+  />
   <select
     id="transformSelect"
     class="transform-select"
@@ -1436,6 +1588,12 @@
               : strings.transform.loadTransforms}
         </option>
       </optgroup>
+    {:else if filteredTransformPlugins.length === 0}
+      <optgroup label={strings.transform.transformsGroup}>
+        <option value="" disabled>
+          {strings.transform.noTransformMatches}
+        </option>
+      </optgroup>
     {:else}
       {#each groupedTransformPlugins as group (group.label)}
         <optgroup label={group.label}>
@@ -1461,6 +1619,78 @@
     >
       {strings.transform.cancelInFlight}
     </button>
+  {/if}
+  {#if presets.length > 0}
+    <details bind:this={presetHistoryMenu} class="transform-preset-history">
+      <summary
+        aria-label={strings.transform.presetHistoryTitle}
+        title={strings.transform.presetHistoryTitle}
+      >
+        <span>{presetHistorySummary}</span>
+      </summary>
+      <div
+        class="transform-preset-history-menu"
+        role="menu"
+        aria-label={strings.transform.presetHistoryLabel}
+      >
+        {#each presets as preset (preset.id)}
+          <button
+            type="button"
+            role="menuitem"
+            title={strings.transform.openPreset(preset.pluginName)}
+            disabled={!plugins.some((plugin) => plugin.id === preset.pluginId)}
+            onclick={() => openTransformPreset(preset)}
+          >
+            <span class="transform-result-history-name">{preset.pluginName}</span>
+            <span class="transform-result-history-meta">
+              {preset.summary} | {preset.createdAtLabel}
+            </span>
+          </button>
+        {/each}
+      </div>
+    </details>
+  {/if}
+  {#if metadata}
+    <details bind:this={metadataMenu} class="transform-metadata">
+      <summary
+        aria-label={strings.transform.metadataTitle}
+        title={strings.transform.metadataTitle}
+      >
+        <span>{metadata.summary}</span>
+      </summary>
+      <div
+        class="transform-metadata-menu"
+        aria-label={strings.transform.metadataLabel}
+      >
+        <dl class="transform-metadata-grid">
+          <dt>{strings.transform.metadataOperation}</dt>
+          <dd>{metadata.operationLabel}</dd>
+          <dt>{strings.transform.contentSource}</dt>
+          <dd>{metadata.contentSourceLabel}</dd>
+          <dt>{strings.transform.metadataSerial}</dt>
+          <dd>{metadata.serialLabel}</dd>
+          <dt>{strings.transform.metadataRange}</dt>
+          <dd>{metadata.rangeLabel}</dd>
+          <dt>{strings.transform.length}</dt>
+          <dd>{metadata.lengthLabel}</dd>
+          <dt>{strings.transform.metadataReplacement}</dt>
+          <dd>{metadata.replacementLengthLabel}</dd>
+          <dt>{strings.transform.metadataComputedSize}</dt>
+          <dd>{metadata.computedFileSizeLabel}</dd>
+          <dt>{strings.transform.metadataContent}</dt>
+          <dd>{metadata.contentChangedLabel}</dd>
+        </dl>
+        <div class="help-section-title">{strings.transform.descriptor}</div>
+        <label class="transform-options-field">
+          <span>{strings.transform.descriptorJson}</span>
+          <textarea readonly rows="3" value={metadata.descriptorJson}></textarea>
+        </label>
+        <label class="transform-options-field">
+          <span>{strings.transform.descriptorHex}</span>
+          <textarea readonly rows="3" value={metadata.descriptorHex}></textarea>
+        </label>
+      </div>
+    </details>
   {/if}
   {#if results.length > 0}
     <details bind:this={resultHistoryMenu} class="transform-result-history">
@@ -1601,7 +1831,7 @@
         <p>{optionHelp.help}</p>
       {/if}
 
-      {#if advertisedExamples.length > 0 && !hasOptionsSchema}
+      {#if advertisedExamples.length > 0}
         <div class="help-section-title">{strings.transform.examples}</div>
         <div class="help-examples">
           {#each advertisedExamples as example, index}
@@ -1753,6 +1983,55 @@
               ></textarea>
             </label>
           </details>
+        {/if}
+      {:else}
+        <details class="transform-raw-options">
+          <summary>{strings.transform.advancedOptions}</summary>
+          <label class="transform-options-field">
+            <span>{strings.transform.optionsJson}</span>
+            <textarea
+              bind:this={optionsInput}
+              value={optionsJson}
+              maxlength={MAX_TRANSFORM_OPTIONS_LENGTH}
+              rows="3"
+              placeholder={advertisedExamples[0]
+                ? strings.transform.examplePlaceholder(advertisedExamples[0])
+                : strings.transform.optionsPlaceholder}
+              aria-invalid={optionsValidationError ? 'true' : 'false'}
+              oninput={(event) => {
+                const input = event.currentTarget
+                if (input instanceof HTMLTextAreaElement) {
+                  optionsJson = input.value
+                }
+              }}
+              onkeydown={handleOptionsKeydown}
+            ></textarea>
+          </label>
+        </details>
+      {/if}
+
+      {#if descriptorPreview}
+        <div class="help-section-title">{strings.transform.descriptor}</div>
+        <p class="help-muted">
+          {isInspectOnlyTransform(selectedPlugin)
+            ? strings.transform.inspectDescriptorNotice
+            : strings.transform.transformDescriptorNotice}
+        </p>
+        {#if descriptorPreview.error}
+          <div class="transform-error" aria-live="polite">
+            {descriptorPreview.error}
+          </div>
+        {:else}
+          <div class="transform-descriptor-preview">
+            <label class="transform-options-field">
+              <span>{strings.transform.descriptorJson}</span>
+              <textarea readonly rows="3" value={descriptorPreview.json}></textarea>
+            </label>
+            <label class="transform-options-field">
+              <span>{strings.transform.descriptorHex}</span>
+              <textarea readonly rows="3" value={descriptorPreview.hex}></textarea>
+            </label>
+          </div>
         {/if}
       {/if}
 

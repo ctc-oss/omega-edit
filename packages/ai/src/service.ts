@@ -202,7 +202,7 @@ const ASSISTANT_COMMAND_SURFACES: readonly AssistantCommandSurfaceEntry[] = [
       'omega_edit_list_transform_plugins',
       'omega_edit_apply_transform_plugin',
     ],
-    result: 'plugin metadata or transform operation result',
+    result: 'plugin metadata or transform result with serial and descriptor',
   },
   {
     action: 'checkpoints',
@@ -464,6 +464,23 @@ function parseTransformOptionsJson(
     throw new Error(`${name} must be a string`)
   }
   return parseJsonObject(optionsJson, name)
+}
+
+function createTransformPrimitiveDescriptorResult(
+  transformId: string,
+  optionsJson?: string
+): ApplyTransformPluginResult['transformDescriptor'] {
+  const args = parseTransformOptionsJson(optionsJson, 'transform options')
+  const descriptor = {
+    transformId: transformId.trim(),
+    args,
+  }
+  const json = JSON.stringify(descriptor)
+  return {
+    ...descriptor,
+    json,
+    dataHex: Buffer.from(json, 'utf8').toString('hex'),
+  }
 }
 
 function normalizeJsonForComparison(value: unknown): unknown {
@@ -2448,8 +2465,13 @@ export class OmegaEditToolkit {
         transformPluginOperationNames.get(response.operation) ||
         `${response.operation}`,
       contentChanged: response.contentChanged,
+      ...(response.serial === undefined ? {} : { serial: response.serial }),
       computedFileSize: response.computedFileSize,
       replacementLength: response.replacementLength,
+      transformDescriptor: createTransformPrimitiveDescriptorResult(
+        response.pluginId,
+        request.optionsJson
+      ),
       resultLabel: response.resultLabel,
       resultMimeType: response.resultMimeType,
       result: encodeData(response.result),

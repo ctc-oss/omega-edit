@@ -34,6 +34,15 @@ function makeUtf8Fingerprint(text: string) {
   }
 }
 
+function makeTransformDataHex(
+  transformId: string,
+  args: Record<string, unknown> = {}
+) {
+  return Buffer.from(JSON.stringify({ transformId, args }), 'utf8').toString(
+    'hex'
+  )
+}
+
 describe('@omega-edit/ai mcp server', () => {
   it('wires MCP cancellation notifications to tool abort signals', () => {
     const source = fs.readFileSync(
@@ -334,6 +343,35 @@ describe('@omega-edit/ai mcp server', () => {
       ).structuredContent as Record<string, unknown>) || { totalBytes: 0 }
       assert.equal((profileStructured.totalBytes as number) || 0, 5)
       assert.ok(Array.isArray(profileStructured.topBytes))
+
+      const transformResponse = await sendRequest('tools/call', {
+        name: 'omega_edit_apply_transform_plugin',
+        arguments: {
+          sessionId: createdSessionId,
+          pluginId: 'omega.example.common_checksums',
+          offset: 0,
+          length: 5,
+          optionsJson: JSON.stringify({ algorithm: 'sum8' }),
+        },
+      })
+      const transformStructured = ((
+        transformResponse.result as Record<string, unknown>
+      ).structuredContent as Record<string, unknown>) || {
+        transformDescriptor: {},
+      }
+      assert.equal(transformStructured.contentChanged, false)
+      assert.equal(transformStructured.serial, undefined)
+      assert.deepEqual(transformStructured.transformDescriptor, {
+        transformId: 'omega.example.common_checksums',
+        args: { algorithm: 'sum8' },
+        json: JSON.stringify({
+          transformId: 'omega.example.common_checksums',
+          args: { algorithm: 'sum8' },
+        }),
+        dataHex: makeTransformDataHex('omega.example.common_checksums', {
+          algorithm: 'sum8',
+        }),
+      })
 
       const previewPatchResponse = await sendRequest('tools/call', {
         name: 'omega_edit_preview_patch',

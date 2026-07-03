@@ -615,6 +615,9 @@ test('compiled extension entrypoints exist after build', () => {
   assert.match(providerSource, /cancellable: true/)
   assert.match(providerJs, /kind:\s*['"]TRANSFORM['"]/)
   assert.match(providerJs, /encodeTransformPrimitiveDataHex/)
+  assert.match(providerSource, /createTransformPrimitiveDescriptorJson/)
+  assert.match(providerSource, /descriptorJson/)
+  assert.match(providerSource, /descriptorHex/)
   assert.match(providerJs, /formatTransformCompletionMessage/)
   assert.match(providerJs, /omegaEdit\.hexEditorActive/)
   assert.match(providerJs, /omegaEdit\.canUndo/)
@@ -744,6 +747,9 @@ test('compiled extension entrypoints exist after build', () => {
   assert.match(protocolSource, /type: 'bytesPerRow'/)
   assert.match(protocolSource, /bytesPerRowMode: BytesPerRowMode/)
   assert.match(protocolSource, /stale\?: boolean/)
+  assert.match(protocolSource, /serial\?: number/)
+  assert.match(protocolSource, /descriptorJson: string/)
+  assert.match(protocolSource, /descriptorHex: string/)
   assert.match(protocolSource, /WebviewEditorState/)
   assert.match(protocolJs, /MAX_ANALYSIS_PROFILE_BYTES/)
   assert.match(protocolSource, /documentReverted/)
@@ -846,6 +852,10 @@ test('compiled extension entrypoints exist after build', () => {
   assert.match(svelteStylesSource, /\.transform-options-form/)
   assert.match(svelteStylesSource, /\.transform-option-field/)
   assert.match(svelteStylesSource, /\.transform-raw-options/)
+  assert.match(svelteStylesSource, /\.transform-search/)
+  assert.match(svelteStylesSource, /\.transform-preset-history/)
+  assert.match(svelteStylesSource, /\.transform-metadata/)
+  assert.match(svelteStylesSource, /\.transform-metadata-grid/)
   assert.match(svelteBundleCss, /\.file-scrollbar/)
   assert.match(svelteBundleCss, /\.file-scrollbar-track/)
   assert.match(svelteBundleCss, /\.file-scrollbar-thumb/)
@@ -985,11 +995,16 @@ test('compiled extension entrypoints exist after build', () => {
   assert.match(svelteAppSource, /transformFeedback = \$state/)
   assert.match(svelteAppSource, /transformResult = \$state/)
   assert.match(svelteAppSource, /transformResultHistory = \$state/)
+  assert.match(svelteAppSource, /transformPresetHistory = \$state/)
+  assert.match(svelteAppSource, /transformRunMetadata = \$state/)
   assert.match(svelteAppSource, /TRANSFORM_RESULT_HISTORY_LIMIT = 8/)
+  assert.match(svelteAppSource, /TRANSFORM_PRESET_HISTORY_LIMIT = 8/)
   assert.match(svelteAppSource, /TransformResultPanel/)
   assert.match(svelteAppSource, /function requestTransformPlugins/)
   assert.match(svelteAppSource, /if \(transformPluginsLoading\)/)
   assert.match(svelteAppSource, /function applyTransform/)
+  assert.match(svelteAppSource, /createTransformDescriptorMetadata/)
+  assert.match(svelteAppSource, /rememberTransformPreset/)
   assert.match(svelteAppSource, /type: 'applyTransform'/)
   assert.match(svelteAppSource, /function exportRange/)
   assert.match(svelteAppSource, /type: 'exportRange'/)
@@ -1012,6 +1027,7 @@ test('compiled extension entrypoints exist after build', () => {
   assert.match(svelteAppSource, /transformPluginsLoaded = true/)
   assert.match(svelteAppSource, /transformPluginsLoading = false/)
   assert.match(svelteAppSource, /case 'transformComplete'/)
+  assert.match(svelteAppSource, /createTransformRunMetadata\(message\)/)
   assert.match(svelteAppSource, /case 'fileActionComplete'/)
   assert.match(svelteAppSource, /describeTransformComplete/)
   assert.match(svelteAppSource, /strings\.transform\.calculationCompleted/)
@@ -1022,6 +1038,14 @@ test('compiled extension entrypoints exist after build', () => {
     /contentSourceLabel: transformResultContentSourceLabel/
   )
   assert.match(svelteAppSource, /rememberTransformResult/)
+  assert.match(
+    svelteAppSource,
+    /transformPresets=\{displayTransformPresetHistory\}/
+  )
+  assert.match(
+    svelteAppSource,
+    /transformMetadata=\{displayTransformRunMetadata\}/
+  )
   assert.match(svelteAppSource, /openTransformResult/)
   assert.match(svelteAppSource, /shouldSelectTransformResultRange/)
   assert.match(
@@ -1317,6 +1341,10 @@ test('compiled extension entrypoints exist after build', () => {
   assert.match(i18nSource, /text: 'TEXT'/)
   assert.match(i18nSource, /resultAvailable/)
   assert.match(i18nSource, /resultHistoryTitle/)
+  assert.match(i18nSource, /searchTransforms/)
+  assert.match(i18nSource, /descriptorJson/)
+  assert.match(i18nSource, /presetHistoryTitle/)
+  assert.match(i18nSource, /metadataTitle/)
   assert.match(i18nSource, /fileSplicingGroup/)
   assert.match(i18nSource, /replaceRangeWithFile/)
   assert.match(i18nSource, /rangeEndBeforeStart/)
@@ -1336,6 +1364,8 @@ test('compiled extension entrypoints exist after build', () => {
   assert.match(toolbarSource, /pluginsLoaded=\{transformPluginsLoaded\}/)
   assert.match(toolbarSource, /pluginsLoading=\{transformPluginsLoading\}/)
   assert.match(toolbarSource, /transformResults/)
+  assert.match(toolbarSource, /transformPresets/)
+  assert.match(toolbarSource, /transformMetadata/)
   assert.match(toolbarSource, /onOpenTransformResult/)
   assert.match(toolbarSource, /onRequestTransforms/)
   assert.match(toolbarSource, /onApplyTransform/)
@@ -1350,6 +1380,13 @@ test('compiled extension entrypoints exist after build', () => {
   assert.doesNotMatch(toolbarSource, /strings\.toolbar\.redo/)
   assert.match(transformPanelSource, /strings\.transform\.label/)
   assert.match(transformPanelSource, /function advertisedTransformExamples/)
+  assert.match(transformPanelSource, /pluginSearch = \$state/)
+  assert.match(transformPanelSource, /function filterTransformPlugins/)
+  assert.match(
+    transformPanelSource,
+    /function createTransformDescriptorPreview/
+  )
+  assert.match(transformPanelSource, /function openTransformPreset/)
   assert.match(transformPanelSource, /interface TransformOptionField/)
   assert.match(transformPanelSource, /function buildTransformOptionFields/)
   assert.match(transformPanelSource, /function setOptionValue/)
@@ -1368,6 +1405,8 @@ test('compiled extension entrypoints exist after build', () => {
   assert.match(transformPanelSource, /rangeStartInput = \$state/)
   assert.match(transformPanelSource, /rangeEndInput = \$state/)
   assert.match(transformPanelSource, /savedOptionsByPluginId = \$state/)
+  assert.match(transformPanelSource, /presets = \[\]/)
+  assert.match(transformPanelSource, /metadata/)
   assert.match(transformPanelSource, /pluginsLoading/)
   assert.match(transformPanelSource, /pluginsLoaded/)
   assert.match(transformPanelSource, /onRequestTransforms/)
@@ -1387,10 +1426,15 @@ test('compiled extension entrypoints exist after build', () => {
     /aria-label=\{strings\.transform\.closeDialog\}/
   )
   assert.match(transformPanelSource, /class="transform-select"/)
+  assert.match(transformPanelSource, /class="transform-search"/)
   assert.match(transformPanelSource, /strings\.transform\.fileSplicingGroup/)
   assert.match(transformPanelSource, /strings\.transform\.transformsGroup/)
+  assert.match(transformPanelSource, /strings\.transform\.noTransformMatches/)
   assert.match(transformPanelSource, /class="transform-options-form"/)
   assert.match(transformPanelSource, /class="transform-raw-options"/)
+  assert.match(transformPanelSource, /class="transform-descriptor-preview"/)
+  assert.match(transformPanelSource, /class="transform-preset-history"/)
+  assert.match(transformPanelSource, /class="transform-metadata"/)
   assert.match(transformPanelSource, /<optgroup label=\{group\.label\}>/)
   assert.match(transformPanelSource, /class="transform-result-history"/)
   assert.match(
@@ -1407,6 +1451,14 @@ test('compiled extension entrypoints exist after build', () => {
   assert.match(transformPanelSource, /argsSchema/)
   assert.match(transformPanelSource, /strings\.transform\.invalidJson/)
   assert.match(transformPanelSource, /strings\.transform\.invalidSchema/)
+  assert.match(
+    transformPanelSource,
+    /strings\.transform\.transformDescriptorNotice/
+  )
+  assert.match(
+    transformPanelSource,
+    /strings\.transform\.inspectDescriptorNotice/
+  )
   assert.match(transformPanelSource, /strings\.transform\.schemaEnum/)
   assert.match(transformPanelSource, /strings\.transform\.maxOffset/)
   assert.match(

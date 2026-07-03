@@ -367,6 +367,18 @@ button:focus-visible {
   text-transform: uppercase;
 }
 
+.transform-search {
+  width: clamp(120px, 14vw, 190px);
+  min-width: 96px;
+  height: 26px;
+  padding: 3px 7px;
+  border: 1px solid var(--vscode-input-border, var(--vscode-editorGroup-border));
+  border-radius: 2px;
+  color: var(--vscode-input-foreground);
+  background: var(--vscode-input-background);
+  font: inherit;
+}
+
 .transform-select {
   width: clamp(150px, 18vw, 240px);
   min-width: 120px;
@@ -392,12 +404,16 @@ button:focus-visible {
   flex: 0 0 auto;
 }
 
-.transform-result-history {
+.transform-result-history,
+.transform-preset-history,
+.transform-metadata {
   position: relative;
   min-width: 0;
 }
 
-.transform-result-history summary {
+.transform-result-history summary,
+.transform-preset-history summary,
+.transform-metadata summary {
   display: inline-flex;
   align-items: center;
   gap: 6px;
@@ -413,18 +429,24 @@ button:focus-visible {
   list-style: none;
 }
 
-.transform-result-history summary::-webkit-details-marker {
+.transform-result-history summary::-webkit-details-marker,
+.transform-preset-history summary::-webkit-details-marker,
+.transform-metadata summary::-webkit-details-marker {
   display: none;
 }
 
-.transform-result-history summary span {
+.transform-result-history summary span,
+.transform-preset-history summary span,
+.transform-metadata summary span {
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.transform-result-history summary::after {
+.transform-result-history summary::after,
+.transform-preset-history summary::after,
+.transform-metadata summary::after {
   flex: 0 0 auto;
   width: 0;
   height: 0;
@@ -434,16 +456,22 @@ button:focus-visible {
   content: "";
 }
 
-.transform-result-history[open] summary {
+.transform-result-history[open] summary,
+.transform-preset-history[open] summary,
+.transform-metadata[open] summary {
   color: var(--vscode-foreground);
   border-color: var(--vscode-focusBorder);
 }
 
-.transform-result-history[open] summary::after {
+.transform-result-history[open] summary::after,
+.transform-preset-history[open] summary::after,
+.transform-metadata[open] summary::after {
   transform: rotate(180deg);
 }
 
-.transform-result-history-menu {
+.transform-result-history-menu,
+.transform-preset-history-menu,
+.transform-metadata-menu {
   position: absolute;
   top: calc(100% + 4px);
   right: 0;
@@ -460,7 +488,13 @@ button:focus-visible {
   box-shadow: 0 8px 22px rgba(0, 0, 0, 0.34);
 }
 
-.transform-result-history-menu button {
+.transform-metadata-menu {
+  width: min(520px, calc(100vw - 16px));
+  padding: 8px;
+}
+
+.transform-result-history-menu button,
+.transform-preset-history-menu button {
   display: grid;
   gap: 2px;
   width: 100%;
@@ -473,7 +507,9 @@ button:focus-visible {
 }
 
 .transform-result-history-menu button:hover,
-.transform-result-history-menu button:focus {
+.transform-result-history-menu button:focus,
+.transform-preset-history-menu button:hover,
+.transform-preset-history-menu button:focus {
   background: var(--vscode-list-hoverBackground);
 }
 
@@ -499,6 +535,25 @@ button:focus-visible {
 .transform-result-history-meta {
   color: var(--vscode-descriptionForeground);
   font-size: 11px;
+}
+
+.transform-metadata-grid {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  gap: 4px 10px;
+  margin: 0;
+}
+
+.transform-metadata-grid dt {
+  color: var(--vscode-descriptionForeground);
+}
+
+.transform-metadata-grid dd {
+  min-width: 0;
+  margin: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .dialog-backdrop {
@@ -2656,7 +2711,9 @@ body.vscode-high-contrast-light .text-byte.selected:hover {
     grid-template-columns: minmax(0, 1fr);
   }
 
-  .transform-result-history-menu {
+  .transform-result-history-menu,
+  .transform-preset-history-menu,
+  .transform-metadata-menu {
     right: auto;
     left: 0;
   }

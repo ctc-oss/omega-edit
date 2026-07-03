@@ -191,7 +191,7 @@ export const OMEGA_EDIT_ASSISTANT_COMMAND_SURFACES: readonly AssistantCommandSur
         'omega_edit_list_transform_plugins',
         'omega_edit_apply_transform_plugin',
       ],
-      result: 'plugin metadata or transform operation result',
+      result: 'plugin metadata or transform result with serial and descriptor',
     },
     {
       action: 'checkpoints',
