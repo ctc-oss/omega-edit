@@ -60,8 +60,20 @@ TEST_CASE("Packaged Transform Plugins", "[TransformPlugin]") {
     REQUIRE(nullptr != omega_transform_plugin_registry_find_info(registry_ptr, "omega.example.repeat"));
     REQUIRE(-1 == omega_transform_plugin_options_match_args_schema("{}", nullptr));
     REQUIRE(-1 == omega_transform_plugin_options_match_args_schema("{}", ""));
+    REQUIRE(-1 == omega_transform_plugin_options_match_args_schema("{}", "{"));
     REQUIRE(-1 == omega_transform_plugin_options_match_args_schema("{}", "[]"));
+    REQUIRE(-1 == omega_transform_plugin_options_match_args_schema("{}", "{\"properties\":{}}"));
+    REQUIRE(-1 == omega_transform_plugin_options_match_args_schema("{}", "{\"type\":1}"));
     REQUIRE(-1 == omega_transform_plugin_options_match_args_schema("{}", "{\"type\":\"array\"}"));
+    REQUIRE(-1 == omega_transform_plugin_options_match_args_schema("{}", "{\"type\":\"OBJECT\"}"));
+    const char *empty_object_schema = "{\"type\":\"object\",\"properties\":{},\"additionalProperties\":false}";
+    REQUIRE(0 == omega_transform_plugin_options_match_args_schema(nullptr, empty_object_schema));
+    REQUIRE(0 == omega_transform_plugin_options_match_args_schema("", empty_object_schema));
+    REQUIRE(0 == omega_transform_plugin_options_match_args_schema("{}", empty_object_schema));
+    REQUIRE(-1 == omega_transform_plugin_options_match_args_schema("{", empty_object_schema));
+    REQUIRE(-1 == omega_transform_plugin_options_match_args_schema("[]", empty_object_schema));
+    REQUIRE(-1 == omega_transform_plugin_options_match_args_schema("\"text\"", empty_object_schema));
+    REQUIRE(-1 == omega_transform_plugin_options_match_args_schema("{\"extra\":true}", empty_object_schema));
     for (int64_t index = 0; index < omega_transform_plugin_registry_get_count(registry_ptr); ++index) {
         const auto *info = omega_transform_plugin_registry_get_info(registry_ptr, index);
         REQUIRE(info);
