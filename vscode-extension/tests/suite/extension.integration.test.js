@@ -144,6 +144,10 @@ function assertAssistantCommandSurface(commands) {
   assert.deepEqual(byAction.get('assistantContext')?.mcpTools, [
     'omega_edit_session_context',
   ])
+  assert.deepEqual(byAction.get('search')?.vscodeCommands, [
+    OMEGA_EDIT_SEARCH_NEXT_COMMAND,
+    OMEGA_EDIT_SEARCH_PREVIOUS_COMMAND,
+  ])
   assert.deepEqual(byAction.get('patchRange')?.mcpTools, [
     'omega_edit_preview_patch',
     'omega_edit_apply_patch',
@@ -2182,6 +2186,10 @@ suite('OmegaEdit VS Code extension', () => {
       isDirty: false,
       savedChangeDepth: 1,
     })
+    const savedAssistantContext = provider.getAssistantContext(document.uri)
+    assert.equal(savedAssistantContext.history.changeCount, 4)
+    assert.equal(savedAssistantContext.history.pendingChanges, false)
+    assert.equal(savedAssistantContext.dirty, false)
 
     const saved = await fs.readFile(samplePath, 'utf8')
     assert.equal(saved, 'qux qux qux qux')

@@ -65,6 +65,10 @@ export function assertAssistantCommandSurface(
   assert.deepEqual(byAction.get('assistantContext')?.mcpTools, [
     'omega_edit_session_context',
   ])
+  assert.deepEqual(byAction.get('search')?.vscodeCommands, [
+    'omegaEdit.searchNext',
+    'omegaEdit.searchPrevious',
+  ])
   assert.deepEqual(byAction.get('patchRange')?.mcpTools, [
     'omega_edit_preview_patch',
     'omega_edit_apply_patch',

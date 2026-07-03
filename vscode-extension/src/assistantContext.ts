@@ -13,6 +13,8 @@ import {
   OMEGA_EDIT_RESTORE_CHECKPOINT_COMMAND,
   OMEGA_EDIT_ROLLBACK_CHECKPOINT_COMMAND,
   OMEGA_EDIT_ROLLBACK_SESSION_COMMAND,
+  OMEGA_EDIT_SEARCH_NEXT_COMMAND,
+  OMEGA_EDIT_SEARCH_PREVIOUS_COMMAND,
   OMEGA_EDIT_SET_EXTERNAL_HIGHLIGHTS_COMMAND,
   OMEGA_EDIT_UNDO_COMMAND,
   OMEGA_EDIT_UNLOAD_RANGE_MAP_COMMAND,
@@ -154,6 +156,10 @@ export const OMEGA_EDIT_ASSISTANT_COMMAND_SURFACES: readonly AssistantCommandSur
     {
       action: 'search',
       ui: 'Search',
+      vscodeCommands: [
+        OMEGA_EDIT_SEARCH_NEXT_COMMAND,
+        OMEGA_EDIT_SEARCH_PREVIOUS_COMMAND,
+      ],
       cliCommands: ['oe search --session <id> --text <value>'],
       mcpTools: ['omega_edit_search'],
       result: 'structured match offsets and lengths',

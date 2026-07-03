@@ -4454,7 +4454,7 @@ export class HexEditorProvider
         checkpointCount: null,
         checkpointAvailable: checkpointSource !== undefined,
         savedChangeDepth: editState.savedChangeDepth,
-        pendingChanges: dirty || session.changeCount > 0,
+        pendingChanges: dirty,
         pendingOperation: session.pendingHistoryOperation ?? null,
         pendingCount: session.pendingHistoryCount ?? 0,
       },

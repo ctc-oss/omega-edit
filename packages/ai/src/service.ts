@@ -106,6 +106,8 @@ const OMEGA_EDIT_OPEN_IN_HEX_EDITOR_COMMAND = 'omegaEdit.openInHexEditor'
 const OMEGA_EDIT_GET_ASSISTANT_CONTEXT_COMMAND = 'omegaEdit.getAssistantContext'
 const OMEGA_EDIT_GET_EDITOR_STATE_COMMAND = 'omegaEdit.getEditorState'
 const OMEGA_EDIT_GO_TO_OFFSET_COMMAND = 'omegaEdit.goToOffset'
+const OMEGA_EDIT_SEARCH_NEXT_COMMAND = 'omegaEdit.searchNext'
+const OMEGA_EDIT_SEARCH_PREVIOUS_COMMAND = 'omegaEdit.searchPrevious'
 const OMEGA_EDIT_UNDO_COMMAND = 'omegaEdit.undo'
 const OMEGA_EDIT_REDO_COMMAND = 'omegaEdit.redo'
 const OMEGA_EDIT_REFRESH_TRANSFORM_PLUGINS_COMMAND =
@@ -165,6 +167,10 @@ const ASSISTANT_COMMAND_SURFACES: readonly AssistantCommandSurfaceEntry[] = [
   {
     action: 'search',
     ui: 'Search',
+    vscodeCommands: [
+      OMEGA_EDIT_SEARCH_NEXT_COMMAND,
+      OMEGA_EDIT_SEARCH_PREVIOUS_COMMAND,
+    ],
     cliCommands: ['oe search --session <id> --text <value>'],
     mcpTools: ['omega_edit_search'],
     result: 'structured match offsets and lengths',
