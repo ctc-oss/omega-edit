@@ -6,6 +6,7 @@ import {
   IOFlags,
   SessionFingerprintContent,
   TransformPluginOperation,
+  TransformPluginSupport,
   applyTransformPlugin as applyClientTransformPlugin,
   checkSessionModel,
   createCheckpoint as createClientCheckpoint,
@@ -322,6 +323,12 @@ const changeKindNames = new Map<number, string>(
 
 const transformPluginOperationNames = new Map<number, string>(
   Object.entries(TransformPluginOperation)
+    .filter(([, value]) => typeof value === 'number')
+    .map(([name, value]) => [value as number, name])
+)
+
+const transformPluginSupportNames = new Map<number, string>(
+  Object.entries(TransformPluginSupport)
     .filter(([, value]) => typeof value === 'number')
     .map(([name, value]) => [value as number, name])
 )
@@ -1675,6 +1682,9 @@ export class OmegaEditToolkit {
       operationName:
         transformPluginOperationNames.get(plugin.operation) ||
         `${plugin.operation}`,
+      support: plugin.support,
+      supportName:
+        transformPluginSupportNames.get(plugin.support) || `${plugin.support}`,
       flags: plugin.flags,
       abiVersion: plugin.abiVersion,
     }))
@@ -1732,6 +1742,8 @@ export class OmegaEditToolkit {
           description: plugin.description,
           operation: plugin.operation,
           operationName: plugin.operationName,
+          support: plugin.support,
+          supportName: plugin.supportName,
           flags: plugin.flags,
           abiVersion: plugin.abiVersion,
         })),
@@ -2474,6 +2486,9 @@ export class OmegaEditToolkit {
       operationName:
         transformPluginOperationNames.get(plugin.operation) ||
         `${plugin.operation}`,
+      support: plugin.support,
+      supportName:
+        transformPluginSupportNames.get(plugin.support) || `${plugin.support}`,
       flags: plugin.flags,
       abiVersion: plugin.abiVersion,
     }))

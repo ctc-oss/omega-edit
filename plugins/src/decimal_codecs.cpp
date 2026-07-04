@@ -179,6 +179,7 @@ extern "C" OMEGA_TRANSFORM_PLUGIN_EXPORT int omega_transform_plugin_get_info(ome
     info_ptr->example = "{\"codec\":\"packed-decimal\",\"direction\":\"encode\"}";
     info_ptr->default_args = "{\"codec\":\"bcd\",\"direction\":\"encode\"}";
     info_ptr->args_schema = DECIMAL_CODEC_ARGS_SCHEMA;
+    info_ptr->support = OMEGA_TRANSFORM_PLUGIN_SUPPORT_EXPERIMENTAL;
     info_ptr->abi_version = OMEGA_TRANSFORM_PLUGIN_ABI_VERSION;
     return 0;
 }

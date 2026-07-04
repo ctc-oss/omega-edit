@@ -19,6 +19,7 @@
 
 import {
   TransformPluginOperation as RawProtoTransformPluginOperation,
+  TransformPluginSupport as RawProtoTransformPluginSupport,
   IOFlags as ProtoIOFlags,
   SessionContentSource as RawProtoSessionContentSource,
   SessionFingerprintContent as RawProtoSessionFingerprintContent,
@@ -178,6 +179,15 @@ export const TransformPluginOperation = {
 } as const
 export type TransformPluginOperation =
   (typeof TransformPluginOperation)[keyof typeof TransformPluginOperation]
+
+export const TransformPluginSupport = {
+  UNSPECIFIED: RawProtoTransformPluginSupport.UNSPECIFIED,
+  PRODUCTION: RawProtoTransformPluginSupport.PRODUCTION,
+  EXPERIMENTAL: RawProtoTransformPluginSupport.EXPERIMENTAL,
+  TEST: RawProtoTransformPluginSupport.TEST,
+} as const
+export type TransformPluginSupport =
+  (typeof TransformPluginSupport)[keyof typeof TransformPluginSupport]
 
 export type TransformPluginInfo = RawTransformPluginInfo
 export type ApplyTransformPluginResponse = RawApplyTransformPluginResponse

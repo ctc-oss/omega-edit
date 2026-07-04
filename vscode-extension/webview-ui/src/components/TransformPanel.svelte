@@ -44,6 +44,7 @@
     group: string
     disabled: boolean
     kind: 'transform' | 'file' | 'session'
+    support?: number
     pluginId?: string
     fileAction?: FileSpliceActionId
     sessionAction?: SessionActionId
@@ -457,6 +458,36 @@
     }
   }
 
+  function transformPluginSupportLabel(support: number | undefined): string {
+    switch (support) {
+      case 1:
+        return strings.transform.supportProduction
+      case 2:
+        return strings.transform.supportExperimental
+      case 3:
+        return strings.transform.supportTest
+      default:
+        return strings.transform.supportUnknown
+    }
+  }
+
+  function transformPluginSupportClass(support: number | undefined): string {
+    switch (support) {
+      case 1:
+        return 'support-production'
+      case 2:
+        return 'support-experimental'
+      case 3:
+        return 'support-test'
+      default:
+        return 'support-unknown'
+    }
+  }
+
+  function shouldShowSupportBadge(support: number | undefined): boolean {
+    return support === 1 || support === 2 || support === 3
+  }
+
   function transformPluginSortKey(plugin: WebviewTransformPlugin): string {
     return plugin.name || plugin.id
   }
@@ -582,6 +613,9 @@
       entry.label,
       entry.description,
       entry.group,
+      entry.support === undefined
+        ? undefined
+        : transformPluginSupportLabel(entry.support),
       entry.pluginId,
       entry.fileAction,
       entry.sessionAction,
@@ -643,6 +677,7 @@
           group: strings.transform.calculationsGroup,
           disabled: !canUseTransformPlugin(plugin),
           kind: 'transform',
+          support: plugin.support,
           pluginId: plugin.id,
         })),
       },
@@ -657,6 +692,7 @@
           group: strings.transform.transformsGroup,
           disabled: !canUseTransformPlugin(plugin),
           kind: 'transform',
+          support: plugin.support,
           pluginId: plugin.id,
         })),
       },
@@ -1724,7 +1760,16 @@
                   onmousedown={(event) => event.preventDefault()}
                   onclick={() => chooseAction(entry)}
                 >
-                  <span class="transform-action-name">{entry.label}</span>
+                  <span class="transform-action-heading">
+                    <span class="transform-action-name">{entry.label}</span>
+                    {#if shouldShowSupportBadge(entry.support)}
+                      <span
+                        class={`transform-support-badge ${transformPluginSupportClass(entry.support)}`}
+                      >
+                        {transformPluginSupportLabel(entry.support)}
+                      </span>
+                    {/if}
+                  </span>
                   <span class="transform-action-description">
                     {entry.description}
                   </span>
@@ -1795,7 +1840,18 @@
     tabindex="-1"
     onkeydown={handleDialogKeydown}
   >
-    <h2 id="transformDialogTitle">{selectedPlugin.name || selectedPlugin.id}</h2>
+    <h2 id="transformDialogTitle">
+      <span class="transform-dialog-title">
+        {selectedPlugin.name || selectedPlugin.id}
+      </span>
+      {#if shouldShowSupportBadge(selectedPlugin.support)}
+        <span
+          class={`transform-support-badge ${transformPluginSupportClass(selectedPlugin.support)}`}
+        >
+          {transformPluginSupportLabel(selectedPlugin.support)}
+        </span>
+      {/if}
+    </h2>
     <div class="transform-dialog-body">
       <div class="help-muted">
         {transformOperationLabel(selectedPlugin.operation)}

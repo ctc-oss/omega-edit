@@ -459,6 +459,13 @@ button:focus-visible {
   text-overflow: ellipsis;
 }
 
+.transform-action-heading {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
 .transform-action-name {
   color: var(--vscode-foreground);
   font-weight: 600;
@@ -478,6 +485,42 @@ button:focus-visible {
 
 .transform-action-empty {
   padding: 8px;
+}
+
+.transform-support-badge {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  max-width: 13ch;
+  height: 16px;
+  padding: 0 5px;
+  overflow: hidden;
+  border: 1px solid var(--vscode-editorGroup-border);
+  border-radius: 3px;
+  color: var(--vscode-descriptionForeground);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0;
+  line-height: 1;
+  text-overflow: ellipsis;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.transform-support-badge.support-production {
+  border-color: var(--vscode-badge-background);
+  color: var(--vscode-badge-foreground);
+  background: var(--vscode-badge-background);
+}
+
+.transform-support-badge.support-experimental {
+  border-color: var(--vscode-editorWarning-foreground, var(--vscode-badge-background));
+  color: var(--vscode-editorWarning-foreground, var(--vscode-foreground));
+}
+
+.transform-support-badge.support-test {
+  border-color: var(--vscode-editorError-foreground, var(--vscode-badge-background));
+  color: var(--vscode-editorError-foreground, var(--vscode-foreground));
 }
 
 .transform-status {
@@ -637,11 +680,22 @@ button.dialog-backdrop:focus-visible {
 }
 
 .transform-dialog h2 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
   margin: 0;
   padding: 10px 12px;
   border-bottom: 1px solid var(--vscode-editorGroup-border);
   font-size: 13px;
   font-weight: 600;
+}
+
+.transform-dialog-title {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .transform-dialog-body {

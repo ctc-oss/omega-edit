@@ -348,6 +348,7 @@ OMEGA_TRANSFORM_PLUGIN_EXPORT int omega_transform_plugin_get_info(omega_transfor
                              "\"keyHex\":\"0000000000000000000000000000000000000000000000000000000000000000\","
                              "\"ivHex\":\"00000000000000000000000000000000\"}";
     info_ptr->args_schema = CIPHER_ARGS_SCHEMA;
+    info_ptr->support = OMEGA_TRANSFORM_PLUGIN_SUPPORT_EXPERIMENTAL;
     info_ptr->abi_version = OMEGA_TRANSFORM_PLUGIN_ABI_VERSION;
     return 0;
 }

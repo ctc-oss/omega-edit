@@ -693,6 +693,20 @@ namespace omega_edit {
             }
         }
 
+        static ::omega_edit::v1::TransformPluginSupport
+        to_proto_transform_plugin_support(omega_transform_plugin_support_t support) {
+            switch (support) {
+                case OMEGA_TRANSFORM_PLUGIN_SUPPORT_PRODUCTION:
+                    return ::omega_edit::v1::TRANSFORM_PLUGIN_SUPPORT_PRODUCTION;
+                case OMEGA_TRANSFORM_PLUGIN_SUPPORT_EXPERIMENTAL:
+                    return ::omega_edit::v1::TRANSFORM_PLUGIN_SUPPORT_EXPERIMENTAL;
+                case OMEGA_TRANSFORM_PLUGIN_SUPPORT_TEST:
+                    return ::omega_edit::v1::TRANSFORM_PLUGIN_SUPPORT_TEST;
+                default:
+                    return ::omega_edit::v1::TRANSFORM_PLUGIN_SUPPORT_UNSPECIFIED;
+            }
+        }
+
         static void fill_transform_plugin_info(const omega_transform_plugin_info_t *info,
                                                ::omega_edit::v1::TransformPluginInfo *response) {
             if (!info || !response) { return; }
@@ -706,6 +720,7 @@ namespace omega_edit {
             response->set_example(info->example ? info->example : "");
             response->set_default_args(info->default_args ? info->default_args : "");
             response->set_args_schema(info->args_schema ? info->args_schema : "");
+            response->set_support(to_proto_transform_plugin_support(info->support));
         }
 
         static grpc::Status validate_viewport_range(int64_t offset, int64_t capacity) {
@@ -722,12 +737,23 @@ namespace omega_edit {
 
         EditorServiceImpl::EditorServiceImpl(HeartbeatConfig heartbeat_config, ResourceLimits resource_limits,
                                              std::function<void()> shutdown_callback,
-                                             std::vector<std::string> transform_plugin_directories)
+                                             std::vector<std::string> transform_plugin_directories,
+                                             std::string transform_plugin_host_path,
+                                             bool allow_experimental_transform_plugins,
+                                             bool allow_test_transform_plugins)
             : session_manager_(resource_limits), content_type_detector_(create_default_content_type_detector()),
               language_detector_(create_default_language_detector()),
               transform_plugin_registry_(omega_transform_plugin_registry_create()),
               start_time_(std::chrono::steady_clock::now()), heartbeat_config_(heartbeat_config),
               resource_limits_(resource_limits), shutdown_callback_(std::move(shutdown_callback)) {
+            if (!transform_plugin_host_path.empty()) {
+                omega_transform_plugin_registry_set_host_path(transform_plugin_registry_,
+                                                              transform_plugin_host_path.c_str());
+            }
+            omega_transform_plugin_registry_set_allow_experimental(transform_plugin_registry_,
+                                                                   allow_experimental_transform_plugins ? 1 : 0);
+            omega_transform_plugin_registry_set_allow_test(transform_plugin_registry_,
+                                                           allow_test_transform_plugins ? 1 : 0);
             for (const auto &plugin_directory : transform_plugin_directories) {
                 if (plugin_directory.empty()) { continue; }
                 const auto loaded_count = omega_transform_plugin_registry_register_directory(transform_plugin_registry_,

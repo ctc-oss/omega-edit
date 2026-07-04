@@ -111,11 +111,15 @@ jobs:
         shell: bash
         run: |
           src="${{ env.CPP_SERVER_BINARY }}"
+          host_src="${{ env.CPP_TRANSFORM_PLUGIN_HOST_BINARY }}"
           ext=""
           if [[ "${{ matrix.runner-os }}" == "Windows" ]]; then ext=".exe"; fi
           dest="server/cpp/build/omega-edit-grpc-server-${{ matrix.platform }}${ext}"
+          host_dest="server/cpp/build/omega-transform-plugin-host-${{ matrix.platform }}${ext}"
           cp "$src" "$dest"
+          cp "$host_src" "$host_dest"
           echo "PLATFORM_BINARY=$dest" >> "$GITHUB_ENV"
+          echo "PLATFORM_PLUGIN_HOST_BINARY=$host_dest" >> "$GITHUB_ENV"
 
       - name: Upload platform server binary artifact (attempt 1)
         id: upload_server_binary_1
@@ -123,7 +127,9 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: vscode-server-${{ matrix.platform }}
-          path: ${{ env.PLATFORM_BINARY }}
+          path: |
+            ${{ env.PLATFORM_BINARY }}
+            ${{ env.PLATFORM_PLUGIN_HOST_BINARY }}
           overwrite: true
           retention-days: 14
           if-no-files-found: error
@@ -135,7 +141,9 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: vscode-server-${{ matrix.platform }}
-          path: ${{ env.PLATFORM_BINARY }}
+          path: |
+            ${{ env.PLATFORM_BINARY }}
+            ${{ env.PLATFORM_PLUGIN_HOST_BINARY }}
           overwrite: true
           retention-days: 14
           if-no-files-found: error
@@ -147,7 +155,9 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: vscode-server-${{ matrix.platform }}
-          path: ${{ env.PLATFORM_BINARY }}
+          path: |
+            ${{ env.PLATFORM_BINARY }}
+            ${{ env.PLATFORM_PLUGIN_HOST_BINARY }}
           overwrite: true
           retention-days: 14
           if-no-files-found: error
@@ -302,6 +312,11 @@ jobs:
             omega-edit-grpc-server-macos-x64
             omega-edit-grpc-server-macos-arm64
             omega-edit-grpc-server-windows-x64.exe
+            omega-transform-plugin-host-linux-x64
+            omega-transform-plugin-host-linux-arm64
+            omega-transform-plugin-host-macos-x64
+            omega-transform-plugin-host-macos-arm64
+            omega-transform-plugin-host-windows-x64.exe
           )
           for binary in "${expected[@]}"; do
             test -f "_server_binaries/$binary"

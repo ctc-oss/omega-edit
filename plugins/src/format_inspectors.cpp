@@ -199,6 +199,7 @@ extern "C" OMEGA_TRANSFORM_PLUGIN_EXPORT int omega_transform_plugin_get_info(ome
     info_ptr->example = "{\"format\":\"tlv\",\"tagBytes\":1,\"lengthBytes\":1,\"endian\":\"big\"}";
     info_ptr->default_args = "{\"format\":\"protobuf-varint\"}";
     info_ptr->args_schema = FORMAT_INSPECTOR_ARGS_SCHEMA;
+    info_ptr->support = OMEGA_TRANSFORM_PLUGIN_SUPPORT_EXPERIMENTAL;
     info_ptr->abi_version = OMEGA_TRANSFORM_PLUGIN_ABI_VERSION;
     return 0;
 }

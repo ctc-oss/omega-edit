@@ -70,8 +70,29 @@ namespace {
 TEST_CASE("Packaged Transform Plugins", "[TransformPlugin]") {
     REQUIRE(std::filesystem::is_directory(PLUGIN_DIR));
 
+    const auto production_registry_ptr = omega_transform_plugin_registry_create();
+    REQUIRE(production_registry_ptr);
+    REQUIRE(0 <
+            omega_transform_plugin_registry_register_directory(production_registry_ptr, PLUGIN_DIR.string().c_str()));
+    REQUIRE(6 == omega_transform_plugin_registry_get_count(production_registry_ptr));
+    REQUIRE(nullptr != omega_transform_plugin_registry_find_info(production_registry_ptr, "omega.example.base64"));
+    REQUIRE(nullptr != omega_transform_plugin_registry_find_info(production_registry_ptr, "omega.example.bitwise"));
+    REQUIRE(nullptr != omega_transform_plugin_registry_find_info(production_registry_ptr, "omega.example.case_change"));
+    REQUIRE(nullptr !=
+            omega_transform_plugin_registry_find_info(production_registry_ptr, "omega.example.common_checksums"));
+    REQUIRE(nullptr != omega_transform_plugin_registry_find_info(production_registry_ptr, "omega.example.endian_swap"));
+    REQUIRE(nullptr !=
+            omega_transform_plugin_registry_find_info(production_registry_ptr, "omega.example.openssl_digests"));
+    REQUIRE(nullptr ==
+            omega_transform_plugin_registry_find_info(production_registry_ptr, "omega.example.character_transcode"));
+    REQUIRE(nullptr ==
+            omega_transform_plugin_registry_find_info(production_registry_ptr, "omega.example.openssl_ciphers"));
+    REQUIRE(nullptr == omega_transform_plugin_registry_find_info(production_registry_ptr, "omega.example.repeat"));
+    omega_transform_plugin_registry_destroy(production_registry_ptr);
+
     const auto registry_ptr = omega_transform_plugin_registry_create();
     REQUIRE(registry_ptr);
+    REQUIRE(0 == omega_transform_plugin_registry_set_allow_experimental(registry_ptr, 1));
     REQUIRE(0 < omega_transform_plugin_registry_register_directory(registry_ptr, PLUGIN_DIR.string().c_str()));
     REQUIRE(14 <= omega_transform_plugin_registry_get_count(registry_ptr));
     REQUIRE(nullptr != omega_transform_plugin_registry_find_info(registry_ptr, "omega.example.base64"));
@@ -891,6 +912,7 @@ TEST_CASE("Large Transform Replacement Uses File-Backed Checkpoint", "[Transform
 
     const auto registry_ptr = omega_transform_plugin_registry_create();
     REQUIRE(registry_ptr);
+    REQUIRE(0 == omega_transform_plugin_registry_set_allow_experimental(registry_ptr, 1));
     REQUIRE(0 < omega_transform_plugin_registry_register_directory(registry_ptr, PLUGIN_DIR.string().c_str()));
 
     const auto input_length = static_cast<int64_t>((OMEGA_MEMORY_BUFFER_LIMIT / 2) + 1);

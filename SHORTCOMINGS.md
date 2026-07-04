@@ -278,32 +278,34 @@ Suggested fix:
 - Keep the existing per-iteration cancellation polling.
 - Add a decompression-bomb test that asserts the cap is enforced.
 
-### 10. Bundled plugins run in-process with server privileges
+### 10. Plugin workers still run with server user privileges
 
 **Impact:** High for any hardening attestation
 **Risk:** Medium
-**Area:** Core transform plugin loading, deployment trust boundary
+**Area:** Transform plugin worker sandboxing, deployment trust boundary
 
-Transform plugins are loaded with `dlopen`/`LoadLibrary` and execute in-process
-with the server's full privileges; there is no sandbox. Plugin directories are
-operator-controlled at startup rather than client-selectable, so this is a
-supply-chain/trust matter, not a client RCE. The `omega.example.*` naming implies
-samples, yet at least `openssl_digests` is wired into a production feature
-(`GetSessionFingerprint`), so the "example" plugins already inherit production
-trust.
+Transform plugins now run through the `omega-transform-plugin-host` worker
+process, so a plugin crash fails the transform request without killing the
+server. Plugins are classified as production, experimental, or test:
+production plugins load by default, experimental plugins require an explicit
+startup opt-in, and test plugins require a separate test-only opt-in and are not
+part of production packaging. The remaining hardening gap is permission
+isolation: workers still run as the same OS user and are launched from
+operator-controlled plugin directories. That keeps this as a supply-chain/trust
+matter rather than a client-selectable RCE, but a hardened deployment still
+needs a clear policy for what extra sandboxing applies.
 
 Relevant code:
-- `core/src/lib/transform.cpp:62`
-- `core/src/lib/transform.cpp:1068`
+- `core/src/tools/transform_plugin_host.cpp`
+- `core/src/lib/transform.cpp`
 - `server/cpp/src/editor_service.cpp:81`
 
 Suggested fix:
-- Decide and document which bundled plugins are supported/production versus
-  samples, and treat supported ones at the server's trust level.
 - Define the plugin trust boundary for the attestation (operator-provided,
-  reviewed, signed, or sandboxed).
-- Consider process/permission isolation for untrusted plugins if that becomes a
-  requirement.
+  reviewed, signed, sandboxed, or disabled).
+- Add optional worker permission isolation (`no_new_privs`/seccomp/namespaces or
+  platform equivalents), resource limits, and hard timeouts for untrusted
+  plugins.
 
 ---
 

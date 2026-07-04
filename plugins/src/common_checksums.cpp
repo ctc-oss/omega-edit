@@ -468,6 +468,7 @@ extern "C" OMEGA_TRANSFORM_PLUGIN_EXPORT int omega_transform_plugin_get_info(ome
     info_ptr->example = "{\"algorithm\":\"crc32c\"}";
     info_ptr->default_args = "{\"algorithm\":\"crc32\"}";
     info_ptr->args_schema = CHECKSUM_ARGS_SCHEMA;
+    info_ptr->support = OMEGA_TRANSFORM_PLUGIN_SUPPORT_PRODUCTION;
     info_ptr->abi_version = OMEGA_TRANSFORM_PLUGIN_ABI_VERSION;
     return 0;
 }

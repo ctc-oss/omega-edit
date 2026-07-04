@@ -384,6 +384,7 @@ extern "C" OMEGA_TRANSFORM_PLUGIN_EXPORT int omega_transform_plugin_get_info(ome
     info_ptr->example = "{\"from\":\"ebcdic-037\",\"to\":\"utf-8\"}";
     info_ptr->default_args = "{\"from\":\"utf-8\",\"to\":\"utf-16le\"}";
     info_ptr->args_schema = CHARACTER_TRANSCODE_ARGS_SCHEMA;
+    info_ptr->support = OMEGA_TRANSFORM_PLUGIN_SUPPORT_EXPERIMENTAL;
     info_ptr->abi_version = OMEGA_TRANSFORM_PLUGIN_ABI_VERSION;
     return 0;
 }

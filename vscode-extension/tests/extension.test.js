@@ -271,6 +271,18 @@ test('package.json matches shared extension constants', () => {
     []
   )
   assert.equal(
+    packageJson.contributes.configuration.properties[
+      'omegaEdit.allowExperimentalTransformPlugins'
+    ].default,
+    false
+  )
+  assert.equal(
+    packageNls[
+      'omegaEdit.configuration.allowExperimentalTransformPlugins.description'
+    ],
+    'Load experimental OmegaEdit transform plugins from configured or bundled plugin directories.'
+  )
+  assert.equal(
     Object.hasOwn(
       packageJson.contributes.configuration.properties,
       'omegaEdit.experimentalSvelteWebview'
@@ -433,6 +445,10 @@ test('compiled extension entrypoints exist after build', () => {
   )
   const protocolSource = fs.readFileSync(
     path.resolve(__dirname, '../src/webviewProtocol.ts'),
+    'utf8'
+  )
+  const assistantContextSource = fs.readFileSync(
+    path.resolve(__dirname, '../src/assistantContext.ts'),
     'utf8'
   )
   const apiDts = fs.readFileSync(
@@ -657,6 +673,9 @@ test('compiled extension entrypoints exist after build', () => {
   assert.match(providerJs, /example:\s*plugin\.example/)
   assert.match(providerJs, /defaultArgs:\s*plugin\.defaultArgs/)
   assert.match(providerJs, /argsSchema:\s*plugin\.argsSchema/)
+  assert.match(providerJs, /support:\s*plugin\.support/)
+  assert.match(assistantContextSource, /support:\s*number/)
+  assert.match(assistantContextSource, /supportName\?:\s*string/)
   assert.match(providerJs, /case\s+['"]applyTransform['"]/)
   assert.match(providerJs, /case\s+['"]exportRange['"]/)
   assert.match(providerJs, /case\s+['"]insertFile['"]/)
@@ -1399,6 +1418,8 @@ test('compiled extension entrypoints exist after build', () => {
   assert.match(transformPanelSource, /function buildActionPickerGroups/)
   assert.match(transformPanelSource, /function chooseAction/)
   assert.match(transformPanelSource, /function handleActionPickerKeydown/)
+  assert.match(transformPanelSource, /function transformPluginSupportLabel/)
+  assert.match(transformPanelSource, /class=\{`transform-support-badge/)
   assert.match(transformPanelSource, /function parseTransformDescriptorInput/)
   assert.match(transformPanelSource, /function createTransformDescriptorJson/)
   assert.match(transformPanelSource, /function setDescriptorJsonInput/)
@@ -1452,6 +1473,9 @@ test('compiled extension entrypoints exist after build', () => {
   assert.match(transformPanelSource, /class="transform-action-picker"/)
   assert.match(transformPanelSource, /class="transform-action-input"/)
   assert.match(transformPanelSource, /class="transform-action-menu"/)
+  assert.match(svelteStylesSource, /\.transform-support-badge/)
+  assert.match(svelteStylesSource, /\.transform-dialog-title/)
+  assert.match(i18nSource, /supportExperimental:\s*['"]Experimental['"]/)
   assert.match(transformPanelSource, /actionQuery\.trim\(\)\.length === 0/)
   assert.doesNotMatch(transformPanelSource, /role="listbox"/)
   assert.doesNotMatch(transformPanelSource, /role="option"/)
@@ -1786,6 +1810,7 @@ test('compiled extension entrypoints exist after build', () => {
   assert.match(extensionJs, /splitPathList/)
   assert.match(extensionJs, /OMEGA_EDIT_TRANSFORM_PLUGIN_DIRS/)
   assert.match(extensionJs, /OMEGA_EDIT_TRANSFORM_PLUGINS_DIR/)
+  assert.match(extensionJs, /allowExperimentalTransformPlugins/)
   assert.match(extensionJs, /_build_core['"],\s*['"]plugins['"],\s*['"]plugins/)
   assert.match(
     extensionJs,
@@ -1807,7 +1832,11 @@ test('compiled extension entrypoints exist after build', () => {
   assert.match(extensionJs, /startServerUnixSocket/)
   assert.match(
     extensionJs,
-    /startServer\)\(\s*tcpConnection\.port,\s*undefined,\s*undefined,\s*\{\s*transformPluginDirectories/
+    /const serverOptions = \{\s*transformPluginDirectories,\s*allowExperimentalTransformPlugins/
+  )
+  assert.match(
+    extensionJs,
+    /startServer\)\(\s*tcpConnection\.port,\s*undefined,\s*undefined,\s*serverOptions/
   )
   assert.match(
     extensionJs,

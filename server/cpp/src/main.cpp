@@ -29,6 +29,7 @@
 #include <cstdlib>
 #include <cstring>
 #include <ctime>
+#include <filesystem>
 #include <fstream>
 #include <iomanip>
 #include <iostream>
@@ -43,8 +44,15 @@
 #include <vector>
 
 #ifdef _WIN32
+#ifndef WIN32_LEAN_AND_MEAN
+#define WIN32_LEAN_AND_MEAN
+#endif
 #include <process.h>
+#include <windows.h>
 #define getpid _getpid
+#elif defined(__APPLE__)
+#include <mach-o/dyld.h>
+#include <unistd.h>
 #else
 #include <unistd.h>
 #endif
@@ -155,6 +163,86 @@ static std::string current_timestamp() {
     std::ostringstream stream;
     stream << std::put_time(&tm_snapshot, "%Y-%m-%d %H:%M:%S");
     return stream.str();
+}
+
+static std::string executable_extension() {
+#ifdef _WIN32
+    return ".exe";
+#else
+    return "";
+#endif
+}
+
+static std::filesystem::path absolute_path(std::filesystem::path path) {
+    std::error_code ec;
+    auto absolute = std::filesystem::absolute(path, ec);
+    return ec ? path : absolute;
+}
+
+static std::filesystem::path current_executable_path(const char *argv0) {
+#ifdef _WIN32
+    std::vector<char> buffer(MAX_PATH);
+    while (true) {
+        const auto length = GetModuleFileNameA(nullptr, buffer.data(), static_cast<DWORD>(buffer.size()));
+        if (length == 0) { break; }
+        if (length < buffer.size()) { return std::filesystem::path(std::string(buffer.data(), length)); }
+        buffer.resize(buffer.size() * 2);
+    }
+#elif defined(__APPLE__)
+    uint32_t size = 0;
+    _NSGetExecutablePath(nullptr, &size);
+    if (size > 0) {
+        std::vector<char> buffer(size + 1);
+        if (_NSGetExecutablePath(buffer.data(), &size) == 0) {
+            std::error_code ec;
+            auto canonical = std::filesystem::weakly_canonical(buffer.data(), ec);
+            return ec ? absolute_path(buffer.data()) : canonical;
+        }
+    }
+#else
+    std::vector<char> buffer(4096);
+    while (true) {
+        const auto length = readlink("/proc/self/exe", buffer.data(), buffer.size() - 1U);
+        if (length <= 0) { break; }
+        if (static_cast<size_t>(length) < buffer.size() - 1U) {
+            buffer[static_cast<size_t>(length)] = '\0';
+            return std::filesystem::path(buffer.data());
+        }
+        buffer.resize(buffer.size() * 2U);
+    }
+#endif
+
+    if (!argv0 || !*argv0) { return {}; }
+    return absolute_path(argv0);
+}
+
+static std::string find_sibling_transform_plugin_host(const char *argv0) {
+    const auto executable_path = current_executable_path(argv0);
+    if (executable_path.empty()) { return {}; }
+
+    const auto directory =
+            executable_path.has_parent_path() ? executable_path.parent_path() : std::filesystem::path(".");
+    const auto extension = executable_extension();
+    std::vector<std::string> candidates;
+
+    const std::string filename = executable_path.filename().string();
+    const std::string prefix = "omega-edit-grpc-server-";
+    if (filename.rfind(prefix, 0) == 0) {
+        auto platform_id = filename.substr(prefix.size());
+        if (!extension.empty() && platform_id.size() > extension.size() &&
+            platform_id.compare(platform_id.size() - extension.size(), extension.size(), extension) == 0) {
+            platform_id.resize(platform_id.size() - extension.size());
+        }
+        if (!platform_id.empty()) { candidates.push_back("omega-transform-plugin-host-" + platform_id + extension); }
+    }
+    candidates.push_back("omega-transform-plugin-host" + extension);
+
+    for (const auto &candidate : candidates) {
+        std::error_code ec;
+        const auto path = directory / candidate;
+        if (std::filesystem::is_regular_file(path, ec)) { return path.string(); }
+    }
+    return {};
 }
 
 static void log_message(LogLevel level, const std::string &message) {
@@ -326,6 +414,12 @@ static void print_usage(const char *progname) {
               << "\nTransform plugin options:\n"
               << "      --transform-plugin-dir <dir>\n"
               << "                                   Register transform plugins from a directory (repeatable)\n"
+              << "      --transform-plugin-host <path>\n"
+              << "                                   Worker executable used to run transform plugins out of process\n"
+              << "      --allow-experimental-transform-plugins\n"
+              << "                                   Load experimental transform plugins from registered directories\n"
+              << "      --allow-test-transform-plugins\n"
+              << "                                   Load test-only transform plugins from registered directories\n"
               << "\nGeneral:\n"
               << "  -h, --help                       Show this help\n"
               << "  -v, --version                    Show version\n";
@@ -352,6 +446,9 @@ int main(int argc, char **argv) {
     int64_t max_change_bytes = resource_limits.max_change_bytes;
     size_t max_viewports_per_session = resource_limits.max_viewports_per_session;
     std::vector<std::string> transform_plugin_directories;
+    std::string transform_plugin_host_path;
+    bool allow_experimental_transform_plugins = false;
+    bool allow_test_transform_plugins = false;
     // Environment variable defaults
     if (const char *env = std::getenv("OMEGA_EDIT_SERVER_HOST")) { interface_addr = env; }
     if (const char *env = std::getenv("OMEGA_EDIT_SERVER_PORT")) {
@@ -409,6 +506,16 @@ int main(int argc, char **argv) {
     if (const char *env = std::getenv("OMEGA_EDIT_TRANSFORM_PLUGIN_DIRS")) {
         append_transform_plugin_directories(env, transform_plugin_directories);
     }
+    if (const char *env = std::getenv("OMEGA_EDIT_TRANSFORM_PLUGIN_HOST")) { transform_plugin_host_path = env; }
+    if (const char *env = std::getenv("OMEGA_EDIT_TRANSFORM_PLUGIN_ALLOW_EXPERIMENTAL")) {
+        allow_experimental_transform_plugins = env_value_is_true(env);
+    }
+    if (const char *env = std::getenv("OMEGA_EDIT_TRANSFORM_PLUGIN_ALLOW_TEST")) {
+        allow_test_transform_plugins = env_value_is_true(env);
+    }
+    if (transform_plugin_host_path.empty()) {
+        transform_plugin_host_path = find_sibling_transform_plugin_host(argv[0]);
+    }
 
     // Parse command line arguments
     for (int i = 1; i < argc; ++i) {
@@ -426,6 +533,10 @@ int main(int argc, char **argv) {
             insecure_allow_non_loopback = true;
         } else if (arg == "--shutdown-when-no-sessions") {
             shutdown_when_no_sessions = true;
+        } else if (arg == "--allow-experimental-transform-plugins") {
+            allow_experimental_transform_plugins = true;
+        } else if (arg == "--allow-test-transform-plugins") {
+            allow_test_transform_plugins = true;
         } else {
             // Handle --key=value and --key value forms
             std::string key, value;
@@ -505,6 +616,9 @@ int main(int argc, char **argv) {
             } else if (key == "--transform-plugin-dir") {
                 if (!require_option_value(key, value)) { return 1; }
                 transform_plugin_directories.push_back(value);
+            } else if (key == "--transform-plugin-host") {
+                if (!require_option_value(key, value)) { return 1; }
+                transform_plugin_host_path = value;
             }
             // Silently ignore unknown options.
         }
@@ -545,8 +659,9 @@ int main(int argc, char **argv) {
         // Set the shutdown flag so the monitor thread exits cleanly and shuts down the server
         g_shutdown_requested.store(true, std::memory_order_relaxed);
     };
-    omega_edit::grpc_server::EditorServiceImpl service(heartbeat_config, resource_limits, shutdown_callback,
-                                                       transform_plugin_directories);
+    omega_edit::grpc_server::EditorServiceImpl service(
+            heartbeat_config, resource_limits, shutdown_callback, transform_plugin_directories,
+            transform_plugin_host_path, allow_experimental_transform_plugins, allow_test_transform_plugins);
 
     grpc::EnableDefaultHealthCheckService(true);
 #ifdef HAS_GRPC_REFLECTION

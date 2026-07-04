@@ -1120,6 +1120,14 @@ enum TransformPluginOperation {
     TRANSFORM_PLUGIN_OPERATION_REPLACE_AND_INSPECT = 3;
 }
 
+// Transform plugin support tier.
+enum TransformPluginSupport {
+    TRANSFORM_PLUGIN_SUPPORT_UNSPECIFIED = 0;
+    TRANSFORM_PLUGIN_SUPPORT_PRODUCTION = 1;
+    TRANSFORM_PLUGIN_SUPPORT_EXPERIMENTAL = 2;
+    TRANSFORM_PLUGIN_SUPPORT_TEST = 3;
+}
+
 // Metadata advertised by a registered transform plugin.
 message TransformPluginInfo {
     string id = 1;
@@ -1132,6 +1140,7 @@ message TransformPluginInfo {
     string example = 8;     // Example JSON arguments.
     string default_args = 9;// Default JSON arguments.
     string args_schema = 10;// JSON Schema for validating options_json before apply.
+    TransformPluginSupport support = 11;
 }
 
 // Request registered transform plugin metadata.
