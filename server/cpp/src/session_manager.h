@@ -175,6 +175,7 @@ namespace omega_edit {
         /// Information about a session managed by the session manager
         struct SessionInfo {
             omega_session_t *session{};
+            bool initialization_complete{false};
             std::string session_id;
             std::string canonical_file_path;
             std::string checkpoint_directory;
@@ -188,6 +189,8 @@ namespace omega_edit {
             size_t active_mutations{0};
             // Serializes all access to the underlying non-thread-safe omega_session_t and its viewports.
             std::mutex core_mutex;
+            std::mutex initialization_mutex;
+            std::condition_variable initialization_cv;
             std::mutex session_subscription_mutex;
             std::vector<SessionEventSubscriptionInfo> session_subscriptions;
             std::chrono::steady_clock::time_point last_activity;

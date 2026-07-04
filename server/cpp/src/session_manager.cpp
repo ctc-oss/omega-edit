@@ -135,7 +135,8 @@ namespace omega_edit {
 #endif
             }
 
-            int32_t combine_session_event_interest(const std::vector<SessionEventSubscriptionInfo> &subscriptions) {
+            template<typename SubscriptionInfo>
+            int32_t combine_event_interest(const std::vector<SubscriptionInfo> &subscriptions) {
                 uint32_t combined = 0;
                 for (const auto &subscription : subscriptions) {
                     combined |= static_cast<uint32_t>(subscription.interest);
@@ -143,12 +144,37 @@ namespace omega_edit {
                 return static_cast<int32_t>(combined);
             }
 
-            int32_t combine_viewport_event_interest(const std::vector<ViewportEventSubscriptionInfo> &subscriptions) {
-                uint32_t combined = 0;
-                for (const auto &subscription : subscriptions) {
-                    combined |= static_cast<uint32_t>(subscription.interest);
+            template<typename SubscriptionInfo, typename EventData>
+            std::vector<std::shared_ptr<EventQueue<EventData>>>
+            collect_event_subscribers(std::mutex &subscription_mutex,
+                                      const std::vector<SubscriptionInfo> &subscriptions, int32_t event_kind) {
+                const auto event_mask = static_cast<uint32_t>(event_kind);
+                std::vector<std::shared_ptr<EventQueue<EventData>>> subscribers;
+                {
+                    std::lock_guard<std::mutex> subscription_lock(subscription_mutex);
+                    subscribers.reserve(subscriptions.size());
+                    for (const auto &subscription : subscriptions) {
+                        if (subscription.event_queue &&
+                            ((static_cast<uint32_t>(subscription.interest) & event_mask) != 0U)) {
+                            subscribers.push_back(subscription.event_queue);
+                        }
+                    }
                 }
-                return static_cast<int32_t>(combined);
+                return subscribers;
+            }
+
+            template<typename EventData>
+            void publish_event_to_subscribers(const std::vector<std::shared_ptr<EventQueue<EventData>>> &subscribers,
+                                              const EventData &event) {
+                for (const auto &subscriber : subscribers) { subscriber->push(event); }
+            }
+
+            void complete_session_initialization(const std::shared_ptr<SessionInfo> &info) {
+                {
+                    std::lock_guard<std::mutex> initialization_lock(info->initialization_mutex);
+                    info->initialization_complete = true;
+                }
+                info->initialization_cv.notify_all();
             }
 
             bool normalize_existing_file_path(const std::string &file_path, std::string &normalized_path_out) {
@@ -427,21 +453,9 @@ namespace omega_edit {
                     break;
             }
 
-            const auto event_kind = static_cast<int32_t>(event);
-            const auto event_mask = static_cast<uint32_t>(event_kind);
-            std::vector<std::shared_ptr<EventQueue<SessionEventData>>> subscribers;
-            {
-                std::lock_guard<std::mutex> subscription_lock(info->session_subscription_mutex);
-                subscribers.reserve(info->session_subscriptions.size());
-                for (const auto &subscription : info->session_subscriptions) {
-                    if (subscription.event_queue &&
-                        ((static_cast<uint32_t>(subscription.interest) & event_mask) != 0U)) {
-                        subscribers.push_back(subscription.event_queue);
-                    }
-                }
-            }
-
-            for (const auto &subscriber : subscribers) { subscriber->push(evt); }
+            const auto subscribers = collect_event_subscribers<SessionEventSubscriptionInfo, SessionEventData>(
+                    info->session_subscription_mutex, info->session_subscriptions, static_cast<int32_t>(event));
+            publish_event_to_subscribers(subscribers, evt);
         }
 
         void SessionManager::viewport_event_callback(const omega_viewport_t *viewport, omega_viewport_event_t event,
@@ -476,21 +490,9 @@ namespace omega_edit {
             const auto *data = omega_viewport_get_data(viewport);
             if (data && length > 0) { evt.data.assign(data, data + length); }
 
-            const auto event_kind = static_cast<int32_t>(event);
-            const auto event_mask = static_cast<uint32_t>(event_kind);
-            std::vector<std::shared_ptr<EventQueue<ViewportEventData>>> subscribers;
-            {
-                std::lock_guard<std::mutex> subscription_lock(info->viewport_subscription_mutex);
-                subscribers.reserve(info->viewport_subscriptions.size());
-                for (const auto &subscription : info->viewport_subscriptions) {
-                    if (subscription.event_queue &&
-                        ((static_cast<uint32_t>(subscription.interest) & event_mask) != 0U)) {
-                        subscribers.push_back(subscription.event_queue);
-                    }
-                }
-            }
-
-            for (const auto &subscriber : subscribers) { subscriber->push(evt); }
+            const auto subscribers = collect_event_subscribers<ViewportEventSubscriptionInfo, ViewportEventData>(
+                    info->viewport_subscription_mutex, info->viewport_subscriptions, static_cast<int32_t>(event));
+            publish_event_to_subscribers(subscribers, evt);
         }
 
         // ── Constructor / Destructor ─────────────────────────────────────────────────
@@ -505,8 +507,6 @@ namespace omega_edit {
                                                    const std::string &checkpoint_directory,
                                                    const std::string *initial_data, int64_t &file_size_out,
                                                    std::string &checkpoint_dir_out, SessionCreateError *error_out) {
-            std::lock_guard<std::mutex> lock(mutex_);
-
             if (error_out) { *error_out = SessionCreateError::SUCCESS; }
 
             if (!file_path.empty() && !is_valid_external_path(file_path)) {
@@ -527,72 +527,116 @@ namespace omega_edit {
 
             const bool share_existing_file_session = desired_id.empty() && has_file_backing;
 
+            std::string session_id;
+            auto info = std::make_shared<SessionInfo>();
+            std::string effective_checkpoint_directory = checkpoint_directory;
+            bool reserved_new_session = false;
+            auto reserve_new_session_locked = [&]() -> bool {
+                // Session ID priority: desired_id > generated opaque session ID
+                if (!desired_id.empty()) {
+                    if (!is_valid_external_id(desired_id)) {
+                        if (error_out) { *error_out = SessionCreateError::INVALID_ID; }
+                        return false;
+                    }
+                    session_id = desired_id;
+                    if (sessions_.count(session_id) != 0) {
+                        if (error_out) { *error_out = SessionCreateError::ALREADY_EXISTS; }
+                        return false;// Already exists
+                    }
+                } else {
+                    do { session_id = generate_session_id(); } while (sessions_.count(session_id) != 0);
+                }
+
+                info->session_id = session_id;
+                info->canonical_file_path = canonical_file_path;
+                info->attachment_count = 1;
+                info->last_activity = std::chrono::steady_clock::now();
+
+                if (effective_checkpoint_directory.empty()) {
+                    effective_checkpoint_directory = create_managed_checkpoint_directory();
+                    if (effective_checkpoint_directory.empty()) {
+                        cleanup_managed_server_root_if_empty();
+                        if (error_out) { *error_out = SessionCreateError::CORE_ERROR; }
+                        return false;
+                    }
+                    info->owns_checkpoint_directory = true;
+                }
+
+                info->checkpoint_directory = effective_checkpoint_directory;
+                sessions_[session_id] = info;
+                if (share_existing_file_session) { file_sessions_by_path_[canonical_file_path] = session_id; }
+                reserved_new_session = true;
+                return true;
+            };
+
             if (share_existing_file_session) {
-                auto existing_file_session = file_sessions_by_path_.find(canonical_file_path);
-                if (existing_file_session != file_sessions_by_path_.end()) {
-                    auto existing = sessions_.find(existing_file_session->second);
-                    if (existing == sessions_.end()) {
-                        file_sessions_by_path_.erase(existing_file_session);
-                    } else if (checkpoint_directory.empty() ||
-                               checkpoint_directory == existing->second->checkpoint_directory) {
-                        auto &info = existing->second;
-                        std::lock_guard<std::mutex> core_lock(info->core_mutex);
-                        const auto computed_size =
-                                info->session ? omega_session_get_computed_file_size(info->session) : 0;
-                        if (computed_size < 0) {
-                            if (error_out) { *error_out = SessionCreateError::CORE_ERROR; }
+                std::shared_ptr<SessionInfo> existing_info;
+                {
+                    std::lock_guard<std::mutex> lock(mutex_);
+                    auto existing_file_session = file_sessions_by_path_.find(canonical_file_path);
+                    if (existing_file_session != file_sessions_by_path_.end()) {
+                        auto existing = sessions_.find(existing_file_session->second);
+                        if (existing == sessions_.end()) {
+                            file_sessions_by_path_.erase(existing_file_session);
+                            if (!reserve_new_session_locked()) { return ""; }
+                        } else if (checkpoint_directory.empty() ||
+                                   checkpoint_directory == existing->second->checkpoint_directory) {
+                            existing_info = existing->second;
+                        } else {
+                            if (error_out) { *error_out = SessionCreateError::ALREADY_EXISTS; }
                             return "";
                         }
-                        ++info->attachment_count;
-                        info->last_activity = std::chrono::steady_clock::now();
-                        file_size_out = computed_size;
-                        checkpoint_dir_out = info->checkpoint_directory;
-                        return info->session_id;
-                    } else {
-                        if (error_out) { *error_out = SessionCreateError::ALREADY_EXISTS; }
+                    } else if (!reserve_new_session_locked()) {
                         return "";
                     }
                 }
+
+                if (existing_info) {
+                    {
+                        std::unique_lock<std::mutex> initialization_lock(existing_info->initialization_mutex);
+                        existing_info->initialization_cv.wait(initialization_lock, [&existing_info] {
+                            return existing_info->initialization_complete;
+                        });
+                    }
+
+                    std::unique_lock<std::mutex> core_lock(existing_info->core_mutex);
+                    if (!existing_info->session) {
+                        if (error_out) { *error_out = SessionCreateError::CORE_ERROR; }
+                        return "";
+                    }
+                    const auto computed_size = omega_session_get_computed_file_size(existing_info->session);
+                    if (computed_size < 0) {
+                        if (error_out) { *error_out = SessionCreateError::CORE_ERROR; }
+                        return "";
+                    }
+                    core_lock.unlock();
+
+                    std::lock_guard<std::mutex> lock(mutex_);
+                    auto current = sessions_.find(existing_info->session_id);
+                    if (current == sessions_.end() || current->second != existing_info) {
+                        if (error_out) { *error_out = SessionCreateError::CORE_ERROR; }
+                        return "";
+                    }
+                    ++existing_info->attachment_count;
+                    existing_info->last_activity = std::chrono::steady_clock::now();
+                    file_size_out = computed_size;
+                    checkpoint_dir_out = existing_info->checkpoint_directory;
+                    return existing_info->session_id;
+                }
             }
 
-            // Session ID priority: desired_id > generated opaque session ID
-            std::string session_id;
-            if (!desired_id.empty()) {
-                if (!is_valid_external_id(desired_id)) {
-                    if (error_out) { *error_out = SessionCreateError::INVALID_ID; }
-                    return "";
+            auto release_reserved_file_session = [&]() {
+                if (!share_existing_file_session) { return; }
+                auto mapped = file_sessions_by_path_.find(canonical_file_path);
+                if (mapped != file_sessions_by_path_.end() && mapped->second == session_id) {
+                    file_sessions_by_path_.erase(mapped);
                 }
-                session_id = desired_id;
-                if (sessions_.count(session_id) != 0) {
-                    if (error_out) { *error_out = SessionCreateError::ALREADY_EXISTS; }
-                    return "";// Already exists
-                }
-            } else {
-                do { session_id = generate_session_id(); } while (sessions_.count(session_id) != 0);
+            };
+            if (!reserved_new_session) {
+                std::lock_guard<std::mutex> lock(mutex_);
+                if (!reserve_new_session_locked()) { return ""; }
             }
 
-            auto info = std::make_shared<SessionInfo>();
-            info->session_id = session_id;
-            info->canonical_file_path = canonical_file_path;
-            info->attachment_count = 1;
-            info->last_activity = std::chrono::steady_clock::now();
-
-            // Store info first so the callback can find it
-            sessions_[session_id] = info;
-
-            std::string effective_checkpoint_directory = checkpoint_directory;
-            if (effective_checkpoint_directory.empty()) {
-                effective_checkpoint_directory = create_managed_checkpoint_directory();
-                if (effective_checkpoint_directory.empty()) {
-                    sessions_.erase(session_id);
-                    cleanup_managed_server_root_if_empty();
-                    if (error_out) { *error_out = SessionCreateError::CORE_ERROR; }
-                    return "";
-                }
-                info->owns_checkpoint_directory = true;
-            }
-
-            info->checkpoint_directory = effective_checkpoint_directory;
             const char *chkpt_dir =
                     effective_checkpoint_directory.empty() ? nullptr : effective_checkpoint_directory.c_str();
 
@@ -607,36 +651,78 @@ namespace omega_edit {
             }
 
             if (!session) {
+                {
+                    std::lock_guard<std::mutex> lock(mutex_);
+                    auto current = sessions_.find(session_id);
+                    if (current != sessions_.end() && current->second == info) { sessions_.erase(current); }
+                    release_reserved_file_session();
+                }
                 if (info->owns_checkpoint_directory) { cleanup_directory_best_effort(info->checkpoint_directory); }
-                sessions_.erase(session_id);
-                cleanup_managed_server_root_if_empty();
+                {
+                    std::lock_guard<std::mutex> lock(mutex_);
+                    cleanup_managed_server_root_if_empty();
+                }
+                complete_session_initialization(info);
                 if (error_out) { *error_out = SessionCreateError::CORE_ERROR; }
                 return "";// Failed to create
             }
 
-            info->session = session;
-            file_size_out = omega_session_get_computed_file_size(session);
-            if (file_size_out < 0) {
+            const auto computed_size = omega_session_get_computed_file_size(session);
+            if (computed_size < 0) {
                 omega_edit_destroy_session(session);
-                info->session = nullptr;
+                {
+                    std::lock_guard<std::mutex> lock(mutex_);
+                    auto current = sessions_.find(session_id);
+                    if (current != sessions_.end() && current->second == info) { sessions_.erase(current); }
+                    release_reserved_file_session();
+                }
                 if (info->owns_checkpoint_directory) { cleanup_directory_best_effort(info->checkpoint_directory); }
-                sessions_.erase(session_id);
-                cleanup_managed_server_root_if_empty();
+                {
+                    std::lock_guard<std::mutex> lock(mutex_);
+                    cleanup_managed_server_root_if_empty();
+                }
+                complete_session_initialization(info);
                 if (error_out) { *error_out = SessionCreateError::CORE_ERROR; }
                 return "";
             }
 
             const char *chkpt = omega_session_get_checkpoint_directory(session);
             checkpoint_dir_out = chkpt ? chkpt : "";
-            if (!checkpoint_dir_out.empty()) { info->checkpoint_directory = checkpoint_dir_out; }
+            bool publish_failed = false;
+            {
+                std::lock_guard<std::mutex> lock(mutex_);
+                auto current = sessions_.find(session_id);
+                if (current == sessions_.end() || current->second != info) {
+                    publish_failed = true;
+                } else {
+                    {
+                        std::lock_guard<std::mutex> core_lock(info->core_mutex);
+                        info->session = session;
+                    }
+                    file_size_out = computed_size;
+                    if (!checkpoint_dir_out.empty()) { info->checkpoint_directory = checkpoint_dir_out; }
+                    if (share_existing_file_session) { file_sessions_by_path_[canonical_file_path] = session_id; }
+                }
+            }
+            if (publish_failed) {
+                omega_edit_destroy_session(session);
+                if (info->owns_checkpoint_directory) { cleanup_directory_best_effort(info->checkpoint_directory); }
+                {
+                    std::lock_guard<std::mutex> lock(mutex_);
+                    cleanup_managed_server_root_if_empty();
+                }
+                complete_session_initialization(info);
+                if (error_out) { *error_out = SessionCreateError::CORE_ERROR; }
+                return "";
+            }
 
-            if (share_existing_file_session) { file_sessions_by_path_[canonical_file_path] = session_id; }
-
+            complete_session_initialization(info);
             return session_id;
         }
 
         void SessionManager::destroy_session_info(const std::shared_ptr<SessionInfo> &info) {
             if (!info) { return; }
+            complete_session_initialization(info);
             std::lock_guard<std::mutex> core_lock(info->core_mutex);
 
             // Close event queues
@@ -809,20 +895,9 @@ namespace omega_edit {
             evt.transform_progress = progress;
             evt.has_transform_progress = true;
 
-            const auto event_mask = static_cast<uint32_t>(event_kind);
-            std::vector<std::shared_ptr<EventQueue<SessionEventData>>> subscribers;
-            {
-                std::lock_guard<std::mutex> subscription_lock(info->session_subscription_mutex);
-                subscribers.reserve(info->session_subscriptions.size());
-                for (const auto &subscription : info->session_subscriptions) {
-                    if (subscription.event_queue &&
-                        ((static_cast<uint32_t>(subscription.interest) & event_mask) != 0U)) {
-                        subscribers.push_back(subscription.event_queue);
-                    }
-                }
-            }
-
-            for (const auto &subscriber : subscribers) { subscriber->push(evt); }
+            const auto subscribers = collect_event_subscribers<SessionEventSubscriptionInfo, SessionEventData>(
+                    info->session_subscription_mutex, info->session_subscriptions, event_kind);
+            publish_event_to_subscribers(subscribers, evt);
             return true;
         }
 
@@ -847,49 +922,58 @@ namespace omega_edit {
         std::string SessionManager::create_viewport(const std::string &session_id, int64_t offset, int64_t capacity,
                                                     bool is_floating, const std::string &desired_viewport_id,
                                                     ViewportCreateError *error_out) {
-            std::lock_guard<std::mutex> lock(mutex_);
-
-            auto sit = sessions_.find(session_id);
-            if (sit == sessions_.end()) {
-                if (error_out) *error_out = ViewportCreateError::SESSION_NOT_FOUND;
-                return "";
-            }
-
-            if (!desired_viewport_id.empty() && !is_valid_external_id(desired_viewport_id)) {
-                if (error_out) *error_out = ViewportCreateError::INVALID_VIEWPORT_ID;
-                return "";
-            }
-
-            auto &session_info = sit->second;
-            session_info->last_activity = std::chrono::steady_clock::now();
-            std::string viewport_id = desired_viewport_id;
-            if (viewport_id.empty()) {
-                do { viewport_id = generate_viewport_id(); } while (session_info->viewports.count(viewport_id) != 0);
-            }
-
-            // Check for duplicate viewport
-            if (session_info->viewports.count(viewport_id)) {
-                if (error_out) *error_out = ViewportCreateError::DUPLICATE_VIEWPORT_ID;
-                return "";
-            }
-
-            if (limits_.max_viewports_per_session > 0 &&
-                session_info->viewports.size() >= limits_.max_viewports_per_session) {
-                if (error_out) *error_out = ViewportCreateError::TOO_MANY_VIEWPORTS;
-                return "";
-            }
-
+            std::shared_ptr<SessionInfo> session_info;
             auto vp_info = std::make_shared<ViewportInfo>();
             vp_info->session_id = session_id;
-            vp_info->viewport_id = viewport_id;
+            {
+                std::lock_guard<std::mutex> lock(mutex_);
 
-            // Store first so viewport callbacks can find subscription state. lock_viewport treats a null viewport as missing
-            // until omega_edit_create_viewport publishes the core pointer below.
-            session_info->viewports[viewport_id] = vp_info;
+                auto sit = sessions_.find(session_id);
+                if (sit == sessions_.end()) {
+                    if (error_out) *error_out = ViewportCreateError::SESSION_NOT_FOUND;
+                    return "";
+                }
+
+                if (!desired_viewport_id.empty() && !is_valid_external_id(desired_viewport_id)) {
+                    if (error_out) *error_out = ViewportCreateError::INVALID_VIEWPORT_ID;
+                    return "";
+                }
+
+                session_info = sit->second;
+                session_info->last_activity = std::chrono::steady_clock::now();
+                std::string viewport_id = desired_viewport_id;
+                if (viewport_id.empty()) {
+                    do {
+                        viewport_id = generate_viewport_id();
+                    } while (session_info->viewports.count(viewport_id) != 0);
+                }
+
+                // Check for duplicate viewport
+                if (session_info->viewports.count(viewport_id)) {
+                    if (error_out) *error_out = ViewportCreateError::DUPLICATE_VIEWPORT_ID;
+                    return "";
+                }
+
+                if (limits_.max_viewports_per_session > 0 &&
+                    session_info->viewports.size() >= limits_.max_viewports_per_session) {
+                    if (error_out) *error_out = ViewportCreateError::TOO_MANY_VIEWPORTS;
+                    return "";
+                }
+
+                vp_info->viewport_id = viewport_id;
+
+                // Store first so viewport callbacks can find subscription state. lock_viewport treats a null viewport as
+                // missing until omega_edit_create_viewport publishes the core pointer below.
+                session_info->viewports[viewport_id] = vp_info;
+            }
 
             std::lock_guard<std::mutex> core_lock(session_info->core_mutex);
             if (session_info->session == nullptr) {
-                session_info->viewports.erase(viewport_id);
+                std::lock_guard<std::mutex> lock(mutex_);
+                auto current = sessions_.find(session_id);
+                if (current != sessions_.end() && current->second == session_info) {
+                    session_info->viewports.erase(vp_info->viewport_id);
+                }
                 if (error_out) *error_out = ViewportCreateError::SESSION_NOT_FOUND;
                 return "";
             }
@@ -898,28 +982,37 @@ namespace omega_edit {
                                                viewport_event_callback, vp_info.get(), 0);
 
             if (!viewport) {
-                session_info->viewports.erase(viewport_id);
+                std::lock_guard<std::mutex> lock(mutex_);
+                auto current = sessions_.find(session_id);
+                if (current != sessions_.end() && current->second == session_info) {
+                    session_info->viewports.erase(vp_info->viewport_id);
+                }
                 if (error_out) *error_out = ViewportCreateError::CORE_ERROR;
                 return "";
             }
 
             vp_info->viewport = viewport;
             if (error_out) *error_out = ViewportCreateError::SUCCESS;
-            return make_viewport_fqid(session_id, viewport_id);
+            return make_viewport_fqid(session_id, vp_info->viewport_id);
         }
 
         bool SessionManager::destroy_viewport(const std::string &session_id, const std::string &viewport_id) {
-            std::lock_guard<std::mutex> lock(mutex_);
+            std::shared_ptr<SessionInfo> session_info;
+            std::shared_ptr<ViewportInfo> vp_info;
+            {
+                std::lock_guard<std::mutex> lock(mutex_);
 
-            auto sit = sessions_.find(session_id);
-            if (sit == sessions_.end()) return false;
+                auto sit = sessions_.find(session_id);
+                if (sit == sessions_.end()) return false;
 
-            auto &session_info = sit->second;
-            session_info->last_activity = std::chrono::steady_clock::now();
-            auto vit = session_info->viewports.find(viewport_id);
-            if (vit == session_info->viewports.end()) return false;
+                session_info = sit->second;
+                session_info->last_activity = std::chrono::steady_clock::now();
+                auto vit = session_info->viewports.find(viewport_id);
+                if (vit == session_info->viewports.end()) return false;
 
-            auto &vp_info = vit->second;
+                vp_info = vit->second;
+                session_info->viewports.erase(vit);
+            }
             std::lock_guard<std::mutex> core_lock(session_info->core_mutex);
             {
                 std::lock_guard<std::mutex> subscription_lock(vp_info->viewport_subscription_mutex);
@@ -931,7 +1024,6 @@ namespace omega_edit {
 
             if (vp_info->viewport) { omega_edit_destroy_viewport(vp_info->viewport); }
             vp_info->viewport = nullptr;
-            session_info->viewports.erase(vit);
             return true;
         }
 
@@ -969,12 +1061,17 @@ namespace omega_edit {
 
         std::shared_ptr<EventQueue<SessionEventData>>
         SessionManager::subscribe_session_events(const std::string &session_id, int32_t interest) {
-            std::lock_guard<std::mutex> lock(mutex_);
+            std::shared_ptr<SessionInfo> info;
+            {
+                std::lock_guard<std::mutex> lock(mutex_);
 
-            auto it = sessions_.find(session_id);
-            if (it == sessions_.end()) return nullptr;
+                auto it = sessions_.find(session_id);
+                if (it == sessions_.end()) return nullptr;
 
-            auto &info = it->second;
+                info = it->second;
+                info->last_activity = std::chrono::steady_clock::now();
+            }
+
             auto queue = std::make_shared<EventQueue<SessionEventData>>(limits_.session_event_queue_capacity,
                                                                         "session subscription '" + session_id + "#" +
                                                                                 generate_subscription_id() + "'");
@@ -982,20 +1079,38 @@ namespace omega_edit {
             {
                 std::lock_guard<std::mutex> subscription_lock(info->session_subscription_mutex);
                 info->session_subscriptions.push_back({queue, interest});
-                combined_interest = combine_session_event_interest(info->session_subscriptions);
+                combined_interest = combine_event_interest(info->session_subscriptions);
             }
-            std::lock_guard<std::mutex> core_lock(info->core_mutex);
-            if (info->session) { omega_session_set_event_interest(info->session, combined_interest); }
+            std::unique_lock<std::mutex> core_lock(info->core_mutex);
+            if (!info->session) {
+                core_lock.unlock();
+                {
+                    std::lock_guard<std::mutex> subscription_lock(info->session_subscription_mutex);
+                    auto &subscriptions = info->session_subscriptions;
+                    subscriptions.erase(std::remove_if(subscriptions.begin(), subscriptions.end(),
+                                                       [&queue](const SessionEventSubscriptionInfo &subscription) {
+                                                           return subscription.event_queue == queue;
+                                                       }),
+                                        subscriptions.end());
+                }
+                queue->clear();
+                queue->close();
+                return nullptr;
+            }
+            omega_session_set_event_interest(info->session, combined_interest);
             return queue;
         }
 
         void SessionManager::unsubscribe_session_events(const std::string &session_id) {
-            std::lock_guard<std::mutex> lock(mutex_);
+            std::shared_ptr<SessionInfo> info;
+            {
+                std::lock_guard<std::mutex> lock(mutex_);
 
-            auto it = sessions_.find(session_id);
-            if (it == sessions_.end()) return;
+                auto it = sessions_.find(session_id);
+                if (it == sessions_.end()) return;
 
-            auto &info = it->second;
+                info = it->second;
+            }
             std::vector<std::shared_ptr<EventQueue<SessionEventData>>> removed_queues;
             {
                 std::lock_guard<std::mutex> subscription_lock(info->session_subscription_mutex);
@@ -1015,12 +1130,17 @@ namespace omega_edit {
 
         void SessionManager::unsubscribe_session_events(const std::string &session_id,
                                                         const std::shared_ptr<EventQueue<SessionEventData>> &queue) {
-            std::lock_guard<std::mutex> lock(mutex_);
+            if (!queue) return;
 
-            auto it = sessions_.find(session_id);
-            if (it == sessions_.end() || !queue) return;
+            std::shared_ptr<SessionInfo> info;
+            {
+                std::lock_guard<std::mutex> lock(mutex_);
 
-            auto &info = it->second;
+                auto it = sessions_.find(session_id);
+                if (it == sessions_.end()) return;
+
+                info = it->second;
+            }
             bool removed = false;
             int32_t combined_interest = 0;
             {
@@ -1034,7 +1154,7 @@ namespace omega_edit {
                                            return matches;
                                        }),
                         subscriptions.end());
-                combined_interest = combine_session_event_interest(subscriptions);
+                combined_interest = combine_event_interest(subscriptions);
             }
             std::lock_guard<std::mutex> core_lock(info->core_mutex);
             if (info->session) { omega_session_set_event_interest(info->session, combined_interest); }
@@ -1074,7 +1194,7 @@ namespace omega_edit {
             {
                 std::lock_guard<std::mutex> subscription_lock(vp_info->viewport_subscription_mutex);
                 vp_info->viewport_subscriptions.push_back({queue, interest});
-                combined_interest = combine_viewport_event_interest(vp_info->viewport_subscriptions);
+                combined_interest = combine_event_interest(vp_info->viewport_subscriptions);
             }
             omega_viewport_set_event_interest(vp_info->viewport, combined_interest);
             return queue;
@@ -1147,7 +1267,7 @@ namespace omega_edit {
                                            return matches;
                                        }),
                         subscriptions.end());
-                combined_interest = combine_viewport_event_interest(subscriptions);
+                combined_interest = combine_event_interest(subscriptions);
             }
             if (vp_info->viewport) { omega_viewport_set_event_interest(vp_info->viewport, combined_interest); }
 

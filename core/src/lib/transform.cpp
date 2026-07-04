@@ -256,6 +256,8 @@ namespace {
         return regex && std::regex_match(value, *regex);
     }
 
+    constexpr size_t JSON_MAX_NESTING_DEPTH = 256U;
+
     struct json_value_t {
         enum class kind_t { null_value, object, array, string, number, boolean };
 
@@ -273,7 +275,7 @@ namespace {
 
         auto parse(json_value_t &value) -> bool {
             skip_ws();
-            if (!parse_value(value)) { return false; }
+            if (!parse_value(value, 0)) { return false; }
             skip_ws();
             return input_[pos_] == '\0';
         }
@@ -293,13 +295,14 @@ namespace {
             return true;
         }
 
-        auto parse_value(json_value_t &value) -> bool {
+        auto parse_value(json_value_t &value, size_t depth) -> bool {
+            if (depth > JSON_MAX_NESTING_DEPTH) { return false; }
             skip_ws();
             switch (input_[pos_]) {
                 case '{':
-                    return parse_object(value);
+                    return parse_object(value, depth);
                 case '[':
-                    return parse_array(value);
+                    return parse_array(value, depth);
                 case '"':
                     value.kind = json_value_t::kind_t::string;
                     return parse_string(value.string_value);
@@ -368,7 +371,7 @@ namespace {
             return false;
         }
 
-        auto parse_object(json_value_t &value) -> bool {
+        auto parse_object(json_value_t &value, size_t depth) -> bool {
             if (!consume('{')) { return false; }
             value = {};
             value.kind = json_value_t::kind_t::object;
@@ -379,7 +382,7 @@ namespace {
                 skip_ws();
                 if (!parse_string(key) || !consume(':')) { return false; }
                 json_value_t member;
-                if (!parse_value(member)) { return false; }
+                if (!parse_value(member, depth + 1)) { return false; }
                 value.object_value[key] = std::move(member);
                 skip_ws();
                 if (consume('}')) { return true; }
@@ -388,7 +391,7 @@ namespace {
             return false;
         }
 
-        auto parse_array(json_value_t &value) -> bool {
+        auto parse_array(json_value_t &value, size_t depth) -> bool {
             if (!consume('[')) { return false; }
             value = {};
             value.kind = json_value_t::kind_t::array;
@@ -396,7 +399,7 @@ namespace {
             if (consume(']')) { return true; }
             while (input_[pos_] != '\0') {
                 json_value_t item;
-                if (!parse_value(item)) { return false; }
+                if (!parse_value(item, depth + 1)) { return false; }
                 value.array_value.push_back(std::move(item));
                 skip_ws();
                 if (consume(']')) { return true; }
@@ -510,7 +513,8 @@ namespace {
         return true;
     }
 
-    auto json_values_equal_(const json_value_t &left, const json_value_t &right) -> bool {
+    auto json_values_equal_(const json_value_t &left, const json_value_t &right, size_t depth = 0) -> bool {
+        if (depth > JSON_MAX_NESTING_DEPTH) { return false; }
         if (left.kind != right.kind) { return false; }
         switch (left.kind) {
             case json_value_t::kind_t::null_value:
@@ -524,7 +528,9 @@ namespace {
             case json_value_t::kind_t::array:
                 if (left.array_value.size() != right.array_value.size()) { return false; }
                 for (size_t index = 0; index < left.array_value.size(); ++index) {
-                    if (!json_values_equal_(left.array_value[index], right.array_value[index])) { return false; }
+                    if (!json_values_equal_(left.array_value[index], right.array_value[index], depth + 1)) {
+                        return false;
+                    }
                 }
                 return true;
             case json_value_t::kind_t::object:
@@ -532,7 +538,7 @@ namespace {
                 for (const auto &[key, left_value] : left.object_value) {
                     const auto right_iter = right.object_value.find(key);
                     if (right_iter == right.object_value.end()) { return false; }
-                    if (!json_values_equal_(left_value, right_iter->second)) { return false; }
+                    if (!json_values_equal_(left_value, right_iter->second, depth + 1)) { return false; }
                 }
                 return true;
         }
@@ -554,7 +560,8 @@ namespace {
         return number == static_cast<double>(out);
     }
 
-    auto validate_schema_value_(const json_value_t &value, const json_value_t &schema) -> bool {
+    auto validate_schema_value_(const json_value_t &value, const json_value_t &schema, size_t depth = 0) -> bool {
+        if (depth > JSON_MAX_NESTING_DEPTH) { return false; }
         if (schema.kind != json_value_t::kind_t::object) { return false; }
 
         const auto *one_of = json_object_member_(schema, "oneOf");
@@ -562,19 +569,19 @@ namespace {
             if (one_of->kind != json_value_t::kind_t::array) { return false; }
             auto matches = 0;
             for (const auto &candidate : one_of->array_value) {
-                if (validate_schema_value_(value, candidate)) { ++matches; }
+                if (validate_schema_value_(value, candidate, depth + 1)) { ++matches; }
             }
             if (matches != 1) { return false; }
         }
 
         const auto *not_schema = json_object_member_(schema, "not");
-        if (not_schema && validate_schema_value_(value, *not_schema)) { return false; }
+        if (not_schema && validate_schema_value_(value, *not_schema, depth + 1)) { return false; }
 
         if (const auto *enum_values = json_object_member_(schema, "enum")) {
             if (enum_values->kind != json_value_t::kind_t::array) { return false; }
             auto matches = false;
             for (const auto &candidate : enum_values->array_value) {
-                if (json_values_equal_(value, candidate)) {
+                if (json_values_equal_(value, candidate, depth + 1)) {
                     matches = true;
                     break;
                 }
@@ -627,7 +634,7 @@ namespace {
                         if (!additional_properties) { return false; }
                         continue;
                     }
-                    if (!validate_schema_value_(member, property_iter->second)) { return false; }
+                    if (!validate_schema_value_(member, property_iter->second, depth + 1)) { return false; }
                 }
             } else if (!additional_properties && !value.object_value.empty()) {
                 return false;
@@ -642,7 +649,7 @@ namespace {
             }
             if (const auto *items = json_object_member_(schema, "items")) {
                 for (const auto &item : value.array_value) {
-                    if (!validate_schema_value_(item, *items)) { return false; }
+                    if (!validate_schema_value_(item, *items, depth + 1)) { return false; }
                 }
             }
         }
@@ -814,25 +821,42 @@ namespace {
 #endif
     };
 
-    std::mutex g_file_backed_allocations_mutex;
-    std::unordered_map<void *, std::shared_ptr<file_backed_buffer_t>> g_file_backed_allocations;
+    class plugin_allocation_store_t {
+    public:
+        void add(void *ptr, std::shared_ptr<file_backed_buffer_t> allocation) {
+            if (!ptr || !allocation) { return; }
+            std::lock_guard<std::mutex> lock(mutex_);
+            file_backed_allocations_[ptr] = std::move(allocation);
+        }
 
-    void release_plugin_allocation_(void *ptr) {
+        auto take(void *ptr, std::shared_ptr<file_backed_buffer_t> &allocation_out) -> bool {
+            if (!ptr) { return false; }
+            std::lock_guard<std::mutex> lock(mutex_);
+            const auto iter = file_backed_allocations_.find(ptr);
+            if (iter == file_backed_allocations_.end()) { return false; }
+            allocation_out = std::move(iter->second);
+            file_backed_allocations_.erase(iter);
+            return true;
+        }
+
+    private:
+        std::mutex mutex_;
+        std::unordered_map<void *, std::shared_ptr<file_backed_buffer_t>> file_backed_allocations_;
+    };
+
+    plugin_allocation_store_t g_response_file_backed_allocations;
+
+    void release_plugin_allocation_(plugin_allocation_store_t *allocation_store, void *ptr) {
         if (!ptr) { return; }
         std::shared_ptr<file_backed_buffer_t> file_backed;
-        {
-            std::lock_guard<std::mutex> lock(g_file_backed_allocations_mutex);
-            const auto iter = g_file_backed_allocations.find(ptr);
-            if (iter != g_file_backed_allocations.end()) {
-                file_backed = std::move(iter->second);
-                g_file_backed_allocations.erase(iter);
-            }
-        }
+        if (allocation_store) { allocation_store->take(ptr, file_backed); }
+        if (!file_backed) { g_response_file_backed_allocations.take(ptr, file_backed); }
         if (!file_backed) { std::free(ptr); }
     }
 
     struct plugin_allocator_state_t {
         const char *checkpoint_directory{};
+        plugin_allocation_store_t *allocation_store{};
         std::vector<void *> allocations;
     };
 
@@ -840,13 +864,12 @@ namespace {
         auto *state = static_cast<plugin_allocator_state_t *>(user_data_ptr);
         const auto requested_size = size == 0 ? 1 : size;
         void *ptr = nullptr;
-        if (requested_size > TRANSFORM_PLUGIN_FILE_BACKED_ALLOC_LIMIT_BYTES && state) {
+        if (requested_size > TRANSFORM_PLUGIN_FILE_BACKED_ALLOC_LIMIT_BYTES && state && state->allocation_store) {
             auto file_backed =
                     file_backed_buffer_t::create(state->checkpoint_directory, "OmegaEdit-xform-alloc", requested_size);
             if (file_backed) {
                 ptr = file_backed->data();
-                std::lock_guard<std::mutex> lock(g_file_backed_allocations_mutex);
-                g_file_backed_allocations[ptr] = std::move(file_backed);
+                state->allocation_store->add(ptr, std::move(file_backed));
             }
         } else {
             ptr = std::malloc(requested_size);
@@ -864,9 +887,34 @@ namespace {
     void release_unclaimed_plugin_allocations_(plugin_allocator_state_t &state,
                                                const omega_transform_plugin_response_t &response) {
         for (auto *ptr : state.allocations) {
-            if (!response_owns_allocation_(response, ptr)) { release_plugin_allocation_(ptr); }
+            if (!response_owns_allocation_(response, ptr)) { release_plugin_allocation_(state.allocation_store, ptr); }
         }
         state.allocations.clear();
+    }
+
+    void promote_response_allocation_(plugin_allocator_state_t &state, void *ptr) {
+        if (!ptr || !state.allocation_store) { return; }
+        std::shared_ptr<file_backed_buffer_t> file_backed;
+        if (state.allocation_store->take(ptr, file_backed)) {
+            g_response_file_backed_allocations.add(ptr, std::move(file_backed));
+        }
+    }
+
+    void promote_response_allocations_(plugin_allocator_state_t &state,
+                                       const omega_transform_plugin_response_t &response) {
+        promote_response_allocation_(state, response.replacement_bytes);
+        promote_response_allocation_(state, response.result_bytes);
+        promote_response_allocation_(state, response.result_label);
+        promote_response_allocation_(state, response.result_mime_type);
+    }
+
+    void clear_plugin_response_(plugin_allocator_state_t &state, omega_transform_plugin_response_t *response_ptr) {
+        if (!response_ptr) { return; }
+        release_plugin_allocation_(state.allocation_store, response_ptr->replacement_bytes);
+        release_plugin_allocation_(state.allocation_store, response_ptr->result_bytes);
+        release_plugin_allocation_(state.allocation_store, response_ptr->result_label);
+        release_plugin_allocation_(state.allocation_store, response_ptr->result_mime_type);
+        *response_ptr = {};
     }
 
     struct session_range_reader_t {
@@ -896,13 +944,14 @@ namespace {
 
     // Transfers plugin-owned response buffers to the caller. If no caller response is supplied,
     // the temporary response is cleared here so plugins never leak allocator-owned memory.
-    void move_plugin_response_(omega_transform_plugin_response_t *response_ptr,
+    void move_plugin_response_(plugin_allocator_state_t &state, omega_transform_plugin_response_t *response_ptr,
                                omega_transform_plugin_response_t &plugin_response) {
         if (!response_ptr) {
-            omega_transform_plugin_response_clear(&plugin_response);
+            clear_plugin_response_(state, &plugin_response);
             return;
         }
         omega_transform_plugin_response_clear(response_ptr);
+        promote_response_allocations_(state, plugin_response);
         *response_ptr = plugin_response;
         plugin_response = {};
     }
@@ -1007,6 +1056,7 @@ namespace {
 
 struct omega_transform_plugin_registry_struct {
     std::vector<std::unique_ptr<loaded_plugin_t>> plugins;
+    plugin_allocation_store_t allocation_store;
 };
 
 omega_transform_plugin_registry_t *omega_transform_plugin_registry_create(void) {
@@ -1144,7 +1194,9 @@ int omega_transform_plugin_registry_apply_to_session_with_progress_cancel_and_se
     session_range_reader_t reader{
             session_ptr,         offset, requested_length, 0, progress, progress_user_data_ptr, is_cancelled,
             cancel_user_data_ptr};
-    plugin_allocator_state_t allocator_state{omega_session_get_checkpoint_directory(session_ptr), {}};
+    plugin_allocator_state_t allocator_state{omega_session_get_checkpoint_directory(session_ptr),
+                                             &registry_ptr->allocation_store,
+                                             {}};
 
     omega_transform_plugin_request_t request{};
     request.input_bytes = input.data();
@@ -1166,24 +1218,24 @@ int omega_transform_plugin_registry_apply_to_session_with_progress_cancel_and_se
     if (is_cancelled && is_cancelled(cancel_user_data_ptr) != 0) { return -1; }
     if (0 != (*iter)->apply(&request, &plugin_response)) {
         release_unclaimed_plugin_allocations_(allocator_state, plugin_response);
-        omega_transform_plugin_response_clear(&plugin_response);
+        clear_plugin_response_(allocator_state, &plugin_response);
         return -1;
     }
     if (is_cancelled && is_cancelled(cancel_user_data_ptr) != 0) {
         release_unclaimed_plugin_allocations_(allocator_state, plugin_response);
-        omega_transform_plugin_response_clear(&plugin_response);
+        clear_plugin_response_(allocator_state, &plugin_response);
         return -1;
     }
     if (!plugin_buffer_is_valid_(plugin_response.replacement_bytes, plugin_response.replacement_length) ||
         !plugin_buffer_is_valid_(plugin_response.result_bytes, plugin_response.result_length)) {
         release_unclaimed_plugin_allocations_(allocator_state, plugin_response);
-        omega_transform_plugin_response_clear(&plugin_response);
+        clear_plugin_response_(allocator_state, &plugin_response);
         return -1;
     }
     if (plugin_response_has_no_content_change_(plugin_response) &&
         (plugin_response.replacement_bytes != nullptr || plugin_response.replacement_length != 0)) {
         release_unclaimed_plugin_allocations_(allocator_state, plugin_response);
-        omega_transform_plugin_response_clear(&plugin_response);
+        clear_plugin_response_(allocator_state, &plugin_response);
         return -1;
     }
 
@@ -1192,7 +1244,7 @@ int omega_transform_plugin_registry_apply_to_session_with_progress_cancel_and_se
         const auto no_content_change = plugin_response_has_no_content_change_(plugin_response);
         if (!no_content_change && requested_length == 0 && plugin_response.replacement_length == 0) {
             release_unclaimed_plugin_allocations_(allocator_state, plugin_response);
-            omega_transform_plugin_response_clear(&plugin_response);
+            clear_plugin_response_(allocator_state, &plugin_response);
             return -1;
         }
         if (no_content_change) {
@@ -1203,7 +1255,7 @@ int omega_transform_plugin_registry_apply_to_session_with_progress_cancel_and_se
                     plugin_response.replacement_length, plugin_id, options_json);
             if (change_serial <= 0) {
                 release_unclaimed_plugin_allocations_(allocator_state, plugin_response);
-                omega_transform_plugin_response_clear(&plugin_response);
+                clear_plugin_response_(allocator_state, &plugin_response);
                 return -1;
             }
             if (change_serial_out) { *change_serial_out = change_serial; }
@@ -1211,7 +1263,7 @@ int omega_transform_plugin_registry_apply_to_session_with_progress_cancel_and_se
     }
 
     release_unclaimed_plugin_allocations_(allocator_state, plugin_response);
-    move_plugin_response_(response_ptr, plugin_response);
+    move_plugin_response_(allocator_state, response_ptr, plugin_response);
     return 0;
 }
 
@@ -1247,7 +1299,7 @@ int omega_transform_plugin_registry_inspect_reader_with_cancel(
     if (((*iter)->info.flags & OMEGA_TRANSFORM_PLUGIN_FLAG_STREAMING) == 0U) { return -1; }
     if (0 != omega_transform_plugin_options_match_args_schema(options_json, (*iter)->info.args_schema)) { return -1; }
 
-    plugin_allocator_state_t allocator_state{checkpoint_directory, {}};
+    plugin_allocator_state_t allocator_state{checkpoint_directory, &registry_ptr->allocation_store, {}};
 
     omega_transform_plugin_request_t request{};
     request.input_length = 0;
@@ -1270,32 +1322,32 @@ int omega_transform_plugin_registry_inspect_reader_with_cancel(
     if (is_cancelled && is_cancelled(cancel_user_data_ptr) != 0) { return -1; }
     if (0 != (*iter)->apply(&request, &plugin_response)) {
         release_unclaimed_plugin_allocations_(allocator_state, plugin_response);
-        omega_transform_plugin_response_clear(&plugin_response);
+        clear_plugin_response_(allocator_state, &plugin_response);
         return -1;
     }
     if (is_cancelled && is_cancelled(cancel_user_data_ptr) != 0) {
         release_unclaimed_plugin_allocations_(allocator_state, plugin_response);
-        omega_transform_plugin_response_clear(&plugin_response);
+        clear_plugin_response_(allocator_state, &plugin_response);
         return -1;
     }
     if (!plugin_buffer_is_valid_(plugin_response.replacement_bytes, plugin_response.replacement_length) ||
         !plugin_buffer_is_valid_(plugin_response.result_bytes, plugin_response.result_length) ||
         plugin_response.replacement_bytes != nullptr || plugin_response.replacement_length != 0) {
         release_unclaimed_plugin_allocations_(allocator_state, plugin_response);
-        omega_transform_plugin_response_clear(&plugin_response);
+        clear_plugin_response_(allocator_state, &plugin_response);
         return -1;
     }
 
     release_unclaimed_plugin_allocations_(allocator_state, plugin_response);
-    move_plugin_response_(response_ptr, plugin_response);
+    move_plugin_response_(allocator_state, response_ptr, plugin_response);
     return 0;
 }
 
 void omega_transform_plugin_response_clear(omega_transform_plugin_response_t *response_ptr) {
     if (!response_ptr) { return; }
-    release_plugin_allocation_(response_ptr->replacement_bytes);
-    release_plugin_allocation_(response_ptr->result_bytes);
-    release_plugin_allocation_(response_ptr->result_label);
-    release_plugin_allocation_(response_ptr->result_mime_type);
+    release_plugin_allocation_(nullptr, response_ptr->replacement_bytes);
+    release_plugin_allocation_(nullptr, response_ptr->result_bytes);
+    release_plugin_allocation_(nullptr, response_ptr->result_label);
+    release_plugin_allocation_(nullptr, response_ptr->result_mime_type);
     *response_ptr = {};
 }

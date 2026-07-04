@@ -130,6 +130,10 @@ TEST_CASE("Packaged Transform Plugins", "[TransformPlugin]") {
     const char *unsupported_number_schema =
             "{\"type\":\"object\",\"properties\":{\"value\":{\"type\":\"number\"}},\"additionalProperties\":false}";
     REQUIRE(-1 == omega_transform_plugin_options_match_args_schema("{\"value\":1.5}", unsupported_number_schema));
+    std::string deeply_nested_options;
+    deeply_nested_options.append(300, '[');
+    deeply_nested_options.append(300, ']');
+    REQUIRE(-1 == omega_transform_plugin_options_match_args_schema(deeply_nested_options.c_str(), empty_object_schema));
     for (int64_t index = 0; index < omega_transform_plugin_registry_get_count(registry_ptr); ++index) {
         const auto *info = omega_transform_plugin_registry_get_info(registry_ptr, index);
         REQUIRE(info);
@@ -811,6 +815,20 @@ TEST_CASE("Packaged Transform Plugins", "[TransformPlugin]") {
                     .find("value=150") != std::string::npos);
     omega_transform_plugin_response_clear(&response);
     omega_edit_destroy_session(format_session_ptr);
+
+    const auto asn1_session_ptr = omega_edit_create_session(nullptr, nullptr, nullptr, NO_EVENTS, nullptr);
+    REQUIRE(asn1_session_ptr);
+    const omega_byte_t asn1_overflow_length[] = {0x04, 0x88, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
+    REQUIRE(0 < omega_edit_insert_bytes(asn1_session_ptr, 0, asn1_overflow_length,
+                                        static_cast<int64_t>(sizeof(asn1_overflow_length))));
+    REQUIRE(0 == omega_transform_plugin_registry_apply_to_session(registry_ptr, "omega.example.format_inspectors",
+                                                                  asn1_session_ptr, 0, 0, "{\"format\":\"asn1-ber\"}",
+                                                                  &response));
+    REQUIRE(std::string(reinterpret_cast<const char *>(response.result_bytes),
+                        static_cast<size_t>(response.result_length))
+                    .find("error=value-truncated") != std::string::npos);
+    omega_transform_plugin_response_clear(&response);
+    omega_edit_destroy_session(asn1_session_ptr);
 
     const auto record_session_ptr = omega_edit_create_session(nullptr, nullptr, nullptr, NO_EVENTS, nullptr);
     REQUIRE(record_session_ptr);

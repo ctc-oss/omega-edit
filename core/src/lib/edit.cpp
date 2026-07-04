@@ -29,6 +29,7 @@
 #include "impl_/viewport_def.hpp"
 #include <algorithm>
 #include <cassert>
+#include <cerrno>
 #include <cstddef>
 #include <cstdlib>
 #include <limits>
@@ -71,6 +72,7 @@ using omega_edit::internal::valid_nonnegative_range_;
 #ifdef OMEGA_BUILD_WINDOWS
 
 #include <io.h>
+#include <windows.h>
 
 #define close _close
 #ifdef min
@@ -81,6 +83,7 @@ using omega_edit::internal::valid_nonnegative_range_;
 #endif
 #else
 
+#include <fcntl.h>
 #include <unistd.h>
 
 #endif
@@ -90,6 +93,67 @@ namespace {
     constexpr int OMEGA_OUTPUT_PATH_SUFFIX_ATTEMPTS = 1000000;
 
     auto initialize_model_segments_(omega_model_segments_t &model_segments, int64_t length) -> bool;
+
+    auto flush_file_to_disk_(FILE *file_ptr) -> bool {
+        if (!file_ptr) { return false; }
+        if (fflush(file_ptr) != 0) { return false; }
+#ifdef OMEGA_BUILD_WINDOWS
+        const auto fd = _fileno(file_ptr);
+        if (fd < 0) { return false; }
+        const auto os_handle = _get_osfhandle(fd);
+        if (os_handle == -1) { return false; }
+        return FlushFileBuffers(reinterpret_cast<HANDLE>(os_handle)) != 0;
+#else
+        const auto fd = fileno(file_ptr);
+        return fd >= 0 && fsync(fd) == 0;
+#endif
+    }
+
+    auto sync_parent_directory_(const char *path) -> bool {
+        if (!path || !*path) { return false; }
+#ifdef OMEGA_BUILD_WINDOWS
+        char directory[FILENAME_MAX + 1];
+        omega_util_dirname(path, directory);
+        if (!directory[0] && !omega_util_get_current_dir(directory)) { return false; }
+        const auto directory_handle =
+                CreateFileA(directory, FILE_LIST_DIRECTORY, FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
+                            nullptr, OPEN_EXISTING, FILE_FLAG_BACKUP_SEMANTICS, nullptr);
+        if (directory_handle == INVALID_HANDLE_VALUE) { return true; }
+        const auto flushed = FlushFileBuffers(directory_handle) != 0;
+        const auto flush_error = GetLastError();
+        CloseHandle(directory_handle);
+        return flushed || flush_error == ERROR_INVALID_FUNCTION || flush_error == ERROR_ACCESS_DENIED;
+#else
+        char directory[FILENAME_MAX + 1];
+        omega_util_dirname(path, directory);
+        if (!directory[0] && !omega_util_get_current_dir(directory)) { return false; }
+        auto flags = O_RDONLY;
+#ifdef O_DIRECTORY
+        flags |= O_DIRECTORY;
+#endif
+        const auto dir_fd = OPEN(directory, flags, 0);
+        if (dir_fd < 0) { return true; }
+        const auto rc = fsync(dir_fd);
+        const auto saved_errno = errno;
+        CLOSE(dir_fd);
+#ifdef ENOTSUP
+        if (rc != 0 && saved_errno == ENOTSUP) { return true; }
+#endif
+#ifdef EOPNOTSUPP
+        if (rc != 0 && saved_errno == EOPNOTSUPP) { return true; }
+#endif
+        return rc == 0 || saved_errno == EINVAL;
+#endif
+    }
+
+    auto atomic_replace_file_(const char *from_path, const char *to_path) -> bool {
+        if (!from_path || !*from_path || !to_path || !*to_path) { return false; }
+#ifdef OMEGA_BUILD_WINDOWS
+        return MoveFileExA(from_path, to_path, MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH) != 0;
+#else
+        return rename(from_path, to_path) == 0;
+#endif
+    }
 
     struct captured_change_payload_t {
         omega_byte_t *bytes{};
@@ -2286,7 +2350,17 @@ int omega_edit_save_segment(omega_session_t *session_ptr, const char *file_path,
             return -8;
         }
     }
-    FCLOSE(temp_fptr);
+    if (!flush_file_to_disk_(temp_fptr)) {
+        LOG_ERRNO();
+        close_and_cleanup_output();
+        return -8;
+    }
+    if (FCLOSE(temp_fptr) != 0) {
+        LOG_ERRNO();
+        temp_fptr = nullptr;
+        if (cleanup_output) { omega_util_remove_file(output_path); }
+        return -8;
+    }
     temp_fptr = nullptr;
     if (bytes_written != adjusted_length) {
         LOG_ERROR("failed to write all requested bytes, expected: " << adjusted_length << ", got: " << bytes_written);
@@ -2299,18 +2373,18 @@ int omega_edit_save_segment(omega_session_t *session_ptr, const char *file_path,
         close_and_cleanup_output();
         return -9;
     }
-    if (overwrite && omega_util_file_exists(file_path)) {
-        if (overwrite) {
-            if (0 != omega_util_remove_file(file_path)) {
-                LOG_ERRNO();
-                omega_util_remove_file(temp_filename);
-                return -10;
-            }
+    if (overwrite) {
+        if (!atomic_replace_file_(temp_filename, file_path)) {
+            LOG_ERRNO();
+            omega_util_remove_file(temp_filename);
+            return -12;
         }
-    }
-    if (overwrite && rename(temp_filename, file_path) != 0) {
+        if (!sync_parent_directory_(file_path)) {
+            LOG_ERRNO();
+            return -12;
+        }
+    } else if (!sync_parent_directory_(output_path)) {
         LOG_ERRNO();
-        omega_util_remove_file(temp_filename);
         return -12;
     }
     cleanup_output = false;
@@ -2410,14 +2484,17 @@ int omega_edit_clear_changes(omega_session_t *session_ptr) {
     if (session_ptr->models_.front()->file_ptr != nullptr) {
         if (0 != FSEEK(session_ptr->models_.front()->file_ptr, 0L, SEEK_END)) { return -1; }
         length = FTELL(session_ptr->models_.front()->file_ptr);
+        if (length < 0) { return -1; }
     }
-    if (!initialize_model_segments_(session_ptr->models_.front()->model_segments, length)) { return -1; }
+
+    omega_model_segments_t reset_segments;
+    if (!initialize_model_segments_(reset_segments, length)) { return -1; }
+    while (session_ptr->models_.size() > 1) { discard_top_model_(session_ptr); }
+    session_ptr->models_.front()->model_segments = std::move(reset_segments);
     free_session_changes_(session_ptr);
     free_session_changes_undone_(session_ptr);
-    for (const auto &viewport_ptr : session_ptr->viewports_) {
-        viewport_ptr->data_segment.capacity = -1 * std::abs(viewport_ptr->data_segment.capacity);// indicate dirty read
-        omega_viewport_notify(viewport_ptr.get(), VIEWPORT_EVT_CLEAR, nullptr);
-    }
+    session_ptr->num_changes_adjustment_ = 0;
+    mark_all_viewports_changed_(session_ptr, VIEWPORT_EVT_CLEAR, nullptr);
     omega_session_notify(session_ptr, SESSION_EVT_CLEAR, nullptr);
     return 0;
 }

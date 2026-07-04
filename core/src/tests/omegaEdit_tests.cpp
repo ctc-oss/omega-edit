@@ -568,6 +568,34 @@ TEST_CASE("Character Counts", "[CharCounts]") {
     REQUIRE(0 == omega_character_counts_invalid_bytes(char_counts_ptr));
     omega_edit_destroy_session(session_ptr);
 
+    const omega_byte_t utf32le_high_byte_data[] = {0xFF, 0xFE, 0x00, 0x00,
+                                                   0x00, 0x00, 0x00, static_cast<omega_byte_t>(0x80)};
+    session_ptr = omega_edit_create_session_from_bytes(utf32le_high_byte_data,
+                                                       static_cast<int64_t>(sizeof(utf32le_high_byte_data)), nullptr,
+                                                       nullptr, NO_EVENTS, nullptr);
+    REQUIRE(session_ptr);
+    REQUIRE(0 == omega_session_character_counts(session_ptr, char_counts_ptr, 0, 0,
+                                                omega_session_detect_BOM(session_ptr, 0)));
+    REQUIRE(BOM_UTF32LE == omega_character_counts_get_BOM(char_counts_ptr));
+    REQUIRE(4 == omega_character_counts_bom_bytes(char_counts_ptr));
+    REQUIRE(0 == omega_character_counts_quad_byte_chars(char_counts_ptr));
+    REQUIRE(4 == omega_character_counts_invalid_bytes(char_counts_ptr));
+    omega_edit_destroy_session(session_ptr);
+
+    const omega_byte_t utf32be_high_byte_data[] = {0x00, 0x00, 0xFE, 0xFF, static_cast<omega_byte_t>(0x80),
+                                                   0x00, 0x00, 0x00};
+    session_ptr = omega_edit_create_session_from_bytes(utf32be_high_byte_data,
+                                                       static_cast<int64_t>(sizeof(utf32be_high_byte_data)), nullptr,
+                                                       nullptr, NO_EVENTS, nullptr);
+    REQUIRE(session_ptr);
+    REQUIRE(0 == omega_session_character_counts(session_ptr, char_counts_ptr, 0, 0,
+                                                omega_session_detect_BOM(session_ptr, 0)));
+    REQUIRE(BOM_UTF32BE == omega_character_counts_get_BOM(char_counts_ptr));
+    REQUIRE(4 == omega_character_counts_bom_bytes(char_counts_ptr));
+    REQUIRE(0 == omega_character_counts_quad_byte_chars(char_counts_ptr));
+    REQUIRE(4 == omega_character_counts_invalid_bytes(char_counts_ptr));
+    omega_edit_destroy_session(session_ptr);
+
     session_ptr = omega_edit_create_session(MAKE_PATH("ascii_1.dat"), nullptr, nullptr, NO_EVENTS, nullptr);
     REQUIRE(session_ptr);
     REQUIRE(0 == omega_session_character_counts(session_ptr, char_counts_ptr, 0, 0,

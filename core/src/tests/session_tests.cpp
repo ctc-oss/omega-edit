@@ -216,6 +216,61 @@ TEST_CASE("Restore Last Transform Checkpoint Preserves Transform Change",
     omega_edit_destroy_session(session_ptr);
 }
 
+TEST_CASE("Clear Changes Discards Checkpoint Stack", "[SessionCheckpointTests][ClearChanges]") {
+    const auto input = reinterpret_cast<const omega_byte_t *>("abcdef");
+    const auto session_ptr = omega_edit_create_session_from_bytes(input, 6, nullptr, nullptr, NO_EVENTS, nullptr);
+    REQUIRE(session_ptr);
+
+    REQUIRE(1 == omega_edit_overwrite_string(session_ptr, 1, "Z"));
+    REQUIRE(0 == omega_edit_create_checkpoint(session_ptr));
+    REQUIRE(1 == omega_session_get_num_checkpoints(session_ptr));
+    REQUIRE(1 == omega_session_get_num_changes(session_ptr));
+    const std::string checkpoint_path = omega_session_get_latest_checkpoint_file_path(session_ptr);
+    REQUIRE(0 != omega_util_file_exists(checkpoint_path.c_str()));
+
+    REQUIRE(2 == omega_edit_insert_string(session_ptr, 2, "YY"));
+    REQUIRE("aZYYcdef" ==
+            omega_session_get_segment_string(session_ptr, 0, omega_session_get_computed_file_size(session_ptr)));
+
+    REQUIRE(0 == omega_edit_clear_changes(session_ptr));
+    REQUIRE(0 == omega_session_get_num_checkpoints(session_ptr));
+    REQUIRE(0 == omega_session_get_num_changes(session_ptr));
+    REQUIRE(0 == omega_session_get_num_undone_changes(session_ptr));
+    REQUIRE("abcdef" ==
+            omega_session_get_segment_string(session_ptr, 0, omega_session_get_computed_file_size(session_ptr)));
+    REQUIRE(nullptr == omega_session_get_latest_checkpoint_file_path(session_ptr));
+    REQUIRE(0 == omega_util_file_exists(checkpoint_path.c_str()));
+
+    omega_edit_destroy_session(session_ptr);
+}
+
+TEST_CASE("Clear Changes Discards Transform Checkpoint Stack", "[SessionCheckpointTests][ClearChanges]") {
+    const auto input = reinterpret_cast<const omega_byte_t *>("abcXYZ");
+    const auto session_ptr = omega_edit_create_session_from_bytes(input, 6, nullptr, nullptr, NO_EVENTS, nullptr);
+    REQUIRE(session_ptr);
+
+    REQUIRE(0 == omega_edit_apply_transform(session_ptr, to_lower, nullptr, 0, 0));
+    REQUIRE(1 == omega_session_get_num_checkpoints(session_ptr));
+    REQUIRE(1 == omega_session_get_num_changes(session_ptr));
+    const std::string checkpoint_path = omega_session_get_latest_checkpoint_file_path(session_ptr);
+    REQUIRE(0 != omega_util_file_exists(checkpoint_path.c_str()));
+
+    REQUIRE(2 == omega_edit_insert_string(session_ptr, 3, "--"));
+    REQUIRE("abc--xyz" ==
+            omega_session_get_segment_string(session_ptr, 0, omega_session_get_computed_file_size(session_ptr)));
+
+    REQUIRE(0 == omega_edit_clear_changes(session_ptr));
+    REQUIRE(0 == omega_session_get_num_checkpoints(session_ptr));
+    REQUIRE(0 == omega_session_get_num_changes(session_ptr));
+    REQUIRE(0 == omega_session_get_num_undone_changes(session_ptr));
+    REQUIRE("abcXYZ" ==
+            omega_session_get_segment_string(session_ptr, 0, omega_session_get_computed_file_size(session_ptr)));
+    REQUIRE(nullptr == omega_session_get_latest_checkpoint_file_path(session_ptr));
+    REQUIRE(0 == omega_util_file_exists(checkpoint_path.c_str()));
+
+    omega_edit_destroy_session(session_ptr);
+}
+
 TEST_CASE("Session owned snapshot file accessors expose original and latest checkpoint",
           "[SessionCheckpointTests][SnapshotFiles]") {
     const auto input = reinterpret_cast<const omega_byte_t *>("abcdef");
