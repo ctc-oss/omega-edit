@@ -527,6 +527,48 @@ namespace omega_edit {
 
             const bool share_existing_file_session = desired_id.empty() && has_file_backing;
 
+            std::string session_id;
+            auto info = std::make_shared<SessionInfo>();
+            std::string effective_checkpoint_directory = checkpoint_directory;
+            bool reserved_new_session = false;
+            auto reserve_new_session_locked = [&]() -> bool {
+                // Session ID priority: desired_id > generated opaque session ID
+                if (!desired_id.empty()) {
+                    if (!is_valid_external_id(desired_id)) {
+                        if (error_out) { *error_out = SessionCreateError::INVALID_ID; }
+                        return false;
+                    }
+                    session_id = desired_id;
+                    if (sessions_.count(session_id) != 0) {
+                        if (error_out) { *error_out = SessionCreateError::ALREADY_EXISTS; }
+                        return false;// Already exists
+                    }
+                } else {
+                    do { session_id = generate_session_id(); } while (sessions_.count(session_id) != 0);
+                }
+
+                info->session_id = session_id;
+                info->canonical_file_path = canonical_file_path;
+                info->attachment_count = 1;
+                info->last_activity = std::chrono::steady_clock::now();
+
+                if (effective_checkpoint_directory.empty()) {
+                    effective_checkpoint_directory = create_managed_checkpoint_directory();
+                    if (effective_checkpoint_directory.empty()) {
+                        cleanup_managed_server_root_if_empty();
+                        if (error_out) { *error_out = SessionCreateError::CORE_ERROR; }
+                        return false;
+                    }
+                    info->owns_checkpoint_directory = true;
+                }
+
+                info->checkpoint_directory = effective_checkpoint_directory;
+                sessions_[session_id] = info;
+                if (share_existing_file_session) { file_sessions_by_path_[canonical_file_path] = session_id; }
+                reserved_new_session = true;
+                return true;
+            };
+
             if (share_existing_file_session) {
                 std::shared_ptr<SessionInfo> existing_info;
                 {
@@ -536,6 +578,7 @@ namespace omega_edit {
                         auto existing = sessions_.find(existing_file_session->second);
                         if (existing == sessions_.end()) {
                             file_sessions_by_path_.erase(existing_file_session);
+                            if (!reserve_new_session_locked()) { return ""; }
                         } else if (checkpoint_directory.empty() ||
                                    checkpoint_directory == existing->second->checkpoint_directory) {
                             existing_info = existing->second;
@@ -543,6 +586,8 @@ namespace omega_edit {
                             if (error_out) { *error_out = SessionCreateError::ALREADY_EXISTS; }
                             return "";
                         }
+                    } else if (!reserve_new_session_locked()) {
+                        return "";
                     }
                 }
 
@@ -580,9 +625,6 @@ namespace omega_edit {
                 }
             }
 
-            std::string session_id;
-            auto info = std::make_shared<SessionInfo>();
-            std::string effective_checkpoint_directory = checkpoint_directory;
             auto release_reserved_file_session = [&]() {
                 if (!share_existing_file_session) { return; }
                 auto mapped = file_sessions_by_path_.find(canonical_file_path);
@@ -590,42 +632,9 @@ namespace omega_edit {
                     file_sessions_by_path_.erase(mapped);
                 }
             };
-            {
+            if (!reserved_new_session) {
                 std::lock_guard<std::mutex> lock(mutex_);
-
-                // Session ID priority: desired_id > generated opaque session ID
-                if (!desired_id.empty()) {
-                    if (!is_valid_external_id(desired_id)) {
-                        if (error_out) { *error_out = SessionCreateError::INVALID_ID; }
-                        return "";
-                    }
-                    session_id = desired_id;
-                    if (sessions_.count(session_id) != 0) {
-                        if (error_out) { *error_out = SessionCreateError::ALREADY_EXISTS; }
-                        return "";// Already exists
-                    }
-                } else {
-                    do { session_id = generate_session_id(); } while (sessions_.count(session_id) != 0);
-                }
-
-                info->session_id = session_id;
-                info->canonical_file_path = canonical_file_path;
-                info->attachment_count = 1;
-                info->last_activity = std::chrono::steady_clock::now();
-
-                if (effective_checkpoint_directory.empty()) {
-                    effective_checkpoint_directory = create_managed_checkpoint_directory();
-                    if (effective_checkpoint_directory.empty()) {
-                        cleanup_managed_server_root_if_empty();
-                        if (error_out) { *error_out = SessionCreateError::CORE_ERROR; }
-                        return "";
-                    }
-                    info->owns_checkpoint_directory = true;
-                }
-
-                info->checkpoint_directory = effective_checkpoint_directory;
-                sessions_[session_id] = info;
-                if (share_existing_file_session) { file_sessions_by_path_[canonical_file_path] = session_id; }
+                if (!reserve_new_session_locked()) { return ""; }
             }
 
             const char *chkpt_dir =

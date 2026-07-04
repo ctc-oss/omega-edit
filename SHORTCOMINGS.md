@@ -874,6 +874,9 @@ These areas were in the old document but are no longer open backlog items:
 - Session creation and session/viewport subscription paths now avoid holding the
   global session-map mutex across core session creation or per-session
   `core_mutex` acquisition.
+- Shared file-backed session creation now reserves the file-path mapping in the
+  same critical section that observes no existing session, so concurrent authors
+  attach to one session instead of racing into adjacent reservations.
 - Session/viewport subscription lock ordering, handoff, queue closure, and
   ordered callback delivery.
 - Desired ID/path validation and default host/port duplication.
