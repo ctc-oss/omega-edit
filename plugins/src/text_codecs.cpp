@@ -29,6 +29,13 @@ namespace {
             "\"base64url\",\"base32\",\"base32-crockford\",\"ascii85\",\"base85\",\"z85\",\"base58\",\"percent\","
             "\"url\",\"quoted-printable\",\"uuencode\",\"yenc\"]},\"direction\":{\"type\":\"string\",\"title\":"
             "\"Direction\",\"default\":\"encode\",\"enum\":[\"encode\",\"decode\"]}},\"additionalProperties\":false}";
+    constexpr size_t TEXT_CODEC_CANCEL_POLL_INTERVAL = 4096;
+    constexpr size_t TEXT_CODEC_BASE58_MAX_INPUT_BYTES = 64 * 1024;
+
+    bool cancel_requested(const omega_transform_plugin_request_t *request_ptr, size_t &work_count) {
+        if ((work_count++ & (TEXT_CODEC_CANCEL_POLL_INTERVAL - 1U)) != 0U) { return false; }
+        return omega_transform_plugin_sdk_is_cancelled(request_ptr) != 0;
+    }
 
     int hex_value(omega_byte_t byte) {
         if (byte >= '0' && byte <= '9') { return byte - '0'; }
@@ -45,21 +52,27 @@ namespace {
         return static_cast<omega_byte_t>(std::toupper(static_cast<unsigned char>(byte)));
     }
 
-    std::vector<omega_byte_t> hex_encode(const std::vector<omega_byte_t> &input) {
+    bool hex_encode(const omega_transform_plugin_request_t *request_ptr, const std::vector<omega_byte_t> &input,
+                    std::vector<omega_byte_t> &out) {
         static constexpr char alphabet[] = "0123456789abcdef";
-        std::vector<omega_byte_t> out;
+        out.clear();
         out.reserve(input.size() * 2);
+        size_t work_count = 0;
         for (const auto byte : input) {
+            if (cancel_requested(request_ptr, work_count)) { return false; }
             out.push_back(static_cast<omega_byte_t>(alphabet[(byte >> 4U) & 0x0FU]));
             out.push_back(static_cast<omega_byte_t>(alphabet[byte & 0x0FU]));
         }
-        return out;
+        return true;
     }
 
-    bool hex_decode(const std::vector<omega_byte_t> &input, std::vector<omega_byte_t> &out) {
+    bool hex_decode(const omega_transform_plugin_request_t *request_ptr, const std::vector<omega_byte_t> &input,
+                    std::vector<omega_byte_t> &out) {
         out.clear();
         int high = -1;
+        size_t work_count = 0;
         for (const auto byte : input) {
+            if (cancel_requested(request_ptr, work_count)) { return false; }
             if (is_ascii_space(byte)) { continue; }
             const int value = hex_value(byte);
             if (value < 0) { return false; }
@@ -73,11 +86,14 @@ namespace {
         return high < 0;
     }
 
-    std::vector<omega_byte_t> base64url_encode(const std::vector<omega_byte_t> &input) {
+    bool base64url_encode(const omega_transform_plugin_request_t *request_ptr, const std::vector<omega_byte_t> &input,
+                          std::vector<omega_byte_t> &out) {
         static constexpr char alphabet[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
-        std::vector<omega_byte_t> out;
+        out.clear();
         out.reserve(((input.size() + 2) / 3) * 4);
+        size_t work_count = 0;
         for (size_t i = 0; i < input.size();) {
+            if (cancel_requested(request_ptr, work_count)) { return false; }
             const unsigned int a = input[i++];
             const bool has_b = i < input.size();
             const unsigned int b = has_b ? input[i++] : 0;
@@ -89,7 +105,7 @@ namespace {
             if (has_b) { out.push_back(static_cast<omega_byte_t>(alphabet[(triple >> 6U) & 0x3FU])); }
             if (has_c) { out.push_back(static_cast<omega_byte_t>(alphabet[triple & 0x3FU])); }
         }
-        return out;
+        return true;
     }
 
     int base64url_value(omega_byte_t byte) {
@@ -102,11 +118,14 @@ namespace {
         return -1;
     }
 
-    bool base64url_decode(const std::vector<omega_byte_t> &input, std::vector<omega_byte_t> &out) {
+    bool base64url_decode(const omega_transform_plugin_request_t *request_ptr, const std::vector<omega_byte_t> &input,
+                          std::vector<omega_byte_t> &out) {
         std::vector<int> values;
         size_t padding_count = 0;
         bool saw_padding = false;
+        size_t work_count = 0;
         for (const auto byte : input) {
+            if (cancel_requested(request_ptr, work_count)) { return false; }
             if (is_ascii_space(byte)) { continue; }
             const int value = base64url_value(byte);
             if (value == -1) { return false; }
@@ -129,6 +148,7 @@ namespace {
         while ((values.size() % 4) != 0) { values.push_back(0); }
         out.clear();
         for (size_t i = 0; i < values.size(); i += 4) {
+            if (cancel_requested(request_ptr, work_count)) { return false; }
             const unsigned int triple =
                     (static_cast<unsigned int>(values[i]) << 18U) | (static_cast<unsigned int>(values[i + 1]) << 12U) |
                     (static_cast<unsigned int>(values[i + 2]) << 6U) | static_cast<unsigned int>(values[i + 3]);
@@ -140,12 +160,15 @@ namespace {
         return true;
     }
 
-    std::vector<omega_byte_t> base32_encode(const std::vector<omega_byte_t> &input, bool crockford) {
+    bool base32_encode(const omega_transform_plugin_request_t *request_ptr, const std::vector<omega_byte_t> &input,
+                       bool crockford, std::vector<omega_byte_t> &out) {
         const char *alphabet = crockford ? "0123456789ABCDEFGHJKMNPQRSTVWXYZ" : "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
-        std::vector<omega_byte_t> out;
+        out.clear();
         uint32_t buffer = 0;
         int bits = 0;
+        size_t work_count = 0;
         for (const auto byte : input) {
+            if (cancel_requested(request_ptr, work_count)) { return false; }
             buffer = (buffer << 8U) | byte;
             bits += 8;
             while (bits >= 5) {
@@ -157,7 +180,7 @@ namespace {
         if (!crockford) {
             while ((out.size() % 8) != 0) { out.push_back('='); }
         }
-        return out;
+        return true;
     }
 
     int base32_value(omega_byte_t byte, bool crockford) {
@@ -174,11 +197,14 @@ namespace {
         return -1;
     }
 
-    bool base32_decode(const std::vector<omega_byte_t> &input, bool crockford, std::vector<omega_byte_t> &out) {
+    bool base32_decode(const omega_transform_plugin_request_t *request_ptr, const std::vector<omega_byte_t> &input,
+                       bool crockford, std::vector<omega_byte_t> &out) {
         out.clear();
         uint32_t buffer = 0;
         int bits = 0;
+        size_t work_count = 0;
         for (const auto byte : input) {
+            if (cancel_requested(request_ptr, work_count)) { return false; }
             if (is_ascii_space(byte) || byte == '=') { continue; }
             const int value = base32_value(byte, crockford);
             if (value < 0) { return false; }
@@ -192,12 +218,17 @@ namespace {
         return true;
     }
 
-    std::vector<omega_byte_t> base58_encode(const std::vector<omega_byte_t> &input) {
+    bool base58_encode(const omega_transform_plugin_request_t *request_ptr, const std::vector<omega_byte_t> &input,
+                       std::vector<omega_byte_t> &out) {
+        if (input.size() > TEXT_CODEC_BASE58_MAX_INPUT_BYTES) { return false; }
         static constexpr char alphabet[] = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz";
         std::vector<omega_byte_t> digits(1, 0);
+        size_t work_count = 0;
         for (const auto byte : input) {
+            if (cancel_requested(request_ptr, work_count)) { return false; }
             int carry = byte;
             for (auto &digit : digits) {
+                if (cancel_requested(request_ptr, work_count)) { return false; }
                 carry += digit << 8U;
                 digit = static_cast<omega_byte_t>(carry % 58);
                 carry /= 58;
@@ -207,8 +238,9 @@ namespace {
                 carry /= 58;
             }
         }
-        std::vector<omega_byte_t> out;
+        out.clear();
         for (const auto byte : input) {
+            if (cancel_requested(request_ptr, work_count)) { return false; }
             if (byte == 0) {
                 out.push_back('1');
             } else {
@@ -216,20 +248,26 @@ namespace {
             }
         }
         for (auto iter = digits.rbegin(); iter != digits.rend(); ++iter) {
+            if (cancel_requested(request_ptr, work_count)) { return false; }
             out.push_back(static_cast<omega_byte_t>(alphabet[*iter]));
         }
-        return out;
+        return true;
     }
 
-    bool base58_decode(const std::vector<omega_byte_t> &input, std::vector<omega_byte_t> &out) {
+    bool base58_decode(const omega_transform_plugin_request_t *request_ptr, const std::vector<omega_byte_t> &input,
+                       std::vector<omega_byte_t> &out) {
+        if (input.size() > TEXT_CODEC_BASE58_MAX_INPUT_BYTES) { return false; }
         static constexpr char alphabet[] = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz";
         std::vector<omega_byte_t> bytes(1, 0);
+        size_t work_count = 0;
         for (const auto ch : input) {
+            if (cancel_requested(request_ptr, work_count)) { return false; }
             if (is_ascii_space(ch)) { continue; }
             const char *found = std::find(std::begin(alphabet), std::end(alphabet) - 1, ch);
             if (found == std::end(alphabet) - 1) { return false; }
             int carry = static_cast<int>(found - alphabet);
             for (auto &byte : bytes) {
+                if (cancel_requested(request_ptr, work_count)) { return false; }
                 carry += byte * 58;
                 byte = static_cast<omega_byte_t>(carry & 0xFF);
                 carry >>= 8U;
@@ -241,20 +279,27 @@ namespace {
         }
         out.clear();
         for (const auto ch : input) {
+            if (cancel_requested(request_ptr, work_count)) { return false; }
             if (ch == '1') {
                 out.push_back(0);
             } else if (!is_ascii_space(ch)) {
                 break;
             }
         }
-        for (auto iter = bytes.rbegin(); iter != bytes.rend(); ++iter) { out.push_back(*iter); }
+        for (auto iter = bytes.rbegin(); iter != bytes.rend(); ++iter) {
+            if (cancel_requested(request_ptr, work_count)) { return false; }
+            out.push_back(*iter);
+        }
         return true;
     }
 
-    std::vector<omega_byte_t> percent_encode(const std::vector<omega_byte_t> &input) {
+    bool percent_encode(const omega_transform_plugin_request_t *request_ptr, const std::vector<omega_byte_t> &input,
+                        std::vector<omega_byte_t> &out) {
         static constexpr char alphabet[] = "0123456789ABCDEF";
-        std::vector<omega_byte_t> out;
+        out.clear();
+        size_t work_count = 0;
         for (const auto byte : input) {
+            if (cancel_requested(request_ptr, work_count)) { return false; }
             if (is_ascii_alnum(byte) || byte == '-' || byte == '_' || byte == '.' || byte == '~') {
                 out.push_back(byte);
             } else {
@@ -263,12 +308,15 @@ namespace {
                 out.push_back(static_cast<omega_byte_t>(alphabet[byte & 0x0FU]));
             }
         }
-        return out;
+        return true;
     }
 
-    bool percent_decode(const std::vector<omega_byte_t> &input, std::vector<omega_byte_t> &out) {
+    bool percent_decode(const omega_transform_plugin_request_t *request_ptr, const std::vector<omega_byte_t> &input,
+                        std::vector<omega_byte_t> &out) {
         out.clear();
+        size_t work_count = 0;
         for (size_t i = 0; i < input.size(); ++i) {
+            if (cancel_requested(request_ptr, work_count)) { return false; }
             if (input[i] != '%') {
                 out.push_back(input[i]);
                 continue;
@@ -282,10 +330,13 @@ namespace {
         return true;
     }
 
-    std::vector<omega_byte_t> quoted_printable_encode(const std::vector<omega_byte_t> &input) {
+    bool quoted_printable_encode(const omega_transform_plugin_request_t *request_ptr,
+                                 const std::vector<omega_byte_t> &input, std::vector<omega_byte_t> &out) {
         static constexpr char alphabet[] = "0123456789ABCDEF";
-        std::vector<omega_byte_t> out;
+        out.clear();
+        size_t work_count = 0;
         for (const auto byte : input) {
+            if (cancel_requested(request_ptr, work_count)) { return false; }
             if ((byte >= 33 && byte <= 60) || (byte >= 62 && byte <= 126) || byte == '\t' || byte == ' ') {
                 out.push_back(byte);
             } else {
@@ -294,12 +345,15 @@ namespace {
                 out.push_back(static_cast<omega_byte_t>(alphabet[byte & 0x0FU]));
             }
         }
-        return out;
+        return true;
     }
 
-    bool quoted_printable_decode(const std::vector<omega_byte_t> &input, std::vector<omega_byte_t> &out) {
+    bool quoted_printable_decode(const omega_transform_plugin_request_t *request_ptr,
+                                 const std::vector<omega_byte_t> &input, std::vector<omega_byte_t> &out) {
         out.clear();
+        size_t work_count = 0;
         for (size_t i = 0; i < input.size(); ++i) {
+            if (cancel_requested(request_ptr, work_count)) { return false; }
             if (input[i] != '=') {
                 out.push_back(input[i]);
                 continue;
@@ -328,12 +382,16 @@ namespace {
         return -1;
     }
 
-    std::vector<omega_byte_t> uuencode(const std::vector<omega_byte_t> &input) {
-        std::vector<omega_byte_t> out;
+    bool uuencode(const omega_transform_plugin_request_t *request_ptr, const std::vector<omega_byte_t> &input,
+                  std::vector<omega_byte_t> &out) {
+        out.clear();
+        size_t work_count = 0;
         for (size_t line = 0; line < input.size(); line += 45) {
+            if (cancel_requested(request_ptr, work_count)) { return false; }
             const size_t count = std::min<size_t>(45, input.size() - line);
             out.push_back(uu_char(static_cast<unsigned int>(count)));
             for (size_t i = 0; i < count; i += 3) {
+                if (cancel_requested(request_ptr, work_count)) { return false; }
                 const unsigned int a = input[line + i];
                 const unsigned int b = i + 1 < count ? input[line + i + 1] : 0;
                 const unsigned int c = i + 2 < count ? input[line + i + 2] : 0;
@@ -346,13 +404,16 @@ namespace {
         }
         out.push_back('`');
         out.push_back('\n');
-        return out;
+        return true;
     }
 
-    bool uudecode(const std::vector<omega_byte_t> &input, std::vector<omega_byte_t> &out) {
+    bool uudecode(const omega_transform_plugin_request_t *request_ptr, const std::vector<omega_byte_t> &input,
+                  std::vector<omega_byte_t> &out) {
         out.clear();
         size_t cursor = 0;
+        size_t work_count = 0;
         while (cursor < input.size()) {
+            if (cancel_requested(request_ptr, work_count)) { return false; }
             while (cursor < input.size() && (input[cursor] == '\r' || input[cursor] == '\n')) { ++cursor; }
             if (cursor >= input.size()) { break; }
             const int count = uu_value(input[cursor++]);
@@ -360,6 +421,7 @@ namespace {
             if (count == 0) { return true; }
             int produced = 0;
             while (produced < count) {
+                if (cancel_requested(request_ptr, work_count)) { return false; }
                 if (cursor + 4 > input.size()) { return false; }
                 const int a = uu_value(input[cursor++]);
                 const int b = uu_value(input[cursor++]);
@@ -384,9 +446,12 @@ namespace {
         return true;
     }
 
-    std::vector<omega_byte_t> yenc_encode(const std::vector<omega_byte_t> &input) {
-        std::vector<omega_byte_t> out;
+    bool yenc_encode(const omega_transform_plugin_request_t *request_ptr, const std::vector<omega_byte_t> &input,
+                     std::vector<omega_byte_t> &out) {
+        out.clear();
+        size_t work_count = 0;
         for (const auto byte : input) {
+            if (cancel_requested(request_ptr, work_count)) { return false; }
             omega_byte_t encoded = static_cast<omega_byte_t>(byte + 42U);
             if (encoded == 0 || encoded == '\n' || encoded == '\r' || encoded == '=') {
                 out.push_back('=');
@@ -394,12 +459,15 @@ namespace {
             }
             out.push_back(encoded);
         }
-        return out;
+        return true;
     }
 
-    bool yenc_decode(const std::vector<omega_byte_t> &input, std::vector<omega_byte_t> &out) {
+    bool yenc_decode(const omega_transform_plugin_request_t *request_ptr, const std::vector<omega_byte_t> &input,
+                     std::vector<omega_byte_t> &out) {
         out.clear();
+        size_t work_count = 0;
         for (size_t i = 0; i < input.size(); ++i) {
+            if (cancel_requested(request_ptr, work_count)) { return false; }
             omega_byte_t byte = input[i];
             if (byte == '=') {
                 if (++i >= input.size()) { return false; }
@@ -410,11 +478,14 @@ namespace {
         return true;
     }
 
-    std::vector<omega_byte_t> ascii85_encode(const std::vector<omega_byte_t> &input, bool z85) {
+    bool ascii85_encode(const omega_transform_plugin_request_t *request_ptr, const std::vector<omega_byte_t> &input,
+                        bool z85, std::vector<omega_byte_t> &out) {
         static constexpr char z85_alphabet[] =
                 "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ.-:+=^!/*?&<>()[]{}@%$#";
-        std::vector<omega_byte_t> out;
+        out.clear();
+        size_t work_count = 0;
         for (size_t i = 0; i < input.size(); i += 4) {
+            if (cancel_requested(request_ptr, work_count)) { return false; }
             const size_t count = std::min<size_t>(4, input.size() - i);
             uint32_t value = 0;
             for (size_t j = 0; j < 4; ++j) { value = (value << 8U) | (j < count ? input[i + j] : 0); }
@@ -432,7 +503,7 @@ namespace {
             out.insert(out.end(), encoded.begin(),
                        encoded.begin() + static_cast<std::array<omega_byte_t, 5>::difference_type>(emit));
         }
-        return out;
+        return true;
     }
 
     int ascii85_value(omega_byte_t byte, bool z85) {
@@ -445,11 +516,14 @@ namespace {
         return byte >= '!' && byte <= 'u' ? byte - '!' : -1;
     }
 
-    bool ascii85_decode(const std::vector<omega_byte_t> &input, bool z85, std::vector<omega_byte_t> &out) {
+    bool ascii85_decode(const omega_transform_plugin_request_t *request_ptr, const std::vector<omega_byte_t> &input,
+                        bool z85, std::vector<omega_byte_t> &out) {
         out.clear();
         std::array<int, 5> group{};
         int group_size = 0;
+        size_t work_count = 0;
         for (const auto byte : input) {
+            if (cancel_requested(request_ptr, work_count)) { return false; }
             if (is_ascii_space(byte)) { continue; }
             if (!z85 && byte == 'z') {
                 if (group_size != 0) { return false; }
@@ -492,7 +566,8 @@ extern "C" OMEGA_TRANSFORM_PLUGIN_EXPORT int omega_transform_plugin_get_info(ome
                       OMEGA_TRANSFORM_PLUGIN_FLAG_BINARY_SAFE;
     info_ptr->help =
             "Choose a text codec and encode or decode direction. Codecs include hex/base16, base64url, base32, "
-            "base32-crockford, ascii85/base85, z85, base58, percent/url, quoted-printable, uuencode, and yenc.";
+            "base32-crockford, ascii85/base85, z85, base58, percent/url, quoted-printable, uuencode, and yenc. "
+            "Base58 is limited to selections up to 64 KiB.";
     info_ptr->example = "{\"codec\":\"base32\",\"direction\":\"encode\"}";
     info_ptr->default_args = "{\"codec\":\"hex\",\"direction\":\"encode\"}";
     info_ptr->args_schema = TEXT_CODEC_ARGS_SCHEMA;
@@ -518,63 +593,64 @@ omega_transform_plugin_apply(const omega_transform_plugin_request_t *request_ptr
     bool ok = true;
     if (codec == "hex") {
         if (direction == "encode") {
-            output = hex_encode(input);
+            ok = hex_encode(request_ptr, input, output);
         } else {
-            ok = hex_decode(input, output);
+            ok = hex_decode(request_ptr, input, output);
         }
     } else if (codec == "base64url") {
         if (direction == "encode") {
-            output = base64url_encode(input);
+            ok = base64url_encode(request_ptr, input, output);
         } else {
-            ok = base64url_decode(input, output);
+            ok = base64url_decode(request_ptr, input, output);
         }
     } else if (codec == "base32" || codec == "base32-crockford") {
         const bool crockford = codec == "base32-crockford";
         if (direction == "encode") {
-            output = base32_encode(input, crockford);
+            ok = base32_encode(request_ptr, input, crockford, output);
         } else {
-            ok = base32_decode(input, crockford, output);
+            ok = base32_decode(request_ptr, input, crockford, output);
         }
     } else if (codec == "base58") {
         if (direction == "encode") {
-            output = base58_encode(input);
+            ok = base58_encode(request_ptr, input, output);
         } else {
-            ok = base58_decode(input, output);
+            ok = base58_decode(request_ptr, input, output);
         }
     } else if (codec == "percent") {
         if (direction == "encode") {
-            output = percent_encode(input);
+            ok = percent_encode(request_ptr, input, output);
         } else {
-            ok = percent_decode(input, output);
+            ok = percent_decode(request_ptr, input, output);
         }
     } else if (codec == "quoted-printable") {
         if (direction == "encode") {
-            output = quoted_printable_encode(input);
+            ok = quoted_printable_encode(request_ptr, input, output);
         } else {
-            ok = quoted_printable_decode(input, output);
+            ok = quoted_printable_decode(request_ptr, input, output);
         }
     } else if (codec == "uuencode") {
         if (direction == "encode") {
-            output = uuencode(input);
+            ok = uuencode(request_ptr, input, output);
         } else {
-            ok = uudecode(input, output);
+            ok = uudecode(request_ptr, input, output);
         }
     } else if (codec == "yenc") {
         if (direction == "encode") {
-            output = yenc_encode(input);
+            ok = yenc_encode(request_ptr, input, output);
         } else {
-            ok = yenc_decode(input, output);
+            ok = yenc_decode(request_ptr, input, output);
         }
     } else if (codec == "ascii85" || codec == "z85") {
         const bool z85 = codec == "z85";
         if (z85 && (input.size() % (direction == "encode" ? 4 : 5)) != 0) { return -1; }
         if (direction == "encode") {
-            output = ascii85_encode(input, z85);
+            ok = ascii85_encode(request_ptr, input, z85, output);
         } else {
-            ok = ascii85_decode(input, z85, output);
+            ok = ascii85_decode(request_ptr, input, z85, output);
         }
     } else {
         return -1;
     }
-    return ok ? omega_edit::plugin::set_replacement(request_ptr, response_ptr, output) : -1;
+    if (!ok || omega_transform_plugin_sdk_is_cancelled(request_ptr)) { return -1; }
+    return omega_edit::plugin::set_replacement(request_ptr, response_ptr, output);
 }

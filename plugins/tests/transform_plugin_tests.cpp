@@ -216,7 +216,11 @@ TEST_CASE("Packaged Transform Plugins", "[TransformPlugin]") {
                                                                   zlib_info->args_schema));
     REQUIRE(0 ==
             omega_transform_plugin_options_match_args_schema("{\"action\":\"decompress\"}", zlib_info->args_schema));
+    REQUIRE(0 == omega_transform_plugin_options_match_args_schema("{\"action\":\"decompress\",\"maxOutputBytes\":1024}",
+                                                                  zlib_info->args_schema));
     REQUIRE(-1 == omega_transform_plugin_options_match_args_schema("{\"action\":\"compress\",\"level\":10}",
+                                                                   zlib_info->args_schema));
+    REQUIRE(-1 == omega_transform_plugin_options_match_args_schema("{\"action\":\"decompress\",\"maxOutputBytes\":0}",
                                                                    zlib_info->args_schema));
     const auto cipher_info = omega_transform_plugin_registry_find_info(registry_ptr, "omega.example.openssl_ciphers");
     REQUIRE("OpenSSL Ciphers" == std::string(cipher_info->name));
@@ -759,6 +763,41 @@ TEST_CASE("Packaged Transform Plugins", "[TransformPlugin]") {
     omega_transform_plugin_response_clear(&response);
     omega_edit_destroy_session(text_codec_session_ptr);
 
+    const auto oversized_base58_session_ptr = omega_edit_create_session(nullptr, nullptr, nullptr, NO_EVENTS, nullptr);
+    REQUIRE(oversized_base58_session_ptr);
+    std::vector<omega_byte_t> oversized_base58_input((64 * 1024) + 1, 'x');
+    REQUIRE(0 < omega_edit_insert_bytes(oversized_base58_session_ptr, 0, oversized_base58_input.data(),
+                                        static_cast<int64_t>(oversized_base58_input.size())));
+    const auto oversized_base58_change_count = omega_session_get_num_changes(oversized_base58_session_ptr);
+    REQUIRE(-1 == omega_transform_plugin_registry_apply_to_session(
+                          registry_ptr, "omega.example.text_codecs", oversized_base58_session_ptr, 0, 0,
+                          "{\"codec\":\"base58\",\"direction\":\"encode\"}", &response));
+    REQUIRE(oversized_base58_change_count == omega_session_get_num_changes(oversized_base58_session_ptr));
+    REQUIRE(static_cast<int64_t>(oversized_base58_input.size()) ==
+            omega_session_get_computed_file_size(oversized_base58_session_ptr));
+    omega_transform_plugin_response_clear(&response);
+    omega_edit_destroy_session(oversized_base58_session_ptr);
+
+    const auto cancellable_text_session_ptr = omega_edit_create_session(nullptr, nullptr, nullptr, NO_EVENTS, nullptr);
+    REQUIRE(cancellable_text_session_ptr);
+    std::vector<omega_byte_t> cancellable_text_input(8192, 0xFF);
+    REQUIRE(0 < omega_edit_insert_bytes(cancellable_text_session_ptr, 0, cancellable_text_input.data(),
+                                        static_cast<int64_t>(cancellable_text_input.size())));
+    const auto cancellable_text_change_count = omega_session_get_num_changes(cancellable_text_session_ptr);
+    cancellation_state_t base58_cancel_state{0, 1};
+    int64_t base58_cancelled_serial = -1;
+    REQUIRE(-1 == omega_transform_plugin_registry_apply_to_session_with_progress_cancel_and_serial(
+                          registry_ptr, "omega.example.text_codecs", cancellable_text_session_ptr, 0, 0,
+                          "{\"codec\":\"base58\",\"direction\":\"encode\"}", nullptr, nullptr, cancel_after_callback,
+                          &base58_cancel_state, &response, &base58_cancelled_serial));
+    REQUIRE(base58_cancel_state.calls > base58_cancel_state.cancel_after);
+    REQUIRE(0 == base58_cancelled_serial);
+    REQUIRE(cancellable_text_change_count == omega_session_get_num_changes(cancellable_text_session_ptr));
+    REQUIRE(static_cast<int64_t>(cancellable_text_input.size()) ==
+            omega_session_get_computed_file_size(cancellable_text_session_ptr));
+    omega_transform_plugin_response_clear(&response);
+    omega_edit_destroy_session(cancellable_text_session_ptr);
+
     const auto charset_session_ptr = omega_edit_create_session(nullptr, nullptr, nullptr, NO_EVENTS, nullptr);
     REQUIRE(charset_session_ptr);
     REQUIRE(0 < omega_edit_insert_string(charset_session_ptr, 0, "ABC"));
@@ -823,6 +862,27 @@ TEST_CASE("Packaged Transform Plugins", "[TransformPlugin]") {
                                              omega_session_get_computed_file_size(decimal_session_ptr)));
     omega_transform_plugin_response_clear(&response);
     omega_edit_destroy_session(decimal_session_ptr);
+
+    const auto cancellable_decimal_session_ptr =
+            omega_edit_create_session(nullptr, nullptr, nullptr, NO_EVENTS, nullptr);
+    REQUIRE(cancellable_decimal_session_ptr);
+    const std::string cancellable_decimal_input(8192, '7');
+    REQUIRE(0 < omega_edit_insert_string(cancellable_decimal_session_ptr, 0, cancellable_decimal_input.c_str()));
+    const auto cancellable_decimal_change_count = omega_session_get_num_changes(cancellable_decimal_session_ptr);
+    cancellation_state_t decimal_cancel_state{0, 1};
+    int64_t decimal_cancelled_serial = -1;
+    REQUIRE(-1 == omega_transform_plugin_registry_apply_to_session_with_progress_cancel_and_serial(
+                          registry_ptr, "omega.example.decimal_codecs", cancellable_decimal_session_ptr, 0, 0,
+                          "{\"codec\":\"packed-decimal\",\"direction\":\"encode\"}", nullptr, nullptr,
+                          cancel_after_callback, &decimal_cancel_state, &response, &decimal_cancelled_serial));
+    REQUIRE(decimal_cancel_state.calls > decimal_cancel_state.cancel_after);
+    REQUIRE(0 == decimal_cancelled_serial);
+    REQUIRE(cancellable_decimal_change_count == omega_session_get_num_changes(cancellable_decimal_session_ptr));
+    REQUIRE(cancellable_decimal_input ==
+            omega_session_get_segment_string(cancellable_decimal_session_ptr, 0,
+                                             omega_session_get_computed_file_size(cancellable_decimal_session_ptr)));
+    omega_transform_plugin_response_clear(&response);
+    omega_edit_destroy_session(cancellable_decimal_session_ptr);
 
     const auto format_session_ptr = omega_edit_create_session(nullptr, nullptr, nullptr, NO_EVENTS, nullptr);
     REQUIRE(format_session_ptr);
@@ -892,6 +952,41 @@ TEST_CASE("Packaged Transform Plugins", "[TransformPlugin]") {
                                                         omega_session_get_computed_file_size(codec_session_ptr)));
     REQUIRE(5 == response.replacement_length);
     omega_transform_plugin_response_clear(&response);
+
+    const auto zlib_bomb_session_ptr = omega_edit_create_session(nullptr, nullptr, nullptr, NO_EVENTS, nullptr);
+    REQUIRE(zlib_bomb_session_ptr);
+    const std::string repeated_zlib_input(4096, 'A');
+    REQUIRE(0 < omega_edit_insert_bytes(zlib_bomb_session_ptr, 0,
+                                        reinterpret_cast<const omega_byte_t *>(repeated_zlib_input.data()),
+                                        static_cast<int64_t>(repeated_zlib_input.size())));
+    REQUIRE(0 == omega_transform_plugin_registry_apply_to_session(registry_ptr, "omega.example.zlib",
+                                                                  zlib_bomb_session_ptr, 0, 0,
+                                                                  "{\"action\":\"compress\",\"level\":9}", &response));
+    const auto compressed_zlib_bomb = omega_session_get_segment_string(
+            zlib_bomb_session_ptr, 0, omega_session_get_computed_file_size(zlib_bomb_session_ptr));
+    REQUIRE(compressed_zlib_bomb.size() < repeated_zlib_input.size());
+    omega_transform_plugin_response_clear(&response);
+
+    const auto zlib_cap_change_count = omega_session_get_num_changes(zlib_bomb_session_ptr);
+    REQUIRE(-1 == omega_transform_plugin_registry_apply_to_session(
+                          registry_ptr, "omega.example.zlib", zlib_bomb_session_ptr, 0, 0,
+                          "{\"action\":\"decompress\",\"maxOutputBytes\":1024}", &response));
+    REQUIRE(zlib_cap_change_count == omega_session_get_num_changes(zlib_bomb_session_ptr));
+    REQUIRE(compressed_zlib_bomb ==
+            omega_session_get_segment_string(zlib_bomb_session_ptr, 0,
+                                             omega_session_get_computed_file_size(zlib_bomb_session_ptr)));
+    omega_transform_plugin_response_clear(&response);
+
+    const std::string zlib_cap_options =
+            "{\"action\":\"decompress\",\"maxOutputBytes\":" + std::to_string(repeated_zlib_input.size()) + "}";
+    REQUIRE(0 == omega_transform_plugin_registry_apply_to_session(registry_ptr, "omega.example.zlib",
+                                                                  zlib_bomb_session_ptr, 0, 0, zlib_cap_options.c_str(),
+                                                                  &response));
+    REQUIRE(repeated_zlib_input ==
+            omega_session_get_segment_string(zlib_bomb_session_ptr, 0,
+                                             omega_session_get_computed_file_size(zlib_bomb_session_ptr)));
+    omega_transform_plugin_response_clear(&response);
+    omega_edit_destroy_session(zlib_bomb_session_ptr);
 
     REQUIRE(0 <
             omega_edit_insert_string(codec_session_ptr, omega_session_get_computed_file_size(codec_session_ptr), "!"));

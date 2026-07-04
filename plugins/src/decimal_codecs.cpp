@@ -26,15 +26,24 @@ namespace {
             "\"packed-decimal\",\"comp-3\",\"zoned-decimal\",\"overpunch\"]},\"direction\":{\"type\":\"string\","
             "\"title\":\"Direction\",\"default\":\"encode\",\"enum\":[\"encode\",\"decode\"]}},"
             "\"additionalProperties\":false}";
+    constexpr size_t DECIMAL_CODEC_CANCEL_POLL_INTERVAL = 4096;
+
+    bool cancel_requested(const omega_transform_plugin_request_t *request_ptr, size_t &work_count) {
+        if ((work_count++ & (DECIMAL_CODEC_CANCEL_POLL_INTERVAL - 1U)) != 0U) { return false; }
+        return omega_transform_plugin_sdk_is_cancelled(request_ptr) != 0;
+    }
 
     bool is_ascii_space(omega_byte_t byte) { return std::isspace(static_cast<unsigned char>(byte)) != 0; }
 
     bool is_ascii_digit(omega_byte_t byte) { return std::isdigit(static_cast<unsigned char>(byte)) != 0; }
 
-    bool digits_from_ascii(const std::vector<omega_byte_t> &input, std::string &digits, bool &negative) {
+    bool digits_from_ascii(const omega_transform_plugin_request_t *request_ptr, const std::vector<omega_byte_t> &input,
+                           std::string &digits, bool &negative) {
         digits.clear();
         negative = false;
+        size_t work_count = 0;
         for (const auto byte : input) {
+            if (cancel_requested(request_ptr, work_count)) { return false; }
             if (byte == '+' || is_ascii_space(byte)) { continue; }
             if (byte == '-') {
                 negative = true;
@@ -56,21 +65,27 @@ namespace {
         return true;
     }
 
-    bool encode_bcd(const std::vector<omega_byte_t> &input, std::vector<omega_byte_t> &out) {
+    bool encode_bcd(const omega_transform_plugin_request_t *request_ptr, const std::vector<omega_byte_t> &input,
+                    std::vector<omega_byte_t> &out) {
         std::string digits;
         bool negative = false;
-        if (!digits_from_ascii(input, digits, negative) || negative) { return false; }
+        if (!digits_from_ascii(request_ptr, input, digits, negative) || negative) { return false; }
         if ((digits.size() % 2) != 0) { digits.insert(digits.begin(), '0'); }
         out.clear();
+        size_t work_count = 0;
         for (size_t i = 0; i < digits.size(); i += 2) {
+            if (cancel_requested(request_ptr, work_count)) { return false; }
             out.push_back(static_cast<omega_byte_t>(((digits[i] - '0') << 4U) | (digits[i + 1] - '0')));
         }
         return true;
     }
 
-    bool decode_bcd(const std::vector<omega_byte_t> &input, std::vector<omega_byte_t> &out) {
+    bool decode_bcd(const omega_transform_plugin_request_t *request_ptr, const std::vector<omega_byte_t> &input,
+                    std::vector<omega_byte_t> &out) {
         std::string digits;
+        size_t work_count = 0;
         for (const auto byte : input) {
+            if (cancel_requested(request_ptr, work_count)) { return false; }
             char high = 0;
             char low = 0;
             if (!decode_nibble((byte >> 4U) & 0x0FU, high) || !decode_nibble(byte & 0x0FU, low)) { return false; }
@@ -81,14 +96,17 @@ namespace {
         return true;
     }
 
-    bool encode_packed(const std::vector<omega_byte_t> &input, std::vector<omega_byte_t> &out) {
+    bool encode_packed(const omega_transform_plugin_request_t *request_ptr, const std::vector<omega_byte_t> &input,
+                       std::vector<omega_byte_t> &out) {
         std::string digits;
         bool negative = false;
-        if (!digits_from_ascii(input, digits, negative)) { return false; }
+        if (!digits_from_ascii(request_ptr, input, digits, negative)) { return false; }
         digits.push_back(negative ? 'D' : 'C');
         if ((digits.size() % 2) != 0) { digits.insert(digits.begin(), '0'); }
         out.clear();
+        size_t work_count = 0;
         for (size_t i = 0; i < digits.size(); i += 2) {
+            if (cancel_requested(request_ptr, work_count)) { return false; }
             const unsigned int high = digits[i] >= 'A' ? 0x0DU : static_cast<unsigned int>(digits[i] - '0');
             const unsigned int low = digits[i + 1] >= 'A' ? (digits[i + 1] == 'D' ? 0x0DU : 0x0CU)
                                                           : static_cast<unsigned int>(digits[i + 1] - '0');
@@ -97,11 +115,14 @@ namespace {
         return true;
     }
 
-    bool decode_packed(const std::vector<omega_byte_t> &input, std::vector<omega_byte_t> &out) {
+    bool decode_packed(const omega_transform_plugin_request_t *request_ptr, const std::vector<omega_byte_t> &input,
+                       std::vector<omega_byte_t> &out) {
         if (input.empty()) { return false; }
         std::string digits;
         bool negative = false;
+        size_t work_count = 0;
         for (size_t i = 0; i < input.size(); ++i) {
+            if (cancel_requested(request_ptr, work_count)) { return false; }
             const unsigned int high = (input[i] >> 4U) & 0x0FU;
             const unsigned int low = input[i] & 0x0FU;
             char digit = 0;
@@ -123,12 +144,15 @@ namespace {
         return true;
     }
 
-    bool encode_zoned(const std::vector<omega_byte_t> &input, std::vector<omega_byte_t> &out, bool overpunch) {
+    bool encode_zoned(const omega_transform_plugin_request_t *request_ptr, const std::vector<omega_byte_t> &input,
+                      std::vector<omega_byte_t> &out, bool overpunch) {
         std::string digits;
         bool negative = false;
-        if (!digits_from_ascii(input, digits, negative)) { return false; }
+        if (!digits_from_ascii(request_ptr, input, digits, negative)) { return false; }
         out.clear();
+        size_t work_count = 0;
         for (size_t i = 0; i < digits.size(); ++i) {
+            if (cancel_requested(request_ptr, work_count)) { return false; }
             const unsigned int digit = static_cast<unsigned int>(digits[i] - '0');
             if (overpunch && i + 1 == digits.size()) {
                 out.push_back(static_cast<omega_byte_t>((negative ? 0xD0U : 0xC0U) | digit));
@@ -139,11 +163,14 @@ namespace {
         return true;
     }
 
-    bool decode_zoned(const std::vector<omega_byte_t> &input, std::vector<omega_byte_t> &out, bool overpunch) {
+    bool decode_zoned(const omega_transform_plugin_request_t *request_ptr, const std::vector<omega_byte_t> &input,
+                      std::vector<omega_byte_t> &out, bool overpunch) {
         if (input.empty()) { return false; }
         std::string digits;
         bool negative = false;
+        size_t work_count = 0;
         for (size_t i = 0; i < input.size(); ++i) {
+            if (cancel_requested(request_ptr, work_count)) { return false; }
             const unsigned int zone = (input[i] >> 4U) & 0x0FU;
             const unsigned int digit = input[i] & 0x0FU;
             if (digit > 9U) { return false; }
@@ -198,13 +225,17 @@ omega_transform_plugin_apply(const omega_transform_plugin_request_t *request_ptr
     std::vector<omega_byte_t> output;
     bool ok = false;
     if (codec == "bcd") {
-        ok = direction == "encode" ? encode_bcd(input, output) : decode_bcd(input, output);
+        ok = direction == "encode" ? encode_bcd(request_ptr, input, output) : decode_bcd(request_ptr, input, output);
     } else if (codec == "packed-decimal") {
-        ok = direction == "encode" ? encode_packed(input, output) : decode_packed(input, output);
+        ok = direction == "encode" ? encode_packed(request_ptr, input, output)
+                                   : decode_packed(request_ptr, input, output);
     } else if (codec == "zoned-decimal") {
-        ok = direction == "encode" ? encode_zoned(input, output, false) : decode_zoned(input, output, false);
+        ok = direction == "encode" ? encode_zoned(request_ptr, input, output, false)
+                                   : decode_zoned(request_ptr, input, output, false);
     } else if (codec == "overpunch") {
-        ok = direction == "encode" ? encode_zoned(input, output, true) : decode_zoned(input, output, true);
+        ok = direction == "encode" ? encode_zoned(request_ptr, input, output, true)
+                                   : decode_zoned(request_ptr, input, output, true);
     }
-    return ok ? omega_edit::plugin::set_replacement(request_ptr, response_ptr, output) : -1;
+    if (!ok || omega_transform_plugin_sdk_is_cancelled(request_ptr)) { return -1; }
+    return omega_edit::plugin::set_replacement(request_ptr, response_ptr, output);
 }

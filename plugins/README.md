@@ -13,11 +13,14 @@ an `operator` field plus a single repeated byte or repeating mask sequence, for
 example `{"operator":"xor","byte":"0x42"}` or
 `{"operator":"and","mask":["0x0F","0xF0"]}`. The zlib exemplar exposes an
 `action` field for compression or decompression; compression accepts `level`
-values from `-1` through `9`.
+values from `-1` through `9`, and decompression accepts `maxOutputBytes` with a
+64 MiB default cap.
 The richer data-format exemplars cover digest/hash inspection, AES cipher
 transforms, CRC/checksum inspection, binary-to-text codecs, character set
 transcoding, decimal field encodings, byte-order swaps, record/text escaping
-helpers, and lightweight format inspectors for TLV-style data. The OpenSSL
+helpers, and lightweight format inspectors for TLV-style data. The base58 text
+codec is intentionally capped at 64 KiB selections because its exemplar
+implementation is quadratic. The OpenSSL
 exemplars use OpenSSL 3's EVP API to calculate MD5, SHA-1, SHA-2, SHA-3, and
 BLAKE2 inspect-only text results and to encrypt/decrypt selected bytes with
 AES-CBC or AES-CTR. MD5 and SHA-1 are included for legacy formats,

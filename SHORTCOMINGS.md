@@ -11,7 +11,9 @@ around the initial Find toggle state, auto bytes-per-row overfitting, and the
 duplicate Ctrl-Z undo toast are also treated as fixed by the current extension
 branch/PR and are not listed as open. The redo preservation bug across
 transform undo boundaries found by the brutal-testing harness is also fixed by
-the current core test branch/PR and is no longer listed as open.
+the current core test branch/PR and is no longer listed as open. The zlib
+decompression cap and C++ codec cancellation/base58 guardrail items are also
+fixed and no longer listed as open.
 
 Recent core/server/plugin review findings have been folded into the priority
 list below rather than kept as a second appended review. A fresh core/server
@@ -36,14 +38,13 @@ Risk guide:
 
 1. **Critical deployment boundary**: add optional TLS/mTLS and an authorization
    hook before making any "hardened for production" attestation.
-2. **Massive-file pressure caps**: bound or stream `replace_matches`.
-3. **Plugin input hardening**: cap zlib decompression output and add cooperative
-   cancellation to the C++ codec plugins.
-4. **Undo performance batch**: implement the remaining low-risk undo pieces
+2. **Massive-file pressure caps**: bound or stream `replace_matches`, and apply
+   a configurable segment-size cap to read/classification RPCs.
+3. **Undo performance batch**: implement the remaining low-risk undo pieces
    (transaction extents, redo batching, snapshot telemetry).
-5. **Streaming import**: pair existing streaming export with a streaming/chunked
+4. **Streaming import**: pair existing streaming export with a streaming/chunked
    import path.
-6. **Checkpoint caps/dedupe**: add server/API guardrails for unbounded checkpoint
+5. **Checkpoint caps/dedupe**: add server/API guardrails for unbounded checkpoint
    creation.
 
 The first batch now favors deployment hardening, resource caps, and remaining
@@ -209,27 +210,6 @@ Suggested fix:
 - Decide whether public TS APIs become BigInt-first, accept `number | bigint`,
   or expose parallel BigInt methods.
 - Keep safe-number wrappers for legacy callers during the transition.
-
-### 9. Zlib decompression has no output-size or ratio cap
-
-**Impact:** High (decompression-bomb memory exhaustion)
-**Risk:** Low to Medium
-**Area:** Transform plugins (zlib)
-
-`zlib_decompress` grows the output buffer by doubling with only a `SIZE_MAX/2`
-ceiling, so a few kilobytes of compressible input can inflate to gigabytes of
-resident memory. The loop does poll cancellation, but there is no maximum output
-size or compression-ratio guard.
-
-Relevant code:
-- `plugins/src/zlib.c:142`
-- `plugins/src/zlib.c:178`
-
-Suggested fix:
-- Add a configurable maximum decompressed-output size (and/or ratio) and fail
-  with a clear error when exceeded.
-- Keep the existing per-iteration cancellation polling.
-- Add a decompression-bomb test that asserts the cap is enforced.
 
 ### 10. Plugin workers still run with server user privileges
 
@@ -502,28 +482,6 @@ Suggested fix:
 - Route all mark-dirty-and-notify call sites through one helper.
 - Update tests that currently force dirty state by negating capacity.
 
-### 21. C++ codec plugins lack cancellation, and base58 is quadratic
-
-**Impact:** Medium to High (CPU hang on large selections)
-**Risk:** Low
-**Area:** Transform plugins (text/decimal codecs)
-
-The C++ REPLACE codecs pull the whole selection into memory via `selected_bytes`
-and then run their encode/decode loops with no cancellation polling, unlike the C
-plugins which poll roughly every 4096 bytes. base58 encode/decode are also
-`O(n^2)` over the selection, so a large selection becomes an uninterruptible
-multi-second-to-minutes CPU hang.
-
-Relevant code:
-- `plugins/src/plugin_options.hpp:185`
-- `plugins/src/text_codecs.cpp:195`
-- `plugins/src/text_codecs.cpp:224`
-
-Suggested fix:
-- Poll `omega_transform_plugin_sdk_is_cancelled` inside the C++ codec loops.
-- Cap base58 selection size or document it as a short-field codec.
-- Add cancellation and large-input tests for the C++ codecs.
-
 ### 22. OpenSSL cipher plugin does not zeroize key material
 
 **Impact:** Medium
@@ -763,8 +721,6 @@ claiming production hardening:
   original snapshot after the user truncates or rewrites the source file.
 - Plugin fuzzing: fuzz the format inspectors and text/decimal codecs, especially
   base58, for hangs, unbounded output, and decode round-trips.
-- Decompression caps: assert zlib decompression enforces its output-size/ratio
-  ceiling and stays cancellable.
 - Plugin cancellation: assert every bundled plugin honors cooperative
   cancellation partway through a large selection.
 
