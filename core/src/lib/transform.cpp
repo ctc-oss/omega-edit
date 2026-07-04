@@ -1210,9 +1210,11 @@ namespace {
 
         STARTUPINFOA startup_info{};
         startup_info.cb = sizeof(startup_info);
+        startup_info.dwFlags = STARTF_USESHOWWINDOW;
+        startup_info.wShowWindow = SW_HIDE;
         PROCESS_INFORMATION process_info{};
-        if (!CreateProcessA(nullptr, mutable_command_line.data(), nullptr, nullptr, FALSE, 0, nullptr, nullptr,
-                            &startup_info, &process_info)) {
+        if (!CreateProcessA(nullptr, mutable_command_line.data(), nullptr, nullptr, FALSE, CREATE_NO_WINDOW, nullptr,
+                            nullptr, &startup_info, &process_info)) {
             return false;
         }
 

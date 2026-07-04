@@ -735,6 +735,37 @@ namespace omega_edit {
             return grpc::Status::OK;
         }
 
+        static grpc::Status validate_materialized_segment_request(const char *operation, int64_t offset, int64_t length,
+                                                                  int64_t max_read_segment_bytes) {
+            if (offset < 0) {
+                return grpc::Status(grpc::StatusCode::INVALID_ARGUMENT,
+                                    std::string(operation) + " offset must be non-negative");
+            }
+            if (length < 0) {
+                return grpc::Status(grpc::StatusCode::INVALID_ARGUMENT,
+                                    std::string(operation) + " length must be non-negative");
+            }
+            if (length > 0 && offset > (std::numeric_limits<int64_t>::max)() - length) {
+                return grpc::Status(grpc::StatusCode::INVALID_ARGUMENT, std::string(operation) + " range is invalid");
+            }
+            if (max_read_segment_bytes > 0 && length > max_read_segment_bytes) {
+                return grpc::Status(grpc::StatusCode::RESOURCE_EXHAUSTED,
+                                    std::string(operation) + " length exceeds configured read segment limit of " +
+                                            std::to_string(max_read_segment_bytes) + " bytes");
+            }
+            return grpc::Status::OK;
+        }
+
+        static int64_t effective_search_limit(int64_t requested_limit, int64_t max_search_matches,
+                                              bool &resource_limit_applies) {
+            resource_limit_applies = false;
+            if (max_search_matches > 0 && (requested_limit <= 0 || requested_limit > max_search_matches)) {
+                resource_limit_applies = true;
+                return max_search_matches;
+            }
+            return requested_limit;
+        }
+
         EditorServiceImpl::EditorServiceImpl(HeartbeatConfig heartbeat_config, ResourceLimits resource_limits,
                                              std::function<void()> shutdown_callback,
                                              std::vector<std::string> transform_plugin_directories,
@@ -1575,9 +1606,9 @@ namespace omega_edit {
         grpc::Status EditorServiceImpl::GetContentType(grpc::ServerContext * /*context*/,
                                                        const ::omega_edit::v1::GetContentTypeRequest *request,
                                                        ::omega_edit::v1::GetContentTypeResponse *response) {
-            if (request->offset() < 0) {
-                return grpc::Status(grpc::StatusCode::INVALID_ARGUMENT, "offset must be non-negative");
-            }
+            auto request_status = validate_materialized_segment_request(
+                    "content type", request->offset(), request->length(), resource_limits_.max_read_segment_bytes);
+            if (!request_status.ok()) { return request_status; }
 
             auto locked_session = session_manager_.lock_session(request->session_id());
             if (!locked_session) {
@@ -1618,9 +1649,9 @@ namespace omega_edit {
         grpc::Status EditorServiceImpl::GetLanguage(grpc::ServerContext * /*context*/,
                                                     const ::omega_edit::v1::GetLanguageRequest *request,
                                                     ::omega_edit::v1::GetLanguageResponse *response) {
-            if (request->offset() < 0) {
-                return grpc::Status(grpc::StatusCode::INVALID_ARGUMENT, "offset must be non-negative");
-            }
+            auto request_status = validate_materialized_segment_request(
+                    "language", request->offset(), request->length(), resource_limits_.max_read_segment_bytes);
+            if (!request_status.ok()) { return request_status; }
 
             auto locked_session = session_manager_.lock_session(request->session_id());
             if (!locked_session) {
@@ -1997,9 +2028,9 @@ namespace omega_edit {
         grpc::Status EditorServiceImpl::GetSegment(grpc::ServerContext * /*context*/,
                                                    const ::omega_edit::v1::GetSegmentRequest *request,
                                                    ::omega_edit::v1::GetSegmentResponse *response) {
-            if (request->offset() < 0) {
-                return grpc::Status(grpc::StatusCode::INVALID_ARGUMENT, "offset must be non-negative");
-            }
+            auto request_status = validate_materialized_segment_request("segment", request->offset(), request->length(),
+                                                                        resource_limits_.max_read_segment_bytes);
+            if (!request_status.ok()) { return request_status; }
 
             auto locked_session = session_manager_.lock_session(request->session_id());
             if (!locked_session) {
@@ -2042,6 +2073,17 @@ namespace omega_edit {
             int64_t offset = request->has_offset() ? request->offset() : 0;
             int64_t length = request->has_length() ? request->length() : 0;
             int64_t limit = request->has_limit() ? request->limit() : 0;// 0 = no limit
+            if (offset < 0 || length < 0 || limit < 0) {
+                return grpc::Status(grpc::StatusCode::INVALID_ARGUMENT,
+                                    "search offset, length, and limit must be non-negative");
+            }
+            if (length > 0 && offset > (std::numeric_limits<int64_t>::max)() - length) {
+                return grpc::Status(grpc::StatusCode::INVALID_ARGUMENT, "search range is invalid");
+            }
+
+            bool resource_limit_applies = false;
+            const auto bounded_limit =
+                    effective_search_limit(limit, resource_limits_.max_search_matches, resource_limit_applies);
             std::vector<int64_t> match_offsets;
 
             {
@@ -2058,9 +2100,15 @@ namespace omega_edit {
 
                 if (ctx) {
                     int64_t num_matches = 0;
-                    while ((limit <= 0 || num_matches < limit) && omega_search_next_match(ctx, 1) > 0) {
+                    while ((bounded_limit <= 0 || num_matches < bounded_limit) && omega_search_next_match(ctx, 1) > 0) {
                         match_offsets.push_back(omega_search_context_get_match_offset(ctx));
                         ++num_matches;
+                    }
+                    if (resource_limit_applies && num_matches >= bounded_limit && omega_search_next_match(ctx, 1) > 0) {
+                        omega_search_destroy_context(ctx);
+                        return grpc::Status(grpc::StatusCode::RESOURCE_EXHAUSTED,
+                                            "search matches exceed configured search match limit of " +
+                                                    std::to_string(resource_limits_.max_search_matches));
                     }
                     omega_search_destroy_context(ctx);
                 }
