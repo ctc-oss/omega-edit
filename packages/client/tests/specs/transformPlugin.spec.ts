@@ -479,11 +479,11 @@ describe('Transform plugin gRPC integration', () => {
           '000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f',
         ivHex: aesIvHex,
       }
-      const cipherPlugin = plugins.find(
+      const cipherSchemaPlugin = plugins.find(
         (plugin) => plugin.id === 'omega.example.openssl_ciphers'
       )
-      expect(cipherPlugin?.argsSchema).to.include('oneOf')
-      expect(cipherPlugin?.argsSchema).to.include('^[0-9A-Fa-f]{64}$')
+      expect(cipherSchemaPlugin?.argsSchema).to.include('oneOf')
+      expect(cipherSchemaPlugin?.argsSchema).to.include('^[0-9A-Fa-f]{64}$')
       const invalidCipherOptions = [
         [
           'short AES-128 key',
