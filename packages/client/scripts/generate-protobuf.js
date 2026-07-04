@@ -66,6 +66,33 @@ function writePluginWrapper(pluginEntry) {
   return wrapperPath
 }
 
+function sleep(ms) {
+  Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms)
+}
+
+function execFileSyncWithRetries(label, command, args, options) {
+  const maxAttempts = 3
+  let delayMs = 5000
+
+  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+    try {
+      execFileSync(command, args, options)
+      return
+    } catch (error) {
+      if (attempt === maxAttempts) {
+        console.error(`${label} failed after ${maxAttempts} attempts.`)
+        throw error
+      }
+
+      console.warn(
+        `${label} failed on attempt ${attempt}/${maxAttempts}; retrying in ${delayMs / 1000} seconds.`
+      )
+      sleep(delayMs)
+      delayMs *= 2
+    }
+  }
+}
+
 const protocEntry = require.resolve('@protobuf-ts/protoc/protoc.js', {
   paths: [clientRoot, repoRoot],
 })
@@ -108,7 +135,7 @@ const args = [
   protoFile,
 ]
 
-execFileSync(process.execPath, args, {
+execFileSyncWithRetries('protobuf generation', process.execPath, args, {
   cwd: clientRoot,
   stdio: 'inherit',
 })
