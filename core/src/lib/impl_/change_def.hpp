@@ -18,12 +18,14 @@
 #include "../../include/omega_edit/change.h"
 #include "../../include/omega_edit/filesystem.h"
 #include "data_def.hpp"
+#include "internal_fwd_defs.hpp"
 #include <algorithm>
 #include <cstdint>
 #include <cstdio>
 #include <cstring>
 #include <memory>
 #include <string>
+#include <vector>
 
 namespace omega_edit::internal {
 
@@ -85,6 +87,7 @@ struct omega_transform_change_data_struct {
     std::string transform_id{};
     std::string options_json{};
     std::string checkpoint_file_path{};
+    std::vector<const_omega_change_ptr_t> preserved_changes_undone{};
     int64_t replacement_length{};
     int64_t computed_file_size_before{};
     int64_t computed_file_size_after{};

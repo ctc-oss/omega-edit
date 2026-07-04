@@ -26,6 +26,9 @@ venv/
 .venv-conan/
 package-lock.json
 
+# clang
+.clangd
+
 # log files
 *.log
 

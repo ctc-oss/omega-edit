@@ -20,6 +20,8 @@
 #include "omega_edit/stl_string_adaptor.hpp"
 #include "omega_edit/utility.h"
 
+#include "test_harness.hpp"
+
 #include <test_util.hpp>
 
 #include <catch2/catch_test_macros.hpp>
@@ -40,6 +42,14 @@ namespace fs = std::filesystem;
 using Catch::Matchers::Contains;
 using Catch::Matchers::EndsWith;
 using Catch::Matchers::Equals;
+
+using omega_test::check_serials_contiguous;
+using omega_test::content_string;
+using omega_test::DirAudit;
+using omega_test::model_valid;
+using omega_test::ScratchDir;
+using omega_test::TestSession;
+using omega_test::verify_undo_redo_round_trip;
 
 
 TEST_CASE("Size Tests", "[SizeTests]") {
@@ -109,13 +119,14 @@ TEST_CASE("Apply Script", "[EditScript]") {
 }
 
 TEST_CASE("Overwrite undo restores captured inverse bytes", "[UndoTests][PayloadTests]") {
-    const auto session_ptr = omega_edit_create_session(nullptr, nullptr, nullptr, NO_EVENTS, nullptr);
-    REQUIRE(session_ptr);
+    TestSession session(nullptr, nullptr, NO_EVENTS);
+    REQUIRE(session);
+    auto *session_ptr = session.get();
 
     REQUIRE(0 < omega_edit_insert_string(session_ptr, 0, "0123456789"));
     REQUIRE(0 < omega_edit_overwrite_string(session_ptr, 8, "ABCDE"));
-    REQUIRE("01234567ABCDE" ==
-            omega_session_get_segment_string(session_ptr, 0, omega_session_get_computed_file_size(session_ptr)));
+    REQUIRE("01234567ABCDE" == content_string(session_ptr));
+    REQUIRE(model_valid(session_ptr));
 
     const auto *change_ptr = omega_session_get_last_change(session_ptr);
     REQUIRE(change_ptr);
@@ -124,17 +135,18 @@ TEST_CASE("Overwrite undo restores captured inverse bytes", "[UndoTests][Payload
     REQUIRE(OMEGA_CHANGE_DATA_STORAGE_INLINE == omega_change_get_data_storage(change_ptr));
 
     REQUIRE(-2 == omega_edit_undo_last_change(session_ptr));
-    REQUIRE("0123456789" ==
-            omega_session_get_segment_string(session_ptr, 0, omega_session_get_computed_file_size(session_ptr)));
+    REQUIRE("0123456789" == content_string(session_ptr));
+    REQUIRE(model_valid(session_ptr));
     REQUIRE(2 == omega_edit_redo_last_undo(session_ptr));
-    REQUIRE("01234567ABCDE" ==
-            omega_session_get_segment_string(session_ptr, 0, omega_session_get_computed_file_size(session_ptr)));
-
-    omega_edit_destroy_session(session_ptr);
+    REQUIRE("01234567ABCDE" == content_string(session_ptr));
+    const auto serials = check_serials_contiguous(session_ptr);
+    REQUIRE(serials.contiguous);
 }
 
 TEST_CASE("Large delete payloads are file backed", "[UndoTests][PayloadTests]") {
-    const auto file_path = (DATA_DIR / "large-delete-payload.dat").string();
+    const ScratchDir data_scratch;
+    const ScratchDir checkpoint_scratch;
+    const auto file_path = (fs::path(data_scratch.str()) / "large-delete-payload.dat").string();
     const auto payload_limit = int64_t{32};
     const auto file_byte_count = payload_limit - 1;
     const std::string pattern = "OmegaEditPayload";
@@ -153,42 +165,48 @@ TEST_CASE("Large delete payloads are file backed", "[UndoTests][PayloadTests]") 
     REQUIRE(file_ptr);
     FCLOSE(file_ptr);
 
-    const auto session_ptr = omega_edit_create_session(file_path.c_str(), nullptr, nullptr, NO_EVENTS, nullptr);
-    REQUIRE(session_ptr);
-    REQUIRE(payload_limit == omega_session_set_change_inline_payload_limit(session_ptr, payload_limit));
-    REQUIRE(payload_limit == omega_session_get_change_inline_payload_limit(session_ptr));
+    DirAudit audit(checkpoint_scratch.str());
+    {
+        TestSession session(file_path.c_str(), checkpoint_scratch.c_str(), NO_EVENTS);
+        REQUIRE(session);
+        auto *session_ptr = session.get();
+        REQUIRE(payload_limit == omega_session_set_change_inline_payload_limit(session_ptr, payload_limit));
+        REQUIRE(payload_limit == omega_session_get_change_inline_payload_limit(session_ptr));
 
-    REQUIRE(0 < omega_edit_insert_string(session_ptr, insert_offset, inserted.c_str()));
-    REQUIRE(delete_byte_count == omega_session_get_computed_file_size(session_ptr));
-    REQUIRE(0 < omega_edit_delete(session_ptr, 0, delete_byte_count));
-    const auto *change_ptr = omega_session_get_last_change(session_ptr);
-    REQUIRE(change_ptr);
-    REQUIRE('D' == omega_change_get_kind_as_char(change_ptr));
-    REQUIRE(delete_byte_count == omega_change_get_length(change_ptr));
-    REQUIRE(delete_byte_count == omega_change_get_data_length(change_ptr));
-    REQUIRE(OMEGA_CHANGE_DATA_STORAGE_FILE_BACKED == omega_change_get_data_storage(change_ptr));
-    const auto *deleted_bytes = omega_change_get_bytes(change_ptr);
-    REQUIRE(deleted_bytes);
-    REQUIRE(static_cast<omega_byte_t>(pattern.front()) == deleted_bytes[0]);
-    REQUIRE(static_cast<omega_byte_t>(inserted.front()) == deleted_bytes[insert_offset]);
-    REQUIRE(static_cast<omega_byte_t>(pattern.front()) ==
-            deleted_bytes[insert_offset + static_cast<int64_t>(inserted.size())]);
-    REQUIRE(static_cast<omega_byte_t>(
-                    pattern[static_cast<size_t>((file_byte_count - 1) % static_cast<int64_t>(pattern.size()))]) ==
-            deleted_bytes[delete_byte_count - 1]);
+        REQUIRE(0 < omega_edit_insert_string(session_ptr, insert_offset, inserted.c_str()));
+        REQUIRE(delete_byte_count == omega_session_get_computed_file_size(session_ptr));
+        REQUIRE(0 < omega_edit_delete(session_ptr, 0, delete_byte_count));
+        const auto *change_ptr = omega_session_get_last_change(session_ptr);
+        REQUIRE(change_ptr);
+        REQUIRE('D' == omega_change_get_kind_as_char(change_ptr));
+        REQUIRE(delete_byte_count == omega_change_get_length(change_ptr));
+        REQUIRE(delete_byte_count == omega_change_get_data_length(change_ptr));
+        REQUIRE(OMEGA_CHANGE_DATA_STORAGE_FILE_BACKED == omega_change_get_data_storage(change_ptr));
+        const auto *deleted_bytes = omega_change_get_bytes(change_ptr);
+        REQUIRE(deleted_bytes);
+        REQUIRE(static_cast<omega_byte_t>(pattern.front()) == deleted_bytes[0]);
+        REQUIRE(static_cast<omega_byte_t>(inserted.front()) == deleted_bytes[insert_offset]);
+        REQUIRE(static_cast<omega_byte_t>(pattern.front()) ==
+                deleted_bytes[insert_offset + static_cast<int64_t>(inserted.size())]);
+        REQUIRE(static_cast<omega_byte_t>(
+                        pattern[static_cast<size_t>((file_byte_count - 1) % static_cast<int64_t>(pattern.size()))]) ==
+                deleted_bytes[delete_byte_count - 1]);
 
-    REQUIRE(-2 == omega_edit_undo_last_change(session_ptr));
-    REQUIRE(delete_byte_count == omega_session_get_computed_file_size(session_ptr));
-    REQUIRE(expected_content == omega_session_get_segment_string(session_ptr, 0, delete_byte_count));
-    REQUIRE(2 == omega_edit_redo_last_undo(session_ptr));
-    REQUIRE(0 == omega_session_get_computed_file_size(session_ptr));
-
-    omega_edit_destroy_session(session_ptr);
-    omega_util_remove_file(file_path.c_str());
+        REQUIRE(-2 == omega_edit_undo_last_change(session_ptr));
+        REQUIRE(delete_byte_count == omega_session_get_computed_file_size(session_ptr));
+        REQUIRE(expected_content == content_string(session_ptr));
+        REQUIRE(model_valid(session_ptr));
+        REQUIRE(2 == omega_edit_redo_last_undo(session_ptr));
+        REQUIRE(0 == omega_session_get_computed_file_size(session_ptr));
+        REQUIRE(model_valid(session_ptr));
+    }
+    REQUIRE(audit.unchanged());
 }
 
 TEST_CASE("Large overwrite inverse payloads are file backed", "[UndoTests][PayloadTests]") {
-    const auto file_path = (DATA_DIR / "large-overwrite-inverse-payload.dat").string();
+    const ScratchDir data_scratch;
+    const ScratchDir checkpoint_scratch;
+    const auto file_path = (fs::path(data_scratch.str()) / "large-overwrite-inverse-payload.dat").string();
     const auto payload_limit = int64_t{32};
     const auto byte_count = payload_limit + 1;
     const std::string pattern = "OriginalPayload";
@@ -201,99 +219,131 @@ TEST_CASE("Large overwrite inverse payloads are file backed", "[UndoTests][Paylo
         replacement[static_cast<size_t>(i)] = static_cast<omega_byte_t>('A' + (i % 26));
     }
 
-    const auto session_ptr = omega_edit_create_session(file_path.c_str(), nullptr, nullptr, NO_EVENTS, nullptr);
-    REQUIRE(session_ptr);
-    REQUIRE(payload_limit == omega_session_set_change_inline_payload_limit(session_ptr, payload_limit));
-    REQUIRE(payload_limit == omega_session_get_change_inline_payload_limit(session_ptr));
+    DirAudit audit(checkpoint_scratch.str());
+    {
+        TestSession session(file_path.c_str(), checkpoint_scratch.c_str(), NO_EVENTS);
+        REQUIRE(session);
+        auto *session_ptr = session.get();
+        REQUIRE(payload_limit == omega_session_set_change_inline_payload_limit(session_ptr, payload_limit));
+        REQUIRE(payload_limit == omega_session_get_change_inline_payload_limit(session_ptr));
 
-    REQUIRE(0 < omega_edit_overwrite_bytes(session_ptr, 0, replacement.data(), byte_count));
-    const auto *change_ptr = omega_session_get_last_change(session_ptr);
-    REQUIRE(change_ptr);
-    REQUIRE('O' == omega_change_get_kind_as_char(change_ptr));
-    REQUIRE(byte_count == omega_change_get_length(change_ptr));
-    REQUIRE(byte_count == omega_change_get_data_length(change_ptr));
-    REQUIRE(OMEGA_CHANGE_DATA_STORAGE_INLINE == omega_change_get_data_storage(change_ptr));
-    REQUIRE(std::string("ABCDEFGHIJKLMNOPQRSTUVWXYZ") == omega_session_get_segment_string(session_ptr, 0, 26));
+        REQUIRE(0 < omega_edit_overwrite_bytes(session_ptr, 0, replacement.data(), byte_count));
+        const auto *change_ptr = omega_session_get_last_change(session_ptr);
+        REQUIRE(change_ptr);
+        REQUIRE('O' == omega_change_get_kind_as_char(change_ptr));
+        REQUIRE(byte_count == omega_change_get_length(change_ptr));
+        REQUIRE(byte_count == omega_change_get_data_length(change_ptr));
+        REQUIRE(OMEGA_CHANGE_DATA_STORAGE_INLINE == omega_change_get_data_storage(change_ptr));
+        REQUIRE(std::string("ABCDEFGHIJKLMNOPQRSTUVWXYZ") == omega_session_get_segment_string(session_ptr, 0, 26));
 
-    REQUIRE(-1 == omega_edit_undo_last_change(session_ptr));
-    REQUIRE(byte_count == omega_session_get_computed_file_size(session_ptr));
-    REQUIRE(pattern == omega_session_get_segment_string(session_ptr, 0, static_cast<int64_t>(pattern.size())));
-    REQUIRE(std::string(1, pattern[static_cast<size_t>((byte_count - 1) % static_cast<int64_t>(pattern.size()))]) ==
-            omega_session_get_segment_string(session_ptr, byte_count - 1, 1));
+        REQUIRE(-1 == omega_edit_undo_last_change(session_ptr));
+        REQUIRE(byte_count == omega_session_get_computed_file_size(session_ptr));
+        REQUIRE(pattern == content_string(session_ptr).substr(0, pattern.size()));
+        REQUIRE(std::string(1, pattern[static_cast<size_t>((byte_count - 1) % static_cast<int64_t>(pattern.size()))]) ==
+                omega_session_get_segment_string(session_ptr, byte_count - 1, 1));
+        REQUIRE(model_valid(session_ptr));
 
-    REQUIRE(1 == omega_edit_redo_last_undo(session_ptr));
-    REQUIRE(byte_count == omega_session_get_computed_file_size(session_ptr));
-    REQUIRE(std::string("ABCDEFGHIJKLMNOPQRSTUVWXYZ") == omega_session_get_segment_string(session_ptr, 0, 26));
-    REQUIRE(std::string(1, static_cast<char>(replacement.back())) ==
-            omega_session_get_segment_string(session_ptr, byte_count - 1, 1));
-
-    omega_edit_destroy_session(session_ptr);
-    omega_util_remove_file(file_path.c_str());
+        REQUIRE(1 == omega_edit_redo_last_undo(session_ptr));
+        REQUIRE(byte_count == omega_session_get_computed_file_size(session_ptr));
+        REQUIRE(std::string("ABCDEFGHIJKLMNOPQRSTUVWXYZ") == omega_session_get_segment_string(session_ptr, 0, 26));
+        REQUIRE(std::string(1, static_cast<char>(replacement.back())) ==
+                omega_session_get_segment_string(session_ptr, byte_count - 1, 1));
+        REQUIRE(model_valid(session_ptr));
+    }
+    REQUIRE(audit.unchanged());
 }
 
 TEST_CASE("Apply Builtin Transform", "[EditTransform]") {
-    const auto session_ptr = omega_edit_create_session(nullptr, nullptr, nullptr, NO_EVENTS, nullptr);
-    REQUIRE(session_ptr);
+    const ScratchDir scratch;
+    DirAudit audit(scratch.str());
+    {
+        TestSession session(nullptr, scratch.c_str());
+        REQUIRE(session);
+        auto *session_ptr = session.get();
 
-    REQUIRE(0 < omega_edit_insert_string(session_ptr, 0, "Abc xyz 09!"));
+        REQUIRE(0 < omega_edit_insert_string(session_ptr, 0, "Abc xyz 09!"));
+        session.events().clear();
 
-    const omega_edit_transform_t lower_transform{OMEGA_EDIT_TRANSFORM_ASCII_TO_LOWER, 0};
-    REQUIRE(0 == omega_edit_apply_builtin_transform(session_ptr, lower_transform, 0, 3));
-    REQUIRE("abc xyz 09!" ==
-            omega_session_get_segment_string(session_ptr, 0, omega_session_get_computed_file_size(session_ptr)));
-    auto change_ptr = omega_session_get_last_change(session_ptr);
-    REQUIRE(change_ptr);
-    REQUIRE('T' == omega_change_get_kind_as_char(change_ptr));
-    REQUIRE(2 == omega_change_get_serial(change_ptr));
-    REQUIRE(0 == omega_change_get_offset(change_ptr));
-    REQUIRE(3 == omega_change_get_length(change_ptr));
-    REQUIRE(std::string("builtin:ascii-to-lower") == omega_change_get_transform_id(change_ptr));
-    REQUIRE(3 == omega_change_get_transform_replacement_length(change_ptr));
-    REQUIRE(OMEGA_CHANGE_DATA_STORAGE_INLINE == omega_change_get_data_storage(change_ptr));
-    REQUIRE(std::string(R"({"transformId":"builtin:ascii-to-lower","args":{}})") ==
-            std::string(reinterpret_cast<const char *>(omega_change_get_data(change_ptr)),
-                        static_cast<size_t>(omega_change_get_data_length(change_ptr))));
-    REQUIRE(-2 == omega_edit_undo_last_change(session_ptr));
-    REQUIRE("Abc xyz 09!" ==
-            omega_session_get_segment_string(session_ptr, 0, omega_session_get_computed_file_size(session_ptr)));
-    REQUIRE(2 == omega_edit_redo_last_undo(session_ptr));
-    REQUIRE("abc xyz 09!" ==
-            omega_session_get_segment_string(session_ptr, 0, omega_session_get_computed_file_size(session_ptr)));
+        const omega_edit_transform_t lower_transform{OMEGA_EDIT_TRANSFORM_ASCII_TO_LOWER, 0};
+        REQUIRE(0 == omega_edit_apply_builtin_transform(session_ptr, lower_transform, 0, 3));
+        REQUIRE("abc xyz 09!" == content_string(session_ptr));
+        REQUIRE(1 == session.events().count(SESSION_EVT_CREATE_CHECKPOINT));
+        REQUIRE(1 == session.events().count(SESSION_EVT_TRANSFORM));
+        REQUIRE(model_valid(session_ptr));
+        auto change_ptr = omega_session_get_last_change(session_ptr);
+        REQUIRE(change_ptr);
+        REQUIRE('T' == omega_change_get_kind_as_char(change_ptr));
+        REQUIRE(2 == omega_change_get_serial(change_ptr));
+        REQUIRE(0 == omega_change_get_offset(change_ptr));
+        REQUIRE(3 == omega_change_get_length(change_ptr));
+        REQUIRE(std::string("builtin:ascii-to-lower") == omega_change_get_transform_id(change_ptr));
+        REQUIRE(3 == omega_change_get_transform_replacement_length(change_ptr));
+        REQUIRE(OMEGA_CHANGE_DATA_STORAGE_INLINE == omega_change_get_data_storage(change_ptr));
+        REQUIRE(std::string(R"({"transformId":"builtin:ascii-to-lower","args":{}})") ==
+                std::string(reinterpret_cast<const char *>(omega_change_get_data(change_ptr)),
+                            static_cast<size_t>(omega_change_get_data_length(change_ptr))));
+        REQUIRE(-2 == omega_edit_undo_last_change(session_ptr));
+        REQUIRE("Abc xyz 09!" == content_string(session_ptr));
+        REQUIRE(model_valid(session_ptr));
+        REQUIRE(2 == omega_edit_redo_last_undo(session_ptr));
+        REQUIRE("abc xyz 09!" == content_string(session_ptr));
 
-    const omega_edit_transform_t upper_transform{OMEGA_EDIT_TRANSFORM_ASCII_TO_UPPER, 0};
-    REQUIRE(0 == omega_edit_apply_builtin_transform(session_ptr, upper_transform, 4, 3));
-    REQUIRE("abc XYZ 09!" ==
-            omega_session_get_segment_string(session_ptr, 0, omega_session_get_computed_file_size(session_ptr)));
+        const omega_edit_transform_t upper_transform{OMEGA_EDIT_TRANSFORM_ASCII_TO_UPPER, 0};
+        REQUIRE(0 == omega_edit_apply_builtin_transform(session_ptr, upper_transform, 4, 3));
+        REQUIRE("abc XYZ 09!" == content_string(session_ptr));
+        REQUIRE(model_valid(session_ptr));
+        const auto serials = check_serials_contiguous(session_ptr);
+        REQUIRE(serials.contiguous);
 
-    const omega_edit_transform_t invalid_transform{static_cast<omega_edit_transform_kind_t>(999), 0};
-    REQUIRE(-1 == omega_edit_apply_builtin_transform(session_ptr, invalid_transform, 0, 0));
-    REQUIRE(-1 == omega_edit_apply_builtin_transform(nullptr, upper_transform, 0, 0));
+        const omega_edit_transform_t invalid_transform{static_cast<omega_edit_transform_kind_t>(999), 0};
+        REQUIRE(-1 == omega_edit_apply_builtin_transform(session_ptr, invalid_transform, 0, 0));
+        REQUIRE(-1 == omega_edit_apply_builtin_transform(nullptr, upper_transform, 0, 0));
 
-    omega_edit_destroy_session(session_ptr);
+        REQUIRE(-3 == omega_edit_undo_last_change(session_ptr));
+        REQUIRE("abc xyz 09!" == content_string(session_ptr));
+        REQUIRE(model_valid(session_ptr));
+        REQUIRE(3 == omega_edit_redo_last_undo(session_ptr));
+        REQUIRE("abc XYZ 09!" == content_string(session_ptr));
+    }
+    REQUIRE(audit.unchanged());
 }
 
 TEST_CASE("Apply Builtin Bitwise Transform", "[EditTransform]") {
+    const ScratchDir scratch;
+    DirAudit audit(scratch.str());
     const omega_byte_t input[] = {0x0F, 0xF0, 0x55};
-    const auto session_ptr = omega_edit_create_session_from_bytes(input, static_cast<int64_t>(sizeof(input)), nullptr,
-                                                                  nullptr, NO_EVENTS, nullptr);
-    REQUIRE(session_ptr);
+    {
+        auto session = TestSession::from_bytes(input, static_cast<int64_t>(sizeof(input)), scratch.c_str(), NO_EVENTS);
+        REQUIRE(session);
+        auto *session_ptr = session.get();
 
-    const omega_edit_transform_t xor_transform{OMEGA_EDIT_TRANSFORM_BITWISE_XOR, 0xFF};
-    REQUIRE(0 == omega_edit_apply_builtin_transform(session_ptr, xor_transform, 0, 2));
-    REQUIRE(std::string({static_cast<char>(0xF0), static_cast<char>(0x0F), static_cast<char>(0x55)}) ==
-            omega_session_get_segment_string(session_ptr, 0, omega_session_get_computed_file_size(session_ptr)));
+        const omega_edit_transform_t xor_transform{OMEGA_EDIT_TRANSFORM_BITWISE_XOR, 0xFF};
+        REQUIRE(0 == omega_edit_apply_builtin_transform(session_ptr, xor_transform, 0, 2));
+        REQUIRE(std::string({static_cast<char>(0xF0), static_cast<char>(0x0F), static_cast<char>(0x55)}) ==
+                omega_session_get_segment_string(session_ptr, 0, omega_session_get_computed_file_size(session_ptr)));
 
-    const omega_edit_transform_t and_transform{OMEGA_EDIT_TRANSFORM_BITWISE_AND, 0x0F};
-    REQUIRE(0 == omega_edit_apply_builtin_transform(session_ptr, and_transform, 0, 0));
-    REQUIRE(std::string({static_cast<char>(0x00), static_cast<char>(0x0F), static_cast<char>(0x05)}) ==
-            omega_session_get_segment_string(session_ptr, 0, omega_session_get_computed_file_size(session_ptr)));
+        const omega_edit_transform_t and_transform{OMEGA_EDIT_TRANSFORM_BITWISE_AND, 0x0F};
+        REQUIRE(0 == omega_edit_apply_builtin_transform(session_ptr, and_transform, 0, 0));
+        REQUIRE(std::string({static_cast<char>(0x00), static_cast<char>(0x0F), static_cast<char>(0x05)}) ==
+                omega_session_get_segment_string(session_ptr, 0, omega_session_get_computed_file_size(session_ptr)));
 
-    const omega_edit_transform_t or_transform{OMEGA_EDIT_TRANSFORM_BITWISE_OR, 0xA0};
-    REQUIRE(0 == omega_edit_apply_builtin_transform(session_ptr, or_transform, 1, 2));
-    REQUIRE(std::string({static_cast<char>(0x00), static_cast<char>(0xAF), static_cast<char>(0xA5)}) ==
-            omega_session_get_segment_string(session_ptr, 0, omega_session_get_computed_file_size(session_ptr)));
+        const omega_edit_transform_t or_transform{OMEGA_EDIT_TRANSFORM_BITWISE_OR, 0xA0};
+        REQUIRE(0 == omega_edit_apply_builtin_transform(session_ptr, or_transform, 1, 2));
+        REQUIRE(std::string({static_cast<char>(0x00), static_cast<char>(0xAF), static_cast<char>(0xA5)}) ==
+                omega_session_get_segment_string(session_ptr, 0, omega_session_get_computed_file_size(session_ptr)));
 
-    omega_edit_destroy_session(session_ptr);
+        REQUIRE(model_valid(session_ptr));
+        const auto serials = check_serials_contiguous(session_ptr);
+        REQUIRE(serials.contiguous);
+        REQUIRE(-3 == omega_edit_undo_last_change(session_ptr));
+        REQUIRE(std::string({static_cast<char>(0x00), static_cast<char>(0x0F), static_cast<char>(0x05)}) ==
+                omega_session_get_segment_string(session_ptr, 0, omega_session_get_computed_file_size(session_ptr)));
+        REQUIRE(model_valid(session_ptr));
+        REQUIRE(3 == omega_edit_redo_last_undo(session_ptr));
+        REQUIRE(std::string({static_cast<char>(0x00), static_cast<char>(0xAF), static_cast<char>(0xA5)}) ==
+                omega_session_get_segment_string(session_ptr, 0, omega_session_get_computed_file_size(session_ptr)));
+    }
+    REQUIRE(audit.unchanged());
 }
 
 TEST_CASE("Model Tests", "[ModelTests]") {
@@ -1346,8 +1396,9 @@ TEST_CASE("Segment Small Data Optimization", "[SegmentTests]") {
 
 TEST_CASE("Undo Snapshot Optimization", "[UndoTests]") {
     // Create a session with a small snapshot interval to exercise snapshot-accelerated undo
-    auto *session_ptr = omega_edit_create_session(nullptr, nullptr, nullptr, ALL_EVENTS, nullptr);
-    REQUIRE(session_ptr);
+    TestSession session;
+    REQUIRE(session);
+    auto *session_ptr = session.get();
 
     // Default interval should be 100
     REQUIRE(100 == omega_session_get_undo_snapshot_interval(session_ptr));
@@ -1364,14 +1415,20 @@ TEST_CASE("Undo Snapshot Optimization", "[UndoTests]") {
     }
     REQUIRE(10 == omega_session_get_num_changes(session_ptr));
     REQUIRE(10 == omega_session_get_computed_file_size(session_ptr));
-    REQUIRE(0 == omega_check_model(session_ptr));
+    REQUIRE(model_valid(session_ptr));
+
+    const auto round_trip = verify_undo_redo_round_trip(session_ptr);
+    REQUIRE(round_trip.ok);
+    REQUIRE(round_trip.model_valid_throughout);
+    REQUIRE(10 == omega_session_get_num_changes(session_ptr));
+    REQUIRE("ABCDEFGHIJ" == content_string(session_ptr));
 
     // Undo all changes one at a time, verifying model integrity at each step
     for (int i = 10; i > 0; --i) {
         REQUIRE(i * -1 == omega_edit_undo_last_change(session_ptr));
         REQUIRE(i - 1 == omega_session_get_num_changes(session_ptr));
         REQUIRE(i - 1 == omega_session_get_computed_file_size(session_ptr));
-        REQUIRE(0 == omega_check_model(session_ptr));
+        REQUIRE(model_valid(session_ptr));
     }
     REQUIRE(0 == omega_session_get_num_changes(session_ptr));
     REQUIRE(0 == omega_session_get_computed_file_size(session_ptr));
@@ -1379,23 +1436,21 @@ TEST_CASE("Undo Snapshot Optimization", "[UndoTests]") {
     // Redo all changes
     for (int i = 0; i < 10; ++i) {
         REQUIRE(0 < omega_edit_redo_last_undo(session_ptr));
-        REQUIRE(0 == omega_check_model(session_ptr));
+        REQUIRE(model_valid(session_ptr));
     }
     REQUIRE(10 == omega_session_get_num_changes(session_ptr));
     REQUIRE(10 == omega_session_get_computed_file_size(session_ptr));
-    REQUIRE(0 == omega_check_model(session_ptr));
+    REQUIRE(model_valid(session_ptr));
 
     // Disable snapshots and verify undo still works (falls back to full replay)
     REQUIRE(0 == omega_session_set_undo_snapshot_interval(session_ptr, 0));
     REQUIRE(0 == omega_session_get_undo_snapshot_interval(session_ptr));
     REQUIRE(-10 == omega_edit_undo_last_change(session_ptr));
-    REQUIRE(0 == omega_check_model(session_ptr));
+    REQUIRE(model_valid(session_ptr));
 
     // Invalid interval should be rejected
     REQUIRE(0 == omega_session_set_undo_snapshot_interval(nullptr, 100));
     REQUIRE(0 == omega_session_set_undo_snapshot_interval(session_ptr, -1));
-
-    omega_edit_destroy_session(session_ptr);
 }
 
 TEST_CASE("Edit result predicates distinguish serial and status conventions", "[EditResult]") {
@@ -1409,57 +1464,53 @@ TEST_CASE("Edit result predicates distinguish serial and status conventions", "[
 }
 
 TEST_CASE("Restore To Change Count Discards Later Changes And Redo", "[UndoTests]") {
-    auto *session_ptr = omega_edit_create_session(nullptr, nullptr, nullptr, ALL_EVENTS, nullptr);
-    REQUIRE(session_ptr);
+    TestSession session;
+    REQUIRE(session);
+    auto *session_ptr = session.get();
 
     REQUIRE(0 < omega_edit_insert_string(session_ptr, 0, "abc"));
     const auto keep_count = omega_session_get_num_changes(session_ptr);
     REQUIRE(0 < omega_edit_insert_string(session_ptr, 3, "def"));
     REQUIRE(0 < omega_edit_insert_string(session_ptr, 6, "ghi"));
-    REQUIRE("abcdefghi" ==
-            omega_session_get_segment_string(session_ptr, 0, omega_session_get_computed_file_size(session_ptr)));
+    REQUIRE("abcdefghi" == content_string(session_ptr));
     REQUIRE(0 > omega_edit_undo_last_change(session_ptr));
     REQUIRE(1 == omega_session_get_num_undone_changes(session_ptr));
-    REQUIRE("abcdef" ==
-            omega_session_get_segment_string(session_ptr, 0, omega_session_get_computed_file_size(session_ptr)));
+    REQUIRE("abcdef" == content_string(session_ptr));
 
     REQUIRE(0 == omega_edit_restore_to_change_count(session_ptr, keep_count));
     REQUIRE(keep_count == omega_session_get_num_changes(session_ptr));
     REQUIRE(0 == omega_session_get_num_undone_changes(session_ptr));
-    REQUIRE("abc" ==
-            omega_session_get_segment_string(session_ptr, 0, omega_session_get_computed_file_size(session_ptr)));
-    REQUIRE(0 == omega_check_model(session_ptr));
+    REQUIRE("abc" == content_string(session_ptr));
+    REQUIRE(model_valid(session_ptr));
+    REQUIRE(check_serials_contiguous(session_ptr).contiguous);
 
     REQUIRE(0 == omega_edit_redo_last_undo(session_ptr));
     REQUIRE(-1 == omega_edit_restore_to_change_count(session_ptr, keep_count + 1));
-
-    omega_edit_destroy_session(session_ptr);
 }
 
 TEST_CASE("Restore To Change Count Validates Inputs And No-Ops Current Count", "[UndoTests]") {
-    auto *session_ptr = omega_edit_create_session(nullptr, nullptr, nullptr, ALL_EVENTS, nullptr);
-    REQUIRE(session_ptr);
+    TestSession session;
+    REQUIRE(session);
+    auto *session_ptr = session.get();
 
     REQUIRE(-1 == omega_edit_restore_to_change_count(nullptr, 0));
     REQUIRE(-1 == omega_edit_restore_to_change_count(session_ptr, -1));
     REQUIRE(-1 == omega_edit_restore_to_change_count(session_ptr, 1));
     REQUIRE(0 == omega_edit_restore_to_change_count(session_ptr, 0));
-    REQUIRE(0 == omega_check_model(session_ptr));
+    REQUIRE(model_valid(session_ptr));
 
     REQUIRE(0 < omega_edit_insert_string(session_ptr, 0, "abc"));
     const auto current_count = omega_session_get_num_changes(session_ptr);
     REQUIRE(0 == omega_edit_restore_to_change_count(session_ptr, current_count));
     REQUIRE(current_count == omega_session_get_num_changes(session_ptr));
-    REQUIRE("abc" ==
-            omega_session_get_segment_string(session_ptr, 0, omega_session_get_computed_file_size(session_ptr)));
-    REQUIRE(0 == omega_check_model(session_ptr));
-
-    omega_edit_destroy_session(session_ptr);
+    REQUIRE("abc" == content_string(session_ptr));
+    REQUIRE(model_valid(session_ptr));
 }
 
 TEST_CASE("Restore To Change Count Discards Redo Without Dropping Active Changes", "[UndoTests]") {
-    auto *session_ptr = omega_edit_create_session(nullptr, nullptr, nullptr, ALL_EVENTS, nullptr);
-    REQUIRE(session_ptr);
+    TestSession session;
+    REQUIRE(session);
+    auto *session_ptr = session.get();
 
     REQUIRE(0 < omega_edit_insert_string(session_ptr, 0, "abc"));
     REQUIRE(0 < omega_edit_insert_string(session_ptr, 3, "def"));
@@ -1470,17 +1521,16 @@ TEST_CASE("Restore To Change Count Discards Redo Without Dropping Active Changes
     REQUIRE(0 == omega_edit_restore_to_change_count(session_ptr, current_count));
     REQUIRE(current_count == omega_session_get_num_changes(session_ptr));
     REQUIRE(0 == omega_session_get_num_undone_changes(session_ptr));
-    REQUIRE("abc" ==
-            omega_session_get_segment_string(session_ptr, 0, omega_session_get_computed_file_size(session_ptr)));
+    REQUIRE("abc" == content_string(session_ptr));
     REQUIRE(0 == omega_edit_redo_last_undo(session_ptr));
-    REQUIRE(0 == omega_check_model(session_ptr));
-
-    omega_edit_destroy_session(session_ptr);
+    REQUIRE(model_valid(session_ptr));
+    REQUIRE(check_serials_contiguous(session_ptr).contiguous);
 }
 
 TEST_CASE("Restore To Change Count Rebuilds From Retained Undo Snapshot", "[UndoTests]") {
-    auto *session_ptr = omega_edit_create_session(nullptr, nullptr, nullptr, ALL_EVENTS, nullptr);
-    REQUIRE(session_ptr);
+    TestSession session;
+    REQUIRE(session);
+    auto *session_ptr = session.get();
 
     REQUIRE(2 == omega_session_set_undo_snapshot_interval(session_ptr, 2));
     for (auto i = 0; i < 7; ++i) {
@@ -1488,67 +1538,72 @@ TEST_CASE("Restore To Change Count Rebuilds From Retained Undo Snapshot", "[Undo
         REQUIRE(0 < omega_edit_insert_string(session_ptr, omega_session_get_computed_file_size(session_ptr), bytes));
     }
     REQUIRE(7 == omega_session_get_num_changes(session_ptr));
-    REQUIRE("ABCDEFG" ==
-            omega_session_get_segment_string(session_ptr, 0, omega_session_get_computed_file_size(session_ptr)));
+    REQUIRE("ABCDEFG" == content_string(session_ptr));
+    REQUIRE(model_valid(session_ptr));
 
     REQUIRE(0 == omega_edit_restore_to_change_count(session_ptr, 5));
     REQUIRE(5 == omega_session_get_num_changes(session_ptr));
     REQUIRE(0 == omega_session_get_num_undone_changes(session_ptr));
-    REQUIRE("ABCDE" ==
-            omega_session_get_segment_string(session_ptr, 0, omega_session_get_computed_file_size(session_ptr)));
+    REQUIRE("ABCDE" == content_string(session_ptr));
     REQUIRE(0 == omega_edit_redo_last_undo(session_ptr));
-    REQUIRE(0 == omega_check_model(session_ptr));
-
-    omega_edit_destroy_session(session_ptr);
+    REQUIRE(model_valid(session_ptr));
+    REQUIRE(check_serials_contiguous(session_ptr).contiguous);
 }
 
 TEST_CASE("Restore To Change Count Discards Explicit Checkpoint Models", "[UndoTests]") {
-    auto *session_ptr = omega_edit_create_session(nullptr, nullptr, nullptr, ALL_EVENTS, nullptr);
-    REQUIRE(session_ptr);
+    const ScratchDir scratch;
+    DirAudit audit(scratch.str());
+    {
+        TestSession session(nullptr, scratch.c_str());
+        REQUIRE(session);
+        auto *session_ptr = session.get();
 
-    REQUIRE(0 < omega_edit_insert_string(session_ptr, 0, "abc"));
-    const auto checkpoint_count = omega_session_get_num_changes(session_ptr);
-    REQUIRE(0 == omega_edit_create_checkpoint(session_ptr));
-    REQUIRE(1 == omega_session_get_num_checkpoints(session_ptr));
-    REQUIRE(0 < omega_edit_insert_string(session_ptr, 3, "def"));
+        REQUIRE(0 < omega_edit_insert_string(session_ptr, 0, "abc"));
+        const auto checkpoint_count = omega_session_get_num_changes(session_ptr);
+        REQUIRE(0 == omega_edit_create_checkpoint(session_ptr));
+        REQUIRE(1 == omega_session_get_num_checkpoints(session_ptr));
+        REQUIRE(0 < omega_edit_insert_string(session_ptr, 3, "def"));
 
-    REQUIRE(0 == omega_edit_restore_to_change_count(session_ptr, checkpoint_count));
-    REQUIRE(checkpoint_count == omega_session_get_num_changes(session_ptr));
-    REQUIRE(1 == omega_session_get_num_checkpoints(session_ptr));
-    REQUIRE("abc" ==
-            omega_session_get_segment_string(session_ptr, 0, omega_session_get_computed_file_size(session_ptr)));
-    REQUIRE(0 == omega_check_model(session_ptr));
+        REQUIRE(0 == omega_edit_restore_to_change_count(session_ptr, checkpoint_count));
+        REQUIRE(checkpoint_count == omega_session_get_num_changes(session_ptr));
+        REQUIRE(1 == omega_session_get_num_checkpoints(session_ptr));
+        REQUIRE("abc" == content_string(session_ptr));
+        REQUIRE(model_valid(session_ptr));
 
-    REQUIRE(0 == omega_edit_restore_to_change_count(session_ptr, 0));
-    REQUIRE(0 == omega_session_get_num_changes(session_ptr));
-    REQUIRE(0 == omega_session_get_num_checkpoints(session_ptr));
-    REQUIRE(0 == omega_session_get_computed_file_size(session_ptr));
-    REQUIRE(0 == omega_check_model(session_ptr));
-
-    omega_edit_destroy_session(session_ptr);
+        REQUIRE(0 == omega_edit_restore_to_change_count(session_ptr, 0));
+        REQUIRE(0 == omega_session_get_num_changes(session_ptr));
+        REQUIRE(0 == omega_session_get_num_checkpoints(session_ptr));
+        REQUIRE(0 == omega_session_get_computed_file_size(session_ptr));
+        REQUIRE(model_valid(session_ptr));
+    }
+    REQUIRE(audit.unchanged());
 }
 
 TEST_CASE("Restore To Change Count Discards Transform Checkpoint Model", "[UndoTests][Transform]") {
-    auto *session_ptr = omega_edit_create_session(nullptr, nullptr, nullptr, ALL_EVENTS, nullptr);
-    REQUIRE(session_ptr);
+    const ScratchDir scratch;
+    DirAudit audit(scratch.str());
+    {
+        TestSession session(nullptr, scratch.c_str());
+        REQUIRE(session);
+        auto *session_ptr = session.get();
 
-    REQUIRE(0 < omega_edit_insert_string(session_ptr, 0, "abc"));
-    const auto keep_count = omega_session_get_num_changes(session_ptr);
+        REQUIRE(0 < omega_edit_insert_string(session_ptr, 0, "abc"));
+        const auto keep_count = omega_session_get_num_changes(session_ptr);
 
-    const omega_edit_transform_t upper_transform{OMEGA_EDIT_TRANSFORM_ASCII_TO_UPPER, 0};
-    REQUIRE(0 == omega_edit_apply_builtin_transform(session_ptr, upper_transform, 0, 3));
-    REQUIRE(keep_count + 1 == omega_session_get_num_changes(session_ptr));
-    REQUIRE("ABC" ==
-            omega_session_get_segment_string(session_ptr, 0, omega_session_get_computed_file_size(session_ptr)));
-    REQUIRE(1 == omega_session_get_num_checkpoints(session_ptr));
+        const omega_edit_transform_t upper_transform{OMEGA_EDIT_TRANSFORM_ASCII_TO_UPPER, 0};
+        REQUIRE(0 == omega_edit_apply_builtin_transform(session_ptr, upper_transform, 0, 3));
+        REQUIRE(keep_count + 1 == omega_session_get_num_changes(session_ptr));
+        REQUIRE("ABC" == content_string(session_ptr));
+        REQUIRE(1 == omega_session_get_num_checkpoints(session_ptr));
+        REQUIRE(model_valid(session_ptr));
 
-    REQUIRE(0 == omega_edit_restore_to_change_count(session_ptr, keep_count));
-    REQUIRE(keep_count == omega_session_get_num_changes(session_ptr));
-    REQUIRE(0 == omega_session_get_num_undone_changes(session_ptr));
-    REQUIRE(0 == omega_session_get_num_checkpoints(session_ptr));
-    REQUIRE("abc" ==
-            omega_session_get_segment_string(session_ptr, 0, omega_session_get_computed_file_size(session_ptr)));
-    REQUIRE(0 == omega_check_model(session_ptr));
-
-    omega_edit_destroy_session(session_ptr);
+        REQUIRE(0 == omega_edit_restore_to_change_count(session_ptr, keep_count));
+        REQUIRE(keep_count == omega_session_get_num_changes(session_ptr));
+        REQUIRE(0 == omega_session_get_num_undone_changes(session_ptr));
+        REQUIRE(0 == omega_session_get_num_checkpoints(session_ptr));
+        REQUIRE("abc" == content_string(session_ptr));
+        REQUIRE(model_valid(session_ptr));
+        REQUIRE(check_serials_contiguous(session_ptr).contiguous);
+    }
+    REQUIRE(audit.unchanged());
 }
