@@ -355,6 +355,12 @@ function resolveTransformPluginDirectories(
     : getDefaultTransformPluginDirectories(context)
 }
 
+function resolveAllowExperimentalTransformPlugins(
+  config: vscode.WorkspaceConfiguration
+): boolean {
+  return config.get<boolean>('allowExperimentalTransformPlugins', false)
+}
+
 function isTestRuntime(): boolean {
   return process.env.NODE_ENV === 'test'
 }
@@ -493,25 +499,42 @@ function removeServerSocketFile(socketPath: string): void {
 
 async function startTcpServerConnection(
   connection: ServerConnection,
-  transformPluginDirectories: string[]
+  transformPluginDirectories: string[],
+  allowExperimentalTransformPlugins: boolean
 ): Promise<StartedServer> {
   const tcpConnection = toTcpConnection(connection)
+  const serverOptions = {
+    transformPluginDirectories,
+    allowExperimentalTransformPlugins,
+  }
   return {
     connection: tcpConnection,
-    serverPid: await startServer(tcpConnection.port, undefined, undefined, {
-      transformPluginDirectories,
-    }),
+    serverPid: await startServer(
+      tcpConnection.port,
+      undefined,
+      undefined,
+      serverOptions
+    ),
   }
 }
 
 async function startServerConnection(
   connection: ServerConnection,
-  transformPluginDirectories: string[]
+  transformPluginDirectories: string[],
+  allowExperimentalTransformPlugins: boolean
 ): Promise<StartedServer> {
   if (connection.kind === 'tcp') {
-    return startTcpServerConnection(connection, transformPluginDirectories)
+    return startTcpServerConnection(
+      connection,
+      transformPluginDirectories,
+      allowExperimentalTransformPlugins
+    )
   }
 
+  const serverOptions = {
+    transformPluginDirectories,
+    allowExperimentalTransformPlugins,
+  }
   return {
     connection,
     serverPid: await startServerUnixSocket(
@@ -520,7 +543,7 @@ async function startServerConnection(
       true,
       connection.port,
       undefined,
-      { transformPluginDirectories }
+      serverOptions
     ),
   }
 }
@@ -670,12 +693,15 @@ export async function activate(
     context,
     config
   )
+  const allowExperimentalTransformPlugins =
+    resolveAllowExperimentalTransformPlugins(config)
 
   let startedServer: StartedServer
   try {
     startedServer = await startServerConnection(
       connection,
-      transformPluginDirectories
+      transformPluginDirectories,
+      allowExperimentalTransformPlugins
     )
     activeServerConnection = startedServer.connection
     activeServerPid = startedServer.serverPid

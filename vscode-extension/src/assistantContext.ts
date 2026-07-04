@@ -44,6 +44,8 @@ export interface AssistantTransformPluginSummary {
   description?: string
   operation: number
   operationName?: string
+  support: number
+  supportName?: string
   flags: number
   abiVersion?: number
 }

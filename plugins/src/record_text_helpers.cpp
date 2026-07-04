@@ -270,6 +270,7 @@ extern "C" OMEGA_TRANSFORM_PLUGIN_EXPORT int omega_transform_plugin_get_info(ome
     info_ptr->example = "{\"action\":\"fixed-width-lines\",\"width\":80}";
     info_ptr->default_args = "{\"action\":\"newline-lf\"}";
     info_ptr->args_schema = RECORD_TEXT_ARGS_SCHEMA;
+    info_ptr->support = OMEGA_TRANSFORM_PLUGIN_SUPPORT_EXPERIMENTAL;
     info_ptr->abi_version = OMEGA_TRANSFORM_PLUGIN_ABI_VERSION;
     return 0;
 }

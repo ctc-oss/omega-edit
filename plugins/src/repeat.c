@@ -26,6 +26,7 @@ OMEGA_TRANSFORM_PLUGIN_EXPORT int omega_transform_plugin_get_info(omega_transfor
     info_ptr->example = "";
     info_ptr->default_args = "";
     info_ptr->args_schema = OMEGA_TRANSFORM_PLUGIN_NO_ARGS_SCHEMA;
+    info_ptr->support = OMEGA_TRANSFORM_PLUGIN_SUPPORT_EXPERIMENTAL;
     info_ptr->abi_version = OMEGA_TRANSFORM_PLUGIN_ABI_VERSION;
     return 0;
 }

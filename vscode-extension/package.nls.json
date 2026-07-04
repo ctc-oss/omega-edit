@@ -8,6 +8,7 @@
   "omegaEdit.configuration.bytesPerRow.description": "Number of bytes displayed per row in the hex view. Values must be 8 through 64.",
   "omegaEdit.configuration.language.description": "Language for the Svelte data editor UI. Use auto to follow VS Code's display language.",
   "omegaEdit.configuration.transformPluginDirectories.description": "Directories containing OmegaEdit transform plugin shared libraries",
+  "omegaEdit.configuration.allowExperimentalTransformPlugins.description": "Load experimental OmegaEdit transform plugins from configured or bundled plugin directories.",
   "omegaEdit.command.openInHexEditor.title": "OmegaEdit: Open in Data Editor",
   "omegaEdit.command.goToOffset.title": "OmegaEdit: Go to Offset",
   "omegaEdit.command.searchNext.title": "OmegaEdit: Search Next",

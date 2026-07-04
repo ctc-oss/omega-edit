@@ -55,6 +55,12 @@ export interface HeartbeatOptions {
   logConfigFile?: string
   /** Register transform plugins from these directories. */
   transformPluginDirectories?: string[]
+  /** Worker executable used to run transform plugins out of process. */
+  transformPluginHostPath?: string
+  /** Load experimental transform plugins from registered directories. */
+  allowExperimentalTransformPlugins?: boolean
+  /** Load test-only transform plugins from registered directories. */
+  allowTestTransformPlugins?: boolean
   /** Permit unauthenticated TCP binds outside loopback. */
   insecureAllowNonLoopback?: boolean
 }
@@ -114,15 +120,28 @@ export const getBinFolderPath = (baseDir: string): string => {
  * For example: "omega-edit-grpc-server-linux-x64" on Linux x64, or
  * "omega-edit-grpc-server-windows-x64.exe" on 64-bit Windows.
  */
-function getPlatformBinaryName(): string {
+function getPlatformId(): string {
   const platform = os.platform()
   const arch = os.arch()
-  let platformStr: string
-  if (platform === 'darwin') platformStr = `macos-${arch}`
-  else if (platform === 'win32') platformStr = `windows-${arch}`
-  else platformStr = `${platform}-${arch}`
-  const ext = platform === 'win32' ? '.exe' : ''
-  return `omega-edit-grpc-server-${platformStr}${ext}`
+  if (platform === 'darwin') return `macos-${arch}`
+  if (platform === 'win32') return `windows-${arch}`
+  return `${platform}-${arch}`
+}
+
+function executableExtension(): string {
+  return os.platform() === 'win32' ? '.exe' : ''
+}
+
+function getPlatformBinaryName(): string {
+  return `omega-edit-grpc-server-${getPlatformId()}${executableExtension()}`
+}
+
+function getPlatformTransformPluginHostBinaryName(): string {
+  return `omega-transform-plugin-host-${getPlatformId()}${executableExtension()}`
+}
+
+function getPlainTransformPluginHostBinaryName(): string {
+  return `omega-transform-plugin-host${executableExtension()}`
 }
 
 function getTransformPluginPlatformId(): string | undefined {
@@ -273,7 +292,7 @@ function findServerBinary(binDir: string): string {
   // Allow local dev override via environment variable
   const envOverride = process.env.CPP_SERVER_BINARY
   if (envOverride) {
-    const resolved = path.resolve(envOverride)
+    const resolved = path.resolve(normalizeWindowsPath(envOverride))
     if (fs.existsSync(resolved)) {
       return resolved
     }
@@ -334,14 +353,59 @@ function findServerBinary(binDir: string): string {
   )
 }
 
+function findTransformPluginHostBinary(binDir: string): string | undefined {
+  const envOverride =
+    process.env.CPP_TRANSFORM_PLUGIN_HOST_BINARY ||
+    process.env.OMEGA_EDIT_TRANSFORM_PLUGIN_HOST
+  if (envOverride) {
+    const resolved = path.resolve(normalizeWindowsPath(envOverride))
+    if (fs.existsSync(resolved)) {
+      return resolved
+    }
+    throw new Error(
+      `Transform plugin host override is set to '${envOverride}' but the file does not exist.`
+    )
+  }
+
+  const platformBinary = path.join(
+    binDir,
+    getPlatformTransformPluginHostBinaryName()
+  )
+  if (fs.existsSync(platformBinary)) {
+    return platformBinary
+  }
+
+  const packagedBinaries = fs
+    .readdirSync(binDir)
+    .filter((file) =>
+      /^omega-transform-plugin-host-(linux|macos|windows)-/.test(file)
+    )
+  if (packagedBinaries.length > 0) {
+    throw new Error(
+      `No transform plugin host for ${getPlatformId()} in ${binDir}.\n` +
+        `Expected ${getPlatformTransformPluginHostBinaryName()} because this package contains platform-specific host binaries.`
+    )
+  }
+
+  const plainBinary = path.join(binDir, getPlainTransformPluginHostBinaryName())
+  return fs.existsSync(plainBinary) ? plainBinary : undefined
+}
+
 /**
  * Convert HeartbeatOptions to native CLI flags understood by the C++ server.
  */
 function heartbeatToArgs(
   opts?: HeartbeatOptions,
-  defaultTransformPluginDirectories: string[] = []
+  defaultTransformPluginDirectories: string[] = [],
+  defaultTransformPluginHostPath?: string
 ): string[] {
-  if (!opts && defaultTransformPluginDirectories.length === 0) return []
+  if (
+    !opts &&
+    defaultTransformPluginDirectories.length === 0 &&
+    !defaultTransformPluginHostPath
+  ) {
+    return []
+  }
   const args: string[] = []
   if (opts?.sessionTimeoutMs !== undefined) {
     args.push(`--session-timeout=${opts.sessionTimeoutMs}`)
@@ -380,6 +444,17 @@ function heartbeatToArgs(
   if (opts?.insecureAllowNonLoopback) {
     args.push('--insecure-allow-non-loopback')
   }
+  const transformPluginHostPath =
+    opts?.transformPluginHostPath || defaultTransformPluginHostPath
+  if (transformPluginHostPath) {
+    args.push(`--transform-plugin-host=${transformPluginHostPath}`)
+  }
+  if (opts?.allowExperimentalTransformPlugins) {
+    args.push('--allow-experimental-transform-plugins')
+  }
+  if (opts?.allowTestTransformPlugins) {
+    args.push('--allow-test-transform-plugins')
+  }
   const configuredTransformPluginDirectories =
     opts?.transformPluginDirectories?.filter(
       (directory) =>
@@ -407,12 +482,19 @@ async function executeServer(
 ): Promise<ChildProcess> {
   const binDir = getBinFolderPath(path.resolve(__dirname))
   const serverBinary = findServerBinary(binDir)
+  const transformPluginHostBinary = findTransformPluginHostBinary(
+    path.dirname(serverBinary)
+  )
   const defaultTransformPluginDirectories =
     getDefaultTransformPluginDirectories(binDir)
 
   const serverArgs = [
     ...args,
-    ...heartbeatToArgs(heartbeat, defaultTransformPluginDirectories),
+    ...heartbeatToArgs(
+      heartbeat,
+      defaultTransformPluginDirectories,
+      transformPluginHostBinary
+    ),
   ]
 
   if (!serverBinary.endsWith('.exe')) {

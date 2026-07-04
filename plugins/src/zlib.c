@@ -229,6 +229,7 @@ OMEGA_TRANSFORM_PLUGIN_EXPORT int omega_transform_plugin_get_info(omega_transfor
     info_ptr->example = "{\"action\":\"compress\",\"level\":9}";
     info_ptr->default_args = "{\"action\":\"compress\",\"level\":-1}";
     info_ptr->args_schema = ZLIB_ARGS_SCHEMA;
+    info_ptr->support = OMEGA_TRANSFORM_PLUGIN_SUPPORT_EXPERIMENTAL;
     info_ptr->abi_version = OMEGA_TRANSFORM_PLUGIN_ABI_VERSION;
     return 0;
 }

@@ -80,6 +80,11 @@
             "type": "string"
           },
           "description": "%omegaEdit.configuration.transformPluginDirectories.description%"
+        },
+        "omegaEdit.allowExperimentalTransformPlugins": {
+          "type": "boolean",
+          "default": false,
+          "description": "%omegaEdit.configuration.allowExperimentalTransformPlugins.description%"
         }
       }
     },

@@ -122,6 +122,7 @@ This mode decision is made only when the user runs an explicit search. If a repl
 | `omegaEdit.bytesPerRow` | `16`    | Bytes displayed per row (8 / 16 / 32)                                      |
 | `omegaEdit.language`    | `auto`  | Svelte data editor UI language (`auto` follows VS Code; explicit options include `en` and `es`) |
 | `omegaEdit.transformPluginDirectories` | `[]` | Native transform plugin directories; local build plugin folders are auto-detected when this is empty |
+| `omegaEdit.allowExperimentalTransformPlugins` | `false` | Load experimental transform plugins from configured or bundled plugin directories |
 
 ## Keyboard Shortcuts
 

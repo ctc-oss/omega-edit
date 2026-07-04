@@ -14,6 +14,23 @@ configure_file(
 
 find_program(VALGRIND "valgrind")
 
+set(OMEGA_EDIT_TEST_TRANSFORM_PLUGIN_OUTPUT_DIR "${CMAKE_CURRENT_BINARY_DIR}/test_plugins")
+
+file(REMOVE "${CMAKE_CURRENT_BINARY_DIR}/plugins/omega_transform_process_isolation_test${CMAKE_SHARED_MODULE_SUFFIX}")
+
+add_library(omega_test_process_isolation_plugin MODULE process_isolation_plugin.c)
+target_include_directories(omega_test_process_isolation_plugin PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/../include")
+set_target_properties(
+        omega_test_process_isolation_plugin PROPERTIES
+        PREFIX ""
+        RUNTIME_OUTPUT_DIRECTORY "${OMEGA_EDIT_TEST_TRANSFORM_PLUGIN_OUTPUT_DIR}"
+        LIBRARY_OUTPUT_DIRECTORY "${OMEGA_EDIT_TEST_TRANSFORM_PLUGIN_OUTPUT_DIR}"
+        RUNTIME_OUTPUT_DIRECTORY_DEBUG "${OMEGA_EDIT_TEST_TRANSFORM_PLUGIN_OUTPUT_DIR}"
+        LIBRARY_OUTPUT_DIRECTORY_DEBUG "${OMEGA_EDIT_TEST_TRANSFORM_PLUGIN_OUTPUT_DIR}"
+        RUNTIME_OUTPUT_DIRECTORY_RELEASE "${OMEGA_EDIT_TEST_TRANSFORM_PLUGIN_OUTPUT_DIR}"
+        LIBRARY_OUTPUT_DIRECTORY_RELEASE "${OMEGA_EDIT_TEST_TRANSFORM_PLUGIN_OUTPUT_DIR}"
+)
+
 if (WIN32 AND BUILD_SHARED_LIBS)
     # Multiple test targets share the same runtime directory, so stage the DLL
     # once up front instead of racing on per-target POST_BUILD copies.
@@ -45,6 +62,19 @@ foreach (test_src ${omega_test_srcs})
             ${testname}
             PUBLIC ${OMEGA_EDIT_TEST_BINARY_DIR}
     )
+    if (TARGET omega-transform-plugin-host)
+        add_dependencies(${testname} omega-transform-plugin-host)
+    endif()
+
+    if (testname STREQUAL "process_isolation_tests")
+        add_dependencies(${testname} omega_test_process_isolation_plugin)
+        target_compile_definitions(
+                ${testname}
+                PRIVATE
+                OMEGA_EDIT_PLUGIN_HOST_EXECUTABLE="$<TARGET_FILE:omega-transform-plugin-host>"
+                OMEGA_EDIT_PROCESS_ISOLATION_PLUGIN="$<TARGET_FILE:omega_test_process_isolation_plugin>"
+        )
+    endif()
 
     if (VALGRIND)
         add_custom_target(

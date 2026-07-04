@@ -48,7 +48,10 @@ namespace omega_edit {
             /// Construct with optional heartbeat config, resource limits, and shutdown callback
             explicit EditorServiceImpl(HeartbeatConfig heartbeat_config = {}, ResourceLimits resource_limits = {},
                                        std::function<void()> shutdown_callback = nullptr,
-                                       std::vector<std::string> transform_plugin_directories = {});
+                                       std::vector<std::string> transform_plugin_directories = {},
+                                       std::string transform_plugin_host_path = {},
+                                       bool allow_experimental_transform_plugins = false,
+                                       bool allow_test_transform_plugins = false);
             ~EditorServiceImpl() override;
 
             grpc::Status GetServerInfo(grpc::ServerContext *context,

@@ -26,6 +26,17 @@ const isWin = process.platform === 'win32'
 const serverBinaryName = isWin
   ? 'omega-edit-grpc-server.exe'
   : 'omega-edit-grpc-server'
+const transformPluginHostBinaryName = isWin
+  ? 'omega-transform-plugin-host.exe'
+  : 'omega-transform-plugin-host'
+
+function normalizeWindowsPath(filePath) {
+  if (process.platform !== 'win32') return filePath
+  const msysPath = filePath.match(/^\/([a-zA-Z])\/(.*)$/)
+  return msysPath
+    ? `${msysPath[1]}:\\${msysPath[2].replace(/\//g, '\\')}`
+    : filePath
+}
 
 function getTransformPluginPlatformId() {
   const arch = process.arch
@@ -82,7 +93,42 @@ function findServerBinary() {
   ].filter(Boolean)
 
   for (const p of searchPaths) {
-    if (fs.existsSync(p)) return p
+    const normalized = normalizeWindowsPath(p)
+    if (fs.existsSync(normalized)) return normalized
+  }
+  return null
+}
+
+function findTransformPluginHostBinary() {
+  const searchPaths = [
+    process.env.CPP_TRANSFORM_PLUGIN_HOST_BINARY || '',
+    process.env.OMEGA_EDIT_TRANSFORM_PLUGIN_HOST || '',
+    path.resolve('../../_build_core/core', transformPluginHostBinaryName),
+    path.resolve('../../server/cpp/build', transformPluginHostBinaryName),
+    path.resolve(
+      '../../server/cpp/build/Release',
+      transformPluginHostBinaryName
+    ),
+    path.resolve('../../server/cpp/build/Debug', transformPluginHostBinaryName),
+    path.resolve('../../_build/core', transformPluginHostBinaryName),
+    path.resolve('../../_build-codex/core', transformPluginHostBinaryName),
+    path.resolve(
+      '../../build-shared-Debug/core',
+      transformPluginHostBinaryName
+    ),
+    path.resolve(
+      '../../build-shared-Release/core',
+      transformPluginHostBinaryName
+    ),
+    path.resolve(
+      '../../build-shared-RelWithDebInfo/core',
+      transformPluginHostBinaryName
+    ),
+  ].filter(Boolean)
+
+  for (const p of searchPaths) {
+    const normalized = normalizeWindowsPath(p)
+    if (fs.existsSync(normalized)) return normalized
   }
   return null
 }
@@ -282,6 +328,29 @@ module.exports = {
             } else {
               console.warn(
                 'WARNING: C++ server binary not found. Set CPP_SERVER_BINARY env var or build the server first.'
+              )
+            }
+
+            const transformPluginHostBinary = findTransformPluginHostBinary()
+            if (transformPluginHostBinary) {
+              const destBinary = path.join(
+                binDir,
+                transformPluginHostBinaryName
+              )
+              fs.copyFileSync(transformPluginHostBinary, destBinary)
+              if (!isWin) {
+                fs.chmodSync(destBinary, 0o755)
+              }
+              console.log(
+                `Copied transform plugin host: ${transformPluginHostBinary} -> ${destBinary}`
+              )
+            } else if (process.env.CI) {
+              throw new Error(
+                'Transform plugin host binary not found. Set CPP_TRANSFORM_PLUGIN_HOST_BINARY env var or build the core first.'
+              )
+            } else {
+              console.warn(
+                'WARNING: Transform plugin host binary not found. Transform plugins require omega-transform-plugin-host.'
               )
             }
 

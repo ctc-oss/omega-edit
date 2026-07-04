@@ -128,6 +128,9 @@ interface HeartbeatOptions {
   logLevel?: string              // Native log level: debug, info, warn, error
   logConfigFile?: string         // Compatibility shim for logback-style XML config
   transformPluginDirectories?: string[] // Directories containing transform plugin shared libraries
+  transformPluginHostPath?: string // Worker executable for out-of-process transform plugins
+  allowExperimentalTransformPlugins?: boolean // Load experimental transform plugins
+  allowTestTransformPlugins?: boolean // Load test-only transform plugins
   insecureAllowNonLoopback?: boolean // Permit unauthenticated non-loopback TCP binds
 }
 ```
@@ -156,6 +159,9 @@ The native binary supports:
 | `--log-level` | Set native server log verbosity |
 | `--log-config` | Read log file/level from a logback-style XML config |
 | `--transform-plugin-dir` | Register transform plugins from a directory; repeat for multiple directories |
+| `--transform-plugin-host` | Worker executable used to run transform plugins out of process |
+| `--allow-experimental-transform-plugins` | Load experimental transform plugins from registered directories |
+| `--allow-test-transform-plugins` | Load test-only transform plugins from registered directories |
 | `--insecure-allow-non-loopback` | Permit unauthenticated TCP binds outside loopback |
 
 The package includes the first-party transform plugins for the current platform and
@@ -163,6 +169,12 @@ registers them automatically when no explicit transform plugin directories are s
 Custom transform plugin directories can also be supplied with `transformPluginDirectories`,
 `--transform-plugin-dir`, `OMEGA_EDIT_TRANSFORM_PLUGIN_DIRS`, or
 `OMEGA_EDIT_TRANSFORM_PLUGINS_DIR`.
+Production plugins load by default. Experimental plugins are present in the
+package but require `allowExperimentalTransformPlugins`,
+`--allow-experimental-transform-plugins`, or
+`OMEGA_EDIT_TRANSFORM_PLUGIN_ALLOW_EXPERIMENTAL=1`. Test-only plugins are not
+bundled for production package or VSIX output and require the separate
+test-only opt-in when used by test harnesses.
 Use the platform path-list separator (`:` on Unix-like systems, `;` on Windows).
 See the [Transform Plugins guide](https://github.com/ctc-oss/omega-edit/wiki/Transform-Plugins) for the native ABI,
 SDK helpers, plugin package layout, and exemplar plugins, including base64

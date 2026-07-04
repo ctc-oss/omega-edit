@@ -1898,6 +1898,10 @@ export interface TransformPluginInfo {
    * @generated from protobuf field: string args_schema = 10
    */
   argsSchema: string // JSON Schema for validating options_json before apply.
+  /**
+   * @generated from protobuf field: omega_edit.v1.TransformPluginSupport support = 11
+   */
+  support: TransformPluginSupport
 }
 /**
  * Request registered transform plugin metadata.
@@ -2736,6 +2740,29 @@ export enum TransformPluginOperation {
    * @generated from protobuf enum value: TRANSFORM_PLUGIN_OPERATION_REPLACE_AND_INSPECT = 3;
    */
   REPLACE_AND_INSPECT = 3,
+}
+/**
+ * Transform plugin support tier.
+ *
+ * @generated from protobuf enum omega_edit.v1.TransformPluginSupport
+ */
+export enum TransformPluginSupport {
+  /**
+   * @generated from protobuf enum value: TRANSFORM_PLUGIN_SUPPORT_UNSPECIFIED = 0;
+   */
+  UNSPECIFIED = 0,
+  /**
+   * @generated from protobuf enum value: TRANSFORM_PLUGIN_SUPPORT_PRODUCTION = 1;
+   */
+  PRODUCTION = 1,
+  /**
+   * @generated from protobuf enum value: TRANSFORM_PLUGIN_SUPPORT_EXPERIMENTAL = 2;
+   */
+  EXPERIMENTAL = 2,
+  /**
+   * @generated from protobuf enum value: TRANSFORM_PLUGIN_SUPPORT_TEST = 3;
+   */
+  TEST = 3,
 }
 // @generated message type with reflection information, may provide speed optimized methods
 class GetServerInfoRequest$Type extends MessageType<GetServerInfoRequest> {
@@ -11881,6 +11908,16 @@ class TransformPluginInfo$Type extends MessageType<TransformPluginInfo> {
         kind: 'scalar',
         T: 9 /*ScalarType.STRING*/,
       },
+      {
+        no: 11,
+        name: 'support',
+        kind: 'enum',
+        T: () => [
+          'omega_edit.v1.TransformPluginSupport',
+          TransformPluginSupport,
+          'TRANSFORM_PLUGIN_SUPPORT_',
+        ],
+      },
     ])
   }
   create(value?: PartialMessage<TransformPluginInfo>): TransformPluginInfo {
@@ -11895,6 +11932,7 @@ class TransformPluginInfo$Type extends MessageType<TransformPluginInfo> {
     message.example = ''
     message.defaultArgs = ''
     message.argsSchema = ''
+    message.support = 0
     if (value !== undefined)
       reflectionMergePartial<TransformPluginInfo>(this, message, value)
     return message
@@ -11939,6 +11977,9 @@ class TransformPluginInfo$Type extends MessageType<TransformPluginInfo> {
           break
         case /* string args_schema */ 10:
           message.argsSchema = reader.string()
+          break
+        case /* omega_edit.v1.TransformPluginSupport support */ 11:
+          message.support = reader.int32()
           break
         default:
           let u = options.readUnknownField
@@ -11994,6 +12035,9 @@ class TransformPluginInfo$Type extends MessageType<TransformPluginInfo> {
     /* string args_schema = 10; */
     if (message.argsSchema !== '')
       writer.tag(10, WireType.LengthDelimited).string(message.argsSchema)
+    /* omega_edit.v1.TransformPluginSupport support = 11; */
+    if (message.support !== 0)
+      writer.tag(11, WireType.Varint).int32(message.support)
     let u = options.writeUnknownFields
     if (u !== false)
       (u == true ? UnknownFieldHandler.onWrite : u)(

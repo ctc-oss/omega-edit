@@ -37,6 +37,7 @@ extern "C" OMEGA_TRANSFORM_PLUGIN_EXPORT int omega_transform_plugin_get_info(ome
     info_ptr->example = "{\"width\":4}";
     info_ptr->default_args = "{\"width\":2}";
     info_ptr->args_schema = ENDIAN_SWAP_ARGS_SCHEMA;
+    info_ptr->support = OMEGA_TRANSFORM_PLUGIN_SUPPORT_PRODUCTION;
     info_ptr->abi_version = OMEGA_TRANSFORM_PLUGIN_ABI_VERSION;
     return 0;
 }

@@ -19,14 +19,18 @@
 
 #include <algorithm>
 #include <cctype>
+#include <cerrno>
+#include <cstdio>
 #include <cstdlib>
 #include <cstring>
 #include <filesystem>
+#include <fstream>
 #include <limits>
 #include <map>
 #include <memory>
 #include <mutex>
 #include <regex>
+#include <sstream>
 #include <string>
 #include <unordered_map>
 #include <utility>
@@ -42,8 +46,9 @@
 #undef max
 #endif
 #else
-#include <dlfcn.h>
+#include <signal.h>
 #include <sys/mman.h>
+#include <sys/wait.h>
 #include <unistd.h>
 #endif
 
@@ -51,65 +56,19 @@ namespace {
     constexpr size_t OMEGA_SCHEMA_REGEX_CACHE_LIMIT = 128;
     constexpr size_t OMEGA_SCHEMA_REGEX_MAX_PATTERN_BYTES = 4096;
 
-    struct dynamic_library_t {
-#ifdef _WIN32
-        HMODULE handle{};
-#else
-        void *handle{};
-#endif
-
-        dynamic_library_t() = default;
-        explicit dynamic_library_t(const char *path) {
-#ifdef _WIN32
-            handle = LoadLibraryA(path);
-#else
-            handle = dlopen(path, RTLD_NOW | RTLD_LOCAL);
-#endif
-        }
-
-        dynamic_library_t(const dynamic_library_t &) = delete;
-        auto operator=(const dynamic_library_t &) -> dynamic_library_t & = delete;
-
-        dynamic_library_t(dynamic_library_t &&other) noexcept : handle(other.handle) { other.handle = nullptr; }
-
-        auto operator=(dynamic_library_t &&other) noexcept -> dynamic_library_t & {
-            if (this != &other) {
-                close();
-                handle = other.handle;
-                other.handle = nullptr;
-            }
-            return *this;
-        }
-
-        ~dynamic_library_t() { close(); }
-
-        auto ok() const -> bool { return handle != nullptr; }
-
-        auto symbol(const char *name) const -> void * {
-            if (!handle) { return nullptr; }
-#ifdef _WIN32
-            return reinterpret_cast<void *>(GetProcAddress(handle, name));
-#else
-            return dlsym(handle, name);
-#endif
-        }
-
-    private:
-        void close() {
-            if (!handle) { return; }
-#ifdef _WIN32
-            FreeLibrary(handle);
-#else
-            dlclose(handle);
-#endif
-            handle = nullptr;
-        }
+    struct plugin_info_storage_t {
+        std::string id;
+        std::string name;
+        std::string description;
+        std::string help;
+        std::string example;
+        std::string default_args;
+        std::string args_schema;
     };
 
     struct loaded_plugin_t {
-        dynamic_library_t library;
         omega_transform_plugin_info_t info{};
-        omega_transform_plugin_apply_fn apply{};
+        plugin_info_storage_t info_storage;
         std::string path;
     };
 
@@ -710,6 +669,41 @@ namespace {
         return (response.flags & OMEGA_TRANSFORM_PLUGIN_RESPONSE_NO_CONTENT_CHANGE) != 0U;
     }
 
+    auto assign_plugin_info_(loaded_plugin_t &plugin, const omega_transform_plugin_info_t &info) -> void {
+        plugin.info_storage.id = info.id ? info.id : "";
+        plugin.info_storage.name = info.name ? info.name : "";
+        plugin.info_storage.description = info.description ? info.description : "";
+        plugin.info_storage.help = info.help ? info.help : "";
+        plugin.info_storage.example = info.example ? info.example : "";
+        plugin.info_storage.default_args = info.default_args ? info.default_args : "";
+        plugin.info_storage.args_schema = info.args_schema ? info.args_schema : "";
+
+        plugin.info = {};
+        plugin.info.abi_version = info.abi_version;
+        plugin.info.operation = info.operation;
+        plugin.info.flags = info.flags;
+        plugin.info.support = info.support;
+        plugin.info.id = plugin.info_storage.id.empty() ? nullptr : plugin.info_storage.id.c_str();
+        plugin.info.name = plugin.info_storage.name.empty() ? nullptr : plugin.info_storage.name.c_str();
+        plugin.info.description =
+                plugin.info_storage.description.empty() ? nullptr : plugin.info_storage.description.c_str();
+        plugin.info.help = plugin.info_storage.help.empty() ? nullptr : plugin.info_storage.help.c_str();
+        plugin.info.example = plugin.info_storage.example.empty() ? nullptr : plugin.info_storage.example.c_str();
+        plugin.info.default_args =
+                plugin.info_storage.default_args.empty() ? nullptr : plugin.info_storage.default_args.c_str();
+        plugin.info.args_schema =
+                plugin.info_storage.args_schema.empty() ? nullptr : plugin.info_storage.args_schema.c_str();
+    }
+
+    auto plugin_info_is_valid_(const omega_transform_plugin_info_t &info) -> bool {
+        return info.abi_version == OMEGA_TRANSFORM_PLUGIN_ABI_VERSION && info.id && *info.id &&
+               plugin_operation_is_valid_(info.operation) &&
+               (info.support == OMEGA_TRANSFORM_PLUGIN_SUPPORT_PRODUCTION ||
+                info.support == OMEGA_TRANSFORM_PLUGIN_SUPPORT_EXPERIMENTAL ||
+                info.support == OMEGA_TRANSFORM_PLUGIN_SUPPORT_TEST) &&
+               args_schema_is_valid_(info.args_schema);
+    }
+
     auto int64_to_size_(int64_t value, size_t &out) -> bool {
         if (value < 0) { return false; }
         if (static_cast<uint64_t>(value) > static_cast<uint64_t>((std::numeric_limits<size_t>::max)())) {
@@ -733,6 +727,10 @@ namespace {
     constexpr int64_t TRANSFORM_PLUGIN_STREAM_CHUNK_BYTES = 1024 * 1024;
     constexpr int64_t TRANSFORM_PLUGIN_CONTIGUOUS_INPUT_LIMIT_BYTES = 4 * 1024 * 1024;
     constexpr size_t TRANSFORM_PLUGIN_FILE_BACKED_ALLOC_LIMIT_BYTES = 64U * 1024U * 1024U;
+    constexpr uint32_t PROCESS_HOST_INFO_MAGIC = 0x4F454931U;
+    constexpr uint32_t PROCESS_HOST_REQUEST_MAGIC = 0x4F455251U;
+    constexpr uint32_t PROCESS_HOST_RESPONSE_MAGIC = 0x4F455253U;
+    constexpr uint32_t PROCESS_HOST_PROGRESS_MAGIC = 0x4F455047U;
 
     class file_backed_buffer_t {
     public:
@@ -1052,15 +1050,541 @@ namespace {
         }
         return segment_length;
     }
+
+    template<typename T>
+    auto write_pod_(std::ostream &out, const T &value) -> bool {
+        out.write(reinterpret_cast<const char *>(&value), sizeof(T));
+        return static_cast<bool>(out);
+    }
+
+    template<typename T>
+    auto read_pod_(std::istream &in, T &value) -> bool {
+        in.read(reinterpret_cast<char *>(&value), sizeof(T));
+        return static_cast<bool>(in);
+    }
+
+    auto write_string_(std::ostream &out, const char *value) -> bool {
+        const std::string text = value ? value : "";
+        const auto length = static_cast<int64_t>(text.size());
+        return write_pod_(out, length) &&
+               (length == 0 || static_cast<bool>(out.write(text.data(), static_cast<std::streamsize>(length))));
+    }
+
+    auto read_string_(std::istream &in, std::string &value) -> bool {
+        int64_t length = 0;
+        if (!read_pod_(in, length) || length < 0) { return false; }
+        value.assign(static_cast<size_t>(length), '\0');
+        return length == 0 || static_cast<bool>(in.read(value.data(), static_cast<std::streamsize>(value.size())));
+    }
+
+    auto write_bytes_(std::ostream &out, const omega_byte_t *bytes, int64_t length) -> bool {
+        if (length < 0 || (length > 0 && !bytes)) { return false; }
+        return write_pod_(out, length) &&
+               (length == 0 || static_cast<bool>(out.write(reinterpret_cast<const char *>(bytes),
+                                                           static_cast<std::streamsize>(length))));
+    }
+
+    auto read_bytes_(std::istream &in, std::vector<omega_byte_t> &bytes) -> bool {
+        int64_t length = 0;
+        if (!read_pod_(in, length) || length < 0) { return false; }
+        bytes.assign(static_cast<size_t>(length), omega_byte_t{});
+        return length == 0 || static_cast<bool>(in.read(reinterpret_cast<char *>(bytes.data()),
+                                                        static_cast<std::streamsize>(bytes.size())));
+    }
+
+    auto read_optional_string_(std::istream &in, std::string &value, bool &present) -> bool {
+        uint8_t present_byte = 0;
+        if (!read_pod_(in, present_byte)) { return false; }
+        present = present_byte != 0;
+        value.clear();
+        return !present || read_string_(in, value);
+    }
+
+    struct host_command_monitor_t {
+        bool (*poll)(void *user_data_ptr){};
+        void *user_data_ptr{};
+    };
+
+    auto poll_host_command_monitor_(const host_command_monitor_t *monitor) -> bool {
+        return !monitor || !monitor->poll || monitor->poll(monitor->user_data_ptr);
+    }
+
+    auto host_command_arguments_(const std::string &host_path, const std::string &command,
+                                 const std::string &plugin_path, const std::string &request_path,
+                                 const std::string &response_path) -> std::vector<std::string> {
+        std::vector<std::string> args;
+        args.reserve(request_path.empty() ? 4 : 5);
+        args.emplace_back(host_path.empty() ? "omega-transform-plugin-host" : host_path);
+        args.emplace_back(command);
+        args.emplace_back(plugin_path);
+        if (!request_path.empty()) { args.emplace_back(request_path); }
+        args.emplace_back(response_path);
+        return args;
+    }
+
+#ifdef _WIN32
+    auto windows_quote_argument_(const std::string &value) -> std::string {
+        if (value.empty()) { return "\"\""; }
+
+        std::string quoted = "\"";
+        size_t backslashes = 0;
+        for (const auto ch : value) {
+            if (ch == '\\') {
+                ++backslashes;
+                continue;
+            }
+            if (ch == '"') {
+                quoted.append(backslashes * 2 + 1, '\\');
+                quoted.push_back(ch);
+                backslashes = 0;
+                continue;
+            }
+            quoted.append(backslashes, '\\');
+            backslashes = 0;
+            quoted.push_back(ch);
+        }
+        quoted.append(backslashes * 2, '\\');
+        quoted.push_back('"');
+        return quoted;
+    }
+#endif
+
+    auto create_temp_file_path_(const char *directory, const char *prefix, std::string &path_out) -> bool {
+        std::string temp_directory;
+        if (!directory || !*directory) {
+            try {
+                temp_directory = std::filesystem::temp_directory_path().string();
+            } catch (const std::filesystem::filesystem_error &) { temp_directory = "."; }
+        }
+        const auto *const dir = (directory && *directory) ? directory : temp_directory.c_str();
+        char path[FILENAME_MAX + 1];
+        const auto count =
+                snprintf(path, sizeof(path), "%s%c.%s.XXXXXX", dir, omega_util_directory_separator(), prefix);
+        if (count < 0 || static_cast<size_t>(count) >= sizeof(path)) { return false; }
+        const auto fd = omega_util_mkstemp(path, 0600);
+        if (fd < 0) { return false; }
+#ifdef _WIN32
+        _close(fd);
+#else
+        close(fd);
+#endif
+        path_out = path;
+        return true;
+    }
+
+    class scoped_temp_file_t {
+    public:
+        scoped_temp_file_t() = default;
+        explicit scoped_temp_file_t(std::string path) : path_(std::move(path)) {}
+        scoped_temp_file_t(const scoped_temp_file_t &) = delete;
+        auto operator=(const scoped_temp_file_t &) -> scoped_temp_file_t & = delete;
+        scoped_temp_file_t(scoped_temp_file_t &&other) noexcept : path_(std::move(other.path_)) { other.path_.clear(); }
+        ~scoped_temp_file_t() { reset(); }
+
+        auto path() const -> const std::string & { return path_; }
+
+        void reset() {
+            if (!path_.empty()) {
+                omega_util_remove_file(path_.c_str());
+                path_.clear();
+            }
+        }
+
+    private:
+        std::string path_;
+    };
+
+    auto run_host_command_(const std::string &host_path, const std::string &command, const std::string &plugin_path,
+                           const std::string &request_path, const std::string &response_path,
+                           const host_command_monitor_t *monitor = nullptr) -> bool {
+        const auto args = host_command_arguments_(host_path, command, plugin_path, request_path, response_path);
+#ifdef _WIN32
+        std::ostringstream cmd;
+        for (size_t i = 0; i < args.size(); ++i) {
+            if (i != 0) { cmd << ' '; }
+            cmd << windows_quote_argument_(args[i]);
+        }
+        const auto command_line = cmd.str();
+        std::vector<char> mutable_command_line(command_line.begin(), command_line.end());
+        mutable_command_line.push_back('\0');
+
+        STARTUPINFOA startup_info{};
+        startup_info.cb = sizeof(startup_info);
+        PROCESS_INFORMATION process_info{};
+        if (!CreateProcessA(nullptr, mutable_command_line.data(), nullptr, nullptr, FALSE, 0, nullptr, nullptr,
+                            &startup_info, &process_info)) {
+            return false;
+        }
+
+        DWORD wait_result = WAIT_FAILED;
+        do {
+            wait_result = WaitForSingleObject(process_info.hProcess, monitor ? 50U : INFINITE);
+            if (wait_result == WAIT_TIMEOUT && !poll_host_command_monitor_(monitor)) {
+                TerminateProcess(process_info.hProcess, 1);
+                WaitForSingleObject(process_info.hProcess, INFINITE);
+                CloseHandle(process_info.hThread);
+                CloseHandle(process_info.hProcess);
+                return false;
+            }
+        } while (wait_result == WAIT_TIMEOUT);
+
+        DWORD exit_code = 1;
+        const auto got_exit_code = GetExitCodeProcess(process_info.hProcess, &exit_code);
+        CloseHandle(process_info.hThread);
+        CloseHandle(process_info.hProcess);
+        return wait_result == WAIT_OBJECT_0 && got_exit_code && exit_code == 0;
+#else
+        std::vector<char *> argv;
+        argv.reserve(args.size() + 1);
+        for (const auto &arg : args) { argv.push_back(const_cast<char *>(arg.c_str())); }
+        argv.push_back(nullptr);
+
+        const auto pid = fork();
+        if (pid < 0) { return false; }
+        if (pid == 0) {
+            execvp(argv[0], argv.data());
+            _exit(127);
+        }
+
+        int status = 0;
+        while (true) {
+            const auto waited = waitpid(pid, &status, monitor ? WNOHANG : 0);
+            if (waited == pid) { break; }
+            if (waited < 0) {
+                if (errno == EINTR) { continue; }
+                return false;
+            }
+            if (!poll_host_command_monitor_(monitor)) {
+                kill(pid, SIGTERM);
+                while (waitpid(pid, &status, 0) < 0 && errno == EINTR) {}
+                return false;
+            }
+            usleep(50000);
+        }
+        return WIFEXITED(status) && WEXITSTATUS(status) == 0;
+#endif
+    }
+
+    auto write_host_apply_request_(const std::string &request_path, int64_t session_offset, int64_t session_length,
+                                   const char *options_json, const materialized_input_t &input,
+                                   const std::string &progress_path, const std::string &cancel_path) -> bool {
+        std::ofstream out(request_path, std::ios::binary | std::ios::trunc);
+        if (!out) { return false; }
+        return write_pod_(out, PROCESS_HOST_REQUEST_MAGIC) && write_pod_(out, session_offset) &&
+               write_pod_(out, session_length) && write_pod_(out, TRANSFORM_PLUGIN_STREAM_CHUNK_BYTES) &&
+               write_string_(out, options_json) && write_bytes_(out, input.data(), input.length) &&
+               write_string_(out, progress_path.c_str()) && write_string_(out, cancel_path.c_str());
+    }
+
+    struct host_apply_control_t {
+        std::string progress_path;
+        std::string cancel_path;
+        std::streampos progress_offset{};
+        omega_transform_plugin_progress_cbk_t progress{};
+        void *progress_user_data_ptr{};
+        omega_transform_plugin_is_cancelled_t is_cancelled{};
+        void *cancel_user_data_ptr{};
+        bool cancel_requested{};
+    };
+
+    auto write_host_cancel_request_(const std::string &cancel_path, bool cancel) -> bool {
+        if (cancel_path.empty()) { return true; }
+        std::ofstream out(cancel_path, std::ios::binary | std::ios::trunc);
+        const uint8_t cancel_byte = cancel ? 1U : 0U;
+        return out && write_pod_(out, cancel_byte);
+    }
+
+    auto request_host_cancel_(host_apply_control_t &control) -> bool {
+        control.cancel_requested = true;
+        return write_host_cancel_request_(control.cancel_path, true);
+    }
+
+    auto read_host_progress_events_(host_apply_control_t &control) -> bool {
+        if (!control.progress || control.progress_path.empty()) { return true; }
+
+        std::ifstream in(control.progress_path, std::ios::binary);
+        if (!in) { return false; }
+        in.seekg(control.progress_offset);
+
+        while (true) {
+            const auto record_start = in.tellg();
+            uint32_t magic = 0;
+            int64_t processed_bytes = 0;
+            int64_t total_bytes = 0;
+            double percent = 0.0;
+            uint32_t flags = 0;
+            std::string phase;
+            std::string message;
+            if (!read_pod_(in, magic)) { break; }
+            if (magic != PROCESS_HOST_PROGRESS_MAGIC) { return false; }
+            if (!read_pod_(in, processed_bytes) || !read_pod_(in, total_bytes) || !read_pod_(in, percent) ||
+                !read_pod_(in, flags) || !read_string_(in, phase) || !read_string_(in, message)) {
+                in.clear();
+                in.seekg(record_start);
+                break;
+            }
+
+            omega_transform_plugin_progress_t progress{};
+            progress.processed_bytes = processed_bytes;
+            progress.total_bytes = total_bytes;
+            progress.percent = percent;
+            progress.flags = flags;
+            progress.phase = phase.empty() ? nullptr : phase.c_str();
+            progress.message = message.empty() ? nullptr : message.c_str();
+            if (control.progress(&progress, control.progress_user_data_ptr) != 0 && !request_host_cancel_(control)) {
+                return false;
+            }
+
+            const auto record_end = in.tellg();
+            if (record_end == std::streampos(-1)) { break; }
+            control.progress_offset = record_end;
+        }
+        return true;
+    }
+
+    auto poll_host_apply_control_(void *user_data_ptr) -> bool {
+        auto *control = static_cast<host_apply_control_t *>(user_data_ptr);
+        if (!control) { return true; }
+        if (!read_host_progress_events_(*control)) { return false; }
+        if (control->is_cancelled && control->is_cancelled(control->cancel_user_data_ptr) != 0) {
+            return request_host_cancel_(*control);
+        }
+        return true;
+    }
+
+    auto read_host_info_response_(const std::string &response_path, loaded_plugin_t &plugin) -> bool {
+        std::ifstream in(response_path, std::ios::binary);
+        uint32_t magic = 0;
+        int32_t status = -1;
+        if (!in || !read_pod_(in, magic) || magic != PROCESS_HOST_INFO_MAGIC || !read_pod_(in, status) || status != 0) {
+            return false;
+        }
+
+        omega_transform_plugin_info_t info{};
+        int32_t operation = 0;
+        int32_t support = 0;
+        if (!read_pod_(in, info.abi_version) || !read_pod_(in, operation) || !read_pod_(in, info.flags) ||
+            !read_pod_(in, support)) {
+            return false;
+        }
+
+        plugin_info_storage_t storage;
+        if (!read_string_(in, storage.id) || !read_string_(in, storage.name) ||
+            !read_string_(in, storage.description) || !read_string_(in, storage.help) ||
+            !read_string_(in, storage.example) || !read_string_(in, storage.default_args) ||
+            !read_string_(in, storage.args_schema)) {
+            return false;
+        }
+
+        info.operation = static_cast<omega_transform_plugin_operation_t>(operation);
+        info.support = static_cast<omega_transform_plugin_support_t>(support);
+        info.id = storage.id.empty() ? nullptr : storage.id.c_str();
+        info.name = storage.name.empty() ? nullptr : storage.name.c_str();
+        info.description = storage.description.empty() ? nullptr : storage.description.c_str();
+        info.help = storage.help.empty() ? nullptr : storage.help.c_str();
+        info.example = storage.example.empty() ? nullptr : storage.example.c_str();
+        info.default_args = storage.default_args.empty() ? nullptr : storage.default_args.c_str();
+        info.args_schema = storage.args_schema.empty() ? nullptr : storage.args_schema.c_str();
+        assign_plugin_info_(plugin, info);
+        return plugin_info_is_valid_(plugin.info);
+    }
+
+    auto copy_host_bytes_(plugin_allocator_state_t &allocator_state, const std::vector<omega_byte_t> &source,
+                          omega_byte_t **bytes_out, int64_t *length_out) -> bool {
+        if (!bytes_out || !length_out) { return false; }
+        *bytes_out = nullptr;
+        *length_out = static_cast<int64_t>(source.size());
+        if (source.empty()) { return true; }
+        auto *copy = static_cast<omega_byte_t *>(plugin_alloc_(source.size(), &allocator_state));
+        if (!copy) { return false; }
+        std::memcpy(copy, source.data(), source.size());
+        *bytes_out = copy;
+        return true;
+    }
+
+    auto copy_host_string_(plugin_allocator_state_t &allocator_state, const std::string &source, bool present,
+                           char **string_out) -> bool {
+        if (!string_out) { return false; }
+        *string_out = nullptr;
+        if (!present) { return true; }
+        auto *copy = static_cast<char *>(plugin_alloc_(source.size() + 1, &allocator_state));
+        if (!copy) { return false; }
+        std::memcpy(copy, source.c_str(), source.size() + 1);
+        *string_out = copy;
+        return true;
+    }
+
+    auto read_host_apply_response_(const std::string &response_path, plugin_allocator_state_t &allocator_state,
+                                   omega_transform_plugin_response_t &response) -> bool {
+        std::ifstream in(response_path, std::ios::binary);
+        uint32_t magic = 0;
+        int32_t status = -1;
+        if (!in || !read_pod_(in, magic) || magic != PROCESS_HOST_RESPONSE_MAGIC || !read_pod_(in, status) ||
+            status != 0) {
+            return false;
+        }
+
+        uint32_t flags = 0;
+        std::vector<omega_byte_t> replacement;
+        std::vector<omega_byte_t> result;
+        std::string result_label;
+        std::string result_mime_type;
+        bool has_result_label = false;
+        bool has_result_mime_type = false;
+        if (!read_pod_(in, flags) || !read_bytes_(in, replacement) || !read_bytes_(in, result) ||
+            !read_optional_string_(in, result_label, has_result_label) ||
+            !read_optional_string_(in, result_mime_type, has_result_mime_type)) {
+            return false;
+        }
+
+        response = {};
+        response.flags = flags;
+        return copy_host_bytes_(allocator_state, replacement, &response.replacement_bytes,
+                                &response.replacement_length) &&
+               copy_host_bytes_(allocator_state, result, &response.result_bytes, &response.result_length) &&
+               copy_host_string_(allocator_state, result_label, has_result_label, &response.result_label) &&
+               copy_host_string_(allocator_state, result_mime_type, has_result_mime_type, &response.result_mime_type);
+    }
+
+    auto materialize_reader_input_(int64_t session_length, const char *checkpoint_directory,
+                                   omega_transform_plugin_read_t read, void *reader_user_data_ptr,
+                                   int64_t preferred_chunk_size, omega_transform_plugin_progress_cbk_t progress,
+                                   void *progress_user_data_ptr, omega_transform_plugin_is_cancelled_t is_cancelled,
+                                   void *cancel_user_data_ptr, materialized_input_t &input) -> int {
+        if (!read || session_length < 0) { return -1; }
+        if (is_cancelled && is_cancelled(cancel_user_data_ptr) != 0) { return -1; }
+        if (session_length == 0) {
+            input = {};
+            return 0;
+        }
+
+        size_t requested_size = 0;
+        if (!int64_to_size_(session_length, requested_size)) { return -1; }
+        omega_byte_t *destination = nullptr;
+        if (session_length <= TRANSFORM_PLUGIN_CONTIGUOUS_INPUT_LIMIT_BYTES) {
+            input.bytes.resize(requested_size);
+            destination = input.bytes.data();
+        } else {
+            input.file_backed =
+                    file_backed_buffer_t::create(checkpoint_directory, "OmegaEdit-xform-reader", requested_size);
+            if (!input.file_backed) { return -1; }
+            destination = input.file_backed->data();
+        }
+
+        const auto chunk_limit = preferred_chunk_size > 0
+                                         ? std::min(preferred_chunk_size, TRANSFORM_PLUGIN_STREAM_CHUNK_BYTES)
+                                         : TRANSFORM_PLUGIN_STREAM_CHUNK_BYTES;
+        int64_t copied_length = 0;
+        while (copied_length < session_length) {
+            if (is_cancelled && is_cancelled(cancel_user_data_ptr) != 0) { return -1; }
+            const auto chunk_length = std::min(chunk_limit, session_length - copied_length);
+            const auto read_length =
+                    read(copied_length, destination + copied_length, chunk_length, reader_user_data_ptr);
+            if (read_length <= 0 || read_length > chunk_length) { return -1; }
+            copied_length += read_length;
+            if (progress) {
+                omega_transform_plugin_progress_t progress_event{};
+                progress_event.processed_bytes = copied_length;
+                progress_event.total_bytes = session_length;
+                progress_event.percent =
+                        session_length > 0
+                                ? (static_cast<double>(copied_length) / static_cast<double>(session_length)) * 100.0
+                                : 100.0;
+                progress_event.phase = "reading";
+                progress_event.flags = OMEGA_TRANSFORM_PROGRESS_HAS_PROCESSED_BYTES |
+                                       OMEGA_TRANSFORM_PROGRESS_HAS_TOTAL_BYTES | OMEGA_TRANSFORM_PROGRESS_HAS_PERCENT;
+                if (progress(&progress_event, progress_user_data_ptr) != 0) { return -1; }
+            }
+        }
+        input.length = session_length;
+        return 0;
+    }
+
+    auto invoke_isolated_plugin_(const loaded_plugin_t &plugin, const std::string &host_path, int64_t session_offset,
+                                 int64_t session_length, const char *options_json, const materialized_input_t &input,
+                                 plugin_allocator_state_t &allocator_state,
+                                 omega_transform_plugin_progress_cbk_t progress, void *progress_user_data_ptr,
+                                 omega_transform_plugin_is_cancelled_t is_cancelled, void *cancel_user_data_ptr,
+                                 omega_transform_plugin_response_t &response) -> bool {
+        std::string request_path;
+        std::string response_path;
+        std::string progress_path;
+        std::string cancel_path;
+        const auto *checkpoint_directory = allocator_state.checkpoint_directory;
+        if (!create_temp_file_path_(checkpoint_directory, "OmegaEdit-xform-request", request_path) ||
+            !create_temp_file_path_(checkpoint_directory, "OmegaEdit-xform-response", response_path)) {
+            return false;
+        }
+        if (progress && !create_temp_file_path_(checkpoint_directory, "OmegaEdit-xform-progress", progress_path)) {
+            return false;
+        }
+        if ((progress || is_cancelled) &&
+            !create_temp_file_path_(checkpoint_directory, "OmegaEdit-xform-cancel", cancel_path)) {
+            return false;
+        }
+        scoped_temp_file_t request_file(request_path);
+        scoped_temp_file_t response_file(response_path);
+        scoped_temp_file_t progress_file(progress_path);
+        scoped_temp_file_t cancel_file(cancel_path);
+        host_apply_control_t control{progress_path,          cancel_path,  std::streampos(0),    progress,
+                                     progress_user_data_ptr, is_cancelled, cancel_user_data_ptr, false};
+        host_command_monitor_t monitor{poll_host_apply_control_, &control};
+
+        if (!write_host_cancel_request_(cancel_path, false)) { return false; }
+        if (!write_host_apply_request_(request_path, session_offset, session_length, options_json, input, progress_path,
+                                       cancel_path)) {
+            return false;
+        }
+        if (!run_host_command_(host_path, "--apply", plugin.path, request_path, response_path,
+                               (progress || is_cancelled) ? &monitor : nullptr)) {
+            return false;
+        }
+        if (!poll_host_apply_control_(&control) || control.cancel_requested) { return false; }
+        return read_host_apply_response_(response_path, allocator_state, response);
+    }
+
+    auto env_value_is_true_(const char *value) -> bool {
+        if (!value) { return false; }
+        std::string normalized;
+        normalized.reserve(std::strlen(value));
+        for (const char *ptr = value; *ptr; ++ptr) {
+            normalized.push_back(static_cast<char>(std::tolower(static_cast<unsigned char>(*ptr))));
+        }
+        return normalized == "1" || normalized == "true" || normalized == "yes" || normalized == "on";
+    }
+
 }// namespace
 
 struct omega_transform_plugin_registry_struct {
     std::vector<std::unique_ptr<loaded_plugin_t>> plugins;
     plugin_allocation_store_t allocation_store;
+    std::string host_path;
+    bool allow_experimental{};
+    bool allow_test{};
 };
 
+namespace {
+    auto plugin_support_allowed_(const omega_transform_plugin_registry_t *registry_ptr,
+                                 omega_transform_plugin_support_t support) -> bool {
+        if (!registry_ptr) { return false; }
+        switch (support) {
+            case OMEGA_TRANSFORM_PLUGIN_SUPPORT_PRODUCTION:
+                return true;
+            case OMEGA_TRANSFORM_PLUGIN_SUPPORT_EXPERIMENTAL:
+                return registry_ptr->allow_experimental;
+            case OMEGA_TRANSFORM_PLUGIN_SUPPORT_TEST:
+                return registry_ptr->allow_test;
+        }
+        return false;
+    }
+}// namespace
+
 omega_transform_plugin_registry_t *omega_transform_plugin_registry_create(void) {
-    return new omega_transform_plugin_registry_t();
+    auto *registry = new omega_transform_plugin_registry_t();
+    if (const auto *env = std::getenv("OMEGA_EDIT_TRANSFORM_PLUGIN_HOST")) { registry->host_path = env; }
+    registry->allow_experimental = env_value_is_true_(std::getenv("OMEGA_EDIT_TRANSFORM_PLUGIN_ALLOW_EXPERIMENTAL"));
+    registry->allow_test = env_value_is_true_(std::getenv("OMEGA_EDIT_TRANSFORM_PLUGIN_ALLOW_TEST"));
+    return registry;
 }
 
 void omega_transform_plugin_registry_destroy(omega_transform_plugin_registry_t *registry_ptr) { delete registry_ptr; }
@@ -1071,20 +1595,14 @@ int omega_transform_plugin_registry_register_plugin(omega_transform_plugin_regis
 
     auto plugin = std::make_unique<loaded_plugin_t>();
     plugin->path = plugin_path;
-    plugin->library = dynamic_library_t(plugin_path);
-    if (!plugin->library.ok()) { return -1; }
-
-    const auto get_info = reinterpret_cast<omega_transform_plugin_get_info_fn>(
-            plugin->library.symbol("omega_transform_plugin_get_info"));
-    plugin->apply =
-            reinterpret_cast<omega_transform_plugin_apply_fn>(plugin->library.symbol("omega_transform_plugin_apply"));
-    if (!get_info || !plugin->apply) { return -1; }
-    if (0 != get_info(&plugin->info)) { return -1; }
-    if (plugin->info.abi_version == 0 || plugin->info.abi_version > OMEGA_TRANSFORM_PLUGIN_ABI_VERSION ||
-        !plugin->info.id || !*plugin->info.id || !plugin_operation_is_valid_(plugin->info.operation) ||
-        !args_schema_is_valid_(plugin->info.args_schema)) {
+    std::string response_path;
+    if (!create_temp_file_path_(nullptr, "OmegaEdit-xform-info", response_path)) { return -1; }
+    scoped_temp_file_t response_file(response_path);
+    if (!run_host_command_(registry_ptr->host_path, "--get-info", plugin->path, "", response_path) ||
+        !read_host_info_response_(response_path, *plugin)) {
         return -1;
     }
+    if (!plugin_support_allowed_(registry_ptr, plugin->info.support)) { return -1; }
     if (omega_transform_plugin_registry_find_info(registry_ptr, plugin->info.id) != nullptr) { return -1; }
 
     registry_ptr->plugins.push_back(std::move(plugin));
@@ -1106,6 +1624,25 @@ int omega_transform_plugin_registry_register_directory(omega_transform_plugin_re
         }
     } catch (const std::filesystem::filesystem_error &) { return loaded_count > 0 ? loaded_count : -1; }
     return loaded_count;
+}
+
+int omega_transform_plugin_registry_set_host_path(omega_transform_plugin_registry_t *registry_ptr,
+                                                  const char *host_path) {
+    if (!registry_ptr || !registry_ptr->plugins.empty()) { return -1; }
+    registry_ptr->host_path = host_path ? host_path : "";
+    return 0;
+}
+
+int omega_transform_plugin_registry_set_allow_experimental(omega_transform_plugin_registry_t *registry_ptr, int allow) {
+    if (!registry_ptr || !registry_ptr->plugins.empty()) { return -1; }
+    registry_ptr->allow_experimental = allow != 0;
+    return 0;
+}
+
+int omega_transform_plugin_registry_set_allow_test(omega_transform_plugin_registry_t *registry_ptr, int allow) {
+    if (!registry_ptr || !registry_ptr->plugins.empty()) { return -1; }
+    registry_ptr->allow_test = allow != 0;
+    return 0;
 }
 
 int64_t omega_transform_plugin_registry_get_count(const omega_transform_plugin_registry_t *registry_ptr) {
@@ -1182,41 +1719,22 @@ int omega_transform_plugin_registry_apply_to_session_with_progress_cancel_and_se
     if (requested_length < 0) { return -1; }
 
     const auto operation = (*iter)->info.operation;
-    const auto can_stream = ((*iter)->info.flags & OMEGA_TRANSFORM_PLUGIN_FLAG_STREAMING) != 0;
-    const auto should_materialize = !can_stream || requested_length <= TRANSFORM_PLUGIN_CONTIGUOUS_INPUT_LIMIT_BYTES;
 
     materialized_input_t input;
-    if (should_materialize && 0 != read_session_range_(session_ptr, offset, length, progress, progress_user_data_ptr,
-                                                       is_cancelled, cancel_user_data_ptr, input)) {
+    if (0 != read_session_range_(session_ptr, offset, length, progress, progress_user_data_ptr, is_cancelled,
+                                 cancel_user_data_ptr, input)) {
         return -1;
     }
 
-    session_range_reader_t reader{
-            session_ptr,         offset, requested_length, 0, progress, progress_user_data_ptr, is_cancelled,
-            cancel_user_data_ptr};
     plugin_allocator_state_t allocator_state{omega_session_get_checkpoint_directory(session_ptr),
                                              &registry_ptr->allocation_store,
                                              {}};
 
-    omega_transform_plugin_request_t request{};
-    request.input_bytes = input.data();
-    request.input_length = input.length;
-    request.session_offset = offset;
-    request.session_length = requested_length;
-    request.options_json = options_json;
-    request.alloc = plugin_alloc_;
-    request.allocator_user_data_ptr = &allocator_state;
-    request.read = read_session_range_chunk_;
-    request.reader_user_data_ptr = &reader;
-    request.preferred_chunk_size = TRANSFORM_PLUGIN_STREAM_CHUNK_BYTES;
-    request.progress = progress;
-    request.progress_user_data_ptr = progress_user_data_ptr;
-    request.is_cancelled = is_cancelled;
-    request.cancel_user_data_ptr = cancel_user_data_ptr;
-
     omega_transform_plugin_response_t plugin_response{};
     if (is_cancelled && is_cancelled(cancel_user_data_ptr) != 0) { return -1; }
-    if (0 != (*iter)->apply(&request, &plugin_response)) {
+    if (!invoke_isolated_plugin_(**iter, registry_ptr->host_path, offset, requested_length, options_json, input,
+                                 allocator_state, progress, progress_user_data_ptr, is_cancelled, cancel_user_data_ptr,
+                                 plugin_response)) {
         release_unclaimed_plugin_allocations_(allocator_state, plugin_response);
         clear_plugin_response_(allocator_state, &plugin_response);
         return -1;
@@ -1300,27 +1818,18 @@ int omega_transform_plugin_registry_inspect_reader_with_cancel(
     if (0 != omega_transform_plugin_options_match_args_schema(options_json, (*iter)->info.args_schema)) { return -1; }
 
     plugin_allocator_state_t allocator_state{checkpoint_directory, &registry_ptr->allocation_store, {}};
-
-    omega_transform_plugin_request_t request{};
-    request.input_length = 0;
-    request.session_offset = session_offset;
-    request.session_length = session_length;
-    request.options_json = options_json;
-    request.alloc = plugin_alloc_;
-    request.allocator_user_data_ptr = &allocator_state;
-    request.read = read;
-    request.reader_user_data_ptr = reader_user_data_ptr;
-    request.preferred_chunk_size = preferred_chunk_size > 0
-                                           ? std::min(preferred_chunk_size, TRANSFORM_PLUGIN_STREAM_CHUNK_BYTES)
-                                           : TRANSFORM_PLUGIN_STREAM_CHUNK_BYTES;
-    request.progress = progress;
-    request.progress_user_data_ptr = progress_user_data_ptr;
-    request.is_cancelled = is_cancelled;
-    request.cancel_user_data_ptr = cancel_user_data_ptr;
+    materialized_input_t input;
+    if (0 != materialize_reader_input_(session_length, checkpoint_directory, read, reader_user_data_ptr,
+                                       preferred_chunk_size, progress, progress_user_data_ptr, is_cancelled,
+                                       cancel_user_data_ptr, input)) {
+        return -1;
+    }
 
     omega_transform_plugin_response_t plugin_response{};
     if (is_cancelled && is_cancelled(cancel_user_data_ptr) != 0) { return -1; }
-    if (0 != (*iter)->apply(&request, &plugin_response)) {
+    if (!invoke_isolated_plugin_(**iter, registry_ptr->host_path, session_offset, session_length, options_json, input,
+                                 allocator_state, progress, progress_user_data_ptr, is_cancelled, cancel_user_data_ptr,
+                                 plugin_response)) {
         release_unclaimed_plugin_allocations_(allocator_state, plugin_response);
         clear_plugin_response_(allocator_state, &plugin_response);
         return -1;

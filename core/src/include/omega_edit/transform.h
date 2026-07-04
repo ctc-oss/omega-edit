@@ -36,13 +36,19 @@ extern "C" {
 
 #endif
 
-#define OMEGA_TRANSFORM_PLUGIN_ABI_VERSION 2
+#define OMEGA_TRANSFORM_PLUGIN_ABI_VERSION 3
 
 typedef enum {
     OMEGA_TRANSFORM_PLUGIN_OPERATION_REPLACE = 1,
     OMEGA_TRANSFORM_PLUGIN_OPERATION_INSPECT = 2,
     OMEGA_TRANSFORM_PLUGIN_OPERATION_REPLACE_AND_INSPECT = 3
 } omega_transform_plugin_operation_t;
+
+typedef enum {
+    OMEGA_TRANSFORM_PLUGIN_SUPPORT_PRODUCTION = 1,
+    OMEGA_TRANSFORM_PLUGIN_SUPPORT_EXPERIMENTAL = 2,
+    OMEGA_TRANSFORM_PLUGIN_SUPPORT_TEST = 3
+} omega_transform_plugin_support_t;
 
 typedef enum {
     OMEGA_TRANSFORM_PLUGIN_FLAG_ONE_FOR_ONE = 1,
@@ -68,6 +74,7 @@ typedef struct {
     const char *default_args;
     /** Optional JSON Schema used to validate options_json before apply. */
     const char *args_schema;
+    omega_transform_plugin_support_t support;
 } omega_transform_plugin_info_t;
 
 typedef void *(*omega_transform_plugin_alloc_t)(size_t size, void *user_data_ptr);
@@ -157,6 +164,13 @@ int omega_transform_plugin_registry_register_plugin(omega_transform_plugin_regis
 
 int omega_transform_plugin_registry_register_directory(omega_transform_plugin_registry_t *registry_ptr,
                                                        const char *plugin_directory);
+
+int omega_transform_plugin_registry_set_host_path(omega_transform_plugin_registry_t *registry_ptr,
+                                                  const char *host_path);
+
+int omega_transform_plugin_registry_set_allow_experimental(omega_transform_plugin_registry_t *registry_ptr, int allow);
+
+int omega_transform_plugin_registry_set_allow_test(omega_transform_plugin_registry_t *registry_ptr, int allow);
 
 int64_t omega_transform_plugin_registry_get_count(const omega_transform_plugin_registry_t *registry_ptr);
 

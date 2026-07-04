@@ -179,6 +179,9 @@ if (BUILD_TESTS)
     set_target_properties(omega_transform_plugin_tests PROPERTIES
             RUNTIME_OUTPUT_DIRECTORY ${OMEGA_EDIT_TRANSFORM_PLUGIN_TEST_BINARY_DIR})
     add_dependencies(omega_transform_plugin_tests omega_edit_transform_plugins)
+    if (TARGET omega-transform-plugin-host)
+        add_dependencies(omega_transform_plugin_tests omega-transform-plugin-host)
+    endif()
 
     if (WIN32 AND BUILD_SHARED_LIBS)
         set(OMEGA_EDIT_TRANSFORM_PLUGIN_RUNTIME_TARGET "")
@@ -203,6 +206,10 @@ if (BUILD_TESTS)
     add_test(NAME omega_transform_plugin_tests COMMAND omega_transform_plugin_tests)
     set_tests_properties(omega_transform_plugin_tests PROPERTIES
             WORKING_DIRECTORY ${OMEGA_EDIT_TRANSFORM_PLUGIN_TEST_BINARY_DIR})
+    if (TARGET omega-transform-plugin-host)
+        set_tests_properties(omega_transform_plugin_tests PROPERTIES
+                ENVIRONMENT "OMEGA_EDIT_TRANSFORM_PLUGIN_HOST=$<TARGET_FILE:omega-transform-plugin-host>")
+    endif()
 endif()
 
 if (CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)

@@ -107,6 +107,7 @@ describe('Transform plugin gRPC integration', () => {
         `--interface=${testHost}`,
         `--port=${port}`,
         `--transform-plugin-dir=${pluginDirectory}`,
+        '--allow-experimental-transform-plugins',
       ])
       pid = serverProcess.pid
       expect(pid).to.be.a('number').greaterThan(0)

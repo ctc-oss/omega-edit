@@ -115,6 +115,7 @@ OMEGA_TRANSFORM_PLUGIN_EXPORT int omega_transform_plugin_get_info(omega_transfor
     info_ptr->example = "{\"case\":\"lower\"}";
     info_ptr->default_args = "{\"case\":\"upper\"}";
     info_ptr->args_schema = CASE_CHANGE_ARGS_SCHEMA;
+    info_ptr->support = OMEGA_TRANSFORM_PLUGIN_SUPPORT_PRODUCTION;
     info_ptr->abi_version = OMEGA_TRANSFORM_PLUGIN_ABI_VERSION;
     return 0;
 }

@@ -51,6 +51,7 @@ export interface WebviewTransformPlugin {
   name: string
   description: string
   operation: number
+  support: number
   flags: number
   abiVersion: number
   help: string
@@ -133,6 +134,7 @@ export interface WebviewEditorState extends WebviewEditorUiState {
     name: string
     description: string
     operation: number
+    support: number
     flags: number
   }>
   contentSources: WebviewSessionContentInfo[]

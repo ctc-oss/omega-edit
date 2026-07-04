@@ -80,13 +80,17 @@ set_target_properties(omega_edit PROPERTIES VERSION ${PROJECT_VERSION} SOVERSION
 target_include_directories(omega_edit PUBLIC "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src/include>")
 target_compile_definitions(omega_edit PUBLIC "$<$<NOT:$<BOOL:${BUILD_SHARED_LIBS}>>:OMEGA_EDIT_STATIC_DEFINE>")
 target_compile_definitions(omega_edit PRIVATE "$<$<CONFIG:Debug>:DEBUG>")
-target_link_libraries(omega_edit PRIVATE ${FILESYSTEM_LIB} ${CMAKE_DL_LIBS})
+target_link_libraries(omega_edit PRIVATE ${FILESYSTEM_LIB})
 
 # Version definitions
 string(TOUPPER "${PROJECT_NAME}" PREFIX)
 foreach (level MAJOR MINOR PATCH)
     target_compile_definitions(omega_edit PRIVATE "${PREFIX}_VERSION_${level}=${${PROJECT_NAME}_VERSION_${level}}")
 endforeach ()
+
+add_executable(omega-transform-plugin-host src/tools/transform_plugin_host.cpp)
+target_include_directories(omega-transform-plugin-host PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/src/include")
+target_link_libraries(omega-transform-plugin-host PRIVATE ${CMAKE_DL_LIBS})
 
 # Examples
 if (BUILD_EXAMPLES)

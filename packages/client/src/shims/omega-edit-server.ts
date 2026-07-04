@@ -40,6 +40,9 @@ export interface HeartbeatOptions {
   logLevel?: string
   logConfigFile?: string
   transformPluginDirectories?: string[]
+  transformPluginHostPath?: string
+  allowExperimentalTransformPlugins?: boolean
+  allowTestTransformPlugins?: boolean
   insecureAllowNonLoopback?: boolean
 }
 

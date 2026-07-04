@@ -177,6 +177,7 @@ OMEGA_TRANSFORM_PLUGIN_EXPORT int omega_transform_plugin_get_info(omega_transfor
     info_ptr->example = "{\"algorithm\":\"sha256\"}";
     info_ptr->default_args = "{\"algorithm\":\"sha256\"}";
     info_ptr->args_schema = DIGEST_ARGS_SCHEMA;
+    info_ptr->support = OMEGA_TRANSFORM_PLUGIN_SUPPORT_PRODUCTION;
     info_ptr->abi_version = OMEGA_TRANSFORM_PLUGIN_ABI_VERSION;
     return 0;
 }

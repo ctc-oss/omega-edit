@@ -1147,6 +1147,7 @@ function serializeTransformPlugin(plugin: TransformPluginInfo): {
   name: string
   description: string
   operation: number
+  support: number
   flags: number
   abiVersion: number
   help: string
@@ -1159,6 +1160,7 @@ function serializeTransformPlugin(plugin: TransformPluginInfo): {
     name: plugin.name,
     description: plugin.description,
     operation: plugin.operation,
+    support: plugin.support,
     flags: plugin.flags,
     abiVersion: plugin.abiVersion,
     help: plugin.help,
@@ -4430,6 +4432,7 @@ export class HexEditorProvider
         name: plugin.name,
         description: plugin.description,
         operation: plugin.operation,
+        support: plugin.support,
         flags: plugin.flags,
       })),
       contentSources: session.contentSources,
@@ -4510,6 +4513,8 @@ export class HexEditorProvider
           description: plugin.description,
           operation: plugin.operation,
           operationName: `${plugin.operation}`,
+          support: plugin.support,
+          supportName: `${plugin.support}`,
           flags: plugin.flags,
           abiVersion: plugin.abiVersion,
         })),
