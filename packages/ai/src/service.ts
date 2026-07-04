@@ -1369,7 +1369,7 @@ async function writeStreamText(
 }
 
 async function syncFileToDisk(path: string): Promise<void> {
-  const handle = await fs.open(path, 'r')
+  const handle = await fs.open(path, 'r+')
   try {
     await handle.sync()
   } finally {

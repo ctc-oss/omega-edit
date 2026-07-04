@@ -975,6 +975,9 @@ namespace omega_edit {
         grpc::Status EditorServiceImpl::SaveSession(grpc::ServerContext * /*context*/,
                                                     const ::omega_edit::v1::SaveSessionRequest *request,
                                                     ::omega_edit::v1::SaveSessionResponse *response) {
+            if (request->file_path().empty()) {
+                return grpc::Status(grpc::StatusCode::INVALID_ARGUMENT, "file_path must not be empty");
+            }
             const auto path_status = validate_path_argument(request->file_path(), "file_path");
             if (!path_status.ok()) { return path_status; }
 
