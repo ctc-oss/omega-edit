@@ -9,7 +9,9 @@ particular, the transform/change-log/checkpoint audit items that now have
 regression coverage are not repeated here. The recent VS Code extension issues
 around the initial Find toggle state, auto bytes-per-row overfitting, and the
 duplicate Ctrl-Z undo toast are also treated as fixed by the current extension
-branch/PR and are not listed as open.
+branch/PR and are not listed as open. The redo preservation bug across
+transform undo boundaries found by the brutal-testing harness is also fixed by
+the current core test branch/PR and is no longer listed as open.
 
 Recent core/server/plugin review findings have been folded into the priority
 list below rather than kept as a second appended review. A fresh core/server

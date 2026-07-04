@@ -617,16 +617,22 @@ namespace {
         model_ptr->changes.clear();
     }
 
-    inline void free_model_changes_undone_(omega_model_struct *model_ptr) {
-        for (const auto &change_ptr : model_ptr->changes_undone) {
+    inline void free_changes_undone_(omega_changes_t &changes_undone) {
+        for (const auto &change_ptr : changes_undone) {
             if (omega_change_get_kind_(change_ptr.get()) == change_kind_t::CHANGE_TRANSFORM &&
-                change_ptr->transform_data && !change_ptr->transform_data->checkpoint_file_path.empty()) {
-                if (0 != omega_util_remove_file(change_ptr->transform_data->checkpoint_file_path.c_str())) {
+                change_ptr->transform_data) {
+                free_changes_undone_(change_ptr->transform_data->preserved_changes_undone);
+                if (!change_ptr->transform_data->checkpoint_file_path.empty() &&
+                    0 != omega_util_remove_file(change_ptr->transform_data->checkpoint_file_path.c_str())) {
                     LOG_ERRNO();
                 }
             }
         }
-        model_ptr->changes_undone.clear();
+        changes_undone.clear();
+    }
+
+    inline void free_model_changes_undone_(omega_model_struct *model_ptr) {
+        free_changes_undone_(model_ptr->changes_undone);
     }
 
     inline void free_session_changes_(const omega_session_t *session_ptr) {
@@ -1534,13 +1540,14 @@ namespace {
         if (transform_model_ptr->changes.empty()) { return 0; }
         const auto change_ptr = transform_model_ptr->changes.back();
         if (omega_change_get_kind_(change_ptr.get()) != change_kind_t::CHANGE_TRANSFORM) { return 0; }
+        if (!change_ptr->transform_data) { return -1; }
         auto *const previous_model_ptr = session_ptr->models_[session_ptr->models_.size() - 2].get();
         try {
             previous_model_ptr->changes_undone.reserve(previous_model_ptr->changes_undone.size() + 1);
         } catch (const std::bad_alloc &) { return -1; }
 
         transform_model_ptr->changes.pop_back();
-        free_model_changes_undone_(transform_model_ptr);
+        change_ptr->transform_data->preserved_changes_undone.swap(transform_model_ptr->changes_undone);
         FCLOSE(transform_model_ptr->file_ptr);
         session_ptr->models_.pop_back();
         session_ptr->num_changes_adjustment_ = session_ptr->models_.back()->change_serial_base;
@@ -1591,6 +1598,7 @@ namespace {
             return -1;
         }
 
+        session_ptr->models_.back()->changes_undone.swap(redone_change_ptr->transform_data->preserved_changes_undone);
         redone_change_ptr->serial = redone_serial;
         undone_changes.pop_back();
         session_ptr->num_changes_adjustment_ = change_serial_base;
