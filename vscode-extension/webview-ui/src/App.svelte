@@ -1630,7 +1630,7 @@
       contentSource,
       offset,
       length,
-      optionsJson,
+      optionsJson: optionsJson?.trim() || undefined,
     })
   }
 
@@ -1949,7 +1949,7 @@
       : undefined
   }
 
-  function utf8ToHex(value: string): string {
+  function utf8ToUpperHex(value: string): string {
     return Array.from(new TextEncoder().encode(value), (byte) =>
       byte.toString(16).toUpperCase().padStart(2, '0')
     ).join('')
@@ -1971,7 +1971,7 @@
     replacement: string,
     isHex: boolean
   ): string | undefined {
-    return isHex ? normalizeHexInput(replacement, true) : utf8ToHex(replacement)
+    return isHex ? normalizeHexInput(replacement, true) : utf8ToUpperHex(replacement)
   }
 
   function getSearchPatternByteLength(query: string, isHex: boolean): number {

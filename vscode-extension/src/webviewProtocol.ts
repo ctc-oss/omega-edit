@@ -286,8 +286,11 @@ export type HostToWebviewMessage =
       operation: number
       contentSource: WebviewSessionContentSource
       contentChanged: boolean
+      serial?: number
       replacementLength: number
       computedFileSize: number
+      descriptorJson: string
+      descriptorHex: string
       resultLabel: string
       resultMimeType: string
       resultText: string

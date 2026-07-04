@@ -37,6 +37,7 @@ const {
 } = require('../out/constants.js')
 const {
   MAX_ANALYSIS_PROFILE_BYTES,
+  MAX_TRANSFORM_OPTIONS_LENGTH,
   normalizeExternalHighlights,
   normalizeBytesPerRow,
   normalizeWebviewMessage,
@@ -615,6 +616,10 @@ test('compiled extension entrypoints exist after build', () => {
   assert.match(providerSource, /cancellable: true/)
   assert.match(providerJs, /kind:\s*['"]TRANSFORM['"]/)
   assert.match(providerJs, /encodeTransformPrimitiveDataHex/)
+  assert.match(providerSource, /createTransformPrimitiveDescriptorJson/)
+  assert.match(providerSource, /canonicalizeTransformDescriptorArgs/)
+  assert.match(providerSource, /descriptorJson/)
+  assert.match(providerSource, /descriptorHex/)
   assert.match(providerJs, /formatTransformCompletionMessage/)
   assert.match(providerJs, /omegaEdit\.hexEditorActive/)
   assert.match(providerJs, /omegaEdit\.canUndo/)
@@ -744,6 +749,9 @@ test('compiled extension entrypoints exist after build', () => {
   assert.match(protocolSource, /type: 'bytesPerRow'/)
   assert.match(protocolSource, /bytesPerRowMode: BytesPerRowMode/)
   assert.match(protocolSource, /stale\?: boolean/)
+  assert.match(protocolSource, /serial\?: number/)
+  assert.match(protocolSource, /descriptorJson: string/)
+  assert.match(protocolSource, /descriptorHex: string/)
   assert.match(protocolSource, /WebviewEditorState/)
   assert.match(protocolJs, /MAX_ANALYSIS_PROFILE_BYTES/)
   assert.match(protocolSource, /documentReverted/)
@@ -808,6 +816,9 @@ test('compiled extension entrypoints exist after build', () => {
   assert.match(svelteBundleCss, /\.search-panel/)
   assert.match(svelteBundleCss, /\.transform-panel/)
   assert.doesNotMatch(svelteBundleCss, /\.transform-refresh/)
+  assert.match(svelteBundleCss, /\.transform-action-picker/)
+  assert.match(svelteBundleCss, /\.transform-action-input/)
+  assert.match(svelteBundleCss, /\.transform-action-menu/)
   assert.match(svelteBundleCss, /\.transform-dialog/)
   assert.match(svelteBundleCss, /\.transform-range-grid/)
   assert.match(svelteBundleCss, /\.transform-result-panel/)
@@ -846,6 +857,14 @@ test('compiled extension entrypoints exist after build', () => {
   assert.match(svelteStylesSource, /\.transform-options-form/)
   assert.match(svelteStylesSource, /\.transform-option-field/)
   assert.match(svelteStylesSource, /\.transform-raw-options/)
+  assert.match(svelteStylesSource, /\.transform-action-picker/)
+  assert.match(svelteStylesSource, /\.transform-action-input/)
+  assert.match(svelteStylesSource, /\.transform-action-menu/)
+  assert.doesNotMatch(svelteStylesSource, /\.transform-search/)
+  assert.doesNotMatch(svelteStylesSource, /\.transform-select/)
+  assert.doesNotMatch(svelteStylesSource, /\.transform-preset-history/)
+  assert.doesNotMatch(svelteStylesSource, /\.transform-metadata/)
+  assert.doesNotMatch(svelteStylesSource, /\.transform-metadata-grid/)
   assert.match(svelteBundleCss, /\.file-scrollbar/)
   assert.match(svelteBundleCss, /\.file-scrollbar-track/)
   assert.match(svelteBundleCss, /\.file-scrollbar-thumb/)
@@ -985,11 +1004,22 @@ test('compiled extension entrypoints exist after build', () => {
   assert.match(svelteAppSource, /transformFeedback = \$state/)
   assert.match(svelteAppSource, /transformResult = \$state/)
   assert.match(svelteAppSource, /transformResultHistory = \$state/)
+  assert.doesNotMatch(svelteAppSource, /transformPresetHistory = \$state/)
+  assert.doesNotMatch(svelteAppSource, /transformRunMetadata = \$state/)
   assert.match(svelteAppSource, /TRANSFORM_RESULT_HISTORY_LIMIT = 8/)
+  assert.doesNotMatch(svelteAppSource, /TRANSFORM_PRESET_HISTORY_LIMIT/)
   assert.match(svelteAppSource, /TransformResultPanel/)
   assert.match(svelteAppSource, /function requestTransformPlugins/)
   assert.match(svelteAppSource, /if \(transformPluginsLoading\)/)
   assert.match(svelteAppSource, /function applyTransform/)
+  assert.doesNotMatch(svelteAppSource, /createTransformDescriptorMetadata/)
+  assert.doesNotMatch(svelteAppSource, /canonicalizeTransformDescriptorArgs/)
+  assert.match(
+    svelteAppSource,
+    /transformResultHistory\.filter\(\(entry\) => entry\.id !== result\.id\)/
+  )
+  assert.match(svelteAppSource, /\.slice\(0, TRANSFORM_RESULT_HISTORY_LIMIT\)/)
+  assert.doesNotMatch(svelteAppSource, /rememberTransformPreset/)
   assert.match(svelteAppSource, /type: 'applyTransform'/)
   assert.match(svelteAppSource, /function exportRange/)
   assert.match(svelteAppSource, /type: 'exportRange'/)
@@ -1012,6 +1042,7 @@ test('compiled extension entrypoints exist after build', () => {
   assert.match(svelteAppSource, /transformPluginsLoaded = true/)
   assert.match(svelteAppSource, /transformPluginsLoading = false/)
   assert.match(svelteAppSource, /case 'transformComplete'/)
+  assert.doesNotMatch(svelteAppSource, /createTransformRunMetadata\(message\)/)
   assert.match(svelteAppSource, /case 'fileActionComplete'/)
   assert.match(svelteAppSource, /describeTransformComplete/)
   assert.match(svelteAppSource, /strings\.transform\.calculationCompleted/)
@@ -1022,6 +1053,8 @@ test('compiled extension entrypoints exist after build', () => {
     /contentSourceLabel: transformResultContentSourceLabel/
   )
   assert.match(svelteAppSource, /rememberTransformResult/)
+  assert.doesNotMatch(svelteAppSource, /transformPresets=/)
+  assert.doesNotMatch(svelteAppSource, /transformMetadata=/)
   assert.match(svelteAppSource, /openTransformResult/)
   assert.match(svelteAppSource, /shouldSelectTransformResultRange/)
   assert.match(
@@ -1317,12 +1350,21 @@ test('compiled extension entrypoints exist after build', () => {
   assert.match(i18nSource, /text: 'TEXT'/)
   assert.match(i18nSource, /resultAvailable/)
   assert.match(i18nSource, /resultHistoryTitle/)
+  assert.match(i18nSource, /searchActions/)
+  assert.match(i18nSource, /actionsLabel/)
+  assert.match(i18nSource, /noActionMatches/)
+  assert.match(i18nSource, /descriptorJson/)
+  assert.match(i18nSource, /descriptorPlaceholder/)
+  assert.match(i18nSource, /descriptorTransformMismatch/)
+  assert.doesNotMatch(i18nSource, /presetHistoryTitle/)
+  assert.doesNotMatch(i18nSource, /metadataTitle/)
+  assert.doesNotMatch(i18nSource, /descriptorHex/)
   assert.match(i18nSource, /fileSplicingGroup/)
   assert.match(i18nSource, /replaceRangeWithFile/)
   assert.match(i18nSource, /rangeEndBeforeStart/)
   assert.match(i18nSource, /replacingAll: 'Replacing matches\.\.\.'/)
   assert.match(i18nSource, /readOnly: 'Read-only'/)
-  assert.match(i18nSource, /rawOptionsJson: 'JSON'/)
+  assert.doesNotMatch(i18nSource, /rawOptionsJson/)
   assert.match(i18nSource, /schemaEnum/)
   assert.match(toolbarSource, /strings\.toolbar\.offsetRadix/)
   assert.match(toolbarSource, /strings\.toolbar\.hexOffsets/)
@@ -1336,6 +1378,8 @@ test('compiled extension entrypoints exist after build', () => {
   assert.match(toolbarSource, /pluginsLoaded=\{transformPluginsLoaded\}/)
   assert.match(toolbarSource, /pluginsLoading=\{transformPluginsLoading\}/)
   assert.match(toolbarSource, /transformResults/)
+  assert.doesNotMatch(toolbarSource, /transformPresets/)
+  assert.doesNotMatch(toolbarSource, /transformMetadata/)
   assert.match(toolbarSource, /onOpenTransformResult/)
   assert.match(toolbarSource, /onRequestTransforms/)
   assert.match(toolbarSource, /onApplyTransform/)
@@ -1350,6 +1394,22 @@ test('compiled extension entrypoints exist after build', () => {
   assert.doesNotMatch(toolbarSource, /strings\.toolbar\.redo/)
   assert.match(transformPanelSource, /strings\.transform\.label/)
   assert.match(transformPanelSource, /function advertisedTransformExamples/)
+  assert.match(transformPanelSource, /actionQuery = \$state/)
+  assert.match(transformPanelSource, /actionPickerOpen = \$state/)
+  assert.match(transformPanelSource, /function buildActionPickerGroups/)
+  assert.match(transformPanelSource, /function chooseAction/)
+  assert.match(transformPanelSource, /function handleActionPickerKeydown/)
+  assert.match(transformPanelSource, /function parseTransformDescriptorInput/)
+  assert.match(transformPanelSource, /function createTransformDescriptorJson/)
+  assert.match(transformPanelSource, /function setDescriptorJsonInput/)
+  assert.match(transformPanelSource, /canonicalizeTransformDescriptorArgs/)
+  assert.doesNotMatch(transformPanelSource, /function filterTransformPlugins/)
+  assert.doesNotMatch(
+    transformPanelSource,
+    /function createTransformDescriptorPreview/
+  )
+  assert.doesNotMatch(transformPanelSource, /error instanceof Error/)
+  assert.doesNotMatch(transformPanelSource, /function openTransformPreset/)
   assert.match(transformPanelSource, /interface TransformOptionField/)
   assert.match(transformPanelSource, /function buildTransformOptionFields/)
   assert.match(transformPanelSource, /function setOptionValue/)
@@ -1368,6 +1428,8 @@ test('compiled extension entrypoints exist after build', () => {
   assert.match(transformPanelSource, /rangeStartInput = \$state/)
   assert.match(transformPanelSource, /rangeEndInput = \$state/)
   assert.match(transformPanelSource, /savedOptionsByPluginId = \$state/)
+  assert.doesNotMatch(transformPanelSource, /presets = \[\]/)
+  assert.doesNotMatch(transformPanelSource, /metadata/)
   assert.match(transformPanelSource, /pluginsLoading/)
   assert.match(transformPanelSource, /pluginsLoaded/)
   assert.match(transformPanelSource, /onRequestTransforms/)
@@ -1378,20 +1440,38 @@ test('compiled extension entrypoints exist after build', () => {
   assert.match(transformPanelSource, /role="dialog"/)
   assert.match(transformPanelSource, /aria-modal="true"/)
   assert.match(transformPanelSource, /MAX_TRANSFORM_OPTIONS_LENGTH/)
+  assert.match(transformPanelSource, /MAX_TRANSFORM_DESCRIPTOR_LENGTH/)
   assert.match(
     transformPanelSource,
-    /maxlength=\{MAX_TRANSFORM_OPTIONS_LENGTH\}/
+    /maxlength=\{MAX_TRANSFORM_DESCRIPTOR_LENGTH\}/
   )
   assert.match(
     transformPanelSource,
     /aria-label=\{strings\.transform\.closeDialog\}/
   )
-  assert.match(transformPanelSource, /class="transform-select"/)
+  assert.match(transformPanelSource, /class="transform-action-picker"/)
+  assert.match(transformPanelSource, /class="transform-action-input"/)
+  assert.match(transformPanelSource, /class="transform-action-menu"/)
+  assert.match(transformPanelSource, /actionQuery\.trim\(\)\.length === 0/)
+  assert.doesNotMatch(transformPanelSource, /role="listbox"/)
+  assert.doesNotMatch(transformPanelSource, /role="option"/)
+  assert.doesNotMatch(transformPanelSource, /aria-selected="false"/)
+  assert.doesNotMatch(transformPanelSource, /class="transform-select"/)
+  assert.doesNotMatch(transformPanelSource, /class="transform-search"/)
   assert.match(transformPanelSource, /strings\.transform\.fileSplicingGroup/)
   assert.match(transformPanelSource, /strings\.transform\.transformsGroup/)
+  assert.match(transformPanelSource, /strings\.transform\.noActionMatches/)
   assert.match(transformPanelSource, /class="transform-options-form"/)
   assert.match(transformPanelSource, /class="transform-raw-options"/)
-  assert.match(transformPanelSource, /<optgroup label=\{group\.label\}>/)
+  assert.match(transformPanelSource, /strings\.transform\.descriptorJson/)
+  assert.match(transformPanelSource, /descriptorPlaceholder/)
+  assert.doesNotMatch(
+    transformPanelSource,
+    /class="transform-descriptor-preview"/
+  )
+  assert.doesNotMatch(transformPanelSource, /class="transform-preset-history"/)
+  assert.doesNotMatch(transformPanelSource, /class="transform-metadata"/)
+  assert.doesNotMatch(transformPanelSource, /id="transformSelect"/)
   assert.match(transformPanelSource, /class="transform-result-history"/)
   assert.match(
     transformPanelSource,
@@ -1407,6 +1487,26 @@ test('compiled extension entrypoints exist after build', () => {
   assert.match(transformPanelSource, /argsSchema/)
   assert.match(transformPanelSource, /strings\.transform\.invalidJson/)
   assert.match(transformPanelSource, /strings\.transform\.invalidSchema/)
+  assert.match(transformPanelSource, /strings\.transform\.missingSchema/)
+  assert.match(
+    transformPanelSource,
+    /optionsJson\.length > MAX_TRANSFORM_OPTIONS_LENGTH/
+  )
+  assert.match(transformPanelSource, /strings\.transform\.optionsTooLong/)
+  assert.match(transformPanelSource, /strings\.transform\.descriptorPath/)
+  assert.match(transformPanelSource, /strings\.transform\.descriptorArgsPath/)
+  assert.match(
+    transformPanelSource,
+    /strings\.transform\.descriptorTransformMismatch/
+  )
+  assert.doesNotMatch(
+    transformPanelSource,
+    /strings\.transform\.transformDescriptorNotice/
+  )
+  assert.doesNotMatch(
+    transformPanelSource,
+    /strings\.transform\.inspectDescriptorNotice/
+  )
   assert.match(transformPanelSource, /strings\.transform\.schemaEnum/)
   assert.match(transformPanelSource, /strings\.transform\.maxOffset/)
   assert.match(
@@ -1683,7 +1783,15 @@ test('compiled extension entrypoints exist after build', () => {
   assert.match(extensionJs, /path\.resolve\(extensionPath,\s*['"]\.\.['"]\)/)
   assert.match(extensionJs, /normalizeWindowsPath/)
   assert.match(extensionJs, /replace\(\/\\\/\/g,\s*['"]\\\\['"]\)/)
+  assert.match(extensionJs, /splitPathList/)
+  assert.match(extensionJs, /OMEGA_EDIT_TRANSFORM_PLUGIN_DIRS/)
+  assert.match(extensionJs, /OMEGA_EDIT_TRANSFORM_PLUGINS_DIR/)
   assert.match(extensionJs, /_build_core['"],\s*['"]plugins['"],\s*['"]plugins/)
+  assert.match(
+    extensionJs,
+    /packages['"],\s*['"]server['"],\s*['"]out['"],\s*['"]transform-plugins/
+  )
+  assert.match(extensionJs, /build-shared-Debug/)
   assert.match(extensionJs, /directoryHasTransformPlugin/)
   assert.match(extensionJs, /resolveServerConnection/)
   assert.match(extensionJs, /OMEGA_EDIT_SERVER_SOCKET/)
@@ -2360,6 +2468,18 @@ test('webview protocol normalizes analysis, search, and transform messages', () 
       offset: 1,
       length: 4,
       optionsJson: '{',
+    }),
+    undefined
+  )
+  assert.equal(
+    normalizeWebviewMessage(context, {
+      type: 'applyTransform',
+      pluginId: 'omega.example.bitwise',
+      offset: 1,
+      length: 4,
+      optionsJson: JSON.stringify({
+        value: 'x'.repeat(MAX_TRANSFORM_OPTIONS_LENGTH),
+      }),
     }),
     undefined
   )

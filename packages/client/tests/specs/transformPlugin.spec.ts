@@ -130,6 +130,7 @@ describe('Transform plugin gRPC integration', () => {
         'omega.example.decimal_codecs',
         'omega.example.endian_swap',
         'omega.example.format_inspectors',
+        'omega.example.openssl_ciphers',
         'omega.example.openssl_digests',
         'omega.example.record_text_helpers',
         'omega.example.text_codecs',
@@ -173,6 +174,26 @@ describe('Transform plugin gRPC integration', () => {
       )
       expect(digestPlugin?.defaultArgs).to.equal('{"algorithm":"sha256"}')
       expect(digestPlugin?.argsSchema).to.include('"x-omega-enumGroups"')
+      const cipherPlugin = plugins.find(
+        (plugin) => plugin.id === 'omega.example.openssl_ciphers'
+      )
+      expect(cipherPlugin?.defaultArgs).to.include('"aes-256-ctr"')
+      expect(cipherPlugin?.argsSchema).to.include('"keyHex"')
+      expect(
+        JSON.parse(cipherPlugin?.argsSchema ?? '{}').required
+      ).to.include.members(['action', 'algorithm', 'keyHex', 'ivHex'])
+      const repeatPlugin = plugins.find(
+        (plugin) => plugin.id === 'omega.example.repeat'
+      )
+      expect(repeatPlugin?.defaultArgs).to.equal('')
+      expect(repeatPlugin?.argsSchema).to.include(
+        '"additionalProperties":false'
+      )
+      expect(
+        plugins.every(
+          (plugin) => JSON.parse(plugin.argsSchema).type === 'object'
+        )
+      ).to.equal(true)
 
       const ownedContentSession = await createSessionFromBytes(
         Buffer.from('abc', 'utf8')
@@ -266,6 +287,18 @@ describe('Transform plugin gRPC integration', () => {
           JSON.stringify({ level: 9 })
         )
         expect.fail('unknown base64 options should be rejected')
+      } catch (err) {
+        expect((err as Error).message).to.include('INVALID_ARGUMENT')
+      }
+
+      try {
+        await applyTransformPlugin(
+          sessionId,
+          'omega.example.common_checksums',
+          0,
+          3
+        )
+        expect.fail('missing checksum options should be rejected')
       } catch (err) {
         expect((err as Error).message).to.include('INVALID_ARGUMENT')
       }
@@ -434,6 +467,142 @@ describe('Transform plugin gRPC integration', () => {
       expect(decodeResponse.contentChanged).to.equal(true)
       expect(decodeResponse.replacementLength).to.equal(3)
       expect(decodeResponse.computedFileSize).to.equal(3)
+      expect(
+        Buffer.from(await getSegment(sessionId, 0, 3)).toString('utf8')
+      ).to.equal('abc')
+
+      const aesIvHex = '000102030405060708090a0b0c0d0e0f'
+      const aes256CtrOptions = {
+        action: 'encrypt',
+        algorithm: 'aes-256-ctr',
+        keyHex:
+          '000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f',
+        ivHex: aesIvHex,
+      }
+      const cipherSchemaPlugin = plugins.find(
+        (plugin) => plugin.id === 'omega.example.openssl_ciphers'
+      )
+      expect(cipherSchemaPlugin?.argsSchema).to.include('oneOf')
+      expect(cipherSchemaPlugin?.argsSchema).to.include('^[0-9A-Fa-f]{64}$')
+      const invalidCipherOptions = [
+        [
+          'short AES-128 key',
+          {
+            action: 'encrypt',
+            algorithm: 'aes-128-ctr',
+            keyHex: '00',
+            ivHex: aesIvHex,
+          },
+        ],
+        [
+          'odd-length AES key',
+          {
+            action: 'encrypt',
+            algorithm: 'aes-128-ctr',
+            keyHex: '0',
+            ivHex: aesIvHex,
+          },
+        ],
+        [
+          'AES-256 option with AES-128 key length',
+          {
+            action: 'encrypt',
+            algorithm: 'aes-256-ctr',
+            keyHex: '000102030405060708090a0b0c0d0e0f',
+            ivHex: aesIvHex,
+          },
+        ],
+        [
+          'short AES IV',
+          {
+            action: 'encrypt',
+            algorithm: 'aes-256-ctr',
+            keyHex: aes256CtrOptions.keyHex,
+            ivHex: '00',
+          },
+        ],
+      ] as const
+      for (const [label, options] of invalidCipherOptions) {
+        try {
+          await applyTransformPlugin(
+            sessionId,
+            'omega.example.openssl_ciphers',
+            0,
+            3,
+            JSON.stringify(options)
+          )
+          expect.fail(`${label} should be rejected by the cipher schema`)
+        } catch (err) {
+          expect((err as Error).message).to.include('INVALID_ARGUMENT')
+        }
+      }
+
+      const aesCtrEncryptResponse = await applyTransformPlugin(
+        sessionId,
+        'omega.example.openssl_ciphers',
+        0,
+        3,
+        JSON.stringify(aes256CtrOptions)
+      )
+      expect(aesCtrEncryptResponse.operation).to.equal(
+        TransformPluginOperation.REPLACE
+      )
+      expect(aesCtrEncryptResponse.contentChanged).to.equal(true)
+      expect(aesCtrEncryptResponse.replacementLength).to.equal(3)
+      expect(
+        Buffer.from(await getSegment(sessionId, 0, 3)).toString('hex')
+      ).to.equal('3b0c67')
+
+      const aesCtrDecryptResponse = await applyTransformPlugin(
+        sessionId,
+        'omega.example.openssl_ciphers',
+        0,
+        3,
+        JSON.stringify({ ...aes256CtrOptions, action: 'decrypt' })
+      )
+      expect(aesCtrDecryptResponse.operation).to.equal(
+        TransformPluginOperation.REPLACE
+      )
+      expect(aesCtrDecryptResponse.contentChanged).to.equal(true)
+      expect(aesCtrDecryptResponse.replacementLength).to.equal(3)
+      expect(
+        Buffer.from(await getSegment(sessionId, 0, 3)).toString('utf8')
+      ).to.equal('abc')
+
+      const aes128CbcOptions = {
+        action: 'encrypt',
+        algorithm: 'aes-128-cbc',
+        keyHex: '2b7e151628aed2a6abf7158809cf4f3c',
+        ivHex: aesIvHex,
+      }
+      const aesCbcEncryptResponse = await applyTransformPlugin(
+        sessionId,
+        'omega.example.openssl_ciphers',
+        0,
+        3,
+        JSON.stringify(aes128CbcOptions)
+      )
+      expect(aesCbcEncryptResponse.operation).to.equal(
+        TransformPluginOperation.REPLACE
+      )
+      expect(aesCbcEncryptResponse.contentChanged).to.equal(true)
+      expect(aesCbcEncryptResponse.replacementLength).to.equal(16)
+      expect(
+        Buffer.from(await getSegment(sessionId, 0, 16)).toString('hex')
+      ).to.equal('f327e7290b9b923d29d949db2c9f75cc')
+
+      const aesCbcDecryptResponse = await applyTransformPlugin(
+        sessionId,
+        'omega.example.openssl_ciphers',
+        0,
+        16,
+        JSON.stringify({ ...aes128CbcOptions, action: 'decrypt' })
+      )
+      expect(aesCbcDecryptResponse.operation).to.equal(
+        TransformPluginOperation.REPLACE
+      )
+      expect(aesCbcDecryptResponse.contentChanged).to.equal(true)
+      expect(aesCbcDecryptResponse.replacementLength).to.equal(3)
       expect(
         Buffer.from(await getSegment(sessionId, 0, 3)).toString('utf8')
       ).to.equal('abc')

@@ -202,7 +202,7 @@ const ASSISTANT_COMMAND_SURFACES: readonly AssistantCommandSurfaceEntry[] = [
       'omega_edit_list_transform_plugins',
       'omega_edit_apply_transform_plugin',
     ],
-    result: 'plugin metadata or transform operation result',
+    result: 'plugin metadata or transform result with serial and descriptor',
   },
   {
     action: 'checkpoints',
@@ -464,6 +464,45 @@ function parseTransformOptionsJson(
     throw new Error(`${name} must be a string`)
   }
   return parseJsonObject(optionsJson, name)
+}
+
+function canonicalizeTransformDescriptorValue(value: unknown): unknown {
+  if (Array.isArray(value)) {
+    return value.map(canonicalizeTransformDescriptorValue)
+  }
+  if (!isRecord(value)) {
+    return value
+  }
+  return Object.keys(value)
+    .sort()
+    .reduce<Record<string, unknown>>((canonical, key) => {
+      canonical[key] = canonicalizeTransformDescriptorValue(value[key])
+      return canonical
+    }, {})
+}
+
+function canonicalizeTransformDescriptorArgs(
+  args: Record<string, unknown>
+): Record<string, unknown> {
+  return canonicalizeTransformDescriptorValue(args) as Record<string, unknown>
+}
+
+function createTransformPrimitiveDescriptorResult(
+  transformId: string,
+  optionsJson?: string
+): ApplyTransformPluginResult['transformDescriptor'] {
+  const args = parseTransformOptionsJson(optionsJson, 'transform options')
+  const canonicalArgs = canonicalizeTransformDescriptorArgs(args)
+  const descriptor = {
+    transformId: transformId.trim(),
+    args: canonicalArgs,
+  }
+  const json = JSON.stringify(descriptor)
+  return {
+    ...descriptor,
+    json,
+    dataHex: Buffer.from(json, 'utf8').toString('hex'),
+  }
 }
 
 function normalizeJsonForComparison(value: unknown): unknown {
@@ -2448,8 +2487,13 @@ export class OmegaEditToolkit {
         transformPluginOperationNames.get(response.operation) ||
         `${response.operation}`,
       contentChanged: response.contentChanged,
+      ...(response.serial === undefined ? {} : { serial: response.serial }),
       computedFileSize: response.computedFileSize,
       replacementLength: response.replacementLength,
+      transformDescriptor: createTransformPrimitiveDescriptorResult(
+        response.pluginId,
+        request.optionsJson
+      ),
       resultLabel: response.resultLabel,
       resultMimeType: response.resultMimeType,
       result: encodeData(response.result),

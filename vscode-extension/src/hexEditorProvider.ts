@@ -220,6 +220,11 @@ interface TransformPrimitiveDescriptor {
   optionsJson?: string
 }
 
+interface TransformPrimitivePayload {
+  transformId: string
+  args: Record<string, unknown>
+}
+
 interface ParsedChangeRecord extends ChangeRecord {
   transformDescriptor?: TransformPrimitiveDescriptor
 }
@@ -528,16 +533,53 @@ function parseTransformOptionsJson(
   return parseJsonObject(optionsJson, name)
 }
 
+function canonicalizeTransformDescriptorValue(value: unknown): unknown {
+  if (Array.isArray(value)) {
+    return value.map(canonicalizeTransformDescriptorValue)
+  }
+  if (!isRecord(value)) {
+    return value
+  }
+  return Object.keys(value)
+    .sort()
+    .reduce<Record<string, unknown>>((canonical, key) => {
+      canonical[key] = canonicalizeTransformDescriptorValue(value[key])
+      return canonical
+    }, {})
+}
+
+function canonicalizeTransformDescriptorArgs(
+  args: Record<string, unknown>
+): Record<string, unknown> {
+  return canonicalizeTransformDescriptorValue(args) as Record<string, unknown>
+}
+
+function createTransformPrimitivePayload(
+  transformId: string,
+  optionsJson?: string
+): TransformPrimitivePayload {
+  const args = parseTransformOptionsJson(optionsJson, 'transform options')
+  return {
+    transformId: transformId.trim(),
+    args: canonicalizeTransformDescriptorArgs(args),
+  }
+}
+
+function createTransformPrimitiveDescriptorJson(
+  transformId: string,
+  optionsJson?: string
+): string {
+  return JSON.stringify(
+    createTransformPrimitivePayload(transformId, optionsJson)
+  )
+}
+
 function encodeTransformPrimitiveDataHex(
   transformId: string,
   optionsJson?: string
 ): string {
-  const args = parseTransformOptionsJson(optionsJson, 'transform options')
   return Buffer.from(
-    JSON.stringify({
-      transformId: transformId.trim(),
-      args,
-    }),
+    createTransformPrimitiveDescriptorJson(transformId, optionsJson),
     'utf8'
   ).toString('hex')
 }
@@ -4764,6 +4806,14 @@ export class HexEditorProvider
           optionsJson,
           { signal: abortController.signal }
         )
+        const descriptorJson = createTransformPrimitiveDescriptorJson(
+          response.pluginId,
+          optionsJson
+        )
+        const descriptorHex = encodeTransformPrimitiveDataHex(
+          response.pluginId,
+          optionsJson
+        )
 
         this.postWebviewMessage(session, {
           type: 'transformComplete',
@@ -4775,6 +4825,8 @@ export class HexEditorProvider
           contentChanged: false,
           replacementLength: 0,
           computedFileSize: session.fileSize,
+          descriptorJson,
+          descriptorHex,
           resultLabel: response.resultLabel ?? '',
           resultMimeType: response.resultMimeType ?? '',
           resultText: transformResultToText(response.result),
@@ -4798,6 +4850,14 @@ export class HexEditorProvider
         optionsJson,
         { signal: abortController.signal }
       )
+      const descriptorJson = createTransformPrimitiveDescriptorJson(
+        response.pluginId,
+        optionsJson
+      )
+      const descriptorHex = encodeTransformPrimitiveDataHex(
+        response.pluginId,
+        optionsJson
+      )
 
       if (response.contentChanged) {
         if (response.serial === undefined) {
@@ -4808,7 +4868,7 @@ export class HexEditorProvider
           kind: 'TRANSFORM',
           offset: response.offset,
           length: response.length,
-          data: encodeTransformPrimitiveDataHex(response.pluginId, optionsJson),
+          data: descriptorHex,
         })
         this.postEditState(session)
         this.notifyDocumentChanged(session)
@@ -4827,8 +4887,11 @@ export class HexEditorProvider
         operation: response.operation,
         contentSource: 'computed',
         contentChanged: response.contentChanged,
+        ...(response.serial === undefined ? {} : { serial: response.serial }),
         replacementLength: response.replacementLength,
         computedFileSize: response.computedFileSize,
+        descriptorJson,
+        descriptorHex,
         resultLabel: response.resultLabel ?? '',
         resultMimeType: response.resultMimeType ?? '',
         resultText: transformResultToText(response.result),

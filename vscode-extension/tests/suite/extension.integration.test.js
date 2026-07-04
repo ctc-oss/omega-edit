@@ -58,10 +58,29 @@ function makeUtf8Fingerprint(text) {
   }
 }
 
+function canonicalizeTransformDescriptorValue(value) {
+  if (Array.isArray(value)) {
+    return value.map(canonicalizeTransformDescriptorValue)
+  }
+  if (typeof value !== 'object' || value === null) {
+    return value
+  }
+  return Object.keys(value)
+    .sort()
+    .reduce((canonical, key) => {
+      canonical[key] = canonicalizeTransformDescriptorValue(value[key])
+      return canonical
+    }, {})
+}
+
 function makeTransformDataHex(transformId, args = {}) {
-  return Buffer.from(JSON.stringify({ transformId, args }), 'utf8').toString(
-    'hex'
-  )
+  return Buffer.from(
+    JSON.stringify({
+      transformId,
+      args: canonicalizeTransformDescriptorValue(args),
+    }),
+    'utf8'
+  ).toString('hex')
 }
 
 function parseTransformDataHex(data) {
@@ -1374,9 +1393,20 @@ suite('OmegaEdit VS Code extension', () => {
     })
 
     await assertSessionText(session.sessionId, 'aYmM=')
+    const transformComplete = lastMessageOfType(
+      panel.messages,
+      'transformComplete'
+    )
+    assert.ok(transformComplete, 'Expected transform completion metadata')
+    assert.equal(transformComplete.contentChanged, true)
+    assert.ok(transformComplete.serial > 0, 'Expected transform change serial')
     assert.equal(
-      lastMessageOfType(panel.messages, 'transformComplete')?.contentChanged,
-      true
+      transformComplete.descriptorJson,
+      JSON.stringify({ transformId: 'omega.example.base64', args: {} })
+    )
+    assert.equal(
+      transformComplete.descriptorHex,
+      makeTransformDataHex('omega.example.base64')
     )
 
     await panel.fireDidDispose()
@@ -1427,6 +1457,18 @@ suite('OmegaEdit VS Code extension', () => {
     assert.ok(transformComplete, 'Expected calculation action completion')
     assert.equal(transformComplete.contentSource, 'computed')
     assert.equal(transformComplete.contentChanged, false)
+    assert.equal(transformComplete.serial, undefined)
+    assert.deepEqual(parseTransformDataHex(transformComplete.descriptorHex), {
+      transformId: 'omega.example.common_checksums',
+      args: { algorithm: 'sum8' },
+    })
+    assert.equal(
+      transformComplete.descriptorJson,
+      JSON.stringify({
+        transformId: 'omega.example.common_checksums',
+        args: { algorithm: 'sum8' },
+      })
+    )
     assert.equal(transformComplete.resultLabel, 'sum8')
     assert.equal(transformComplete.resultText, '0x26')
     assert.deepEqual(
@@ -1489,6 +1531,11 @@ suite('OmegaEdit VS Code extension', () => {
     assert.ok(transformComplete, 'Expected original calculation completion')
     assert.equal(transformComplete.contentSource, 'original')
     assert.equal(transformComplete.contentChanged, false)
+    assert.equal(transformComplete.serial, undefined)
+    assert.deepEqual(parseTransformDataHex(transformComplete.descriptorHex), {
+      transformId: 'omega.example.common_checksums',
+      args: { algorithm: 'sum8' },
+    })
     assert.equal(transformComplete.resultLabel, 'sum8')
     assert.equal(transformComplete.resultText, '0x26')
 
@@ -1539,6 +1586,14 @@ suite('OmegaEdit VS Code extension', () => {
     )
     assert.ok(xorTransformComplete, 'Expected XOR identity completion')
     assert.equal(xorTransformComplete.contentChanged, false)
+    assert.equal(xorTransformComplete.serial, undefined)
+    assert.deepEqual(
+      parseTransformDataHex(xorTransformComplete.descriptorHex),
+      {
+        transformId: 'omega.example.bitwise',
+        args: { operator: 'xor', byte: '0x00' },
+      }
+    )
     assert.deepEqual(
       lastMessageOfType(panel.messages, 'editState'),
       cleanEditState
@@ -1599,6 +1654,14 @@ suite('OmegaEdit VS Code extension', () => {
     )
     assert.ok(upperTransformComplete, 'Expected uppercase completion')
     assert.equal(upperTransformComplete.contentChanged, true)
+    assert.ok(upperTransformComplete.serial > 0)
+    assert.deepEqual(
+      parseTransformDataHex(upperTransformComplete.descriptorHex),
+      {
+        transformId: 'omega.example.case_change',
+        args: { case: 'upper' },
+      }
+    )
     const uppercaseEditState = lastMessageOfType(panel.messages, 'editState')
     assert.notDeepEqual(uppercaseEditState, cleanEditState)
 
@@ -1617,6 +1680,14 @@ suite('OmegaEdit VS Code extension', () => {
     )
     assert.ok(upperNoopTransformComplete, 'Expected uppercase no-op completion')
     assert.equal(upperNoopTransformComplete.contentChanged, false)
+    assert.equal(upperNoopTransformComplete.serial, undefined)
+    assert.deepEqual(
+      parseTransformDataHex(upperNoopTransformComplete.descriptorHex),
+      {
+        transformId: 'omega.example.case_change',
+        args: { case: 'upper' },
+      }
+    )
     assert.deepEqual(
       lastMessageOfType(panel.messages, 'editState'),
       uppercaseEditState

@@ -13,6 +13,36 @@ import {
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const CLI_PATH = path.resolve(__dirname, '../../dist/cjs/cli.js')
 
+function canonicalizeTransformDescriptorValue(value: unknown): unknown {
+  if (Array.isArray(value)) {
+    return value.map(canonicalizeTransformDescriptorValue)
+  }
+  if (typeof value !== 'object' || value === null) {
+    return value
+  }
+  return Object.keys(value)
+    .sort()
+    .reduce<Record<string, unknown>>((canonical, key) => {
+      canonical[key] = canonicalizeTransformDescriptorValue(
+        (value as Record<string, unknown>)[key]
+      )
+      return canonical
+    }, {})
+}
+
+function makeTransformDataHex(
+  transformId: string,
+  args: Record<string, unknown> = {}
+) {
+  return Buffer.from(
+    JSON.stringify({
+      transformId,
+      args: canonicalizeTransformDescriptorValue(args),
+    }),
+    'utf8'
+  ).toString('hex')
+}
+
 function runOe(args: string[]): Promise<Record<string, unknown>> {
   return new Promise((resolve, reject) => {
     const child = spawn(process.execPath, [CLI_PATH, ...args], {
@@ -154,7 +184,7 @@ describe('@omega-edit/ai CLI', () => {
       ])
 
       const replaced = 'A12DxyZZZ'
-      await runOe([
+      const transformResult = await runOe([
         'apply-transform-plugin',
         ...common,
         '--session',
@@ -166,6 +196,14 @@ describe('@omega-edit/ai CLI', () => {
         '--length',
         String(Buffer.byteLength(replaced, 'utf8')),
       ])
+      assert.equal(transformResult.contentChanged, true)
+      assert.ok((transformResult.serial as number) > 0)
+      assert.deepEqual(transformResult.transformDescriptor, {
+        transformId: 'omega.example.base64',
+        args: {},
+        json: JSON.stringify({ transformId: 'omega.example.base64', args: {} }),
+        dataHex: makeTransformDataHex('omega.example.base64'),
+      })
       const transformed = Buffer.from(replaced, 'utf8').toString('base64')
 
       const readTransformed = await runOe([

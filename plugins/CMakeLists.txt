@@ -100,6 +100,7 @@ foreach (plugin_src
         src/decimal_codecs.cpp
         src/endian_swap.cpp
         src/format_inspectors.cpp
+        src/openssl_ciphers.c
         src/openssl_digests.c
         src/record_text_helpers.cpp
         src/text_codecs.cpp
@@ -113,7 +114,7 @@ foreach (plugin_src
     if (plugin_name STREQUAL "zlib")
         target_link_libraries(${plugin_target} PRIVATE ZLIB::ZLIB)
     endif()
-    if (plugin_name STREQUAL "openssl_digests")
+    if (plugin_name MATCHES "^openssl_")
         target_link_libraries(${plugin_target} PRIVATE OpenSSL::Crypto)
         if (CMAKE_C_COMPILER_ID MATCHES "GNU|Clang")
             target_compile_options(${plugin_target} PRIVATE -fvisibility=hidden)

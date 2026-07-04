@@ -14,14 +14,17 @@ example `{"operator":"xor","byte":"0x42"}` or
 `{"operator":"and","mask":["0x0F","0xF0"]}`. The zlib exemplar exposes an
 `action` field for compression or decompression; compression accepts `level`
 values from `-1` through `9`.
-The richer data-format exemplars cover digest/hash inspection, CRC/checksum
-inspection, binary-to-text codecs, character set transcoding, decimal field
-encodings, byte-order swaps, record/text escaping helpers, and lightweight
-format inspectors for TLV-style data. The digest exemplars use OpenSSL 3's EVP
-API to calculate MD5, SHA-1, SHA-2, SHA-3, and BLAKE2 inspect-only text
-results. MD5 and SHA-1 are included for legacy formats, interoperability checks,
-and low-security data inspection workflows; do not use them for
-security-sensitive authentication or integrity decisions.
+The richer data-format exemplars cover digest/hash inspection, AES cipher
+transforms, CRC/checksum inspection, binary-to-text codecs, character set
+transcoding, decimal field encodings, byte-order swaps, record/text escaping
+helpers, and lightweight format inspectors for TLV-style data. The OpenSSL
+exemplars use OpenSSL 3's EVP API to calculate MD5, SHA-1, SHA-2, SHA-3, and
+BLAKE2 inspect-only text results and to encrypt/decrypt selected bytes with
+AES-CBC or AES-CTR. MD5 and SHA-1 are included for legacy formats,
+interoperability checks, and low-security data inspection workflows; do not use
+them for security-sensitive authentication or integrity decisions. The cipher
+exemplar accepts raw key and IV/counter bytes as hex; it does not derive keys or
+authenticate ciphertext.
 
 Plugins should poll `omega_transform_plugin_sdk_is_cancelled()` during long
 loops, between streaming reads, and around expensive library calls. When it

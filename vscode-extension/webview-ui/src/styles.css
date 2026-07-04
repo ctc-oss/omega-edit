@@ -367,15 +367,117 @@ button:focus-visible {
   text-transform: uppercase;
 }
 
-.transform-select {
-  width: clamp(150px, 18vw, 240px);
-  min-width: 120px;
+.transform-action-picker {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.transform-action-input {
+  width: clamp(190px, 24vw, 340px);
+  min-width: 150px;
   height: 26px;
-  border: 1px solid var(--vscode-dropdown-border, var(--vscode-editorGroup-border));
+  padding: 3px 7px;
+  border: 1px solid var(--vscode-input-border, var(--vscode-editorGroup-border));
   border-radius: 2px;
-  color: var(--vscode-dropdown-foreground);
-  background: var(--vscode-dropdown-background);
+  color: var(--vscode-input-foreground);
+  background: var(--vscode-input-background);
   font: inherit;
+}
+
+.transform-action-input:focus {
+  outline: 1px solid var(--vscode-focusBorder);
+  outline-offset: -1px;
+}
+
+.transform-action-menu {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  z-index: 24;
+  display: grid;
+  gap: 4px;
+  width: min(420px, calc(100vw - 16px));
+  max-height: min(360px, 58vh);
+  overflow: auto;
+  padding: 5px;
+  border: 1px solid var(--vscode-editorGroup-border);
+  border-radius: 4px;
+  background: var(--vscode-dropdown-background);
+  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.34);
+}
+
+.transform-action-group {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.transform-action-group + .transform-action-group {
+  padding-top: 4px;
+  border-top: 1px solid var(--vscode-editorGroup-border);
+}
+
+.transform-action-group-label {
+  padding: 2px 7px;
+  color: var(--vscode-descriptionForeground);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+
+.transform-action-item {
+  display: grid;
+  gap: 2px;
+  width: 100%;
+  min-height: 0;
+  padding: 6px 7px;
+  border-color: transparent;
+  color: var(--vscode-dropdown-foreground);
+  background: transparent;
+  text-align: left;
+}
+
+.transform-action-item:hover:not(:disabled),
+.transform-action-item:focus {
+  background: var(--vscode-list-hoverBackground);
+}
+
+.transform-action-item:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.transform-action-name,
+.transform-action-description,
+.transform-action-empty {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.transform-action-name {
+  color: var(--vscode-foreground);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.transform-action-description,
+.transform-action-empty {
+  color: var(--vscode-descriptionForeground);
+  font-size: 11px;
+  line-height: 1.35;
+}
+
+.transform-action-description {
+  white-space: normal;
+}
+
+.transform-action-empty {
+  padding: 8px;
 }
 
 .transform-status {
@@ -2656,6 +2758,7 @@ body.vscode-high-contrast-light .text-byte.selected:hover {
     grid-template-columns: minmax(0, 1fr);
   }
 
+  .transform-action-menu,
   .transform-result-history-menu {
     right: auto;
     left: 0;

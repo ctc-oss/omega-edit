@@ -389,6 +389,13 @@ export interface ApplyTransformPluginRequest {
   signal?: CancellationSignal
 }
 
+export interface TransformDescriptorResult {
+  transformId: string
+  args: Record<string, unknown>
+  json: string
+  dataHex: string
+}
+
 export interface ApplyTransformPluginResult {
   sessionId: string
   pluginId: string
@@ -397,8 +404,10 @@ export interface ApplyTransformPluginResult {
   operation: number
   operationName: string
   contentChanged: boolean
+  serial?: number
   computedFileSize: number
   replacementLength: number
+  transformDescriptor: TransformDescriptorResult
   resultLabel?: string
   resultMimeType?: string
   result: EncodedData

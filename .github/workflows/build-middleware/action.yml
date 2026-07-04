@@ -112,12 +112,23 @@ runs:
         if [ "${{ inputs.runner-os }}" == "macOS" ]; then
           conan_arch=("-s:h" "arch=${TARGET_CONAN_ARCH}")
         fi
-        conan install plugins --output-folder=_build_core/plugin-conan \
-          --build=missing \
-          -s build_type=Release \
-          "${conan_arch[@]}" \
-          ${CONAN_MSBUILD_VS_CONF:-} \
-          -c tools.cmake.cmaketoolchain:generator=Ninja
+        for attempt in 1 2 3; do
+          if conan install plugins --output-folder=_build_core/plugin-conan \
+            --build=missing \
+            -s build_type=Release \
+            "${conan_arch[@]}" \
+            ${CONAN_MSBUILD_VS_CONF:-} \
+            -c tools.cmake.cmaketoolchain:generator=Ninja; then
+            exit 0
+          fi
+          if [ "$attempt" -eq 3 ]; then
+            echo "Conan install for transform plugin dependencies failed after $attempt attempts" >&2
+            exit 1
+          fi
+          delay=$((attempt * 30))
+          echo "Conan install for transform plugin dependencies failed on attempt $attempt; retrying in $delay seconds" >&2
+          sleep "$delay"
+        done
 
     - name: Install transform plugin system dependencies
       if: inputs.runner-os == 'Linux'
@@ -157,13 +168,24 @@ runs:
         if [ "${{ inputs.runner-os }}" == "macOS" ]; then
           conan_arch=("-s:h" "arch=${TARGET_CONAN_ARCH}")
         fi
-        conan install . --output-folder=build \
-          --build=missing \
-          -s build_type=Release \
-          -s compiler.cppstd=17 \
-          "${conan_arch[@]}" \
-          ${CONAN_MSBUILD_VS_CONF:-} \
-          -c tools.cmake.cmaketoolchain:generator=Ninja
+        for attempt in 1 2 3; do
+          if conan install . --output-folder=build \
+            --build=missing \
+            -s build_type=Release \
+            -s compiler.cppstd=17 \
+            "${conan_arch[@]}" \
+            ${CONAN_MSBUILD_VS_CONF:-} \
+            -c tools.cmake.cmaketoolchain:generator=Ninja; then
+            exit 0
+          fi
+          if [ "$attempt" -eq 3 ]; then
+            echo "Conan install for server dependencies failed after $attempt attempts" >&2
+            exit 1
+          fi
+          delay=$((attempt * 30))
+          echo "Conan install for server dependencies failed on attempt $attempt; retrying in $delay seconds" >&2
+          sleep "$delay"
+        done
 
     - name: Install uuid-dev (Linux)
       if: inputs.runner-os == 'Linux'

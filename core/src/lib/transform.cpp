@@ -588,12 +588,15 @@ namespace {
             if (type == "object" && value.kind != json_value_t::kind_t::object) { return false; }
             if (type == "array" && value.kind != json_value_t::kind_t::array) { return false; }
             if (type == "string" && value.kind != json_value_t::kind_t::string) { return false; }
+            if (type == "boolean" && value.kind != json_value_t::kind_t::boolean) { return false; }
             if (type == "integer") {
                 if (value.kind != json_value_t::kind_t::number) { return false; }
                 const auto integer_value = static_cast<int64_t>(value.number_value);
                 if (value.number_value != static_cast<double>(integer_value)) { return false; }
             }
-            if (type != "object" && type != "array" && type != "string" && type != "integer") { return false; }
+            if (type != "object" && type != "array" && type != "string" && type != "integer" && type != "boolean") {
+                return false;
+            }
         }
 
         if (const auto *required = json_object_member_(schema, "required")) {
@@ -662,13 +665,27 @@ namespace {
         return true;
     }
 
-    auto options_match_args_schema_(const char *options_json, const char *args_schema) -> bool {
-        if (!options_json || !*options_json) { return true; }
+    auto args_schema_is_valid_(const char *args_schema) -> bool {
         if (!args_schema || !*args_schema) { return false; }
+        json_value_t schema;
+        if (!json_parser_t(args_schema).parse(schema)) { return false; }
+        if (schema.kind != json_value_t::kind_t::object) { return false; }
+        std::string type;
+        const auto *type_value = json_object_member_(schema, "type");
+        if (!type_value || !json_string_value_(*type_value, type)) { return false; }
+        return type == "object";
+    }
+
+    auto options_match_args_schema_(const char *options_json, const char *args_schema) -> bool {
+        if (!args_schema_is_valid_(args_schema)) { return false; }
         json_value_t options;
         json_value_t schema;
-        if (!json_parser_t(options_json).parse(options)) { return false; }
         if (!json_parser_t(args_schema).parse(schema)) { return false; }
+        if (!options_json || !*options_json) {
+            options.kind = json_value_t::kind_t::object;
+        } else if (!json_parser_t(options_json).parse(options)) {
+            return false;
+        }
         return validate_schema_value_(options, schema);
     }
 
@@ -1014,7 +1031,8 @@ int omega_transform_plugin_registry_register_plugin(omega_transform_plugin_regis
     if (!get_info || !plugin->apply) { return -1; }
     if (0 != get_info(&plugin->info)) { return -1; }
     if (plugin->info.abi_version == 0 || plugin->info.abi_version > OMEGA_TRANSFORM_PLUGIN_ABI_VERSION ||
-        !plugin->info.id || !*plugin->info.id || !plugin_operation_is_valid_(plugin->info.operation)) {
+        !plugin->info.id || !*plugin->info.id || !plugin_operation_is_valid_(plugin->info.operation) ||
+        !args_schema_is_valid_(plugin->info.args_schema)) {
         return -1;
     }
     if (omega_transform_plugin_registry_find_info(registry_ptr, plugin->info.id) != nullptr) { return -1; }
