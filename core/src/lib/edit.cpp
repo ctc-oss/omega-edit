@@ -122,7 +122,7 @@ namespace {
         const auto flushed = FlushFileBuffers(directory_handle) != 0;
         const auto flush_error = GetLastError();
         CloseHandle(directory_handle);
-        return flushed || flush_error == ERROR_INVALID_FUNCTION;
+        return flushed || flush_error == ERROR_INVALID_FUNCTION || flush_error == ERROR_ACCESS_DENIED;
 #else
         char directory[FILENAME_MAX + 1];
         omega_util_dirname(path, directory);
@@ -2484,14 +2484,17 @@ int omega_edit_clear_changes(omega_session_t *session_ptr) {
     if (session_ptr->models_.front()->file_ptr != nullptr) {
         if (0 != FSEEK(session_ptr->models_.front()->file_ptr, 0L, SEEK_END)) { return -1; }
         length = FTELL(session_ptr->models_.front()->file_ptr);
+        if (length < 0) { return -1; }
     }
-    if (!initialize_model_segments_(session_ptr->models_.front()->model_segments, length)) { return -1; }
+
+    omega_model_segments_t reset_segments;
+    if (!initialize_model_segments_(reset_segments, length)) { return -1; }
+    while (session_ptr->models_.size() > 1) { discard_top_model_(session_ptr); }
+    session_ptr->models_.front()->model_segments = std::move(reset_segments);
     free_session_changes_(session_ptr);
     free_session_changes_undone_(session_ptr);
-    for (const auto &viewport_ptr : session_ptr->viewports_) {
-        viewport_ptr->data_segment.capacity = -1 * std::abs(viewport_ptr->data_segment.capacity);// indicate dirty read
-        omega_viewport_notify(viewport_ptr.get(), VIEWPORT_EVT_CLEAR, nullptr);
-    }
+    session_ptr->num_changes_adjustment_ = 0;
+    mark_all_viewports_changed_(session_ptr, VIEWPORT_EVT_CLEAR, nullptr);
     omega_session_notify(session_ptr, SESSION_EVT_CLEAR, nullptr);
     return 0;
 }
