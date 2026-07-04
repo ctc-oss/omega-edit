@@ -1368,6 +1368,30 @@ async function writeStreamText(
   }
 }
 
+async function syncFileToDisk(path: string): Promise<void> {
+  const handle = await fs.open(path, 'r')
+  try {
+    await handle.sync()
+  } finally {
+    await handle.close()
+  }
+}
+
+async function syncParentDirectory(path: string): Promise<void> {
+  if (process.platform === 'win32') {
+    return
+  }
+  let handle: fs.FileHandle | undefined
+  try {
+    handle = await fs.open(dirname(path), 'r')
+    await handle.sync()
+  } catch {
+    // Some filesystems/platforms do not support directory fsync through Node.
+  } finally {
+    await handle?.close().catch(() => undefined)
+  }
+}
+
 async function writeChangeLogDocumentFile(
   outputPath: string,
   overwriteExisting: boolean,
@@ -1435,8 +1459,10 @@ async function writeChangeLogDocumentFile(
     await finished(stream)
 
     assertCompleteChangeLog('export', collected.unavailableChangeSerials)
+    await syncFileToDisk(tempPath)
     await verifyBeforeCommit?.()
     await fs.rename(tempPath, outputPath)
+    await syncParentDirectory(outputPath)
     committed = true
     return collected
   } finally {

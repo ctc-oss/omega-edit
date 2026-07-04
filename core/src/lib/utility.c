@@ -452,10 +452,11 @@ void omega_util_count_characters(const unsigned char *data, size_t length, omega
         case BOM_UTF32BE:
             while (i + 3 < length) {
                 // Swap the bytes if the BOM is little endian
-                const uint32_t char32 =
-                        counts_ptr->bom == BOM_UTF32LE
-                                ? (data[i] | (data[i + 1] << 8) | (data[i + 2] << 16) | (data[i + 3] << 24))
-                                : ((data[i] << 24) | (data[i + 1] << 16) | (data[i + 2] << 8) | data[i + 3]);
+                const uint32_t char32 = counts_ptr->bom == BOM_UTF32LE
+                                                ? ((uint32_t) data[i] | ((uint32_t) data[i + 1] << 8) |
+                                                   ((uint32_t) data[i + 2] << 16) | ((uint32_t) data[i + 3] << 24))
+                                                : (((uint32_t) data[i] << 24) | ((uint32_t) data[i + 1] << 16) |
+                                                   ((uint32_t) data[i + 2] << 8) | (uint32_t) data[i + 3]);
 
                 if ((char32 >= 0xD800 && char32 <= 0xDFFF) || char32 > 0x10FFFF) {
                     ++counts_ptr->invalidBytes;// surrogate pairs and characters above 0x10FFFF are invalid in UTF-32

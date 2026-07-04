@@ -115,6 +115,12 @@ static bool parse_log_level(const std::string &value, const std::string &name, L
     return true;
 }
 
+static bool require_option_value(const std::string &key, const std::string &value) {
+    if (!value.empty()) { return true; }
+    std::cerr << "Error: " << key << " requires a value\n";
+    return false;
+}
+
 static bool env_value_is_true(const char *value) {
     if (!value) { return false; }
     std::string normalized;
@@ -199,12 +205,11 @@ static bool apply_log_config_file(const std::string &config_path, std::string &l
     return true;
 }
 
-/// Parse a string as an integer in [min_val, max_val], writing the result to out.
-/// Returns true on success; on failure prints a message to stderr and returns false.
-static bool parse_int(const std::string &str, const std::string &name, long min_val, long max_val, int &out) {
+static bool parse_signed_integer(const std::string &str, const std::string &name, long long min_val, long long max_val,
+                                 long long &out) {
     try {
         size_t pos = 0;
-        long v = std::stol(str, &pos);
+        const auto v = std::stoll(str, &pos);
         if (pos != str.size()) {
             std::cerr << "Error: " << name << " must be a valid integer, got: " << str << "\n";
             return false;
@@ -214,59 +219,67 @@ static bool parse_int(const std::string &str, const std::string &name, long min_
                       << "\n";
             return false;
         }
-        out = static_cast<int>(v);
+        out = v;
         return true;
     } catch (const std::exception &) {
         std::cerr << "Error: " << name << " must be a valid integer, got: " << str << "\n";
         return false;
     }
+}
+
+static bool parse_unsigned_integer(const std::string &str, const std::string &name, unsigned long long min_val,
+                                   unsigned long long max_val, unsigned long long &out) {
+    try {
+        size_t pos = 0;
+        const auto v = std::stoull(str, &pos);
+        if (pos != str.size()) {
+            std::cerr << "Error: " << name << " must be a valid integer, got: " << str << "\n";
+            return false;
+        }
+        if (v < min_val || v > max_val) {
+            std::cerr << "Error: " << name << " must be between " << min_val << " and " << max_val << ", got: " << v
+                      << "\n";
+            return false;
+        }
+        out = v;
+        return true;
+    } catch (const std::exception &) {
+        std::cerr << "Error: " << name << " must be a valid integer, got: " << str << "\n";
+        return false;
+    }
+}
+
+/// Parse a string as an integer in [min_val, max_val], writing the result to out.
+/// Returns true on success; on failure prints a message to stderr and returns false.
+static bool parse_int(const std::string &str, const std::string &name, long min_val, long max_val, int &out) {
+    long long parsed = 0;
+    if (!parse_signed_integer(str, name, min_val, max_val, parsed)) { return false; }
+    out = static_cast<int>(parsed);
+    return true;
 }
 
 /// Parse a string as an int64 in [min_val, max_val], writing the result to out.
 /// Returns true on success; on failure prints a message to stderr and returns false.
 static bool parse_int64(const std::string &str, const std::string &name, int64_t min_val, int64_t max_val,
                         int64_t &out) {
-    try {
-        size_t pos = 0;
-        long long v = std::stoll(str, &pos);
-        if (pos != str.size()) {
-            std::cerr << "Error: " << name << " must be a valid integer, got: " << str << "\n";
-            return false;
-        }
-        if (v < min_val || v > max_val) {
-            std::cerr << "Error: " << name << " must be between " << min_val << " and " << max_val << ", got: " << v
-                      << "\n";
-            return false;
-        }
-        out = static_cast<int64_t>(v);
-        return true;
-    } catch (const std::exception &) {
-        std::cerr << "Error: " << name << " must be a valid integer, got: " << str << "\n";
+    long long parsed = 0;
+    if (!parse_signed_integer(str, name, static_cast<long long>(min_val), static_cast<long long>(max_val), parsed)) {
         return false;
     }
+    out = static_cast<int64_t>(parsed);
+    return true;
 }
 
 /// Parse a string as a size_t in [min_val, max_val], writing the result to out.
 /// Returns true on success; on failure prints a message to stderr and returns false.
 static bool parse_size_t(const std::string &str, const std::string &name, size_t min_val, size_t max_val, size_t &out) {
-    try {
-        size_t pos = 0;
-        unsigned long long v = std::stoull(str, &pos);
-        if (pos != str.size()) {
-            std::cerr << "Error: " << name << " must be a valid integer, got: " << str << "\n";
-            return false;
-        }
-        if (v < min_val || v > max_val) {
-            std::cerr << "Error: " << name << " must be between " << min_val << " and " << max_val << ", got: " << v
-                      << "\n";
-            return false;
-        }
-        out = static_cast<size_t>(v);
-        return true;
-    } catch (const std::exception &) {
-        std::cerr << "Error: " << name << " must be a valid integer, got: " << str << "\n";
+    unsigned long long parsed = 0;
+    if (!parse_unsigned_integer(str, name, static_cast<unsigned long long>(min_val),
+                                static_cast<unsigned long long>(max_val), parsed)) {
         return false;
     }
+    out = static_cast<size_t>(parsed);
+    return true;
 }
 
 static void append_transform_plugin_directories(const std::string &directories, std::vector<std::string> &out) {
@@ -427,46 +440,25 @@ int main(int argc, char **argv) {
             }
 
             if (key == "-i" || key == "--interface") {
-                if (value.empty()) {
-                    std::cerr << "Error: " << key << " requires a value\n";
-                    return 1;
-                }
+                if (!require_option_value(key, value)) { return 1; }
                 interface_addr = value;
             } else if (key == "-p" || key == "--port") {
-                if (value.empty()) {
-                    std::cerr << "Error: " << key << " requires a value\n";
-                    return 1;
-                }
+                if (!require_option_value(key, value)) { return 1; }
                 if (!parse_int(value, "--port", 1, 65535, port)) return 1;
             } else if (key == "-f" || key == "--pidfile") {
-                if (value.empty()) {
-                    std::cerr << "Error: " << key << " requires a value\n";
-                    return 1;
-                }
+                if (!require_option_value(key, value)) { return 1; }
                 pidfile = value;
             } else if (key == "-u" || key == "--unix-socket") {
-                if (value.empty()) {
-                    std::cerr << "Error: " << key << " requires a value\n";
-                    return 1;
-                }
+                if (!require_option_value(key, value)) { return 1; }
                 unix_socket = value;
             } else if (key == "--log-file") {
-                if (value.empty()) {
-                    std::cerr << "Error: " << key << " requires a value\n";
-                    return 1;
-                }
+                if (!require_option_value(key, value)) { return 1; }
                 log_file = value;
             } else if (key == "--log-level") {
-                if (value.empty()) {
-                    std::cerr << "Error: " << key << " requires a value\n";
-                    return 1;
-                }
+                if (!require_option_value(key, value)) { return 1; }
                 if (!parse_log_level(value, "--log-level", log_level)) return 1;
             } else if (key == "--log-config") {
-                if (value.empty()) {
-                    std::cerr << "Error: " << key << " requires a value\n";
-                    return 1;
-                }
+                if (!require_option_value(key, value)) { return 1; }
                 log_config_file = value;
                 // Pre-scan for explicit --log-file / --log-level flags so that they
                 // always win over the config file regardless of argument order.
@@ -486,53 +478,32 @@ int main(int argc, char **argv) {
                 if (!has_explicit_log_file) { log_file = config_log_file; }
                 if (!has_explicit_log_level) { log_level = config_log_level; }
             } else if (key == "--session-timeout") {
-                if (value.empty()) {
-                    std::cerr << "Error: " << key << " requires a value\n";
-                    return 1;
-                }
+                if (!require_option_value(key, value)) { return 1; }
                 if (!parse_int(value, "--session-timeout", 0, INT_MAX, session_timeout_ms)) return 1;
             } else if (key == "--cleanup-interval") {
-                if (value.empty()) {
-                    std::cerr << "Error: " << key << " requires a value\n";
-                    return 1;
-                }
+                if (!require_option_value(key, value)) { return 1; }
                 if (!parse_int(value, "--cleanup-interval", 0, INT_MAX, cleanup_interval_ms)) return 1;
             } else if (key == "--session-event-queue-capacity") {
-                if (value.empty()) {
-                    std::cerr << "Error: " << key << " requires a value\n";
-                    return 1;
-                }
+                if (!require_option_value(key, value)) { return 1; }
                 if (!parse_size_t(value, "--session-event-queue-capacity", 0, std::numeric_limits<size_t>::max(),
                                   session_event_queue_capacity))
                     return 1;
             } else if (key == "--viewport-event-queue-capacity") {
-                if (value.empty()) {
-                    std::cerr << "Error: " << key << " requires a value\n";
-                    return 1;
-                }
+                if (!require_option_value(key, value)) { return 1; }
                 if (!parse_size_t(value, "--viewport-event-queue-capacity", 0, std::numeric_limits<size_t>::max(),
                                   viewport_event_queue_capacity))
                     return 1;
             } else if (key == "--max-change-bytes") {
-                if (value.empty()) {
-                    std::cerr << "Error: " << key << " requires a value\n";
-                    return 1;
-                }
+                if (!require_option_value(key, value)) { return 1; }
                 if (!parse_int64(value, "--max-change-bytes", 0, std::numeric_limits<int64_t>::max(), max_change_bytes))
                     return 1;
             } else if (key == "--max-viewports-per-session") {
-                if (value.empty()) {
-                    std::cerr << "Error: " << key << " requires a value\n";
-                    return 1;
-                }
+                if (!require_option_value(key, value)) { return 1; }
                 if (!parse_size_t(value, "--max-viewports-per-session", 0, std::numeric_limits<size_t>::max(),
                                   max_viewports_per_session))
                     return 1;
             } else if (key == "--transform-plugin-dir") {
-                if (value.empty()) {
-                    std::cerr << "Error: " << key << " requires a value\n";
-                    return 1;
-                }
+                if (!require_option_value(key, value)) { return 1; }
                 transform_plugin_directories.push_back(value);
             }
             // Silently ignore unknown options.

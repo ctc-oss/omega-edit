@@ -319,6 +319,43 @@ namespace omega_edit {
             return metadata;
         }
 
+        static int grpc_context_is_cancelled(void *user_data_ptr);
+
+        static grpc::Status inspect_with_streaming_plugin(
+                grpc::ServerContext *context, omega_transform_plugin_registry_t *registry, std::mutex &registry_mutex,
+                const std::string &plugin_id, const char *options_json, const char *checkpoint_directory,
+                int64_t session_offset, int64_t session_length, omega_transform_plugin_read_t read,
+                void *reader_user_data_ptr, grpc::StatusCode not_found_code, const std::string &not_found_message,
+                const std::string &wrong_operation_message, const std::string &invalid_options_message,
+                const std::string &cancelled_message, grpc::StatusCode failed_code, const std::string &failed_message,
+                omega_transform_plugin_response_t *response) {
+            transform_plugin_metadata plugin_metadata;
+            {
+                std::lock_guard<std::mutex> plugin_lock(registry_mutex);
+                plugin_metadata = snapshot_transform_plugin_metadata(registry, plugin_id);
+            }
+            if (!plugin_metadata.found) { return grpc::Status(not_found_code, not_found_message); }
+            if (plugin_metadata.operation != OMEGA_TRANSFORM_PLUGIN_OPERATION_INSPECT ||
+                (plugin_metadata.flags & OMEGA_TRANSFORM_PLUGIN_FLAG_STREAMING) == 0U) {
+                return grpc::Status(grpc::StatusCode::FAILED_PRECONDITION, wrong_operation_message);
+            }
+            if (0 !=
+                omega_transform_plugin_options_match_args_schema(options_json, plugin_metadata.args_schema_ptr())) {
+                return grpc::Status(grpc::StatusCode::INVALID_ARGUMENT, invalid_options_message);
+            }
+
+            if (0 != omega_transform_plugin_registry_inspect_reader_with_cancel(
+                             registry, plugin_id.c_str(), session_offset, session_length, options_json,
+                             checkpoint_directory, read, reader_user_data_ptr, SESSION_CONTENT_INSPECTION_CHUNK_SIZE,
+                             nullptr, nullptr, grpc_context_is_cancelled, context, response)) {
+                if (context && context->IsCancelled()) {
+                    return grpc::Status(grpc::StatusCode::CANCELLED, cancelled_message);
+                }
+                return grpc::Status(failed_code, failed_message);
+            }
+            return grpc::Status::OK;
+        }
+
         struct transform_progress_context {
             SessionManager *session_manager{};
             grpc::ServerContext *grpc_context{};
@@ -938,6 +975,9 @@ namespace omega_edit {
         grpc::Status EditorServiceImpl::SaveSession(grpc::ServerContext * /*context*/,
                                                     const ::omega_edit::v1::SaveSessionRequest *request,
                                                     ::omega_edit::v1::SaveSessionResponse *response) {
+            const auto path_status = validate_path_argument(request->file_path(), "file_path");
+            if (!path_status.ok()) { return path_status; }
+
             auto locked_session = session_manager_.lock_session(request->session_id());
             if (!locked_session) {
                 return grpc::Status(grpc::StatusCode::NOT_FOUND, "session not found: " + request->session_id());
@@ -1706,42 +1746,21 @@ namespace omega_edit {
                 }
 
                 session_content_file_reader reader{snapshot_file_path, 0, byte_length};
-                transform_plugin_metadata plugin_metadata;
-                {
-                    std::lock_guard<std::mutex> plugin_lock(transform_plugin_registry_mutex_);
-                    plugin_metadata = snapshot_transform_plugin_metadata(transform_plugin_registry_,
-                                                                         SESSION_FINGERPRINT_DIGEST_PLUGIN_ID);
-                }
-                if (!plugin_metadata.found) {
-                    return grpc::Status(grpc::StatusCode::FAILED_PRECONDITION,
-                                        "session fingerprint digest plugin is not registered: " +
-                                                std::string(SESSION_FINGERPRINT_DIGEST_PLUGIN_ID));
-                }
-                if (plugin_metadata.operation != OMEGA_TRANSFORM_PLUGIN_OPERATION_INSPECT ||
-                    (plugin_metadata.flags & OMEGA_TRANSFORM_PLUGIN_FLAG_STREAMING) == 0U) {
-                    return grpc::Status(grpc::StatusCode::FAILED_PRECONDITION,
-                                        "session fingerprint digest plugin must be a streaming inspect plugin");
-                }
-                if (0 != omega_transform_plugin_options_match_args_schema(options_json.c_str(),
-                                                                          plugin_metadata.args_schema_ptr())) {
-                    return grpc::Status(grpc::StatusCode::INVALID_ARGUMENT,
-                                        "unsupported fingerprint digest algorithm: " + algorithm);
-                }
-
-                if (0 != omega_transform_plugin_registry_inspect_reader_with_cancel(
-                                 transform_plugin_registry_, SESSION_FINGERPRINT_DIGEST_PLUGIN_ID, 0, byte_length,
-                                 options_json.c_str(), checkpoint_directory.c_str(), read_session_content_file_chunk,
-                                 &reader, SESSION_CONTENT_INSPECTION_CHUNK_SIZE, nullptr, nullptr,
-                                 grpc_context_is_cancelled, context, &plugin_response.response)) {
-                    if (context && context->IsCancelled()) {
-                        return grpc::Status(grpc::StatusCode::CANCELLED,
-                                            "session fingerprint digest plugin cancelled: " +
-                                                    std::string(SESSION_FINGERPRINT_DIGEST_PLUGIN_ID));
-                    }
-                    return grpc::Status(grpc::StatusCode::ABORTED,
-                                        "session fingerprint digest plugin failed: " +
-                                                std::string(SESSION_FINGERPRINT_DIGEST_PLUGIN_ID));
-                }
+                const auto inspect_status = inspect_with_streaming_plugin(
+                        context, transform_plugin_registry_, transform_plugin_registry_mutex_,
+                        SESSION_FINGERPRINT_DIGEST_PLUGIN_ID, options_json.c_str(), checkpoint_directory.c_str(), 0,
+                        byte_length, read_session_content_file_chunk, &reader, grpc::StatusCode::FAILED_PRECONDITION,
+                        "session fingerprint digest plugin is not registered: " +
+                                std::string(SESSION_FINGERPRINT_DIGEST_PLUGIN_ID),
+                        "session fingerprint digest plugin must be a streaming inspect plugin",
+                        "unsupported fingerprint digest algorithm: " + algorithm,
+                        "session fingerprint digest plugin cancelled: " +
+                                std::string(SESSION_FINGERPRINT_DIGEST_PLUGIN_ID),
+                        grpc::StatusCode::ABORTED,
+                        "session fingerprint digest plugin failed: " +
+                                std::string(SESSION_FINGERPRINT_DIGEST_PLUGIN_ID),
+                        &plugin_response.response);
+                if (!inspect_status.ok()) { return inspect_status; }
             } else {
                 auto locked_session = session_manager_.lock_session(request->session_id());
                 if (!locked_session) {
@@ -1754,43 +1773,23 @@ namespace omega_edit {
                                         "session content length unavailable for fingerprint");
                 }
 
-                transform_plugin_metadata plugin_metadata;
-                {
-                    std::lock_guard<std::mutex> plugin_lock(transform_plugin_registry_mutex_);
-                    plugin_metadata = snapshot_transform_plugin_metadata(transform_plugin_registry_,
-                                                                         SESSION_FINGERPRINT_DIGEST_PLUGIN_ID);
-                }
-                if (!plugin_metadata.found) {
-                    return grpc::Status(grpc::StatusCode::FAILED_PRECONDITION,
-                                        "session fingerprint digest plugin is not registered: " +
-                                                std::string(SESSION_FINGERPRINT_DIGEST_PLUGIN_ID));
-                }
-                if (plugin_metadata.operation != OMEGA_TRANSFORM_PLUGIN_OPERATION_INSPECT ||
-                    (plugin_metadata.flags & OMEGA_TRANSFORM_PLUGIN_FLAG_STREAMING) == 0U) {
-                    return grpc::Status(grpc::StatusCode::FAILED_PRECONDITION,
-                                        "session fingerprint digest plugin must be a streaming inspect plugin");
-                }
-                if (0 != omega_transform_plugin_options_match_args_schema(options_json.c_str(),
-                                                                          plugin_metadata.args_schema_ptr())) {
-                    return grpc::Status(grpc::StatusCode::INVALID_ARGUMENT,
-                                        "unsupported fingerprint digest algorithm: " + algorithm);
-                }
-
                 session_content_reader reader{session, inspection_content, 0, byte_length};
-                if (0 != omega_transform_plugin_registry_inspect_reader_with_cancel(
-                                 transform_plugin_registry_, SESSION_FINGERPRINT_DIGEST_PLUGIN_ID, 0, byte_length,
-                                 options_json.c_str(), omega_session_get_checkpoint_directory(session),
-                                 read_session_content_chunk, &reader, SESSION_CONTENT_INSPECTION_CHUNK_SIZE, nullptr,
-                                 nullptr, grpc_context_is_cancelled, context, &plugin_response.response)) {
-                    if (context && context->IsCancelled()) {
-                        return grpc::Status(grpc::StatusCode::CANCELLED,
-                                            "session fingerprint digest plugin cancelled: " +
-                                                    std::string(SESSION_FINGERPRINT_DIGEST_PLUGIN_ID));
-                    }
-                    return grpc::Status(grpc::StatusCode::INTERNAL,
-                                        "session fingerprint digest plugin failed: " +
-                                                std::string(SESSION_FINGERPRINT_DIGEST_PLUGIN_ID));
-                }
+                const auto inspect_status = inspect_with_streaming_plugin(
+                        context, transform_plugin_registry_, transform_plugin_registry_mutex_,
+                        SESSION_FINGERPRINT_DIGEST_PLUGIN_ID, options_json.c_str(),
+                        omega_session_get_checkpoint_directory(session), 0, byte_length, read_session_content_chunk,
+                        &reader, grpc::StatusCode::FAILED_PRECONDITION,
+                        "session fingerprint digest plugin is not registered: " +
+                                std::string(SESSION_FINGERPRINT_DIGEST_PLUGIN_ID),
+                        "session fingerprint digest plugin must be a streaming inspect plugin",
+                        "unsupported fingerprint digest algorithm: " + algorithm,
+                        "session fingerprint digest plugin cancelled: " +
+                                std::string(SESSION_FINGERPRINT_DIGEST_PLUGIN_ID),
+                        grpc::StatusCode::ABORTED,
+                        "session fingerprint digest plugin failed: " +
+                                std::string(SESSION_FINGERPRINT_DIGEST_PLUGIN_ID),
+                        &plugin_response.response);
+                if (!inspect_status.ok()) { return inspect_status; }
             }
 
             if (plugin_response.response.result_length <= 0 || plugin_response.response.result_bytes == nullptr) {
@@ -1873,6 +1872,7 @@ namespace omega_edit {
             int64_t effective_length = 0;
             std::string checkpoint_directory;
             transform_plugin_response_guard plugin_response;
+            const char *options_json = request->has_options_json() ? request->options_json().c_str() : nullptr;
 
             if (session_content_source_uses_file_snapshot(content)) {
                 std::string snapshot_file_path;
@@ -1898,39 +1898,16 @@ namespace omega_edit {
                 }
 
                 session_content_file_reader reader{snapshot_file_path, effective_offset, effective_length};
-                transform_plugin_metadata plugin_metadata;
-                {
-                    std::lock_guard<std::mutex> plugin_lock(transform_plugin_registry_mutex_);
-                    plugin_metadata =
-                            snapshot_transform_plugin_metadata(transform_plugin_registry_, request->plugin_id());
-                }
-                if (!plugin_metadata.found) {
-                    return grpc::Status(grpc::StatusCode::NOT_FOUND,
-                                        "transform plugin not found: " + request->plugin_id());
-                }
-                if (plugin_metadata.operation != OMEGA_TRANSFORM_PLUGIN_OPERATION_INSPECT ||
-                    (plugin_metadata.flags & OMEGA_TRANSFORM_PLUGIN_FLAG_STREAMING) == 0U) {
-                    return grpc::Status(grpc::StatusCode::FAILED_PRECONDITION,
-                                        "session content inspection requires a streaming inspect plugin");
-                }
-                const char *options_json = request->has_options_json() ? request->options_json().c_str() : nullptr;
-                if (0 !=
-                    omega_transform_plugin_options_match_args_schema(options_json, plugin_metadata.args_schema_ptr())) {
-                    return grpc::Status(grpc::StatusCode::INVALID_ARGUMENT,
-                                        "transform options do not match schema: " + request->plugin_id());
-                }
-                if (0 != omega_transform_plugin_registry_inspect_reader_with_cancel(
-                                 transform_plugin_registry_, request->plugin_id().c_str(), effective_offset,
-                                 effective_length, options_json, checkpoint_directory.c_str(),
-                                 read_session_content_file_chunk, &reader, SESSION_CONTENT_INSPECTION_CHUNK_SIZE,
-                                 nullptr, nullptr, grpc_context_is_cancelled, context, &plugin_response.response)) {
-                    if (context && context->IsCancelled()) {
-                        return grpc::Status(grpc::StatusCode::CANCELLED,
-                                            "session content inspection cancelled: " + request->plugin_id());
-                    }
-                    return grpc::Status(grpc::StatusCode::ABORTED,
-                                        "session content inspection failed: " + request->plugin_id());
-                }
+                const auto inspect_status = inspect_with_streaming_plugin(
+                        context, transform_plugin_registry_, transform_plugin_registry_mutex_, request->plugin_id(),
+                        options_json, checkpoint_directory.c_str(), effective_offset, effective_length,
+                        read_session_content_file_chunk, &reader, grpc::StatusCode::NOT_FOUND,
+                        "transform plugin not found: " + request->plugin_id(),
+                        "session content inspection requires a streaming inspect plugin",
+                        "transform options do not match schema: " + request->plugin_id(),
+                        "session content inspection cancelled: " + request->plugin_id(), grpc::StatusCode::ABORTED,
+                        "session content inspection failed: " + request->plugin_id(), &plugin_response.response);
+                if (!inspect_status.ok()) { return inspect_status; }
             } else {
                 auto locked_session = session_manager_.lock_session(request->session_id());
                 if (!locked_session) {
@@ -1943,39 +1920,16 @@ namespace omega_edit {
                 if (!range_status.ok()) { return range_status; }
 
                 session_content_reader reader{session, content, effective_offset, effective_length};
-                transform_plugin_metadata plugin_metadata;
-                {
-                    std::lock_guard<std::mutex> plugin_lock(transform_plugin_registry_mutex_);
-                    plugin_metadata =
-                            snapshot_transform_plugin_metadata(transform_plugin_registry_, request->plugin_id());
-                }
-                if (!plugin_metadata.found) {
-                    return grpc::Status(grpc::StatusCode::NOT_FOUND,
-                                        "transform plugin not found: " + request->plugin_id());
-                }
-                if (plugin_metadata.operation != OMEGA_TRANSFORM_PLUGIN_OPERATION_INSPECT ||
-                    (plugin_metadata.flags & OMEGA_TRANSFORM_PLUGIN_FLAG_STREAMING) == 0U) {
-                    return grpc::Status(grpc::StatusCode::FAILED_PRECONDITION,
-                                        "session content inspection requires a streaming inspect plugin");
-                }
-                const char *options_json = request->has_options_json() ? request->options_json().c_str() : nullptr;
-                if (0 !=
-                    omega_transform_plugin_options_match_args_schema(options_json, plugin_metadata.args_schema_ptr())) {
-                    return grpc::Status(grpc::StatusCode::INVALID_ARGUMENT,
-                                        "transform options do not match schema: " + request->plugin_id());
-                }
-                if (0 != omega_transform_plugin_registry_inspect_reader_with_cancel(
-                                 transform_plugin_registry_, request->plugin_id().c_str(), effective_offset,
-                                 effective_length, options_json, omega_session_get_checkpoint_directory(session),
-                                 read_session_content_chunk, &reader, SESSION_CONTENT_INSPECTION_CHUNK_SIZE, nullptr,
-                                 nullptr, grpc_context_is_cancelled, context, &plugin_response.response)) {
-                    if (context && context->IsCancelled()) {
-                        return grpc::Status(grpc::StatusCode::CANCELLED,
-                                            "session content inspection cancelled: " + request->plugin_id());
-                    }
-                    return grpc::Status(grpc::StatusCode::INTERNAL,
-                                        "session content inspection failed: " + request->plugin_id());
-                }
+                const auto inspect_status = inspect_with_streaming_plugin(
+                        context, transform_plugin_registry_, transform_plugin_registry_mutex_, request->plugin_id(),
+                        options_json, omega_session_get_checkpoint_directory(session), effective_offset,
+                        effective_length, read_session_content_chunk, &reader, grpc::StatusCode::NOT_FOUND,
+                        "transform plugin not found: " + request->plugin_id(),
+                        "session content inspection requires a streaming inspect plugin",
+                        "transform options do not match schema: " + request->plugin_id(),
+                        "session content inspection cancelled: " + request->plugin_id(), grpc::StatusCode::ABORTED,
+                        "session content inspection failed: " + request->plugin_id(), &plugin_response.response);
+                if (!inspect_status.ok()) { return inspect_status; }
             }
 
             if (!inspect_plugin_response_is_valid(plugin_response.response)) {

@@ -135,7 +135,8 @@ namespace omega_edit {
 #endif
             }
 
-            int32_t combine_session_event_interest(const std::vector<SessionEventSubscriptionInfo> &subscriptions) {
+            template<typename SubscriptionInfo>
+            int32_t combine_event_interest(const std::vector<SubscriptionInfo> &subscriptions) {
                 uint32_t combined = 0;
                 for (const auto &subscription : subscriptions) {
                     combined |= static_cast<uint32_t>(subscription.interest);
@@ -143,12 +144,29 @@ namespace omega_edit {
                 return static_cast<int32_t>(combined);
             }
 
-            int32_t combine_viewport_event_interest(const std::vector<ViewportEventSubscriptionInfo> &subscriptions) {
-                uint32_t combined = 0;
-                for (const auto &subscription : subscriptions) {
-                    combined |= static_cast<uint32_t>(subscription.interest);
+            template<typename SubscriptionInfo, typename EventData>
+            std::vector<std::shared_ptr<EventQueue<EventData>>>
+            collect_event_subscribers(std::mutex &subscription_mutex,
+                                      const std::vector<SubscriptionInfo> &subscriptions, int32_t event_kind) {
+                const auto event_mask = static_cast<uint32_t>(event_kind);
+                std::vector<std::shared_ptr<EventQueue<EventData>>> subscribers;
+                {
+                    std::lock_guard<std::mutex> subscription_lock(subscription_mutex);
+                    subscribers.reserve(subscriptions.size());
+                    for (const auto &subscription : subscriptions) {
+                        if (subscription.event_queue &&
+                            ((static_cast<uint32_t>(subscription.interest) & event_mask) != 0U)) {
+                            subscribers.push_back(subscription.event_queue);
+                        }
+                    }
                 }
-                return static_cast<int32_t>(combined);
+                return subscribers;
+            }
+
+            template<typename EventData>
+            void publish_event_to_subscribers(const std::vector<std::shared_ptr<EventQueue<EventData>>> &subscribers,
+                                              const EventData &event) {
+                for (const auto &subscriber : subscribers) { subscriber->push(event); }
             }
 
             bool normalize_existing_file_path(const std::string &file_path, std::string &normalized_path_out) {
@@ -427,21 +445,9 @@ namespace omega_edit {
                     break;
             }
 
-            const auto event_kind = static_cast<int32_t>(event);
-            const auto event_mask = static_cast<uint32_t>(event_kind);
-            std::vector<std::shared_ptr<EventQueue<SessionEventData>>> subscribers;
-            {
-                std::lock_guard<std::mutex> subscription_lock(info->session_subscription_mutex);
-                subscribers.reserve(info->session_subscriptions.size());
-                for (const auto &subscription : info->session_subscriptions) {
-                    if (subscription.event_queue &&
-                        ((static_cast<uint32_t>(subscription.interest) & event_mask) != 0U)) {
-                        subscribers.push_back(subscription.event_queue);
-                    }
-                }
-            }
-
-            for (const auto &subscriber : subscribers) { subscriber->push(evt); }
+            const auto subscribers = collect_event_subscribers<SessionEventSubscriptionInfo, SessionEventData>(
+                    info->session_subscription_mutex, info->session_subscriptions, static_cast<int32_t>(event));
+            publish_event_to_subscribers(subscribers, evt);
         }
 
         void SessionManager::viewport_event_callback(const omega_viewport_t *viewport, omega_viewport_event_t event,
@@ -476,21 +482,9 @@ namespace omega_edit {
             const auto *data = omega_viewport_get_data(viewport);
             if (data && length > 0) { evt.data.assign(data, data + length); }
 
-            const auto event_kind = static_cast<int32_t>(event);
-            const auto event_mask = static_cast<uint32_t>(event_kind);
-            std::vector<std::shared_ptr<EventQueue<ViewportEventData>>> subscribers;
-            {
-                std::lock_guard<std::mutex> subscription_lock(info->viewport_subscription_mutex);
-                subscribers.reserve(info->viewport_subscriptions.size());
-                for (const auto &subscription : info->viewport_subscriptions) {
-                    if (subscription.event_queue &&
-                        ((static_cast<uint32_t>(subscription.interest) & event_mask) != 0U)) {
-                        subscribers.push_back(subscription.event_queue);
-                    }
-                }
-            }
-
-            for (const auto &subscriber : subscribers) { subscriber->push(evt); }
+            const auto subscribers = collect_event_subscribers<ViewportEventSubscriptionInfo, ViewportEventData>(
+                    info->viewport_subscription_mutex, info->viewport_subscriptions, static_cast<int32_t>(event));
+            publish_event_to_subscribers(subscribers, evt);
         }
 
         // ── Constructor / Destructor ─────────────────────────────────────────────────
@@ -809,20 +803,9 @@ namespace omega_edit {
             evt.transform_progress = progress;
             evt.has_transform_progress = true;
 
-            const auto event_mask = static_cast<uint32_t>(event_kind);
-            std::vector<std::shared_ptr<EventQueue<SessionEventData>>> subscribers;
-            {
-                std::lock_guard<std::mutex> subscription_lock(info->session_subscription_mutex);
-                subscribers.reserve(info->session_subscriptions.size());
-                for (const auto &subscription : info->session_subscriptions) {
-                    if (subscription.event_queue &&
-                        ((static_cast<uint32_t>(subscription.interest) & event_mask) != 0U)) {
-                        subscribers.push_back(subscription.event_queue);
-                    }
-                }
-            }
-
-            for (const auto &subscriber : subscribers) { subscriber->push(evt); }
+            const auto subscribers = collect_event_subscribers<SessionEventSubscriptionInfo, SessionEventData>(
+                    info->session_subscription_mutex, info->session_subscriptions, event_kind);
+            publish_event_to_subscribers(subscribers, evt);
             return true;
         }
 
@@ -982,7 +965,7 @@ namespace omega_edit {
             {
                 std::lock_guard<std::mutex> subscription_lock(info->session_subscription_mutex);
                 info->session_subscriptions.push_back({queue, interest});
-                combined_interest = combine_session_event_interest(info->session_subscriptions);
+                combined_interest = combine_event_interest(info->session_subscriptions);
             }
             std::lock_guard<std::mutex> core_lock(info->core_mutex);
             if (info->session) { omega_session_set_event_interest(info->session, combined_interest); }
@@ -1034,7 +1017,7 @@ namespace omega_edit {
                                            return matches;
                                        }),
                         subscriptions.end());
-                combined_interest = combine_session_event_interest(subscriptions);
+                combined_interest = combine_event_interest(subscriptions);
             }
             std::lock_guard<std::mutex> core_lock(info->core_mutex);
             if (info->session) { omega_session_set_event_interest(info->session, combined_interest); }
@@ -1074,7 +1057,7 @@ namespace omega_edit {
             {
                 std::lock_guard<std::mutex> subscription_lock(vp_info->viewport_subscription_mutex);
                 vp_info->viewport_subscriptions.push_back({queue, interest});
-                combined_interest = combine_viewport_event_interest(vp_info->viewport_subscriptions);
+                combined_interest = combine_event_interest(vp_info->viewport_subscriptions);
             }
             omega_viewport_set_event_interest(vp_info->viewport, combined_interest);
             return queue;
@@ -1147,7 +1130,7 @@ namespace omega_edit {
                                            return matches;
                                        }),
                         subscriptions.end());
-                combined_interest = combine_viewport_event_interest(subscriptions);
+                combined_interest = combine_event_interest(subscriptions);
             }
             if (vp_info->viewport) { omega_viewport_set_event_interest(vp_info->viewport, combined_interest); }
 
