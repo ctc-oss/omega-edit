@@ -169,6 +169,14 @@ namespace omega_edit {
                 for (const auto &subscriber : subscribers) { subscriber->push(event); }
             }
 
+            void complete_session_initialization(const std::shared_ptr<SessionInfo> &info) {
+                {
+                    std::lock_guard<std::mutex> initialization_lock(info->initialization_mutex);
+                    info->initialization_complete = true;
+                }
+                info->initialization_cv.notify_all();
+            }
+
             bool normalize_existing_file_path(const std::string &file_path, std::string &normalized_path_out) {
                 char normalized_path[FILENAME_MAX] = {};
                 char *result = omega_util_normalize_path(file_path.c_str(), normalized_path);
@@ -539,6 +547,13 @@ namespace omega_edit {
                 }
 
                 if (existing_info) {
+                    {
+                        std::unique_lock<std::mutex> initialization_lock(existing_info->initialization_mutex);
+                        existing_info->initialization_cv.wait(initialization_lock, [&existing_info] {
+                            return existing_info->initialization_complete;
+                        });
+                    }
+
                     std::unique_lock<std::mutex> core_lock(existing_info->core_mutex);
                     if (!existing_info->session) {
                         if (error_out) { *error_out = SessionCreateError::CORE_ERROR; }
@@ -638,6 +653,7 @@ namespace omega_edit {
                     std::lock_guard<std::mutex> lock(mutex_);
                     cleanup_managed_server_root_if_empty();
                 }
+                complete_session_initialization(info);
                 if (error_out) { *error_out = SessionCreateError::CORE_ERROR; }
                 return "";// Failed to create
             }
@@ -654,9 +670,9 @@ namespace omega_edit {
                 if (info->owns_checkpoint_directory) { cleanup_directory_best_effort(info->checkpoint_directory); }
                 {
                     std::lock_guard<std::mutex> lock(mutex_);
-                    release_reserved_file_session();
                     cleanup_managed_server_root_if_empty();
                 }
+                complete_session_initialization(info);
                 if (error_out) { *error_out = SessionCreateError::CORE_ERROR; }
                 return "";
             }
@@ -686,15 +702,18 @@ namespace omega_edit {
                     std::lock_guard<std::mutex> lock(mutex_);
                     cleanup_managed_server_root_if_empty();
                 }
+                complete_session_initialization(info);
                 if (error_out) { *error_out = SessionCreateError::CORE_ERROR; }
                 return "";
             }
 
+            complete_session_initialization(info);
             return session_id;
         }
 
         void SessionManager::destroy_session_info(const std::shared_ptr<SessionInfo> &info) {
             if (!info) { return; }
+            complete_session_initialization(info);
             std::lock_guard<std::mutex> core_lock(info->core_mutex);
 
             // Close event queues
