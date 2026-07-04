@@ -109,6 +109,27 @@ TEST_CASE("Packaged Transform Plugins", "[TransformPlugin]") {
     REQUIRE(0 == omega_transform_plugin_options_match_args_schema("{\"enabled\":true}", boolean_schema));
     REQUIRE(0 == omega_transform_plugin_options_match_args_schema("{\"enabled\":false}", boolean_schema));
     REQUIRE(-1 == omega_transform_plugin_options_match_args_schema("{\"enabled\":\"true\"}", boolean_schema));
+    const char *one_of_schema =
+            "{\"type\":\"object\",\"properties\":{\"mode\":{\"oneOf\":[{\"type\":\"string\",\"enum\":[\"fast\"]},"
+            "{\"type\":\"integer\",\"minimum\":2,\"maximum\":4}]}},\"additionalProperties\":false}";
+    REQUIRE(0 == omega_transform_plugin_options_match_args_schema("{\"mode\":\"fast\"}", one_of_schema));
+    REQUIRE(0 == omega_transform_plugin_options_match_args_schema("{\"mode\":3}", one_of_schema));
+    REQUIRE(-1 == omega_transform_plugin_options_match_args_schema("{\"mode\":\"slow\"}", one_of_schema));
+    REQUIRE(-1 == omega_transform_plugin_options_match_args_schema("{\"mode\":5}", one_of_schema));
+    const char *not_schema =
+            "{\"type\":\"object\",\"properties\":{\"mode\":{\"type\":\"string\",\"not\":{\"enum\":[\"forbidden\"]}}},"
+            "\"additionalProperties\":false}";
+    REQUIRE(0 == omega_transform_plugin_options_match_args_schema("{\"mode\":\"allowed\"}", not_schema));
+    REQUIRE(-1 == omega_transform_plugin_options_match_args_schema("{\"mode\":\"forbidden\"}", not_schema));
+    const char *array_schema =
+            "{\"type\":\"object\",\"properties\":{\"bytes\":{\"type\":\"array\",\"minItems\":2,"
+            "\"items\":{\"type\":\"string\",\"pattern\":\"^[A-F0-9]+$\"}}},\"additionalProperties\":false}";
+    REQUIRE(0 == omega_transform_plugin_options_match_args_schema("{\"bytes\":[\"AA\",\"0F\"]}", array_schema));
+    REQUIRE(-1 == omega_transform_plugin_options_match_args_schema("{\"bytes\":[\"AA\"]}", array_schema));
+    REQUIRE(-1 == omega_transform_plugin_options_match_args_schema("{\"bytes\":[\"aa\",\"0F\"]}", array_schema));
+    const char *unsupported_number_schema =
+            "{\"type\":\"object\",\"properties\":{\"value\":{\"type\":\"number\"}},\"additionalProperties\":false}";
+    REQUIRE(-1 == omega_transform_plugin_options_match_args_schema("{\"value\":1.5}", unsupported_number_schema));
     for (int64_t index = 0; index < omega_transform_plugin_registry_get_count(registry_ptr); ++index) {
         const auto *info = omega_transform_plugin_registry_get_info(registry_ptr, index);
         REQUIRE(info);
@@ -200,6 +221,24 @@ TEST_CASE("Packaged Transform Plugins", "[TransformPlugin]") {
     REQUIRE(-1 == omega_transform_plugin_options_match_args_schema(
                           "{\"action\":\"encrypt\",\"algorithm\":\"aes-256-ctr\","
                           "\"keyHex\":\"not-hex\",\"ivHex\":\"000102030405060708090a0b0c0d0e0f\"}",
+                          cipher_info->args_schema));
+    REQUIRE(-1 == omega_transform_plugin_options_match_args_schema(
+                          "{\"action\":\"encrypt\",\"algorithm\":\"aes-256-ctr\","
+                          "\"keyHex\":\"0\",\"ivHex\":\"000102030405060708090a0b0c0d0e0f\"}",
+                          cipher_info->args_schema));
+    REQUIRE(-1 == omega_transform_plugin_options_match_args_schema(
+                          "{\"action\":\"encrypt\",\"algorithm\":\"aes-128-ctr\","
+                          "\"keyHex\":\"00\",\"ivHex\":\"000102030405060708090a0b0c0d0e0f\"}",
+                          cipher_info->args_schema));
+    REQUIRE(-1 ==
+            omega_transform_plugin_options_match_args_schema("{\"action\":\"encrypt\",\"algorithm\":\"aes-256-ctr\","
+                                                             "\"keyHex\":\"000102030405060708090a0b0c0d0e0f\","
+                                                             "\"ivHex\":\"000102030405060708090a0b0c0d0e0f\"}",
+                                                             cipher_info->args_schema));
+    REQUIRE(-1 == omega_transform_plugin_options_match_args_schema(
+                          "{\"action\":\"encrypt\",\"algorithm\":\"aes-256-ctr\","
+                          "\"keyHex\":\"000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f\","
+                          "\"ivHex\":\"0\"}",
                           cipher_info->args_schema));
     const auto digest_info = omega_transform_plugin_registry_find_info(registry_ptr, "omega.example.openssl_digests");
     REQUIRE("OpenSSL Digests" == std::string(digest_info->name));

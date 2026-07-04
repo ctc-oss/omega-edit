@@ -899,9 +899,16 @@
       }
     }
     const canonicalArgs = canonicalizeTransformDescriptorArgs(args)
+    const optionsJson =
+      Object.keys(canonicalArgs).length > 0 ? JSON.stringify(canonicalArgs) : ''
+    if (optionsJson.length > MAX_TRANSFORM_OPTIONS_LENGTH) {
+      return {
+        optionsJson: '',
+        error: strings.transform.optionsTooLong(MAX_TRANSFORM_OPTIONS_LENGTH),
+      }
+    }
     return {
-      optionsJson:
-        Object.keys(canonicalArgs).length > 0 ? JSON.stringify(canonicalArgs) : '',
+      optionsJson,
       error: '',
     }
   }

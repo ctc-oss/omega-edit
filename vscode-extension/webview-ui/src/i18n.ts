@@ -150,6 +150,8 @@ const englishStrings = {
     invalidJson: 'Invalid JSON',
     missingSchema: 'Selected transform does not advertise an options schema',
     invalidSchema: 'Selected transform advertised an invalid options schema',
+    optionsTooLong: (limit: number) =>
+      `options must be ${formatNumber(limit)} characters or fewer`,
     optionsPath: 'options',
     descriptorPath: 'descriptor',
     descriptorArgsPath: 'descriptor.args',

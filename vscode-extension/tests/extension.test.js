@@ -37,6 +37,7 @@ const {
 } = require('../out/constants.js')
 const {
   MAX_ANALYSIS_PROFILE_BYTES,
+  MAX_TRANSFORM_OPTIONS_LENGTH,
   normalizeExternalHighlights,
   normalizeBytesPerRow,
   normalizeWebviewMessage,
@@ -1487,6 +1488,11 @@ test('compiled extension entrypoints exist after build', () => {
   assert.match(transformPanelSource, /strings\.transform\.invalidJson/)
   assert.match(transformPanelSource, /strings\.transform\.invalidSchema/)
   assert.match(transformPanelSource, /strings\.transform\.missingSchema/)
+  assert.match(
+    transformPanelSource,
+    /optionsJson\.length > MAX_TRANSFORM_OPTIONS_LENGTH/
+  )
+  assert.match(transformPanelSource, /strings\.transform\.optionsTooLong/)
   assert.match(transformPanelSource, /strings\.transform\.descriptorPath/)
   assert.match(transformPanelSource, /strings\.transform\.descriptorArgsPath/)
   assert.match(
@@ -2462,6 +2468,18 @@ test('webview protocol normalizes analysis, search, and transform messages', () 
       offset: 1,
       length: 4,
       optionsJson: '{',
+    }),
+    undefined
+  )
+  assert.equal(
+    normalizeWebviewMessage(context, {
+      type: 'applyTransform',
+      pluginId: 'omega.example.bitwise',
+      offset: 1,
+      length: 4,
+      optionsJson: JSON.stringify({
+        value: 'x'.repeat(MAX_TRANSFORM_OPTIONS_LENGTH),
+      }),
     }),
     undefined
   )

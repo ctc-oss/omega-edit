@@ -479,22 +479,62 @@ describe('Transform plugin gRPC integration', () => {
           '000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f',
         ivHex: aesIvHex,
       }
-      try {
-        await applyTransformPlugin(
-          sessionId,
-          'omega.example.openssl_ciphers',
-          0,
-          3,
-          JSON.stringify({
+      const cipherPlugin = plugins.find(
+        (plugin) => plugin.id === 'omega.example.openssl_ciphers'
+      )
+      expect(cipherPlugin?.argsSchema).to.include('oneOf')
+      expect(cipherPlugin?.argsSchema).to.include('^[0-9A-Fa-f]{64}$')
+      const invalidCipherOptions = [
+        [
+          'short AES-128 key',
+          {
             action: 'encrypt',
             algorithm: 'aes-128-ctr',
             keyHex: '00',
             ivHex: aesIvHex,
-          })
-        )
-        expect.fail('short AES key should be rejected by the cipher transform')
-      } catch (err) {
-        expect((err as Error).message).to.include('INVALID_ARGUMENT')
+          },
+        ],
+        [
+          'odd-length AES key',
+          {
+            action: 'encrypt',
+            algorithm: 'aes-128-ctr',
+            keyHex: '0',
+            ivHex: aesIvHex,
+          },
+        ],
+        [
+          'AES-256 option with AES-128 key length',
+          {
+            action: 'encrypt',
+            algorithm: 'aes-256-ctr',
+            keyHex: '000102030405060708090a0b0c0d0e0f',
+            ivHex: aesIvHex,
+          },
+        ],
+        [
+          'short AES IV',
+          {
+            action: 'encrypt',
+            algorithm: 'aes-256-ctr',
+            keyHex: aes256CtrOptions.keyHex,
+            ivHex: '00',
+          },
+        ],
+      ] as const
+      for (const [label, options] of invalidCipherOptions) {
+        try {
+          await applyTransformPlugin(
+            sessionId,
+            'omega.example.openssl_ciphers',
+            0,
+            3,
+            JSON.stringify(options)
+          )
+          expect.fail(`${label} should be rejected by the cipher schema`)
+        } catch (err) {
+          expect((err as Error).message).to.include('INVALID_ARGUMENT')
+        }
       }
 
       const aesCtrEncryptResponse = await applyTransformPlugin(

@@ -56,6 +56,12 @@ static const omega_cipher_algorithm_t OMEGA_CIPHER_ALGORITHMS[] = {
 
 static const char CIPHER_ARGS_SCHEMA[] =
         "{\"type\":\"object\",\"required\":[\"action\",\"algorithm\",\"keyHex\",\"ivHex\"],"
+        "\"oneOf\":[{\"type\":\"object\",\"properties\":{\"algorithm\":{\"enum\":[\"aes-128-cbc\",\"aes-128-ctr\"]},"
+        "\"keyHex\":{\"pattern\":\"^[0-9A-Fa-f]{32}$\"},\"ivHex\":{\"pattern\":\"^[0-9A-Fa-f]{32}$\"}}},"
+        "{\"type\":\"object\",\"properties\":{\"algorithm\":{\"enum\":[\"aes-192-cbc\",\"aes-192-ctr\"]},"
+        "\"keyHex\":{\"pattern\":\"^[0-9A-Fa-f]{48}$\"},\"ivHex\":{\"pattern\":\"^[0-9A-Fa-f]{32}$\"}}},"
+        "{\"type\":\"object\",\"properties\":{\"algorithm\":{\"enum\":[\"aes-256-cbc\",\"aes-256-ctr\"]},"
+        "\"keyHex\":{\"pattern\":\"^[0-9A-Fa-f]{64}$\"},\"ivHex\":{\"pattern\":\"^[0-9A-Fa-f]{32}$\"}}}],"
         "\"properties\":{\"action\":{\"type\":\"string\",\"title\":\"Action\","
         "\"description\":\"Encrypt or decrypt the selected bytes.\",\"default\":\"encrypt\","
         "\"enum\":[\"encrypt\",\"decrypt\"]},\"algorithm\":{\"type\":\"string\",\"title\":\"Algorithm\","
@@ -65,9 +71,9 @@ static const char CIPHER_ARGS_SCHEMA[] =
         "\"values\":[\"aes-128-cbc\",\"aes-192-cbc\",\"aes-256-cbc\"]},{\"label\":\"AES-CTR\","
         "\"values\":[\"aes-128-ctr\",\"aes-192-ctr\",\"aes-256-ctr\"]}]},\"keyHex\":{\"type\":\"string\","
         "\"title\":\"Key hex\",\"description\":\"Raw key bytes as hex: 16 bytes for AES-128, 24 for AES-192, "
-        "or 32 for AES-256.\",\"pattern\":\"^[0-9A-Fa-f]+$\"},\"ivHex\":{\"type\":\"string\","
+        "or 32 for AES-256.\",\"pattern\":\"^([0-9A-Fa-f][0-9A-Fa-f])+$\"},\"ivHex\":{\"type\":\"string\","
         "\"title\":\"IV hex\",\"description\":\"Raw IV/counter bytes as hex. AES-CBC and AES-CTR use 16 bytes.\","
-        "\"pattern\":\"^[0-9A-Fa-f]+$\"},\"padding\":{\"type\":\"boolean\",\"title\":\"CBC padding\","
+        "\"pattern\":\"^([0-9A-Fa-f][0-9A-Fa-f])+$\"},\"padding\":{\"type\":\"boolean\",\"title\":\"CBC padding\","
         "\"description\":\"Use PKCS#7 padding for CBC encryption/decryption. Ignored by CTR.\",\"default\":true}},"
         "\"additionalProperties\":false}";
 
