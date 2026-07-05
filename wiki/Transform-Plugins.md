@@ -344,8 +344,8 @@ The repository ships small examples in `plugins/src/`:
 | `omega.example.format_inspectors` | `format_inspectors.cpp` | Inspect | Protobuf varint, ASN.1 BER/DER TLV, and configurable TLV summaries. |
 | `omega.example.openssl_digests` | `openssl_digests.c` | Inspect | MD5, SHA-1, SHA-2, SHA-3, and BLAKE2 digest calculation using OpenSSL 3 without changing session content. |
 | `omega.example.record_text_helpers` | `record_text_helpers.cpp` | Replace | Newline normalization, fixed-width lines, delimiter escaping, CSV quoting, XML entities, and JSON string escaping. |
-| `omega.example.text_codecs` | `text_codecs.cpp` | Replace | Hex/base16, Base64URL, Base32, Base32-Crockford, Ascii85/Base85, Z85, Base58, percent/URL, quoted-printable, uuencode, and yEnc encode/decode helpers. |
-| `omega.example.zlib` | `zlib.c` | Replace | Zlib compression/decompression with an `action` option. Compression accepts `level` values from `-1` through `9`. |
+| `omega.example.text_codecs` | `text_codecs.cpp` | Replace | Hex/base16, Base64URL, Base32, Base32-Crockford, Ascii85/Base85, Z85, Base58, percent/URL, quoted-printable, uuencode, and yEnc encode/decode helpers. Base58 is capped at 64 KiB selections. |
+| `omega.example.zlib` | `zlib.c` | Replace | Zlib compression/decompression with an `action` option. Compression accepts `level` values from `-1` through `9`; decompression accepts `maxOutputBytes` with a 64 MiB default cap. |
 | `omega.example.repeat` | `repeat.c` | Replace | Expansion by replacing a range with two copies of itself. |
 
 These examples are intentionally small so they can serve as test fixtures and copyable
