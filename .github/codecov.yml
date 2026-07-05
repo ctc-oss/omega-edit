@@ -53,6 +53,7 @@ comment:
 ignore:
   - core/src/examples
   - core/src/tests
+  - plugins/tests
   - packages/client/dist
   - packages/client/scripts
   - packages/client/tests
