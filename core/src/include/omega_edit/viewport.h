@@ -131,6 +131,23 @@ int32_t omega_viewport_set_event_interest(omega_viewport_t *viewport_ptr, int32_
 int omega_viewport_modify(omega_viewport_t *viewport_ptr, int64_t offset, int64_t capacity, int is_floating);
 
 /**
+ * Options for modifying viewport settings with named fields.
+ */
+typedef struct {
+    int64_t offset;
+    int64_t capacity;
+    omega_edit_bool_t is_floating;
+} omega_viewport_modify_options_t;
+
+/**
+ * Change viewport settings using named options.
+ * @param viewport_ptr viewport to change settings on
+ * @param options viewport modification options
+ * @return 0 on success, non-zero otherwise
+ */
+int omega_viewport_modify_with_options(omega_viewport_t *viewport_ptr, const omega_viewport_modify_options_t *options);
+
+/**
  * Determine if the given viewport is in the given segment
  * @param viewport_ptr viewport to determine if it's in the given segment
  * @param offset beginning offset of the segment

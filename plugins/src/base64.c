@@ -12,7 +12,8 @@
  *                                                                                                                    *
  **********************************************************************************************************************/
 
-#include <ctype.h>
+#include "c_plugin_options.h"
+
 #include <omega_edit/transform_plugin_sdk.h>
 #include <stdint.h>
 #include <stdlib.h>
@@ -26,31 +27,6 @@ static const char BASE64_ARGS_SCHEMA[] =
         "{\"type\":\"object\",\"properties\":{\"direction\":{\"type\":\"string\",\"title\":\"Direction\","
         "\"description\":\"Encode bytes as Base64 text or decode Base64 text to bytes.\",\"default\":\"encode\","
         "\"enum\":[\"encode\",\"decode\"]}},\"additionalProperties\":false}";
-
-static void base64_skip_ws(const char **cursor) {
-    while (cursor && *cursor && isspace((unsigned char) **cursor)) { ++(*cursor); }
-}
-
-static int base64_parse_json_string(const char **cursor, char *out, size_t out_size) {
-    if (!cursor || !*cursor || **cursor != '"' || out_size == 0) { return -1; }
-    ++(*cursor);
-    size_t length = 0;
-    while (**cursor && **cursor != '"') {
-        char ch = **cursor;
-        if (ch == '\\') {
-            ++(*cursor);
-            if (!**cursor) { return -1; }
-            ch = **cursor;
-        }
-        if (length + 1 >= out_size) { return -1; }
-        out[length++] = ch;
-        ++(*cursor);
-    }
-    if (**cursor != '"') { return -1; }
-    ++(*cursor);
-    out[length] = '\0';
-    return 0;
-}
 
 static int base64_parse_direction_text(const char *value, omega_base64_direction_t *direction_out) {
     if (!value || !direction_out) { return -1; }
@@ -71,33 +47,33 @@ static int base64_parse_options(const char *options_json, omega_base64_direction
     if (!options_json || !*options_json) { return 0; }
 
     const char *cursor = options_json;
-    base64_skip_ws(&cursor);
+    omega_plugin_json_skip_ws(&cursor);
     if (*cursor != '{') { return -1; }
     ++cursor;
-    base64_skip_ws(&cursor);
+    omega_plugin_json_skip_ws(&cursor);
     if (*cursor == '}') {
         ++cursor;
-        base64_skip_ws(&cursor);
+        omega_plugin_json_skip_ws(&cursor);
         return *cursor == '\0' ? 0 : -1;
     }
 
     char key[32];
-    if (base64_parse_json_string(&cursor, key, sizeof(key)) != 0 || strcmp(key, "direction") != 0) { return -1; }
-    base64_skip_ws(&cursor);
+    if (omega_plugin_json_parse_string(&cursor, key, sizeof(key)) != 0 || strcmp(key, "direction") != 0) { return -1; }
+    omega_plugin_json_skip_ws(&cursor);
     if (*cursor != ':') { return -1; }
     ++cursor;
-    base64_skip_ws(&cursor);
+    omega_plugin_json_skip_ws(&cursor);
 
     char direction[16];
-    if (base64_parse_json_string(&cursor, direction, sizeof(direction)) != 0 ||
+    if (omega_plugin_json_parse_string(&cursor, direction, sizeof(direction)) != 0 ||
         base64_parse_direction_text(direction, direction_out) != 0) {
         return -1;
     }
 
-    base64_skip_ws(&cursor);
+    omega_plugin_json_skip_ws(&cursor);
     if (*cursor != '}') { return -1; }
     ++cursor;
-    base64_skip_ws(&cursor);
+    omega_plugin_json_skip_ws(&cursor);
     return *cursor == '\0' ? 0 : -1;
 }
 

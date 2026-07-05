@@ -38,7 +38,22 @@ using omega_edit::internal::safe_add_int64_;
 
 namespace {
     constexpr int64_t OMEGA_SESSION_SCAN_BUFFER_SIZE = 65536;
-}
+
+    int64_t count_change_transactions_(const omega_changes_t &changes) {
+        int64_t result = 0;
+        bool transaction_bit = false;
+        for (const auto &change : changes) {
+            if (result == 0) {
+                transaction_bit = omega_change_get_transaction_bit_(change.get());
+                ++result;
+            } else if (transaction_bit != omega_change_get_transaction_bit_(change.get())) {
+                transaction_bit = !transaction_bit;
+                ++result;
+            }
+        }
+        return result;
+    }
+}// namespace
 
 int omega_session_byte_frequency_profile_size() { return OMEGA_EDIT_BYTE_FREQUENCY_PROFILE_SIZE; }
 
@@ -274,50 +289,14 @@ int omega_session_get_transaction_state(const omega_session_t *session_ptr) {
 int64_t omega_session_get_num_change_transactions(const omega_session_t *session_ptr) {
     if (!session_ptr) { return 0; }
     int64_t result = 0;
-    // Count the number of transactions in each model
-    for (const auto &model : session_ptr->models_) {
-        int64_t transactions_in_model = 0;
-        bool transaction_bit = false;
-        // Count the number of transactions in this model
-        for (const auto &change : model->changes) {
-            // If the transaction bit is different from the current transaction bit, then we have a new transaction
-            if (transactions_in_model) {
-                if (transaction_bit != omega_change_get_transaction_bit_(change.get())) {
-                    transaction_bit = !transaction_bit;
-                    ++transactions_in_model;
-                }
-            } else {
-                transaction_bit = omega_change_get_transaction_bit_(change.get());
-                ++transactions_in_model;
-            }
-        }
-        result += transactions_in_model;
-    }
+    for (const auto &model : session_ptr->models_) { result += count_change_transactions_(model->changes); }
     return result;
 }
 
 int64_t omega_session_get_num_undone_change_transactions(const omega_session_t *session_ptr) {
     if (!session_ptr) { return 0; }
     int64_t result = 0;
-    // Count the number of transactions in each model
-    for (const auto &model : session_ptr->models_) {
-        int64_t transactions_in_model = 0;
-        bool transaction_bit = false;
-        // Count the number of transactions in this model
-        for (const auto &change : model->changes_undone) {
-            // If the transaction bit is different from the current transaction bit, then we have a new transaction
-            if (transactions_in_model) {
-                if (transaction_bit != omega_change_get_transaction_bit_(change.get())) {
-                    transaction_bit = !transaction_bit;
-                    ++transactions_in_model;
-                }
-            } else {
-                transaction_bit = omega_change_get_transaction_bit_(change.get());
-                ++transactions_in_model;
-            }
-        }
-        result += transactions_in_model;
-    }
+    for (const auto &model : session_ptr->models_) { result += count_change_transactions_(model->changes_undone); }
     return result;
 }
 

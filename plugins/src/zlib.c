@@ -12,7 +12,8 @@
  *                                                                                                                    *
  **********************************************************************************************************************/
 
-#include <ctype.h>
+#include "c_plugin_options.h"
+
 #include <errno.h>
 #include <limits.h>
 #include <omega_edit/config.h>
@@ -48,31 +49,6 @@ static int input_length_to_ulong(int64_t input_length, uLong *input_length_out) 
     return 0;
 }
 
-static void zlib_skip_ws(const char **cursor) {
-    while (cursor && *cursor && isspace((unsigned char) **cursor)) { ++(*cursor); }
-}
-
-static int zlib_parse_json_string(const char **cursor, char *out, size_t out_size) {
-    if (!cursor || !*cursor || **cursor != '"' || out_size == 0) { return -1; }
-    ++(*cursor);
-    size_t length = 0;
-    while (**cursor && **cursor != '"') {
-        char ch = **cursor;
-        if (ch == '\\') {
-            ++(*cursor);
-            if (!**cursor) { return -1; }
-            ch = **cursor;
-        }
-        if (length + 1 >= out_size) { return -1; }
-        out[length++] = ch;
-        ++(*cursor);
-    }
-    if (**cursor != '"') { return -1; }
-    ++(*cursor);
-    out[length] = '\0';
-    return 0;
-}
-
 static int zlib_parse_action_text(const char *value, omega_zlib_action_t *action_out) {
     if (!value || !action_out) { return -1; }
     if (strcmp(value, "compress") == 0) {
@@ -87,7 +63,7 @@ static int zlib_parse_action_text(const char *value, omega_zlib_action_t *action
 }
 
 static int zlib_parse_integer(const char **cursor, int *value_out) {
-    zlib_skip_ws(cursor);
+    omega_plugin_json_skip_ws(cursor);
     char *end_ptr = NULL;
     const long parsed = strtol(*cursor, &end_ptr, 10);
     if (end_ptr == *cursor || parsed < Z_DEFAULT_COMPRESSION || parsed > Z_BEST_COMPRESSION) { return -1; }
@@ -98,7 +74,7 @@ static int zlib_parse_integer(const char **cursor, int *value_out) {
 
 static int zlib_parse_positive_int64(const char **cursor, int64_t *value_out) {
     if (!cursor || !*cursor || !value_out) { return -1; }
-    zlib_skip_ws(cursor);
+    omega_plugin_json_skip_ws(cursor);
     errno = 0;
     char *end_ptr = NULL;
     const long long parsed = strtoll(*cursor, &end_ptr, 10);
@@ -116,27 +92,27 @@ static int zlib_parse_options(const char *options_json, omega_zlib_options_t *op
     if (!options_json || !*options_json) { return 0; }
 
     const char *cursor = options_json;
-    zlib_skip_ws(&cursor);
+    omega_plugin_json_skip_ws(&cursor);
     if (*cursor != '{') { return -1; }
     ++cursor;
-    zlib_skip_ws(&cursor);
+    omega_plugin_json_skip_ws(&cursor);
     if (*cursor == '}') {
         ++cursor;
-        zlib_skip_ws(&cursor);
+        omega_plugin_json_skip_ws(&cursor);
         return *cursor == '\0' ? 0 : -1;
     }
 
     while (*cursor) {
         char key[32];
-        if (zlib_parse_json_string(&cursor, key, sizeof(key)) != 0) { return -1; }
-        zlib_skip_ws(&cursor);
+        if (omega_plugin_json_parse_string(&cursor, key, sizeof(key)) != 0) { return -1; }
+        omega_plugin_json_skip_ws(&cursor);
         if (*cursor != ':') { return -1; }
         ++cursor;
-        zlib_skip_ws(&cursor);
+        omega_plugin_json_skip_ws(&cursor);
 
         if (strcmp(key, "action") == 0) {
             char action[16];
-            if (zlib_parse_json_string(&cursor, action, sizeof(action)) != 0 ||
+            if (omega_plugin_json_parse_string(&cursor, action, sizeof(action)) != 0 ||
                 zlib_parse_action_text(action, &options_out->action) != 0) {
                 return -1;
             }
@@ -148,15 +124,15 @@ static int zlib_parse_options(const char *options_json, omega_zlib_options_t *op
             return -1;
         }
 
-        zlib_skip_ws(&cursor);
+        omega_plugin_json_skip_ws(&cursor);
         if (*cursor == '}') {
             ++cursor;
-            zlib_skip_ws(&cursor);
+            omega_plugin_json_skip_ws(&cursor);
             return *cursor == '\0' ? 0 : -1;
         }
         if (*cursor != ',') { return -1; }
         ++cursor;
-        zlib_skip_ws(&cursor);
+        omega_plugin_json_skip_ws(&cursor);
     }
     return -1;
 }

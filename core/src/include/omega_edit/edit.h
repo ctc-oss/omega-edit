@@ -75,6 +75,18 @@ omega_session_t *omega_edit_create_session_from_bytes(const omega_byte_t *data_p
 void omega_edit_destroy_session(omega_session_t *session_ptr);
 
 /**
+ * Options for creating a viewport with named fields.
+ */
+typedef struct {
+    int64_t offset;
+    int64_t capacity;
+    omega_edit_bool_t is_floating;
+    omega_viewport_event_cbk_t cbk;
+    void *user_data_ptr;
+    int32_t event_interest;
+} omega_edit_viewport_options_t;
+
+/**
  * Create a new viewport, returns a pointer to the new viewport
  * @param session_ptr session to create the new viewport in
  * @param offset offset for the new viewport
@@ -89,6 +101,15 @@ void omega_edit_destroy_session(omega_session_t *session_ptr);
 omega_viewport_t *omega_edit_create_viewport(omega_session_t *session_ptr, int64_t offset, int64_t capacity,
                                              int is_floating, omega_viewport_event_cbk_t cbk, void *user_data_ptr,
                                              int32_t event_interest);
+
+/**
+ * Create a new viewport using a named options structure.
+ * @param session_ptr session to create the new viewport in
+ * @param options viewport creation options
+ * @return pointer to the new viewport, or NULL on failure
+ */
+omega_viewport_t *omega_edit_create_viewport_with_options(omega_session_t *session_ptr,
+                                                          const omega_edit_viewport_options_t *options);
 
 /**
  * Destroy a given viewport
@@ -170,6 +191,20 @@ int omega_edit_save_segment(omega_session_t *session_ptr, const char *file_path,
  * @return 0 on success, non-zero otherwise
  */
 int omega_edit_save(omega_session_t *session_ptr, const char *file_path, int io_flags, char *saved_file_path);
+
+/**
+ * Write a session byte range to an already-open file without publishing a save event.
+ *
+ * The caller owns `file_ptr` and is responsible for closing it. The file is flushed before this function returns.
+ * The session model is not modified.
+ *
+ * @param session_ptr session to copy from
+ * @param file_ptr already-open output file
+ * @param offset starting byte offset in the session
+ * @param length number of bytes to copy, or zero to copy from offset to the end of the session
+ * @return zero on success and non-zero otherwise
+ */
+int omega_edit_save_segment_to_file(const omega_session_t *session_ptr, FILE *file_ptr, int64_t offset, int64_t length);
 
 /**
  * Copy a bounded session byte range into a newly allocated memory buffer.
@@ -284,6 +319,13 @@ int64_t omega_edit_insert_bytes(omega_session_t *session_ptr, int64_t offset, co
 int64_t omega_edit_insert(omega_session_t *session_ptr, int64_t offset, const char *cstr, int64_t length);
 
 /**
+ * Insert a null-terminated C string at the given offset.
+ *
+ * This is the explicit inferred-length text variant. Binary callers should use omega_edit_insert_bytes.
+ */
+int64_t omega_edit_insert_cstring(omega_session_t *session_ptr, int64_t offset, const char *cstr);
+
+/**
  * Overwrite bytes at the given offset with the given new bytes
  * @param session_ptr session to make the change in
  * @param offset location offset to make the change
@@ -309,6 +351,13 @@ int64_t omega_edit_overwrite_bytes(omega_session_t *session_ptr, int64_t offset,
  * use omega_edit_overwrite_bytes and pass an explicit byte length.
  */
 int64_t omega_edit_overwrite(omega_session_t *session_ptr, int64_t offset, const char *cstr, int64_t length);
+
+/**
+ * Overwrite bytes at the given offset with a null-terminated C string.
+ *
+ * This is the explicit inferred-length text variant. Binary callers should use omega_edit_overwrite_bytes.
+ */
+int64_t omega_edit_overwrite_cstring(omega_session_t *session_ptr, int64_t offset, const char *cstr);
 
 /**
  * Replace a span of bytes at the given offset with a new byte sequence.
@@ -380,6 +429,31 @@ int64_t omega_edit_replace(omega_session_t *session_ptr, int64_t offset, int64_t
                            int64_t insert_length);
 
 /**
+ * Replace a span of bytes at the given offset with a null-terminated C string.
+ *
+ * This is the explicit inferred-length text variant. Binary callers should use omega_edit_replace_bytes.
+ */
+int64_t omega_edit_replace_cstring(omega_session_t *session_ptr, int64_t offset, int64_t delete_length,
+                                   const char *cstr);
+
+/**
+ * Options for replacing matches with named fields.
+ */
+typedef struct {
+    omega_edit_bool_t case_insensitive;
+    omega_edit_bool_t is_reverse;
+    int64_t offset;
+    int64_t length;
+    int64_t limit;
+    omega_edit_bool_t front_to_back;
+    omega_edit_bool_t overwrite_only;
+    int64_t *replacement_count_out;
+    int64_t *delete_count_out;
+    int64_t *insert_count_out;
+    int64_t *overwrite_count_out;
+} omega_edit_replace_matches_options_t;
+
+/**
  * Replace matching byte patterns inside a session range using in-place transactional edits.
  *
  * Matches are located against the original session content and replaced in one logical transaction. Matching is
@@ -420,6 +494,21 @@ int omega_edit_replace_matches_bytes(omega_session_t *session_ptr, const omega_b
                                      int64_t *insert_count_out, int64_t *overwrite_count_out);
 
 /**
+ * Replace matching byte patterns using named options.
+ * @param session_ptr session to edit
+ * @param pattern pattern bytes to search for
+ * @param pattern_length explicit number of bytes in pattern
+ * @param replacement replacement bytes, or null if `replacement_length` is zero
+ * @param replacement_length explicit number of bytes in replacement
+ * @param options named replace options
+ * @return zero on success and non-zero otherwise
+ */
+int omega_edit_replace_matches_bytes_with_options(omega_session_t *session_ptr, const omega_byte_t *pattern,
+                                                  int64_t pattern_length, const omega_byte_t *replacement,
+                                                  int64_t replacement_length,
+                                                  const omega_edit_replace_matches_options_t *options);
+
+/**
  * Replace matching C-string patterns inside a session range using in-place transactional edits.
  * @param session_ptr session to edit
  * @param pattern pattern C string to search for
@@ -446,6 +535,24 @@ int omega_edit_replace_matches(omega_session_t *session_ptr, const char *pattern
                                int is_reverse, int64_t offset, int64_t length, int64_t limit, int front_to_back,
                                int overwrite_only, int64_t *replacement_count_out, int64_t *delete_count_out,
                                int64_t *insert_count_out, int64_t *overwrite_count_out);
+
+/**
+ * Replace matching C-string patterns using named options.
+ */
+int omega_edit_replace_matches_with_options(omega_session_t *session_ptr, const char *pattern, int64_t pattern_length,
+                                            const char *replacement, int64_t replacement_length,
+                                            const omega_edit_replace_matches_options_t *options);
+
+/**
+ * Options for streamed replace-all operations.
+ */
+typedef struct {
+    omega_edit_bool_t case_insensitive;
+    omega_edit_bool_t is_reverse;
+    int64_t offset;
+    int64_t length;
+    int64_t *replacement_count_out;
+} omega_edit_replace_all_options_t;
 
 /**
  * Replace all non-overlapping matches of a byte pattern within a session range using a streamed checkpoint rewrite.
@@ -504,6 +611,14 @@ int omega_edit_replace_all_bytes_directional(omega_session_t *session_ptr, const
                                              int64_t offset, int64_t length, int64_t *replacement_count_out);
 
 /**
+ * Replace all non-overlapping matches of a byte pattern using named options.
+ */
+int omega_edit_replace_all_bytes_with_options(omega_session_t *session_ptr, const omega_byte_t *pattern,
+                                              int64_t pattern_length, const omega_byte_t *replacement,
+                                              int64_t replacement_length,
+                                              const omega_edit_replace_all_options_t *options);
+
+/**
  * Replace all non-overlapping matches of a C-string pattern within a session range using a streamed checkpoint rewrite.
  * @param session_ptr session to edit
  * @param pattern pattern C string to search for
@@ -521,6 +636,22 @@ int omega_edit_replace_all_bytes_directional(omega_session_t *session_ptr, const
 int omega_edit_replace_all(omega_session_t *session_ptr, const char *pattern, int64_t pattern_length,
                            const char *replacement, int64_t replacement_length, int case_insensitive, int64_t offset,
                            int64_t length, int64_t *replacement_count_out);
+
+/**
+ * Replace all non-overlapping C-string matches using named options.
+ */
+int omega_edit_replace_all_with_options(omega_session_t *session_ptr, const char *pattern, int64_t pattern_length,
+                                        const char *replacement, int64_t replacement_length,
+                                        const omega_edit_replace_all_options_t *options);
+
+/**
+ * Replace all non-overlapping matches of a null-terminated C-string pattern with a null-terminated C string.
+ *
+ * This is the explicit inferred-length text variant. Binary callers should use omega_edit_replace_all_bytes.
+ */
+int omega_edit_replace_all_cstring(omega_session_t *session_ptr, const char *pattern, const char *replacement,
+                                   int case_insensitive, int64_t offset, int64_t length,
+                                   int64_t *replacement_count_out);
 
 /**
  * Apply an array of edit script operations sequentially to the given session.
