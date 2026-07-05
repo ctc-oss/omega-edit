@@ -148,6 +148,64 @@ TEST_CASE("Packaged Transform Plugins", "[TransformPlugin]") {
     REQUIRE(0 == omega_transform_plugin_options_match_args_schema("{\"bytes\":[\"AA\",\"0F\"]}", array_schema));
     REQUIRE(-1 == omega_transform_plugin_options_match_args_schema("{\"bytes\":[\"AA\"]}", array_schema));
     REQUIRE(-1 == omega_transform_plugin_options_match_args_schema("{\"bytes\":[\"aa\",\"0F\"]}", array_schema));
+    const char *strict_without_properties_schema = R"json({
+        "type":"object",
+        "additionalProperties":false
+    })json";
+    REQUIRE(-1 == omega_transform_plugin_options_match_args_schema(R"json({"extra":1})json",
+                                                                   strict_without_properties_schema));
+    const char *escaped_string_schema = R"json({
+        "type":"object",
+        "properties":{"text":{"type":"string","enum":["\u0008\u000C\u000A\u000D\u0009"]}},
+        "additionalProperties":false
+    })json";
+    REQUIRE(0 == omega_transform_plugin_options_match_args_schema(
+                         R"json({"text":"\u0008\u000C\u000A\u000D\u0009"})json", escaped_string_schema));
+    const char *numeric_integer_schema = R"json({
+        "type":"object",
+        "properties":{"value":{"type":"integer","minimum":-100,"maximum":100}},
+        "additionalProperties":false
+    })json";
+    REQUIRE(0 == omega_transform_plugin_options_match_args_schema(R"json({"value":1e+2})json", numeric_integer_schema));
+    REQUIRE(-1 == omega_transform_plugin_options_match_args_schema(R"json({"value":1e+})json", numeric_integer_schema));
+    const char *deep_enum_schema = R"json({
+        "type":"object",
+        "properties":{"value":{"enum":[null,true,[1,true,null],{"nested":["\u20AC",2]}]}},
+        "additionalProperties":false
+    })json";
+    REQUIRE(0 == omega_transform_plugin_options_match_args_schema(R"json({"value":null})json", deep_enum_schema));
+    REQUIRE(0 == omega_transform_plugin_options_match_args_schema(R"json({"value":true})json", deep_enum_schema));
+    REQUIRE(0 ==
+            omega_transform_plugin_options_match_args_schema(R"json({"value":[1,true,null]})json", deep_enum_schema));
+    REQUIRE(0 == omega_transform_plugin_options_match_args_schema(R"json({"value":{"nested":["\u20AC",2]}})json",
+                                                                  deep_enum_schema));
+    REQUIRE(-1 == omega_transform_plugin_options_match_args_schema(R"json({"value":[1,true]})json", deep_enum_schema));
+    REQUIRE(-1 == omega_transform_plugin_options_match_args_schema(R"json({"value":{"other":["\u20AC",2]}})json",
+                                                                   deep_enum_schema));
+    REQUIRE(-1 == omega_transform_plugin_options_match_args_schema(R"json({"value":[1,]})json", deep_enum_schema));
+    REQUIRE(-1 ==
+            omega_transform_plugin_options_match_args_schema(R"json({"value":"unterminated})json", deep_enum_schema));
+    const char *escaped_dot_pattern_schema = R"json({
+        "type":"object",
+        "properties":{"name":{"type":"string","pattern":"^a\\.$"}},
+        "additionalProperties":false
+    })json";
+    REQUIRE(0 ==
+            omega_transform_plugin_options_match_args_schema(R"json({"name":"a."})json", escaped_dot_pattern_schema));
+    const char *escaped_digit_pattern_schema = R"json({
+        "type":"object",
+        "properties":{"name":{"type":"string","pattern":"^(a)\\1$"}},
+        "additionalProperties":false
+    })json";
+    REQUIRE(-1 ==
+            omega_transform_plugin_options_match_args_schema(R"json({"name":"aa"})json", escaped_digit_pattern_schema));
+    const char *bad_range_quantifier_schema = R"json({
+        "type":"object",
+        "properties":{"name":{"type":"string","pattern":"^a{z}$"}},
+        "additionalProperties":false
+    })json";
+    REQUIRE(-1 == omega_transform_plugin_options_match_args_schema(R"json({"name":"a{z}"})json",
+                                                                   bad_range_quantifier_schema));
     const char *unsupported_number_schema =
             "{\"type\":\"object\",\"properties\":{\"value\":{\"type\":\"number\"}},\"additionalProperties\":false}";
     REQUIRE(-1 == omega_transform_plugin_options_match_args_schema("{\"value\":1.5}", unsupported_number_schema));
