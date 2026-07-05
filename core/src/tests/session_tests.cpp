@@ -519,17 +519,17 @@ TEST_CASE("Named options and explicit C-string helpers", "[SessionApiTests]") {
     REQUIRE("omega beta omega" == std::string(reinterpret_cast<const char *>(bytes), static_cast<size_t>(length)));
     free(bytes);
 
-    const char *const output_path = MAKE_PATH("session_api_options_segment.dat");
-    omega_util_remove_file(output_path);
-    auto *file_ptr = FOPEN(output_path, "wb");
+    const auto output_path = std::string(MAKE_PATH("session_api_options_segment.dat"));
+    omega_util_remove_file(output_path.c_str());
+    auto *file_ptr = FOPEN(output_path.c_str(), "wb");
     REQUIRE(file_ptr);
     REQUIRE(0 == omega_edit_save_segment_to_file(session_ptr, file_ptr, 6, 4));
     REQUIRE(0 == FCLOSE(file_ptr));
 
     omega_byte_t buffer[4]{};
-    REQUIRE(4 == omega_util_read_file_segment(output_path, 0, buffer, sizeof(buffer)));
+    REQUIRE(4 == omega_util_read_file_segment(output_path.c_str(), 0, buffer, sizeof(buffer)));
     REQUIRE("beta" == std::string(reinterpret_cast<const char *>(buffer), sizeof(buffer)));
-    omega_util_remove_file(output_path);
+    omega_util_remove_file(output_path.c_str());
 
     omega_edit_destroy_session(session_ptr);
 }

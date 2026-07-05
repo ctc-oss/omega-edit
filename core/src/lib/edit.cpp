@@ -110,9 +110,10 @@ namespace {
                                omega_byte_t *io_buf) -> int64_t;
     auto write_bytes_to_file_(FILE *file_ptr, const omega_byte_t *bytes, int64_t length) -> int64_t;
 
-    auto flush_file_to_disk_(FILE *file_ptr) -> bool {
+    auto flush_file_(FILE *file_ptr, bool sync_to_disk) -> bool {
         if (!file_ptr) { return false; }
         if (fflush(file_ptr) != 0) { return false; }
+        if (!sync_to_disk) { return true; }
 #ifdef OMEGA_BUILD_WINDOWS
         const auto fd = _fileno(file_ptr);
         if (fd < 0) { return false; }
@@ -124,6 +125,8 @@ namespace {
         return fd >= 0 && fsync(fd) == 0;
 #endif
     }
+
+    auto flush_file_to_disk_(FILE *file_ptr) -> bool { return flush_file_(file_ptr, true); }
 
     auto sync_parent_directory_(const char *path) -> bool {
         if (!path || !*path) { return false; }
@@ -2774,8 +2777,9 @@ int omega_edit_save(omega_session_t *session_ptr, const char *file_path, int io_
     return omega_edit_save_segment(session_ptr, file_path, io_flags, saved_file_path, 0, 0);
 }
 
-int omega_edit_save_segment_to_file(const omega_session_t *session_ptr, FILE *file_ptr, int64_t offset,
-                                    int64_t length) {
+int omega_edit_save_segment_to_file_with_options(const omega_session_t *session_ptr, FILE *file_ptr, int64_t offset,
+                                                 int64_t length,
+                                                 const omega_edit_save_segment_to_file_options_t *options_ptr) {
     if (!session_ptr || !file_ptr || offset < 0 || length < 0) { return -1; }
     const auto computed_file_size = omega_session_get_computed_file_size(session_ptr);
     if (computed_file_size < 0 || offset > computed_file_size) { return -1; }
@@ -2795,7 +2799,13 @@ int omega_edit_save_segment_to_file(const omega_session_t *session_ptr, FILE *fi
         stream_session_range_(cursor, end_offset, file_ptr, io_buf.get()) != adjusted_length) {
         return -1;
     }
-    return flush_file_to_disk_(file_ptr) ? 0 : -1;
+    const auto sync_to_disk = !options_ptr || options_ptr->skip_disk_sync != OMEGA_EDIT_TRUE;
+    return flush_file_(file_ptr, sync_to_disk) ? 0 : -1;
+}
+
+int omega_edit_save_segment_to_file(const omega_session_t *session_ptr, FILE *file_ptr, int64_t offset,
+                                    int64_t length) {
+    return omega_edit_save_segment_to_file_with_options(session_ptr, file_ptr, offset, length, nullptr);
 }
 
 int omega_edit_save_segment_to_bytes(const omega_session_t *session_ptr, omega_byte_t **data_ptr_out,

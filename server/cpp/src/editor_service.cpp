@@ -258,8 +258,11 @@ namespace omega_edit {
                 return grpc::Status(grpc::StatusCode::INTERNAL, "failed to open computed content snapshot file");
             }
 
-            const auto save_ok = 0 == omega_edit_save_segment_to_file(session, file, source.effective_offset,
-                                                                      source.effective_length);
+            omega_edit_save_segment_to_file_options_t save_options{};
+            save_options.skip_disk_sync = OMEGA_EDIT_TRUE;
+            const auto save_ok =
+                    0 == omega_edit_save_segment_to_file_with_options(session, file, source.effective_offset,
+                                                                      source.effective_length, &save_options);
             const auto close_ok = std::fclose(file) == 0;
             if (!save_ok || !close_ok) {
                 omega_util_remove_file(snapshot_path);

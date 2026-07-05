@@ -207,6 +207,32 @@ int omega_edit_save(omega_session_t *session_ptr, const char *file_path, int io_
 int omega_edit_save_segment_to_file(const omega_session_t *session_ptr, FILE *file_ptr, int64_t offset, int64_t length);
 
 /**
+ * Options for writing a session byte range to an already-open file.
+ */
+typedef struct {
+    /** Flush stdio buffers only; skip the OS-level disk sync for short-lived temporary snapshots. */
+    omega_edit_bool_t skip_disk_sync;
+} omega_edit_save_segment_to_file_options_t;
+
+/**
+ * Write a session byte range to an already-open file without publishing a save event.
+ *
+ * The caller owns `file_ptr` and is responsible for closing it. The file's stdio buffers are flushed before this
+ * function returns. Unless options_ptr is non-null and skip_disk_sync is true, the file is also synced to disk.
+ * The session model is not modified.
+ *
+ * @param session_ptr session to copy from
+ * @param file_ptr already-open output file
+ * @param offset starting byte offset in the session
+ * @param length number of bytes to copy, or zero to copy from offset to the end of the session
+ * @param options_ptr optional write behavior controls
+ * @return zero on success and non-zero otherwise
+ */
+int omega_edit_save_segment_to_file_with_options(const omega_session_t *session_ptr, FILE *file_ptr, int64_t offset,
+                                                 int64_t length,
+                                                 const omega_edit_save_segment_to_file_options_t *options_ptr);
+
+/**
  * Copy a bounded session byte range into a newly allocated memory buffer.
  * @param session_ptr session to copy from
  * @param data_ptr_out receives a malloc-allocated buffer containing the copied bytes (caller must free).  The buffer is
