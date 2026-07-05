@@ -63,6 +63,11 @@
 #define OMEGA_MEMORY_BUFFER_LIMIT (64LL * 1024LL * 1024LL)
 #endif//OMEGA_MEMORY_BUFFER_LIMIT
 
+#ifndef OMEGA_REPLACE_MATCHES_LIMIT
+/** Maximum selected matches that transactional replace-matches may materialize into one in-memory script. */
+#define OMEGA_REPLACE_MATCHES_LIMIT 1000000LL
+#endif//OMEGA_REPLACE_MATCHES_LIMIT
+
 #ifndef OMEGA_CHANGE_INLINE_PAYLOAD_LIMIT
 /** Maximum primitive payload byte range stored inline before using file-backed storage. */
 #define OMEGA_CHANGE_INLINE_PAYLOAD_LIMIT OMEGA_MEMORY_BUFFER_LIMIT

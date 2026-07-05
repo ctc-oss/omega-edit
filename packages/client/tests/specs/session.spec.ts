@@ -1500,8 +1500,9 @@ describe('Sessions', () => {
     try {
       await createSession('-invalid-')
       expect.fail('Should have thrown')
-    } catch (e) {
-      // expected
+    } catch (err) {
+      expect((err as Error).message).to.include('NOT_FOUND')
+      expect((err as Error).message).to.include('file does not exist')
     }
   })
 })

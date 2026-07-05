@@ -155,4 +155,10 @@ TEST_CASE("Null Pointer Safety - Utility", "[NullSafety]") {
     REQUIRE(0 == omega_util_strnicmp(nullptr, nullptr, 5));
     REQUIRE(-1 == omega_util_strnicmp(nullptr, "hello", 5));
     REQUIRE(1 == omega_util_strnicmp("hello", nullptr, 5));
+
+    auto *empty = omega_util_strndup(nullptr, 0);
+    REQUIRE(empty != nullptr);
+    REQUIRE('\0' == empty[0]);
+    free(empty);
+    REQUIRE(nullptr == omega_util_strndup(nullptr, 1));
 }

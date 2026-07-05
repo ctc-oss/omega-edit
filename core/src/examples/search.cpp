@@ -33,7 +33,7 @@ int main(int argc, char **argv) {
         int num_matches = 0;
         auto search_context = omega_search_create_context(session_ptr, pattern, 0, start_offset, length,
                                                           case_insensitive, reverse_search);
-        while (omega_search_next_match(search_context, 1)) {
+        while (omega_search_next_match(search_context, 1) > 0) {
             const auto match_offset = omega_search_context_get_match_offset(search_context);
             const auto match_length = omega_search_context_get_pattern_length(search_context);
             cout << "offset: " << match_offset << ", length: " << match_length

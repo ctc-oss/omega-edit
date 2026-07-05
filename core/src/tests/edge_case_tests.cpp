@@ -789,6 +789,23 @@ TEST_CASE("Overflow Sized Read Ranges Are Rejected", "[EdgeCase][Overflow]") {
     omega_edit_destroy_session(session_ptr);
 }
 
+TEST_CASE("Search Reports Backing Read Failures", "[EdgeCase][Search]") {
+    const auto session_ptr = omega_edit_create_session(MAKE_PATH("test1.dat"), nullptr, nullptr, 0, nullptr);
+    REQUIRE(session_ptr);
+    REQUIRE(omega_session_get_computed_file_size(session_ptr) > 0);
+
+    auto *search_context = omega_search_create_context_string(session_ptr, "a", 1, 0, false, false);
+    REQUIRE(search_context);
+
+    auto &first_segment = session_ptr->models_.back()->model_segments.front();
+    first_segment->change_offset = omega_session_get_original_file_size(session_ptr) + 1024;
+
+    REQUIRE(-1 == omega_search_next_match(search_context, 1));
+
+    omega_search_destroy_context(search_context);
+    omega_edit_destroy_session(session_ptr);
+}
+
 TEST_CASE("Save To Bytes Rejects Ranges Above Memory Buffer Limit", "[EdgeCase][LargeFile]") {
     const auto path = (DATA_DIR / "oversized_to_bytes.dat").string();
     {
@@ -938,6 +955,37 @@ TEST_CASE("Checkpoint Replace All Supports Range And Case Insensitivity", "[Edge
     REQUIRE(0 == omega_check_model(session_ptr));
 
     omega_edit_destroy_session(session_ptr);
+}
+
+TEST_CASE("Directional Checkpoint Replace All Preserves Reverse Overlap Selection",
+          "[EdgeCase][CheckpointReplaceAll]") {
+    const auto forward_session_ptr = omega_edit_create_session(nullptr, nullptr, nullptr, 0, nullptr);
+    REQUIRE(forward_session_ptr);
+    REQUIRE(0 < omega_edit_insert_string(forward_session_ptr, 0, "aaaaaaa"));
+
+    int64_t replacement_count = -1;
+    REQUIRE(0 == omega_edit_replace_all_bytes_directional(
+                         forward_session_ptr, reinterpret_cast<const omega_byte_t *>("aa"), 2,
+                         reinterpret_cast<const omega_byte_t *>("b"), 1, 0, 0, 0, 0, &replacement_count));
+    REQUIRE(3 == replacement_count);
+    REQUIRE(omega_session_get_segment_string(forward_session_ptr, 0,
+                                             omega_session_get_computed_file_size(forward_session_ptr)) == "bbba");
+    REQUIRE(0 == omega_check_model(forward_session_ptr));
+    omega_edit_destroy_session(forward_session_ptr);
+
+    const auto reverse_session_ptr = omega_edit_create_session(nullptr, nullptr, nullptr, 0, nullptr);
+    REQUIRE(reverse_session_ptr);
+    REQUIRE(0 < omega_edit_insert_string(reverse_session_ptr, 0, "aaaaaaa"));
+
+    replacement_count = -1;
+    REQUIRE(0 == omega_edit_replace_all_bytes_directional(
+                         reverse_session_ptr, reinterpret_cast<const omega_byte_t *>("aa"), 2,
+                         reinterpret_cast<const omega_byte_t *>("b"), 1, 0, 1, 0, 0, &replacement_count));
+    REQUIRE(3 == replacement_count);
+    REQUIRE(omega_session_get_segment_string(reverse_session_ptr, 0,
+                                             omega_session_get_computed_file_size(reverse_session_ptr)) == "abbb");
+    REQUIRE(0 == omega_check_model(reverse_session_ptr));
+    omega_edit_destroy_session(reverse_session_ptr);
 }
 
 TEST_CASE("Checkpoint Replace All Leaves Session Unchanged Without Matches", "[EdgeCase][CheckpointReplaceAll]") {
