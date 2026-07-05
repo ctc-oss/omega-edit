@@ -597,6 +597,46 @@ TEST_CASE("Overflow Sized Edit Ranges Are Rejected Without Mutating Session", "[
     omega_edit_destroy_session(session_ptr);
 }
 
+TEST_CASE("Public Search Replace And Viewport APIs Reject Int64 Overflow Ranges", "[EdgeCase][Overflow]") {
+    const auto session_ptr = omega_edit_create_session(nullptr, nullptr, nullptr, 0, nullptr);
+    REQUIRE(session_ptr);
+    REQUIRE(0 < omega_edit_insert_string(session_ptr, 0, "abcabc"));
+
+    const auto max = (std::numeric_limits<int64_t>::max)();
+    const omega_byte_t pattern[] = {'a', 'b'};
+    const omega_byte_t replacement[] = {'x'};
+    int64_t replacement_count = -1;
+    int64_t delete_count = -1;
+    int64_t insert_count = -1;
+    int64_t overwrite_count = -1;
+
+    REQUIRE(nullptr == omega_search_create_context_bytes(session_ptr, pattern, 2, max, 1, 0, 0));
+    REQUIRE(-1 == omega_edit_replace_matches_bytes(session_ptr, pattern, 2, replacement, 1, 0, 0, max, 1, 1, 1, 0,
+                                                   &replacement_count, &delete_count, &insert_count, &overwrite_count));
+    REQUIRE(0 == replacement_count);
+    REQUIRE(0 == delete_count);
+    REQUIRE(0 == insert_count);
+    REQUIRE(0 == overwrite_count);
+
+    replacement_count = -1;
+    REQUIRE(-1 == omega_edit_replace_all_bytes(session_ptr, pattern, 2, replacement, 1, 0, max, 1, &replacement_count));
+    REQUIRE(0 == replacement_count);
+
+    replacement_count = -1;
+    REQUIRE(-1 == omega_edit_replace_all_bytes_directional(session_ptr, pattern, 2, replacement, 1, 0, 1, max, 1,
+                                                           &replacement_count));
+    REQUIRE(0 == replacement_count);
+
+    auto *viewport = omega_edit_create_viewport(session_ptr, max, 1, 0, nullptr, nullptr, NO_EVENTS);
+    REQUIRE(nullptr == viewport);
+
+    REQUIRE(6 == omega_session_get_computed_file_size(session_ptr));
+    REQUIRE(1 == omega_session_get_num_changes(session_ptr));
+    REQUIRE(0 == omega_check_model(session_ptr));
+
+    omega_edit_destroy_session(session_ptr);
+}
+
 TEST_CASE("Computed File Size Returns -1 On Segment Overflow", "[EdgeCase][Overflow]") {
     const auto session_ptr = omega_edit_create_session(nullptr, nullptr, nullptr, 0, nullptr);
     REQUIRE(session_ptr);

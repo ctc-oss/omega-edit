@@ -47,6 +47,8 @@
     selectionEnd?: number
     searchStart?: number
     searchEnd?: number
+    searchMatches?: number[]
+    searchLength?: number
     inspectorStart?: number
     inspectorEnd?: number
     externalHighlights?: WebviewExternalHighlight[]
@@ -119,6 +121,8 @@
     selectionEnd = -1,
     searchStart = -1,
     searchEnd = -1,
+    searchMatches = [],
+    searchLength = 0,
     inspectorStart = -1,
     inspectorEnd = -1,
     externalHighlights = [],
@@ -383,6 +387,8 @@
           {activePane}
           searchStart={searchStart}
           searchEnd={searchEnd}
+          {searchMatches}
+          {searchLength}
           inspectorStart={inspectorStart}
           inspectorEnd={inspectorEnd}
           {externalHighlights}

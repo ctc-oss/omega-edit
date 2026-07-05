@@ -336,4 +336,57 @@ describe('Editor Patterns', () => {
       isReverse: false,
     })
   })
+
+  it('should collect viewport neighbors with a boundary-padded bounded search', async () => {
+    const searchCalls: Array<{
+      offset: number
+      length: number
+      limit: number
+      isReverse: boolean
+    }> = []
+
+    const controller = new EditorSearchController('session-id', {
+      windowLimit: 1,
+      async searchSession(
+        _sessionId: string,
+        _pattern: string | Uint8Array,
+        _caseInsensitive: boolean = false,
+        isReverse: boolean = false,
+        offset: number = 0,
+        length: number = 0,
+        limit: number = 0
+      ) {
+        searchCalls.push({ offset, length, limit, isReverse })
+        return searchCalls.length === 1 ? [12] : [9, 10, 12, 18, 19, 22]
+      },
+      async replaceSession() {
+        return 0
+      },
+      async replaceSessionCheckpointed() {
+        return 0
+      },
+    })
+
+    const result = await controller.findAdjacent({
+      query: 'abc',
+      isHex: false,
+      direction: 'forward',
+      anchorOffset: 0,
+      fileSize: 50,
+      viewportOffset: 10,
+      viewportLength: 8,
+    })
+
+    expect(result.offset).to.equal(12)
+    expect(result.viewport).to.deep.equal({
+      offset: 10,
+      length: 8,
+      matches: [9, 10, 12],
+      hasMore: false,
+    })
+    expect(searchCalls).to.deep.equal([
+      { offset: 1, length: 0, limit: 1, isReverse: false },
+      { offset: 8, length: 12, limit: 12, isReverse: false },
+    ])
+  })
 })

@@ -730,6 +730,9 @@ test('compiled extension entrypoints exist after build', () => {
   assert.match(providerJs, /normalizeExternalHighlights/)
   assert.match(providerJs, /type:\s*['"]externalHighlights['"]/)
   assert.match(providerJs, /type:\s*['"]rangeMapTree['"]/)
+  assert.match(providerJs, /findViewportMatches/)
+  assert.match(providerJs, /viewportMatches:\s*viewport\.matches/)
+  assert.match(providerJs, /viewportHasMoreMatches:\s*viewport\.hasMore/)
   assert.match(providerJs, /setSessionRangeMap/)
   assert.match(providerJs, /case\s+['"]loadRangeMap['"]/)
   assert.match(providerJs, /case\s+['"]unloadRangeMap['"]/)
@@ -763,6 +766,8 @@ test('compiled extension entrypoints exist after build', () => {
   assert.match(protocolSource, /externalHighlights/)
   assert.match(protocolSource, /WebviewRangeMapNode/)
   assert.match(protocolSource, /rangeMapTree/)
+  assert.match(protocolSource, /viewportMatches\?: number\[\]/)
+  assert.match(protocolSource, /viewportHasMoreMatches\?: boolean/)
   assert.match(protocolSource, /type: 'loadRangeMap'/)
   assert.match(protocolSource, /type: 'unloadRangeMap'/)
   assert.match(protocolSource, /type: 'bytesPerRow'/)
@@ -1087,6 +1092,8 @@ test('compiled extension entrypoints exist after build', () => {
   assert.match(svelteAppSource, /clearSearchResults\(\)/)
   assert.match(svelteAppSource, /type: 'findAdjacentMatch'/)
   assert.match(svelteAppSource, /type: 'goToMatch'/)
+  assert.match(svelteAppSource, /viewportMatches \?\? \[\]/)
+  assert.match(svelteAppSource, /message\.viewportOffset === visibleOffset/)
   assert.match(svelteAppSource, /case 'searchNavigationCommand'/)
   assert.match(svelteAppSource, /case 'replaceComplete'/)
   assert.match(svelteAppSource, /normalizeReplacementHex/)
@@ -1179,6 +1186,7 @@ test('compiled extension entrypoints exist after build', () => {
   assert.match(svelteAppSource, /viewportProfile=\{latestViewportProfile\}/)
   assert.match(svelteAppSource, /\{serverHealth\}/)
   assert.match(svelteAppSource, /visibleByteCount=\{visibleByteCount\(\)\}/)
+  assert.match(svelteAppSource, /searchLength=\{searchPatternLength\}/)
   assert.match(editorWorkspaceSource, /PreviewGrid/)
   assert.match(editorWorkspaceSource, /FileScrollbar/)
   assert.match(editorWorkspaceSource, /editor-grid-shell/)
@@ -1208,6 +1216,8 @@ test('compiled extension entrypoints exist after build', () => {
   assert.match(editorWorkspaceSource, /onReorderAnalysisSection/)
   assert.match(editorWorkspaceSource, /externalHighlights/)
   assert.match(editorWorkspaceSource, /rangeMapTree/)
+  assert.match(editorWorkspaceSource, /\{searchMatches\}/)
+  assert.match(editorWorkspaceSource, /\{searchLength\}/)
   assert.match(editorWorkspaceSource, /onSelectRangeMapNode/)
   assert.doesNotMatch(editorWorkspaceSource, /onSelectExternalHighlight/)
   assert.match(editorWorkspaceSource, /onLoadRangeMap/)
@@ -1277,6 +1287,16 @@ test('compiled extension entrypoints exist after build', () => {
     /class:hover=\{rowIndex === hoveredRowIndex\}/
   )
   assert.match(previewGridSource, /class:columnHover/)
+  assert.match(previewGridSource, /const searchHitByOffset = \$derived\.by/)
+  assert.match(previewGridSource, /searchHitByOffset\.has\(byteOffset\)/)
+  assert.match(
+    previewGridSource,
+    /class:searchHit=\{isSearchHit\(byteOffset\)\}/
+  )
+  assert.match(
+    previewGridSource,
+    /class:searchHit=\{isSearchHit\(byteOffset\)\}[\s\S]*class:externalHighlight=\{!!externalHighlight\}/
+  )
   assert.match(previewGridSource, /class:activePane/)
   assert.match(previewGridSource, /class:printable=\{isPrintable\(byte\)\}/)
   assert.match(previewGridSource, /class:control=\{isControlByte\(byte\)\}/)

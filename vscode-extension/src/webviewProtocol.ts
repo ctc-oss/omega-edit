@@ -364,6 +364,10 @@ export type HostToWebviewMessage =
       type: 'searchNavigationResult'
       offset: number
       patternLength: number
+      viewportOffset?: number
+      viewportLength?: number
+      viewportMatches?: number[]
+      viewportHasMoreMatches?: boolean
     }
   | {
       type: 'searchNavigationCommand'

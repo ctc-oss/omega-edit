@@ -592,27 +592,38 @@ Suggested fix:
 - Consider isolating or resource-limiting content detection for untrusted input.
 - Document the third-party parser exposure in the deployment trust boundary.
 
-### 31. Search navigation does not decorate viewport-neighbor matches
+### 31. Text pane and Data Inspector only expose ASCII-oriented byte display
 
-**Impact:** Low to Medium
+**Impact:** Low
 **Risk:** Low
-**Area:** Client/server search UX, viewport match decoration
+**Area:** VS Code hex editor text pane, Data Inspector, text search
 
-Interactive search can walk to the next or previous match without knowing the
-global match count, but the navigation result does not yet include the other
-matches visible in the active viewport. That means a UI can focus the requested
-match but cannot cheaply decorate the surrounding viewport matches as part of
-the same navigation flow.
+The TEXT pane currently treats bytes as ASCII-ish printable characters with a
+placeholder for non-printable values. Other hex editors let users switch that
+view among common single-byte character sets such as ASCII, Windows ANSI
+code pages, DOS/OEM code pages, EBCDIC, and Macintosh/MacRoman. The Data
+Inspector should expose the same byte-to-character interpretations so a selected
+byte or range can be inspected without mentally translating high-bit bytes.
+Text search should use the selected text encoding when converting the query to
+bytes, while hex search should remain byte-literal and unaffected.
+
+Important product detail: "ANSI" and "DOS" are families, not one universal
+mapping. The UI should pick explicit defaults such as Windows-1252 and CP437,
+while leaving room for additional code pages later.
 
 Suggested fix:
-- Keep next/previous navigation anchor-based (`limit = 1`) in the requested
-  direction.
-- After locating the focused match, issue a bounded search over the active
-  viewport range with `limit + 1` so the UI can highlight visible sibling
-  matches and show overflow hints without claiming a global total.
-- Cover forward, reverse, and viewport-edge cases in client tests.
-
----
+- Add a text encoding selector for the TEXT pane, initially covering ASCII,
+  Windows-1252, CP437, EBCDIC, and MacRoman.
+- Add matching Data Inspector fields for the selected byte/range so high-bit
+  bytes can be interpreted in the same supported character sets.
+- Route text search query encoding through the selected character set, keep
+  match offsets byte-native, and make charset changes invalidate/re-run any
+  active text search window.
+- Keep the core byte model unchanged; this should be display/inspection-layer
+  decoding unless a later API need emerges.
+- Cover printable ASCII identity, high-byte divergence across encodings,
+  EBCDIC alphabet bytes, non-printable placeholder behavior, and text-search
+  byte encoding for each supported character set in tests.
 
 ## Testing Gaps For Attestation
 
@@ -621,8 +632,6 @@ claiming production hardening:
 
 - Save durability: add fault-injection coverage around interrupted saves beyond
   the current atomic/durable publishing coverage.
-- Remaining overflow paths: helper and edit-range tests exist, but add more
-  near-`INT64_MAX` coverage through public APIs and server RPC boundaries.
 - Change-detail payload bounds: request details for a change larger than the
   inline payload limit and assert bounded memory/response behavior.
 - Same-session availability under long scans: run a slow operation (large
@@ -723,5 +732,11 @@ These areas were in the old document but are no longer open backlog items:
   server gRPC/session-destroy cancellation paths, and bundled plugin polling
   loops, with TypeScript client, AI/MCP, and VS Code webview cancellation wired
   through to the same RPC cancellation path.
+- Large-search navigation now keeps anchor-based next/previous lookup bounded,
+  then decorates the active viewport with a separately bounded neighbor match
+  window that handles reverse navigation, overlaps, viewport boundaries, and
+  external range-map/debugger highlight overlays independently.
+- Near-`INT64_MAX` overflow coverage now exercises public C APIs and raw server
+  RPC boundaries for search, replace, segment, and viewport ranges.
 - Event mask signed `ALL_EVENTS` ambiguity.
 - Output collision suffix range and deprecated protobuf generator dependencies.
