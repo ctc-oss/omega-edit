@@ -19,11 +19,11 @@
 <h1>Ωedit™ Library</h1>
 
 
-[![Release](https://shields.io/github/v/release/ctc-oss/omega-edit?display_name=tag&include_prereleases&sort=semver)](https://github.com/ctc-oss/omega-edit/releases)
-![Build Status](https://github.com/ctc-oss/omega-edit/workflows/Unit%20Tests/badge.svg)
-![CodeQL](https://github.com/ctc-oss/omega-edit/workflows/CodeQL/badge.svg)
-[![codecov](https://codecov.io/github/ctc-oss/omega-edit/graph/badge.svg?branch=main)](https://app.codecov.io/github/ctc-oss/omega-edit/tree/main)
-[![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2Fctc-oss%2Fomega-edit.svg?type=shield)](https://app.fossa.com/projects/git%2Bgithub.com%2Fctc-oss%2Fomega-edit?ref=badge_shield)
+[![Release](https://img.shields.io/github/v/release/ctc-oss/omega-edit?display_name=tag&include_prereleases&sort=semver)](https://github.com/ctc-oss/omega-edit/releases)
+[![Unit Tests](https://github.com/ctc-oss/omega-edit/actions/workflows/tests.yml/badge.svg?branch=main)](https://github.com/ctc-oss/omega-edit/actions/workflows/tests.yml?query=branch%3Amain)
+[![CodeQL](https://github.com/ctc-oss/omega-edit/actions/workflows/codeql-analysis.yml/badge.svg?branch=main)](https://github.com/ctc-oss/omega-edit/actions/workflows/codeql-analysis.yml?query=branch%3Amain)
+[![Coverage](https://img.shields.io/badge/coverage-report-blue)](https://app.codecov.io/github/ctc-oss/omega-edit/tree/main)
+[![License](https://img.shields.io/github/license/ctc-oss/omega-edit)](LICENSE.txt)
 [![Join the chat at https://gitter.im/ctc-oss/community](https://badges.gitter.im/ctc-oss/community.svg)](https://gitter.im/ctc-oss/community)
 
 </div>
@@ -304,4 +304,4 @@ Planning a move from the 1.x line to the 2.x release candidate? Start with the s
 
 ## License
 
-[![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2Fctc-oss%2Fomega-edit.svg?type=large)](https://app.fossa.com/projects/git%2Bgithub.com%2Fctc-oss%2Fomega-edit?ref=badge_large)
+Ωedit™ is licensed under the [Apache License 2.0](LICENSE.txt).
