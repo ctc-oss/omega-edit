@@ -116,7 +116,7 @@ int64_t omega_search_context_get_pattern_length(const omega_search_context_t *se
  * Given a search context, find the next match
  * @param search_context_ptr search context to find the next match in
  * @param advance_context advance the internal search context offset by this many bytes
- * @return non-zero if a match is found, zero otherwise
+ * @return positive if a match is found, zero if no match remains, negative on search failure
  */
 int omega_search_next_match(omega_search_context_t *search_context_ptr, int64_t advance_context);
 

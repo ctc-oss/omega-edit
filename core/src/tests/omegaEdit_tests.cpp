@@ -943,6 +943,10 @@ TEST_CASE("Compare", "[CompareTests]") {
 
     const char high_byte_lhs[] = {static_cast<char>(0xFF), '\0'};
     const char high_byte_rhs[] = {static_cast<char>(0xFF), '\0'};
+    const char high_byte[] = {static_cast<char>(0x80), '\0'};
+    const char low_byte[] = {static_cast<char>(0x7F), '\0'};
+    REQUIRE(omega_util_strncmp(high_byte, low_byte, 1) > 0);
+    REQUIRE(omega_util_strncmp(low_byte, high_byte, 1) < 0);
     REQUIRE(0 == omega_util_strnicmp(high_byte_lhs, high_byte_rhs, 1));
 }
 
@@ -980,7 +984,7 @@ TEST_CASE("Search-Forward", "[SearchTests]") {
     auto match_context = omega_search_create_context_string(session_ptr, needle);
     REQUIRE(match_context);
     REQUIRE(1 == omega_session_get_num_search_contexts(session_ptr));
-    while (omega_search_next_match(match_context, 1)) { ++needles_found; }
+    while (omega_search_next_match(match_context, 1) > 0) { ++needles_found; }
     REQUIRE(0 == needles_found);
     omega_search_destroy_context(match_context);
     REQUIRE(0 == omega_session_get_num_search_contexts(session_ptr));
@@ -993,7 +997,7 @@ TEST_CASE("Search-Forward", "[SearchTests]") {
     REQUIRE(omega_session_get_computed_file_size(session_ptr) ==
             omega_search_context_get_session_length(match_context));
     REQUIRE(1 == omega_session_get_num_search_contexts(session_ptr));
-    while (omega_search_next_match(match_context, 1)) { ++needles_found; }
+    while (omega_search_next_match(match_context, 1) > 0) { ++needles_found; }
     REQUIRE(5 == needles_found);
     omega_search_destroy_context(match_context);
     REQUIRE(0 == omega_session_get_num_search_contexts(session_ptr));
@@ -1030,35 +1034,35 @@ TEST_CASE("Search-Forward", "[SearchTests]") {
     needles_found = 0;
     match_context = omega_search_create_context_string(session_ptr, needle);
     REQUIRE(match_context);
-    while (omega_search_next_match(match_context, 1)) { ++needles_found; }
+    while (omega_search_next_match(match_context, 1) > 0) { ++needles_found; }
     REQUIRE(2 == needles_found);
     omega_search_destroy_context(match_context);
     needles_found = 0;
     match_context = omega_search_create_context_string(session_ptr, needle, 0, 0, true);
     REQUIRE(match_context);
-    while (omega_search_next_match(match_context, 1)) { ++needles_found; }
+    while (omega_search_next_match(match_context, 1) > 0) { ++needles_found; }
     REQUIRE(6 == needles_found);
     omega_search_destroy_context(match_context);
 
     // test single-byte needles since these use a different search algorithm
     needles_found = 0;
     match_context = omega_search_create_context_string(session_ptr, "e", 0, 0, false);
-    while (omega_search_next_match(match_context, 1)) { ++needles_found; }
+    while (omega_search_next_match(match_context, 1) > 0) { ++needles_found; }
     REQUIRE(19 == needles_found);
     omega_search_destroy_context(match_context);
     needles_found = 0;
     match_context = omega_search_create_context_string(session_ptr, "E", 0, 0, false);
-    while (omega_search_next_match(match_context, 1)) { ++needles_found; }
+    while (omega_search_next_match(match_context, 1) > 0) { ++needles_found; }
     REQUIRE(3 == needles_found);
     omega_search_destroy_context(match_context);
     needles_found = 0;
     match_context = omega_search_create_context_string(session_ptr, "E", 0, 0, true);
-    while (omega_search_next_match(match_context, 1)) { ++needles_found; }
+    while (omega_search_next_match(match_context, 1) > 0) { ++needles_found; }
     REQUIRE(22 == needles_found);
     omega_search_destroy_context(match_context);
     needles_found = 0;
     match_context = omega_search_create_context_string(session_ptr, "F", 0, 0, false);
-    while (omega_search_next_match(match_context, 1)) { ++needles_found; }
+    while (omega_search_next_match(match_context, 1) > 0) { ++needles_found; }
     REQUIRE(0 == needles_found);
     omega_search_destroy_context(match_context);
 
@@ -1072,7 +1076,7 @@ TEST_CASE("Search-Forward", "[SearchTests]") {
     REQUIRE(0 > omega_segment_get_offset(segment_peek));
     REQUIRE(0 == omega_segment_get_offset_adjustment(segment_peek));
     auto pattern_length = omega_search_context_get_pattern_length(match_context);
-    if (omega_search_next_match(match_context, 1)) {
+    if (omega_search_next_match(match_context, 1) > 0) {
         const auto advance_context = static_cast<int64_t>(replace.length());
         do {
             const auto pattern_offset = omega_search_context_get_match_offset(match_context);
@@ -1096,7 +1100,7 @@ TEST_CASE("Search-Forward", "[SearchTests]") {
                                                      omega_segment_get_capacity(segment_peek)) ==
                     (const char *) omega_segment_get_data(segment_peek));
             ++needles_found;
-        } while (omega_search_next_match(match_context, advance_context));
+        } while (omega_search_next_match(match_context, advance_context) > 0);
     }
     omega_segment_destroy(segment_peek);
     REQUIRE(6 == needles_found);
@@ -1107,7 +1111,7 @@ TEST_CASE("Search-Forward", "[SearchTests]") {
     needles_found = 0;
     pattern_length = omega_search_context_get_pattern_length(match_context);
     REQUIRE(pattern_length == 1);
-    while (omega_search_next_match(match_context, 1)) { ++needles_found; }
+    while (omega_search_next_match(match_context, 1) > 0) { ++needles_found; }
     REQUIRE(12 == needles_found);
     omega_search_destroy_context(match_context);
     REQUIRE(0 == omega_edit_save(session_ptr, MAKE_PATH("search-test.actual.1.dat"), omega_io_flags_t::IO_FLG_OVERWRITE,
@@ -1123,38 +1127,38 @@ TEST_CASE("Search-Forward", "[SearchTests]") {
     needles_found = 0;
     match_context = omega_search_create_context_string(session_ptr, "a", 0, 0, false);
     REQUIRE(match_context);
-    while (omega_search_next_match(match_context, 1)) { ++needles_found; }
+    while (omega_search_next_match(match_context, 1) > 0) { ++needles_found; }
     REQUIRE(4 == needles_found);
     needles_found = 0;
     match_context = omega_search_create_context_string(session_ptr, "a", 0,
                                                        omega_session_get_computed_file_size(session_ptr) - 2, false);
     REQUIRE(match_context);
-    while (omega_search_next_match(match_context, 1)) { ++needles_found; }
+    while (omega_search_next_match(match_context, 1) > 0) { ++needles_found; }
     REQUIRE(3 == needles_found);
     needles_found = 0;
     match_context = omega_search_create_context_string(session_ptr, "a", 1, 0, false);
     REQUIRE(match_context);
-    while (omega_search_next_match(match_context, 1)) { ++needles_found; }
+    while (omega_search_next_match(match_context, 1) > 0) { ++needles_found; }
     REQUIRE(4 == needles_found);
     needles_found = 0;
     match_context = omega_search_create_context_string(session_ptr, "a", 5, 0, false);
     REQUIRE(match_context);
-    while (omega_search_next_match(match_context, 1)) { ++needles_found; }
+    while (omega_search_next_match(match_context, 1) > 0) { ++needles_found; }
     REQUIRE(3 == needles_found);
     needles_found = 0;
     match_context = omega_search_create_context_string(session_ptr, "a", 0, 5, false);
     REQUIRE(match_context);
-    while (omega_search_next_match(match_context, 1)) { ++needles_found; }
+    while (omega_search_next_match(match_context, 1) > 0) { ++needles_found; }
     REQUIRE(1 == needles_found);
     needles_found = 0;
     match_context = omega_search_create_context_string(session_ptr, "a", 4, 3, false);
     REQUIRE(match_context);
-    while (omega_search_next_match(match_context, 1)) { ++needles_found; }
+    while (omega_search_next_match(match_context, 1) > 0) { ++needles_found; }
     REQUIRE(1 == needles_found);
     needles_found = 0;
     match_context = omega_search_create_context_string(session_ptr, "a", 1, 3, false);
     REQUIRE(match_context);
-    while (omega_search_next_match(match_context, 1)) { ++needles_found; }
+    while (omega_search_next_match(match_context, 1) > 0) { ++needles_found; }
     REQUIRE(0 == needles_found);
     omega_edit_destroy_session(session_ptr);
 }
@@ -1168,7 +1172,7 @@ TEST_CASE("Search-Reverse", "[SearchTests]") {
     auto search_context_ptr = omega_search_create_context_string(session_ptr, "Pursuit", 0, 0, true, true);
     REQUIRE(search_context_ptr);
     auto matches = std::vector<int64_t>();
-    while (omega_search_next_match(search_context_ptr, 1)) {
+    while (omega_search_next_match(search_context_ptr, 1) > 0) {
         matches.push_back(omega_search_context_get_match_offset(search_context_ptr));
     }
     REQUIRE(3 == matches.size());
@@ -1179,7 +1183,7 @@ TEST_CASE("Search-Reverse", "[SearchTests]") {
     omega_search_destroy_context(search_context_ptr);
     search_context_ptr = omega_search_create_context_string(session_ptr, "P", 0, 0, true, true);
     REQUIRE(search_context_ptr);
-    while (omega_search_next_match(search_context_ptr, 1)) {
+    while (omega_search_next_match(search_context_ptr, 1) > 0) {
         matches.push_back(omega_search_context_get_match_offset(search_context_ptr));
     }
     REQUIRE(7 == matches.size());
@@ -1194,7 +1198,7 @@ TEST_CASE("Search-Reverse", "[SearchTests]") {
     omega_search_destroy_context(search_context_ptr);
     search_context_ptr = omega_search_create_context_string(session_ptr, "The", 0, 0, false, true);
     REQUIRE(search_context_ptr);
-    while (omega_search_next_match(search_context_ptr, 1)) {
+    while (omega_search_next_match(search_context_ptr, 1) > 0) {
         matches.push_back(omega_search_context_get_match_offset(search_context_ptr));
     }
     REQUIRE(2 == matches.size());
@@ -1206,7 +1210,7 @@ TEST_CASE("Search-Reverse", "[SearchTests]") {
     omega_edit_insert_string(session_ptr, 0, "Needle");
     search_context_ptr = omega_search_create_context_string(session_ptr, "Needle", 0, 0, false, true);
     REQUIRE(search_context_ptr);
-    while (omega_search_next_match(search_context_ptr, 1)) {
+    while (omega_search_next_match(search_context_ptr, 1) > 0) {
         matches.push_back(omega_search_context_get_match_offset(search_context_ptr));
     }
     REQUIRE(1 == matches.size());

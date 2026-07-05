@@ -13,7 +13,11 @@ branch/PR and are not listed as open. The redo preservation bug across
 transform undo boundaries found by the brutal-testing harness is also fixed by
 the current core test branch/PR and is no longer listed as open. The zlib
 decompression cap and C++ codec cancellation/base58 guardrail items are also
-fixed and no longer listed as open.
+fixed and no longer listed as open. The profile/character-count scan buffer
+issue, search read-failure reporting issue, and unbounded `replace_matches`
+materialization issue are also fixed and no longer listed as open. The utility
+string-helper issue and the fixed failure-signaling edges for unknown CLI
+options and missing session files are likewise no longer listed as open.
 
 Recent core/server/plugin review findings have been folded into the priority
 list below rather than kept as a second appended review. A fresh core/server
@@ -38,8 +42,8 @@ Risk guide:
 
 1. **Critical deployment boundary**: add optional TLS/mTLS and an authorization
    hook before making any "hardened for production" attestation.
-2. **Massive-file pressure caps**: bound or stream `replace_matches`, and apply
-   a configurable segment-size cap to read/classification RPCs.
+2. **Massive-file pressure caps**: apply a configurable segment-size cap to
+   read/classification RPCs.
 3. **Undo performance batch**: implement the remaining low-risk undo pieces
    (transaction extents, redo batching, snapshot telemetry).
 4. **Streaming import**: pair existing streaming export with a streaming/chunked
@@ -141,31 +145,6 @@ Suggested fix:
 - Consider structural sharing or copy-on-write segment nodes so snapshots are
   cheap references instead of deep clones.
 - Surface basic metrics for snapshot count/bytes in tests or debug logs.
-
-### 5. `replace_matches` buffers every match in memory
-
-**Impact:** High for very large files and common patterns
-**Risk:** Medium
-**Area:** Core replace/search, C++ server replace RPC
-
-`omega_edit_replace_matches_bytes` accumulates all accepted match offsets in a
-vector, builds a full operation script, then applies one change record per
-operation. The default limit can be unlimited, so replacing a common pattern in a
-large file can consume memory proportional to match count. The streaming,
-checkpointed `omega_edit_replace_all_bytes` path avoids this shape.
-
-Relevant code:
-- `core/src/lib/edit.cpp:1886`
-- `core/src/lib/edit.cpp:1916`
-- `core/src/lib/edit.cpp:1941`
-- `core/src/lib/edit.cpp:1959`
-
-Suggested fix:
-- Add an internal match-count or operation-count ceiling for the current script
-  path.
-- Prefer a streaming/checkpointed implementation when the caller requests
-  unbounded replacement.
-- Add scale tests that assert bounded memory or a clear graceful failure.
 
 ### 7. Change-log import is still full-document JSON parsing
 
@@ -339,29 +318,6 @@ Suggested fix:
 - Add a test that runs a digest over a large session and asserts a concurrent
   viewport read completes promptly.
 
-### 15. Profile and character-count scans read in `BUFSIZ` chunks
-
-**Impact:** Medium (massive-file scan throughput, especially on Windows)
-**Risk:** Low
-**Area:** Core session statistics
-
-`omega_session_byte_frequency_profile` and `omega_session_character_counts`
-iterate the session in `BUFSIZ`-sized segments. `BUFSIZ` is 512 bytes on MSVC
-(8 KiB on glibc), so profiling a 10 GiB session on Windows performs ~20 million
-`populate_data_segment_` calls, each doing an `upper_bound` over the segment
-list plus a seek/read. The rest of the codebase uses a 64 KiB
-`OMEGA_IO_BUFFER_SIZE` for streaming.
-
-Relevant code:
-- `core/src/lib/session.cpp:385`
-- `core/src/lib/session.cpp:422`
-
-Suggested fix:
-- Use `OMEGA_IO_BUFFER_SIZE` (or a dedicated scan buffer constant) instead of
-  `BUFSIZ` for both scans.
-- Null-check the `omega_segment_create` result explicitly.
-- Add a benchmark or perf regression note for full-file profiling.
-
 ### 16. Temp files are created, closed, then reopened by path
 
 **Impact:** Medium (local symlink-swap hardening)
@@ -389,32 +345,6 @@ Suggested fix:
   fstat/st_ino comparison) before writing.
 - Document that checkpoint directories should not be world-writable shared
   directories.
-
-### 17. Search treats read failures as "no match"
-
-**Impact:** Medium (silently wrong results on I/O errors)
-**Risk:** Low
-**Area:** Core search, C++ server search RPC
-
-`omega_search_next_match` ignores the return value of
-`populate_data_segment_`; on a read failure the segment length is zero, the
-window loop ends, and the context reports "no more matches". A transient I/O
-error therefore looks identical to a legitimate miss. On the server side,
-`SearchSession` also returns `OK` with an empty match list when context
-creation fails (invalid offset/length/pattern), so callers cannot distinguish
-"no matches" from "search never ran".
-
-Relevant code:
-- `core/src/lib/search.cpp:221`
-- `server/cpp/src/editor_service.cpp:2025`
-
-Suggested fix:
-- Propagate populate failures out of `omega_search_next_match` (distinct error
-  return) and surface them as RPC errors.
-- Return `INVALID_ARGUMENT` from `SearchSession` when the search context cannot
-  be created.
-- Add a test with an out-of-range offset asserting an error rather than an
-  empty result.
 
 ### 18. C-string and byte edit APIs encode different zero-length semantics
 
@@ -619,31 +549,11 @@ Suggested fix:
   body.
 - Add a `with_locked_session(request_id, handler)` helper for the RPC prologue.
 
-### 28. Utility string helpers have minor robustness gaps
-
-**Impact:** Low
-**Risk:** Low
-**Area:** Core C utility helpers
-
-`omega_util_strndup` does not null-check `s` before `memcpy`, so a null source
-with a non-zero length would crash; current callers pass valid pointers.
-`omega_util_strncmp` compares with signed `char` subtraction, so its ordering
-result differs from `strcmp` for bytes `>= 0x80` (equality is unaffected).
-
-Relevant code:
-- `core/src/lib/utility.c:214`
-- `core/src/lib/utility.c:232`
-
-Suggested fix:
-- Guard `omega_util_strndup` against a null source.
-- Compare bytes as `unsigned char` in `omega_util_strncmp` if strcmp-compatible
-  ordering is expected.
-
 ### 29. Failure-signaling edges can mislead callers or operators
 
 **Impact:** Low to Medium
 **Risk:** Low
-**Area:** Core edit results, server startup/CLI
+**Area:** Core edit results, save durability signaling
 
 A collection of small signaling gaps, individually rare but relevant to a
 reliability attestation:
@@ -656,20 +566,11 @@ reliability attestation:
   *after* the atomic rename has already published the file, so a completed save
   is reported as a failure with no way to distinguish post-commit durability
   warnings from real failures (`core/src/lib/edit.cpp:2376`).
-- `main.cpp` silently ignores unknown CLI options, so a typo in a resource-cap
-  or security-relevant flag leaves defaults in effect without any warning
-  (`server/cpp/src/main.cpp:509`).
-- `CreateSession` maps "file does not exist" to `INTERNAL` rather than
-  `NOT_FOUND`/`INVALID_ARGUMENT` (`server/cpp/src/main.cpp` comment says this
-  matches previous behavior) (`server/cpp/src/editor_service.cpp:917`).
 
 Suggested fix:
 - Return a distinct negative error when the replace rollback itself fails, and
   a distinct post-commit code (or success-with-warning) for the directory-sync
   case.
-- Reject unknown CLI options (or at least log a warning listing them).
-- Use `NOT_FOUND` for missing session files, keeping the old message text if
-  compatibility matters.
 
 ### 30. Content detection feeds untrusted bytes to third-party parsers
 
@@ -691,6 +592,26 @@ Suggested fix:
 - Consider isolating or resource-limiting content detection for untrusted input.
 - Document the third-party parser exposure in the deployment trust boundary.
 
+### 31. Search navigation does not decorate viewport-neighbor matches
+
+**Impact:** Low to Medium
+**Risk:** Low
+**Area:** Client/server search UX, viewport match decoration
+
+Interactive search can walk to the next or previous match without knowing the
+global match count, but the navigation result does not yet include the other
+matches visible in the active viewport. That means a UI can focus the requested
+match but cannot cheaply decorate the surrounding viewport matches as part of
+the same navigation flow.
+
+Suggested fix:
+- Keep next/previous navigation anchor-based (`limit = 1`) in the requested
+  direction.
+- After locating the focused match, issue a bounded search over the active
+  viewport range with `limit + 1` so the UI can highlight visible sibling
+  matches and show overflow hints without claiming a global total.
+- Cover forward, reverse, and viewport-edge cases in client tests.
+
 ---
 
 ## Testing Gaps For Attestation
@@ -702,8 +623,6 @@ claiming production hardening:
   the current atomic/durable publishing coverage.
 - Remaining overflow paths: helper and edit-range tests exist, but add more
   near-`INT64_MAX` coverage through public APIs and server RPC boundaries.
-- `replace_matches` scale: assert bounded memory use or clear failure on huge
-  match counts.
 - Change-detail payload bounds: request details for a change larger than the
   inline payload limit and assert bounded memory/response behavior.
 - Same-session availability under long scans: run a slow operation (large
@@ -712,8 +631,6 @@ claiming production hardening:
   more aggressively.
 - gRPC message-size boundaries: submit changes just under/over the effective
   transport and `max_change_bytes` limits and assert the intended error paths.
-- Search error paths: assert I/O failures and invalid ranges surface as errors,
-  not empty match lists.
 - Transform/mutation concurrency: add real-thread coverage for
   `try_begin_transform` returning `MUTATION_IN_PROGRESS` and for transform vs.
   mutation mutual exclusion.

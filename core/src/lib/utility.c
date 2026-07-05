@@ -215,7 +215,7 @@ int omega_util_strncmp(const char *s1, const char *s2, uint64_t sz) {
     if (!s1 || !s2) { return s1 == s2 ? 0 : (s1 ? 1 : -1); }
     int rc = 0;
     for (uint64_t i = 0; i < sz; ++i) {
-        if (0 != (rc = s1[i] - s2[i])) break;
+        if (0 != (rc = (unsigned char) s1[i] - (unsigned char) s2[i])) break;
     }
     return rc;
 }
@@ -230,9 +230,10 @@ int omega_util_strnicmp(const char *s1, const char *s2, uint64_t sz) {
 }
 
 char *omega_util_strndup(const char *s, size_t len) {
+    if (!s && len > 0) { return NULL; }
     char *result = (char *) malloc(len + 1);
     if (result != NULL) {
-        memcpy(result, s, len);
+        if (len > 0) { memcpy(result, s, len); }
         result[len] = '\0';
     }
     return result;

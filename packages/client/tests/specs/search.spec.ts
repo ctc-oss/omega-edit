@@ -40,6 +40,7 @@ import {
   searchSession,
   undo,
 } from '@omega-edit/client'
+import { status as GrpcStatus } from '@grpc/grpc-js'
 import {
   createTestSession,
   destroyTestSession,
@@ -238,6 +239,23 @@ describe('Searching', () => {
       undefined
     )
     expect(needles).to.be.empty
+  })
+
+  it('Should reject invalid search contexts instead of returning no matches', async () => {
+    await overwrite(session_id, 0, Buffer.from('abc'))
+
+    try {
+      await searchSession(session_id, 'a', false, false, 4, 1)
+      expect.fail('searchSession should reject an out-of-range search window')
+    } catch (err) {
+      expect((err as Error).message).to.include('INVALID_ARGUMENT')
+      expect((err as Error).message).to.include(
+        'search context could not be created'
+      )
+      expect(
+        ((err as Error & { cause?: { code?: number } }).cause ?? {}).code
+      ).to.equal(GrpcStatus.INVALID_ARGUMENT)
+    }
   })
 
   it('Should be able to optimize replacement operations', () => {

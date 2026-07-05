@@ -644,8 +644,10 @@ int main(int argc, char **argv) {
             } else if (key == "--transform-plugin-host") {
                 if (!require_option_value(key, value)) { return 1; }
                 transform_plugin_host_path = value;
+            } else {
+                std::cerr << "Unknown option: " << key << std::endl;
+                return 1;
             }
-            // Silently ignore unknown options.
         }
     }
 

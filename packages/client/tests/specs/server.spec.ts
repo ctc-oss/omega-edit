@@ -552,6 +552,21 @@ describe('Server Resource Limits', () => {
     viewportEventQueueCapacity: 1,
   }
 
+  const seedAaa = async () => {
+    await insert(session_id, 0, Buffer.from('a'))
+    await insert(session_id, 1, Buffer.from('a'))
+    await insert(session_id, 2, Buffer.from('a'))
+  }
+
+  const expectSessionText = async (expected: string) => {
+    expect(await getComputedFileSize(session_id)).to.equal(expected.length)
+    for (let offset = 0; offset < expected.length; offset++) {
+      expect(await getSegment(session_id, offset, 1)).deep.equals(
+        Buffer.from(expected[offset])
+      )
+    }
+  }
+
   beforeEach(async () => {
     if (isUds) {
       const udsJavaHome = process.env.OMEGA_EDIT_TEST_JAVA_HOME
@@ -815,6 +830,70 @@ describe('Server Resource Limits', () => {
       await searchSession(session_id, 'a', false, false, 0, 0, 0)
       expect.fail(
         'searchSession should reject responses larger than maxSearchMatches'
+      )
+    } catch (err) {
+      expectResourceExhausted(err, 'configured search match limit of 2')
+    }
+  })
+
+  it(`on port ${serverTestPort} should stream unbounded replace-all above the configured match limit`, async () => {
+    await seedAaa()
+
+    expect(
+      await replaceSession(
+        session_id,
+        'a',
+        'b',
+        false,
+        false,
+        0,
+        0,
+        0,
+        true,
+        false
+      )
+    ).to.equal(3)
+    await expectSessionText('bbb')
+  })
+
+  it(`on port ${serverTestPort} should stream unbounded reverse replace-all above the configured match limit`, async () => {
+    await seedAaa()
+
+    expect(
+      await replaceSession(
+        session_id,
+        'a',
+        'b',
+        false,
+        true,
+        0,
+        0,
+        0,
+        true,
+        false
+      )
+    ).to.equal(3)
+    await expectSessionText('bbb')
+  })
+
+  it(`on port ${serverTestPort} should reject explicit transactional replace limits above the configured match limit`, async () => {
+    await seedAaa()
+
+    try {
+      await replaceSession(
+        session_id,
+        'a',
+        'b',
+        false,
+        false,
+        0,
+        0,
+        3,
+        true,
+        false
+      )
+      expect.fail(
+        'replaceSession should reject explicit transactional limits above maxSearchMatches'
       )
     } catch (err) {
       expectResourceExhausted(err, 'configured search match limit of 2')

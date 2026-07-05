@@ -91,8 +91,24 @@ using omega_edit::internal::valid_nonnegative_range_;
 namespace {
     constexpr int64_t OMEGA_IO_BUFFER_SIZE = 65536;
     constexpr int OMEGA_OUTPUT_PATH_SUFFIX_ATTEMPTS = 1000000;
+    constexpr int64_t OMEGA_REPLACE_MATCH_SCRIPT_OPS_PER_MATCH = 1;
+    constexpr int64_t OMEGA_REPLACE_MATCH_SCRIPT_MATCH_LIMIT =
+            (std::min)(static_cast<int64_t>(OMEGA_REPLACE_MATCHES_LIMIT),
+                       static_cast<int64_t>(OMEGA_MEMORY_BUFFER_LIMIT /
+                                            (sizeof(int64_t) + (sizeof(omega_edit_script_op_t) *
+                                                                OMEGA_REPLACE_MATCH_SCRIPT_OPS_PER_MATCH))));
 
     auto initialize_model_segments_(omega_model_segments_t &model_segments, int64_t length) -> bool;
+    auto create_checkpoint_file_(omega_session_t *session_ptr, char *checkpoint_filename,
+                                 size_t checkpoint_filename_size) -> int;
+    auto promote_checkpoint_file_(omega_session_t *session_ptr, const char *checkpoint_filename, int64_t file_size,
+                                  bool notify_transform,
+                                  const const_omega_change_ptr_t &transform_change_ptr) -> int64_t;
+    auto initialize_session_stream_cursor_(const omega_session_t *session_ptr, int64_t offset,
+                                           session_stream_cursor_t &cursor) -> bool;
+    auto stream_session_range_(session_stream_cursor_t &cursor, int64_t end_offset, FILE *to_file_ptr,
+                               omega_byte_t *io_buf) -> int64_t;
+    auto write_bytes_to_file_(FILE *file_ptr, const omega_byte_t *bytes, int64_t length) -> int64_t;
 
     auto flush_file_to_disk_(FILE *file_ptr) -> bool {
         if (!file_ptr) { return false; }
@@ -531,6 +547,216 @@ namespace {
         ops.push_back(op);
         ++stats.deletes;
         ++stats.inserts;
+    }
+
+    auto match_overlaps_prior_(bool is_reverse, bool has_prior, int64_t match_offset, int64_t pattern_length,
+                               int64_t last_accepted_offset, bool &ok) -> bool {
+        ok = true;
+        if (!has_prior) { return false; }
+        int64_t match_end = 0;
+        int64_t last_accepted_end = 0;
+        if (!safe_add_int64_(match_offset, pattern_length, match_end) ||
+            !safe_add_int64_(last_accepted_offset, pattern_length, last_accepted_end)) {
+            ok = false;
+            return false;
+        }
+        return is_reverse ? (match_end > last_accepted_offset) : (match_offset < last_accepted_end);
+    }
+
+    auto compute_single_replace_match_stats_(const omega_byte_t *pattern, int64_t pattern_length,
+                                             const omega_byte_t *replacement,
+                                             int64_t replacement_length) -> replace_match_stats_t {
+        replace_match_stats_t stats;
+        std::vector<omega_edit_script_op_t> sample_ops;
+        sample_ops.reserve(1);
+        append_optimized_replace_ops_(sample_ops, stats, 0, pattern, pattern_length, replacement, replacement_length,
+                                      false);
+        return stats;
+    }
+
+    auto scale_replace_stats_(const replace_match_stats_t &stats, int64_t replacement_count,
+                              replace_match_stats_t &scaled_stats) -> bool {
+        if (replacement_count < 0) { return false; }
+        scaled_stats = {};
+        scaled_stats.replacements = replacement_count;
+        scaled_stats.deletes = stats.deletes > 0 ? replacement_count : 0;
+        scaled_stats.inserts = stats.inserts > 0 ? replacement_count : 0;
+        scaled_stats.overwrites = stats.overwrites > 0 ? replacement_count : 0;
+        return true;
+    }
+
+    auto safe_multiply_nonnegative_int64_(int64_t lhs, int64_t rhs, int64_t &result) -> bool {
+        if (lhs < 0) { return false; }
+        if (lhs == 0 || rhs == 0) {
+            result = 0;
+            return true;
+        }
+        if (rhs > 0) {
+            if (lhs > (std::numeric_limits<int64_t>::max)() / rhs) { return false; }
+        } else {
+            if (rhs == (std::numeric_limits<int64_t>::min)()) { return false; }
+            const auto abs_rhs = -rhs;
+            if (lhs > (std::numeric_limits<int64_t>::max)() / abs_rhs) { return false; }
+        }
+        result = lhs * rhs;
+        return true;
+    }
+
+    auto count_non_overlapping_matches_(omega_session_t *session_ptr, const omega_byte_t *pattern,
+                                        int64_t pattern_length, int64_t offset, int64_t length, int case_insensitive,
+                                        int is_reverse, int64_t &match_count) -> int {
+        match_count = 0;
+        scoped_search_context_t search_context(omega_search_create_context_bytes(
+                session_ptr, pattern, pattern_length, offset, length, case_insensitive, is_reverse));
+        if (!search_context.get()) { return -1; }
+
+        int64_t last_accepted_offset = -1;
+        auto has_accepted_match = false;
+        auto search_result = 0;
+        while ((search_result = omega_search_next_match(search_context.get(), 1)) > 0) {
+            const auto match_offset = omega_search_context_get_match_offset(search_context.get());
+            auto overlap_check_ok = true;
+            const auto overlaps_prior = match_overlaps_prior_(is_reverse != 0, has_accepted_match, match_offset,
+                                                              pattern_length, last_accepted_offset, overlap_check_ok);
+            if (!overlap_check_ok) { return -1; }
+            if (overlaps_prior) { continue; }
+            if (!safe_add_int64_(match_count, 1, match_count)) { return -1; }
+            last_accepted_offset = match_offset;
+            has_accepted_match = true;
+        }
+        return search_result < 0 ? -1 : 0;
+    }
+
+    auto write_session_range_to_file_at_(const omega_session_t *session_ptr, int64_t start_offset, int64_t end_offset,
+                                         FILE *to_file_ptr, omega_byte_t *io_buf, int64_t output_offset) -> bool {
+        if (!session_ptr || !to_file_ptr || !io_buf || start_offset < 0 || end_offset < start_offset ||
+            output_offset < 0) {
+            return false;
+        }
+        if (start_offset == end_offset) { return true; }
+        if (0 != FSEEK(to_file_ptr, output_offset, SEEK_SET)) { return false; }
+        session_stream_cursor_t cursor;
+        if (!initialize_session_stream_cursor_(session_ptr, start_offset, cursor)) { return false; }
+        return stream_session_range_(cursor, end_offset, to_file_ptr, io_buf) == (end_offset - start_offset);
+    }
+
+    auto write_bytes_to_file_at_(FILE *to_file_ptr, int64_t output_offset, const omega_byte_t *bytes,
+                                 int64_t length) -> bool {
+        if (!to_file_ptr || output_offset < 0 || length < 0 || (!bytes && length > 0)) { return false; }
+        if (length == 0) { return true; }
+        if (0 != FSEEK(to_file_ptr, output_offset, SEEK_SET)) { return false; }
+        return write_bytes_to_file_(to_file_ptr, bytes, length) == length;
+    }
+
+    auto replace_all_bytes_reverse_checkpointed_(omega_session_t *session_ptr, const omega_byte_t *pattern,
+                                                 int64_t pattern_length, const omega_byte_t *replacement,
+                                                 int64_t replacement_length, int case_insensitive, int64_t offset,
+                                                 int64_t length, int64_t *replacement_count_out) -> int {
+        if (replacement_count_out != nullptr) { *replacement_count_out = 0; }
+        if (!session_ptr || !pattern || pattern_length <= 0 || offset < 0 || length < 0 || replacement_length < 0) {
+            return -1;
+        }
+        if (!replacement && replacement_length > 0) { return -1; }
+        if (omega_session_changes_paused(session_ptr) != 0) { return -1; }
+
+        const auto computed_file_size = omega_session_get_computed_file_size(session_ptr);
+        if (computed_file_size < 0 || offset > computed_file_size) { return -1; }
+        const auto adjusted_length =
+                length <= 0 ? computed_file_size - offset : std::min(length, computed_file_size - offset);
+        if (adjusted_length < 0) { return -1; }
+        if (pattern_length > adjusted_length) { return 0; }
+
+        int64_t replacement_count = 0;
+        if (0 != count_non_overlapping_matches_(session_ptr, pattern, pattern_length, offset, adjusted_length,
+                                                case_insensitive, 1, replacement_count)) {
+            return -1;
+        }
+        if (replacement_count == 0) { return 0; }
+
+        const auto replacement_delta = replacement_length - pattern_length;
+        int64_t total_delta = 0;
+        int64_t checkpoint_file_size = 0;
+        if (!safe_multiply_nonnegative_int64_(replacement_count, replacement_delta, total_delta) ||
+            !safe_add_int64_(computed_file_size, total_delta, checkpoint_file_size) || checkpoint_file_size < 0) {
+            return -1;
+        }
+
+        std::unique_ptr<omega_byte_t[]> io_buf;
+        try {
+            io_buf = std::make_unique<omega_byte_t[]>(OMEGA_IO_BUFFER_SIZE);
+        } catch (const std::bad_alloc &) { return -1; }
+
+        char checkpoint_filename[FILENAME_MAX + 1];
+        if (0 != create_checkpoint_file_(session_ptr, checkpoint_filename, sizeof(checkpoint_filename))) { return -1; }
+
+        auto *checkpoint_fptr = FOPEN(checkpoint_filename, "wb");
+        if (checkpoint_fptr == nullptr) {
+            omega_util_remove_file(checkpoint_filename);
+            return -1;
+        }
+
+        auto rc = 0;
+        scoped_search_context_t search_context(omega_search_create_context_bytes(
+                session_ptr, pattern, pattern_length, offset, adjusted_length, case_insensitive, 1));
+        if (!search_context.get()) { rc = -1; }
+
+        int64_t input_cursor_end = computed_file_size;
+        int64_t output_cursor_end = checkpoint_file_size;
+        int64_t last_accepted_offset = -1;
+        auto has_accepted_match = false;
+        auto search_result = 0;
+        while (rc == 0 && (search_result = omega_search_next_match(search_context.get(), 1)) > 0) {
+            const auto match_offset = omega_search_context_get_match_offset(search_context.get());
+            auto overlap_check_ok = true;
+            const auto overlaps_prior = match_overlaps_prior_(true, has_accepted_match, match_offset, pattern_length,
+                                                              last_accepted_offset, overlap_check_ok);
+            if (!overlap_check_ok) {
+                rc = -1;
+                break;
+            }
+            if (overlaps_prior) { continue; }
+
+            int64_t match_end = 0;
+            if (!safe_add_int64_(match_offset, pattern_length, match_end) || match_end > input_cursor_end) {
+                rc = -1;
+                break;
+            }
+
+            const auto bytes_after_match = input_cursor_end - match_end;
+            if (!safe_add_int64_(output_cursor_end, -bytes_after_match, output_cursor_end) ||
+                !write_session_range_to_file_at_(session_ptr, match_end, input_cursor_end, checkpoint_fptr,
+                                                 io_buf.get(), output_cursor_end) ||
+                !safe_add_int64_(output_cursor_end, -replacement_length, output_cursor_end) ||
+                !write_bytes_to_file_at_(checkpoint_fptr, output_cursor_end, replacement, replacement_length)) {
+                rc = -1;
+                break;
+            }
+
+            input_cursor_end = match_offset;
+            last_accepted_offset = match_offset;
+            has_accepted_match = true;
+        }
+        if (search_result < 0) { rc = -1; }
+
+        if (rc == 0) {
+            if (!safe_add_int64_(output_cursor_end, -input_cursor_end, output_cursor_end) || output_cursor_end != 0 ||
+                !write_session_range_to_file_at_(session_ptr, 0, input_cursor_end, checkpoint_fptr, io_buf.get(), 0)) {
+                rc = -1;
+            }
+        }
+
+        search_context.reset();
+        FCLOSE(checkpoint_fptr);
+
+        if (rc != 0 || omega_util_file_size(checkpoint_filename) != checkpoint_file_size) {
+            omega_util_remove_file(checkpoint_filename);
+            return -1;
+        }
+        if (0 != promote_checkpoint_file_(session_ptr, checkpoint_filename, checkpoint_file_size, true, nullptr)) {
+            return -1;
+        }
+        if (replacement_count_out != nullptr) { *replacement_count_out = replacement_count; }
+        return 0;
     }
 
     inline void update_viewport_offset_adjustment_(omega_viewport_t *viewport_ptr, const omega_change_t *change_ptr) {
@@ -1871,7 +2097,7 @@ int64_t omega_edit_replace_bytes(omega_session_t *session_ptr, int64_t offset, i
 
 int omega_edit_replace_bytes_checkpointed(omega_session_t *session_ptr, int64_t offset, int64_t delete_length,
                                           const omega_byte_t *bytes, int64_t insert_length) {
-    return replace_bytes_checkpointed_(session_ptr, offset, delete_length, bytes, insert_length);
+    return replace_bytes_checkpointed_(session_ptr, offset, delete_length, bytes, insert_length) < 0 ? -1 : 0;
 }
 
 int64_t omega_edit_replace_bytes_as_transform(omega_session_t *session_ptr, int64_t offset, int64_t delete_length,
@@ -1921,22 +2147,64 @@ int omega_edit_replace_matches_bytes(omega_session_t *session_ptr, const omega_b
     if (!search_context.get()) { return -1; }
 
     try {
+        if (OMEGA_REPLACE_MATCH_SCRIPT_MATCH_LIMIT <= 0) { return -1; }
+
+        const auto collect_limit = (limit > 0) ? (std::min)(limit, OMEGA_REPLACE_MATCH_SCRIPT_MATCH_LIMIT)
+                                               : OMEGA_REPLACE_MATCH_SCRIPT_MATCH_LIMIT;
         std::vector<int64_t> match_offsets;
         int64_t last_accepted_offset = -1;
-        while ((limit <= 0 || static_cast<int64_t>(match_offsets.size()) < limit) &&
-               omega_search_next_match(search_context.get(), 1) > 0) {
+        auto search_result = 0;
+        while (static_cast<int64_t>(match_offsets.size()) < collect_limit &&
+               (search_result = omega_search_next_match(search_context.get(), 1)) > 0) {
             const auto match_offset = omega_search_context_get_match_offset(search_context.get());
-            int64_t match_end = 0;
-            int64_t last_accepted_end = 0;
-            if (!safe_add_int64_(match_offset, pattern_length, match_end) ||
-                (!match_offsets.empty() && !safe_add_int64_(last_accepted_offset, pattern_length, last_accepted_end))) {
-                return -1;
-            }
-            const bool overlaps_prior = !match_offsets.empty() && (is_reverse ? (match_end > last_accepted_offset)
-                                                                              : (match_offset < last_accepted_end));
+            auto overlap_check_ok = true;
+            const auto overlaps_prior = match_overlaps_prior_(is_reverse != 0, !match_offsets.empty(), match_offset,
+                                                              pattern_length, last_accepted_offset, overlap_check_ok);
+            if (!overlap_check_ok) { return -1; }
             if (overlaps_prior) { continue; }
             match_offsets.push_back(match_offset);
             last_accepted_offset = match_offset;
+        }
+        if (search_result < 0) { return -1; }
+        if ((limit <= 0 || static_cast<int64_t>(match_offsets.size()) < limit) &&
+            static_cast<int64_t>(match_offsets.size()) >= OMEGA_REPLACE_MATCH_SCRIPT_MATCH_LIMIT) {
+            while ((search_result = omega_search_next_match(search_context.get(), 1)) > 0) {
+                const auto match_offset = omega_search_context_get_match_offset(search_context.get());
+                auto overlap_check_ok = true;
+                const auto overlaps_prior =
+                        match_overlaps_prior_(is_reverse != 0, !match_offsets.empty(), match_offset, pattern_length,
+                                              last_accepted_offset, overlap_check_ok);
+                if (!overlap_check_ok) { return -1; }
+                if (!overlaps_prior) {
+                    const auto can_stream_replace_all = limit <= 0 && overwrite_only == 0;
+                    if (!can_stream_replace_all) { return -1; }
+
+                    search_context.reset();
+                    int64_t streamed_replacement_count = 0;
+                    const auto rc =
+                            is_reverse != 0
+                                    ? replace_all_bytes_reverse_checkpointed_(
+                                              session_ptr, pattern, pattern_length, replacement, replacement_length,
+                                              case_insensitive, offset, length, &streamed_replacement_count)
+                                    : omega_edit_replace_all_bytes(session_ptr, pattern, pattern_length, replacement,
+                                                                   replacement_length, case_insensitive, offset, length,
+                                                                   &streamed_replacement_count);
+                    if (rc != 0) { return -1; }
+
+                    const auto single_match_stats = compute_single_replace_match_stats_(
+                            pattern, pattern_length, replacement, replacement_length);
+                    replace_match_stats_t streamed_stats;
+                    if (!scale_replace_stats_(single_match_stats, streamed_replacement_count, streamed_stats)) {
+                        return -1;
+                    }
+                    if (replacement_count_out != nullptr) { *replacement_count_out = streamed_stats.replacements; }
+                    if (delete_count_out != nullptr) { *delete_count_out = streamed_stats.deletes; }
+                    if (insert_count_out != nullptr) { *insert_count_out = streamed_stats.inserts; }
+                    if (overwrite_count_out != nullptr) { *overwrite_count_out = streamed_stats.overwrites; }
+                    return 0;
+                }
+            }
+            if (search_result < 0) { return -1; }
         }
         search_context.reset();
 
@@ -2019,7 +2287,12 @@ int omega_edit_replace_all_bytes(omega_session_t *session_ptr, const omega_byte_
                                                                    adjusted_length, case_insensitive, 0);
     if (!search_context) { return -1; }
 
-    if (omega_search_next_match(search_context, pattern_length) == 0) {
+    auto search_result = omega_search_next_match(search_context, pattern_length);
+    if (search_result < 0) {
+        omega_search_destroy_context(search_context);
+        return -1;
+    }
+    if (search_result == 0) {
         omega_search_destroy_context(search_context);
         return 0;
     }
@@ -2092,8 +2365,10 @@ int omega_edit_replace_all_bytes(omega_session_t *session_ptr, const omega_byte_
                 break;
             }
             ++replacement_count;
-        } while (omega_search_next_match(search_context, pattern_length) > 0);
+            search_result = omega_search_next_match(search_context, pattern_length);
+        } while (search_result > 0);
 
+        if (search_result < 0) { rc = -1; }
         if (rc != 0) { break; }
 
         const auto remaining_replace_range = replace_end - cursor.offset;
@@ -2125,6 +2400,18 @@ int omega_edit_replace_all_bytes(omega_session_t *session_ptr, const omega_byte_
     if (0 != promote_checkpoint_file_(session_ptr, checkpoint_filename, checkpoint_file_size, true)) { return -1; }
     if (replacement_count_out != nullptr) { *replacement_count_out = replacement_count; }
     return 0;
+}
+
+int omega_edit_replace_all_bytes_directional(omega_session_t *session_ptr, const omega_byte_t *pattern,
+                                             int64_t pattern_length, const omega_byte_t *replacement,
+                                             int64_t replacement_length, int case_insensitive, int is_reverse,
+                                             int64_t offset, int64_t length, int64_t *replacement_count_out) {
+    return is_reverse != 0
+                   ? replace_all_bytes_reverse_checkpointed_(session_ptr, pattern, pattern_length, replacement,
+                                                             replacement_length, case_insensitive, offset, length,
+                                                             replacement_count_out)
+                   : omega_edit_replace_all_bytes(session_ptr, pattern, pattern_length, replacement, replacement_length,
+                                                  case_insensitive, offset, length, replacement_count_out);
 }
 
 int omega_edit_replace_all(omega_session_t *session_ptr, const char *pattern, int64_t pattern_length,

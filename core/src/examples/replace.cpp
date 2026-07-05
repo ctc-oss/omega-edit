@@ -42,7 +42,7 @@ int main(int arc, char **argv) {
     auto match_context_ptr = omega_scoped_ptr<omega_search_context_t>(
             omega_search_create_context_string(session_ptr.get(), argv[3]), omega_search_destroy_context);
     const auto pattern_length = omega_search_context_get_pattern_length(match_context_ptr.get());
-    if (0 != omega_search_next_match(match_context_ptr.get(), 1)) {
+    if (omega_search_next_match(match_context_ptr.get(), 1) > 0) {
         const auto replacement_length = static_cast<int64_t>(replacement.length());
         do {
             const auto pattern_offset = omega_search_context_get_match_offset(match_context_ptr.get());
@@ -67,8 +67,8 @@ int main(int arc, char **argv) {
                 }
             }
             ++replacements;
-        } while (0 != omega_search_next_match(match_context_ptr.get(),
-                                              replacement_length));//advance find by the replacement length
+        } while (omega_search_next_match(match_context_ptr.get(), replacement_length) >
+                 0);//advance find by the replacement length
     }
     if (0 != omega_edit_save(session_ptr.get(), argv[2], omega_io_flags_t::IO_FLG_NONE, nullptr)) {
         cerr << "Error saving session to " << argv[2] << endl;

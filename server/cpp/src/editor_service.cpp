@@ -766,6 +766,119 @@ namespace omega_edit {
             return requested_limit;
         }
 
+        static int64_t transactional_replace_match_limit(const ResourceLimits &resource_limits) {
+            auto limit = static_cast<int64_t>(OMEGA_REPLACE_MATCHES_LIMIT);
+            if (resource_limits.max_search_matches > 0) {
+                limit = (std::min)(limit, resource_limits.max_search_matches);
+            }
+            return limit;
+        }
+
+        static bool match_overlaps_prior(bool is_reverse, bool has_prior, int64_t match_offset, int64_t pattern_length,
+                                         int64_t last_accepted_offset, bool &ok) {
+            ok = true;
+            if (!has_prior) { return false; }
+            if (match_offset > (std::numeric_limits<int64_t>::max)() - pattern_length ||
+                last_accepted_offset > (std::numeric_limits<int64_t>::max)() - pattern_length) {
+                ok = false;
+                return false;
+            }
+            const auto match_end = match_offset + pattern_length;
+            const auto last_accepted_end = last_accepted_offset + pattern_length;
+            return is_reverse ? (match_end > last_accepted_offset) : (match_offset < last_accepted_end);
+        }
+
+        static grpc::Status count_replace_matches_until_limit(omega_session_t *session, const std::string &pattern,
+                                                              bool case_insensitive, bool is_reverse, int64_t offset,
+                                                              int64_t length, int64_t session_size,
+                                                              int64_t max_selected_matches,
+                                                              int64_t &selected_match_count,
+                                                              bool &selected_match_limit_exceeded) {
+            selected_match_count = 0;
+            selected_match_limit_exceeded = false;
+            if (!session || pattern.empty() || max_selected_matches < 0) {
+                return grpc::Status(grpc::StatusCode::INVALID_ARGUMENT, "replace preflight arguments are invalid");
+            }
+
+            const auto effective_length =
+                    length > 0 ? (std::min)(length, session_size - offset) : session_size - offset;
+            if (static_cast<int64_t>(pattern.size()) > effective_length) { return grpc::Status::OK; }
+
+            auto *ctx =
+                    omega_search_create_context_bytes(session, reinterpret_cast<const omega_byte_t *>(pattern.data()),
+                                                      static_cast<int64_t>(pattern.size()), offset, effective_length,
+                                                      case_insensitive ? 1 : 0, is_reverse ? 1 : 0);
+            if (!ctx) {
+                return grpc::Status(grpc::StatusCode::INVALID_ARGUMENT, "replace search context could not be created");
+            }
+
+            int64_t last_accepted_offset = -1;
+            auto has_accepted_match = false;
+            auto search_result = 0;
+            while ((search_result = omega_search_next_match(ctx, 1)) > 0) {
+                const auto match_offset = omega_search_context_get_match_offset(ctx);
+                auto overlap_check_ok = true;
+                const auto overlaps_prior = match_overlaps_prior(is_reverse, has_accepted_match, match_offset,
+                                                                 static_cast<int64_t>(pattern.size()),
+                                                                 last_accepted_offset, overlap_check_ok);
+                if (!overlap_check_ok) {
+                    omega_search_destroy_context(ctx);
+                    return grpc::Status(grpc::StatusCode::INVALID_ARGUMENT, "replace match range is invalid");
+                }
+                if (overlaps_prior) { continue; }
+                if (selected_match_count >= max_selected_matches) {
+                    selected_match_limit_exceeded = true;
+                    omega_search_destroy_context(ctx);
+                    return grpc::Status::OK;
+                }
+                ++selected_match_count;
+                last_accepted_offset = match_offset;
+                has_accepted_match = true;
+            }
+
+            omega_search_destroy_context(ctx);
+            if (search_result < 0) {
+                return grpc::Status(grpc::StatusCode::INTERNAL, "replace search failed while reading session content");
+            }
+            return grpc::Status::OK;
+        }
+
+        static void compute_replace_lowered_counts(const std::string &pattern, const std::string &replacement,
+                                                   int64_t replacement_count, int64_t &delete_count,
+                                                   int64_t &insert_count, int64_t &overwrite_count) {
+            delete_count = 0;
+            insert_count = 0;
+            overwrite_count = 0;
+            if (replacement_count <= 0) { return; }
+
+            size_t prefix_length = 0;
+            while (prefix_length < pattern.size() && prefix_length < replacement.size() &&
+                   pattern[prefix_length] == replacement[prefix_length]) {
+                ++prefix_length;
+            }
+
+            size_t suffix_length = 0;
+            while (suffix_length < pattern.size() - prefix_length &&
+                   suffix_length < replacement.size() - prefix_length &&
+                   pattern[pattern.size() - 1 - suffix_length] == replacement[replacement.size() - 1 - suffix_length]) {
+                ++suffix_length;
+            }
+
+            const auto remove_length = pattern.size() - prefix_length - suffix_length;
+            const auto insert_length = replacement.size() - prefix_length - suffix_length;
+            if (remove_length == 0 && insert_length == 0) { return; }
+            if (remove_length == 0) {
+                insert_count = replacement_count;
+            } else if (insert_length == 0) {
+                delete_count = replacement_count;
+            } else if (remove_length == insert_length) {
+                overwrite_count = replacement_count;
+            } else {
+                delete_count = replacement_count;
+                insert_count = replacement_count;
+            }
+        }
+
         EditorServiceImpl::EditorServiceImpl(HeartbeatConfig heartbeat_config, ResourceLimits resource_limits,
                                              std::function<void()> shutdown_callback,
                                              std::vector<std::string> transform_plugin_directories,
@@ -970,11 +1083,11 @@ namespace omega_edit {
                                     "create session accepts either file_path or initial_data, not both");
             }
 
-            // Validate file path exists if provided (match previous server behavior)
+            // Validate file path exists if provided.
             if (!file_path.empty()) {
                 std::error_code ec;
                 if (!std::filesystem::exists(file_path, ec) || ec) {
-                    return grpc::Status(grpc::StatusCode::INTERNAL,
+                    return grpc::Status(grpc::StatusCode::NOT_FOUND,
                                         std::string("Failed to create session: file does not exist: ") + file_path);
                 }
             }
@@ -2093,22 +2206,52 @@ namespace omega_edit {
                 }
                 auto *session = locked_session.session();
 
-                auto *ctx = omega_search_create_context_bytes(
-                        session, reinterpret_cast<const omega_byte_t *>(request->pattern().data()),
-                        static_cast<int64_t>(request->pattern().size()), offset, length, case_insensitive ? 1 : 0,
-                        is_reverse ? 1 : 0);
+                const auto session_size = omega_session_get_computed_file_size(session);
+                if (session_size < 0) {
+                    return grpc::Status(grpc::StatusCode::INTERNAL,
+                                        "failed to compute session size for session: " + request->session_id());
+                }
+                if (offset > session_size) {
+                    return grpc::Status(grpc::StatusCode::INVALID_ARGUMENT, "search context could not be created");
+                }
+                const auto effective_length = length > 0 ? length : session_size - offset;
+                if (length > 0 && effective_length > session_size - offset) {
+                    return grpc::Status(grpc::StatusCode::INVALID_ARGUMENT, "search range is invalid");
+                }
+                if (static_cast<int64_t>(request->pattern().size()) <= effective_length) {
+                    auto *ctx = omega_search_create_context_bytes(
+                            session, reinterpret_cast<const omega_byte_t *>(request->pattern().data()),
+                            static_cast<int64_t>(request->pattern().size()), offset, length, case_insensitive ? 1 : 0,
+                            is_reverse ? 1 : 0);
 
-                if (ctx) {
+                    if (!ctx) {
+                        return grpc::Status(grpc::StatusCode::INVALID_ARGUMENT, "search context could not be created");
+                    }
+
                     int64_t num_matches = 0;
-                    while ((bounded_limit <= 0 || num_matches < bounded_limit) && omega_search_next_match(ctx, 1) > 0) {
+                    auto search_result = 0;
+                    while ((bounded_limit <= 0 || num_matches < bounded_limit) &&
+                           (search_result = omega_search_next_match(ctx, 1)) > 0) {
                         match_offsets.push_back(omega_search_context_get_match_offset(ctx));
                         ++num_matches;
                     }
-                    if (resource_limit_applies && num_matches >= bounded_limit && omega_search_next_match(ctx, 1) > 0) {
+                    if (search_result < 0) {
                         omega_search_destroy_context(ctx);
-                        return grpc::Status(grpc::StatusCode::RESOURCE_EXHAUSTED,
-                                            "search matches exceed configured search match limit of " +
-                                                    std::to_string(resource_limits_.max_search_matches));
+                        return grpc::Status(grpc::StatusCode::INTERNAL, "search failed while reading session content");
+                    }
+                    if (resource_limit_applies && num_matches >= bounded_limit) {
+                        search_result = omega_search_next_match(ctx, 1);
+                        if (search_result < 0) {
+                            omega_search_destroy_context(ctx);
+                            return grpc::Status(grpc::StatusCode::INTERNAL,
+                                                "search failed while reading session content");
+                        }
+                        if (search_result > 0) {
+                            omega_search_destroy_context(ctx);
+                            return grpc::Status(grpc::StatusCode::RESOURCE_EXHAUSTED,
+                                                "search matches exceed configured search match limit of " +
+                                                        std::to_string(resource_limits_.max_search_matches));
+                        }
                     }
                     omega_search_destroy_context(ctx);
                 }
@@ -2199,16 +2342,58 @@ namespace omega_edit {
                                                 request->session_id());
                 }
 
-                const auto rc = omega_edit_replace_matches_bytes(
-                        session, reinterpret_cast<const omega_byte_t *>(request->pattern().data()),
-                        static_cast<int64_t>(request->pattern().size()),
-                        reinterpret_cast<const omega_byte_t *>(request->replacement().data()),
-                        static_cast<int64_t>(request->replacement().size()), case_insensitive ? 1 : 0,
-                        is_reverse ? 1 : 0, offset, length, limit, front_to_back ? 1 : 0, overwrite_only ? 1 : 0,
-                        &replacement_count, &delete_count, &insert_count, &overwrite_count);
-                if (rc != 0) {
-                    return grpc::Status(grpc::StatusCode::INTERNAL,
-                                        "replace failed for session: " + request->session_id());
+                auto bounded_replace_limit = limit;
+                const auto replace_match_limit = transactional_replace_match_limit(resource_limits_);
+                if (replace_match_limit <= 0) {
+                    return grpc::Status(grpc::StatusCode::RESOURCE_EXHAUSTED,
+                                        "transactional replace match limit is disabled; use checkpointed replace");
+                }
+                auto replace_completed = false;
+                if (limit <= 0 || limit > replace_match_limit) {
+                    auto selected_match_count = int64_t{0};
+                    auto selected_match_limit_exceeded = false;
+                    const auto preflight_status = count_replace_matches_until_limit(
+                            session, request->pattern(), case_insensitive, is_reverse, offset, length, session_size,
+                            replace_match_limit, selected_match_count, selected_match_limit_exceeded);
+                    if (!preflight_status.ok()) { return preflight_status; }
+                    if (selected_match_limit_exceeded) {
+                        const auto can_stream_replace_all = limit <= 0 && !overwrite_only;
+                        if (!can_stream_replace_all) {
+                            return grpc::Status(grpc::StatusCode::RESOURCE_EXHAUSTED,
+                                                "replace matches exceed configured search match limit of " +
+                                                        std::to_string(replace_match_limit) +
+                                                        "; use checkpointed replace for large replace-all operations");
+                        }
+                        const auto rc = omega_edit_replace_all_bytes_directional(
+                                session, reinterpret_cast<const omega_byte_t *>(request->pattern().data()),
+                                static_cast<int64_t>(request->pattern().size()),
+                                reinterpret_cast<const omega_byte_t *>(request->replacement().data()),
+                                static_cast<int64_t>(request->replacement().size()), case_insensitive ? 1 : 0,
+                                is_reverse ? 1 : 0, offset, length, &replacement_count);
+                        if (rc != 0) {
+                            return grpc::Status(grpc::StatusCode::INTERNAL,
+                                                "checkpointed replace fallback failed for session: " +
+                                                        request->session_id());
+                        }
+                        compute_replace_lowered_counts(request->pattern(), request->replacement(), replacement_count,
+                                                       delete_count, insert_count, overwrite_count);
+                        replace_completed = true;
+                    }
+                    bounded_replace_limit = selected_match_count;
+                }
+
+                if (!replace_completed) {
+                    const auto rc = omega_edit_replace_matches_bytes(
+                            session, reinterpret_cast<const omega_byte_t *>(request->pattern().data()),
+                            static_cast<int64_t>(request->pattern().size()),
+                            reinterpret_cast<const omega_byte_t *>(request->replacement().data()),
+                            static_cast<int64_t>(request->replacement().size()), case_insensitive ? 1 : 0,
+                            is_reverse ? 1 : 0, offset, length, bounded_replace_limit, front_to_back ? 1 : 0,
+                            overwrite_only ? 1 : 0, &replacement_count, &delete_count, &insert_count, &overwrite_count);
+                    if (rc != 0) {
+                        return grpc::Status(grpc::StatusCode::INTERNAL,
+                                            "replace failed for session: " + request->session_id());
+                    }
                 }
             }
 
