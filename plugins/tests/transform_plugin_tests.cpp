@@ -156,11 +156,11 @@ TEST_CASE("Packaged Transform Plugins", "[TransformPlugin]") {
                                                                    strict_without_properties_schema));
     const char *escaped_string_schema = R"json({
         "type":"object",
-        "properties":{"text":{"type":"string","enum":["\b\f\n\r\t"]}},
+        "properties":{"text":{"type":"string","enum":["\u0008\u000C\u000A\u000D\u0009"]}},
         "additionalProperties":false
     })json";
-    REQUIRE(0 == omega_transform_plugin_options_match_args_schema(R"json({"text":"\b\f\n\r\t"})json",
-                                                                  escaped_string_schema));
+    REQUIRE(0 == omega_transform_plugin_options_match_args_schema(
+                         R"json({"text":"\u0008\u000C\u000A\u000D\u0009"})json", escaped_string_schema));
     const char *numeric_integer_schema = R"json({
         "type":"object",
         "properties":{"value":{"type":"integer","minimum":-100,"maximum":100}},

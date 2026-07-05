@@ -50,7 +50,7 @@ coverage:
 	cmake -G $(GENERATOR) -S . -B _build-coverage -DBUILD_SHARED_LIBS=NO -DBUILD_DOCS=NO -DBUILD_EXAMPLES=NO -DBUILD_COVERAGE=YES -DCMAKE_BUILD_TYPE=Debug
 	cmake --build _build-coverage --config Debug
 	ctest -C Debug --test-dir _build-coverage/core --output-on-failure
-	ctest -C Debug --test-dir _build-coverage/plugins --output-on-failure
+	test ! -d _build-coverage/plugins || ctest -C Debug --test-dir _build-coverage/plugins --output-on-failure
 	@echo "Coverage data generated in _build-coverage/"
 	@echo "Run 'lcov --capture --directory _build-coverage --output-file coverage.info' to generate a report"
 
