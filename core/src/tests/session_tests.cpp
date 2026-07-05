@@ -531,6 +531,22 @@ TEST_CASE("Named options and explicit C-string helpers", "[SessionApiTests]") {
     REQUIRE("beta" == std::string(reinterpret_cast<const char *>(buffer), sizeof(buffer)));
     omega_util_remove_file(output_path.c_str());
 
+    const omega_byte_t byte_pattern[] = {'o', 'm', 'e', 'g', 'a'};
+    const omega_byte_t byte_replacement[] = {'A', 'L', 'P', 'H', 'A'};
+    replacement_count = 0;
+    omega_edit_replace_matches_options_t byte_replace_options{};
+    byte_replace_options.offset = 0;
+    byte_replace_options.length = 0;
+    byte_replace_options.limit = 1;
+    byte_replace_options.front_to_back = OMEGA_EDIT_TRUE;
+    byte_replace_options.replacement_count_out = &replacement_count;
+    REQUIRE(0 == omega_edit_replace_matches_bytes_with_options(
+                         session_ptr, byte_pattern, static_cast<int64_t>(sizeof(byte_pattern)), byte_replacement,
+                         static_cast<int64_t>(sizeof(byte_replacement)), &byte_replace_options));
+    REQUIRE(1 == replacement_count);
+    REQUIRE("ALPHA beta omega" ==
+            omega_session_get_segment_string(session_ptr, 0, omega_session_get_computed_file_size(session_ptr)));
+
     omega_edit_destroy_session(session_ptr);
 }
 

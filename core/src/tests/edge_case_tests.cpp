@@ -194,6 +194,13 @@ TEST_CASE("Byte APIs treat zero-length inputs as empty and keep string helpers c
     REQUIRE(1 == omega_search_context_get_match_offset(cstring_search));
     omega_search_destroy_context(cstring_search);
 
+    REQUIRE(-1 == omega_edit_overwrite_cstring(session_ptr, 0, nullptr));
+    REQUIRE(-1 == omega_edit_replace_cstring(session_ptr, 0, 1, nullptr));
+    REQUIRE(0 < omega_edit_overwrite_cstring(session_ptr, 0, "ABCDE"));
+    REQUIRE("ABCDE" == omega_session_get_segment_string(session_ptr, 0, 5));
+    REQUIRE(0 < omega_edit_replace_cstring(session_ptr, 1, 3, "oo"));
+    REQUIRE("AooE" == omega_session_get_segment_string(session_ptr, 0, 4));
+
     REQUIRE(nullptr == omega_search_create_context_bytes(session_ptr, bytes, 0, 0, 0, 0, 0));
 
     omega_edit_destroy_session(session_ptr);
