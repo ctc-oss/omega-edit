@@ -12,7 +12,8 @@
  *                                                                                                                    *
  **********************************************************************************************************************/
 
-#include <ctype.h>
+#include "c_plugin_options.h"
+
 #include <omega_edit/transform_plugin_sdk.h>
 #include <openssl/evp.h>
 #include <stdint.h>
@@ -54,31 +55,6 @@ static const char DIGEST_ARGS_SCHEMA[] =
         "{\"label\":\"BLAKE2\",\"values\":[\"blake2b-512\",\"blake2s-256\"]}]}},"
         "\"additionalProperties\":false}";
 
-static void digest_skip_ws(const char **cursor) {
-    while (cursor && *cursor && isspace((unsigned char) **cursor)) { ++(*cursor); }
-}
-
-static int digest_parse_json_string(const char **cursor, char *out, size_t out_size) {
-    if (!cursor || !*cursor || **cursor != '"' || out_size == 0) { return -1; }
-    ++(*cursor);
-    size_t length = 0;
-    while (**cursor && **cursor != '"') {
-        char ch = **cursor;
-        if (ch == '\\') {
-            ++(*cursor);
-            if (!**cursor) { return -1; }
-            ch = **cursor;
-        }
-        if (length + 1 >= out_size) { return -1; }
-        out[length++] = ch;
-        ++(*cursor);
-    }
-    if (**cursor != '"') { return -1; }
-    ++(*cursor);
-    out[length] = '\0';
-    return 0;
-}
-
 static const omega_digest_algorithm_t *digest_find_algorithm(const char *algorithm) {
     if (!algorithm) { return NULL; }
     const size_t count = sizeof(OMEGA_DIGEST_ALGORITHMS) / sizeof(OMEGA_DIGEST_ALGORITHMS[0]);
@@ -95,32 +71,32 @@ static int digest_parse_options(const char *options_json, const omega_digest_alg
     if (!options_json || !*options_json) { return 0; }
 
     const char *cursor = options_json;
-    digest_skip_ws(&cursor);
+    omega_plugin_json_skip_ws(&cursor);
     if (*cursor != '{') { return -1; }
     ++cursor;
-    digest_skip_ws(&cursor);
+    omega_plugin_json_skip_ws(&cursor);
     if (*cursor == '}') {
         ++cursor;
-        digest_skip_ws(&cursor);
+        omega_plugin_json_skip_ws(&cursor);
         return *cursor == '\0' ? 0 : -1;
     }
 
     char key[32];
-    if (digest_parse_json_string(&cursor, key, sizeof(key)) != 0 || strcmp(key, "algorithm") != 0) { return -1; }
-    digest_skip_ws(&cursor);
+    if (omega_plugin_json_parse_string(&cursor, key, sizeof(key)) != 0 || strcmp(key, "algorithm") != 0) { return -1; }
+    omega_plugin_json_skip_ws(&cursor);
     if (*cursor != ':') { return -1; }
     ++cursor;
-    digest_skip_ws(&cursor);
+    omega_plugin_json_skip_ws(&cursor);
 
     char algorithm[32];
-    if (digest_parse_json_string(&cursor, algorithm, sizeof(algorithm)) != 0) { return -1; }
+    if (omega_plugin_json_parse_string(&cursor, algorithm, sizeof(algorithm)) != 0) { return -1; }
     *algorithm_out = digest_find_algorithm(algorithm);
     if (!*algorithm_out) { return -1; }
 
-    digest_skip_ws(&cursor);
+    omega_plugin_json_skip_ws(&cursor);
     if (*cursor != '}') { return -1; }
     ++cursor;
-    digest_skip_ws(&cursor);
+    omega_plugin_json_skip_ws(&cursor);
     return *cursor == '\0' ? 0 : -1;
 }
 

@@ -88,8 +88,17 @@ typedef enum {
     IO_FLG_FORCE_OVERWRITE = 1 << 1//< Force overwrite of original file, even if modified outside the session
 } omega_io_flags_t;
 
+/** Boolean-like option value used by options-struct APIs */
+typedef enum { OMEGA_EDIT_FALSE = 0, OMEGA_EDIT_TRUE = 1 } omega_edit_bool_t;
+
 /** Error code to indicate that the original session file has been modified since the session was created */
 #define ORIGINAL_MODIFIED (-100)
+
+/** Replace failed after the delete step and the attempted rollback also failed; session content may have changed */
+#define OMEGA_EDIT_REPLACE_ROLLBACK_FAILED (-101)
+
+/** Save data was published, but syncing the parent directory failed; contents may still be durable on the filesystem */
+#define OMEGA_EDIT_SAVE_DIRECTORY_SYNC_FAILED (-102)
 
 /** Mask types */
 typedef enum { MASK_AND, MASK_OR, MASK_XOR } omega_mask_kind_t;

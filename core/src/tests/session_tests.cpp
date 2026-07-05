@@ -22,6 +22,7 @@
 #include <catch2/catch_test_macros.hpp>
 #include <catch2/matchers/catch_matchers_contains.hpp>
 #include <catch2/matchers/catch_matchers_string.hpp>
+#include <cstdio>
 #include <vector>
 
 using Catch::Matchers::Contains;
@@ -469,6 +470,67 @@ TEST_CASE("Session Save", "[SessionSaveTests]") {
                                  saved_filename));
     REQUIRE(omega_util_paths_equivalent(MAKE_PATH("session_save.empty.dat"), saved_filename));
     REQUIRE(0 == omega_util_compare_files(MAKE_PATH("empty_file.dat"), MAKE_PATH("session_save.empty.dat")));
+    omega_edit_destroy_session(session_ptr);
+}
+
+TEST_CASE("Named options and explicit C-string helpers", "[SessionApiTests]") {
+    auto *session_ptr = omega_edit_create_session(nullptr, nullptr, nullptr, NO_EVENTS, nullptr);
+    REQUIRE(session_ptr);
+
+    REQUIRE(0 < omega_edit_insert_cstring(session_ptr, 0, "alpha beta alpha"));
+
+    int64_t replacement_count = 0;
+    omega_edit_replace_matches_options_t replace_options{};
+    replace_options.offset = 0;
+    replace_options.length = 0;
+    replace_options.limit = 1;
+    replace_options.front_to_back = OMEGA_EDIT_TRUE;
+    replace_options.replacement_count_out = &replacement_count;
+    REQUIRE(0 == omega_edit_replace_matches_with_options(session_ptr, "alpha", 0, "omega", 0, &replace_options));
+    REQUIRE(1 == replacement_count);
+
+    replacement_count = 0;
+    omega_edit_replace_all_options_t replace_all_options{};
+    replace_all_options.offset = 0;
+    replace_all_options.length = 0;
+    replace_all_options.replacement_count_out = &replacement_count;
+    REQUIRE(0 == omega_edit_replace_all_with_options(session_ptr, "alpha", 0, "omega", 0, &replace_all_options));
+    REQUIRE(1 == replacement_count);
+
+    omega_edit_viewport_options_t viewport_options{};
+    viewport_options.offset = 0;
+    viewport_options.capacity = 5;
+    auto *viewport_ptr = omega_edit_create_viewport_with_options(session_ptr, &viewport_options);
+    REQUIRE(viewport_ptr);
+
+    omega_viewport_modify_options_t modify_options{};
+    modify_options.offset = 6;
+    modify_options.capacity = 4;
+    modify_options.is_floating = OMEGA_EDIT_TRUE;
+    REQUIRE(0 == omega_viewport_modify_with_options(viewport_ptr, &modify_options));
+    REQUIRE(6 == omega_viewport_get_offset(viewport_ptr));
+    REQUIRE(4 == omega_viewport_get_capacity(viewport_ptr));
+    REQUIRE(1 == omega_viewport_is_floating(viewport_ptr));
+
+    omega_byte_t *bytes = nullptr;
+    int64_t length = 0;
+    REQUIRE(0 == omega_edit_save_to_bytes(session_ptr, &bytes, &length));
+    REQUIRE(16 == length);
+    REQUIRE("omega beta omega" == std::string(reinterpret_cast<const char *>(bytes), static_cast<size_t>(length)));
+    free(bytes);
+
+    const auto output_path = std::string(MAKE_PATH("session_api_options_segment.dat"));
+    omega_util_remove_file(output_path.c_str());
+    auto *file_ptr = FOPEN(output_path.c_str(), "wb");
+    REQUIRE(file_ptr);
+    REQUIRE(0 == omega_edit_save_segment_to_file(session_ptr, file_ptr, 6, 4));
+    REQUIRE(0 == FCLOSE(file_ptr));
+
+    omega_byte_t buffer[4]{};
+    REQUIRE(4 == omega_util_read_file_segment(output_path.c_str(), 0, buffer, sizeof(buffer)));
+    REQUIRE("beta" == std::string(reinterpret_cast<const char *>(buffer), sizeof(buffer)));
+    omega_util_remove_file(output_path.c_str());
+
     omega_edit_destroy_session(session_ptr);
 }
 

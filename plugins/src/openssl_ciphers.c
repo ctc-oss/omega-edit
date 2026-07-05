@@ -12,9 +12,11 @@
  *                                                                                                                    *
  **********************************************************************************************************************/
 
-#include <ctype.h>
+#include "c_plugin_options.h"
+
 #include <limits.h>
 #include <omega_edit/transform_plugin_sdk.h>
+#include <openssl/crypto.h>
 #include <openssl/evp.h>
 #include <stdint.h>
 #include <stdlib.h>
@@ -77,46 +79,6 @@ static const char CIPHER_ARGS_SCHEMA[] =
         "\"description\":\"Use PKCS#7 padding for CBC encryption/decryption. Ignored by CTR.\",\"default\":true}},"
         "\"additionalProperties\":false}";
 
-static void cipher_skip_ws(const char **cursor) {
-    while (cursor && *cursor && isspace((unsigned char) **cursor)) { ++(*cursor); }
-}
-
-static int cipher_parse_json_string(const char **cursor, char *out, size_t out_size) {
-    if (!cursor || !*cursor || **cursor != '"' || out_size == 0) { return -1; }
-    ++(*cursor);
-    size_t length = 0;
-    while (**cursor && **cursor != '"') {
-        char ch = **cursor;
-        if (ch == '\\') {
-            ++(*cursor);
-            if (!**cursor) { return -1; }
-            ch = **cursor;
-        }
-        if (length + 1 >= out_size) { return -1; }
-        out[length++] = ch;
-        ++(*cursor);
-    }
-    if (**cursor != '"') { return -1; }
-    ++(*cursor);
-    out[length] = '\0';
-    return 0;
-}
-
-static int cipher_parse_boolean(const char **cursor, int *value_out) {
-    if (!cursor || !*cursor || !value_out) { return -1; }
-    if (strncmp(*cursor, "true", 4) == 0) {
-        *cursor += 4;
-        *value_out = 1;
-        return 0;
-    }
-    if (strncmp(*cursor, "false", 5) == 0) {
-        *cursor += 5;
-        *value_out = 0;
-        return 0;
-    }
-    return -1;
-}
-
 static int cipher_hex_value(char ch) {
     if (ch >= '0' && ch <= '9') { return ch - '0'; }
     if (ch >= 'a' && ch <= 'f') { return 10 + ch - 'a'; }
@@ -175,64 +137,66 @@ static int cipher_parse_options(const char *options_json, omega_cipher_options_t
     int saw_iv = 0;
 
     const char *cursor = options_json;
-    cipher_skip_ws(&cursor);
+    omega_plugin_json_skip_ws(&cursor);
     if (*cursor != '{') { return -1; }
     ++cursor;
-    cipher_skip_ws(&cursor);
+    omega_plugin_json_skip_ws(&cursor);
 
     while (*cursor && *cursor != '}') {
         char key[32];
-        if (cipher_parse_json_string(&cursor, key, sizeof(key)) != 0) { return -1; }
-        cipher_skip_ws(&cursor);
+        if (omega_plugin_json_parse_string(&cursor, key, sizeof(key)) != 0) { return -1; }
+        omega_plugin_json_skip_ws(&cursor);
         if (*cursor != ':') { return -1; }
         ++cursor;
-        cipher_skip_ws(&cursor);
+        omega_plugin_json_skip_ws(&cursor);
 
         if (strcmp(key, "action") == 0) {
             char action[16];
-            if (cipher_parse_json_string(&cursor, action, sizeof(action)) != 0 ||
+            if (omega_plugin_json_parse_string(&cursor, action, sizeof(action)) != 0 ||
                 cipher_parse_action_text(action, &options_out->action) != 0) {
                 return -1;
             }
             saw_action = 1;
         } else if (strcmp(key, "algorithm") == 0) {
             char algorithm[32];
-            if (cipher_parse_json_string(&cursor, algorithm, sizeof(algorithm)) != 0) { return -1; }
+            if (omega_plugin_json_parse_string(&cursor, algorithm, sizeof(algorithm)) != 0) { return -1; }
             options_out->algorithm = cipher_find_algorithm(algorithm);
             if (!options_out->algorithm) { return -1; }
             saw_algorithm = 1;
         } else if (strcmp(key, "keyHex") == 0) {
-            char key_hex[96];
-            if (cipher_parse_json_string(&cursor, key_hex, sizeof(key_hex)) != 0 ||
-                cipher_parse_hex_bytes(key_hex, options_out->key, sizeof(options_out->key), &options_out->key_length) !=
-                        0) {
-                return -1;
-            }
+            char key_hex[96] = {0};
+            const int key_result = omega_plugin_json_parse_string(&cursor, key_hex, sizeof(key_hex)) == 0
+                                           ? cipher_parse_hex_bytes(key_hex, options_out->key, sizeof(options_out->key),
+                                                                    &options_out->key_length)
+                                           : -1;
+            OPENSSL_cleanse(key_hex, sizeof(key_hex));
+            if (key_result != 0) { return -1; }
             saw_key = 1;
         } else if (strcmp(key, "ivHex") == 0) {
-            char iv_hex[64];
-            if (cipher_parse_json_string(&cursor, iv_hex, sizeof(iv_hex)) != 0 ||
-                cipher_parse_hex_bytes(iv_hex, options_out->iv, sizeof(options_out->iv), &options_out->iv_length) !=
-                        0) {
-                return -1;
-            }
+            char iv_hex[64] = {0};
+            const int iv_result = omega_plugin_json_parse_string(&cursor, iv_hex, sizeof(iv_hex)) == 0
+                                          ? cipher_parse_hex_bytes(iv_hex, options_out->iv, sizeof(options_out->iv),
+                                                                   &options_out->iv_length)
+                                          : -1;
+            OPENSSL_cleanse(iv_hex, sizeof(iv_hex));
+            if (iv_result != 0) { return -1; }
             saw_iv = 1;
         } else if (strcmp(key, "padding") == 0) {
-            if (cipher_parse_boolean(&cursor, &options_out->padding) != 0) { return -1; }
+            if (omega_plugin_json_parse_bool(&cursor, &options_out->padding) != 0) { return -1; }
         } else {
             return -1;
         }
 
-        cipher_skip_ws(&cursor);
+        omega_plugin_json_skip_ws(&cursor);
         if (*cursor == '}') { break; }
         if (*cursor != ',') { return -1; }
         ++cursor;
-        cipher_skip_ws(&cursor);
+        omega_plugin_json_skip_ws(&cursor);
     }
 
     if (*cursor != '}') { return -1; }
     ++cursor;
-    cipher_skip_ws(&cursor);
+    omega_plugin_json_skip_ws(&cursor);
     if (*cursor != '\0' || !saw_action || !saw_algorithm || !saw_key || !saw_iv) { return -1; }
     if (options_out->key_length != options_out->algorithm->key_length ||
         options_out->iv_length != options_out->algorithm->iv_length) {
@@ -356,6 +320,12 @@ OMEGA_TRANSFORM_PLUGIN_EXPORT int omega_transform_plugin_get_info(omega_transfor
 OMEGA_TRANSFORM_PLUGIN_EXPORT int omega_transform_plugin_apply(const omega_transform_plugin_request_t *request_ptr,
                                                                omega_transform_plugin_response_t *response_ptr) {
     omega_cipher_options_t options;
-    if (cipher_parse_options(request_ptr ? request_ptr->options_json : NULL, &options) != 0) { return -1; }
-    return cipher_transform(request_ptr, response_ptr, &options);
+    const int parse_result = cipher_parse_options(request_ptr ? request_ptr->options_json : NULL, &options);
+    if (parse_result != 0) {
+        OPENSSL_cleanse(&options, sizeof(options));
+        return -1;
+    }
+    const int transform_result = cipher_transform(request_ptr, response_ptr, &options);
+    OPENSSL_cleanse(&options, sizeof(options));
+    return transform_result;
 }

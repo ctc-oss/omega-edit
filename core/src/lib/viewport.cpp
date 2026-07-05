@@ -127,6 +127,12 @@ int omega_viewport_modify(omega_viewport_t *viewport_ptr, int64_t offset, int64_
     return -1;
 }
 
+int omega_viewport_modify_with_options(omega_viewport_t *viewport_ptr, const omega_viewport_modify_options_t *options) {
+    if (!options) { return -1; }
+    return omega_viewport_modify(viewport_ptr, options->offset, options->capacity,
+                                 options->is_floating != OMEGA_EDIT_FALSE ? 1 : 0);
+}
+
 const omega_byte_t *omega_viewport_get_data(const omega_viewport_t *viewport_ptr) {
     if (!viewport_ptr) { return nullptr; }
     const auto mut_viewport_ptr = const_cast<omega_viewport_t *>(viewport_ptr);

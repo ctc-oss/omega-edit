@@ -17,7 +17,14 @@ fixed and no longer listed as open. The profile/character-count scan buffer
 issue, search read-failure reporting issue, and unbounded `replace_matches`
 materialization issue are also fixed and no longer listed as open. The utility
 string-helper issue and the fixed failure-signaling edges for unknown CLI
-options and missing session files are likewise no longer listed as open.
+options and missing session files are likewise no longer listed as open. The
+code-quality cleanup for computed-content inspection lock scope,
+descriptor-preserving temp-file writes, explicit C-string/named-options APIs, OpenSSL
+cipher key scrubbing, shared C plugin option parsing, targeted duplication
+extractions, and the replace/save failure-signaling edges is also complete and
+no longer listed as open. Mutation-capable transform RPCs still intentionally
+serialize the session while a plugin runs because they can modify the current
+core model.
 
 Recent core/server/plugin review findings have been folded into the priority
 list below rather than kept as a second appended review. A fresh core/server
@@ -288,102 +295,6 @@ Suggested fix:
 - Add an integration test that submits a change just under and just over the
   effective limit and asserts the intended error text.
 
-### 14. Whole-content operations hold the per-session core lock for their full duration
-
-**Impact:** Medium (per-session availability on massive files)
-**Risk:** Medium
-**Area:** C++ server fingerprint/inspection/transform paths
-
-`GetSessionFingerprint` and `InspectSessionContent` over *computed* content, and
-`ApplyTransformPlugin` generally, hold the session's `core_mutex` while
-streaming the entire session content through the digest/inspect/transform
-plugin. On a massive file that is minutes of wall-clock time during which every
-other RPC on that session (viewport reads, heartbeat-adjacent calls, saves)
-blocks — and, combined with item 3, can escalate to a server-wide stall. The
-file-snapshot paths already avoid this by reading the snapshot outside the
-lock.
-
-Relevant code:
-- `server/cpp/src/editor_service.cpp:1765`
-- `server/cpp/src/editor_service.cpp:1911`
-- `server/cpp/src/editor_service.cpp:2341`
-
-Suggested fix:
-- For computed-content digests/inspections, materialize a temporary snapshot
-  (or reuse the checkpoint machinery) under the lock, then stream from the
-  snapshot outside the lock, as the original/checkpoint paths do.
-- Document that transforms intentionally serialize the session, and rely on the
-  existing transform/mutation guards for mutual exclusion rather than the core
-  lock alone where possible.
-- Add a test that runs a digest over a large session and asserts a concurrent
-  viewport read completes promptly.
-
-### 16. Temp files are created, closed, then reopened by path
-
-**Impact:** Medium (local symlink-swap hardening)
-**Risk:** Low
-**Area:** Core checkpoint/payload/save temp-file handling
-
-The common pattern is `omega_util_mkstemp` (0600, `O_EXCL`) followed by
-`close(fd)` and a later `FOPEN(path, "wb")` — in checkpoint creation, payload
-capture, save's temp file, and `reserve_output_path_`. Between the close and
-the reopen, a local attacker with write access to the directory (for example a
-shared `/tmp` checkpoint directory) can swap the file for a symlink and the
-subsequent open-for-write follows it. The exclusive create wins the name, but
-the identity guarantee is dropped when the fd is closed.
-
-Relevant code:
-- `core/src/lib/edit.cpp:987`
-- `core/src/lib/edit.cpp:1011`
-- `core/src/lib/edit.cpp:2259`
-- `core/src/lib/edit.cpp:291`
-
-Suggested fix:
-- Keep the descriptor from `mkstemp` and wrap it with `fdopen` instead of
-  closing and reopening by name.
-- Where reopening is unavoidable, verify identity (`O_NOFOLLOW`, or
-  fstat/st_ino comparison) before writing.
-- Document that checkpoint directories should not be world-writable shared
-  directories.
-
-### 18. C-string and byte edit APIs encode different zero-length semantics
-
-**Impact:** Medium
-**Risk:** Low to Medium
-**Area:** Core C API
-
-The C-string helpers infer length with `strlen` when the length argument is zero,
-while `_bytes` variants treat length zero as an explicit no-op. The headers warn
-about this now, but the API shape is still easy to misuse with embedded NULs or
-when callers expect zero to mean the same thing everywhere.
-
-Relevant code:
-- `core/src/include/omega_edit/edit.h`
-
-Suggested fix:
-- Add safer, clearly named APIs for inferred-length text edits.
-- Keep byte APIs explicit-only.
-- Add examples that steer binary callers to `_bytes` variants.
-
-### 19. Long positional argument lists remain hard to use safely
-
-**Impact:** Medium
-**Risk:** Low to Medium
-**Area:** Core C API ergonomics
-
-Search/replace and viewport APIs still use long positional lists and `int`
-booleans for options such as floating, ordering, and overwrite mode. Argument
-swaps are easy to miss at call sites.
-
-Relevant code:
-- `core/src/include/omega_edit/edit.h`
-- `core/src/include/omega_edit/viewport.h`
-
-Suggested fix:
-- Add options-struct APIs for new callers.
-- Preserve existing positional APIs for ABI compatibility.
-- Use enum/boolean-like typed fields in the options structs.
-
 ### 20. Viewport dirty state uses a negative-capacity sentinel
 
 **Impact:** Medium
@@ -411,29 +322,6 @@ Suggested fix:
 - Keep capacity non-negative internally.
 - Route all mark-dirty-and-notify call sites through one helper.
 - Update tests that currently force dirty state by negating capacity.
-
-### 22. OpenSSL cipher plugin does not zeroize key material
-
-**Impact:** Medium
-**Risk:** Low
-**Area:** Transform plugins (crypto hygiene)
-
-`cipher_parse_options` holds the raw key/IV in a stack `omega_cipher_options_t`
-(and the hex key in a stack buffer during parsing) and never scrubs them with
-`OPENSSL_cleanse` before returning, so key bytes linger in freed stack memory.
-Transform output is also persisted to checkpoint files in the clear, which is
-inherent to how transforms materialize but worth stating for a crypto-grade
-attestation.
-
-Relevant code:
-- `plugins/src/openssl_ciphers.c:166`
-- `plugins/src/openssl_ciphers.c:355`
-
-Suggested fix:
-- `OPENSSL_cleanse` the key/IV buffers (and the parsing scratch buffer) before
-  returning from apply.
-- Document that transform output, including ciphertext, is written to checkpoint
-  files unencrypted.
 
 ---
 
@@ -487,91 +375,6 @@ Suggested fix:
 - Batch redo by transaction.
 - Reuse notification batching and viewport-update coalescing where possible.
 
-### 26. C transform plugins each reimplement the same JSON parser
-
-**Impact:** Low
-**Risk:** Low
-**Area:** Transform plugins (C option parsing)
-
-base64, zlib, cipher, digest, and the bitmask header each carry their own
-`*_skip_ws` / `*_parse_json_string` / `*_parse_options` scaffolding. The C++
-plugins already share `plugin_options.hpp`; the C plugins have no equivalent, so
-the same parser is duplicated and independently maintained.
-
-Relevant code:
-- `plugins/src/base64.c:34`
-- `plugins/src/zlib.c:48`
-- `plugins/src/openssl_ciphers.c:84`
-- `plugins/src/openssl_digests.c:61`
-- `plugins/src/bitmask_options.h:53`
-
-Suggested fix:
-- Extract a shared C options header mirroring `plugin_options.hpp`.
-- Consolidate to a single audited JSON-options parser to shrink the attack
-  surface.
-- Keep per-plugin schema validation.
-
-### 27. Core/server duplication that should be consolidated
-
-**Impact:** Low (maintainability, divergence risk)
-**Risk:** Low
-**Area:** Core edit internals, C++ server RPC scaffolding
-
-Several near-identical code blocks are maintained in parallel and have already
-started to drift:
-
-- `create_checkpoint_file_` and `create_payload_file_` differ only in the
-  filename template (`core/src/lib/edit.cpp:972`, `core/src/lib/edit.cpp:996`).
-- `update_model_helper_` and `insert_payload_segment_` duplicate the
-  segment-split/walk scaffolding (~40 lines) around different insert bodies
-  (`core/src/lib/edit.cpp:640`, `core/src/lib/edit.cpp:738`).
-- `rebuild_model_to_change_count_` repeats the "reinitialize from backing file"
-  block in two branches (`core/src/lib/edit.cpp:859`).
-- `omega_session_get_num_change_transactions` and
-  `omega_session_get_num_undone_change_transactions` are copy-pasted loops over
-  different vectors (`core/src/lib/session.cpp:270`,
-  `core/src/lib/session.cpp:295`).
-- `GetSessionFingerprint` and `InspectSessionContent` each duplicate the entire
-  snapshot-vs-computed branch pair, including two ten-argument
-  `inspect_with_streaming_plugin` calls that differ only in messages
-  (`server/cpp/src/editor_service.cpp:1702`,
-  `server/cpp/src/editor_service.cpp:1856`); `GetContentType` and `GetLanguage`
-  are likewise structural twins (`server/cpp/src/editor_service.cpp:1546`,
-  `server/cpp/src/editor_service.cpp:1589`).
-- Nearly every RPC repeats the same guard/lock/NOT_FOUND prologue by hand.
-
-Suggested fix:
-- Extract a single temp-file-in-checkpoint-dir helper parameterized by prefix.
-- Factor the model segment split/walk into one helper used by both insert
-  paths.
-- Introduce a small `resolve_content_source(...)` helper (and an error-message
-  struct for `inspect_with_streaming_plugin`) so fingerprint/inspect share one
-  body.
-- Add a `with_locked_session(request_id, handler)` helper for the RPC prologue.
-
-### 29. Failure-signaling edges can mislead callers or operators
-
-**Impact:** Low to Medium
-**Risk:** Low
-**Area:** Core edit results, save durability signaling
-
-A collection of small signaling gaps, individually rare but relevant to a
-reliability attestation:
-
-- `replace_bytes_impl_` returns `0` (the "nothing changed" value) when the
-  insert fails *and* the compensating undo of the already-applied delete also
-  fails, so in that allocation-failure corner the session content changed while
-  the caller is told it did not (`core/src/lib/edit.cpp:396`).
-- `omega_edit_save_segment` returns `-12` when `sync_parent_directory_` fails
-  *after* the atomic rename has already published the file, so a completed save
-  is reported as a failure with no way to distinguish post-commit durability
-  warnings from real failures (`core/src/lib/edit.cpp:2376`).
-
-Suggested fix:
-- Return a distinct negative error when the replace rollback itself fails, and
-  a distinct post-commit code (or success-with-warning) for the directory-sync
-  case.
-
 ### 30. Content detection feeds untrusted bytes to third-party parsers
 
 **Impact:** Low to Medium
@@ -588,9 +391,17 @@ Relevant code:
 - `server/cpp/src/cld3_language_detector.cpp:132`
 
 Suggested fix:
-- Track and update libmagic/CLD3 versions as part of the release process.
-- Consider isolating or resource-limiting content detection for untrusted input.
-- Document the third-party parser exposure in the deployment trust boundary.
+- Move content-type and language guessing behind detector/inspect plugins that
+  run through the existing transform-plugin worker boundary instead of calling
+  libmagic/CLD3 in the server process.
+- Keep `GetContentType` and `GetLanguage` as compatibility RPCs that dispatch
+  to configured detector plugins, or introduce plugin-backed replacement RPCs
+  and deprecate the in-process implementations.
+- Treat libmagic/CLD3-backed detectors as optional operator-selected plugins,
+  with the same production/experimental support levels, cancellation, resource
+  limits, and worker sandboxing policy as transform plugins.
+- Track and update bundled detector plugin dependencies as part of the release
+  process, and document the plugin trust boundary for deployments.
 
 ### 31. Text pane and Data Inspector only expose ASCII-oriented byte display
 
@@ -658,9 +469,6 @@ claiming production hardening:
   `omega_search_next_match` is not an uninitialized-read issue; the struct uses
   non-static data member initializers, so default initialization covers the
   fields read by `populate_data_segment_`.
-- The C transform plugins' hand-rolled JSON string parsers use fixed stack
-  buffers with strict `length + 1 >= out_size` guards; no buffer overflow was
-  found across the base64/zlib/cipher/digest/bitmask parsers.
 - The xxhash streaming ring-buffer arithmetic in `common_checksums.cpp` is
   bounds-safe, and the streaming checksums honor cancellation via
   `for_each_chunk`.

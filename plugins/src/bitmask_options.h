@@ -15,6 +15,8 @@
 #ifndef OMEGA_EDIT_BITMASK_OPTIONS_H
 #define OMEGA_EDIT_BITMASK_OPTIONS_H
 
+#include "c_plugin_options.h"
+
 #include <ctype.h>
 #include <omega_edit/transform_plugin_sdk.h>
 #include <stddef.h>
@@ -46,32 +48,6 @@ static const char OMEGA_BITMASK_OPTIONS_ARGS_SCHEMA[] =
         "\"items\":{\"type\":\"string\",\"pattern\":\"^0x[0-9A-Fa-f]{1,2}$\"}}},"
         "\"additionalProperties\":false}";
 
-static void omega_bitmask_skip_ws(const char **cursor) {
-    while (**cursor && isspace((unsigned char) **cursor)) { ++(*cursor); }
-}
-
-static int omega_bitmask_parse_json_string(const char **cursor, char *out, size_t out_size) {
-    if (**cursor != '"' || out_size == 0) { return -1; }
-    ++(*cursor);
-
-    size_t length = 0;
-    while (**cursor && **cursor != '"') {
-        char ch = **cursor;
-        if (ch == '\\') {
-            ++(*cursor);
-            if (!**cursor) { return -1; }
-            ch = **cursor;
-        }
-        if (length + 1 >= out_size) { return -1; }
-        out[length++] = ch;
-        ++(*cursor);
-    }
-    if (**cursor != '"') { return -1; }
-    ++(*cursor);
-    out[length] = '\0';
-    return 0;
-}
-
 static int omega_bitmask_parse_byte_text(const char *value, omega_byte_t *byte_out) {
     if (!value || !*value || !byte_out) { return -1; }
 
@@ -96,10 +72,10 @@ static int omega_bitmask_parse_byte_number(const char **cursor, omega_byte_t *by
 }
 
 static int omega_bitmask_parse_byte_value(const char **cursor, omega_byte_t *byte_out) {
-    omega_bitmask_skip_ws(cursor);
+    omega_plugin_json_skip_ws(cursor);
     if (**cursor == '"') {
         char value[16];
-        if (omega_bitmask_parse_json_string(cursor, value, sizeof(value)) != 0) { return -1; }
+        if (omega_plugin_json_parse_string(cursor, value, sizeof(value)) != 0) { return -1; }
         return omega_bitmask_parse_byte_text(value, byte_out);
     }
     return omega_bitmask_parse_byte_number(cursor, byte_out);
@@ -123,75 +99,23 @@ static int omega_bitmask_parse_operation_text(const char *value, omega_bitmask_o
 }
 
 static int omega_bitmask_parse_operation_value(const char **cursor, omega_bitmask_operation_t *operation_out) {
-    omega_bitmask_skip_ws(cursor);
+    omega_plugin_json_skip_ws(cursor);
     char value[16];
-    if (omega_bitmask_parse_json_string(cursor, value, sizeof(value)) != 0) { return -1; }
+    if (omega_plugin_json_parse_string(cursor, value, sizeof(value)) != 0) { return -1; }
     return omega_bitmask_parse_operation_text(value, operation_out);
-}
-
-static int omega_bitmask_skip_json_string(const char **cursor) {
-    if (**cursor != '"') { return -1; }
-    ++(*cursor);
-    while (**cursor && **cursor != '"') {
-        if (**cursor == '\\') {
-            ++(*cursor);
-            if (!**cursor) { return -1; }
-        }
-        ++(*cursor);
-    }
-    if (**cursor != '"') { return -1; }
-    ++(*cursor);
-    return 0;
-}
-
-static int omega_bitmask_skip_json_value(const char **cursor) {
-    omega_bitmask_skip_ws(cursor);
-    if (**cursor == '"') { return omega_bitmask_skip_json_string(cursor); }
-
-    if (**cursor == '{' || **cursor == '[') {
-        char nesting[OMEGA_BITMASK_MAX_BYTES];
-        size_t depth = 0;
-
-        nesting[depth++] = **cursor;
-        ++(*cursor);
-        while (**cursor && depth > 0) {
-            if (**cursor == '"') {
-                if (omega_bitmask_skip_json_string(cursor) != 0) { return -1; }
-                continue;
-            }
-            if (**cursor == '{' || **cursor == '[') {
-                if (depth >= OMEGA_BITMASK_MAX_BYTES) { return -1; }
-                nesting[depth++] = **cursor;
-                ++(*cursor);
-                continue;
-            }
-            if (**cursor == '}' || **cursor == ']') {
-                const char expected = nesting[depth - 1] == '{' ? '}' : ']';
-                if (**cursor != expected) { return -1; }
-                --depth;
-                ++(*cursor);
-                continue;
-            }
-            ++(*cursor);
-        }
-        return depth == 0 ? 0 : -1;
-    }
-
-    while (**cursor && **cursor != ',' && **cursor != '}' && **cursor != ']') { ++(*cursor); }
-    return 0;
 }
 
 static int omega_bitmask_parse_mask_value(const char **cursor, omega_bitmask_options_t *mask_out) {
     if (!cursor || !*cursor || !mask_out) { return -1; }
 
-    omega_bitmask_skip_ws(cursor);
+    omega_plugin_json_skip_ws(cursor);
     if (**cursor != '[') {
         mask_out->length = 1;
         return omega_bitmask_parse_byte_value(cursor, &mask_out->bytes[0]);
     }
 
     ++(*cursor);
-    omega_bitmask_skip_ws(cursor);
+    omega_plugin_json_skip_ws(cursor);
     if (**cursor == ']') { return -1; }
 
     size_t length = 0;
@@ -202,7 +126,7 @@ static int omega_bitmask_parse_mask_value(const char **cursor, omega_bitmask_opt
         }
         ++length;
 
-        omega_bitmask_skip_ws(cursor);
+        omega_plugin_json_skip_ws(cursor);
         if (**cursor == ']') {
             ++(*cursor);
             mask_out->length = length;
@@ -210,7 +134,7 @@ static int omega_bitmask_parse_mask_value(const char **cursor, omega_bitmask_opt
         }
         if (**cursor != ',') { return -1; }
         ++(*cursor);
-        omega_bitmask_skip_ws(cursor);
+        omega_plugin_json_skip_ws(cursor);
     }
 
     return -1;
@@ -225,42 +149,42 @@ static int omega_bitmask_parse_options(const char *options_json, omega_byte_t de
     if (!options_json || !*options_json) { return 0; }
 
     const char *cursor = options_json;
-    omega_bitmask_skip_ws(&cursor);
+    omega_plugin_json_skip_ws(&cursor);
     if (*cursor != '{') { return -1; }
     ++cursor;
 
-    omega_bitmask_skip_ws(&cursor);
+    omega_plugin_json_skip_ws(&cursor);
     if (*cursor == '}') {
         ++cursor;
-        omega_bitmask_skip_ws(&cursor);
+        omega_plugin_json_skip_ws(&cursor);
         return *cursor == '\0' ? 0 : -1;
     }
 
     while (*cursor) {
         char key[32];
-        if (omega_bitmask_parse_json_string(&cursor, key, sizeof(key)) != 0) { return -1; }
-        omega_bitmask_skip_ws(&cursor);
+        if (omega_plugin_json_parse_string(&cursor, key, sizeof(key)) != 0) { return -1; }
+        omega_plugin_json_skip_ws(&cursor);
         if (*cursor != ':') { return -1; }
         ++cursor;
-        omega_bitmask_skip_ws(&cursor);
+        omega_plugin_json_skip_ws(&cursor);
 
         if (strcmp(key, "operator") == 0) {
             if (omega_bitmask_parse_operation_value(&cursor, &mask_out->operation) != 0) { return -1; }
         } else if (strcmp(key, "byte") == 0 || strcmp(key, "mask") == 0) {
             if (omega_bitmask_parse_mask_value(&cursor, mask_out) != 0) { return -1; }
         } else {
-            if (omega_bitmask_skip_json_value(&cursor) != 0) { return -1; }
+            if (omega_plugin_json_skip_value(&cursor, OMEGA_BITMASK_MAX_BYTES) != 0) { return -1; }
         }
 
-        omega_bitmask_skip_ws(&cursor);
+        omega_plugin_json_skip_ws(&cursor);
         if (*cursor == '}') {
             ++cursor;
-            omega_bitmask_skip_ws(&cursor);
+            omega_plugin_json_skip_ws(&cursor);
             return *cursor == '\0' ? 0 : -1;
         }
         if (*cursor != ',') { return -1; }
         ++cursor;
-        omega_bitmask_skip_ws(&cursor);
+        omega_plugin_json_skip_ws(&cursor);
     }
 
     return -1;
