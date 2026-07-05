@@ -17,6 +17,8 @@
     selectionEnd?: number
     searchStart?: number
     searchEnd?: number
+    searchMatches?: number[]
+    searchLength?: number
     inspectorStart?: number
     inspectorEnd?: number
     externalHighlights?: WebviewExternalHighlight[]
@@ -49,6 +51,8 @@
     selectionEnd = -1,
     searchStart = -1,
     searchEnd = -1,
+    searchMatches = [],
+    searchLength = 0,
     inspectorStart = -1,
     inspectorEnd = -1,
     externalHighlights = [],
@@ -104,6 +108,34 @@
       for (let byteOffset = start; byteOffset < end; byteOffset += 1) {
         if (!lookup.has(byteOffset)) {
           lookup.set(byteOffset, highlight)
+          if (lookup.size >= visibleByteCount) {
+            return lookup
+          }
+        }
+      }
+    }
+
+    return lookup
+  })
+  const searchHitByOffset = $derived.by(() => {
+    const lookup = new Set<number>()
+    const visibleStart = offset
+    const visibleEnd = offset + data.length
+    const visibleByteCount = Math.max(0, visibleEnd - visibleStart)
+    const length = Math.max(0, searchLength)
+    if (visibleByteCount === 0 || length <= 0) {
+      return lookup
+    }
+
+    for (const matchOffset of searchMatches) {
+      if (!Number.isSafeInteger(matchOffset) || matchOffset < 0) {
+        continue
+      }
+      const start = Math.max(visibleStart, matchOffset)
+      const end = Math.min(visibleEnd, matchOffset + length)
+      for (let byteOffset = start; byteOffset < end; byteOffset += 1) {
+        if (!lookup.has(byteOffset)) {
+          lookup.add(byteOffset)
           if (lookup.size >= visibleByteCount) {
             return lookup
           }
@@ -220,7 +252,7 @@
   }
 
   function isSearchHit(byteOffset: number): boolean {
-    return (
+    return searchHitByOffset.has(byteOffset) || (
       searchStart >= 0 &&
       searchEnd >= searchStart &&
       byteOffset >= searchStart &&

@@ -56,8 +56,8 @@ describe('Searching', () => {
     pattern: Uint8Array
     replacement: Uint8Array
     isCaseInsensitive?: boolean
-    offset?: number
-    length?: number
+    offset?: number | string | bigint
+    length?: number | string | bigint
   }) {
     const client = await getClient()
     return await new Promise<{
@@ -69,7 +69,7 @@ describe('Searching', () => {
       offset: number
       length: number
     }>((resolve, reject) => {
-      client.replaceSessionCheckpointed(request, (err, response) => {
+      client.replaceSessionCheckpointed(request as any, (err, response) => {
         if (err) {
           return reject(err)
         }
@@ -79,6 +79,49 @@ describe('Searching', () => {
         return resolve(response)
       })
     })
+  }
+
+  async function expectRawRpcInvalidArgument(
+    methodName:
+      | 'createViewport'
+      | 'getSegment'
+      | 'replaceSession'
+      | 'replaceSessionCheckpointed'
+      | 'searchSession',
+    request: Record<string, unknown>,
+    expectedDetail: string
+  ) {
+    const client = (await getClient()) as unknown as Record<
+      string,
+      (
+        request: Record<string, unknown>,
+        callback: (
+          err: (Error & { code?: number }) | null,
+          response?: unknown
+        ) => void
+      ) => void
+    >
+
+    const err = await new Promise<Error & { code?: number }>(
+      (resolve, reject) => {
+        client[methodName]!(request, (rpcErr, response) => {
+          if (rpcErr) {
+            return resolve(rpcErr)
+          }
+          return reject(
+            new Error(
+              `${methodName} unexpectedly succeeded with ${JSON.stringify(
+                response
+              )}`
+            )
+          )
+        })
+      }
+    )
+
+    expect(err.message).to.include('INVALID_ARGUMENT')
+    expect(err.message).to.include(expectedDetail)
+    expect(err.code).to.equal(GrpcStatus.INVALID_ARGUMENT)
   }
 
   beforeEach(async () => {
@@ -256,6 +299,69 @@ describe('Searching', () => {
         ((err as Error & { cause?: { code?: number } }).cause ?? {}).code
       ).to.equal(GrpcStatus.INVALID_ARGUMENT)
     }
+  })
+
+  it('Should reject raw RPC ranges that overflow int64 boundaries', async () => {
+    await overwrite(session_id, 0, Buffer.from('abcabc'))
+    const maxInt64 = '9223372036854775807'
+
+    await expectRawRpcInvalidArgument(
+      'getSegment',
+      {
+        sessionId: session_id,
+        offset: maxInt64,
+        length: '1',
+      },
+      'segment range is invalid'
+    )
+    await expectRawRpcInvalidArgument(
+      'searchSession',
+      {
+        sessionId: session_id,
+        pattern: Buffer.from('a'),
+        offset: maxInt64,
+        length: '1',
+      },
+      'search range is invalid'
+    )
+    await expectRawRpcInvalidArgument(
+      'replaceSession',
+      {
+        sessionId: session_id,
+        pattern: Buffer.from('ab'),
+        replacement: Buffer.from('x'),
+        offset: maxInt64,
+        length: '1',
+        limit: 1,
+      },
+      'replace range is invalid'
+    )
+    await expectRawRpcInvalidArgument(
+      'replaceSessionCheckpointed',
+      {
+        sessionId: session_id,
+        pattern: Buffer.from('ab'),
+        replacement: Buffer.from('x'),
+        offset: maxInt64,
+        length: '1',
+      },
+      'checkpointed replace range is invalid'
+    )
+    await expectRawRpcInvalidArgument(
+      'createViewport',
+      {
+        sessionId: session_id,
+        offset: maxInt64,
+        capacity: 1,
+        isFloating: false,
+      },
+      'viewport range is invalid'
+    )
+
+    expect(await getChangeCount(session_id)).to.equal(1)
+    expect(
+      await getSegment(session_id, 0, await getComputedFileSize(session_id))
+    ).deep.equals(Buffer.from('abcabc'))
   })
 
   it('Should be able to optimize replacement operations', () => {
@@ -1102,6 +1208,133 @@ describe('Searching', () => {
     expect(
       await getSegment(session_id, 0, await getComputedFileSize(session_id))
     ).deep.equals(Buffer.from(original, 'utf8'))
+  })
+
+  it('Should decorate viewport neighbor matches that cross viewport boundaries', async () => {
+    await overwrite(session_id, 0, Buffer.from('xxabcxxabcxx'))
+    const fileSize = await getComputedFileSize(session_id)
+    const controller = new EditorSearchController(session_id, {
+      windowLimit: 1,
+    })
+
+    const result = await controller.findAdjacent({
+      query: 'abc',
+      isHex: false,
+      caseInsensitive: false,
+      direction: 'forward',
+      anchorOffset: 0,
+      fileSize,
+      viewportOffset: 3,
+      viewportLength: 5,
+    })
+
+    expect(result.offset).to.equal(2)
+    expect(result.patternLength).to.equal(3)
+    expect(result.viewport).to.deep.equal({
+      offset: 3,
+      length: 5,
+      matches: [2, 7],
+      hasMore: false,
+    })
+  })
+
+  it('Should walk overlapping large-search matches forward and backward', async () => {
+    await overwrite(session_id, 0, Buffer.from('aaaaaa'))
+    const fileSize = await getComputedFileSize(session_id)
+    const controller = new EditorSearchController(session_id, {
+      windowLimit: 100,
+    })
+
+    const forward = await controller.findAdjacent({
+      query: 'aa',
+      isHex: false,
+      caseInsensitive: false,
+      direction: 'forward',
+      anchorOffset: 0,
+      fileSize,
+      viewportOffset: 1,
+      viewportLength: 4,
+    })
+    expect(forward.offset).to.equal(1)
+    expect(forward.viewport).to.deep.equal({
+      offset: 1,
+      length: 4,
+      matches: [0, 1, 2, 3, 4],
+      hasMore: false,
+    })
+
+    const backward = await controller.findAdjacent({
+      query: 'aa',
+      isHex: false,
+      caseInsensitive: false,
+      direction: 'backward',
+      anchorOffset: 2,
+      fileSize,
+      viewportOffset: 1,
+      viewportLength: 4,
+    })
+    expect(backward.offset).to.equal(1)
+
+    const wrapped = await controller.findAdjacent({
+      query: 'aa',
+      isHex: false,
+      caseInsensitive: false,
+      direction: 'forward',
+      anchorOffset: 4,
+      fileSize,
+      viewportOffset: 0,
+      viewportLength: 6,
+    })
+    expect(wrapped.offset).to.equal(0)
+  })
+
+  it('Should default viewport match caps above the visible byte count', async () => {
+    await overwrite(session_id, 0, Buffer.from('aaaaaaaaaa'))
+    const fileSize = await getComputedFileSize(session_id)
+    const controller = new EditorSearchController(session_id, {
+      windowLimit: 1,
+    })
+
+    const viewport = await controller.findViewportMatches({
+      query: 'a',
+      isHex: false,
+      caseInsensitive: false,
+      fileSize,
+      viewportOffset: 0,
+      viewportLength: 10,
+    })
+
+    expect(viewport).to.deep.equal({
+      offset: 0,
+      length: 10,
+      matches: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9],
+      hasMore: false,
+    })
+  })
+
+  it('Should surface explicit viewport overflow while retaining the focused match', async () => {
+    await overwrite(session_id, 0, Buffer.from('aaaaaaaaaa'))
+    const fileSize = await getComputedFileSize(session_id)
+    const controller = new EditorSearchController(session_id, {
+      windowLimit: 100,
+    })
+
+    const result = await controller.findAdjacent({
+      query: 'a',
+      isHex: false,
+      caseInsensitive: false,
+      direction: 'forward',
+      anchorOffset: 7,
+      fileSize,
+      viewportOffset: 0,
+      viewportLength: 10,
+      viewportLimit: 3,
+    })
+
+    expect(result.offset).to.equal(8)
+    expect(result.viewport?.hasMore).to.equal(true)
+    expect(result.viewport?.matches).to.have.length(4)
+    expect(result.viewport?.matches).to.include(8)
   })
 
   it('Should record the normalized query in checkpoint transactions for large replace-all', async () => {

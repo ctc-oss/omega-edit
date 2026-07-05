@@ -2282,6 +2282,11 @@
     searchMode = 'large'
     searchCurrentOffset = message.offset
     searchPatternLength = message.patternLength || searchPatternLength
+    searchMatches =
+      message.viewportOffset === undefined || message.viewportOffset === visibleOffset
+        ? (message.viewportMatches ?? [])
+        : []
+    searchMatchIndex = searchMatches.indexOf(message.offset)
     selectSearchMatch(message.offset)
   }
 
@@ -2748,6 +2753,8 @@
     {selectionEnd}
     searchStart={searchHighlightStart}
     searchEnd={searchHighlightEnd}
+    {searchMatches}
+    searchLength={searchPatternLength}
     inspectorStart={inspectorHighlightStart}
     inspectorEnd={inspectorHighlightEnd}
     {externalHighlights}

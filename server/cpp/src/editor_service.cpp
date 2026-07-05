@@ -2291,6 +2291,9 @@ namespace omega_edit {
                 return grpc::Status(grpc::StatusCode::INVALID_ARGUMENT,
                                     "replace offset, length, and limit must be non-negative");
             }
+            if (length > 0 && offset > (std::numeric_limits<int64_t>::max)() - length) {
+                return grpc::Status(grpc::StatusCode::INVALID_ARGUMENT, "replace range is invalid");
+            }
 
             const auto payload_status = validate_replace_payload_sizes(request->pattern(), request->replacement(),
                                                                        resource_limits_.max_change_bytes, "replace");
@@ -2423,6 +2426,9 @@ namespace omega_edit {
             if (offset < 0 || length < 0) {
                 return grpc::Status(grpc::StatusCode::INVALID_ARGUMENT,
                                     "checkpointed replace offset and length must be non-negative");
+            }
+            if (length > 0 && offset > (std::numeric_limits<int64_t>::max)() - length) {
+                return grpc::Status(grpc::StatusCode::INVALID_ARGUMENT, "checkpointed replace range is invalid");
             }
 
             const auto payload_status =

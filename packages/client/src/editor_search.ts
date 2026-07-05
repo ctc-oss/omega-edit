@@ -47,11 +47,30 @@ export interface EditorFindAdjacentRequest extends EditorSearchRequest {
   direction: 'forward' | 'backward'
   anchorOffset: number
   fileSize: number
+  viewportOffset?: number
+  viewportLength?: number
+  viewportLimit?: number
+}
+
+export interface EditorViewportMatchWindow {
+  offset: number
+  length: number
+  matches: number[]
+  hasMore: boolean
 }
 
 export interface EditorFindAdjacentResult {
   offset: number
   patternLength: number
+  viewport?: EditorViewportMatchWindow
+}
+
+export interface EditorViewportMatchesRequest extends EditorSearchRequest {
+  fileSize: number
+  viewportOffset: number
+  viewportLength: number
+  viewportLimit?: number
+  focusedOffset?: number
 }
 
 export interface EditorReplaceAllRequest extends EditorSearchRequest {
@@ -116,6 +135,26 @@ function filterNonOverlapping(
     }
   }
   return result
+}
+
+function isUsableNonNegativeInteger(
+  value: number | undefined
+): value is number {
+  return value !== undefined && Number.isSafeInteger(value) && value >= 0
+}
+
+function matchOverlapsRange(
+  matchOffset: number,
+  patternLength: number,
+  rangeOffset: number,
+  rangeLength: number
+): boolean {
+  return (
+    patternLength > 0 &&
+    rangeLength > 0 &&
+    matchOffset < rangeOffset + rangeLength &&
+    matchOffset + patternLength > rangeOffset
+  )
 }
 
 export class EditorSearchController {
@@ -220,65 +259,195 @@ export class EditorSearchController {
       Number.isSafeInteger(request.anchorOffset) && request.anchorOffset >= 0
         ? Math.min(request.anchorOffset, Math.max(0, request.fileSize - 1))
         : -1
+    const buildResult = async (
+      offset: number
+    ): Promise<EditorFindAdjacentResult> => {
+      const viewport =
+        offset >= 0
+          ? await this.collectViewportMatches(
+              pattern,
+              request.caseInsensitive ?? false,
+              request.fileSize,
+              request.viewportOffset,
+              request.viewportLength,
+              request.viewportLimit,
+              offset
+            )
+          : undefined
+      return {
+        offset,
+        patternLength: pattern.length,
+        ...(viewport ? { viewport } : {}),
+      }
+    }
 
     if (request.direction === 'forward') {
-      if (clampedAnchor >= 0 && clampedAnchor + 1 < request.fileSize) {
+      const nextOffset = clampedAnchor >= 0 ? clampedAnchor + 1 : 0
+      if (nextOffset < request.fileSize) {
         const matches = await this.searchSession(
           this.sessionId,
           pattern,
           request.caseInsensitive ?? false,
           false,
-          clampedAnchor + 1,
+          nextOffset,
           0,
           1
         )
         if (matches.length > 0) {
-          return { offset: matches[0], patternLength: pattern.length }
+          return await buildResult(matches[0])
         }
       }
 
+      const wrapLength =
+        clampedAnchor >= 0
+          ? Math.min(request.fileSize, clampedAnchor + pattern.length - 1)
+          : 0
       const wrappedMatches = await this.searchSession(
         this.sessionId,
         pattern,
         request.caseInsensitive ?? false,
         false,
         0,
-        clampedAnchor > 0 ? clampedAnchor : 0,
+        wrapLength,
         1
       )
-      return {
-        offset: wrappedMatches[0] ?? -1,
-        patternLength: pattern.length,
-      }
+      return await buildResult(wrappedMatches[0] ?? -1)
     }
 
-    if (clampedAnchor > 0) {
+    const reverseLength =
+      clampedAnchor >= 0
+        ? Math.min(request.fileSize, clampedAnchor + pattern.length - 1)
+        : request.fileSize
+    if (reverseLength > 0) {
       const matches = await this.searchSession(
         this.sessionId,
         pattern,
         request.caseInsensitive ?? false,
         true,
         0,
-        clampedAnchor,
+        reverseLength,
         1
       )
       if (matches.length > 0) {
-        return { offset: matches[0], patternLength: pattern.length }
+        return await buildResult(matches[0])
       }
     }
 
+    const wrapOffset = clampedAnchor >= 0 ? clampedAnchor + 1 : 0
     const wrappedMatches = await this.searchSession(
       this.sessionId,
       pattern,
       request.caseInsensitive ?? false,
       true,
-      clampedAnchor >= 0 ? clampedAnchor + 1 : 0,
+      wrapOffset,
       0,
       1
     )
+    return await buildResult(wrappedMatches[0] ?? -1)
+  }
+
+  public async findViewportMatches(
+    request: EditorViewportMatchesRequest
+  ): Promise<EditorViewportMatchWindow | undefined> {
+    const normalizedQuery = request.query.trim()
+    const pattern = toPatternBytes(normalizedQuery, request.isHex)
+    if (!normalizedQuery || pattern.length === 0 || request.fileSize <= 0) {
+      return undefined
+    }
+
+    return await this.collectViewportMatches(
+      pattern,
+      request.caseInsensitive ?? false,
+      request.fileSize,
+      request.viewportOffset,
+      request.viewportLength,
+      request.viewportLimit,
+      request.focusedOffset ?? -1
+    )
+  }
+
+  private async collectViewportMatches(
+    pattern: Uint8Array,
+    caseInsensitive: boolean,
+    fileSize: number,
+    viewportOffset: number | undefined,
+    viewportLength: number | undefined,
+    viewportLimit: number | undefined,
+    focusedOffset: number
+  ): Promise<EditorViewportMatchWindow | undefined> {
+    if (
+      pattern.length === 0 ||
+      fileSize <= 0 ||
+      !isUsableNonNegativeInteger(viewportOffset) ||
+      !isUsableNonNegativeInteger(viewportLength) ||
+      viewportLength === 0 ||
+      viewportOffset >= fileSize
+    ) {
+      return undefined
+    }
+
+    const visibleOffset = Math.min(viewportOffset, fileSize)
+    const visibleLength = Math.min(viewportLength, fileSize - visibleOffset)
+    if (visibleLength <= 0) {
+      return undefined
+    }
+
+    const boundaryPadding = Math.max(0, pattern.length - 1)
+    const viewportSizedLimit = visibleLength + boundaryPadding + 1
+    const limit =
+      isUsableNonNegativeInteger(viewportLimit) && viewportLimit > 0
+        ? viewportLimit
+        : viewportSizedLimit
+    const boundedLimit = Math.max(1, limit)
+    const searchOffset = Math.max(0, visibleOffset - boundaryPadding)
+    const searchEnd = Math.min(
+      fileSize,
+      visibleOffset + visibleLength + boundaryPadding
+    )
+    const rawMatches = await this.searchSession(
+      this.sessionId,
+      pattern,
+      caseInsensitive,
+      false,
+      searchOffset,
+      searchEnd - searchOffset,
+      boundedLimit + 1
+    )
+    const visibleMatches = rawMatches
+      .filter((matchOffset) =>
+        matchOverlapsRange(
+          matchOffset,
+          pattern.length,
+          visibleOffset,
+          visibleLength
+        )
+      )
+      .sort((a, b) => a - b)
+
+    let matches = visibleMatches.slice(0, boundedLimit + 1)
+    let hasMore = visibleMatches.length > boundedLimit
+
+    if (
+      focusedOffset >= 0 &&
+      matchOverlapsRange(
+        focusedOffset,
+        pattern.length,
+        visibleOffset,
+        visibleLength
+      ) &&
+      !matches.includes(focusedOffset)
+    ) {
+      hasMore = true
+      matches = Array.from(
+        new Set([...matches.slice(0, boundedLimit), focusedOffset])
+      ).sort((a, b) => a - b)
+    }
+
     return {
-      offset: wrappedMatches[0] ?? -1,
-      patternLength: pattern.length,
+      offset: visibleOffset,
+      length: visibleLength,
+      matches,
+      hasMore,
     }
   }
 

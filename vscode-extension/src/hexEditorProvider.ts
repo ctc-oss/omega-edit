@@ -6612,14 +6612,39 @@ export class HexEditorProvider
             anchorOffset: msg.offset,
             fileSize: session.fileSize,
           })
+          if (navigation.offset >= 0) {
+            await this.scrollTo(session, navigation.offset)
+          }
+          const viewportOffset = session.offset
+          const viewportLength = Math.min(
+            session.webviewState.visibleByteCount,
+            Math.max(0, session.fileSize - viewportOffset)
+          )
+          const viewport =
+            navigation.offset >= 0 && viewportLength > 0
+              ? await session.search.findViewportMatches({
+                  query: msg.query,
+                  isHex: msg.isHex,
+                  caseInsensitive: msg.caseInsensitive ?? false,
+                  fileSize: session.fileSize,
+                  viewportOffset,
+                  viewportLength,
+                  focusedOffset: navigation.offset,
+                })
+              : undefined
           this.postWebviewMessage(session, {
             type: 'searchNavigationResult',
             offset: navigation.offset,
             patternLength: navigation.patternLength,
+            ...(viewport
+              ? {
+                  viewportOffset: viewport.offset,
+                  viewportLength: viewport.length,
+                  viewportMatches: viewport.matches,
+                  viewportHasMoreMatches: viewport.hasMore,
+                }
+              : {}),
           })
-          if (navigation.offset >= 0) {
-            await this.scrollTo(session, navigation.offset)
-          }
           break
         }
       }
