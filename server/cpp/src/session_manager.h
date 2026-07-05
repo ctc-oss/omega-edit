@@ -38,10 +38,12 @@ namespace omega_edit {
 
         /// Configurable service limits to bound server-side resource usage.
         struct ResourceLimits {
-            size_t session_event_queue_capacity{1024}; ///< 0 = unbounded
-            size_t viewport_event_queue_capacity{256}; ///< 0 = unbounded
-            int64_t max_change_bytes{64 * 1024 * 1024};///< 0 = unbounded
-            size_t max_viewports_per_session{256};     ///< 0 = unbounded
+            size_t session_event_queue_capacity{1024};                    ///< 0 = unbounded
+            size_t viewport_event_queue_capacity{256};                    ///< 0 = unbounded
+            int64_t max_change_bytes{64 * 1024 * 1024};                   ///< 0 = unbounded
+            size_t max_viewports_per_session{256};                        ///< 0 = unbounded
+            int64_t max_read_segment_bytes{OMEGA_VIEWPORT_CAPACITY_LIMIT};///< 0 = unbounded
+            int64_t max_search_matches{1000000};                          ///< 0 = unbounded
         };
 
         struct TransformProgressData {

@@ -47,6 +47,10 @@ export interface HeartbeatOptions {
   maxChangeBytes?: number
   /** Limit concurrently open viewports per session (0 = unbounded). */
   maxViewportsPerSession?: number
+  /** Limit materialized read/classification segment size in bytes (0 = unbounded). */
+  maxReadSegmentBytes?: number
+  /** Limit unary search matches returned by one RPC (0 = unbounded). */
+  maxSearchMatches?: number
   /** Append native server lifecycle logs to this file. */
   logFile?: string
   /** Native server log level. */
@@ -431,6 +435,12 @@ function heartbeatToArgs(
   }
   if (opts?.maxViewportsPerSession !== undefined) {
     args.push(`--max-viewports-per-session=${opts.maxViewportsPerSession}`)
+  }
+  if (opts?.maxReadSegmentBytes !== undefined) {
+    args.push(`--max-read-segment-bytes=${opts.maxReadSegmentBytes}`)
+  }
+  if (opts?.maxSearchMatches !== undefined) {
+    args.push(`--max-search-matches=${opts.maxSearchMatches}`)
   }
   if (opts?.logConfigFile !== undefined) {
     args.push(`--log-config=${opts.logConfigFile}`)

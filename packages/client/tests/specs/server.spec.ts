@@ -25,6 +25,9 @@ import {
   destroySession,
   getComputedFileSize,
   getClient,
+  getContentType,
+  getLanguage,
+  getSegment,
   getServerHeartbeat,
   getSessionCount,
   getViewportCount,
@@ -35,6 +38,7 @@ import {
   replaceSession,
   replaceSessionCheckpointed,
   resetClient,
+  searchSession,
   setLogger,
   startServer,
   startServerUnixSocket,
@@ -541,6 +545,8 @@ describe('Server Resource Limits', () => {
 
   const heartbeat: HeartbeatOptions = {
     maxChangeBytes: 1,
+    maxReadSegmentBytes: 1,
+    maxSearchMatches: 2,
     maxViewportsPerSession: 1,
     sessionEventQueueCapacity: 1,
     viewportEventQueueCapacity: 1,
@@ -746,6 +752,73 @@ describe('Server Resource Limits', () => {
     }
 
     expect(await getViewportCount(session_id)).to.equal(1)
+  })
+
+  it(`on port ${serverTestPort} should reject segment reads larger than configured`, async () => {
+    await insert(session_id, 0, Uint8Array.from([0x41]))
+    expect(await getSegment(session_id, 0, 1)).deep.equals(
+      Uint8Array.from([0x41])
+    )
+
+    try {
+      await getSegment(session_id, 0, 2)
+      expect.fail(
+        'getSegment should reject lengths larger than maxReadSegmentBytes'
+      )
+    } catch (err) {
+      expectResourceExhausted(err, 'configured read segment limit of 1 bytes')
+    }
+  })
+
+  it(`on port ${serverTestPort} should reject content classification reads larger than configured`, async () => {
+    await insert(session_id, 0, Uint8Array.from([0x41]))
+    expect((await getContentType(session_id, 0, 1)).getContentType()).to.be.a(
+      'string'
+    )
+
+    try {
+      await getContentType(session_id, 0, 2)
+      expect.fail(
+        'getContentType should reject lengths larger than maxReadSegmentBytes'
+      )
+    } catch (err) {
+      expectResourceExhausted(err, 'configured read segment limit of 1 bytes')
+    }
+  })
+
+  it(`on port ${serverTestPort} should reject language detection reads larger than configured`, async () => {
+    await insert(session_id, 0, Uint8Array.from([0x41]))
+    expect((await getLanguage(session_id, 0, 1, 'none')).getLanguage()).to.be.a(
+      'string'
+    )
+
+    try {
+      await getLanguage(session_id, 0, 2, 'none')
+      expect.fail(
+        'getLanguage should reject lengths larger than maxReadSegmentBytes'
+      )
+    } catch (err) {
+      expectResourceExhausted(err, 'configured read segment limit of 1 bytes')
+    }
+  })
+
+  it(`on port ${serverTestPort} should reject unbounded searches above the configured match limit`, async () => {
+    await insert(session_id, 0, Uint8Array.from([0x61]))
+    await insert(session_id, 1, Uint8Array.from([0x61]))
+    await insert(session_id, 2, Uint8Array.from([0x61]))
+
+    expect(
+      await searchSession(session_id, 'a', false, false, 0, 0, 2)
+    ).deep.equals([0, 1])
+
+    try {
+      await searchSession(session_id, 'a', false, false, 0, 0, 0)
+      expect.fail(
+        'searchSession should reject responses larger than maxSearchMatches'
+      )
+    } catch (err) {
+      expectResourceExhausted(err, 'configured search match limit of 2')
+    }
   })
 
   it(`on port ${serverTestPort} should generate opaque sess_ IDs for unmanaged sessions`, async () => {

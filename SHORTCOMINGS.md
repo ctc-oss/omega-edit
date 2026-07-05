@@ -36,8 +36,7 @@ Risk guide:
 
 1. **Critical deployment boundary**: add optional TLS/mTLS and an authorization
    hook before making any "hardened for production" attestation.
-2. **Massive-file pressure caps**: bound or stream `replace_matches`, and apply
-   a configurable segment-size cap to read/classification RPCs.
+2. **Massive-file pressure caps**: bound or stream `replace_matches`.
 3. **Plugin input hardening**: cap zlib decompression output and add cooperative
    cancellation to the C++ codec plugins.
 4. **Undo performance batch**: implement the remaining low-risk undo pieces
@@ -120,31 +119,6 @@ Suggested fix:
 - Add a test that requests details for a change larger than the inline limit
   and asserts bounded memory/response size.
 
-### 3. SearchSession buffers unbounded match lists
-
-**Impact:** High for common patterns on massive files
-**Risk:** Low
-**Area:** C++ server search RPC
-
-`SearchSession` with the default `limit = 0` accumulates every match offset in
-a vector and then copies them all into a single response message. A short or
-single-byte pattern over a large session can produce billions of matches
-(memory proportional to match count, then a proportionally huge response). The
-search loop also advances by 1 byte per match, so overlapping matches multiply
-the count. This is the search-side sibling of the `replace_matches` finding
-below.
-
-Relevant code:
-- `server/cpp/src/editor_service.cpp:2008`
-- `server/cpp/src/editor_service.cpp:2032`
-
-Suggested fix:
-- Impose a server-side default/maximum match cap when the caller passes
-  `limit = 0`, and report truncation explicitly (flag or status detail).
-- Consider a streaming search RPC for callers that genuinely need all matches.
-- Add a scale test with a high-frequency pattern asserting bounded memory and
-  response size.
-
 ### 4. Undo snapshot strategy is count-only and memory-blind
 
 **Impact:** High
@@ -191,27 +165,6 @@ Suggested fix:
 - Prefer a streaming/checkpointed implementation when the caller requests
   unbounded replacement.
 - Add scale tests that assert bounded memory or a clear graceful failure.
-
-### 6. Read/classification RPCs allocate unbounded segments
-
-**Impact:** High for server robustness
-**Risk:** Low to Medium
-**Area:** C++ server read APIs
-
-`GetSegment`, `GetContentType`, and `GetLanguage` allocate a segment directly
-from `request->length()` without a policy ceiling. `bad_alloc` is caught as an
-internal error, but the RPCs remain an easy memory-pressure lever. Viewports
-already have a capacity limit, so this should use a similar policy.
-
-Relevant code:
-- `server/cpp/src/editor_service.cpp:1566`
-- `server/cpp/src/editor_service.cpp:1609`
-- `server/cpp/src/editor_service.cpp:1986`
-
-Suggested fix:
-- Add a configurable maximum read/classification segment size.
-- Return `INVALID_ARGUMENT` or `RESOURCE_EXHAUSTED` when callers exceed it.
-- Align defaults with viewport limits or document why they differ.
 
 ### 7. Change-log import is still full-document JSON parsing
 
@@ -865,6 +818,12 @@ These areas were in the old document but are no longer open backlog items:
 - Change-log version enforcement, serial/group validation, completeness metadata,
   and status-code-based missing-detail handling.
 - Former hard change-log entry/byte caps on export/import.
+- Unbounded `SearchSession` unary responses; the server now enforces a
+  configurable `max_search_matches` policy and returns `RESOURCE_EXHAUSTED`
+  instead of silently truncating when a search would exceed it.
+- Unbounded `GetSegment`, `GetContentType`, and `GetLanguage` allocations; the
+  server now applies a configurable read/classification segment limit that
+  defaults to the viewport capacity and can be disabled with `0`.
 - Service-wide transform plugin execution locking; server plugin calls now
   snapshot registry metadata under a short lock and execute under session/content
   guards.

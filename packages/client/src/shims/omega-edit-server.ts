@@ -36,6 +36,8 @@ export interface HeartbeatOptions {
   viewportEventQueueCapacity?: number
   maxChangeBytes?: number
   maxViewportsPerSession?: number
+  maxReadSegmentBytes?: number
+  maxSearchMatches?: number
   logFile?: string
   logLevel?: string
   logConfigFile?: string
