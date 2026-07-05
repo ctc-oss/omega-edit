@@ -92,6 +92,7 @@
 <li><a class="reference internal" href="#c.OMEGA_VIEWPORT_CAPACITY_LIMIT"><code class="docutils literal notranslate"><span class="pre">OMEGA_VIEWPORT_CAPACITY_LIMIT</span></code></a></li>
 <li><a class="reference internal" href="#c.OMEGA_SEARCH_PATTERN_LENGTH_LIMIT"><code class="docutils literal notranslate"><span class="pre">OMEGA_SEARCH_PATTERN_LENGTH_LIMIT</span></code></a></li>
 <li><a class="reference internal" href="#c.OMEGA_MEMORY_BUFFER_LIMIT"><code class="docutils literal notranslate"><span class="pre">OMEGA_MEMORY_BUFFER_LIMIT</span></code></a></li>
+<li><a class="reference internal" href="#c.OMEGA_REPLACE_MATCHES_LIMIT"><code class="docutils literal notranslate"><span class="pre">OMEGA_REPLACE_MATCHES_LIMIT</span></code></a></li>
 <li><a class="reference internal" href="#c.OMEGA_CHANGE_INLINE_PAYLOAD_LIMIT"><code class="docutils literal notranslate"><span class="pre">OMEGA_CHANGE_INLINE_PAYLOAD_LIMIT</span></code></a></li>
 <li><a class="reference internal" href="#c.OMEGA_BYTE_T"><code class="docutils literal notranslate"><span class="pre">OMEGA_BYTE_T</span></code></a></li>
 <li><a class="reference internal" href="#c.OMEGA_BUILD_UNIX"><code class="docutils literal notranslate"><span class="pre">OMEGA_BUILD_UNIX</span></code></a></li>
@@ -150,6 +151,7 @@
 <li><a class="reference internal" href="#_CPPv432omega_edit_replace_matches_bytesP15omega_session_tPK12omega_byte_t7int64_tPK12omega_byte_t7int64_tii7int64_t7int64_t7int64_tiiP7int64_tP7int64_tP7int64_tP7int64_t"><code class="docutils literal notranslate"><span class="pre">omega_edit_replace_matches_bytes()</span></code></a></li>
 <li><a class="reference internal" href="#_CPPv426omega_edit_replace_matchesP15omega_session_tPKc7int64_tPKc7int64_tii7int64_t7int64_t7int64_tiiP7int64_tP7int64_tP7int64_tP7int64_t"><code class="docutils literal notranslate"><span class="pre">omega_edit_replace_matches()</span></code></a></li>
 <li><a class="reference internal" href="#_CPPv428omega_edit_replace_all_bytesP15omega_session_tPK12omega_byte_t7int64_tPK12omega_byte_t7int64_ti7int64_t7int64_tP7int64_t"><code class="docutils literal notranslate"><span class="pre">omega_edit_replace_all_bytes()</span></code></a></li>
+<li><a class="reference internal" href="#_CPPv440omega_edit_replace_all_bytes_directionalP15omega_session_tPK12omega_byte_t7int64_tPK12omega_byte_t7int64_tii7int64_t7int64_tP7int64_t"><code class="docutils literal notranslate"><span class="pre">omega_edit_replace_all_bytes_directional()</span></code></a></li>
 <li><a class="reference internal" href="#_CPPv422omega_edit_replace_allP15omega_session_tPKc7int64_tPKc7int64_ti7int64_t7int64_tP7int64_t"><code class="docutils literal notranslate"><span class="pre">omega_edit_replace_all()</span></code></a></li>
 <li><a class="reference internal" href="#_CPPv423omega_edit_apply_scriptP15omega_session_tPK22omega_edit_script_op_t6size_t"><code class="docutils literal notranslate"><span class="pre">omega_edit_apply_script()</span></code></a></li>
 <li><a class="reference internal" href="#_CPPv434omega_edit_apply_builtin_transformP15omega_session_t22omega_edit_transform_t7int64_t7int64_t"><code class="docutils literal notranslate"><span class="pre">omega_edit_apply_builtin_transform()</span></code></a></li>
@@ -791,6 +793,12 @@
 </dd></dl>
 
 <dl class="cpp macro">
+<dt class="sig sig-object cpp" id="c.OMEGA_REPLACE_MATCHES_LIMIT">
+<span class="target" id="config_8h_1ac5511fc4377a947f221c45dc5e50f27a"></span><span class="sig-name descname"><span class="n"><span class="pre">OMEGA_REPLACE_MATCHES_LIMIT</span></span></span><a class="headerlink" href="#c.OMEGA_REPLACE_MATCHES_LIMIT" title="Link to this definition"></a><br /></dt>
+<dd><p>Maximum selected matches that transactional replace-matches may materialize into one in-memory script. </p>
+</dd></dl>
+
+<dl class="cpp macro">
 <dt class="sig sig-object cpp" id="c.OMEGA_CHANGE_INLINE_PAYLOAD_LIMIT">
 <span class="target" id="config_8h_1aa020f6539a670eb29826886d9cf8f1e8"></span><span class="sig-name descname"><span class="n"><span class="pre">OMEGA_CHANGE_INLINE_PAYLOAD_LIMIT</span></span></span><a class="headerlink" href="#c.OMEGA_CHANGE_INLINE_PAYLOAD_LIMIT" title="Link to this definition"></a><br /></dt>
 <dd><p>Maximum primitive payload byte range stored inline before using file-backed storage. </p>
@@ -1412,7 +1420,7 @@
 <li><p><strong>is_reverse</strong> – zero to search forward and non-zero to search backward before applying replacements </p></li>
 <li><p><strong>offset</strong> – starting byte offset of the replace range </p></li>
 <li><p><strong>length</strong> – number of bytes in the replace range, or zero to search from <code class="docutils literal notranslate"><span class="pre">offset</span></code> to end of session </p></li>
-<li><p><strong>limit</strong> – maximum number of matches to replace, or zero for no limit </p></li>
+<li><p><strong>limit</strong> – maximum number of matches to replace, or zero for no caller-specified limit. The transactional replace path still refuses to materialize more than OMEGA_REPLACE_MATCHES_LIMIT selected matches, further bounded by OMEGA_MEMORY_BUFFER_LIMIT; use omega_edit_replace_all_bytes for streamed large replace-all work. </p></li>
 <li><p><strong>front_to_back</strong> – non-zero to apply replacements from low offsets to high offsets, zero for high-to-low </p></li>
 <li><p><strong>overwrite_only</strong> – non-zero to overwrite replacement bytes in place instead of replacing the full matched span </p></li>
 <li><p><strong>replacement_count_out</strong> – optional out-parameter that receives the number of matches selected for replacement </p></li>
@@ -1443,7 +1451,7 @@
 <li><p><strong>is_reverse</strong> – zero to search forward and non-zero to search backward before applying replacements </p></li>
 <li><p><strong>offset</strong> – starting byte offset of the replace range </p></li>
 <li><p><strong>length</strong> – number of bytes in the replace range, or zero to search from <code class="docutils literal notranslate"><span class="pre">offset</span></code> to end of session </p></li>
-<li><p><strong>limit</strong> – maximum number of matches to replace, or zero for no limit </p></li>
+<li><p><strong>limit</strong> – maximum number of matches to replace, or zero for no caller-specified limit. The transactional replace path still refuses to materialize more than OMEGA_REPLACE_MATCHES_LIMIT selected matches, further bounded by OMEGA_MEMORY_BUFFER_LIMIT; use omega_edit_replace_all for streamed large replace-all work. </p></li>
 <li><p><strong>front_to_back</strong> – non-zero to apply replacements from low offsets to high offsets, zero for high-to-low </p></li>
 <li><p><strong>overwrite_only</strong> – non-zero to overwrite replacement bytes in place instead of replacing the full matched span </p></li>
 <li><p><strong>replacement_count_out</strong> – optional out-parameter that receives the number of matches selected for replacement </p></li>
@@ -1483,6 +1491,32 @@
 <li><p><strong>case_insensitive</strong> – zero for case-sensitive matching and non-zero for case-insensitive matching </p></li>
 <li><p><strong>offset</strong> – starting byte offset of the replace-all range </p></li>
 <li><p><strong>length</strong> – number of bytes in the replace-all range, or zero to search from <code class="docutils literal notranslate"><span class="pre">offset</span></code> to end of session </p></li>
+<li><p><strong>replacement_count_out</strong> – optional out-parameter that receives the number of replacements performed </p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>zero on success and non-zero otherwise </p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="cpp function">
+<dt class="sig sig-object cpp" id="_CPPv440omega_edit_replace_all_bytes_directionalP15omega_session_tPK12omega_byte_t7int64_tPK12omega_byte_t7int64_tii7int64_t7int64_tP7int64_t">
+<span id="_CPPv340omega_edit_replace_all_bytes_directionalP15omega_session_tPK12omega_byte_t7int64_tPK12omega_byte_t7int64_tii7int64_t7int64_tP7int64_t"></span><span id="_CPPv240omega_edit_replace_all_bytes_directionalP15omega_session_tPK12omega_byte_t7int64_tPK12omega_byte_t7int64_tii7int64_t7int64_tP7int64_t"></span><span id="omega_edit_replace_all_bytes_directional__omega_session_tP.omega_byte_tCP.int64_t.omega_byte_tCP.int64_t.i.i.int64_t.int64_t.int64_tP"></span><span class="target" id="edit_8h_1af8593f608ce27af62875dc8932dbdbc9"></span><span class="kt"><span class="pre">int</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">omega_edit_replace_all_bytes_directional</span></span></span><span class="sig-paren">(</span><a class="reference internal" href="#_CPPv415omega_session_t" title="omega_session_t"><span class="n"><span class="pre">omega_session_t</span></span></a><span class="w"> </span><span class="p"><span class="pre">*</span></span><span class="n sig-param"><span class="pre">session_ptr</span></span>, <span class="k"><span class="pre">const</span></span><span class="w"> </span><a class="reference internal" href="#_CPPv412omega_byte_t" title="omega_byte_t"><span class="n"><span class="pre">omega_byte_t</span></span></a><span class="w"> </span><span class="p"><span class="pre">*</span></span><span class="n sig-param"><span class="pre">pattern</span></span>, <span class="n"><span class="pre">int64_t</span></span><span class="w"> </span><span class="n sig-param"><span class="pre">pattern_length</span></span>, <span class="k"><span class="pre">const</span></span><span class="w"> </span><a class="reference internal" href="#_CPPv412omega_byte_t" title="omega_byte_t"><span class="n"><span class="pre">omega_byte_t</span></span></a><span class="w"> </span><span class="p"><span class="pre">*</span></span><span class="n sig-param"><span class="pre">replacement</span></span>, <span class="n"><span class="pre">int64_t</span></span><span class="w"> </span><span class="n sig-param"><span class="pre">replacement_length</span></span>, <span class="kt"><span class="pre">int</span></span><span class="w"> </span><span class="n sig-param"><span class="pre">case_insensitive</span></span>, <span class="kt"><span class="pre">int</span></span><span class="w"> </span><span class="n sig-param"><span class="pre">is_reverse</span></span>, <span class="n"><span class="pre">int64_t</span></span><span class="w"> </span><span class="n sig-param"><span class="pre">offset</span></span>, <span class="n"><span class="pre">int64_t</span></span><span class="w"> </span><span class="n sig-param"><span class="pre">length</span></span>, <span class="n"><span class="pre">int64_t</span></span><span class="w"> </span><span class="p"><span class="pre">*</span></span><span class="n sig-param"><span class="pre">replacement_count_out</span></span><span class="sig-paren">)</span><a class="headerlink" href="#_CPPv440omega_edit_replace_all_bytes_directionalP15omega_session_tPK12omega_byte_t7int64_tPK12omega_byte_t7int64_tii7int64_t7int64_tP7int64_t" title="Link to this definition"></a><br /></dt>
+<dd><p>Replace all non-overlapping matches of a byte pattern using a streamed checkpoint rewrite and explicit search direction.</p>
+<p>Forward replacement selects matches greedily from low offsets to high offsets. Reverse replacement selects matches greedily from high offsets to low offsets, preserving reverse-search overlap semantics without materializing every match offset.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>session_ptr</strong> – session to edit </p></li>
+<li><p><strong>pattern</strong> – pattern bytes to search for </p></li>
+<li><p><strong>pattern_length</strong> – explicit number of bytes in pattern </p></li>
+<li><p><strong>replacement</strong> – replacement bytes, or null if <code class="docutils literal notranslate"><span class="pre">replacement_length</span></code> is zero </p></li>
+<li><p><strong>replacement_length</strong> – explicit number of bytes in replacement </p></li>
+<li><p><strong>case_insensitive</strong> – zero for case-sensitive matching and non-zero for case-insensitive matching </p></li>
+<li><p><strong>is_reverse</strong> – zero to select matches forward and non-zero to select matches backward </p></li>
+<li><p><strong>offset</strong> – starting byte offset of the replace range </p></li>
+<li><p><strong>length</strong> – number of bytes in the replace range, or zero to search from <code class="docutils literal notranslate"><span class="pre">offset</span></code> to end of session </p></li>
 <li><p><strong>replacement_count_out</strong> – optional out-parameter that receives the number of replacements performed </p></li>
 </ul>
 </dd>
@@ -2598,7 +2632,7 @@
 </ul>
 </dd>
 <dt class="field-even">Returns<span class="colon">:</span></dt>
-<dd class="field-even"><p>non-zero if a match is found, zero otherwise </p>
+<dd class="field-even"><p>positive if a match is found, zero if no match remains, negative on search failure </p>
 </dd>
 </dl>
 </dd></dl>
