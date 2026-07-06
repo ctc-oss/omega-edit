@@ -66,6 +66,25 @@ function writePluginWrapper(pluginEntry) {
   return wrapperPath
 }
 
+function writeBiomeConfig() {
+  const rootConfigPath = path.join(repoRoot, 'biome.json')
+  const rootConfig = JSON.parse(fs.readFileSync(rootConfigPath, 'utf8'))
+  const generatedConfigPath = path.join(tempToolsRoot, 'biome.json')
+  const generatedConfig = {
+    $schema: rootConfig.$schema,
+    formatter: rootConfig.formatter,
+    javascript: rootConfig.javascript,
+    json: rootConfig.json,
+  }
+
+  fs.writeFileSync(
+    generatedConfigPath,
+    `${JSON.stringify(generatedConfig, null, 2)}\n`
+  )
+
+  return generatedConfigPath
+}
+
 function sleep(ms) {
   Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms)
 }
@@ -120,6 +139,7 @@ fs.rmSync(generatedRoot, { recursive: true, force: true })
 fs.mkdirSync(generatedRoot, { recursive: true })
 
 const pluginWrapper = writePluginWrapper(protobufTsPluginEntry)
+const generatedBiomeConfig = writeBiomeConfig()
 
 const args = [
   protocEntry,
@@ -142,7 +162,14 @@ execFileSyncWithRetries('protobuf generation', process.execPath, args, {
 
 execFileSync(
   process.execPath,
-  [biomeEntry, 'format', '--write', generatedRoot],
+  [
+    biomeEntry,
+    'format',
+    '--config-path',
+    generatedBiomeConfig,
+    '--write',
+    generatedRoot,
+  ],
   {
     cwd: clientRoot,
     stdio: 'inherit',
