@@ -51,13 +51,16 @@ namespace {
         insert,
         delete_bytes,
         overwrite,
+        replace,
         undo_burst,
         redo_burst,
         begin_transaction,
         end_transaction,
         transform,
         create_checkpoint,
-        destroy_checkpoint
+        destroy_checkpoint,
+        save_probe,
+        viewport_probe
     };
 
     struct fuzz_op_t {
@@ -108,6 +111,8 @@ namespace {
                 return "delete";
             case fuzz_op_kind_t::overwrite:
                 return "overwrite";
+            case fuzz_op_kind_t::replace:
+                return "replace";
             case fuzz_op_kind_t::undo_burst:
                 return "undo";
             case fuzz_op_kind_t::redo_burst:
@@ -122,6 +127,10 @@ namespace {
                 return "create_checkpoint";
             case fuzz_op_kind_t::destroy_checkpoint:
                 return "destroy_checkpoint";
+            case fuzz_op_kind_t::save_probe:
+                return "save_probe";
+            case fuzz_op_kind_t::viewport_probe:
+                return "viewport_probe";
         }
         return "unknown";
     }
@@ -200,32 +209,41 @@ namespace {
             int weight;
         };
 
-        const std::array<weighted_op_t, 7> typing{{
-                {fuzz_op_kind_t::insert, 60},
-                {fuzz_op_kind_t::delete_bytes, 15},
-                {fuzz_op_kind_t::overwrite, 10},
-                {fuzz_op_kind_t::undo_burst, 10},
+        const std::array<weighted_op_t, 10> typing{{
+                {fuzz_op_kind_t::insert, 50},
+                {fuzz_op_kind_t::delete_bytes, 12},
+                {fuzz_op_kind_t::overwrite, 8},
+                {fuzz_op_kind_t::replace, 10},
+                {fuzz_op_kind_t::undo_burst, 8},
                 {fuzz_op_kind_t::begin_transaction, 3},
                 {fuzz_op_kind_t::transform, 1},
                 {fuzz_op_kind_t::create_checkpoint, 1},
+                {fuzz_op_kind_t::save_probe, 4},
+                {fuzz_op_kind_t::viewport_probe, 3},
         }};
-        const std::array<weighted_op_t, 7> bulk{{
+        const std::array<weighted_op_t, 10> bulk{{
                 {fuzz_op_kind_t::insert, 10},
-                {fuzz_op_kind_t::delete_bytes, 20},
-                {fuzz_op_kind_t::overwrite, 30},
+                {fuzz_op_kind_t::delete_bytes, 18},
+                {fuzz_op_kind_t::overwrite, 25},
+                {fuzz_op_kind_t::replace, 14},
                 {fuzz_op_kind_t::undo_burst, 2},
                 {fuzz_op_kind_t::begin_transaction, 5},
                 {fuzz_op_kind_t::transform, 3},
                 {fuzz_op_kind_t::create_checkpoint, 0},
+                {fuzz_op_kind_t::save_probe, 12},
+                {fuzz_op_kind_t::viewport_probe, 11},
         }};
-        const std::array<weighted_op_t, 7> adversarial{{
-                {fuzz_op_kind_t::insert, 20},
-                {fuzz_op_kind_t::delete_bytes, 20},
-                {fuzz_op_kind_t::overwrite, 20},
-                {fuzz_op_kind_t::undo_burst, 20},
-                {fuzz_op_kind_t::begin_transaction, 10},
+        const std::array<weighted_op_t, 10> adversarial{{
+                {fuzz_op_kind_t::insert, 16},
+                {fuzz_op_kind_t::delete_bytes, 18},
+                {fuzz_op_kind_t::overwrite, 18},
+                {fuzz_op_kind_t::replace, 18},
+                {fuzz_op_kind_t::undo_burst, 16},
+                {fuzz_op_kind_t::begin_transaction, 8},
                 {fuzz_op_kind_t::transform, 5},
                 {fuzz_op_kind_t::create_checkpoint, 5},
+                {fuzz_op_kind_t::save_probe, 8},
+                {fuzz_op_kind_t::viewport_probe, 8},
         }};
 
         const auto &weights =
@@ -265,6 +283,10 @@ namespace {
             case fuzz_op_kind_t::overwrite:
                 return omega_edit_overwrite_bytes(session_ptr, op.offset, op.bytes.empty() ? nullptr : op.bytes.data(),
                                                   static_cast<int64_t>(op.bytes.size()));
+            case fuzz_op_kind_t::replace:
+                return omega_edit_replace_bytes(session_ptr, op.offset, op.length,
+                                                op.bytes.empty() ? nullptr : op.bytes.data(),
+                                                static_cast<int64_t>(op.bytes.size()));
             case fuzz_op_kind_t::undo_burst: {
                 int64_t applied = 0;
                 for (int64_t i = 0; i < op.count; ++i) {
@@ -299,6 +321,24 @@ namespace {
                 return omega_edit_create_checkpoint(session_ptr);
             case fuzz_op_kind_t::destroy_checkpoint:
                 return omega_edit_destroy_last_checkpoint(session_ptr);
+            case fuzz_op_kind_t::save_probe: {
+                omega_byte_t *bytes = nullptr;
+                int64_t length = -1;
+                const auto rc = omega_edit_save_segment_to_bytes(session_ptr, &bytes, &length, op.offset, op.length);
+                free(bytes);
+                return rc == 0 ? length : rc;
+            }
+            case fuzz_op_kind_t::viewport_probe: {
+                const auto capacity = std::max<int64_t>(1, std::min<int64_t>(op.length, OMEGA_VIEWPORT_CAPACITY_LIMIT));
+                auto *viewport =
+                        omega_edit_create_viewport(session_ptr, op.offset, capacity, 1, nullptr, nullptr, NO_EVENTS);
+                if (!viewport) { return -1; }
+                const auto length = omega_viewport_get_length(viewport);
+                const auto *data = omega_viewport_get_data(viewport);
+                const auto rc = (length == 0 || data != nullptr) ? length : -1;
+                omega_edit_destroy_viewport(viewport);
+                return rc;
+            }
         }
         return -1;
     }
@@ -309,6 +349,7 @@ namespace {
         switch (op.kind) {
             case fuzz_op_kind_t::insert:
             case fuzz_op_kind_t::overwrite:
+            case fuzz_op_kind_t::replace:
                 hot_spot = clamp_offset(op.offset, size);
                 cursor = clamp_offset(op.offset + static_cast<int64_t>(op.bytes.size()), size);
                 break;
@@ -341,6 +382,11 @@ namespace {
             case fuzz_op_kind_t::overwrite:
                 op.offset = choose_offset(rng, size, true, profile, cursor, hot_spot);
                 op.bytes = random_bytes(rng, choose_byte_count(rng, profile, false), profile);
+                break;
+            case fuzz_op_kind_t::replace:
+                op.offset = choose_offset(rng, size, size == 0, profile, cursor, hot_spot);
+                op.length = size > 0 ? std::min(choose_span_length(rng, profile), size - op.offset) : 0;
+                op.bytes = random_bytes(rng, choose_byte_count(rng, profile, small_insert), profile);
                 break;
             default:
                 break;
@@ -376,7 +422,9 @@ namespace {
         for (int64_t i = 0; i < op_count; ++i) {
             auto kind = choose_weighted_op(rng, profile);
             const auto size = omega_session_get_computed_file_size(planning_session.get());
-            if ((kind == fuzz_op_kind_t::delete_bytes || kind == fuzz_op_kind_t::transform) && size <= 0) {
+            if ((kind == fuzz_op_kind_t::delete_bytes || kind == fuzz_op_kind_t::transform ||
+                 kind == fuzz_op_kind_t::replace) &&
+                size <= 0) {
                 kind = fuzz_op_kind_t::insert;
             }
             if (kind == fuzz_op_kind_t::undo_burst && chance(rng, 18)) { kind = fuzz_op_kind_t::redo_burst; }
@@ -388,11 +436,12 @@ namespace {
 
                 const auto transaction_ops = random_i64(rng, 1, profile == fuzz_profile_t::adversarial ? 7 : 4);
                 for (int64_t j = 0; j < transaction_ops; ++j) {
-                    const auto edit_pick = random_i64(rng, 0, 2);
+                    const auto edit_pick = random_i64(rng, 0, 3);
                     auto edit_kind = edit_pick == 0 ? fuzz_op_kind_t::insert
                                                     : (edit_pick == 1 ? fuzz_op_kind_t::delete_bytes
-                                                                      : fuzz_op_kind_t::overwrite);
-                    if (edit_kind == fuzz_op_kind_t::delete_bytes &&
+                                                                      : (edit_pick == 2 ? fuzz_op_kind_t::overwrite
+                                                                                        : fuzz_op_kind_t::replace));
+                    if ((edit_kind == fuzz_op_kind_t::delete_bytes || edit_kind == fuzz_op_kind_t::replace) &&
                         omega_session_get_computed_file_size(planning_session.get()) <= 0) {
                         edit_kind = fuzz_op_kind_t::insert;
                     }
@@ -413,6 +462,7 @@ namespace {
                 case fuzz_op_kind_t::insert:
                 case fuzz_op_kind_t::delete_bytes:
                 case fuzz_op_kind_t::overwrite:
+                case fuzz_op_kind_t::replace:
                     op = make_edit_op(rng, planning_session.get(), profile, kind, cursor, hot_spot,
                                       kind == fuzz_op_kind_t::insert);
                     break;
@@ -430,6 +480,14 @@ namespace {
                         omega_session_get_num_checkpoints(planning_session.get()) > 0 && chance(rng, 45)) {
                         op.kind = fuzz_op_kind_t::destroy_checkpoint;
                     }
+                    break;
+                case fuzz_op_kind_t::save_probe:
+                    op.offset = choose_offset(rng, size, true, profile, cursor, hot_spot);
+                    op.length = chance(rng, 35) ? 0 : choose_span_length(rng, profile);
+                    break;
+                case fuzz_op_kind_t::viewport_probe:
+                    op.offset = choose_offset(rng, size, true, profile, cursor, hot_spot);
+                    op.length = choose_span_length(rng, profile);
                     break;
                 default:
                     break;
@@ -540,6 +598,16 @@ namespace {
             }
             return true;
         }
+        if (name == "replace") {
+            op.kind = fuzz_op_kind_t::replace;
+            std::string bytes;
+            if (!extract_int64(line, "offset", op.offset) || !extract_int64(line, "length", op.length) ||
+                !extract_string(line, "bytes", bytes) || !hex_decode(bytes, op.bytes)) {
+                error = "invalid replace op";
+                return false;
+            }
+            return true;
+        }
         if (name == "undo" || name == "redo") {
             op.kind = name == "undo" ? fuzz_op_kind_t::undo_burst : fuzz_op_kind_t::redo_burst;
             if (!extract_int64(line, "count", op.count)) {
@@ -575,6 +643,22 @@ namespace {
         }
         if (name == "destroy_checkpoint") {
             op.kind = fuzz_op_kind_t::destroy_checkpoint;
+            return true;
+        }
+        if (name == "save_probe") {
+            op.kind = fuzz_op_kind_t::save_probe;
+            if (!extract_int64(line, "offset", op.offset) || !extract_int64(line, "length", op.length)) {
+                error = "invalid save_probe op";
+                return false;
+            }
+            return true;
+        }
+        if (name == "viewport_probe") {
+            op.kind = fuzz_op_kind_t::viewport_probe;
+            if (!extract_int64(line, "offset", op.offset) || !extract_int64(line, "length", op.length)) {
+                error = "invalid viewport_probe op";
+                return false;
+            }
             return true;
         }
 
@@ -640,6 +724,10 @@ namespace {
                 case fuzz_op_kind_t::overwrite:
                     output << ",\"offset\":" << op.offset << ",\"bytes\":\"" << hex_encode(op.bytes) << "\"";
                     break;
+                case fuzz_op_kind_t::replace:
+                    output << ",\"offset\":" << op.offset << ",\"length\":" << op.length << ",\"bytes\":\""
+                           << hex_encode(op.bytes) << "\"";
+                    break;
                 case fuzz_op_kind_t::delete_bytes:
                     output << ",\"offset\":" << op.offset << ",\"length\":" << op.length;
                     break;
@@ -651,6 +739,10 @@ namespace {
                     output << ",\"kind\":" << static_cast<int>(op.transform.kind)
                            << ",\"operand\":" << static_cast<int>(op.transform.operand) << ",\"offset\":" << op.offset
                            << ",\"length\":" << op.length;
+                    break;
+                case fuzz_op_kind_t::save_probe:
+                case fuzz_op_kind_t::viewport_probe:
+                    output << ",\"offset\":" << op.offset << ",\"length\":" << op.length;
                     break;
                 default:
                     break;
@@ -690,7 +782,7 @@ namespace {
                 continue;
             }
             if (transform_seen && (op.kind == fuzz_op_kind_t::insert || op.kind == fuzz_op_kind_t::delete_bytes ||
-                                   op.kind == fuzz_op_kind_t::overwrite)) {
+                                   op.kind == fuzz_op_kind_t::overwrite || op.kind == fuzz_op_kind_t::replace)) {
                 return false;
             }
         }

@@ -57,6 +57,25 @@ function encodeRangeMap(rangeMap) {
   )
 }
 
+function readPngSize(content) {
+  const pngSignature = Buffer.from([
+    0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a,
+  ])
+  assert.ok(
+    content.length >= 24,
+    `PNG content is too short to contain an IHDR header: ${content.length} bytes`
+  )
+  assert.ok(
+    content.subarray(0, pngSignature.length).equals(pngSignature),
+    'PNG content does not start with the PNG signature'
+  )
+  assert.equal(content.toString('ascii', 12, 16), 'IHDR')
+  return {
+    width: content.readUInt32BE(16),
+    height: content.readUInt32BE(20),
+  }
+}
+
 function findRangeMapTreeNode(nodes, id) {
   for (const node of nodes) {
     if (node.id === id) {
@@ -73,6 +92,11 @@ function findRangeMapTreeNode(nodes, id) {
 test('package.json matches shared extension constants', () => {
   assert.equal(packageJson.main, './out/extension.js')
   assert.equal(packageJson.types, './out/api.d.ts')
+  assert.equal(packageJson.icon, 'images/OmegaEditLogo.png')
+  const extensionIcon = fs.readFileSync(
+    path.resolve(__dirname, '..', packageJson.icon)
+  )
+  assert.deepEqual(readPngSize(extensionIcon), { width: 128, height: 128 })
   assert.equal(OMEGA_EDIT_EXTENSION_API_VERSION, 2)
   assert.equal(packageJson.name, OMEGA_EDIT_EXTENSION_NAME)
   assert.equal(packageJson.publisher, OMEGA_EDIT_EXTENSION_PUBLISHER)
@@ -1875,16 +1899,16 @@ test('range map parser loads the OmegaEdit PNG logo fixture', () => {
   assert.equal(parsed.document.version, 1)
   assert.equal(parsed.document.source, 'images/OmegaEditLogo.png')
   assert.equal(parsed.document.selectedPath, '/png/chunks[0]/data/width')
-  assert.equal(parsed.document.nodes.length, 34)
-  assert.equal(parsed.nodeCount, 176)
-  assert.equal(parsed.highlights.length, 176)
-  assert.equal(parsed.tree.length, 34)
+  assert.equal(parsed.document.nodes.length, 28)
+  assert.equal(parsed.nodeCount, 142)
+  assert.equal(parsed.highlights.length, 142)
+  assert.equal(parsed.tree.length, 28)
   assert.deepEqual(parsed.selectedHighlight, {
     id: '/png/chunks[0]/data/width',
     offset: 16,
     length: 4,
     kind: 'current',
-    label: 'IHDR width (uint32) = 1002',
+    label: 'IHDR width (uint32) = 1254',
     source: 'images/OmegaEditLogo.png',
   })
 
@@ -1914,7 +1938,7 @@ test('range map parser loads the OmegaEdit PNG logo fixture', () => {
     kind: 'current',
     source: 'images/OmegaEditLogo.png',
     type: 'uint32',
-    value: '1002',
+    value: '1254',
     children: [],
   })
 })
