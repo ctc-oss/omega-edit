@@ -20,6 +20,7 @@
   "categories": [
     "Other"
   ],
+  "icon": "images/OmegaEditLogo.png",
   "main": "./out/extension.js",
   "types": "./out/api.d.ts",
   "contributes": {
