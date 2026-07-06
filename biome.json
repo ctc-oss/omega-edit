@@ -23,6 +23,7 @@
       "!packages/client/doc",
       "!packages/client/src/client_version.ts",
       "!packages/client/src/omega_edit_*.ts",
+      "!packages/client/src/protobuf_ts/generated/**",
       "!packages/client/tests/specs/data",
       "!vscode-extension/package-lock.json"
     ]
