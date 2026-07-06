@@ -85,12 +85,22 @@ TEST_CASE("File Copy", "[UtilTests]") {
 
 #ifndef OMEGA_BUILD_WINDOWS
     // Some host-mounted filesystems (for example WSL drvfs/9p without metadata) report fixed POSIX mode bits even
-    // after chmod succeeds. Keep the strict assertion where the filesystem honors the requested bits.
-    if ((dst_stat.st_mode & 07777) == (dst_mode & 07777)) {
+    // after chmod succeeds. Keep the strict assertion anywhere chmod visibly changes the mode bits.
+    const auto requested_mode = static_cast<mode_t>(dst_mode & 07777);
+    const auto reported_mode = static_cast<mode_t>(dst_stat.st_mode & 07777);
+    if (reported_mode == requested_mode) {
         REQUIRE(dst_mode == dst_stat.st_mode);
     } else {
-        WARN("Filesystem did not preserve requested mode bits; requested "
-             << std::oct << (dst_mode & 07777) << " but stat reported " << (dst_stat.st_mode & 07777));
+        const auto probe_mode = static_cast<mode_t>(reported_mode == 0600 ? 0644 : 0600);
+        REQUIRE(0 == chmod((DATA_DIR / "test1.copy.dat").string().c_str(), probe_mode));
+
+        struct stat probe_stat {};
+        REQUIRE(0 == stat((DATA_DIR / "test1.copy.dat").string().c_str(), &probe_stat));
+        if ((probe_stat.st_mode & 07777) == probe_mode) {
+            FAIL("omega_util_file_copy did not apply requested mode bits on a filesystem that honors chmod");
+        }
+        WARN("Filesystem ignores requested POSIX mode bits; requested " << std::oct << requested_mode
+                                                                        << " but stat reported " << reported_mode);
     }
 #endif
 

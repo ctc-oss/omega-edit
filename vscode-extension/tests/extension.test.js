@@ -61,9 +61,13 @@ function readPngSize(content) {
   const pngSignature = Buffer.from([
     0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a,
   ])
-  assert.equal(
+  assert.ok(
+    content.length >= 24,
+    `PNG content is too short to contain an IHDR header: ${content.length} bytes`
+  )
+  assert.ok(
     content.subarray(0, pngSignature.length).equals(pngSignature),
-    true
+    'PNG content does not start with the PNG signature'
   )
   assert.equal(content.toString('ascii', 12, 16), 'IHDR')
   return {
