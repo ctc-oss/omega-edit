@@ -104,9 +104,11 @@ omega_search_context_t *omega_search_create_context(omega_session_t *session_ptr
  * Create a C-string search context with explicit single-byte case folding.
  * @see omega_search_create_context
  */
-omega_search_context_t *omega_search_create_context_with_case_folding(
-        omega_session_t *session_ptr, const char *pattern, int64_t pattern_length, int64_t session_offset,
-        int64_t session_length, int case_insensitive, int is_reverse_search, omega_search_case_folding_t case_folding);
+omega_search_context_t *omega_search_create_context_with_case_folding(omega_session_t *session_ptr, const char *pattern,
+                                                                      int64_t pattern_length, int64_t session_offset,
+                                                                      int64_t session_length, int case_insensitive,
+                                                                      int is_reverse_search,
+                                                                      omega_search_case_folding_t case_folding);
 
 /**
  * Given a search context, determine if the search is being done forwards or backwards

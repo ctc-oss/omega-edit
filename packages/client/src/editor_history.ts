@@ -17,6 +17,8 @@
  * limitations under the License.
  */
 
+import type { SearchCaseFolding } from './session'
+
 export type EditorChangeRecordKind =
   | 'INSERT'
   | 'DELETE'
@@ -38,7 +40,7 @@ export interface EditorCheckpointReplaceAllTransaction {
   query: string
   isHex: boolean
   caseInsensitive: boolean
-  caseFolding?: number
+  caseFolding?: SearchCaseFolding
   data: string
 }
 

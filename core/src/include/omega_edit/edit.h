@@ -525,12 +525,14 @@ int omega_edit_replace_matches_bytes(omega_session_t *session_ptr, const omega_b
  * Replace matching byte patterns using explicit single-byte case folding.
  * @see omega_edit_replace_matches_bytes
  */
-int omega_edit_replace_matches_bytes_with_case_folding(
-        omega_session_t *session_ptr, const omega_byte_t *pattern, int64_t pattern_length,
-        const omega_byte_t *replacement, int64_t replacement_length, int case_insensitive,
-        omega_search_case_folding_t case_folding, int is_reverse, int64_t offset, int64_t length, int64_t limit,
-        int front_to_back, int overwrite_only, int64_t *replacement_count_out, int64_t *delete_count_out,
-        int64_t *insert_count_out, int64_t *overwrite_count_out);
+int omega_edit_replace_matches_bytes_with_case_folding(omega_session_t *session_ptr, const omega_byte_t *pattern,
+                                                       int64_t pattern_length, const omega_byte_t *replacement,
+                                                       int64_t replacement_length, int case_insensitive,
+                                                       omega_search_case_folding_t case_folding, int is_reverse,
+                                                       int64_t offset, int64_t length, int64_t limit, int front_to_back,
+                                                       int overwrite_only, int64_t *replacement_count_out,
+                                                       int64_t *delete_count_out, int64_t *insert_count_out,
+                                                       int64_t *overwrite_count_out);
 
 /**
  * Replace matching byte patterns using named options.
@@ -579,12 +581,14 @@ int omega_edit_replace_matches(omega_session_t *session_ptr, const char *pattern
  * Replace matching C-string patterns using explicit single-byte case folding.
  * @see omega_edit_replace_matches
  */
-int omega_edit_replace_matches_with_case_folding(
-        omega_session_t *session_ptr, const char *pattern, int64_t pattern_length, const char *replacement,
-        int64_t replacement_length, int case_insensitive, omega_search_case_folding_t case_folding, int is_reverse,
-        int64_t offset, int64_t length, int64_t limit, int front_to_back, int overwrite_only,
-        int64_t *replacement_count_out, int64_t *delete_count_out, int64_t *insert_count_out,
-        int64_t *overwrite_count_out);
+int omega_edit_replace_matches_with_case_folding(omega_session_t *session_ptr, const char *pattern,
+                                                 int64_t pattern_length, const char *replacement,
+                                                 int64_t replacement_length, int case_insensitive,
+                                                 omega_search_case_folding_t case_folding, int is_reverse,
+                                                 int64_t offset, int64_t length, int64_t limit, int front_to_back,
+                                                 int overwrite_only, int64_t *replacement_count_out,
+                                                 int64_t *delete_count_out, int64_t *insert_count_out,
+                                                 int64_t *overwrite_count_out);
 
 /**
  * Replace matching C-string patterns using named options.
@@ -640,10 +644,11 @@ int omega_edit_replace_all_bytes(omega_session_t *session_ptr, const omega_byte_
  * Replace all non-overlapping byte matches using explicit single-byte case folding.
  * @see omega_edit_replace_all_bytes
  */
-int omega_edit_replace_all_bytes_with_case_folding(
-        omega_session_t *session_ptr, const omega_byte_t *pattern, int64_t pattern_length,
-        const omega_byte_t *replacement, int64_t replacement_length, int case_insensitive,
-        omega_search_case_folding_t case_folding, int64_t offset, int64_t length, int64_t *replacement_count_out);
+int omega_edit_replace_all_bytes_with_case_folding(omega_session_t *session_ptr, const omega_byte_t *pattern,
+                                                   int64_t pattern_length, const omega_byte_t *replacement,
+                                                   int64_t replacement_length, int case_insensitive,
+                                                   omega_search_case_folding_t case_folding, int64_t offset,
+                                                   int64_t length, int64_t *replacement_count_out);
 
 /**
  * Replace all non-overlapping matches of a byte pattern using a streamed checkpoint rewrite and explicit search
@@ -674,11 +679,13 @@ int omega_edit_replace_all_bytes_directional(omega_session_t *session_ptr, const
  * Replace all non-overlapping byte matches directionally using explicit single-byte case folding.
  * @see omega_edit_replace_all_bytes_directional
  */
-int omega_edit_replace_all_bytes_directional_with_case_folding(
-        omega_session_t *session_ptr, const omega_byte_t *pattern, int64_t pattern_length,
-        const omega_byte_t *replacement, int64_t replacement_length, int case_insensitive,
-        omega_search_case_folding_t case_folding, int is_reverse, int64_t offset, int64_t length,
-        int64_t *replacement_count_out);
+int omega_edit_replace_all_bytes_directional_with_case_folding(omega_session_t *session_ptr,
+                                                               const omega_byte_t *pattern, int64_t pattern_length,
+                                                               const omega_byte_t *replacement,
+                                                               int64_t replacement_length, int case_insensitive,
+                                                               omega_search_case_folding_t case_folding, int is_reverse,
+                                                               int64_t offset, int64_t length,
+                                                               int64_t *replacement_count_out);
 
 /**
  * Replace all non-overlapping matches of a byte pattern using named options.
@@ -711,10 +718,10 @@ int omega_edit_replace_all(omega_session_t *session_ptr, const char *pattern, in
  * Replace all non-overlapping C-string matches using explicit single-byte case folding.
  * @see omega_edit_replace_all
  */
-int omega_edit_replace_all_with_case_folding(
-        omega_session_t *session_ptr, const char *pattern, int64_t pattern_length, const char *replacement,
-        int64_t replacement_length, int case_insensitive, omega_search_case_folding_t case_folding, int64_t offset,
-        int64_t length, int64_t *replacement_count_out);
+int omega_edit_replace_all_with_case_folding(omega_session_t *session_ptr, const char *pattern, int64_t pattern_length,
+                                             const char *replacement, int64_t replacement_length, int case_insensitive,
+                                             omega_search_case_folding_t case_folding, int64_t offset, int64_t length,
+                                             int64_t *replacement_count_out);
 
 /**
  * Replace all non-overlapping C-string matches using named options.

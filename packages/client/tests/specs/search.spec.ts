@@ -41,6 +41,7 @@ import {
   searchSession,
   undo,
 } from '@omega-edit/client'
+import type { IEditStats } from '@omega-edit/client'
 import { status as GrpcStatus } from '@grpc/grpc-js'
 import {
   createTestSession,
@@ -336,6 +337,7 @@ describe('Searching', () => {
       0,
       true,
       false,
+      undefined,
       SearchCaseFolding.EBCDIC_037
     )
     expect(replacementCount).to.equal(2)
@@ -1397,6 +1399,7 @@ describe('Searching', () => {
         _limit: number = 0,
         _frontToBack: boolean = true,
         _overwriteOnly: boolean = false,
+        _stats: IEditStats | undefined = undefined,
         caseFolding: SearchCaseFolding = SearchCaseFolding.ASCII
       ) {
         calls.push({ method: 'replaceSession', caseFolding })

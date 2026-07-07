@@ -546,6 +546,7 @@ export class EditorSearchController {
         nonOverlappingOffsets.length,
         true,
         false,
+        undefined,
         caseFolding
       )
 

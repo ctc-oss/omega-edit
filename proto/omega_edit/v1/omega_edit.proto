@@ -1013,13 +1013,13 @@ enum SearchCaseFolding {
 
 // Request to search for a byte pattern in a session.
 message SearchSessionRequest {
-    string session_id = 1;                // Session to search.
-    bytes pattern = 2;                    // Byte pattern to find.
-    optional bool is_case_insensitive = 3;// When true, perform case-insensitive matching.
-    optional bool is_reverse = 4;         // When true, search backward from the end of the range.
-    optional int64 offset = 5;            // Starting byte offset (default: 0 or end if reverse).
-    optional int64 length = 6;            // Number of bytes to search within.
-    optional int64 limit = 7;             // Maximum number of matches to return (0 = unlimited).
+    string session_id = 1;                      // Session to search.
+    bytes pattern = 2;                          // Byte pattern to find.
+    optional bool is_case_insensitive = 3;      // When true, perform case-insensitive matching.
+    optional bool is_reverse = 4;               // When true, search backward from the end of the range.
+    optional int64 offset = 5;                  // Starting byte offset (default: 0 or end if reverse).
+    optional int64 length = 6;                  // Number of bytes to search within.
+    optional int64 limit = 7;                   // Maximum number of matches to return (0 = unlimited).
     optional SearchCaseFolding case_folding = 8;// Character set used for case-insensitive byte folding.
 }
 
@@ -1036,16 +1036,16 @@ message SearchSessionResponse {
 
 // Request to replace non-overlapping matches in a session range transactionally.
 message ReplaceSessionRequest {
-    string session_id = 1;                // Session to edit.
-    bytes pattern = 2;                    // Byte pattern to replace.
-    bytes replacement = 3;                // Replacement bytes.
-    optional bool is_case_insensitive = 4;// When true, perform case-insensitive matching.
-    optional bool is_reverse = 5;         // When true, search backward before selecting matches.
-    optional int64 offset = 6;            // Starting byte offset of the replace range.
-    optional int64 length = 7;            // Number of bytes to process within the session.
-    optional int64 limit = 8;             // Maximum number of matches to replace (0 = unlimited).
-    optional bool front_to_back = 9;      // When true, apply replacements from low offsets to high offsets.
-    optional bool overwrite_only = 10;    // When true, overwrite replacement bytes in place.
+    string session_id = 1;                       // Session to edit.
+    bytes pattern = 2;                           // Byte pattern to replace.
+    bytes replacement = 3;                       // Replacement bytes.
+    optional bool is_case_insensitive = 4;       // When true, perform case-insensitive matching.
+    optional bool is_reverse = 5;                // When true, search backward before selecting matches.
+    optional int64 offset = 6;                   // Starting byte offset of the replace range.
+    optional int64 length = 7;                   // Number of bytes to process within the session.
+    optional int64 limit = 8;                    // Maximum number of matches to replace (0 = unlimited).
+    optional bool front_to_back = 9;             // When true, apply replacements from low offsets to high offsets.
+    optional bool overwrite_only = 10;           // When true, overwrite replacement bytes in place.
     optional SearchCaseFolding case_folding = 11;// Character set used for case-insensitive byte folding.
 }
 
@@ -1069,12 +1069,12 @@ message ReplaceSessionResponse {
 
 // Request to replace all non-overlapping matches by checkpointed streaming.
 message ReplaceSessionCheckpointedRequest {
-    string session_id = 1;                // Session to edit.
-    bytes pattern = 2;                    // Byte pattern to replace.
-    bytes replacement = 3;                // Replacement bytes.
-    optional bool is_case_insensitive = 4;// When true, perform case-insensitive matching.
-    optional int64 offset = 5;            // Starting byte offset of the replace-all range.
-    optional int64 length = 6;            // Number of bytes to process within the session.
+    string session_id = 1;                      // Session to edit.
+    bytes pattern = 2;                          // Byte pattern to replace.
+    bytes replacement = 3;                      // Replacement bytes.
+    optional bool is_case_insensitive = 4;      // When true, perform case-insensitive matching.
+    optional int64 offset = 5;                  // Starting byte offset of the replace-all range.
+    optional int64 length = 6;                  // Number of bytes to process within the session.
     optional SearchCaseFolding case_folding = 7;// Character set used for case-insensitive byte folding.
 }
 

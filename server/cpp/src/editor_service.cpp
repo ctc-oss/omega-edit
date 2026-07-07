@@ -891,14 +891,11 @@ namespace omega_edit {
             return is_reverse ? (match_end > last_accepted_offset) : (match_offset < last_accepted_end);
         }
 
-        static grpc::Status count_replace_matches_until_limit(omega_session_t *session, const std::string &pattern,
-                                                              bool case_insensitive,
-                                                              omega_search_case_folding_t case_folding,
-                                                              bool is_reverse, int64_t offset, int64_t length,
-                                                              int64_t session_size,
-                                                              int64_t max_selected_matches,
-                                                              int64_t &selected_match_count,
-                                                              bool &selected_match_limit_exceeded) {
+        static grpc::Status
+        count_replace_matches_until_limit(omega_session_t *session, const std::string &pattern, bool case_insensitive,
+                                          omega_search_case_folding_t case_folding, bool is_reverse, int64_t offset,
+                                          int64_t length, int64_t session_size, int64_t max_selected_matches,
+                                          int64_t &selected_match_count, bool &selected_match_limit_exceeded) {
             selected_match_count = 0;
             selected_match_limit_exceeded = false;
             if (!session || pattern.empty() || max_selected_matches < 0) {
@@ -2192,10 +2189,9 @@ namespace omega_edit {
             bool case_insensitive = request->has_is_case_insensitive() ? request->is_case_insensitive() : false;
             bool is_reverse = request->has_is_reverse() ? request->is_reverse() : false;
             omega_search_case_folding_t case_folding = OMEGA_SEARCH_CASE_FOLDING_ASCII;
-            if (!to_core_search_case_folding(
-                        request->has_case_folding() ? request->case_folding()
-                                                    : ::omega_edit::v1::SEARCH_CASE_FOLDING_ASCII,
-                        case_folding)) {
+            if (!to_core_search_case_folding(request->has_case_folding() ? request->case_folding()
+                                                                         : ::omega_edit::v1::SEARCH_CASE_FOLDING_ASCII,
+                                             case_folding)) {
                 return grpc::Status(grpc::StatusCode::INVALID_ARGUMENT, "search case folding is unsupported");
             }
             int64_t offset = request->has_offset() ? request->offset() : 0;
@@ -2297,10 +2293,9 @@ namespace omega_edit {
             const bool case_insensitive = request->has_is_case_insensitive() ? request->is_case_insensitive() : false;
             const bool is_reverse = request->has_is_reverse() ? request->is_reverse() : false;
             omega_search_case_folding_t case_folding = OMEGA_SEARCH_CASE_FOLDING_ASCII;
-            if (!to_core_search_case_folding(
-                        request->has_case_folding() ? request->case_folding()
-                                                    : ::omega_edit::v1::SEARCH_CASE_FOLDING_ASCII,
-                        case_folding)) {
+            if (!to_core_search_case_folding(request->has_case_folding() ? request->case_folding()
+                                                                         : ::omega_edit::v1::SEARCH_CASE_FOLDING_ASCII,
+                                             case_folding)) {
                 return grpc::Status(grpc::StatusCode::INVALID_ARGUMENT, "replace case folding is unsupported");
             }
             const int64_t offset = request->has_offset() ? request->offset() : 0;
@@ -2412,10 +2407,9 @@ namespace omega_edit {
                             session, reinterpret_cast<const omega_byte_t *>(request->pattern().data()),
                             static_cast<int64_t>(request->pattern().size()),
                             reinterpret_cast<const omega_byte_t *>(request->replacement().data()),
-                            static_cast<int64_t>(request->replacement().size()), case_insensitive ? 1 : 0,
-                            case_folding, is_reverse ? 1 : 0, offset, length, bounded_replace_limit,
-                            front_to_back ? 1 : 0, overwrite_only ? 1 : 0, &replacement_count, &delete_count,
-                            &insert_count, &overwrite_count);
+                            static_cast<int64_t>(request->replacement().size()), case_insensitive ? 1 : 0, case_folding,
+                            is_reverse ? 1 : 0, offset, length, bounded_replace_limit, front_to_back ? 1 : 0,
+                            overwrite_only ? 1 : 0, &replacement_count, &delete_count, &insert_count, &overwrite_count);
                     if (rc != 0) {
                         return grpc::Status(grpc::StatusCode::INTERNAL,
                                             "replace failed for session: " + request->session_id());
@@ -2444,10 +2438,9 @@ namespace omega_edit {
 
             const bool case_insensitive = request->has_is_case_insensitive() ? request->is_case_insensitive() : false;
             omega_search_case_folding_t case_folding = OMEGA_SEARCH_CASE_FOLDING_ASCII;
-            if (!to_core_search_case_folding(
-                        request->has_case_folding() ? request->case_folding()
-                                                    : ::omega_edit::v1::SEARCH_CASE_FOLDING_ASCII,
-                        case_folding)) {
+            if (!to_core_search_case_folding(request->has_case_folding() ? request->case_folding()
+                                                                         : ::omega_edit::v1::SEARCH_CASE_FOLDING_ASCII,
+                                             case_folding)) {
                 return grpc::Status(grpc::StatusCode::INVALID_ARGUMENT,
                                     "checkpointed replace case folding is unsupported");
             }
