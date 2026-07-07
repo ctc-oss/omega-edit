@@ -1002,6 +1002,15 @@ message GetSegmentResponse {
 // Request / Response messages — Search and profiling
 // ===========================================================================
 
+// Single-byte character set used for case-insensitive byte folding.
+enum SearchCaseFolding {
+    SEARCH_CASE_FOLDING_ASCII = 0;
+    SEARCH_CASE_FOLDING_WINDOWS_1252 = 1;
+    SEARCH_CASE_FOLDING_CP437 = 2;
+    SEARCH_CASE_FOLDING_EBCDIC_037 = 3;
+    SEARCH_CASE_FOLDING_MAC_ROMAN = 4;
+}
+
 // Request to search for a byte pattern in a session.
 message SearchSessionRequest {
     string session_id = 1;                // Session to search.
@@ -1011,6 +1020,7 @@ message SearchSessionRequest {
     optional int64 offset = 5;            // Starting byte offset (default: 0 or end if reverse).
     optional int64 length = 6;            // Number of bytes to search within.
     optional int64 limit = 7;             // Maximum number of matches to return (0 = unlimited).
+    optional SearchCaseFolding case_folding = 8;// Character set used for case-insensitive byte folding.
 }
 
 // Search results.
@@ -1036,6 +1046,7 @@ message ReplaceSessionRequest {
     optional int64 limit = 8;             // Maximum number of matches to replace (0 = unlimited).
     optional bool front_to_back = 9;      // When true, apply replacements from low offsets to high offsets.
     optional bool overwrite_only = 10;    // When true, overwrite replacement bytes in place.
+    optional SearchCaseFolding case_folding = 11;// Character set used for case-insensitive byte folding.
 }
 
 // Result of a transactional replace operation.
@@ -1064,6 +1075,7 @@ message ReplaceSessionCheckpointedRequest {
     optional bool is_case_insensitive = 4;// When true, perform case-insensitive matching.
     optional int64 offset = 5;            // Starting byte offset of the replace-all range.
     optional int64 length = 6;            // Number of bytes to process within the session.
+    optional SearchCaseFolding case_folding = 7;// Character set used for case-insensitive byte folding.
 }
 
 // Result of a checkpointed replace-all operation.

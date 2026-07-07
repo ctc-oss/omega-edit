@@ -22,6 +22,7 @@ import { enqueueSessionMutation } from './mutation_queue'
 import {
   replaceSession as defaultReplaceSession,
   replaceSessionCheckpointed as defaultReplaceSessionCheckpointed,
+  SearchCaseFolding,
   searchSession as defaultSearchSession,
 } from './session'
 
@@ -40,6 +41,7 @@ export interface EditorSearchRequest {
   query: string
   isHex: boolean
   caseInsensitive?: boolean
+  caseFolding?: SearchCaseFolding
   isReverse?: boolean
 }
 
@@ -201,6 +203,7 @@ export class EditorSearchController {
     const normalizedQuery = request.query.trim()
     const pattern = toPatternBytes(normalizedQuery, request.isHex)
     const caseInsensitive = request.caseInsensitive ?? false
+    const caseFolding = request.caseFolding ?? SearchCaseFolding.ASCII
     const isReverse = request.isReverse ?? false
 
     if (!normalizedQuery || pattern.length === 0) {
@@ -222,7 +225,8 @@ export class EditorSearchController {
       isReverse,
       0,
       0,
-      this.windowLimit + 1
+      this.windowLimit + 1,
+      caseFolding
     )
     const mode: EditorSearchMode =
       matches.length > this.windowLimit ? 'large' : 'bounded'
@@ -267,6 +271,7 @@ export class EditorSearchController {
           ? await this.collectViewportMatches(
               pattern,
               request.caseInsensitive ?? false,
+              request.caseFolding ?? SearchCaseFolding.ASCII,
               request.fileSize,
               request.viewportOffset,
               request.viewportLength,
@@ -291,7 +296,8 @@ export class EditorSearchController {
           false,
           nextOffset,
           0,
-          1
+          1,
+          request.caseFolding ?? SearchCaseFolding.ASCII
         )
         if (matches.length > 0) {
           return await buildResult(matches[0])
@@ -309,7 +315,8 @@ export class EditorSearchController {
         false,
         0,
         wrapLength,
-        1
+        1,
+        request.caseFolding ?? SearchCaseFolding.ASCII
       )
       return await buildResult(wrappedMatches[0] ?? -1)
     }
@@ -326,7 +333,8 @@ export class EditorSearchController {
         true,
         0,
         reverseLength,
-        1
+        1,
+        request.caseFolding ?? SearchCaseFolding.ASCII
       )
       if (matches.length > 0) {
         return await buildResult(matches[0])
@@ -341,7 +349,8 @@ export class EditorSearchController {
       true,
       wrapOffset,
       0,
-      1
+      1,
+      request.caseFolding ?? SearchCaseFolding.ASCII
     )
     return await buildResult(wrappedMatches[0] ?? -1)
   }
@@ -358,6 +367,7 @@ export class EditorSearchController {
     return await this.collectViewportMatches(
       pattern,
       request.caseInsensitive ?? false,
+      request.caseFolding ?? SearchCaseFolding.ASCII,
       request.fileSize,
       request.viewportOffset,
       request.viewportLength,
@@ -369,6 +379,7 @@ export class EditorSearchController {
   private async collectViewportMatches(
     pattern: Uint8Array,
     caseInsensitive: boolean,
+    caseFolding: SearchCaseFolding,
     fileSize: number,
     viewportOffset: number | undefined,
     viewportLength: number | undefined,
@@ -411,7 +422,8 @@ export class EditorSearchController {
       false,
       searchOffset,
       searchEnd - searchOffset,
-      boundedLimit + 1
+      boundedLimit + 1,
+      caseFolding
     )
     const visibleMatches = rawMatches
       .filter((matchOffset) =>
@@ -457,6 +469,7 @@ export class EditorSearchController {
     return enqueueSessionMutation(this.sessionId, async () => {
       const normalizedQuery = request.query.trim()
       const pattern = toPatternBytes(normalizedQuery, request.isHex)
+      const caseFolding = request.caseFolding ?? SearchCaseFolding.ASCII
       if (!normalizedQuery || pattern.length === 0) {
         return {
           strategy: 'bounded',
@@ -473,7 +486,8 @@ export class EditorSearchController {
         request.isReverse ?? false,
         0,
         0,
-        this.windowLimit + 1
+        this.windowLimit + 1,
+        caseFolding
       )
       // Filter to the same non-overlapping set that replaceSession uses so that
       // orderedOffsets and the limit passed to replaceSession are consistent.
@@ -492,7 +506,8 @@ export class EditorSearchController {
           request.replacement,
           request.caseInsensitive ?? false,
           0,
-          0
+          0,
+          caseFolding
         )
         return {
           strategy: 'checkpointed',
@@ -509,6 +524,9 @@ export class EditorSearchController {
                   query: normalizedQuery,
                   isHex: request.isHex,
                   caseInsensitive: request.caseInsensitive ?? false,
+                  ...(caseFolding !== SearchCaseFolding.ASCII
+                    ? { caseFolding }
+                    : {}),
                   data: request.replacementData,
                 }
               : undefined,
@@ -525,7 +543,10 @@ export class EditorSearchController {
         request.isReverse ?? false,
         0,
         0,
-        nonOverlappingOffsets.length
+        nonOverlappingOffsets.length,
+        true,
+        false,
+        caseFolding
       )
 
       return {

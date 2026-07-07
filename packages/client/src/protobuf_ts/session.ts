@@ -19,6 +19,7 @@
 
 import {
   CountKind,
+  SearchCaseFolding,
   SessionContentSource,
   SessionFingerprintContent,
   type ApplyTransformPluginResponse,
@@ -1321,7 +1322,8 @@ export async function searchSession(
   isReverse: boolean = false,
   offset: number = 0,
   length: number = 0,
-  limit: number = 0
+  limit: number = 0,
+  caseFolding: SearchCaseFolding = SearchCaseFolding.ASCII
 ): Promise<number[]> {
   const log = getLogger()
 
@@ -1343,6 +1345,7 @@ export async function searchSession(
   if (isReverse) request.isReverse = true
   if (length > 0) request.length = length
   if (limit > 0) request.limit = limit
+  if (caseFolding !== SearchCaseFolding.ASCII) request.caseFolding = caseFolding
 
   debugLog(log, () => ({ fn: 'protobufTs.searchSession', rqst: request }))
   const client = await getClient()
@@ -1386,7 +1389,8 @@ export async function replaceSessionCheckpointed(
   replacement: string | Uint8Array,
   isCaseInsensitive: boolean = false,
   offset: number = 0,
-  length: number = 0
+  length: number = 0,
+  caseFolding: SearchCaseFolding = SearchCaseFolding.ASCII
 ): Promise<ReplaceSessionCheckpointedResponse> {
   const log = getLogger()
 
@@ -1419,6 +1423,7 @@ export async function replaceSessionCheckpointed(
 
   if (isCaseInsensitive) request.isCaseInsensitive = true
   if (length > 0) request.length = length
+  if (caseFolding !== SearchCaseFolding.ASCII) request.caseFolding = caseFolding
 
   debugLog(log, () => ({
     fn: 'protobufTs.replaceSessionCheckpointed',
@@ -1568,7 +1573,8 @@ export async function replaceSession(
   length: number = 0,
   limit: number = 0,
   frontToBack: boolean = true,
-  overwriteOnly: boolean = false
+  overwriteOnly: boolean = false,
+  caseFolding: SearchCaseFolding = SearchCaseFolding.ASCII
 ): Promise<ReplaceSessionResponse> {
   const log = getLogger()
 
@@ -1612,6 +1618,7 @@ export async function replaceSession(
   if (limit > 0) request.limit = limit
   if (!frontToBack) request.frontToBack = false
   if (overwriteOnly) request.overwriteOnly = true
+  if (caseFolding !== SearchCaseFolding.ASCII) request.caseFolding = caseFolding
 
   debugLog(log, () => ({
     fn: 'protobufTs.replaceSession',

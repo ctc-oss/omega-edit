@@ -60,6 +60,7 @@ import {
   IOFlags,
   inspectSessionContent,
   SaveStatus,
+  SearchCaseFolding,
   type IServerInfo,
   insert,
   listTransformPlugins,
@@ -106,6 +107,7 @@ import {
   MAX_LABEL_LENGTH,
   type BytesPerRow,
   type InsertDirection,
+  type TextEncoding,
   type WebviewEditMode,
   type WebviewEditorState,
   type WebviewEditorUiState,
@@ -123,8 +125,10 @@ import {
   normalizeExternalHighlights,
   normalizeBytesPerRow,
   normalizeBytesPerRowSetting,
+  normalizeTextEncoding,
   normalizeWebviewMessage,
 } from './webviewProtocol'
+import { decodeTextBytes } from './textEncoding'
 
 interface EditorSession {
   readonly sessionId: string
@@ -692,6 +696,7 @@ function initialWebviewState(bytesPerRow: BytesPerRow): WebviewEditorUiState {
     selectionLength: 0,
     bytesPerRow,
     offsetRadix: 'hex',
+    textEncoding: 'ascii',
     activePane: 'hex',
     editMode: 'insert',
     insertDirection: 'forward',
@@ -734,6 +739,43 @@ function isTransformCancellationError(error: unknown): boolean {
 
 function safeInsertDirection(value: unknown): InsertDirection | undefined {
   return value === 'forward' || value === 'backward' ? value : undefined
+}
+
+function safeTextEncoding(value: unknown): TextEncoding | undefined {
+  const textEncoding = normalizeTextEncoding(value)
+  return value === textEncoding ? textEncoding : undefined
+}
+
+function textEncodingStatusLabel(encoding: TextEncoding): string {
+  switch (encoding) {
+    case 'ascii':
+      return vscode.l10n.t('ASCII')
+    case 'windows-1252':
+      return vscode.l10n.t('Windows-1252')
+    case 'cp437':
+      return vscode.l10n.t('CP437')
+    case 'ebcdic-037':
+      return vscode.l10n.t('EBCDIC')
+    case 'macroman':
+      return vscode.l10n.t('MacRoman')
+  }
+}
+
+function searchCaseFoldingForTextEncoding(
+  encoding: TextEncoding
+): SearchCaseFolding {
+  switch (encoding) {
+    case 'ascii':
+      return SearchCaseFolding.ASCII
+    case 'windows-1252':
+      return SearchCaseFolding.WINDOWS_1252
+    case 'cp437':
+      return SearchCaseFolding.CP437
+    case 'ebcdic-037':
+      return SearchCaseFolding.EBCDIC_037
+    case 'macroman':
+      return SearchCaseFolding.MAC_ROMAN
+  }
 }
 
 function parseCommandUri(value: unknown): vscode.Uri | undefined {
@@ -2294,6 +2336,30 @@ export class HexEditorProvider
 
   public searchPreviousActive(): void {
     this.postSearchNavigationCommand('backward')
+  }
+
+  public setTextEncoding(
+    encodingOrOptions?: unknown,
+    options?: unknown
+  ): WebviewEditorState | undefined {
+    const requestedEncoding =
+      safeTextEncoding(encodingOrOptions) ??
+      (isRecord(encodingOrOptions)
+        ? safeTextEncoding(encodingOrOptions.textEncoding ?? encodingOrOptions.encoding)
+        : undefined)
+    const commandOptions =
+      requestedEncoding && !isRecord(encodingOrOptions)
+        ? options
+        : encodingOrOptions
+    const session = this.resolveCommandSession(commandOptions)
+    if (!session) {
+      return undefined
+    }
+
+    if (requestedEncoding) {
+      this.setSessionTextEncoding(session, requestedEncoding)
+    }
+    return this.buildEditorState(session)
   }
 
   public async refreshActiveTransformPlugins(): Promise<
@@ -4305,6 +4371,14 @@ export class HexEditorProvider
     this.fireEditorStateChanged(session)
   }
 
+  private postTextEncoding(session: EditorSession): void {
+    this.postWebviewMessage(session, {
+      type: 'textEncoding',
+      textEncoding: session.webviewState.textEncoding,
+    })
+    this.fireEditorStateChanged(session)
+  }
+
   private postTransformStatus(
     session: EditorSession,
     inFlight: boolean,
@@ -4399,6 +4473,17 @@ export class HexEditorProvider
     this.postInsertDirection(session)
   }
 
+  private setSessionTextEncoding(
+    session: EditorSession,
+    textEncoding: TextEncoding
+  ): void {
+    session.webviewState = {
+      ...session.webviewState,
+      textEncoding,
+    }
+    this.postTextEncoding(session)
+  }
+
   private fireEditorStateChanged(session: EditorSession): void {
     if (session.disposed || session.scope.isDisposed) {
       return
@@ -4487,6 +4572,7 @@ export class HexEditorProvider
         activePane: session.webviewState.activePane,
         editMode: session.webviewState.editMode,
         insertDirection: session.webviewState.insertDirection,
+        textEncoding: session.webviewState.textEncoding,
       },
       history: {
         changeCount: session.changeCount,
@@ -4685,7 +4771,9 @@ export class HexEditorProvider
 
     this.statusItems.pane.text =
       state.activePane === 'ascii'
-        ? vscode.l10n.t('TEXT')
+        ? vscode.l10n.t('TEXT {encoding}', {
+            encoding: textEncodingStatusLabel(state.textEncoding),
+          })
         : vscode.l10n.t('HEX')
     this.statusItems.pane.tooltip = vscode.l10n.t('Ωedit active edit pane')
 
@@ -4960,7 +5048,8 @@ export class HexEditorProvider
     const bytes = await getSegment(session.sessionId, offset, length)
     const clipboardText =
       format === 'utf8'
-        ? Buffer.from(bytes).toString('utf8')
+        ? (decodeTextBytes(Array.from(bytes), session.webviewState.textEncoding) ??
+          Buffer.from(bytes).toString('utf8'))
         : Array.from(bytes, (byte) =>
             byte.toString(16).toUpperCase().padStart(2, '0')
           ).join(' ')
@@ -5654,7 +5743,8 @@ export class HexEditorProvider
           Buffer.from(transaction.data, 'hex'),
           transaction.caseInsensitive,
           0,
-          0
+          0,
+          transaction.caseFolding ?? SearchCaseFolding.ASCII
         )
       },
     }
@@ -6197,6 +6287,7 @@ export class HexEditorProvider
             selectionLength: msg.selectionLength,
             bytesPerRow: msg.bytesPerRow,
             offsetRadix: msg.offsetRadix,
+            textEncoding: msg.textEncoding,
             activePane: msg.activePane,
             editMode: session.webviewState.editMode,
             insertDirection: msg.insertDirection,
@@ -6212,6 +6303,11 @@ export class HexEditorProvider
 
         case 'setInsertDirection': {
           this.setSessionInsertDirection(session, msg.insertDirection)
+          break
+        }
+
+        case 'setTextEncoding': {
+          this.setSessionTextEncoding(session, msg.textEncoding)
           break
         }
 
@@ -6457,6 +6553,9 @@ export class HexEditorProvider
         }
 
         case 'replaceAllMatches': {
+          const caseFolding = searchCaseFoldingForTextEncoding(
+            msg.textEncoding ?? 'ascii'
+          )
           this.postTransformStatus(
             session,
             true,
@@ -6472,6 +6571,7 @@ export class HexEditorProvider
                 isHex: msg.isHex,
                 caseInsensitive: msg.caseInsensitive ?? false,
                 isReverse: msg.isReverse ?? false,
+                caseFolding,
                 length: msg.length,
                 replacement: Buffer.from(msg.data, 'hex'),
                 replacementData: msg.data,
@@ -6578,11 +6678,15 @@ export class HexEditorProvider
 
         // --- Search ---
         case 'search': {
+          const caseFolding = searchCaseFoldingForTextEncoding(
+            msg.textEncoding ?? 'ascii'
+          )
           const result = await session.search.search({
             query: msg.query,
             isHex: msg.isHex,
             caseInsensitive: msg.caseInsensitive ?? false,
             isReverse: msg.isReverse ?? false,
+            caseFolding,
           })
           this.postWebviewMessage(session, {
             type: 'searchResults',
@@ -6604,10 +6708,14 @@ export class HexEditorProvider
         }
 
         case 'findAdjacentMatch': {
+          const caseFolding = searchCaseFoldingForTextEncoding(
+            msg.textEncoding ?? 'ascii'
+          )
           const navigation = await session.search.findAdjacent({
             query: msg.query,
             isHex: msg.isHex,
             caseInsensitive: msg.caseInsensitive ?? false,
+            caseFolding,
             direction: msg.direction,
             anchorOffset: msg.offset,
             fileSize: session.fileSize,
@@ -6626,6 +6734,7 @@ export class HexEditorProvider
                   query: msg.query,
                   isHex: msg.isHex,
                   caseInsensitive: msg.caseInsensitive ?? false,
+                  caseFolding,
                   fileSize: session.fileSize,
                   viewportOffset,
                   viewportLength,

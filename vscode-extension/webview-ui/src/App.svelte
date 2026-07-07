@@ -10,12 +10,14 @@
     MAX_BYTES_PER_ROW,
     MAX_ANALYSIS_PROFILE_BYTES,
     normalizeBytesPerRow,
+    normalizeTextEncoding,
     type BytesPerRow,
     type BytesPerRowMode,
     type ExternalHighlightKind,
     type HostToWebviewMessage,
     type InsertDirection,
     type ServerHealthMessage,
+    type TextEncoding,
     type WebviewEditorUiState,
     type WebviewExternalHighlight,
     type WebviewRangeMapNode,
@@ -29,6 +31,11 @@
     setPreviewState,
     type PersistedViewportSnapshot,
   } from './vscodeApi'
+  import {
+    decodeTextBytes,
+    encodeTextToHex,
+    printableTextToHex,
+  } from '../../src/textEncoding'
 
   const DEFAULT_VISIBLE_ROWS = 16
   const INTERNAL_HEX_CLIPBOARD_FORMAT = 'application/x-omega-edit-hex'
@@ -178,6 +185,9 @@
   )
   let offsetRadix = $state<'hex' | 'dec'>(
     normalizeOffsetRadix(restoredState?.offsetRadix)
+  )
+  let textEncoding = $state<TextEncoding>(
+    normalizeTextEncoding(restoredState?.textEncoding)
   )
   let transformPlugins = $state<WebviewTransformPlugin[]>([])
   let transformPluginsLoaded = $state(false)
@@ -415,6 +425,7 @@
       bytesPerRow: BytesPerRow
       bytesPerRowMode: BytesPerRowMode
       offsetRadix: 'hex' | 'dec'
+      textEncoding: TextEncoding
       insertDirection: InsertDirection
       searchPanelVisible: boolean
       profilerExpanded: boolean
@@ -428,6 +439,7 @@
       bytesPerRow,
       bytesPerRowMode,
       offsetRadix,
+      textEncoding,
       insertDirection,
       searchPanelVisible,
       profilerExpanded,
@@ -812,6 +824,7 @@
       selectionLength,
       bytesPerRow,
       offsetRadix,
+      textEncoding,
       activePane,
       editMode: inspectorEditMode,
       insertDirection,
@@ -1181,11 +1194,8 @@
       .join('')
   }
 
-  function bytesToPrintableAscii(bytes: number[]): string | undefined {
-    if (bytes.some((byte) => byte < 0x20 || byte > 0x7e)) {
-      return undefined
-    }
-    return String.fromCharCode(...bytes)
+  function bytesToPrintableText(bytes: number[]): string | undefined {
+    return decodeTextBytes(bytes, textEncoding)
   }
 
   function getVisibleRangeBytes(
@@ -1228,7 +1238,7 @@
     clipboardData.setData(INTERNAL_HEX_CLIPBOARD_FORMAT, compactHex)
 
     if (activePane === 'ascii') {
-      const text = bytesToPrintableAscii(bytes)
+      const text = bytesToPrintableText(bytes)
       if (text === undefined) {
         return false
       }
@@ -1283,15 +1293,11 @@
       : undefined
   }
 
-  function printableAsciiToHex(value: string): string | undefined {
+  function printableTextInputToHex(value: string): string | undefined {
     if (value.length === 0) {
       return undefined
     }
-    const bytes = Array.from(value, (char) => char.charCodeAt(0))
-    if (bytes.some((byte) => byte < 0x20 || byte > 0x7e)) {
-      return undefined
-    }
-    return bytes.map((byte) => byte.toString(16).toUpperCase().padStart(2, '0')).join('')
+    return printableTextToHex(value, textEncoding)
   }
 
   function compactHexToBytes(value: string): number[] {
@@ -1306,7 +1312,7 @@
     )
     if (internalHex) {
       return activePane === 'hex' ||
-        bytesToPrintableAscii(compactHexToBytes(internalHex)) !== undefined
+        bytesToPrintableText(compactHexToBytes(internalHex)) !== undefined
         ? internalHex
         : undefined
     }
@@ -1316,7 +1322,7 @@
     if (activePane === 'hex') {
       return normalizeClipboardHex(text)
     }
-    return printableAsciiToHex(text)
+    return printableTextInputToHex(text)
   }
 
   function pasteClipboardHex(data: string): void {
@@ -1347,7 +1353,7 @@
       clipboardMessage =
         activePane === 'hex'
           ? strings.inspector.invalidHexPaste
-          : strings.inspector.invalidAsciiPaste
+          : strings.inspector.invalidTextPaste
       return
     }
 
@@ -1461,17 +1467,17 @@
     }
 
     if (pane === 'ascii') {
-      if (key.length !== 1) {
+      if (Array.from(key).length !== 1) {
         return false
       }
 
-      const byte = key.charCodeAt(0)
-      if (byte < 0x20 || byte > 0x7e) {
-        clipboardMessage = strings.inspector.invalidAsciiByte
+      const data = printableTextToHex(key, textEncoding)
+      if (!data || data.length !== 2) {
+        clipboardMessage = strings.inspector.invalidTextByte
         return true
       }
 
-      commitByteEdit(offset, byte)
+      commitByteEdit(offset, parseInt(data, 16))
       return true
     }
 
@@ -1526,6 +1532,28 @@
   function setOffsetRadix(radix: 'hex' | 'dec'): void {
     offsetRadix = radix
     savePreviewState({ offsetRadix: radix })
+  }
+
+  function setTextEncoding(encoding: TextEncoding): void {
+    if (encoding === textEncoding) {
+      return
+    }
+
+    textEncoding = encoding
+    savePreviewState({ textEncoding })
+    postToHost({ type: 'setTextEncoding', textEncoding })
+    pendingAnalysisProfileKey = ''
+    requestAnalysisProfile(true)
+
+    if (!searchHex && searchQuery.trim().length > 0) {
+      if (searchMode !== 'none') {
+        runSearch(searchReverse ? 'backward' : 'forward')
+      } else if (!normalizeSearchQuery(searchQuery, searchHex)) {
+        clearSearchResults(strings.search.invalidSearch)
+      } else {
+        searchMessage = strings.search.ready
+      }
+    }
   }
 
   function computedContentInfo(size: number): WebviewSessionContentInfo {
@@ -1949,19 +1977,13 @@
       : undefined
   }
 
-  function utf8ToUpperHex(value: string): string {
-    return Array.from(new TextEncoder().encode(value), (byte) =>
-      byte.toString(16).toUpperCase().padStart(2, '0')
-    ).join('')
-  }
-
   function normalizeSearchQuery(query: string, isHex: boolean): string | undefined {
     const trimmed = query.trim()
     if (trimmed.length === 0) {
       return undefined
     }
     if (!isHex) {
-      return trimmed
+      return encodeTextToHex(trimmed, textEncoding)
     }
 
     return normalizeHexInput(trimmed, false)
@@ -1971,11 +1993,14 @@
     replacement: string,
     isHex: boolean
   ): string | undefined {
-    return isHex ? normalizeHexInput(replacement, true) : utf8ToUpperHex(replacement)
+    return isHex
+      ? normalizeHexInput(replacement, true)
+      : encodeTextToHex(replacement, textEncoding)
   }
 
   function getSearchPatternByteLength(query: string, isHex: boolean): number {
-    return isHex ? query.length / 2 : new TextEncoder().encode(query).length
+    void isHex
+    return query.length / 2
   }
 
   function clearSearchResults(message = strings.search.noSearch): void {
@@ -2084,9 +2109,10 @@
     postToHost({
       type: 'search',
       query: normalized,
-      isHex: searchHex,
+      isHex: true,
       caseInsensitive: !searchHex && searchCaseInsensitive,
       isReverse,
+      ...(searchHex ? {} : { textEncoding }),
     })
   }
 
@@ -2113,8 +2139,9 @@
       postToHost({
         type: 'findAdjacentMatch',
         query: normalized,
-        isHex: searchHex,
+        isHex: true,
         caseInsensitive: !searchHex && searchCaseInsensitive,
+        ...(searchHex ? {} : { textEncoding }),
         direction,
         offset: Math.max(0, getCurrentSearchOffset()),
       })
@@ -2188,9 +2215,10 @@
     postToHost({
       type: 'replaceAllMatches',
       query: normalizedQuery,
-      isHex: searchHex,
+      isHex: true,
       caseInsensitive: !searchHex && searchCaseInsensitive,
       isReverse: searchReverse,
+      ...(searchHex ? {} : { textEncoding }),
       length: searchPatternLength,
       data: normalizedReplacementHex,
     })
@@ -2588,6 +2616,9 @@
         bytesPerRow = normalizeBytesPerRow(message.bytesPerRow)
         savePreviewState({ bytesPerRow, bytesPerRowMode })
         break
+      case 'textEncoding':
+        setTextEncoding(message.textEncoding)
+        break
       case 'editMode':
         setInspectorEditMode(message.editMode)
         break
@@ -2660,8 +2691,8 @@
 <main class="app-shell">
   <Toolbar
     {bytesPerRow}
-    {bytesPerRowMode}
     {offsetRadix}
+    {textEncoding}
     {insertDirection}
     {fileSize}
     {contentSources}
@@ -2681,6 +2712,7 @@
     {selectionLength}
     onBytesPerRow={setBytesPerRow}
     onOffsetRadix={setOffsetRadix}
+    onTextEncoding={setTextEncoding}
     onInsertDirection={setInsertDirection}
     onGoToOffset={goToOffset}
     onRequestTransforms={requestTransformPlugins}
@@ -2748,6 +2780,7 @@
     autoFitBytesPerRow={false}
     maxBytesPerRow={MAX_BYTES_PER_ROW}
     {offsetRadix}
+    {textEncoding}
     {selectedOffset}
     {selectionStart}
     {selectionEnd}
@@ -2809,6 +2842,7 @@
     {selectedOffset}
     bytes={inspectorBytes}
     {offsetRadix}
+    {textEncoding}
     {selectionStart}
     {selectionEnd}
     {clipboardMessage}

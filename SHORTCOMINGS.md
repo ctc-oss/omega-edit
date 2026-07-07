@@ -403,39 +403,6 @@ Suggested fix:
 - Track and update bundled detector plugin dependencies as part of the release
   process, and document the plugin trust boundary for deployments.
 
-### 31. Text pane and Data Inspector only expose ASCII-oriented byte display
-
-**Impact:** Low
-**Risk:** Low
-**Area:** VS Code hex editor text pane, Data Inspector, text search
-
-The TEXT pane currently treats bytes as ASCII-ish printable characters with a
-placeholder for non-printable values. Other hex editors let users switch that
-view among common single-byte character sets such as ASCII, Windows ANSI
-code pages, DOS/OEM code pages, EBCDIC, and Macintosh/MacRoman. The Data
-Inspector should expose the same byte-to-character interpretations so a selected
-byte or range can be inspected without mentally translating high-bit bytes.
-Text search should use the selected text encoding when converting the query to
-bytes, while hex search should remain byte-literal and unaffected.
-
-Important product detail: "ANSI" and "DOS" are families, not one universal
-mapping. The UI should pick explicit defaults such as Windows-1252 and CP437,
-while leaving room for additional code pages later.
-
-Suggested fix:
-- Add a text encoding selector for the TEXT pane, initially covering ASCII,
-  Windows-1252, CP437, EBCDIC, and MacRoman.
-- Add matching Data Inspector fields for the selected byte/range so high-bit
-  bytes can be interpreted in the same supported character sets.
-- Route text search query encoding through the selected character set, keep
-  match offsets byte-native, and make charset changes invalidate/re-run any
-  active text search window.
-- Keep the core byte model unchanged; this should be display/inspection-layer
-  decoding unless a later API need emerges.
-- Cover printable ASCII identity, high-byte divergence across encodings,
-  EBCDIC alphabet bytes, non-printable placeholder behavior, and text-search
-  byte encoding for each supported character set in tests.
-
 ## Testing Gaps For Attestation
 
 These are not separate product shortcomings, but they are worth closing before
@@ -546,5 +513,9 @@ These areas were in the old document but are no longer open backlog items:
   external range-map/debugger highlight overlays independently.
 - Near-`INT64_MAX` overflow coverage now exercises public C APIs and raw server
   RPC boundaries for search, replace, segment, and viewport ranges.
+- VS Code text display encoding selection now covers ASCII, Windows-1252,
+  CP437, EBCDIC, and MacRoman across the TEXT pane, Data Inspector, Analyzer
+  labels/classification, and text search byte encoding, with both toolbar and
+  command-palette affordances.
 - Event mask signed `ALL_EVENTS` ambiguity.
 - Output collision suffix range and deprecated protobuf generator dependencies.

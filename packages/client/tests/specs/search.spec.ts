@@ -37,6 +37,7 @@ import {
   replaceSessionCheckpointed,
   replaceSession,
   runSessionTransaction,
+  SearchCaseFolding,
   searchSession,
   undo,
 } from '@omega-edit/client'
@@ -282,6 +283,65 @@ describe('Searching', () => {
       undefined
     )
     expect(needles).to.be.empty
+  })
+
+  it('Should search and replace with explicit single-byte code-page folding', async () => {
+    await overwrite(session_id, 0, Buffer.from([0xc1, 0x81, 0xc2, 0x82]))
+
+    expect(
+      await searchSession(
+        session_id,
+        new Uint8Array([0x81, 0x82]),
+        true,
+        false,
+        0,
+        0,
+        0,
+        SearchCaseFolding.ASCII
+      )
+    ).deep.equals([2])
+    expect(
+      await searchSession(
+        session_id,
+        new Uint8Array([0x81, 0x82]),
+        true,
+        false,
+        0,
+        0,
+        0,
+        SearchCaseFolding.EBCDIC_037
+      )
+    ).deep.equals([0, 2])
+    expect(
+      await searchSession(
+        session_id,
+        new Uint8Array([0xc1, 0xc2]),
+        true,
+        true,
+        0,
+        0,
+        0,
+        SearchCaseFolding.EBCDIC_037
+      )
+    ).deep.equals([2, 0])
+
+    const replacementCount = await replaceSession(
+      session_id,
+      new Uint8Array([0x81]),
+      new Uint8Array([0x40]),
+      true,
+      false,
+      0,
+      0,
+      0,
+      true,
+      false,
+      SearchCaseFolding.EBCDIC_037
+    )
+    expect(replacementCount).to.equal(2)
+    expect(await getSegment(session_id, 0, 4)).deep.equals(
+      Buffer.from([0x40, 0x40, 0xc2, 0x82])
+    )
   })
 
   it('Should reject invalid search contexts instead of returning no matches', async () => {
@@ -1208,6 +1268,159 @@ describe('Searching', () => {
     expect(
       await getSegment(session_id, 0, await getComputedFileSize(session_id))
     ).deep.equals(Buffer.from(original, 'utf8'))
+  })
+
+  it('Should pass code-page folding through controller search and checkpointed replace-all', async () => {
+    const calls: Array<{
+      method: 'search' | 'replaceSession' | 'replaceSessionCheckpointed'
+      caseFolding: SearchCaseFolding
+    }> = []
+    let nextMatches = [0, 2]
+
+    const controller = new EditorSearchController('folding-session', {
+      windowLimit: 1,
+      async searchSession(
+        _sessionId: string,
+        _pattern: string | Uint8Array,
+        _caseInsensitive: boolean = false,
+        _isReverse: boolean = false,
+        _offset: number = 0,
+        _length: number = 0,
+        _limit: number = 0,
+        caseFolding: SearchCaseFolding = SearchCaseFolding.ASCII
+      ) {
+        calls.push({ method: 'search', caseFolding })
+        return nextMatches
+      },
+      async replaceSession() {
+        calls.push({
+          method: 'replaceSession',
+          caseFolding: SearchCaseFolding.ASCII,
+        })
+        return 0
+      },
+      async replaceSessionCheckpointed(
+        _sessionId: string,
+        _pattern: string | Uint8Array,
+        _replacement: string | Uint8Array,
+        _caseInsensitive: boolean = false,
+        _offset: number = 0,
+        _length: number = 0,
+        caseFolding: SearchCaseFolding = SearchCaseFolding.ASCII
+      ) {
+        calls.push({ method: 'replaceSessionCheckpointed', caseFolding })
+        return 2
+      },
+    })
+
+    const searchResult = await controller.search({
+      query: '81',
+      isHex: true,
+      caseInsensitive: true,
+      caseFolding: SearchCaseFolding.CP437,
+    })
+    expect(searchResult.mode).to.equal('large')
+    expect(calls[0]).to.deep.equal({
+      method: 'search',
+      caseFolding: SearchCaseFolding.CP437,
+    })
+
+    nextMatches = [2]
+    await controller.findAdjacent({
+      query: '81',
+      isHex: true,
+      caseInsensitive: true,
+      caseFolding: SearchCaseFolding.EBCDIC_037,
+      direction: 'forward',
+      anchorOffset: 0,
+      fileSize: 10,
+    })
+    expect(calls[calls.length - 1]).to.deep.equal({
+      method: 'search',
+      caseFolding: SearchCaseFolding.EBCDIC_037,
+    })
+
+    nextMatches = [0, 2]
+    const replaceResult = await controller.replaceAll({
+      query: '81',
+      isHex: true,
+      caseInsensitive: true,
+      caseFolding: SearchCaseFolding.MAC_ROMAN,
+      length: 1,
+      replacement: Buffer.from([0x2e]),
+      replacementData: '2e',
+    })
+    expect(replaceResult.strategy).to.equal('checkpointed')
+    expect(replaceResult.checkpointTransaction).to.deep.equal({
+      kind: 'CHECKPOINT_REPLACE_ALL',
+      query: '81',
+      isHex: true,
+      caseInsensitive: true,
+      caseFolding: SearchCaseFolding.MAC_ROMAN,
+      data: '2e',
+    })
+    expect(calls[calls.length - 1]).to.deep.equal({
+      method: 'replaceSessionCheckpointed',
+      caseFolding: SearchCaseFolding.MAC_ROMAN,
+    })
+  })
+
+  it('Should pass code-page folding through bounded controller replace-all', async () => {
+    const calls: Array<{
+      method: 'search' | 'replaceSession'
+      caseFolding: SearchCaseFolding
+    }> = []
+
+    const controller = new EditorSearchController('folding-session', {
+      windowLimit: 10,
+      async searchSession(
+        _sessionId: string,
+        _pattern: string | Uint8Array,
+        _caseInsensitive: boolean = false,
+        _isReverse: boolean = false,
+        _offset: number = 0,
+        _length: number = 0,
+        _limit: number = 0,
+        caseFolding: SearchCaseFolding = SearchCaseFolding.ASCII
+      ) {
+        calls.push({ method: 'search', caseFolding })
+        return [0, 2]
+      },
+      async replaceSession(
+        _sessionId: string,
+        _pattern: string | Uint8Array,
+        _replacement: string | Uint8Array,
+        _caseInsensitive: boolean = false,
+        _isReverse: boolean = false,
+        _offset: number = 0,
+        _length: number = 0,
+        _limit: number = 0,
+        _frontToBack: boolean = true,
+        _overwriteOnly: boolean = false,
+        caseFolding: SearchCaseFolding = SearchCaseFolding.ASCII
+      ) {
+        calls.push({ method: 'replaceSession', caseFolding })
+        return 2
+      },
+      async replaceSessionCheckpointed() {
+        return 0
+      },
+    })
+
+    const result = await controller.replaceAll({
+      query: '81',
+      isHex: true,
+      caseInsensitive: true,
+      caseFolding: SearchCaseFolding.WINDOWS_1252,
+      length: 1,
+      replacement: Buffer.from([0x2e]),
+    })
+
+    expect(result.strategy).to.equal('bounded')
+    expect(calls).to.deep.equal([
+      { method: 'search', caseFolding: SearchCaseFolding.WINDOWS_1252 },
+      { method: 'replaceSession', caseFolding: SearchCaseFolding.WINDOWS_1252 },
+    ])
   })
 
   it('Should decorate viewport neighbor matches that cross viewport boundaries', async () => {

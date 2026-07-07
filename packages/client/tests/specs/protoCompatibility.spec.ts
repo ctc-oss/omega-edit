@@ -29,6 +29,7 @@ const {
 } = require('../../dist/cjs/proto.js')
 const {
   IOFlags,
+  SearchCaseFolding: PublicSearchCaseFolding,
   SessionEventKind: PublicSessionEventKind,
   ViewportEventKind: PublicViewportEventKind,
 } = require('../../dist/cjs/session.js')
@@ -40,8 +41,12 @@ const {
   CountKind: ProtoCountKind,
   ServerControlKind: ProtoServerControlKind,
   ServerControlStatus: ProtoServerControlStatus,
+  SearchCaseFolding: ProtoSearchCaseFolding,
+  SearchSessionRequest,
   SessionEventKind,
   ViewportEventKind,
+  ReplaceSessionCheckpointedRequest,
+  ReplaceSessionRequest,
 } = require('../../dist/cjs/protobuf_ts/generated/omega_edit/v1/omega_edit.js')
 const {
   ByteOrderMarkResponse,
@@ -488,6 +493,47 @@ describe('Proto Compatibility', () => {
       false
     )
     expect('VIEWPORT_EVT_EDIT' in PublicViewportEventKind).to.equal(false)
+  })
+
+  it('should preserve search case-folding enum values and request field numbers', () => {
+    expect(PublicSearchCaseFolding.ASCII).to.equal(ProtoSearchCaseFolding.ASCII)
+    expect(PublicSearchCaseFolding.WINDOWS_1252).to.equal(
+      ProtoSearchCaseFolding.WINDOWS_1252
+    )
+    expect(PublicSearchCaseFolding.CP437).to.equal(ProtoSearchCaseFolding.CP437)
+    expect(PublicSearchCaseFolding.EBCDIC_037).to.equal(
+      ProtoSearchCaseFolding.EBCDIC_037
+    )
+    expect(PublicSearchCaseFolding.MAC_ROMAN).to.equal(
+      ProtoSearchCaseFolding.MAC_ROMAN
+    )
+
+    const searchBytes = [...SearchSessionRequest.toBinary({
+      sessionId: 's',
+      pattern: new Uint8Array([0x81]),
+      limit: 2,
+      caseFolding: ProtoSearchCaseFolding.EBCDIC_037,
+    })]
+    expect(searchBytes).to.include(0x38) // limit = field 7, varint
+    expect(searchBytes).to.include(0x40) // case_folding = field 8, varint
+
+    const replaceBytes = [...ReplaceSessionRequest.toBinary({
+      sessionId: 's',
+      pattern: new Uint8Array([0x81]),
+      replacement: new Uint8Array([0x40]),
+      caseFolding: ProtoSearchCaseFolding.MAC_ROMAN,
+    })]
+    expect(replaceBytes).to.include(0x58) // case_folding = field 11, varint
+
+    const checkpointedBytes = [
+      ...ReplaceSessionCheckpointedRequest.toBinary({
+        sessionId: 's',
+        pattern: new Uint8Array([0x81]),
+        replacement: new Uint8Array([0x40]),
+        caseFolding: ProtoSearchCaseFolding.CP437,
+      }),
+    ]
+    expect(checkpointedBytes).to.include(0x38) // case_folding = field 7, varint
   })
 
   it('should wrap subscription data events for legacy EditorClient consumers', () => {

@@ -124,6 +124,11 @@
         "enablement": "omegaEdit.hexEditorActive"
       },
       {
+        "command": "omegaEdit.setTextEncoding",
+        "title": "%omegaEdit.command.setTextEncoding.title%",
+        "enablement": "omegaEdit.hexEditorActive"
+      },
+      {
         "command": "omegaEdit.refreshTransformPlugins",
         "title": "%omegaEdit.command.refreshTransformPlugins.title%",
         "enablement": "omegaEdit.hexEditorActive"
@@ -232,6 +237,10 @@
         },
         {
           "command": "omegaEdit.toggleInsertDirection",
+          "when": "omegaEdit.hexEditorActive"
+        },
+        {
+          "command": "omegaEdit.setTextEncoding",
           "when": "omegaEdit.hexEditorActive"
         },
         {

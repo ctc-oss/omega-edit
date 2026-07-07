@@ -38,6 +38,7 @@ export interface EditorCheckpointReplaceAllTransaction {
   query: string
   isHex: boolean
   caseInsensitive: boolean
+  caseFolding?: number
   data: string
 }
 

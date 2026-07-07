@@ -21,6 +21,7 @@ import {
   TransformPluginOperation as RawProtoTransformPluginOperation,
   TransformPluginSupport as RawProtoTransformPluginSupport,
   IOFlags as ProtoIOFlags,
+  SearchCaseFolding as RawProtoSearchCaseFolding,
   SessionContentSource as RawProtoSessionContentSource,
   SessionFingerprintContent as RawProtoSessionFingerprintContent,
   SessionEventKind as RawProtoSessionEventKind,
@@ -115,6 +116,16 @@ export const IOFlags = {
   FORCE_OVERWRITE: ProtoIOFlags.IO_FLAGS_FORCE_OVERWRITE,
 } as const
 export type IOFlags = (typeof IOFlags)[keyof typeof IOFlags]
+
+export const SearchCaseFolding = {
+  ASCII: RawProtoSearchCaseFolding.ASCII,
+  WINDOWS_1252: RawProtoSearchCaseFolding.WINDOWS_1252,
+  CP437: RawProtoSearchCaseFolding.CP437,
+  EBCDIC_037: RawProtoSearchCaseFolding.EBCDIC_037,
+  MAC_ROMAN: RawProtoSearchCaseFolding.MAC_ROMAN,
+} as const
+export type SearchCaseFolding =
+  (typeof SearchCaseFolding)[keyof typeof SearchCaseFolding]
 
 export const SessionEventKind = {
   UNSPECIFIED: RawProtoSessionEventKind.UNSPECIFIED,
@@ -656,7 +667,8 @@ export function searchSession(
   is_reverse: boolean = false,
   offset: number = 0,
   length: number = 0,
-  limit: number = 0
+  limit: number = 0,
+  case_folding: SearchCaseFolding = SearchCaseFolding.ASCII
 ): Promise<number[]> {
   return rawSearchSession(
     session_id,
@@ -665,7 +677,8 @@ export function searchSession(
     is_reverse,
     requireSafeIntegerInput('searchSession offset', offset),
     requireSafeIntegerInput('searchSession length', length),
-    requireSafeIntegerInput('searchSession limit', limit)
+    requireSafeIntegerInput('searchSession limit', limit),
+    case_folding
   ).then((matches) => requireSafeIntegerArrayOutput('match offsets', matches))
 }
 
@@ -680,6 +693,7 @@ export async function replaceSession(
   limit: number = 0,
   front_to_back: boolean = true,
   overwrite_only: boolean = false,
+  case_folding: SearchCaseFolding = SearchCaseFolding.ASCII,
   stats?: IEditStats
 ): Promise<number> {
   // Use withViewportBatch (transactional:false) so that the N individual viewport events fired by
@@ -697,7 +711,8 @@ export async function replaceSession(
         requireSafeIntegerInput('replaceSession length', length),
         requireSafeIntegerInput('replaceSession limit', limit),
         front_to_back,
-        overwrite_only
+        overwrite_only,
+        case_folding
       )
       if (stats) {
         stats.delete_count += requireSafeIntegerOutput(
@@ -728,7 +743,8 @@ export async function replaceSessionCheckpointed(
   replacement: string | Uint8Array,
   is_case_insensitive: boolean = false,
   offset: number = 0,
-  length: number = 0
+  length: number = 0,
+  case_folding: SearchCaseFolding = SearchCaseFolding.ASCII
 ): Promise<number> {
   return await enqueueSessionMutation(session_id, async () => {
     const response = await rawReplaceSessionCheckpointed(
@@ -737,7 +753,8 @@ export async function replaceSessionCheckpointed(
       replacement,
       is_case_insensitive,
       requireSafeIntegerInput('replaceSessionCheckpointed offset', offset),
-      requireSafeIntegerInput('replaceSessionCheckpointed length', length)
+      requireSafeIntegerInput('replaceSessionCheckpointed length', length),
+      case_folding
     )
     return requireSafeIntegerOutput(
       'replacement count',
@@ -755,6 +772,7 @@ export async function replaceOneSession(
   offset: number = 0,
   length: number = 0,
   overwrite_only: boolean = false,
+  case_folding: SearchCaseFolding = SearchCaseFolding.ASCII,
   stats?: IEditStats
 ): Promise<number> {
   return await enqueueSessionMutation(session_id, async () => {
@@ -777,7 +795,8 @@ export async function replaceOneSession(
       is_reverse,
       safeOffset,
       safeLength,
-      1
+      1,
+      case_folding
     )
     if (foundLocations.length > 0) {
       if (overwrite_only) {

@@ -616,10 +616,11 @@ namespace {
 
     auto count_non_overlapping_matches_(omega_session_t *session_ptr, const omega_byte_t *pattern,
                                         int64_t pattern_length, int64_t offset, int64_t length, int case_insensitive,
-                                        int is_reverse, int64_t &match_count) -> int {
+                                        omega_search_case_folding_t case_folding, int is_reverse,
+                                        int64_t &match_count) -> int {
         match_count = 0;
-        scoped_search_context_t search_context(omega_search_create_context_bytes(
-                session_ptr, pattern, pattern_length, offset, length, case_insensitive, is_reverse));
+        scoped_search_context_t search_context(omega_search_create_context_bytes_with_case_folding(
+                session_ptr, pattern, pattern_length, offset, length, case_insensitive, is_reverse, case_folding));
         if (!search_context.get()) { return -1; }
 
         int64_t last_accepted_offset = -1;
@@ -662,7 +663,8 @@ namespace {
 
     auto replace_all_bytes_reverse_checkpointed_(omega_session_t *session_ptr, const omega_byte_t *pattern,
                                                  int64_t pattern_length, const omega_byte_t *replacement,
-                                                 int64_t replacement_length, int case_insensitive, int64_t offset,
+                                                 int64_t replacement_length, int case_insensitive,
+                                                 omega_search_case_folding_t case_folding, int64_t offset,
                                                  int64_t length, int64_t *replacement_count_out) -> int {
         if (replacement_count_out != nullptr) { *replacement_count_out = 0; }
         if (!session_ptr || !pattern || pattern_length <= 0 || offset < 0 || length < 0 || replacement_length < 0) {
@@ -680,7 +682,7 @@ namespace {
 
         int64_t replacement_count = 0;
         if (0 != count_non_overlapping_matches_(session_ptr, pattern, pattern_length, offset, adjusted_length,
-                                                case_insensitive, 1, replacement_count)) {
+                                                case_insensitive, case_folding, 1, replacement_count)) {
             return -1;
         }
         if (replacement_count == 0) { return 0; }
@@ -704,8 +706,8 @@ namespace {
         if (checkpoint_fptr == nullptr) { return -1; }
 
         auto rc = 0;
-        scoped_search_context_t search_context(omega_search_create_context_bytes(
-                session_ptr, pattern, pattern_length, offset, adjusted_length, case_insensitive, 1));
+        scoped_search_context_t search_context(omega_search_create_context_bytes_with_case_folding(
+                session_ptr, pattern, pattern_length, offset, adjusted_length, case_insensitive, 1, case_folding));
         if (!search_context.get()) { rc = -1; }
 
         int64_t input_cursor_end = computed_file_size;
@@ -2138,6 +2140,18 @@ int omega_edit_replace_matches_bytes(omega_session_t *session_ptr, const omega_b
                                      int is_reverse, int64_t offset, int64_t length, int64_t limit, int front_to_back,
                                      int overwrite_only, int64_t *replacement_count_out, int64_t *delete_count_out,
                                      int64_t *insert_count_out, int64_t *overwrite_count_out) {
+    return omega_edit_replace_matches_bytes_with_case_folding(
+            session_ptr, pattern, pattern_length, replacement, replacement_length, case_insensitive,
+            OMEGA_SEARCH_CASE_FOLDING_ASCII, is_reverse, offset, length, limit, front_to_back, overwrite_only,
+            replacement_count_out, delete_count_out, insert_count_out, overwrite_count_out);
+}
+
+int omega_edit_replace_matches_bytes_with_case_folding(
+        omega_session_t *session_ptr, const omega_byte_t *pattern, int64_t pattern_length,
+        const omega_byte_t *replacement, int64_t replacement_length, int case_insensitive,
+        omega_search_case_folding_t case_folding, int is_reverse, int64_t offset, int64_t length, int64_t limit,
+        int front_to_back, int overwrite_only, int64_t *replacement_count_out, int64_t *delete_count_out,
+        int64_t *insert_count_out, int64_t *overwrite_count_out) {
     if (replacement_count_out != nullptr) { *replacement_count_out = 0; }
     if (delete_count_out != nullptr) { *delete_count_out = 0; }
     if (insert_count_out != nullptr) { *insert_count_out = 0; }
@@ -2158,8 +2172,9 @@ int omega_edit_replace_matches_bytes(omega_session_t *session_ptr, const omega_b
     if (adjusted_length < 0) { return -1; }
     if (pattern_length > adjusted_length) { return 0; }
 
-    scoped_search_context_t search_context(omega_search_create_context_bytes(
-            session_ptr, pattern, pattern_length, offset, adjusted_length, case_insensitive, is_reverse));
+    scoped_search_context_t search_context(omega_search_create_context_bytes_with_case_folding(
+            session_ptr, pattern, pattern_length, offset, adjusted_length, case_insensitive, is_reverse,
+            case_folding));
     if (!search_context.get()) { return -1; }
 
     try {
@@ -2201,10 +2216,12 @@ int omega_edit_replace_matches_bytes(omega_session_t *session_ptr, const omega_b
                             is_reverse != 0
                                     ? replace_all_bytes_reverse_checkpointed_(
                                               session_ptr, pattern, pattern_length, replacement, replacement_length,
-                                              case_insensitive, offset, length, &streamed_replacement_count)
-                                    : omega_edit_replace_all_bytes(session_ptr, pattern, pattern_length, replacement,
-                                                                   replacement_length, case_insensitive, offset, length,
-                                                                   &streamed_replacement_count);
+                                              case_insensitive, case_folding, offset, length,
+                                              &streamed_replacement_count)
+                                    : omega_edit_replace_all_bytes_with_case_folding(
+                                              session_ptr, pattern, pattern_length, replacement, replacement_length,
+                                              case_insensitive, case_folding, offset, length,
+                                              &streamed_replacement_count);
                     if (rc != 0) { return -1; }
 
                     const auto single_match_stats = compute_single_replace_match_stats_(
@@ -2263,22 +2280,34 @@ int omega_edit_replace_matches(omega_session_t *session_ptr, const char *pattern
                                int is_reverse, int64_t offset, int64_t length, int64_t limit, int front_to_back,
                                int overwrite_only, int64_t *replacement_count_out, int64_t *delete_count_out,
                                int64_t *insert_count_out, int64_t *overwrite_count_out) {
+    return omega_edit_replace_matches_with_case_folding(
+            session_ptr, pattern, pattern_length, replacement, replacement_length, case_insensitive,
+            OMEGA_SEARCH_CASE_FOLDING_ASCII, is_reverse, offset, length, limit, front_to_back, overwrite_only,
+            replacement_count_out, delete_count_out, insert_count_out, overwrite_count_out);
+}
+
+int omega_edit_replace_matches_with_case_folding(
+        omega_session_t *session_ptr, const char *pattern, int64_t pattern_length, const char *replacement,
+        int64_t replacement_length, int case_insensitive, omega_search_case_folding_t case_folding, int is_reverse,
+        int64_t offset, int64_t length, int64_t limit, int front_to_back, int overwrite_only,
+        int64_t *replacement_count_out, int64_t *delete_count_out, int64_t *insert_count_out,
+        int64_t *overwrite_count_out) {
     if (!pattern) { return -1; }
     const auto resolved_pattern_length = pattern_length ? pattern_length : static_cast<int64_t>(strlen(pattern));
     if (!replacement) {
         if (replacement_length > 0) { return -1; }
-        return omega_edit_replace_matches_bytes(
+        return omega_edit_replace_matches_bytes_with_case_folding(
                 session_ptr, reinterpret_cast<const omega_byte_t *>(pattern), resolved_pattern_length, nullptr, 0,
-                case_insensitive, is_reverse, offset, length, limit, front_to_back, overwrite_only,
+                case_insensitive, case_folding, is_reverse, offset, length, limit, front_to_back, overwrite_only,
                 replacement_count_out, delete_count_out, insert_count_out, overwrite_count_out);
     }
     const auto resolved_replacement_length =
             replacement_length ? replacement_length : static_cast<int64_t>(strlen(replacement));
-    return omega_edit_replace_matches_bytes(
+    return omega_edit_replace_matches_bytes_with_case_folding(
             session_ptr, reinterpret_cast<const omega_byte_t *>(pattern), resolved_pattern_length,
             reinterpret_cast<const omega_byte_t *>(replacement), resolved_replacement_length, case_insensitive,
-            is_reverse, offset, length, limit, front_to_back, overwrite_only, replacement_count_out, delete_count_out,
-            insert_count_out, overwrite_count_out);
+            case_folding, is_reverse, offset, length, limit, front_to_back, overwrite_only, replacement_count_out,
+            delete_count_out, insert_count_out, overwrite_count_out);
 }
 
 int omega_edit_replace_matches_bytes_with_options(omega_session_t *session_ptr, const omega_byte_t *pattern,
@@ -2286,10 +2315,11 @@ int omega_edit_replace_matches_bytes_with_options(omega_session_t *session_ptr, 
                                                   int64_t replacement_length,
                                                   const omega_edit_replace_matches_options_t *options) {
     if (!options) { return -1; }
-    return omega_edit_replace_matches_bytes(
+    return omega_edit_replace_matches_bytes_with_case_folding(
             session_ptr, pattern, pattern_length, replacement, replacement_length,
-            options->case_insensitive != OMEGA_EDIT_FALSE ? 1 : 0, options->is_reverse != OMEGA_EDIT_FALSE ? 1 : 0,
-            options->offset, options->length, options->limit, options->front_to_back != OMEGA_EDIT_FALSE ? 1 : 0,
+            options->case_insensitive != OMEGA_EDIT_FALSE ? 1 : 0, options->case_folding,
+            options->is_reverse != OMEGA_EDIT_FALSE ? 1 : 0, options->offset, options->length, options->limit,
+            options->front_to_back != OMEGA_EDIT_FALSE ? 1 : 0,
             options->overwrite_only != OMEGA_EDIT_FALSE ? 1 : 0, options->replacement_count_out,
             options->delete_count_out, options->insert_count_out, options->overwrite_count_out);
 }
@@ -2298,10 +2328,11 @@ int omega_edit_replace_matches_with_options(omega_session_t *session_ptr, const 
                                             const char *replacement, int64_t replacement_length,
                                             const omega_edit_replace_matches_options_t *options) {
     if (!options) { return -1; }
-    return omega_edit_replace_matches(
+    return omega_edit_replace_matches_with_case_folding(
             session_ptr, pattern, pattern_length, replacement, replacement_length,
-            options->case_insensitive != OMEGA_EDIT_FALSE ? 1 : 0, options->is_reverse != OMEGA_EDIT_FALSE ? 1 : 0,
-            options->offset, options->length, options->limit, options->front_to_back != OMEGA_EDIT_FALSE ? 1 : 0,
+            options->case_insensitive != OMEGA_EDIT_FALSE ? 1 : 0, options->case_folding,
+            options->is_reverse != OMEGA_EDIT_FALSE ? 1 : 0, options->offset, options->length, options->limit,
+            options->front_to_back != OMEGA_EDIT_FALSE ? 1 : 0,
             options->overwrite_only != OMEGA_EDIT_FALSE ? 1 : 0, options->replacement_count_out,
             options->delete_count_out, options->insert_count_out, options->overwrite_count_out);
 }
@@ -2309,6 +2340,15 @@ int omega_edit_replace_matches_with_options(omega_session_t *session_ptr, const 
 int omega_edit_replace_all_bytes(omega_session_t *session_ptr, const omega_byte_t *pattern, int64_t pattern_length,
                                  const omega_byte_t *replacement, int64_t replacement_length, int case_insensitive,
                                  int64_t offset, int64_t length, int64_t *replacement_count_out) {
+    return omega_edit_replace_all_bytes_with_case_folding(
+            session_ptr, pattern, pattern_length, replacement, replacement_length, case_insensitive,
+            OMEGA_SEARCH_CASE_FOLDING_ASCII, offset, length, replacement_count_out);
+}
+
+int omega_edit_replace_all_bytes_with_case_folding(
+        omega_session_t *session_ptr, const omega_byte_t *pattern, int64_t pattern_length,
+        const omega_byte_t *replacement, int64_t replacement_length, int case_insensitive,
+        omega_search_case_folding_t case_folding, int64_t offset, int64_t length, int64_t *replacement_count_out) {
     if (replacement_count_out != nullptr) { *replacement_count_out = 0; }
     if (!session_ptr || !pattern || pattern_length <= 0 || offset < 0 || length < 0 || replacement_length < 0) {
         return -1;
@@ -2324,8 +2364,8 @@ int omega_edit_replace_all_bytes(omega_session_t *session_ptr, const omega_byte_
     if (adjusted_length < 0) { return -1; }
     if (pattern_length > adjusted_length) { return 0; }
 
-    auto *const search_context = omega_search_create_context_bytes(session_ptr, pattern, pattern_length, offset,
-                                                                   adjusted_length, case_insensitive, 0);
+    auto *const search_context = omega_search_create_context_bytes_with_case_folding(
+            session_ptr, pattern, pattern_length, offset, adjusted_length, case_insensitive, 0, case_folding);
     if (!search_context) { return -1; }
 
     auto search_result = omega_search_next_match(search_context, pattern_length);
@@ -2442,12 +2482,23 @@ int omega_edit_replace_all_bytes_directional(omega_session_t *session_ptr, const
                                              int64_t pattern_length, const omega_byte_t *replacement,
                                              int64_t replacement_length, int case_insensitive, int is_reverse,
                                              int64_t offset, int64_t length, int64_t *replacement_count_out) {
+    return omega_edit_replace_all_bytes_directional_with_case_folding(
+            session_ptr, pattern, pattern_length, replacement, replacement_length, case_insensitive,
+            OMEGA_SEARCH_CASE_FOLDING_ASCII, is_reverse, offset, length, replacement_count_out);
+}
+
+int omega_edit_replace_all_bytes_directional_with_case_folding(
+        omega_session_t *session_ptr, const omega_byte_t *pattern, int64_t pattern_length,
+        const omega_byte_t *replacement, int64_t replacement_length, int case_insensitive,
+        omega_search_case_folding_t case_folding, int is_reverse, int64_t offset, int64_t length,
+        int64_t *replacement_count_out) {
     return is_reverse != 0
                    ? replace_all_bytes_reverse_checkpointed_(session_ptr, pattern, pattern_length, replacement,
-                                                             replacement_length, case_insensitive, offset, length,
-                                                             replacement_count_out)
-                   : omega_edit_replace_all_bytes(session_ptr, pattern, pattern_length, replacement, replacement_length,
-                                                  case_insensitive, offset, length, replacement_count_out);
+                                                             replacement_length, case_insensitive, case_folding, offset,
+                                                             length, replacement_count_out)
+                   : omega_edit_replace_all_bytes_with_case_folding(session_ptr, pattern, pattern_length, replacement,
+                                                                    replacement_length, case_insensitive, case_folding,
+                                                                    offset, length, replacement_count_out);
 }
 
 int omega_edit_replace_all_bytes_with_options(omega_session_t *session_ptr, const omega_byte_t *pattern,
@@ -2455,29 +2506,40 @@ int omega_edit_replace_all_bytes_with_options(omega_session_t *session_ptr, cons
                                               int64_t replacement_length,
                                               const omega_edit_replace_all_options_t *options) {
     if (!options) { return -1; }
-    return omega_edit_replace_all_bytes_directional(
+    return omega_edit_replace_all_bytes_directional_with_case_folding(
             session_ptr, pattern, pattern_length, replacement, replacement_length,
-            options->case_insensitive != OMEGA_EDIT_FALSE ? 1 : 0, options->is_reverse != OMEGA_EDIT_FALSE ? 1 : 0,
-            options->offset, options->length, options->replacement_count_out);
+            options->case_insensitive != OMEGA_EDIT_FALSE ? 1 : 0, options->case_folding,
+            options->is_reverse != OMEGA_EDIT_FALSE ? 1 : 0, options->offset, options->length,
+            options->replacement_count_out);
 }
 
 int omega_edit_replace_all(omega_session_t *session_ptr, const char *pattern, int64_t pattern_length,
                            const char *replacement, int64_t replacement_length, int case_insensitive, int64_t offset,
                            int64_t length, int64_t *replacement_count_out) {
+    return omega_edit_replace_all_with_case_folding(session_ptr, pattern, pattern_length, replacement,
+                                                    replacement_length, case_insensitive,
+                                                    OMEGA_SEARCH_CASE_FOLDING_ASCII, offset, length,
+                                                    replacement_count_out);
+}
+
+int omega_edit_replace_all_with_case_folding(
+        omega_session_t *session_ptr, const char *pattern, int64_t pattern_length, const char *replacement,
+        int64_t replacement_length, int case_insensitive, omega_search_case_folding_t case_folding, int64_t offset,
+        int64_t length, int64_t *replacement_count_out) {
     if (!pattern) { return -1; }
     const auto resolved_pattern_length = pattern_length ? pattern_length : static_cast<int64_t>(strlen(pattern));
     if (!replacement) {
         if (replacement_length > 0) { return -1; }
-        return omega_edit_replace_all_bytes(session_ptr, reinterpret_cast<const omega_byte_t *>(pattern),
-                                            resolved_pattern_length, nullptr, 0, case_insensitive, offset, length,
-                                            replacement_count_out);
+        return omega_edit_replace_all_bytes_with_case_folding(
+                session_ptr, reinterpret_cast<const omega_byte_t *>(pattern), resolved_pattern_length, nullptr, 0,
+                case_insensitive, case_folding, offset, length, replacement_count_out);
     }
     const auto resolved_replacement_length =
             replacement_length ? replacement_length : static_cast<int64_t>(strlen(replacement));
-    return omega_edit_replace_all_bytes(session_ptr, reinterpret_cast<const omega_byte_t *>(pattern),
-                                        resolved_pattern_length, reinterpret_cast<const omega_byte_t *>(replacement),
-                                        resolved_replacement_length, case_insensitive, offset, length,
-                                        replacement_count_out);
+    return omega_edit_replace_all_bytes_with_case_folding(
+            session_ptr, reinterpret_cast<const omega_byte_t *>(pattern), resolved_pattern_length,
+            reinterpret_cast<const omega_byte_t *>(replacement), resolved_replacement_length, case_insensitive,
+            case_folding, offset, length, replacement_count_out);
 }
 
 int omega_edit_replace_all_with_options(omega_session_t *session_ptr, const char *pattern, int64_t pattern_length,

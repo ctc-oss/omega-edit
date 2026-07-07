@@ -1,7 +1,17 @@
 <script lang="ts">
   import { onMount, tick } from 'svelte'
   import { formatNumber, strings } from '../i18n'
-  import type { BytesPerRow, WebviewExternalHighlight } from '../protocol'
+  import type {
+    BytesPerRow,
+    TextEncoding,
+    WebviewExternalHighlight,
+  } from '../protocol'
+  import {
+    classifyTextByte,
+    decodeTextByte,
+    formatTextByte,
+    isPrintableTextByte,
+  } from '../../../src/textEncoding'
 
   const FALLBACK_VISIBLE_ROWS = 16
   // Must match the number of data-external-color selectors (0..N-1) defined in styles.css
@@ -12,6 +22,7 @@
     offset?: number
     bytesPerRow?: BytesPerRow
     offsetRadix?: 'hex' | 'dec'
+    textEncoding?: TextEncoding
     selectedOffset?: number
     selectionStart?: number
     selectionEnd?: number
@@ -46,6 +57,7 @@
     offset = 0,
     bytesPerRow = 16,
     offsetRadix = 'hex',
+    textEncoding = 'ascii',
     selectedOffset = -1,
     selectionStart = -1,
     selectionEnd = -1,
@@ -160,20 +172,37 @@
     return byte.toString(16).toUpperCase().padStart(2, '0')
   }
 
+  function textEncodingLabel(): string {
+    switch (textEncoding) {
+      case 'ascii':
+        return strings.encoding.ascii
+      case 'windows-1252':
+        return strings.encoding.windows1252
+      case 'cp437':
+        return strings.encoding.cp437
+      case 'ebcdic-037':
+        return strings.encoding.ebcdic037
+      case 'macroman':
+        return strings.encoding.macRoman
+    }
+  }
+
   function isPrintable(byte: number): boolean {
-    return byte >= 0x20 && byte <= 0x7e
+    return isPrintableTextByte(byte, textEncoding)
   }
 
   function isControlByte(byte: number): boolean {
-    return byte < 0x20 || byte === 0x7f
+    const byteClass = classifyTextByte(byte, textEncoding)
+    return byteClass === 'Control' || byteClass === 'Null'
   }
 
   function isHighBitByte(byte: number): boolean {
-    return byte >= 0x80
+    const byteClass = classifyTextByte(byte, textEncoding)
+    return byteClass === 'High-bit' || byteClass === 'FF'
   }
 
   function formatAscii(byte: number): string {
-    return isPrintable(byte) ? String.fromCharCode(byte) : '.'
+    return formatTextByte(byte, textEncoding)
   }
 
   function formatBinary(byte: number): string {
@@ -182,18 +211,21 @@
 
   function formatTooltipText(byte: number): string {
     return isPrintable(byte)
-      ? `'${String.fromCharCode(byte)}'`
+      ? `'${decodeTextByte(byte, textEncoding) ?? ''}'`
       : strings.grid.notPrintable
   }
 
   function byteClassLabel(byte: number): string {
-    if (isControlByte(byte)) {
-      return strings.grid.controlByte
+    switch (classifyTextByte(byte, textEncoding)) {
+      case 'Control':
+      case 'Null':
+        return strings.grid.controlByte
+      case 'High-bit':
+      case 'FF':
+        return strings.grid.highBitByte
+      case 'Printable':
+        return strings.grid.printableTextByte(textEncodingLabel())
     }
-    if (isHighBitByte(byte)) {
-      return strings.grid.highBitByte
-    }
-    return strings.grid.printableByte
   }
 
   function formatOffset(offset: number): string {

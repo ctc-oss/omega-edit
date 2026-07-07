@@ -24,7 +24,6 @@
 #include "impl_/session_def.hpp"
 #include <algorithm>
 #include <cassert>
-#include <cctype>
 #include <cstring>
 #include <memory>
 #include <new>
@@ -39,14 +38,186 @@ using omega_edit::internal::safe_add_int64_;
 
 constexpr auto MAX_SEGMENT_LENGTH = static_cast<int64_t>(OMEGA_SEARCH_PATTERN_LENGTH_LIMIT) << 1;
 
-static inline omega_byte_t to_lower_(omega_byte_t byte, void *) {
-    return static_cast<omega_byte_t>(std::tolower(byte));
+static inline omega_byte_t ascii_to_lower_(omega_byte_t byte, void *) {
+    return byte >= 0x41 && byte <= 0x5A ? static_cast<omega_byte_t>(byte + 0x20) : byte;
+}
+
+static inline omega_byte_t windows_1252_to_lower_(omega_byte_t byte, void *) {
+    switch (byte) {
+        case 0x8A: return 0x9A;
+        case 0x8C: return 0x9C;
+        case 0x8E: return 0x9E;
+        case 0x9F: return 0xFF;
+        case 0xC0: return 0xE0;
+        case 0xC1: return 0xE1;
+        case 0xC2: return 0xE2;
+        case 0xC3: return 0xE3;
+        case 0xC4: return 0xE4;
+        case 0xC5: return 0xE5;
+        case 0xC6: return 0xE6;
+        case 0xC7: return 0xE7;
+        case 0xC8: return 0xE8;
+        case 0xC9: return 0xE9;
+        case 0xCA: return 0xEA;
+        case 0xCB: return 0xEB;
+        case 0xCC: return 0xEC;
+        case 0xCD: return 0xED;
+        case 0xCE: return 0xEE;
+        case 0xCF: return 0xEF;
+        case 0xD0: return 0xF0;
+        case 0xD1: return 0xF1;
+        case 0xD2: return 0xF2;
+        case 0xD3: return 0xF3;
+        case 0xD4: return 0xF4;
+        case 0xD5: return 0xF5;
+        case 0xD6: return 0xF6;
+        case 0xD8: return 0xF8;
+        case 0xD9: return 0xF9;
+        case 0xDA: return 0xFA;
+        case 0xDB: return 0xFB;
+        case 0xDC: return 0xFC;
+        case 0xDD: return 0xFD;
+        case 0xDE: return 0xFE;
+        default: return ascii_to_lower_(byte, nullptr);
+    }
+}
+
+static inline omega_byte_t cp437_to_lower_(omega_byte_t byte, void *) {
+    switch (byte) {
+        case 0x80: return 0x87;
+        case 0x8E: return 0x84;
+        case 0x8F: return 0x86;
+        case 0x90: return 0x82;
+        case 0x92: return 0x91;
+        case 0x99: return 0x94;
+        case 0x9A: return 0x81;
+        case 0xA5: return 0xA4;
+        case 0xE4: return 0xE5;
+        case 0xE8: return 0xED;
+        default: return ascii_to_lower_(byte, nullptr);
+    }
+}
+
+static inline omega_byte_t ebcdic_037_to_lower_(omega_byte_t byte, void *) {
+    switch (byte) {
+        case 0x62: return 0x42;
+        case 0x63: return 0x43;
+        case 0x64: return 0x44;
+        case 0x65: return 0x45;
+        case 0x66: return 0x46;
+        case 0x67: return 0x47;
+        case 0x68: return 0x48;
+        case 0x69: return 0x49;
+        case 0x71: return 0x51;
+        case 0x72: return 0x52;
+        case 0x73: return 0x53;
+        case 0x74: return 0x54;
+        case 0x75: return 0x55;
+        case 0x76: return 0x56;
+        case 0x77: return 0x57;
+        case 0x78: return 0x58;
+        case 0x80: return 0x70;
+        case 0x9E: return 0x9C;
+        case 0xAC: return 0x8C;
+        case 0xAD: return 0x8D;
+        case 0xAE: return 0x8E;
+        case 0xC1: return 0x81;
+        case 0xC2: return 0x82;
+        case 0xC3: return 0x83;
+        case 0xC4: return 0x84;
+        case 0xC5: return 0x85;
+        case 0xC6: return 0x86;
+        case 0xC7: return 0x87;
+        case 0xC8: return 0x88;
+        case 0xC9: return 0x89;
+        case 0xD1: return 0x91;
+        case 0xD2: return 0x92;
+        case 0xD3: return 0x93;
+        case 0xD4: return 0x94;
+        case 0xD5: return 0x95;
+        case 0xD6: return 0x96;
+        case 0xD7: return 0x97;
+        case 0xD8: return 0x98;
+        case 0xD9: return 0x99;
+        case 0xE2: return 0xA2;
+        case 0xE3: return 0xA3;
+        case 0xE4: return 0xA4;
+        case 0xE5: return 0xA5;
+        case 0xE6: return 0xA6;
+        case 0xE7: return 0xA7;
+        case 0xE8: return 0xA8;
+        case 0xE9: return 0xA9;
+        case 0xEB: return 0xCB;
+        case 0xEC: return 0xCC;
+        case 0xED: return 0xCD;
+        case 0xEE: return 0xCE;
+        case 0xEF: return 0xCF;
+        case 0xFB: return 0xDB;
+        case 0xFC: return 0xDC;
+        case 0xFD: return 0xDD;
+        case 0xFE: return 0xDE;
+        default: return byte;
+    }
+}
+
+static inline omega_byte_t mac_roman_to_lower_(omega_byte_t byte, void *) {
+    switch (byte) {
+        case 0x80: return 0x8A;
+        case 0x81: return 0x8C;
+        case 0x82: return 0x8D;
+        case 0x83: return 0x8E;
+        case 0x84: return 0x96;
+        case 0x85: return 0x9A;
+        case 0x86: return 0x9F;
+        case 0xAE: return 0xBE;
+        case 0xAF: return 0xBF;
+        case 0xCB: return 0x88;
+        case 0xCC: return 0x8B;
+        case 0xCD: return 0x9B;
+        case 0xCE: return 0xCF;
+        case 0xD9: return 0xD8;
+        case 0xE5: return 0x89;
+        case 0xE6: return 0x90;
+        case 0xE7: return 0x87;
+        case 0xE8: return 0x91;
+        case 0xE9: return 0x8F;
+        case 0xEA: return 0x92;
+        case 0xEB: return 0x94;
+        case 0xEC: return 0x95;
+        case 0xED: return 0x93;
+        case 0xEE: return 0x97;
+        case 0xEF: return 0x99;
+        case 0xF1: return 0x98;
+        case 0xF2: return 0x9C;
+        case 0xF3: return 0x9E;
+        case 0xF4: return 0x9D;
+        default: return ascii_to_lower_(byte, nullptr);
+    }
+}
+
+static omega_util_byte_transform_t case_folding_transform_(omega_search_case_folding_t case_folding) {
+    switch (case_folding) {
+        case OMEGA_SEARCH_CASE_FOLDING_WINDOWS_1252: return &windows_1252_to_lower_;
+        case OMEGA_SEARCH_CASE_FOLDING_CP437: return &cp437_to_lower_;
+        case OMEGA_SEARCH_CASE_FOLDING_EBCDIC_037: return &ebcdic_037_to_lower_;
+        case OMEGA_SEARCH_CASE_FOLDING_MAC_ROMAN: return &mac_roman_to_lower_;
+        case OMEGA_SEARCH_CASE_FOLDING_ASCII:
+        default: return &ascii_to_lower_;
+    }
 }
 
 omega_search_context_t *omega_search_create_context_bytes(omega_session_t *session_ptr, const omega_byte_t *pattern,
                                                           int64_t pattern_length, int64_t session_offset,
                                                           int64_t session_length, int case_insensitive,
                                                           int is_reverse_search) {
+    return omega_search_create_context_bytes_with_case_folding(session_ptr, pattern, pattern_length, session_offset,
+                                                               session_length, case_insensitive, is_reverse_search,
+                                                               OMEGA_SEARCH_CASE_FOLDING_ASCII);
+}
+
+omega_search_context_t *omega_search_create_context_bytes_with_case_folding(
+        omega_session_t *session_ptr, const omega_byte_t *pattern, int64_t pattern_length, int64_t session_offset,
+        int64_t session_length, int case_insensitive, int is_reverse_search, omega_search_case_folding_t case_folding) {
     if (!session_ptr || !pattern || session_offset < 0) { return nullptr; }
     if (pattern_length <= 0) { return nullptr; }
     const auto computed_file_size = omega_session_get_computed_file_size(session_ptr);
@@ -66,7 +237,7 @@ omega_search_context_t *omega_search_create_context_bytes(omega_session_t *sessi
             match_context_ptr->session_offset = session_offset;
             match_context_ptr->session_length = session_length_computed;
             match_context_ptr->match_offset = session_end;
-            match_context_ptr->byte_transform = case_insensitive ? &to_lower_ : nullptr;
+            match_context_ptr->byte_transform = case_insensitive ? case_folding_transform_(case_folding) : nullptr;
             omega_data_create_(&match_context_ptr->pattern, pattern_length);
             const auto pattern_data_ptr = omega_data_get_data_(&match_context_ptr->pattern, pattern_length);
             memcpy(pattern_data_ptr, pattern, pattern_length);
@@ -90,10 +261,19 @@ omega_search_context_t *omega_search_create_context(omega_session_t *session_ptr
                                                     int64_t pattern_length, int64_t session_offset,
                                                     int64_t session_length, int case_insensitive,
                                                     int is_reverse_search) {
+    return omega_search_create_context_with_case_folding(session_ptr, pattern, pattern_length, session_offset,
+                                                         session_length, case_insensitive, is_reverse_search,
+                                                         OMEGA_SEARCH_CASE_FOLDING_ASCII);
+}
+
+omega_search_context_t *omega_search_create_context_with_case_folding(
+        omega_session_t *session_ptr, const char *pattern, int64_t pattern_length, int64_t session_offset,
+        int64_t session_length, int case_insensitive, int is_reverse_search, omega_search_case_folding_t case_folding) {
     if (!pattern) { return nullptr; }
     pattern_length = pattern_length ? pattern_length : static_cast<int64_t>(strlen(pattern));
-    return omega_search_create_context_bytes(session_ptr, (const omega_byte_t *) pattern, pattern_length,
-                                             session_offset, session_length, case_insensitive, is_reverse_search);
+    return omega_search_create_context_bytes_with_case_folding(
+            session_ptr, (const omega_byte_t *) pattern, pattern_length, session_offset, session_length,
+            case_insensitive, is_reverse_search, case_folding);
 }
 
 int omega_search_context_is_reverse_search(const omega_search_context_t *search_context_ptr) {

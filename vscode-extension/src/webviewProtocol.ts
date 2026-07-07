@@ -22,6 +22,14 @@ export const MIN_BYTES_PER_ROW = 8
 export const MAX_BYTES_PER_ROW = 64
 export const DEFAULT_BYTES_PER_ROW = 16
 export const FIXED_BYTES_PER_ROW_OPTIONS = [8, 16, 32, 64] as const
+export const TEXT_ENCODING_OPTIONS = [
+  'ascii',
+  'windows-1252',
+  'cp437',
+  'ebcdic-037',
+  'macroman',
+] as const
+export const DEFAULT_TEXT_ENCODING = 'ascii'
 
 export type BytesPerRow = number
 export type BytesPerRowMode = 'fixed' | 'auto'
@@ -29,6 +37,7 @@ export type OffsetRadix = 'hex' | 'dec'
 export type GridEditPane = 'hex' | 'ascii'
 export type WebviewEditMode = 'insert' | 'overwrite'
 export type InsertDirection = 'forward' | 'backward'
+export type TextEncoding = (typeof TEXT_ENCODING_OPTIONS)[number]
 export type WebviewSessionContentSource =
   | 'original'
   | 'computed'
@@ -110,6 +119,7 @@ export interface WebviewEditorUiState {
   selectionLength: number
   bytesPerRow: BytesPerRow
   offsetRadix: OffsetRadix
+  textEncoding: TextEncoding
   activePane: GridEditPane
   editMode: WebviewEditMode
   insertDirection: InsertDirection
@@ -149,6 +159,7 @@ export type WebviewToHostMessage =
   | { type: 'setViewportMetrics'; visibleRows: number }
   | { type: 'setBytesPerRow'; bytesPerRow: BytesPerRow; persist?: boolean }
   | { type: 'setBytesPerRowMode'; mode: BytesPerRowMode }
+  | { type: 'setTextEncoding'; textEncoding: TextEncoding }
   | {
       type: 'requestAnalysisProfile'
       offset: number
@@ -202,6 +213,7 @@ export type WebviewToHostMessage =
       isHex: boolean
       caseInsensitive?: boolean
       isReverse?: boolean
+      textEncoding?: TextEncoding
       length: number
       data: string
     }
@@ -216,6 +228,7 @@ export type WebviewToHostMessage =
       isHex: boolean
       caseInsensitive?: boolean
       isReverse?: boolean
+      textEncoding?: TextEncoding
     }
   | { type: 'goToMatch'; offset: number }
   | {
@@ -223,6 +236,7 @@ export type WebviewToHostMessage =
       query: string
       isHex: boolean
       caseInsensitive?: boolean
+      textEncoding?: TextEncoding
       direction: 'forward' | 'backward'
       offset: number
     }
@@ -387,6 +401,10 @@ export type HostToWebviewMessage =
       bytesPerRowMode: BytesPerRowMode
     }
   | {
+      type: 'textEncoding'
+      textEncoding: TextEncoding
+    }
+  | {
       type: 'editMode'
       editMode: WebviewEditMode
     }
@@ -451,6 +469,12 @@ export function bytesPerRowFromSetting(value: unknown): BytesPerRow {
 export function normalizeBytesPerRowMode(value: unknown): BytesPerRowMode {
   void value
   return 'fixed'
+}
+
+export function normalizeTextEncoding(value: unknown): TextEncoding {
+  return TEXT_ENCODING_OPTIONS.includes(value as TextEncoding)
+    ? (value as TextEncoding)
+    : DEFAULT_TEXT_ENCODING
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -625,6 +649,11 @@ function safeOffsetRadix(value: unknown): OffsetRadix | undefined {
   return value === 'hex' || value === 'dec' ? value : undefined
 }
 
+function safeTextEncoding(value: unknown): TextEncoding | undefined {
+  const textEncoding = normalizeTextEncoding(value)
+  return value === textEncoding ? textEncoding : undefined
+}
+
 function safeGridEditPane(value: unknown): GridEditPane | undefined {
   return value === 'hex' || value === 'ascii' ? value : undefined
 }
@@ -668,6 +697,7 @@ function normalizeEditorUiState(
   )
   const bytesPerRow = normalizeBytesPerRow(raw.bytesPerRow)
   const offsetRadix = safeOffsetRadix(raw.offsetRadix)
+  const textEncoding = safeTextEncoding(raw.textEncoding)
   const activePane = safeGridEditPane(raw.activePane)
   const editMode = safeWebviewEditMode(raw.editMode)
   const insertDirection = safeInsertDirection(raw.insertDirection) ?? 'forward'
@@ -681,6 +711,7 @@ function normalizeEditorUiState(
     selectionLength === undefined ||
     raw.bytesPerRow !== bytesPerRow ||
     !offsetRadix ||
+    !textEncoding ||
     !activePane ||
     !editMode ||
     !insertDirection
@@ -723,6 +754,7 @@ function normalizeEditorUiState(
     selectionLength,
     bytesPerRow,
     offsetRadix,
+    textEncoding,
     activePane,
     editMode,
     insertDirection,
@@ -841,6 +873,13 @@ export function normalizeWebviewMessage(
     case 'setBytesPerRowMode': {
       return raw.mode === 'fixed'
         ? { type: 'setBytesPerRowMode', mode: raw.mode }
+        : undefined
+    }
+
+    case 'setTextEncoding': {
+      const textEncoding = safeTextEncoding(raw.textEncoding)
+      return textEncoding
+        ? { type: 'setTextEncoding', textEncoding }
         : undefined
     }
 
@@ -968,7 +1007,16 @@ export function normalizeWebviewMessage(
       const query = safeSearchQuery(raw)
       const data = safeHexString(raw.data, MAX_WEBVIEW_HEX_BYTES, true)
       const length = safeNonNegativeInteger(raw.length)
-      if (!query || data === undefined || !length) {
+      const textEncoding =
+        raw.textEncoding === undefined
+          ? undefined
+          : safeTextEncoding(raw.textEncoding)
+      if (
+        !query ||
+        data === undefined ||
+        !length ||
+        (raw.textEncoding !== undefined && !textEncoding)
+      ) {
         return undefined
       }
       return {
@@ -977,6 +1025,7 @@ export function normalizeWebviewMessage(
         isHex: raw.isHex === true,
         caseInsensitive: safeBoolean(raw.caseInsensitive),
         isReverse: safeBoolean(raw.isReverse),
+        ...(textEncoding ? { textEncoding } : {}),
         length,
         data,
       }
@@ -1014,7 +1063,11 @@ export function normalizeWebviewMessage(
 
     case 'search': {
       const query = safeSearchQuery(raw)
-      if (!query) {
+      const textEncoding =
+        raw.textEncoding === undefined
+          ? undefined
+          : safeTextEncoding(raw.textEncoding)
+      if (!query || (raw.textEncoding !== undefined && !textEncoding)) {
         return undefined
       }
       return {
@@ -1023,6 +1076,7 @@ export function normalizeWebviewMessage(
         isHex: raw.isHex === true,
         caseInsensitive: safeBoolean(raw.caseInsensitive),
         isReverse: safeBoolean(raw.isReverse),
+        ...(textEncoding ? { textEncoding } : {}),
       }
     }
 
@@ -1034,9 +1088,14 @@ export function normalizeWebviewMessage(
     case 'findAdjacentMatch': {
       const query = safeSearchQuery(raw)
       const offset = safeFileOffset(context, raw.offset)
+      const textEncoding =
+        raw.textEncoding === undefined
+          ? undefined
+          : safeTextEncoding(raw.textEncoding)
       if (
         !query ||
         offset === undefined ||
+        (raw.textEncoding !== undefined && !textEncoding) ||
         (raw.direction !== 'forward' && raw.direction !== 'backward')
       ) {
         return undefined
@@ -1046,6 +1105,7 @@ export function normalizeWebviewMessage(
         query,
         isHex: raw.isHex === true,
         caseInsensitive: safeBoolean(raw.caseInsensitive),
+        ...(textEncoding ? { textEncoding } : {}),
         direction: raw.direction,
         offset,
       }
