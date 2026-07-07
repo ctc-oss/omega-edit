@@ -496,6 +496,7 @@ describe('Proto Compatibility', () => {
   })
 
   it('should preserve search case-folding enum values and request field numbers', () => {
+    expect(PublicSearchCaseFolding.NONE).to.equal(ProtoSearchCaseFolding.NONE)
     expect(PublicSearchCaseFolding.ASCII).to.equal(ProtoSearchCaseFolding.ASCII)
     expect(PublicSearchCaseFolding.WINDOWS_1252).to.equal(
       ProtoSearchCaseFolding.WINDOWS_1252
@@ -517,7 +518,7 @@ describe('Proto Compatibility', () => {
       }),
     ]
     expect(searchBytes).to.include(0x38) // limit = field 7, varint
-    expect(searchBytes).to.include(0x40) // case_folding = field 8, varint
+    expect(searchBytes).to.include(0x18) // case_folding = field 3, varint
 
     const replaceBytes = [
       ...ReplaceSessionRequest.toBinary({
@@ -527,7 +528,7 @@ describe('Proto Compatibility', () => {
         caseFolding: ProtoSearchCaseFolding.MAC_ROMAN,
       }),
     ]
-    expect(replaceBytes).to.include(0x58) // case_folding = field 11, varint
+    expect(replaceBytes).to.include(0x20) // case_folding = field 4, varint
 
     const checkpointedBytes = [
       ...ReplaceSessionCheckpointedRequest.toBinary({
@@ -537,7 +538,7 @@ describe('Proto Compatibility', () => {
         caseFolding: ProtoSearchCaseFolding.CP437,
       }),
     ]
-    expect(checkpointedBytes).to.include(0x38) // case_folding = field 7, varint
+    expect(checkpointedBytes).to.include(0x20) // case_folding = field 4, varint
   })
 
   it('should wrap subscription data events for legacy EditorClient consumers', () => {

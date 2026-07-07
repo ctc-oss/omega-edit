@@ -330,6 +330,10 @@ static inline omega_byte_t mac_roman_to_lower_(omega_byte_t byte, void *) {
 
 static omega_util_byte_transform_t case_folding_transform_(omega_search_case_folding_t case_folding) {
     switch (case_folding) {
+        case OMEGA_SEARCH_CASE_FOLDING_NONE:
+            return nullptr;
+        case OMEGA_SEARCH_CASE_FOLDING_ASCII:
+            return &ascii_to_lower_;
         case OMEGA_SEARCH_CASE_FOLDING_WINDOWS_1252:
             return &windows_1252_to_lower_;
         case OMEGA_SEARCH_CASE_FOLDING_CP437:
@@ -338,24 +342,16 @@ static omega_util_byte_transform_t case_folding_transform_(omega_search_case_fol
             return &ebcdic_037_to_lower_;
         case OMEGA_SEARCH_CASE_FOLDING_MAC_ROMAN:
             return &mac_roman_to_lower_;
-        case OMEGA_SEARCH_CASE_FOLDING_ASCII:
         default:
-            return &ascii_to_lower_;
+            return nullptr;
     }
 }
 
 omega_search_context_t *omega_search_create_context_bytes(omega_session_t *session_ptr, const omega_byte_t *pattern,
                                                           int64_t pattern_length, int64_t session_offset,
-                                                          int64_t session_length, int case_insensitive,
+                                                          int64_t session_length,
+                                                          omega_search_case_folding_t case_folding,
                                                           int is_reverse_search) {
-    return omega_search_create_context_bytes_with_case_folding(session_ptr, pattern, pattern_length, session_offset,
-                                                               session_length, case_insensitive, is_reverse_search,
-                                                               OMEGA_SEARCH_CASE_FOLDING_ASCII);
-}
-
-omega_search_context_t *omega_search_create_context_bytes_with_case_folding(
-        omega_session_t *session_ptr, const omega_byte_t *pattern, int64_t pattern_length, int64_t session_offset,
-        int64_t session_length, int case_insensitive, int is_reverse_search, omega_search_case_folding_t case_folding) {
     if (!session_ptr || !pattern || session_offset < 0) { return nullptr; }
     if (pattern_length <= 0) { return nullptr; }
     const auto computed_file_size = omega_session_get_computed_file_size(session_ptr);
@@ -375,7 +371,7 @@ omega_search_context_t *omega_search_create_context_bytes_with_case_folding(
             match_context_ptr->session_offset = session_offset;
             match_context_ptr->session_length = session_length_computed;
             match_context_ptr->match_offset = session_end;
-            match_context_ptr->byte_transform = case_insensitive ? case_folding_transform_(case_folding) : nullptr;
+            match_context_ptr->byte_transform = case_folding_transform_(case_folding);
             omega_data_create_(&match_context_ptr->pattern, pattern_length);
             const auto pattern_data_ptr = omega_data_get_data_(&match_context_ptr->pattern, pattern_length);
             memcpy(pattern_data_ptr, pattern, pattern_length);
@@ -397,23 +393,12 @@ omega_search_context_t *omega_search_create_context_bytes_with_case_folding(
 
 omega_search_context_t *omega_search_create_context(omega_session_t *session_ptr, const char *pattern,
                                                     int64_t pattern_length, int64_t session_offset,
-                                                    int64_t session_length, int case_insensitive,
+                                                    int64_t session_length, omega_search_case_folding_t case_folding,
                                                     int is_reverse_search) {
-    return omega_search_create_context_with_case_folding(session_ptr, pattern, pattern_length, session_offset,
-                                                         session_length, case_insensitive, is_reverse_search,
-                                                         OMEGA_SEARCH_CASE_FOLDING_ASCII);
-}
-
-omega_search_context_t *omega_search_create_context_with_case_folding(omega_session_t *session_ptr, const char *pattern,
-                                                                      int64_t pattern_length, int64_t session_offset,
-                                                                      int64_t session_length, int case_insensitive,
-                                                                      int is_reverse_search,
-                                                                      omega_search_case_folding_t case_folding) {
     if (!pattern) { return nullptr; }
     pattern_length = pattern_length ? pattern_length : static_cast<int64_t>(strlen(pattern));
-    return omega_search_create_context_bytes_with_case_folding(session_ptr, (const omega_byte_t *) pattern,
-                                                               pattern_length, session_offset, session_length,
-                                                               case_insensitive, is_reverse_search, case_folding);
+    return omega_search_create_context_bytes(session_ptr, (const omega_byte_t *) pattern, pattern_length,
+                                             session_offset, session_length, case_folding, is_reverse_search);
 }
 
 int omega_search_context_is_reverse_search(const omega_search_context_t *search_context_ptr) {

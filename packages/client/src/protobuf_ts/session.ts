@@ -1318,12 +1318,11 @@ export async function countCharacters(
 export async function searchSession(
   sessionId: string,
   pattern: string | Uint8Array,
-  isCaseInsensitive: boolean = false,
+  caseFolding: SearchCaseFolding = SearchCaseFolding.NONE,
   isReverse: boolean = false,
   offset: number = 0,
   length: number = 0,
-  limit: number = 0,
-  caseFolding: SearchCaseFolding = SearchCaseFolding.ASCII
+  limit: number = 0
 ): Promise<number[]> {
   const log = getLogger()
 
@@ -1341,11 +1340,10 @@ export async function searchSession(
     offset: offset,
   }
 
-  if (isCaseInsensitive) request.isCaseInsensitive = true
+  if (caseFolding !== SearchCaseFolding.NONE) request.caseFolding = caseFolding
   if (isReverse) request.isReverse = true
   if (length > 0) request.length = length
   if (limit > 0) request.limit = limit
-  if (caseFolding !== SearchCaseFolding.ASCII) request.caseFolding = caseFolding
 
   debugLog(log, () => ({ fn: 'protobufTs.searchSession', rqst: request }))
   const client = await getClient()
@@ -1387,10 +1385,9 @@ export async function replaceSessionCheckpointed(
   sessionId: string,
   pattern: string | Uint8Array,
   replacement: string | Uint8Array,
-  isCaseInsensitive: boolean = false,
+  caseFolding: SearchCaseFolding = SearchCaseFolding.NONE,
   offset: number = 0,
-  length: number = 0,
-  caseFolding: SearchCaseFolding = SearchCaseFolding.ASCII
+  length: number = 0
 ): Promise<ReplaceSessionCheckpointedResponse> {
   const log = getLogger()
 
@@ -1406,7 +1403,7 @@ export async function replaceSessionCheckpointed(
         typeof replacement === 'string'
           ? Buffer.from(replacement)
           : replacement,
-      isCaseInsensitive,
+      caseFolding,
       offset,
       length,
       replacementCount: 0,
@@ -1421,9 +1418,8 @@ export async function replaceSessionCheckpointed(
     offset,
   }
 
-  if (isCaseInsensitive) request.isCaseInsensitive = true
+  if (caseFolding !== SearchCaseFolding.NONE) request.caseFolding = caseFolding
   if (length > 0) request.length = length
-  if (caseFolding !== SearchCaseFolding.ASCII) request.caseFolding = caseFolding
 
   debugLog(log, () => ({
     fn: 'protobufTs.replaceSessionCheckpointed',
@@ -1567,14 +1563,13 @@ export async function replaceSession(
   sessionId: string,
   pattern: string | Uint8Array,
   replacement: string | Uint8Array,
-  isCaseInsensitive: boolean = false,
+  caseFolding: SearchCaseFolding = SearchCaseFolding.NONE,
   isReverse: boolean = false,
   offset: number = 0,
   length: number = 0,
   limit: number = 0,
   frontToBack: boolean = true,
-  overwriteOnly: boolean = false,
-  caseFolding: SearchCaseFolding = SearchCaseFolding.ASCII
+  overwriteOnly: boolean = false
 ): Promise<ReplaceSessionResponse> {
   const log = getLogger()
 
@@ -1590,7 +1585,7 @@ export async function replaceSession(
         typeof replacement === 'string'
           ? Buffer.from(replacement)
           : replacement,
-      isCaseInsensitive,
+      caseFolding,
       isReverse,
       offset,
       length,
@@ -1612,13 +1607,12 @@ export async function replaceSession(
     offset,
   }
 
-  if (isCaseInsensitive) request.isCaseInsensitive = true
+  if (caseFolding !== SearchCaseFolding.NONE) request.caseFolding = caseFolding
   if (isReverse) request.isReverse = true
   if (length > 0) request.length = length
   if (limit > 0) request.limit = limit
   if (!frontToBack) request.frontToBack = false
   if (overwriteOnly) request.overwriteOnly = true
-  if (caseFolding !== SearchCaseFolding.ASCII) request.caseFolding = caseFolding
 
   debugLog(log, () => ({
     fn: 'protobufTs.replaceSession',

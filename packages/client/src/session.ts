@@ -118,6 +118,7 @@ export const IOFlags = {
 export type IOFlags = (typeof IOFlags)[keyof typeof IOFlags]
 
 export const SearchCaseFolding = {
+  NONE: RawProtoSearchCaseFolding.NONE,
   ASCII: RawProtoSearchCaseFolding.ASCII,
   WINDOWS_1252: RawProtoSearchCaseFolding.WINDOWS_1252,
   CP437: RawProtoSearchCaseFolding.CP437,
@@ -126,17 +127,6 @@ export const SearchCaseFolding = {
 } as const
 export type SearchCaseFolding =
   (typeof SearchCaseFolding)[keyof typeof SearchCaseFolding]
-
-type ReplaceStatsOrCaseFolding = IEditStats | SearchCaseFolding
-
-function resolveReplaceStatsAndFolding(
-  statsOrCaseFolding?: ReplaceStatsOrCaseFolding,
-  case_folding: SearchCaseFolding = SearchCaseFolding.ASCII
-): { stats?: IEditStats; caseFolding: SearchCaseFolding } {
-  return typeof statsOrCaseFolding === 'number'
-    ? { caseFolding: statsOrCaseFolding }
-    : { stats: statsOrCaseFolding, caseFolding: case_folding }
-}
 
 export const SessionEventKind = {
   UNSPECIFIED: RawProtoSessionEventKind.UNSPECIFIED,
@@ -674,22 +664,20 @@ export async function countCharacters(
 export function searchSession(
   session_id: string,
   pattern: string | Uint8Array,
-  is_case_insensitive: boolean = false,
+  case_folding: SearchCaseFolding = SearchCaseFolding.NONE,
   is_reverse: boolean = false,
   offset: number = 0,
   length: number = 0,
-  limit: number = 0,
-  case_folding: SearchCaseFolding = SearchCaseFolding.ASCII
+  limit: number = 0
 ): Promise<number[]> {
   return rawSearchSession(
     session_id,
     pattern,
-    is_case_insensitive,
+    case_folding,
     is_reverse,
     requireSafeIntegerInput('searchSession offset', offset),
     requireSafeIntegerInput('searchSession length', length),
-    requireSafeIntegerInput('searchSession limit', limit),
-    case_folding
+    requireSafeIntegerInput('searchSession limit', limit)
   ).then((matches) => requireSafeIntegerArrayOutput('match offsets', matches))
 }
 
@@ -697,7 +685,7 @@ export async function replaceSession(
   session_id: string,
   pattern: string | Uint8Array,
   replacement: string | Uint8Array,
-  is_case_insensitive?: boolean,
+  case_folding?: SearchCaseFolding,
   is_reverse?: boolean,
   offset?: number,
   length?: number,
@@ -710,34 +698,15 @@ export async function replaceSession(
   session_id: string,
   pattern: string | Uint8Array,
   replacement: string | Uint8Array,
-  is_case_insensitive: boolean | undefined,
-  is_reverse: boolean | undefined,
-  offset: number | undefined,
-  length: number | undefined,
-  limit: number | undefined,
-  front_to_back: boolean | undefined,
-  overwrite_only: boolean | undefined,
-  stats: IEditStats | undefined,
-  case_folding: SearchCaseFolding
-): Promise<number>
-export async function replaceSession(
-  session_id: string,
-  pattern: string | Uint8Array,
-  replacement: string | Uint8Array,
-  is_case_insensitive: boolean = false,
+  case_folding: SearchCaseFolding = SearchCaseFolding.NONE,
   is_reverse: boolean = false,
   offset: number = 0,
   length: number = 0,
   limit: number = 0,
   front_to_back: boolean = true,
   overwrite_only: boolean = false,
-  statsOrCaseFolding?: ReplaceStatsOrCaseFolding,
-  case_folding: SearchCaseFolding = SearchCaseFolding.ASCII
+  stats?: IEditStats
 ): Promise<number> {
-  const { stats, caseFolding } = resolveReplaceStatsAndFolding(
-    statsOrCaseFolding,
-    case_folding
-  )
   // Use withViewportBatch (transactional:false) so that the N individual viewport events fired by
   // omega_edit_apply_script are coalesced into a single viewport refresh on the client side.
   return await withViewportBatch(
@@ -747,14 +716,13 @@ export async function replaceSession(
         session_id,
         pattern,
         replacement,
-        is_case_insensitive,
+        case_folding,
         is_reverse,
         requireSafeIntegerInput('replaceSession offset', offset),
         requireSafeIntegerInput('replaceSession length', length),
         requireSafeIntegerInput('replaceSession limit', limit),
         front_to_back,
-        overwrite_only,
-        caseFolding
+        overwrite_only
       )
       if (stats) {
         stats.delete_count += requireSafeIntegerOutput(
@@ -783,20 +751,18 @@ export async function replaceSessionCheckpointed(
   session_id: string,
   pattern: string | Uint8Array,
   replacement: string | Uint8Array,
-  is_case_insensitive: boolean = false,
+  case_folding: SearchCaseFolding = SearchCaseFolding.NONE,
   offset: number = 0,
-  length: number = 0,
-  case_folding: SearchCaseFolding = SearchCaseFolding.ASCII
+  length: number = 0
 ): Promise<number> {
   return await enqueueSessionMutation(session_id, async () => {
     const response = await rawReplaceSessionCheckpointed(
       session_id,
       pattern,
       replacement,
-      is_case_insensitive,
+      case_folding,
       requireSafeIntegerInput('replaceSessionCheckpointed offset', offset),
-      requireSafeIntegerInput('replaceSessionCheckpointed length', length),
-      case_folding
+      requireSafeIntegerInput('replaceSessionCheckpointed length', length)
     )
     return requireSafeIntegerOutput(
       'replacement count',
@@ -809,7 +775,7 @@ export async function replaceOneSession(
   session_id: string,
   pattern: string | Uint8Array,
   replacement: string | Uint8Array,
-  is_case_insensitive?: boolean,
+  case_folding?: SearchCaseFolding,
   is_reverse?: boolean,
   offset?: number,
   length?: number,
@@ -820,30 +786,13 @@ export async function replaceOneSession(
   session_id: string,
   pattern: string | Uint8Array,
   replacement: string | Uint8Array,
-  is_case_insensitive: boolean | undefined,
-  is_reverse: boolean | undefined,
-  offset: number | undefined,
-  length: number | undefined,
-  overwrite_only: boolean | undefined,
-  stats: IEditStats | undefined,
-  case_folding: SearchCaseFolding
-): Promise<number>
-export async function replaceOneSession(
-  session_id: string,
-  pattern: string | Uint8Array,
-  replacement: string | Uint8Array,
-  is_case_insensitive: boolean = false,
+  case_folding: SearchCaseFolding = SearchCaseFolding.NONE,
   is_reverse: boolean = false,
   offset: number = 0,
   length: number = 0,
   overwrite_only: boolean = false,
-  statsOrCaseFolding?: ReplaceStatsOrCaseFolding,
-  case_folding: SearchCaseFolding = SearchCaseFolding.ASCII
+  stats?: IEditStats
 ): Promise<number> {
-  const { stats, caseFolding } = resolveReplaceStatsAndFolding(
-    statsOrCaseFolding,
-    case_folding
-  )
   return await enqueueSessionMutation(session_id, async () => {
     const safeOffset = requireSafeIntegerInput(
       'replaceOneSession offset',
@@ -860,12 +809,11 @@ export async function replaceOneSession(
     const foundLocations = await searchSession(
       session_id,
       patternArray,
-      is_case_insensitive,
+      case_folding,
       is_reverse,
       safeOffset,
       safeLength,
-      1,
-      caseFolding
+      1
     )
     if (foundLocations.length > 0) {
       if (overwrite_only) {

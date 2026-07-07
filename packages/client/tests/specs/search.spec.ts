@@ -57,7 +57,7 @@ describe('Searching', () => {
     sessionId: string
     pattern: Uint8Array
     replacement: Uint8Array
-    isCaseInsensitive?: boolean
+    caseFolding?: SearchCaseFolding
     offset?: number | string | bigint
     length?: number | string | bigint
   }) {
@@ -67,7 +67,7 @@ describe('Searching', () => {
       sessionId: string
       pattern: Uint8Array
       replacement: Uint8Array
-      isCaseInsensitive: boolean
+      caseFolding: SearchCaseFolding
       offset: number
       length: number
     }>((resolve, reject) => {
@@ -145,7 +145,7 @@ describe('Searching', () => {
     let needles = await searchSession(
       session_id,
       'needle',
-      false,
+      SearchCaseFolding.NONE,
       false,
       0,
       0,
@@ -155,7 +155,7 @@ describe('Searching', () => {
     needles = await searchSession(
       session_id,
       'needle',
-      true,
+      SearchCaseFolding.ASCII,
       false,
       3,
       file_size - 3
@@ -164,7 +164,7 @@ describe('Searching', () => {
     needles = await searchSession(
       session_id,
       'needle',
-      true,
+      SearchCaseFolding.ASCII,
       false,
       3,
       file_size - 3,
@@ -174,7 +174,7 @@ describe('Searching', () => {
     needles = await searchSession(
       session_id,
       'needle',
-      true,
+      SearchCaseFolding.ASCII,
       true,
       3,
       file_size - 3,
@@ -184,19 +184,27 @@ describe('Searching', () => {
     needles = await searchSession(
       session_id,
       'needle',
-      true,
+      SearchCaseFolding.ASCII,
       false,
       3,
       file_size - 3,
       2
     )
     expect(needles).deep.equals([8, 14])
-    needles = await searchSession(session_id, 'NEEDLE', false, false, 0, 0, 1)
+    needles = await searchSession(
+      session_id,
+      'NEEDLE',
+      SearchCaseFolding.NONE,
+      false,
+      0,
+      0,
+      1
+    )
     expect(needles).deep.equals([14])
     needles = await searchSession(
       session_id,
       'NEEDLE',
-      false,
+      SearchCaseFolding.NONE,
       false,
       0,
       20,
@@ -206,7 +214,7 @@ describe('Searching', () => {
     needles = await searchSession(
       session_id,
       'NEEDLE',
-      false,
+      SearchCaseFolding.NONE,
       false,
       14,
       6,
@@ -216,7 +224,7 @@ describe('Searching', () => {
     needles = await searchSession(
       session_id,
       'NEEDLE',
-      false,
+      SearchCaseFolding.NONE,
       false,
       14,
       5,
@@ -226,7 +234,7 @@ describe('Searching', () => {
     needles = await searchSession(
       session_id,
       'NEEDLE',
-      false,
+      SearchCaseFolding.NONE,
       false,
       0,
       19,
@@ -239,31 +247,47 @@ describe('Searching', () => {
     needles = await searchSession(
       session_id,
       'n',
-      false,
+      SearchCaseFolding.NONE,
       false,
       0,
       0,
       undefined
     )
     expect(needles).deep.equals([8, 26])
-    needles = await searchSession(session_id, 'n', false, true, 0, 0, undefined)
+    needles = await searchSession(
+      session_id,
+      'n',
+      SearchCaseFolding.NONE,
+      true,
+      0,
+      0,
+      undefined
+    )
     expect(needles).deep.equals([26, 8])
     needles = await searchSession(
       session_id,
       'N',
-      false,
+      SearchCaseFolding.NONE,
       false,
       0,
       0,
       undefined
     )
     expect(needles).deep.equals([14, 20])
-    needles = await searchSession(session_id, 'n', true, false, 0, 0, undefined)
+    needles = await searchSession(
+      session_id,
+      'n',
+      SearchCaseFolding.ASCII,
+      false,
+      0,
+      0,
+      undefined
+    )
     expect(needles).deep.equals([8, 14, 20, 26])
     needles = await searchSession(
       session_id,
       'F',
-      false,
+      SearchCaseFolding.NONE,
       false,
       0,
       0,
@@ -277,7 +301,7 @@ describe('Searching', () => {
     needles = await searchSession(
       session_id,
       'needle',
-      true,
+      SearchCaseFolding.ASCII,
       false,
       0,
       0,
@@ -293,36 +317,33 @@ describe('Searching', () => {
       await searchSession(
         session_id,
         new Uint8Array([0x81, 0x82]),
-        true,
+        SearchCaseFolding.ASCII,
         false,
         0,
         0,
-        0,
-        SearchCaseFolding.ASCII
+        0
       )
     ).deep.equals([2])
     expect(
       await searchSession(
         session_id,
         new Uint8Array([0x81, 0x82]),
-        true,
+        SearchCaseFolding.EBCDIC_037,
         false,
         0,
         0,
-        0,
-        SearchCaseFolding.EBCDIC_037
+        0
       )
     ).deep.equals([0, 2])
     expect(
       await searchSession(
         session_id,
         new Uint8Array([0xc1, 0xc2]),
+        SearchCaseFolding.EBCDIC_037,
         true,
-        true,
         0,
         0,
-        0,
-        SearchCaseFolding.EBCDIC_037
+        0
       )
     ).deep.equals([2, 0])
 
@@ -330,15 +351,14 @@ describe('Searching', () => {
       session_id,
       new Uint8Array([0x81]),
       new Uint8Array([0x40]),
-      true,
+      SearchCaseFolding.EBCDIC_037,
       false,
       0,
       0,
       0,
       true,
       false,
-      undefined,
-      SearchCaseFolding.EBCDIC_037
+      undefined
     )
     expect(replacementCount).to.equal(2)
     expect(await getSegment(session_id, 0, 4)).deep.equals(
@@ -350,7 +370,7 @@ describe('Searching', () => {
     await overwrite(session_id, 0, Buffer.from('abc'))
 
     try {
-      await searchSession(session_id, 'a', false, false, 4, 1)
+      await searchSession(session_id, 'a', SearchCaseFolding.NONE, false, 4, 1)
       expect.fail('searchSession should reject an out-of-range search window')
     } catch (err) {
       expect((err as Error).message).to.include('INVALID_ARGUMENT')
@@ -803,7 +823,7 @@ describe('Searching', () => {
       session_id,
       'needle',
       'Item',
-      false,
+      SearchCaseFolding.NONE,
       false,
       0,
       0
@@ -816,7 +836,7 @@ describe('Searching', () => {
       session_id,
       'needle',
       'Item',
-      false,
+      SearchCaseFolding.NONE,
       false,
       nextOffset,
       0
@@ -829,7 +849,7 @@ describe('Searching', () => {
       session_id,
       'needle',
       'Item',
-      false,
+      SearchCaseFolding.NONE,
       false,
       nextOffset,
       0
@@ -842,7 +862,7 @@ describe('Searching', () => {
       session_id,
       'needle',
       'Item',
-      false,
+      SearchCaseFolding.NONE,
       false,
       nextOffset,
       0
@@ -855,7 +875,7 @@ describe('Searching', () => {
       session_id,
       'needle',
       'Item',
-      false,
+      SearchCaseFolding.NONE,
       false,
       nextOffset,
       0
@@ -866,7 +886,7 @@ describe('Searching', () => {
       session_id,
       'item',
       'Item-1',
-      true,
+      SearchCaseFolding.ASCII,
       false,
       0,
       0
@@ -879,7 +899,7 @@ describe('Searching', () => {
       session_id,
       'Item',
       'Item-1',
-      false,
+      SearchCaseFolding.NONE,
       false,
       nextOffset,
       0
@@ -892,7 +912,7 @@ describe('Searching', () => {
       session_id,
       'Item',
       'Item-1',
-      false,
+      SearchCaseFolding.NONE,
       false,
       nextOffset,
       0
@@ -905,7 +925,7 @@ describe('Searching', () => {
       session_id,
       'Item',
       'Item-1',
-      false,
+      SearchCaseFolding.NONE,
       false,
       nextOffset,
       0
@@ -920,7 +940,7 @@ describe('Searching', () => {
       session_id,
       'Item',
       'Item-1',
-      false,
+      SearchCaseFolding.NONE,
       false,
       nextOffset,
       0
@@ -930,7 +950,7 @@ describe('Searching', () => {
       session_id,
       'every',
       'no',
-      true,
+      SearchCaseFolding.ASCII,
       false,
       0,
       0,
@@ -963,7 +983,7 @@ describe('Searching', () => {
         session_id,
         'needle',
         'Item',
-        false,
+        SearchCaseFolding.NONE,
         false,
         0,
         await getComputedFileSize(session_id),
@@ -991,7 +1011,7 @@ describe('Searching', () => {
         session_id,
         'item',
         'needle',
-        true,
+        SearchCaseFolding.ASCII,
         false,
         4,
         (await getComputedFileSize(session_id)) - 4,
@@ -1037,7 +1057,7 @@ describe('Searching', () => {
         session_id,
         'Needle',
         'noodle',
-        true,
+        SearchCaseFolding.ASCII,
         false,
         0,
         await getComputedFileSize(session_id),
@@ -1062,7 +1082,7 @@ describe('Searching', () => {
         session_id,
         'needleneedle',
         'noodle',
-        true,
+        SearchCaseFolding.ASCII,
         false,
         0,
         await getComputedFileSize(session_id),
@@ -1090,7 +1110,7 @@ describe('Searching', () => {
         session_id,
         'needle',
         'x',
-        false,
+        SearchCaseFolding.NONE,
         true,
         0,
         0,
@@ -1112,7 +1132,7 @@ describe('Searching', () => {
         session_id,
         'needle',
         'x',
-        false,
+        SearchCaseFolding.NONE,
         true,
         0,
         0,
@@ -1131,7 +1151,14 @@ describe('Searching', () => {
     await overwrite(session_id, 0, Buffer.from('aaaaaa'))
 
     expect(
-      await replaceSessionCheckpointed(session_id, 'aa', 'b', false, 0, 0)
+      await replaceSessionCheckpointed(
+        session_id,
+        'aa',
+        'b',
+        SearchCaseFolding.NONE,
+        0,
+        0
+      )
     ).to.equal(3)
     expect(
       await getSegment(session_id, 0, await getComputedFileSize(session_id))
@@ -1151,7 +1178,7 @@ describe('Searching', () => {
         session_id,
         'aa',
         'b',
-        false,
+        SearchCaseFolding.NONE,
         false,
         0,
         0,
@@ -1178,7 +1205,7 @@ describe('Searching', () => {
       session_id,
       'aa',
       'x',
-      false,
+      SearchCaseFolding.NONE,
       false,
       0,
       0,
@@ -1209,7 +1236,7 @@ describe('Searching', () => {
       session_id,
       'needle',
       'item',
-      false,
+      SearchCaseFolding.NONE,
       false,
       0,
       0,
@@ -1237,7 +1264,6 @@ describe('Searching', () => {
     const searchResult = await controller.search({
       query: 'PD',
       isHex: false,
-      caseInsensitive: false,
     })
 
     expect(searchResult.mode).to.equal('large')
@@ -1247,7 +1273,6 @@ describe('Searching', () => {
     const replaceResult = await controller.replaceAll({
       query: 'PD',
       isHex: false,
-      caseInsensitive: false,
       length: 2,
       replacement: Buffer.from('PDF', 'utf8'),
       replacementData: Buffer.from('PDF', 'utf8').toString('hex'),
@@ -1260,7 +1285,7 @@ describe('Searching', () => {
       kind: 'CHECKPOINT_REPLACE_ALL',
       query: 'PD',
       isHex: false,
-      caseInsensitive: false,
+      caseFolding: SearchCaseFolding.NONE,
       data: Buffer.from('PDF', 'utf8').toString('hex'),
     })
     expect(
@@ -1284,12 +1309,11 @@ describe('Searching', () => {
       async searchSession(
         _sessionId: string,
         _pattern: string | Uint8Array,
-        _caseInsensitive: boolean = false,
+        caseFolding: SearchCaseFolding = SearchCaseFolding.NONE,
         _isReverse: boolean = false,
         _offset: number = 0,
         _length: number = 0,
-        _limit: number = 0,
-        caseFolding: SearchCaseFolding = SearchCaseFolding.ASCII
+        _limit: number = 0
       ) {
         calls.push({ method: 'search', caseFolding })
         return nextMatches
@@ -1297,7 +1321,7 @@ describe('Searching', () => {
       async replaceSession() {
         calls.push({
           method: 'replaceSession',
-          caseFolding: SearchCaseFolding.ASCII,
+          caseFolding: SearchCaseFolding.NONE,
         })
         return 0
       },
@@ -1305,10 +1329,9 @@ describe('Searching', () => {
         _sessionId: string,
         _pattern: string | Uint8Array,
         _replacement: string | Uint8Array,
-        _caseInsensitive: boolean = false,
+        caseFolding: SearchCaseFolding = SearchCaseFolding.NONE,
         _offset: number = 0,
-        _length: number = 0,
-        caseFolding: SearchCaseFolding = SearchCaseFolding.ASCII
+        _length: number = 0
       ) {
         calls.push({ method: 'replaceSessionCheckpointed', caseFolding })
         return 2
@@ -1318,7 +1341,6 @@ describe('Searching', () => {
     const searchResult = await controller.search({
       query: '81',
       isHex: true,
-      caseInsensitive: true,
       caseFolding: SearchCaseFolding.CP437,
     })
     expect(searchResult.mode).to.equal('large')
@@ -1331,7 +1353,6 @@ describe('Searching', () => {
     await controller.findAdjacent({
       query: '81',
       isHex: true,
-      caseInsensitive: true,
       caseFolding: SearchCaseFolding.EBCDIC_037,
       direction: 'forward',
       anchorOffset: 0,
@@ -1346,7 +1367,6 @@ describe('Searching', () => {
     const replaceResult = await controller.replaceAll({
       query: '81',
       isHex: true,
-      caseInsensitive: true,
       caseFolding: SearchCaseFolding.MAC_ROMAN,
       length: 1,
       replacement: Buffer.from([0x2e]),
@@ -1357,7 +1377,6 @@ describe('Searching', () => {
       kind: 'CHECKPOINT_REPLACE_ALL',
       query: '81',
       isHex: true,
-      caseInsensitive: true,
       caseFolding: SearchCaseFolding.MAC_ROMAN,
       data: '2e',
     })
@@ -1378,12 +1397,11 @@ describe('Searching', () => {
       async searchSession(
         _sessionId: string,
         _pattern: string | Uint8Array,
-        _caseInsensitive: boolean = false,
+        caseFolding: SearchCaseFolding = SearchCaseFolding.NONE,
         _isReverse: boolean = false,
         _offset: number = 0,
         _length: number = 0,
-        _limit: number = 0,
-        caseFolding: SearchCaseFolding = SearchCaseFolding.ASCII
+        _limit: number = 0
       ) {
         calls.push({ method: 'search', caseFolding })
         return [0, 2]
@@ -1392,15 +1410,14 @@ describe('Searching', () => {
         _sessionId: string,
         _pattern: string | Uint8Array,
         _replacement: string | Uint8Array,
-        _caseInsensitive: boolean = false,
+        caseFolding: SearchCaseFolding = SearchCaseFolding.NONE,
         _isReverse: boolean = false,
         _offset: number = 0,
         _length: number = 0,
         _limit: number = 0,
         _frontToBack: boolean = true,
         _overwriteOnly: boolean = false,
-        _stats: IEditStats | undefined = undefined,
-        caseFolding: SearchCaseFolding = SearchCaseFolding.ASCII
+        _stats: IEditStats | undefined = undefined
       ) {
         calls.push({ method: 'replaceSession', caseFolding })
         return 2
@@ -1413,7 +1430,6 @@ describe('Searching', () => {
     const result = await controller.replaceAll({
       query: '81',
       isHex: true,
-      caseInsensitive: true,
       caseFolding: SearchCaseFolding.WINDOWS_1252,
       length: 1,
       replacement: Buffer.from([0x2e]),
@@ -1436,7 +1452,6 @@ describe('Searching', () => {
     const result = await controller.findAdjacent({
       query: 'abc',
       isHex: false,
-      caseInsensitive: false,
       direction: 'forward',
       anchorOffset: 0,
       fileSize,
@@ -1464,7 +1479,6 @@ describe('Searching', () => {
     const forward = await controller.findAdjacent({
       query: 'aa',
       isHex: false,
-      caseInsensitive: false,
       direction: 'forward',
       anchorOffset: 0,
       fileSize,
@@ -1482,7 +1496,6 @@ describe('Searching', () => {
     const backward = await controller.findAdjacent({
       query: 'aa',
       isHex: false,
-      caseInsensitive: false,
       direction: 'backward',
       anchorOffset: 2,
       fileSize,
@@ -1494,7 +1507,6 @@ describe('Searching', () => {
     const wrapped = await controller.findAdjacent({
       query: 'aa',
       isHex: false,
-      caseInsensitive: false,
       direction: 'forward',
       anchorOffset: 4,
       fileSize,
@@ -1514,7 +1526,6 @@ describe('Searching', () => {
     const viewport = await controller.findViewportMatches({
       query: 'a',
       isHex: false,
-      caseInsensitive: false,
       fileSize,
       viewportOffset: 0,
       viewportLength: 10,
@@ -1538,7 +1549,6 @@ describe('Searching', () => {
     const result = await controller.findAdjacent({
       query: 'a',
       isHex: false,
-      caseInsensitive: false,
       direction: 'forward',
       anchorOffset: 7,
       fileSize,
@@ -1562,7 +1572,6 @@ describe('Searching', () => {
     const replaceResult = await controller.replaceAll({
       query: ' PD ',
       isHex: false,
-      caseInsensitive: false,
       length: 2,
       replacement: Buffer.from('PDF', 'utf8'),
       replacementData: Buffer.from('PDF', 'utf8').toString('hex'),
@@ -1573,7 +1582,7 @@ describe('Searching', () => {
       kind: 'CHECKPOINT_REPLACE_ALL',
       query: 'PD',
       isHex: false,
-      caseInsensitive: false,
+      caseFolding: SearchCaseFolding.NONE,
       data: Buffer.from('PDF', 'utf8').toString('hex'),
     })
   })
@@ -1589,7 +1598,6 @@ describe('Searching', () => {
     const result = await controller.replaceAll({
       query: 'aa',
       isHex: false,
-      caseInsensitive: false,
       length: 2,
       replacement: Buffer.from('b', 'utf8'),
     })
@@ -1622,7 +1630,6 @@ describe('Searching', () => {
       .replaceAll({
         query: 'abc',
         isHex: false,
-        caseInsensitive: false,
         length: 3,
         replacement: Buffer.from('xyz', 'utf8'),
       })
@@ -1700,7 +1707,7 @@ describe('Searching', () => {
     let needles = await searchSession(
       session_id,
       pattern_bytes,
-      false,
+      SearchCaseFolding.NONE,
       false,
       0,
       0
@@ -1722,7 +1729,7 @@ describe('Searching', () => {
     needles = await searchSession(
       session_id,
       pattern_bytes,
-      false,
+      SearchCaseFolding.NONE,
       false,
       0,
       0,
@@ -1747,7 +1754,7 @@ describe('Searching', () => {
     needles = await searchSession(
       session_id,
       pattern_bytes,
-      false,
+      SearchCaseFolding.NONE,
       false,
       0,
       0,
@@ -1780,7 +1787,7 @@ describe('Searching', () => {
     let needles = await searchSession(
       session_id,
       pattern_chars,
-      false,
+      SearchCaseFolding.NONE,
       false,
       0,
       0
@@ -1794,7 +1801,11 @@ describe('Searching', () => {
     )
     pattern_chars = 'needles'
     replace_chars = 'hay'
-    needles = await searchSession(session_id, pattern_chars, true)
+    needles = await searchSession(
+      session_id,
+      pattern_chars,
+      SearchCaseFolding.ASCII
+    )
     expect(needles).deep.equals([14, 28])
     await edit(
       session_id,

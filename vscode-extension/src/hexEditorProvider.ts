@@ -778,6 +778,17 @@ function searchCaseFoldingForTextEncoding(
   }
 }
 
+function searchCaseFoldingForRequest(
+  isHex: boolean,
+  caseInsensitive: boolean | undefined,
+  encoding: TextEncoding | undefined
+): SearchCaseFolding {
+  if (isHex || !caseInsensitive) {
+    return SearchCaseFolding.NONE
+  }
+  return searchCaseFoldingForTextEncoding(encoding ?? 'ascii')
+}
+
 function parseCommandUri(value: unknown): vscode.Uri | undefined {
   if (value instanceof vscode.Uri) {
     return value
@@ -5745,10 +5756,9 @@ export class HexEditorProvider
           session.sessionId,
           pattern,
           Buffer.from(transaction.data, 'hex'),
-          transaction.caseInsensitive,
+          transaction.caseFolding,
           0,
-          0,
-          transaction.caseFolding ?? SearchCaseFolding.ASCII
+          0
         )
       },
     }
@@ -6557,8 +6567,10 @@ export class HexEditorProvider
         }
 
         case 'replaceAllMatches': {
-          const caseFolding = searchCaseFoldingForTextEncoding(
-            msg.textEncoding ?? 'ascii'
+          const caseFolding = searchCaseFoldingForRequest(
+            msg.isHex,
+            msg.caseInsensitive,
+            msg.textEncoding
           )
           this.postTransformStatus(
             session,
@@ -6573,7 +6585,6 @@ export class HexEditorProvider
               const result = await session.search.replaceAll({
                 query: msg.query,
                 isHex: msg.isHex,
-                caseInsensitive: msg.caseInsensitive ?? false,
                 isReverse: msg.isReverse ?? false,
                 caseFolding,
                 length: msg.length,
@@ -6682,13 +6693,14 @@ export class HexEditorProvider
 
         // --- Search ---
         case 'search': {
-          const caseFolding = searchCaseFoldingForTextEncoding(
-            msg.textEncoding ?? 'ascii'
+          const caseFolding = searchCaseFoldingForRequest(
+            msg.isHex,
+            msg.caseInsensitive,
+            msg.textEncoding
           )
           const result = await session.search.search({
             query: msg.query,
             isHex: msg.isHex,
-            caseInsensitive: msg.caseInsensitive ?? false,
             isReverse: msg.isReverse ?? false,
             caseFolding,
           })
@@ -6712,13 +6724,14 @@ export class HexEditorProvider
         }
 
         case 'findAdjacentMatch': {
-          const caseFolding = searchCaseFoldingForTextEncoding(
-            msg.textEncoding ?? 'ascii'
+          const caseFolding = searchCaseFoldingForRequest(
+            msg.isHex,
+            msg.caseInsensitive,
+            msg.textEncoding
           )
           const navigation = await session.search.findAdjacent({
             query: msg.query,
             isHex: msg.isHex,
-            caseInsensitive: msg.caseInsensitive ?? false,
             caseFolding,
             direction: msg.direction,
             anchorOffset: msg.offset,
@@ -6737,7 +6750,6 @@ export class HexEditorProvider
               ? await session.search.findViewportMatches({
                   query: msg.query,
                   isHex: msg.isHex,
-                  caseInsensitive: msg.caseInsensitive ?? false,
                   caseFolding,
                   fileSize: session.fileSize,
                   viewportOffset,

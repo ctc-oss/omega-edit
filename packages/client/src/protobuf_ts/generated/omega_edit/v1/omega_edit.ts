@@ -1531,9 +1531,9 @@ export interface SearchSessionRequest {
    */
   pattern: Uint8Array // Byte pattern to find.
   /**
-   * @generated from protobuf field: optional bool is_case_insensitive = 3
+   * @generated from protobuf field: optional omega_edit.v1.SearchCaseFolding case_folding = 3
    */
-  isCaseInsensitive?: boolean // When true, perform case-insensitive matching.
+  caseFolding?: SearchCaseFolding // Case folding mode (NONE = exact byte matching).
   /**
    * @generated from protobuf field: optional bool is_reverse = 4
    */
@@ -1550,10 +1550,6 @@ export interface SearchSessionRequest {
    * @generated from protobuf field: optional int64 limit = 7
    */
   limit?: number // Maximum number of matches to return (0 = unlimited).
-  /**
-   * @generated from protobuf field: optional omega_edit.v1.SearchCaseFolding case_folding = 8
-   */
-  caseFolding?: SearchCaseFolding // Character set used for case-insensitive byte folding.
 }
 /**
  * Search results.
@@ -1570,9 +1566,9 @@ export interface SearchSessionResponse {
    */
   pattern: Uint8Array // The pattern that was searched for.
   /**
-   * @generated from protobuf field: bool is_case_insensitive = 3
+   * @generated from protobuf field: omega_edit.v1.SearchCaseFolding case_folding = 3
    */
-  isCaseInsensitive: boolean // Whether the search was case-insensitive.
+  caseFolding: SearchCaseFolding // Case folding mode used for matching.
   /**
    * @generated from protobuf field: bool is_reverse = 4
    */
@@ -1609,9 +1605,9 @@ export interface ReplaceSessionRequest {
    */
   replacement: Uint8Array // Replacement bytes.
   /**
-   * @generated from protobuf field: optional bool is_case_insensitive = 4
+   * @generated from protobuf field: optional omega_edit.v1.SearchCaseFolding case_folding = 4
    */
-  isCaseInsensitive?: boolean // When true, perform case-insensitive matching.
+  caseFolding?: SearchCaseFolding // Case folding mode (NONE = exact byte matching).
   /**
    * @generated from protobuf field: optional bool is_reverse = 5
    */
@@ -1636,10 +1632,6 @@ export interface ReplaceSessionRequest {
    * @generated from protobuf field: optional bool overwrite_only = 10
    */
   overwriteOnly?: boolean // When true, overwrite replacement bytes in place.
-  /**
-   * @generated from protobuf field: optional omega_edit.v1.SearchCaseFolding case_folding = 11
-   */
-  caseFolding?: SearchCaseFolding // Character set used for case-insensitive byte folding.
 }
 /**
  * Result of a transactional replace operation.
@@ -1660,9 +1652,9 @@ export interface ReplaceSessionResponse {
    */
   replacement: Uint8Array // Replacement bytes that were written.
   /**
-   * @generated from protobuf field: bool is_case_insensitive = 4
+   * @generated from protobuf field: omega_edit.v1.SearchCaseFolding case_folding = 4
    */
-  isCaseInsensitive: boolean // Whether the match was case-insensitive.
+  caseFolding: SearchCaseFolding // Case folding mode used for matching.
   /**
    * @generated from protobuf field: bool is_reverse = 5
    */
@@ -1723,9 +1715,9 @@ export interface ReplaceSessionCheckpointedRequest {
    */
   replacement: Uint8Array // Replacement bytes.
   /**
-   * @generated from protobuf field: optional bool is_case_insensitive = 4
+   * @generated from protobuf field: optional omega_edit.v1.SearchCaseFolding case_folding = 4
    */
-  isCaseInsensitive?: boolean // When true, perform case-insensitive matching.
+  caseFolding?: SearchCaseFolding // Case folding mode (NONE = exact byte matching).
   /**
    * @generated from protobuf field: optional int64 offset = 5
    */
@@ -1734,10 +1726,6 @@ export interface ReplaceSessionCheckpointedRequest {
    * @generated from protobuf field: optional int64 length = 6
    */
   length?: number // Number of bytes to process within the session.
-  /**
-   * @generated from protobuf field: optional omega_edit.v1.SearchCaseFolding case_folding = 7
-   */
-  caseFolding?: SearchCaseFolding // Character set used for case-insensitive byte folding.
 }
 /**
  * Result of a checkpointed replace-all operation.
@@ -1758,9 +1746,9 @@ export interface ReplaceSessionCheckpointedResponse {
    */
   replacement: Uint8Array // The replacement bytes that were written.
   /**
-   * @generated from protobuf field: bool is_case_insensitive = 4
+   * @generated from protobuf field: omega_edit.v1.SearchCaseFolding case_folding = 4
    */
-  isCaseInsensitive: boolean // Whether the match was case-insensitive.
+  caseFolding: SearchCaseFolding // Case folding mode used for matching.
   /**
    * @generated from protobuf field: int64 offset = 5
    */
@@ -2731,31 +2719,35 @@ export enum SessionContentSource {
 // ===========================================================================
 
 /**
- * Single-byte character set used for case-insensitive byte folding.
+ * Single-byte case folding mode used when searching or replacing bytes.
  *
  * @generated from protobuf enum omega_edit.v1.SearchCaseFolding
  */
 export enum SearchCaseFolding {
   /**
-   * @generated from protobuf enum value: SEARCH_CASE_FOLDING_ASCII = 0;
+   * @generated from protobuf enum value: SEARCH_CASE_FOLDING_NONE = 0;
    */
-  ASCII = 0,
+  NONE = 0,
   /**
-   * @generated from protobuf enum value: SEARCH_CASE_FOLDING_WINDOWS_1252 = 1;
+   * @generated from protobuf enum value: SEARCH_CASE_FOLDING_ASCII = 1;
    */
-  WINDOWS_1252 = 1,
+  ASCII = 1,
   /**
-   * @generated from protobuf enum value: SEARCH_CASE_FOLDING_CP437 = 2;
+   * @generated from protobuf enum value: SEARCH_CASE_FOLDING_WINDOWS_1252 = 2;
    */
-  CP437 = 2,
+  WINDOWS_1252 = 2,
   /**
-   * @generated from protobuf enum value: SEARCH_CASE_FOLDING_EBCDIC_037 = 3;
+   * @generated from protobuf enum value: SEARCH_CASE_FOLDING_CP437 = 3;
    */
-  EBCDIC_037 = 3,
+  CP437 = 3,
   /**
-   * @generated from protobuf enum value: SEARCH_CASE_FOLDING_MAC_ROMAN = 4;
+   * @generated from protobuf enum value: SEARCH_CASE_FOLDING_EBCDIC_037 = 4;
    */
-  MAC_ROMAN = 4,
+  EBCDIC_037 = 4,
+  /**
+   * @generated from protobuf enum value: SEARCH_CASE_FOLDING_MAC_ROMAN = 5;
+   */
+  MAC_ROMAN = 5,
 }
 /**
  * Transform plugin operation mode.
@@ -10401,10 +10393,14 @@ class SearchSessionRequest$Type extends MessageType<SearchSessionRequest> {
       { no: 2, name: 'pattern', kind: 'scalar', T: 12 /*ScalarType.BYTES*/ },
       {
         no: 3,
-        name: 'is_case_insensitive',
-        kind: 'scalar',
+        name: 'case_folding',
+        kind: 'enum',
         opt: true,
-        T: 8 /*ScalarType.BOOL*/,
+        T: () => [
+          'omega_edit.v1.SearchCaseFolding',
+          SearchCaseFolding,
+          'SEARCH_CASE_FOLDING_',
+        ],
       },
       {
         no: 4,
@@ -10437,17 +10433,6 @@ class SearchSessionRequest$Type extends MessageType<SearchSessionRequest> {
         T: 3 /*ScalarType.INT64*/,
         L: 2 /*LongType.NUMBER*/,
       },
-      {
-        no: 8,
-        name: 'case_folding',
-        kind: 'enum',
-        opt: true,
-        T: () => [
-          'omega_edit.v1.SearchCaseFolding',
-          SearchCaseFolding,
-          'SEARCH_CASE_FOLDING_',
-        ],
-      },
     ])
   }
   create(value?: PartialMessage<SearchSessionRequest>): SearchSessionRequest {
@@ -10475,8 +10460,8 @@ class SearchSessionRequest$Type extends MessageType<SearchSessionRequest> {
         case /* bytes pattern */ 2:
           message.pattern = reader.bytes()
           break
-        case /* optional bool is_case_insensitive */ 3:
-          message.isCaseInsensitive = reader.bool()
+        case /* optional omega_edit.v1.SearchCaseFolding case_folding */ 3:
+          message.caseFolding = reader.int32()
           break
         case /* optional bool is_reverse */ 4:
           message.isReverse = reader.bool()
@@ -10489,9 +10474,6 @@ class SearchSessionRequest$Type extends MessageType<SearchSessionRequest> {
           break
         case /* optional int64 limit */ 7:
           message.limit = reader.int64().toNumber()
-          break
-        case /* optional omega_edit.v1.SearchCaseFolding case_folding */ 8:
-          message.caseFolding = reader.int32()
           break
         default:
           let u = options.readUnknownField
@@ -10523,9 +10505,9 @@ class SearchSessionRequest$Type extends MessageType<SearchSessionRequest> {
     /* bytes pattern = 2; */
     if (message.pattern.length)
       writer.tag(2, WireType.LengthDelimited).bytes(message.pattern)
-    /* optional bool is_case_insensitive = 3; */
-    if (message.isCaseInsensitive !== undefined)
-      writer.tag(3, WireType.Varint).bool(message.isCaseInsensitive)
+    /* optional omega_edit.v1.SearchCaseFolding case_folding = 3; */
+    if (message.caseFolding !== undefined)
+      writer.tag(3, WireType.Varint).int32(message.caseFolding)
     /* optional bool is_reverse = 4; */
     if (message.isReverse !== undefined)
       writer.tag(4, WireType.Varint).bool(message.isReverse)
@@ -10538,9 +10520,6 @@ class SearchSessionRequest$Type extends MessageType<SearchSessionRequest> {
     /* optional int64 limit = 7; */
     if (message.limit !== undefined)
       writer.tag(7, WireType.Varint).int64(message.limit)
-    /* optional omega_edit.v1.SearchCaseFolding case_folding = 8; */
-    if (message.caseFolding !== undefined)
-      writer.tag(8, WireType.Varint).int32(message.caseFolding)
     let u = options.writeUnknownFields
     if (u !== false)
       (u == true ? UnknownFieldHandler.onWrite : u)(
@@ -10563,9 +10542,13 @@ class SearchSessionResponse$Type extends MessageType<SearchSessionResponse> {
       { no: 2, name: 'pattern', kind: 'scalar', T: 12 /*ScalarType.BYTES*/ },
       {
         no: 3,
-        name: 'is_case_insensitive',
-        kind: 'scalar',
-        T: 8 /*ScalarType.BOOL*/,
+        name: 'case_folding',
+        kind: 'enum',
+        T: () => [
+          'omega_edit.v1.SearchCaseFolding',
+          SearchCaseFolding,
+          'SEARCH_CASE_FOLDING_',
+        ],
       },
       { no: 4, name: 'is_reverse', kind: 'scalar', T: 8 /*ScalarType.BOOL*/ },
       {
@@ -10596,7 +10579,7 @@ class SearchSessionResponse$Type extends MessageType<SearchSessionResponse> {
     const message = globalThis.Object.create(this.messagePrototype!)
     message.sessionId = ''
     message.pattern = new Uint8Array(0)
-    message.isCaseInsensitive = false
+    message.caseFolding = 0
     message.isReverse = false
     message.offset = 0
     message.length = 0
@@ -10622,8 +10605,8 @@ class SearchSessionResponse$Type extends MessageType<SearchSessionResponse> {
         case /* bytes pattern */ 2:
           message.pattern = reader.bytes()
           break
-        case /* bool is_case_insensitive */ 3:
-          message.isCaseInsensitive = reader.bool()
+        case /* omega_edit.v1.SearchCaseFolding case_folding */ 3:
+          message.caseFolding = reader.int32()
           break
         case /* bool is_reverse */ 4:
           message.isReverse = reader.bool()
@@ -10670,9 +10653,9 @@ class SearchSessionResponse$Type extends MessageType<SearchSessionResponse> {
     /* bytes pattern = 2; */
     if (message.pattern.length)
       writer.tag(2, WireType.LengthDelimited).bytes(message.pattern)
-    /* bool is_case_insensitive = 3; */
-    if (message.isCaseInsensitive !== false)
-      writer.tag(3, WireType.Varint).bool(message.isCaseInsensitive)
+    /* omega_edit.v1.SearchCaseFolding case_folding = 3; */
+    if (message.caseFolding !== 0)
+      writer.tag(3, WireType.Varint).int32(message.caseFolding)
     /* bool is_reverse = 4; */
     if (message.isReverse !== false)
       writer.tag(4, WireType.Varint).bool(message.isReverse)
@@ -10717,10 +10700,14 @@ class ReplaceSessionRequest$Type extends MessageType<ReplaceSessionRequest> {
       },
       {
         no: 4,
-        name: 'is_case_insensitive',
-        kind: 'scalar',
+        name: 'case_folding',
+        kind: 'enum',
         opt: true,
-        T: 8 /*ScalarType.BOOL*/,
+        T: () => [
+          'omega_edit.v1.SearchCaseFolding',
+          SearchCaseFolding,
+          'SEARCH_CASE_FOLDING_',
+        ],
       },
       {
         no: 5,
@@ -10767,17 +10754,6 @@ class ReplaceSessionRequest$Type extends MessageType<ReplaceSessionRequest> {
         opt: true,
         T: 8 /*ScalarType.BOOL*/,
       },
-      {
-        no: 11,
-        name: 'case_folding',
-        kind: 'enum',
-        opt: true,
-        T: () => [
-          'omega_edit.v1.SearchCaseFolding',
-          SearchCaseFolding,
-          'SEARCH_CASE_FOLDING_',
-        ],
-      },
     ])
   }
   create(value?: PartialMessage<ReplaceSessionRequest>): ReplaceSessionRequest {
@@ -10809,8 +10785,8 @@ class ReplaceSessionRequest$Type extends MessageType<ReplaceSessionRequest> {
         case /* bytes replacement */ 3:
           message.replacement = reader.bytes()
           break
-        case /* optional bool is_case_insensitive */ 4:
-          message.isCaseInsensitive = reader.bool()
+        case /* optional omega_edit.v1.SearchCaseFolding case_folding */ 4:
+          message.caseFolding = reader.int32()
           break
         case /* optional bool is_reverse */ 5:
           message.isReverse = reader.bool()
@@ -10829,9 +10805,6 @@ class ReplaceSessionRequest$Type extends MessageType<ReplaceSessionRequest> {
           break
         case /* optional bool overwrite_only */ 10:
           message.overwriteOnly = reader.bool()
-          break
-        case /* optional omega_edit.v1.SearchCaseFolding case_folding */ 11:
-          message.caseFolding = reader.int32()
           break
         default:
           let u = options.readUnknownField
@@ -10866,9 +10839,9 @@ class ReplaceSessionRequest$Type extends MessageType<ReplaceSessionRequest> {
     /* bytes replacement = 3; */
     if (message.replacement.length)
       writer.tag(3, WireType.LengthDelimited).bytes(message.replacement)
-    /* optional bool is_case_insensitive = 4; */
-    if (message.isCaseInsensitive !== undefined)
-      writer.tag(4, WireType.Varint).bool(message.isCaseInsensitive)
+    /* optional omega_edit.v1.SearchCaseFolding case_folding = 4; */
+    if (message.caseFolding !== undefined)
+      writer.tag(4, WireType.Varint).int32(message.caseFolding)
     /* optional bool is_reverse = 5; */
     if (message.isReverse !== undefined)
       writer.tag(5, WireType.Varint).bool(message.isReverse)
@@ -10887,9 +10860,6 @@ class ReplaceSessionRequest$Type extends MessageType<ReplaceSessionRequest> {
     /* optional bool overwrite_only = 10; */
     if (message.overwriteOnly !== undefined)
       writer.tag(10, WireType.Varint).bool(message.overwriteOnly)
-    /* optional omega_edit.v1.SearchCaseFolding case_folding = 11; */
-    if (message.caseFolding !== undefined)
-      writer.tag(11, WireType.Varint).int32(message.caseFolding)
     let u = options.writeUnknownFields
     if (u !== false)
       (u == true ? UnknownFieldHandler.onWrite : u)(
@@ -10918,9 +10888,13 @@ class ReplaceSessionResponse$Type extends MessageType<ReplaceSessionResponse> {
       },
       {
         no: 4,
-        name: 'is_case_insensitive',
-        kind: 'scalar',
-        T: 8 /*ScalarType.BOOL*/,
+        name: 'case_folding',
+        kind: 'enum',
+        T: () => [
+          'omega_edit.v1.SearchCaseFolding',
+          SearchCaseFolding,
+          'SEARCH_CASE_FOLDING_',
+        ],
       },
       { no: 5, name: 'is_reverse', kind: 'scalar', T: 8 /*ScalarType.BOOL*/ },
       {
@@ -10993,7 +10967,7 @@ class ReplaceSessionResponse$Type extends MessageType<ReplaceSessionResponse> {
     message.sessionId = ''
     message.pattern = new Uint8Array(0)
     message.replacement = new Uint8Array(0)
-    message.isCaseInsensitive = false
+    message.caseFolding = 0
     message.isReverse = false
     message.offset = 0
     message.length = 0
@@ -11028,8 +11002,8 @@ class ReplaceSessionResponse$Type extends MessageType<ReplaceSessionResponse> {
         case /* bytes replacement */ 3:
           message.replacement = reader.bytes()
           break
-        case /* bool is_case_insensitive */ 4:
-          message.isCaseInsensitive = reader.bool()
+        case /* omega_edit.v1.SearchCaseFolding case_folding */ 4:
+          message.caseFolding = reader.int32()
           break
         case /* bool is_reverse */ 5:
           message.isReverse = reader.bool()
@@ -11094,9 +11068,9 @@ class ReplaceSessionResponse$Type extends MessageType<ReplaceSessionResponse> {
     /* bytes replacement = 3; */
     if (message.replacement.length)
       writer.tag(3, WireType.LengthDelimited).bytes(message.replacement)
-    /* bool is_case_insensitive = 4; */
-    if (message.isCaseInsensitive !== false)
-      writer.tag(4, WireType.Varint).bool(message.isCaseInsensitive)
+    /* omega_edit.v1.SearchCaseFolding case_folding = 4; */
+    if (message.caseFolding !== 0)
+      writer.tag(4, WireType.Varint).int32(message.caseFolding)
     /* bool is_reverse = 5; */
     if (message.isReverse !== false)
       writer.tag(5, WireType.Varint).bool(message.isReverse)
@@ -11154,10 +11128,14 @@ class ReplaceSessionCheckpointedRequest$Type extends MessageType<ReplaceSessionC
       },
       {
         no: 4,
-        name: 'is_case_insensitive',
-        kind: 'scalar',
+        name: 'case_folding',
+        kind: 'enum',
         opt: true,
-        T: 8 /*ScalarType.BOOL*/,
+        T: () => [
+          'omega_edit.v1.SearchCaseFolding',
+          SearchCaseFolding,
+          'SEARCH_CASE_FOLDING_',
+        ],
       },
       {
         no: 5,
@@ -11174,17 +11152,6 @@ class ReplaceSessionCheckpointedRequest$Type extends MessageType<ReplaceSessionC
         opt: true,
         T: 3 /*ScalarType.INT64*/,
         L: 2 /*LongType.NUMBER*/,
-      },
-      {
-        no: 7,
-        name: 'case_folding',
-        kind: 'enum',
-        opt: true,
-        T: () => [
-          'omega_edit.v1.SearchCaseFolding',
-          SearchCaseFolding,
-          'SEARCH_CASE_FOLDING_',
-        ],
       },
     ])
   }
@@ -11223,17 +11190,14 @@ class ReplaceSessionCheckpointedRequest$Type extends MessageType<ReplaceSessionC
         case /* bytes replacement */ 3:
           message.replacement = reader.bytes()
           break
-        case /* optional bool is_case_insensitive */ 4:
-          message.isCaseInsensitive = reader.bool()
+        case /* optional omega_edit.v1.SearchCaseFolding case_folding */ 4:
+          message.caseFolding = reader.int32()
           break
         case /* optional int64 offset */ 5:
           message.offset = reader.int64().toNumber()
           break
         case /* optional int64 length */ 6:
           message.length = reader.int64().toNumber()
-          break
-        case /* optional omega_edit.v1.SearchCaseFolding case_folding */ 7:
-          message.caseFolding = reader.int32()
           break
         default:
           let u = options.readUnknownField
@@ -11268,18 +11232,15 @@ class ReplaceSessionCheckpointedRequest$Type extends MessageType<ReplaceSessionC
     /* bytes replacement = 3; */
     if (message.replacement.length)
       writer.tag(3, WireType.LengthDelimited).bytes(message.replacement)
-    /* optional bool is_case_insensitive = 4; */
-    if (message.isCaseInsensitive !== undefined)
-      writer.tag(4, WireType.Varint).bool(message.isCaseInsensitive)
+    /* optional omega_edit.v1.SearchCaseFolding case_folding = 4; */
+    if (message.caseFolding !== undefined)
+      writer.tag(4, WireType.Varint).int32(message.caseFolding)
     /* optional int64 offset = 5; */
     if (message.offset !== undefined)
       writer.tag(5, WireType.Varint).int64(message.offset)
     /* optional int64 length = 6; */
     if (message.length !== undefined)
       writer.tag(6, WireType.Varint).int64(message.length)
-    /* optional omega_edit.v1.SearchCaseFolding case_folding = 7; */
-    if (message.caseFolding !== undefined)
-      writer.tag(7, WireType.Varint).int32(message.caseFolding)
     let u = options.writeUnknownFields
     if (u !== false)
       (u == true ? UnknownFieldHandler.onWrite : u)(
@@ -11309,9 +11270,13 @@ class ReplaceSessionCheckpointedResponse$Type extends MessageType<ReplaceSession
       },
       {
         no: 4,
-        name: 'is_case_insensitive',
-        kind: 'scalar',
-        T: 8 /*ScalarType.BOOL*/,
+        name: 'case_folding',
+        kind: 'enum',
+        T: () => [
+          'omega_edit.v1.SearchCaseFolding',
+          SearchCaseFolding,
+          'SEARCH_CASE_FOLDING_',
+        ],
       },
       {
         no: 5,
@@ -11343,7 +11308,7 @@ class ReplaceSessionCheckpointedResponse$Type extends MessageType<ReplaceSession
     message.sessionId = ''
     message.pattern = new Uint8Array(0)
     message.replacement = new Uint8Array(0)
-    message.isCaseInsensitive = false
+    message.caseFolding = 0
     message.offset = 0
     message.length = 0
     message.replacementCount = 0
@@ -11375,8 +11340,8 @@ class ReplaceSessionCheckpointedResponse$Type extends MessageType<ReplaceSession
         case /* bytes replacement */ 3:
           message.replacement = reader.bytes()
           break
-        case /* bool is_case_insensitive */ 4:
-          message.isCaseInsensitive = reader.bool()
+        case /* omega_edit.v1.SearchCaseFolding case_folding */ 4:
+          message.caseFolding = reader.int32()
           break
         case /* int64 offset */ 5:
           message.offset = reader.int64().toNumber()
@@ -11420,9 +11385,9 @@ class ReplaceSessionCheckpointedResponse$Type extends MessageType<ReplaceSession
     /* bytes replacement = 3; */
     if (message.replacement.length)
       writer.tag(3, WireType.LengthDelimited).bytes(message.replacement)
-    /* bool is_case_insensitive = 4; */
-    if (message.isCaseInsensitive !== false)
-      writer.tag(4, WireType.Varint).bool(message.isCaseInsensitive)
+    /* omega_edit.v1.SearchCaseFolding case_folding = 4; */
+    if (message.caseFolding !== 0)
+      writer.tag(4, WireType.Varint).int32(message.caseFolding)
     /* int64 offset = 5; */
     if (message.offset !== 0)
       writer.tag(5, WireType.Varint).int64(message.offset)

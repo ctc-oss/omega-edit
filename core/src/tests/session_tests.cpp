@@ -797,7 +797,7 @@ TEST_CASE("Null Pointer Safety", "[NullSafety]") {
     REQUIRE(0 == omega_change_is_undone(nullptr));
 
     // Search API null safety
-    REQUIRE(nullptr == omega_search_create_context_bytes(nullptr, nullptr, 0, 0, 0, 0, 0));
+    REQUIRE(nullptr == omega_search_create_context_bytes(nullptr, nullptr, 0, 0, 0, OMEGA_SEARCH_CASE_FOLDING_NONE, 0));
     REQUIRE(0 == omega_search_context_is_reverse_search(nullptr));
     REQUIRE(0 == omega_search_context_get_session_length(nullptr));
     REQUIRE(-1 == omega_search_context_get_session_offset(nullptr));

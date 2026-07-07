@@ -39,8 +39,7 @@ export interface EditorCheckpointReplaceAllTransaction {
   kind: 'CHECKPOINT_REPLACE_ALL'
   query: string
   isHex: boolean
-  caseInsensitive: boolean
-  caseFolding?: SearchCaseFolding
+  caseFolding: SearchCaseFolding
   data: string
 }
 

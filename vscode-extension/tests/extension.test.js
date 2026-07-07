@@ -823,6 +823,7 @@ test('compiled extension entrypoints exist after build', () => {
   assert.match(providerJs, /viewportHasMoreMatches:\s*viewport\.hasMore/)
   assert.match(providerSource, /SearchCaseFolding/)
   assert.match(providerSource, /function searchCaseFoldingForTextEncoding/)
+  assert.match(providerSource, /function searchCaseFoldingForRequest/)
   assert.match(
     providerSource,
     /case 'windows-1252':\s*return SearchCaseFolding\.WINDOWS_1252/
@@ -841,7 +842,7 @@ test('compiled extension entrypoints exist after build', () => {
   )
   assert.match(
     providerSource,
-    /caseFolding: transaction\.caseFolding \?\? SearchCaseFolding\.ASCII/
+    /replaceSessionCheckpointed\([\s\S]*transaction\.caseFolding,[\s\S]*0,[\s\S]*0/
   )
   assert.match(
     providerSource,
