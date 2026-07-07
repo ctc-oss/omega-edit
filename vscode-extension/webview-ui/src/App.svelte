@@ -1998,8 +1998,7 @@
       : encodeTextToHex(replacement, textEncoding)
   }
 
-  function getSearchPatternByteLength(query: string, isHex: boolean): number {
-    void isHex
+  function getSearchPatternByteLength(query: string): number {
     return query.length / 2
   }
 
@@ -2103,7 +2102,7 @@
 
     const isReverse = direction ? direction === 'backward' : searchReverse
     searchReverse = isReverse
-    searchPatternLength = getSearchPatternByteLength(normalized, searchHex)
+    searchPatternLength = getSearchPatternByteLength(normalized)
     searchMessage = strings.search.searching
     replaceMessage = ''
     postToHost({
