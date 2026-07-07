@@ -2345,7 +2345,9 @@ export class HexEditorProvider
     const requestedEncoding =
       safeTextEncoding(encodingOrOptions) ??
       (isRecord(encodingOrOptions)
-        ? safeTextEncoding(encodingOrOptions.textEncoding ?? encodingOrOptions.encoding)
+        ? safeTextEncoding(
+            encodingOrOptions.textEncoding ?? encodingOrOptions.encoding
+          )
         : undefined)
     const commandOptions =
       requestedEncoding && !isRecord(encodingOrOptions)
@@ -5048,8 +5050,10 @@ export class HexEditorProvider
     const bytes = await getSegment(session.sessionId, offset, length)
     const clipboardText =
       format === 'utf8'
-        ? (decodeTextBytes(Array.from(bytes), session.webviewState.textEncoding) ??
-          Buffer.from(bytes).toString('utf8'))
+        ? (decodeTextBytes(
+            Array.from(bytes),
+            session.webviewState.textEncoding
+          ) ?? Buffer.from(bytes).toString('utf8'))
         : Array.from(bytes, (byte) =>
             byte.toString(16).toUpperCase().padStart(2, '0')
           ).join(' ')

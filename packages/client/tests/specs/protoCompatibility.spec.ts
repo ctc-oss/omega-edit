@@ -508,21 +508,25 @@ describe('Proto Compatibility', () => {
       ProtoSearchCaseFolding.MAC_ROMAN
     )
 
-    const searchBytes = [...SearchSessionRequest.toBinary({
-      sessionId: 's',
-      pattern: new Uint8Array([0x81]),
-      limit: 2,
-      caseFolding: ProtoSearchCaseFolding.EBCDIC_037,
-    })]
+    const searchBytes = [
+      ...SearchSessionRequest.toBinary({
+        sessionId: 's',
+        pattern: new Uint8Array([0x81]),
+        limit: 2,
+        caseFolding: ProtoSearchCaseFolding.EBCDIC_037,
+      }),
+    ]
     expect(searchBytes).to.include(0x38) // limit = field 7, varint
     expect(searchBytes).to.include(0x40) // case_folding = field 8, varint
 
-    const replaceBytes = [...ReplaceSessionRequest.toBinary({
-      sessionId: 's',
-      pattern: new Uint8Array([0x81]),
-      replacement: new Uint8Array([0x40]),
-      caseFolding: ProtoSearchCaseFolding.MAC_ROMAN,
-    })]
+    const replaceBytes = [
+      ...ReplaceSessionRequest.toBinary({
+        sessionId: 's',
+        pattern: new Uint8Array([0x81]),
+        replacement: new Uint8Array([0x40]),
+        caseFolding: ProtoSearchCaseFolding.MAC_ROMAN,
+      }),
+    ]
     expect(replaceBytes).to.include(0x58) // case_folding = field 11, varint
 
     const checkpointedBytes = [

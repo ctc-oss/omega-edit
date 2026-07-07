@@ -97,8 +97,12 @@ function readConstNumberArray(source, name) {
   const bodyStart = start + prefix.length
   const end = source.indexOf('] as const', bodyStart)
   assert.notEqual(end, -1, `Missing ${name} lookup table terminator`)
-  return [...source.slice(bodyStart, end).matchAll(/undefined|0x[0-9a-f]+|\d+/gi)].map(
-    ([token]) => (token === 'undefined' ? undefined : Number.parseInt(token, 0))
+  return [
+    ...source.slice(bodyStart, end).matchAll(/undefined|0x[0-9a-f]+|\d+/gi),
+  ].map(([token]) =>
+    token === 'undefined'
+      ? undefined
+      : Number.parseInt(token, token.startsWith('0x') ? 16 : 10)
   )
 }
 
@@ -819,15 +823,39 @@ test('compiled extension entrypoints exist after build', () => {
   assert.match(providerJs, /viewportHasMoreMatches:\s*viewport\.hasMore/)
   assert.match(providerSource, /SearchCaseFolding/)
   assert.match(providerSource, /function searchCaseFoldingForTextEncoding/)
-  assert.match(providerSource, /case 'windows-1252':\s*return SearchCaseFolding\.WINDOWS_1252/)
-  assert.match(providerSource, /case 'cp437':\s*return SearchCaseFolding\.CP437/)
-  assert.match(providerSource, /case 'ebcdic-037':\s*return SearchCaseFolding\.EBCDIC_037/)
-  assert.match(providerSource, /case 'macroman':\s*return SearchCaseFolding\.MAC_ROMAN/)
-  assert.match(providerSource, /caseFolding: transaction\.caseFolding \?\? SearchCaseFolding\.ASCII/)
-  assert.match(providerSource, /session\.search\.replaceAll\(\{[\s\S]*caseFolding,/)
+  assert.match(
+    providerSource,
+    /case 'windows-1252':\s*return SearchCaseFolding\.WINDOWS_1252/
+  )
+  assert.match(
+    providerSource,
+    /case 'cp437':\s*return SearchCaseFolding\.CP437/
+  )
+  assert.match(
+    providerSource,
+    /case 'ebcdic-037':\s*return SearchCaseFolding\.EBCDIC_037/
+  )
+  assert.match(
+    providerSource,
+    /case 'macroman':\s*return SearchCaseFolding\.MAC_ROMAN/
+  )
+  assert.match(
+    providerSource,
+    /caseFolding: transaction\.caseFolding \?\? SearchCaseFolding\.ASCII/
+  )
+  assert.match(
+    providerSource,
+    /session\.search\.replaceAll\(\{[\s\S]*caseFolding,/
+  )
   assert.match(providerSource, /session\.search\.search\(\{[\s\S]*caseFolding,/)
-  assert.match(providerSource, /session\.search\.findAdjacent\(\{[\s\S]*caseFolding,/)
-  assert.match(providerSource, /session\.search\.findViewportMatches\(\{[\s\S]*caseFolding,/)
+  assert.match(
+    providerSource,
+    /session\.search\.findAdjacent\(\{[\s\S]*caseFolding,/
+  )
+  assert.match(
+    providerSource,
+    /session\.search\.findViewportMatches\(\{[\s\S]*caseFolding,/
+  )
   assert.match(providerJs, /setSessionRangeMap/)
   assert.match(providerJs, /case\s+['"]loadRangeMap['"]/)
   assert.match(providerJs, /case\s+['"]unloadRangeMap['"]/)
@@ -870,7 +898,10 @@ test('compiled extension entrypoints exist after build', () => {
   assert.match(protocolSource, /type: 'textEncoding'/)
   assert.match(protocolSource, /TextEncoding/)
   assert.match(protocolSource, /textEncoding\?: TextEncoding/)
-  assert.match(protocolSource, /\.\.\.\(textEncoding \? \{ textEncoding \} : \{\}\)/)
+  assert.match(
+    protocolSource,
+    /\.\.\.\(textEncoding \? \{ textEncoding \} : \{\}\)/
+  )
   assert.match(protocolSource, /stale\?: boolean/)
   assert.match(protocolSource, /serial\?: number/)
   assert.match(protocolSource, /descriptorJson: string/)
