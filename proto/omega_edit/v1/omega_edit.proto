@@ -1004,7 +1004,7 @@ message GetSegmentResponse {
 
 // Single-byte case folding mode used when searching or replacing bytes.
 enum SearchCaseFolding {
-    SEARCH_CASE_FOLDING_NONE = 0;
+    SEARCH_CASE_FOLDING_UNSPECIFIED = 0; // Default (exact byte matching, no case folding).
     SEARCH_CASE_FOLDING_ASCII = 1;
     SEARCH_CASE_FOLDING_WINDOWS_1252 = 2;
     SEARCH_CASE_FOLDING_CP437 = 3;
@@ -1016,7 +1016,7 @@ enum SearchCaseFolding {
 message SearchSessionRequest {
     string session_id = 1;                      // Session to search.
     bytes pattern = 2;                          // Byte pattern to find.
-    optional SearchCaseFolding case_folding = 3;// Case folding mode (NONE = exact byte matching).
+    optional SearchCaseFolding case_folding = 3;// Case folding mode (UNSPECIFIED = exact byte matching).
     optional bool is_reverse = 4;               // When true, search backward from the end of the range.
     optional int64 offset = 5;                  // Starting byte offset (default: 0 or end if reverse).
     optional int64 length = 6;                  // Number of bytes to search within.
@@ -1039,7 +1039,7 @@ message ReplaceSessionRequest {
     string session_id = 1;                      // Session to edit.
     bytes pattern = 2;                          // Byte pattern to replace.
     bytes replacement = 3;                      // Replacement bytes.
-    optional SearchCaseFolding case_folding = 4;// Case folding mode (NONE = exact byte matching).
+    optional SearchCaseFolding case_folding = 4;// Case folding mode (UNSPECIFIED = exact byte matching).
     optional bool is_reverse = 5;               // When true, search backward before selecting matches.
     optional int64 offset = 6;                  // Starting byte offset of the replace range.
     optional int64 length = 7;                  // Number of bytes to process within the session.
@@ -1071,7 +1071,7 @@ message ReplaceSessionCheckpointedRequest {
     string session_id = 1;                      // Session to edit.
     bytes pattern = 2;                          // Byte pattern to replace.
     bytes replacement = 3;                      // Replacement bytes.
-    optional SearchCaseFolding case_folding = 4;// Case folding mode (NONE = exact byte matching).
+    optional SearchCaseFolding case_folding = 4;// Case folding mode (UNSPECIFIED = exact byte matching).
     optional int64 offset = 5;                  // Starting byte offset of the replace-all range.
     optional int64 length = 6;                  // Number of bytes to process within the session.
 }

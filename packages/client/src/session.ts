@@ -118,7 +118,7 @@ export const IOFlags = {
 export type IOFlags = (typeof IOFlags)[keyof typeof IOFlags]
 
 export const SearchCaseFolding = {
-  NONE: RawProtoSearchCaseFolding.NONE,
+  NONE: RawProtoSearchCaseFolding.UNSPECIFIED,
   ASCII: RawProtoSearchCaseFolding.ASCII,
   WINDOWS_1252: RawProtoSearchCaseFolding.WINDOWS_1252,
   CP437: RawProtoSearchCaseFolding.CP437,

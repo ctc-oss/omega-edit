@@ -1533,7 +1533,7 @@ export interface SearchSessionRequest {
   /**
    * @generated from protobuf field: optional omega_edit.v1.SearchCaseFolding case_folding = 3
    */
-  caseFolding?: SearchCaseFolding // Case folding mode (NONE = exact byte matching).
+  caseFolding?: SearchCaseFolding // Case folding mode (UNSPECIFIED = exact byte matching).
   /**
    * @generated from protobuf field: optional bool is_reverse = 4
    */
@@ -1607,7 +1607,7 @@ export interface ReplaceSessionRequest {
   /**
    * @generated from protobuf field: optional omega_edit.v1.SearchCaseFolding case_folding = 4
    */
-  caseFolding?: SearchCaseFolding // Case folding mode (NONE = exact byte matching).
+  caseFolding?: SearchCaseFolding // Case folding mode (UNSPECIFIED = exact byte matching).
   /**
    * @generated from protobuf field: optional bool is_reverse = 5
    */
@@ -1717,7 +1717,7 @@ export interface ReplaceSessionCheckpointedRequest {
   /**
    * @generated from protobuf field: optional omega_edit.v1.SearchCaseFolding case_folding = 4
    */
-  caseFolding?: SearchCaseFolding // Case folding mode (NONE = exact byte matching).
+  caseFolding?: SearchCaseFolding // Case folding mode (UNSPECIFIED = exact byte matching).
   /**
    * @generated from protobuf field: optional int64 offset = 5
    */
@@ -2725,9 +2725,11 @@ export enum SessionContentSource {
  */
 export enum SearchCaseFolding {
   /**
-   * @generated from protobuf enum value: SEARCH_CASE_FOLDING_NONE = 0;
+   * Default (exact byte matching, no case folding).
+   *
+   * @generated from protobuf enum value: SEARCH_CASE_FOLDING_UNSPECIFIED = 0;
    */
-  NONE = 0,
+  UNSPECIFIED = 0,
   /**
    * @generated from protobuf enum value: SEARCH_CASE_FOLDING_ASCII = 1;
    */

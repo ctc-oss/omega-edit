@@ -496,7 +496,9 @@ describe('Proto Compatibility', () => {
   })
 
   it('should preserve search case-folding enum values and request field numbers', () => {
-    expect(PublicSearchCaseFolding.NONE).to.equal(ProtoSearchCaseFolding.NONE)
+    expect(PublicSearchCaseFolding.NONE).to.equal(
+      ProtoSearchCaseFolding.UNSPECIFIED
+    )
     expect(PublicSearchCaseFolding.ASCII).to.equal(ProtoSearchCaseFolding.ASCII)
     expect(PublicSearchCaseFolding.WINDOWS_1252).to.equal(
       ProtoSearchCaseFolding.WINDOWS_1252
