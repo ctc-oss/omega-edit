@@ -92,7 +92,11 @@
     "commands": [
       {
         "command": "omegaEdit.openInHexEditor",
-        "title": "%omegaEdit.command.openInHexEditor.title%"
+        "title": "%omegaEdit.command.openInHexEditor.title%",
+        "icon":{
+          "dark": "images/icons/dark/omega-edit-editor-open.png",
+          "light": "images/icons/light/omega-edit-editor-open.png"
+        }
       },
       {
         "command": "omegaEdit.goToOffset",
