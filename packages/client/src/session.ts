@@ -685,19 +685,6 @@ export async function replaceSession(
   session_id: string,
   pattern: string | Uint8Array,
   replacement: string | Uint8Array,
-  case_folding?: SearchCaseFolding,
-  is_reverse?: boolean,
-  offset?: number,
-  length?: number,
-  limit?: number,
-  front_to_back?: boolean,
-  overwrite_only?: boolean,
-  stats?: IEditStats
-): Promise<number>
-export async function replaceSession(
-  session_id: string,
-  pattern: string | Uint8Array,
-  replacement: string | Uint8Array,
   case_folding: SearchCaseFolding = SearchCaseFolding.NONE,
   is_reverse: boolean = false,
   offset: number = 0,
@@ -771,17 +758,6 @@ export async function replaceSessionCheckpointed(
   })
 }
 
-export async function replaceOneSession(
-  session_id: string,
-  pattern: string | Uint8Array,
-  replacement: string | Uint8Array,
-  case_folding?: SearchCaseFolding,
-  is_reverse?: boolean,
-  offset?: number,
-  length?: number,
-  overwrite_only?: boolean,
-  stats?: IEditStats
-): Promise<number>
 export async function replaceOneSession(
   session_id: string,
   pattern: string | Uint8Array,

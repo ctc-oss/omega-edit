@@ -347,6 +347,20 @@ static omega_util_byte_transform_t case_folding_transform_(omega_search_case_fol
     }
 }
 
+static bool case_folding_is_valid_(omega_search_case_folding_t case_folding) {
+    switch (case_folding) {
+        case OMEGA_SEARCH_CASE_FOLDING_NONE:
+        case OMEGA_SEARCH_CASE_FOLDING_ASCII:
+        case OMEGA_SEARCH_CASE_FOLDING_WINDOWS_1252:
+        case OMEGA_SEARCH_CASE_FOLDING_CP437:
+        case OMEGA_SEARCH_CASE_FOLDING_EBCDIC_037:
+        case OMEGA_SEARCH_CASE_FOLDING_MAC_ROMAN:
+            return true;
+        default:
+            return false;
+    }
+}
+
 omega_search_context_t *omega_search_create_context_bytes(omega_session_t *session_ptr, const omega_byte_t *pattern,
                                                           int64_t pattern_length, int64_t session_offset,
                                                           int64_t session_length,
@@ -354,6 +368,7 @@ omega_search_context_t *omega_search_create_context_bytes(omega_session_t *sessi
                                                           int is_reverse_search) {
     if (!session_ptr || !pattern || session_offset < 0) { return nullptr; }
     if (pattern_length <= 0) { return nullptr; }
+    if (!case_folding_is_valid_(case_folding)) { return nullptr; }
     const auto computed_file_size = omega_session_get_computed_file_size(session_ptr);
     if (computed_file_size < 0 || session_offset > computed_file_size) { return nullptr; }
     const auto session_length_computed = session_length ? session_length : computed_file_size - session_offset;

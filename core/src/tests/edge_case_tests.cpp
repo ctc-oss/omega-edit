@@ -240,11 +240,20 @@ TEST_CASE("Case-insensitive byte search folds multi-byte patterns in range and r
             collect_case_folded_match_offsets(bytes, {0xc1, 0xc2}, OMEGA_SEARCH_CASE_FOLDING_NONE));
 }
 
-TEST_CASE("Unknown case folding identifiers leave search exact", "[EdgeCase][Search]") {
+TEST_CASE("Unknown case folding identifiers are rejected", "[EdgeCase][Search]") {
+    const auto session_ptr = omega_edit_create_session(nullptr, nullptr, nullptr, 0, nullptr);
+    REQUIRE(session_ptr);
+
+    const omega_byte_t bytes[] = {0x41, 0x61};
+    const omega_byte_t pattern[] = {0x61};
     const auto unknown_case_folding = static_cast<omega_search_case_folding_t>(999);
 
-    REQUIRE(std::vector<int64_t>{1} == collect_case_folded_match_offsets({0x41, 0x61}, {0x61}, unknown_case_folding));
-    REQUIRE(std::vector<int64_t>{1} == collect_case_folded_match_offsets({0xc1, 0x81}, {0x81}, unknown_case_folding));
+    REQUIRE(0 < omega_edit_insert_bytes(session_ptr, 0, bytes, static_cast<int64_t>(sizeof(bytes))));
+    REQUIRE(nullptr == omega_search_create_context_bytes(session_ptr, pattern, static_cast<int64_t>(sizeof(pattern)), 0,
+                                                         0, unknown_case_folding, 0));
+    REQUIRE(nullptr == omega_search_create_context(session_ptr, "a", 0, 0, 0, unknown_case_folding, 0));
+
+    omega_edit_destroy_session(session_ptr);
 }
 
 TEST_CASE("Replace all folds EBCDIC CP037 bytes", "[EdgeCase][CheckpointReplaceAll]") {

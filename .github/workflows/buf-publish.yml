@@ -27,22 +27,22 @@ jobs:
       - uses: bufbuild/buf-setup-action@v1
         with:
           github_token: ${{ github.token }}
-      - name: Detect intentional major prerelease proto-breaking window
+      - name: Detect intentional major-release proto-breaking window
         id: proto_breaking_policy
         run: |
           version="$(node -p "require('./package.json').version")"
-          if [[ "$version" =~ ^[0-9]+\.0\.0- ]]; then
+          if [[ "$version" =~ ^[0-9]+\.0\.0($|-) ]]; then
             echo "skip_breaking=true" >> "$GITHUB_OUTPUT"
-            echo "Major prerelease version $version allows intentional proto breaks."
+            echo "Major release version $version allows intentional proto breaks."
           else
             echo "skip_breaking=false" >> "$GITHUB_OUTPUT"
           fi
       - name: Lint
         run: buf lint
-      - name: Breaking change detection skipped for major prerelease
+      - name: Breaking change detection skipped for major release
         if: github.event_name == 'pull_request' && steps.proto_breaking_policy.outputs.skip_breaking == 'true'
         run: |
-          echo "Skipping buf breaking because package.json declares a major prerelease version:"
+          echo "Skipping buf breaking because package.json declares a major release version:"
           node -p "require('./package.json').version"
       - name: Breaking change detection
         if: github.event_name == 'pull_request' && steps.proto_breaking_policy.outputs.skip_breaking != 'true'

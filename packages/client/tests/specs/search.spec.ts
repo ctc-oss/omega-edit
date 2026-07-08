@@ -366,6 +366,46 @@ describe('Searching', () => {
     )
   })
 
+  it('Should reject unsupported raw RPC case-folding identifiers without mutating', async () => {
+    await overwrite(session_id, 0, Buffer.from([0xc1, 0x81]))
+    const unsupportedCaseFolding = 999
+
+    await expectRawRpcInvalidArgument(
+      'searchSession',
+      {
+        sessionId: session_id,
+        pattern: Buffer.from([0x81]),
+        caseFolding: unsupportedCaseFolding,
+      },
+      'search case folding is unsupported'
+    )
+    await expectRawRpcInvalidArgument(
+      'replaceSession',
+      {
+        sessionId: session_id,
+        pattern: Buffer.from([0x81]),
+        replacement: Buffer.from([0x40]),
+        caseFolding: unsupportedCaseFolding,
+      },
+      'replace case folding is unsupported'
+    )
+    await expectRawRpcInvalidArgument(
+      'replaceSessionCheckpointed',
+      {
+        sessionId: session_id,
+        pattern: Buffer.from([0x81]),
+        replacement: Buffer.from([0x40]),
+        caseFolding: unsupportedCaseFolding,
+      },
+      'checkpointed replace case folding is unsupported'
+    )
+
+    expect(await getChangeCount(session_id)).to.equal(1)
+    expect(await getSegment(session_id, 0, 2)).deep.equals(
+      Buffer.from([0xc1, 0x81])
+    )
+  })
+
   it('Should reject invalid search contexts instead of returning no matches', async () => {
     await overwrite(session_id, 0, Buffer.from('abc'))
 

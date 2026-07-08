@@ -1004,7 +1004,7 @@ message GetSegmentResponse {
 
 // Single-byte case folding mode used when searching or replacing bytes.
 enum SearchCaseFolding {
-    SEARCH_CASE_FOLDING_UNSPECIFIED = 0; // Default (exact byte matching, no case folding).
+    SEARCH_CASE_FOLDING_UNSPECIFIED = 0;// Default (exact byte matching, no case folding).
     SEARCH_CASE_FOLDING_ASCII = 1;
     SEARCH_CASE_FOLDING_WINDOWS_1252 = 2;
     SEARCH_CASE_FOLDING_CP437 = 3;
