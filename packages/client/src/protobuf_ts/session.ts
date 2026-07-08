@@ -31,9 +31,7 @@ import {
   type GetByteOrderMarkResponse,
   type GetCharacterCountsResponse,
   type GetComputedFileSizeResponse,
-  type GetContentTypeResponse,
   type GetCountResponse,
-  type GetLanguageResponse,
   type GetSegmentResponse,
   type GetSessionContentInfoResponse,
   type GetSessionFingerprintResponse,
@@ -1165,99 +1163,6 @@ export async function getByteOrderMark(
         return resolve(required)
       } catch (error) {
         return reject(makeWrappedError('getByteOrderMark', error))
-      }
-    })
-  })
-}
-
-export async function getContentType(
-  sessionId: string,
-  offset: number,
-  length: number
-): Promise<GetContentTypeResponse> {
-  const log = getLogger()
-  const request = {
-    sessionId: sessionId,
-    offset: offset,
-    length: length,
-  }
-  debugLog(log, () => ({ fn: 'protobufTs.getContentType', rqst: request }))
-  const client = await getClient()
-
-  return new Promise<GetContentTypeResponse>((resolve, reject) => {
-    callUnary(client, client.getContentType, request, (err, response) => {
-      if (err) {
-        log.error({
-          fn: 'protobufTs.getContentType',
-          rqst: request,
-          err: {
-            msg: err.message,
-            details: err.details,
-            code: err.code,
-            stack: err.stack,
-          },
-        })
-        return reject(makeWrappedError('getContentType', err))
-      }
-
-      try {
-        const required = requireResponse(
-          response as GetContentTypeResponse | undefined,
-          'getContentType'
-        )
-        debugLog(log, () => ({
-          fn: 'protobufTs.getContentType',
-          resp: required,
-        }))
-        return resolve(required)
-      } catch (error) {
-        return reject(makeWrappedError('getContentType', error))
-      }
-    })
-  })
-}
-
-export async function getLanguage(
-  sessionId: string,
-  offset: number,
-  length: number,
-  bom: string
-): Promise<GetLanguageResponse> {
-  const log = getLogger()
-  const request = {
-    sessionId: sessionId,
-    offset: offset,
-    length: length,
-    byteOrderMark: bom,
-  }
-  debugLog(log, () => ({ fn: 'protobufTs.getLanguage', rqst: request }))
-  const client = await getClient()
-
-  return new Promise<GetLanguageResponse>((resolve, reject) => {
-    callUnary(client, client.getLanguage, request, (err, response) => {
-      if (err) {
-        log.error({
-          fn: 'protobufTs.getLanguage',
-          rqst: request,
-          err: {
-            msg: err.message,
-            details: err.details,
-            code: err.code,
-            stack: err.stack,
-          },
-        })
-        return reject(makeWrappedError('getLanguage', err))
-      }
-
-      try {
-        const required = requireResponse(
-          response as GetLanguageResponse | undefined,
-          'getLanguage'
-        )
-        debugLog(log, () => ({ fn: 'protobufTs.getLanguage', resp: required }))
-        return resolve(required)
-      } catch (error) {
-        return reject(makeWrappedError('getLanguage', error))
       }
     })
   })

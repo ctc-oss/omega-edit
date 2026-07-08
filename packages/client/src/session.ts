@@ -49,9 +49,7 @@ import {
   destroySession as rawDestroySession,
   getByteOrderMark as rawGetByteOrderMark,
   getComputedFileSize as rawGetComputedFileSize,
-  getContentType as rawGetContentType,
   getCounts as rawGetCounts,
-  getLanguage as rawGetLanguage,
   getSegment as rawGetSegment,
   getSessionContentInfo as rawGetSessionContentInfo,
   getSessionFingerprint as rawGetSessionFingerprint,
@@ -78,16 +76,12 @@ import {
 import {
   wrapByteOrderMarkResponse,
   wrapCharacterCountResponse,
-  wrapContentTypeResponse,
   wrapCreateSessionResponse,
-  wrapLanguageResponse,
   wrapSaveSessionResponse,
   wrapSingleCount,
   type ByteOrderMarkResponse,
   type CharacterCountResponse,
-  type ContentTypeResponse,
   type CreateSessionResponse,
-  type LanguageResponse,
   type SaveSessionResponse,
   type SingleCount,
 } from './omega_edit_pb'
@@ -611,36 +605,6 @@ export async function getByteOrderMark(
     await rawGetByteOrderMark(
       session_id,
       requireSafeIntegerInput('getByteOrderMark offset', offset)
-    )
-  )
-}
-
-export async function getContentType(
-  session_id: string,
-  offset: number,
-  length: number
-): Promise<ContentTypeResponse> {
-  return wrapContentTypeResponse(
-    await rawGetContentType(
-      session_id,
-      requireSafeIntegerInput('getContentType offset', offset),
-      requireSafeIntegerInput('getContentType length', length)
-    )
-  )
-}
-
-export async function getLanguage(
-  session_id: string,
-  offset: number,
-  length: number,
-  bom: string
-): Promise<LanguageResponse> {
-  return wrapLanguageResponse(
-    await rawGetLanguage(
-      session_id,
-      requireSafeIntegerInput('getLanguage offset', offset),
-      requireSafeIntegerInput('getLanguage length', length),
-      bom
     )
   )
 }

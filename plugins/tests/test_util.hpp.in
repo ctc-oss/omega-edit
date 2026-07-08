@@ -4,5 +4,6 @@
 #include <filesystem>
 
 static const std::filesystem::path PLUGIN_DIR = "@OMEGA_EDIT_TRANSFORM_PLUGIN_OUTPUT_DIR@";
+static const std::filesystem::path LANGUAGE_TEST_DATA_DIR = "@OMEGA_EDIT_LANGUAGE_TEST_DATA_DIR@";
 
 #endif//OMEGA_EDIT_TRANSFORM_PLUGIN_TEST_UTIL_HPP

@@ -15,7 +15,6 @@
 #ifndef OMEGA_EDIT_EDITOR_SERVICE_H
 #define OMEGA_EDIT_EDITOR_SERVICE_H
 
-#include "content_detection.h"
 #include "session_manager.h"
 
 #include <grpcpp/grpcpp.h>
@@ -156,13 +155,6 @@ namespace omega_edit {
                                           const ::omega_edit::v1::GetByteOrderMarkRequest *request,
                                           ::omega_edit::v1::GetByteOrderMarkResponse *response) override;
 
-            grpc::Status GetContentType(grpc::ServerContext *context,
-                                        const ::omega_edit::v1::GetContentTypeRequest *request,
-                                        ::omega_edit::v1::GetContentTypeResponse *response) override;
-
-            grpc::Status GetLanguage(grpc::ServerContext *context, const ::omega_edit::v1::GetLanguageRequest *request,
-                                     ::omega_edit::v1::GetLanguageResponse *response) override;
-
             grpc::Status GetCount(grpc::ServerContext *context, const ::omega_edit::v1::GetCountRequest *request,
                                   ::omega_edit::v1::GetCountResponse *response) override;
 
@@ -268,8 +260,6 @@ namespace omega_edit {
             void request_shutdown();
 
             SessionManager session_manager_;
-            std::unique_ptr<IContentTypeDetector> content_type_detector_;
-            std::unique_ptr<ILanguageDetector> language_detector_;
             omega_transform_plugin_registry_t *transform_plugin_registry_{nullptr};
             std::mutex transform_plugin_registry_mutex_;
             std::chrono::steady_clock::time_point start_time_;

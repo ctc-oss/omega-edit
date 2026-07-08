@@ -198,6 +198,10 @@ function copyTransformPlugins(outputPath) {
       fs.chmodSync(dest, 0o755)
     }
   }
+  const magicDb = path.join(sourceDir, 'magic.mgc')
+  if (fs.existsSync(magicDb) && fs.statSync(magicDb).isFile()) {
+    fs.copyFileSync(magicDb, path.join(destDir, 'magic.mgc'))
+  }
   console.log(
     `Copied ${plugins.length} transform plugin(s): ${sourceDir} -> ${destDir}`
   )
@@ -222,32 +226,6 @@ function findSharedLibrary() {
     for (const libPath of searchPaths) {
       if (fs.existsSync(libPath)) return libPath
     }
-  }
-  return null
-}
-
-// Look for the magic.mgc database file
-function findMagicDatabase() {
-  const searchPaths = [
-    process.env.MAGIC_MGC_PATH || '',
-    path.resolve('../../server/cpp/build/magic.mgc'),
-    // vcpkg installed locations
-    process.env.VCPKG_INSTALLED_DIR
-      ? path.join(
-          process.env.VCPKG_INSTALLED_DIR,
-          'share',
-          'libmagic',
-          'misc',
-          'magic.mgc'
-        )
-      : '',
-    // Common system locations
-    '/usr/share/misc/magic.mgc',
-    '/usr/share/file/magic.mgc',
-  ].filter(Boolean)
-
-  for (const p of searchPaths) {
-    if (fs.existsSync(p)) return p
   }
   return null
 }
@@ -359,19 +337,6 @@ module.exports = {
               const destLib = path.join(binDir, path.basename(sharedLib))
               fs.copyFileSync(sharedLib, destLib)
               console.log(`Copied shared library: ${sharedLib} -> ${destLib}`)
-            }
-          }
-
-          if (!isWin) {
-            const magicDb = findMagicDatabase()
-            if (magicDb) {
-              const destMagic = path.join(binDir, 'magic.mgc')
-              fs.copyFileSync(magicDb, destMagic)
-              console.log(`Copied magic database: ${magicDb} -> ${destMagic}`)
-            } else {
-              console.warn(
-                'WARNING: magic.mgc database not found. Content type detection may not work at runtime.'
-              )
             }
           }
           // NOTE: shared library is optional; when the C++ server is statically

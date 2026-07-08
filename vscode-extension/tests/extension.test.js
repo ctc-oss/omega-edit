@@ -31,6 +31,7 @@ const {
   OMEGA_EDIT_SET_EXTERNAL_HIGHLIGHTS_COMMAND,
   OMEGA_EDIT_SET_TEXT_ENCODING_COMMAND,
   OMEGA_EDIT_ROLLBACK_CHECKPOINT_COMMAND,
+  OMEGA_EDIT_TOGGLE_EXPERIMENTAL_TRANSFORM_PLUGINS_COMMAND,
   OMEGA_EDIT_TOGGLE_INSERT_DIRECTION_COMMAND,
   OMEGA_EDIT_UNDO_COMMAND,
   OMEGA_EDIT_UNLOAD_RANGE_MAP_COMMAND,
@@ -266,6 +267,7 @@ test('package.json matches shared extension constants', () => {
       OMEGA_EDIT_CLEAR_EXTERNAL_HIGHLIGHTS_COMMAND,
       OMEGA_EDIT_LOAD_RANGE_MAP_COMMAND,
       OMEGA_EDIT_UNLOAD_RANGE_MAP_COMMAND,
+      OMEGA_EDIT_TOGGLE_EXPERIMENTAL_TRANSFORM_PLUGINS_COMMAND,
     ]
   )
   assert.equal(
@@ -275,6 +277,10 @@ test('package.json matches shared extension constants', () => {
   assert.equal(
     packageNls['omegaEdit.command.setTextEncoding.title'],
     'OmegaEdit: Set Text Encoding'
+  )
+  assert.equal(
+    packageNls['omegaEdit.command.toggleExperimentalTransformPlugins.title'],
+    'OmegaEdit: Toggle Experimental Transform Plugins'
   )
   assert.equal(
     packageNls['omegaEdit.command.previewChangeLog.title'],
@@ -371,6 +377,16 @@ test('package.json matches shared extension constants', () => {
     {
       command: OMEGA_EDIT_TOGGLE_INSERT_DIRECTION_COMMAND,
       when: 'omegaEdit.hexEditorActive',
+    }
+  )
+  assert.deepEqual(
+    packageJson.contributes.menus.commandPalette.find(
+      (entry) =>
+        entry.command ===
+        OMEGA_EDIT_TOGGLE_EXPERIMENTAL_TRANSFORM_PLUGINS_COMMAND
+    ),
+    {
+      command: OMEGA_EDIT_TOGGLE_EXPERIMENTAL_TRANSFORM_PLUGINS_COMMAND,
     }
   )
   assert.deepEqual(
@@ -771,8 +787,8 @@ test('compiled extension entrypoints exist after build', () => {
   assert.match(providerJs, /pickFileSpliceBytes/)
   assert.match(providerJs, /postFileActionComplete/)
   assert.match(providerJs, /kind:\s*['"]REPLACE['"]/)
-  assert.match(providerJs, /getContentType/)
-  assert.match(providerJs, /getLanguage/)
+  assert.doesNotMatch(providerJs, /getContentType/)
+  assert.doesNotMatch(providerJs, /getLanguage/)
   assert.match(providerJs, /enqueueAnalysisProfile/)
   assert.match(providerJs, /processAnalysisProfileQueue/)
   assert.match(providerJs, /getEditorState/)
@@ -884,11 +900,7 @@ test('compiled extension entrypoints exist after build', () => {
   assert.match(providerJs, /case\s+['"]editorStateChanged['"]/)
   assert.match(providerJs, /buildEditorState/)
   assert.match(providerJs, /clampedLength <= 0/)
-  assert.match(providerJs, /const contentTypeSampleLength = Math\.min/)
-  assert.match(
-    providerJs,
-    /getContentType\)\(session\.sessionId,\s*0,\s*contentTypeSampleLength\)/
-  )
+  assert.doesNotMatch(providerJs, /contentTypeSampleLength/)
   assert.doesNotMatch(providerJs, /experimentalSvelteWebview/)
   assert.match(providerJs, /getSvelteWebviewContent/)
   assert.match(protocolJs, /normalizeWebviewMessage/)
@@ -1654,6 +1666,16 @@ test('compiled extension entrypoints exist after build', () => {
   assert.match(transformPanelSource, /class="transform-action-input"/)
   assert.match(transformPanelSource, /class="transform-action-menu"/)
   assert.match(svelteStylesSource, /\.transform-support-badge/)
+  const supportBadgeRule =
+    svelteStylesSource.match(/\.transform-support-badge\s*\{[^}]+\}/)?.[0] ?? ''
+  assert.match(supportBadgeRule, /min-width:\s*max-content/)
+  assert.doesNotMatch(supportBadgeRule, /max-width:/)
+  assert.doesNotMatch(supportBadgeRule, /overflow:\s*hidden/)
+  assert.doesNotMatch(supportBadgeRule, /text-overflow:/)
+  assert.match(
+    svelteStylesSource,
+    /\.transform-action-heading\s*\{[^}]+flex-wrap:\s*wrap/
+  )
   assert.match(svelteStylesSource, /\.transform-dialog-title/)
   assert.match(i18nSource, /supportExperimental:\s*['"]Experimental['"]/)
   assert.match(transformPanelSource, /actionQuery\.trim\(\)\.length === 0/)

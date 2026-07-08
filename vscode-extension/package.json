@@ -193,6 +193,10 @@
         "command": "omegaEdit.unloadRangeMap",
         "title": "%omegaEdit.command.unloadRangeMap.title%",
         "enablement": "omegaEdit.hexEditorActive"
+      },
+      {
+        "command": "omegaEdit.toggleExperimentalTransformPlugins",
+        "title": "%omegaEdit.command.toggleExperimentalTransformPlugins.title%"
       }
     ],
     "menus": {
@@ -242,6 +246,9 @@
         {
           "command": "omegaEdit.setTextEncoding",
           "when": "omegaEdit.hexEditorActive"
+        },
+        {
+          "command": "omegaEdit.toggleExperimentalTransformPlugins"
         },
         {
           "command": "omegaEdit.refreshTransformPlugins",

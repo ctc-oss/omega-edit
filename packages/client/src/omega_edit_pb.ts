@@ -22,10 +22,8 @@ import type {
   GetByteOrderMarkResponse as RawGetByteOrderMarkResponse,
   GetChangeDetailsResponse as RawGetChangeDetailsResponse,
   GetCharacterCountsResponse as RawGetCharacterCountsResponse,
-  GetContentTypeResponse as RawGetContentTypeResponse,
   GetHeartbeatRequest as RawGetHeartbeatRequest,
   GetHeartbeatResponse as RawGetHeartbeatResponse,
-  GetLanguageResponse as RawGetLanguageResponse,
   GetServerInfoResponse as RawGetServerInfoResponse,
   GetViewportDataResponse as RawGetViewportDataResponse,
   ModifyViewportResponse as RawModifyViewportResponse,
@@ -476,74 +474,6 @@ export class ByteOrderMarkResponse {
   }
 }
 
-export class ContentTypeResponse {
-  constructor(private readonly response_: RawGetContentTypeResponse) {}
-
-  getSessionId(): string {
-    return this.response_.sessionId
-  }
-
-  getOffset(): number {
-    return requireSafeIntegerOutput(
-      'ContentTypeResponse.offset',
-      this.response_.offset
-    )
-  }
-
-  getLength(): number {
-    return requireSafeIntegerOutput(
-      'ContentTypeResponse.length',
-      this.response_.length
-    )
-  }
-
-  getContentType(): string {
-    return this.response_.contentType
-  }
-
-  toObject(): RawGetContentTypeResponse {
-    return {
-      ...this.response_,
-      offset: this.getOffset(),
-      length: this.getLength(),
-    }
-  }
-}
-
-export class LanguageResponse {
-  constructor(private readonly response_: RawGetLanguageResponse) {}
-
-  getSessionId(): string {
-    return this.response_.sessionId
-  }
-
-  getOffset(): number {
-    return requireSafeIntegerOutput(
-      'LanguageResponse.offset',
-      this.response_.offset
-    )
-  }
-
-  getLength(): number {
-    return requireSafeIntegerOutput(
-      'LanguageResponse.length',
-      this.response_.length
-    )
-  }
-
-  getLanguage(): string {
-    return this.response_.language
-  }
-
-  toObject(): RawGetLanguageResponse {
-    return {
-      ...this.response_,
-      offset: this.getOffset(),
-      length: this.getLength(),
-    }
-  }
-}
-
 export class CharacterCountResponse {
   constructor(private readonly response_: RawGetCharacterCountsResponse) {}
 
@@ -789,18 +719,6 @@ export function wrapByteOrderMarkResponse(
   response: RawGetByteOrderMarkResponse
 ): ByteOrderMarkResponse {
   return new ByteOrderMarkResponse(response)
-}
-
-export function wrapContentTypeResponse(
-  response: RawGetContentTypeResponse
-): ContentTypeResponse {
-  return new ContentTypeResponse(response)
-}
-
-export function wrapLanguageResponse(
-  response: RawGetLanguageResponse
-): LanguageResponse {
-  return new LanguageResponse(response)
 }
 
 export function wrapCharacterCountResponse(

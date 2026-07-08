@@ -57,8 +57,6 @@ export interface AssistantSessionContext {
     id: string
     uri: string | null
     filePath: string | null
-    contentType: string | null
-    language: string | null
   }
   sizes: {
     computed: number

@@ -18,7 +18,6 @@ import {
   getChangeDetails,
   getClient,
   getComputedFileSize,
-  getContentType,
   getCounts,
   getLastChange,
   getServerInfo,
@@ -1702,8 +1701,6 @@ export class OmegaEditToolkit {
         id: sessionId,
         uri: null,
         filePath: filePath || null,
-        contentType: null,
-        language: null,
       },
       sizes: {
         computed: status.computedSize,
@@ -2323,17 +2320,10 @@ export class OmegaEditToolkit {
 
     const actualLength = Math.min(length, Math.max(0, computedSize - offset))
     let frequency: number[]
-    let contentTypeValue = 'application/octet-stream'
     if (actualLength === 0) {
       frequency = new Array(257).fill(0)
     } else {
-      const contentTypeLength = Math.min(computedSize, 16 * 1024)
-      const [rangeProfile, contentType] = await Promise.all([
-        profileSession(sessionId, offset, actualLength),
-        getContentType(sessionId, 0, contentTypeLength),
-      ])
-      frequency = rangeProfile
-      contentTypeValue = contentType.getContentType()
+      frequency = await profileSession(sessionId, offset, actualLength)
     }
 
     const totalBytes = frequency
@@ -2368,7 +2358,6 @@ export class OmegaEditToolkit {
       nonAsciiBytes: totalBytes - asciiBytes,
       asciiPercent: totalBytes > 0 ? (asciiBytes / totalBytes) * 100 : 0,
       dosLineEndings: frequency[PROFILE_DOS_EOL] || 0,
-      contentType: contentTypeValue,
       frequency,
       topBytes,
     }

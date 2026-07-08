@@ -34,7 +34,7 @@ endif()
 
 project(omega_edit_transform_plugins
         VERSION ${OMEGA_EDIT_PLUGINS_VERSION_BASE}
-        DESCRIPTION "Example transform plugins for Omega Edit"
+        DESCRIPTION "Native transform plugins for Omega Edit"
         HOMEPAGE_URL "https://github.com/ctc-oss/omega-edit"
         LANGUAGES C CXX)
 
@@ -60,6 +60,81 @@ endif()
 set(OPENSSL_USE_STATIC_LIBS TRUE)
 find_package(OpenSSL 3 REQUIRED COMPONENTS Crypto)
 find_package(ZLIB REQUIRED)
+
+find_package(unofficial-libmagic CONFIG QUIET)
+if (unofficial-libmagic_FOUND)
+    message(STATUS "Found libmagic via vcpkg (unofficial-libmagic)")
+    set(LIBMAGIC_TARGET unofficial::libmagic::libmagic)
+    set(OMEGA_EDIT_HAS_LIBMAGIC TRUE)
+else()
+    find_package(libmagic CONFIG QUIET)
+    if (libmagic_FOUND)
+        message(STATUS "Found libmagic via Conan")
+        set(LIBMAGIC_TARGET libmagic::libmagic)
+        set(OMEGA_EDIT_HAS_LIBMAGIC TRUE)
+    else()
+        message(STATUS "libmagic not found; content-type plugin will use built-in heuristics")
+        set(LIBMAGIC_TARGET "")
+        set(OMEGA_EDIT_HAS_LIBMAGIC FALSE)
+    endif()
+endif()
+
+set(OMEGA_EDIT_LIBMAGIC_DICTIONARY "")
+foreach (magic_dictionary_var unofficial-libmagic_DICTIONARY libmagic_DICTIONARY)
+    if (DEFINED ${magic_dictionary_var} AND EXISTS "${${magic_dictionary_var}}")
+        set(OMEGA_EDIT_LIBMAGIC_DICTIONARY "${${magic_dictionary_var}}")
+    endif()
+endforeach()
+if (NOT OMEGA_EDIT_LIBMAGIC_DICTIONARY AND DEFINED ENV{MAGIC_MGC_PATH} AND EXISTS "$ENV{MAGIC_MGC_PATH}")
+    set(OMEGA_EDIT_LIBMAGIC_DICTIONARY "$ENV{MAGIC_MGC_PATH}")
+endif()
+foreach (magic_dictionary_candidate /usr/share/misc/magic.mgc /usr/share/file/magic.mgc)
+    if (NOT OMEGA_EDIT_LIBMAGIC_DICTIONARY AND EXISTS "${magic_dictionary_candidate}")
+        set(OMEGA_EDIT_LIBMAGIC_DICTIONARY "${magic_dictionary_candidate}")
+    endif()
+endforeach()
+if (OMEGA_EDIT_HAS_LIBMAGIC AND OMEGA_EDIT_LIBMAGIC_DICTIONARY)
+    message(STATUS "Using magic database: ${OMEGA_EDIT_LIBMAGIC_DICTIONARY}")
+endif()
+
+find_package(unofficial-cld3 CONFIG QUIET)
+if (unofficial-cld3_FOUND)
+    message(STATUS "Found CLD3 via vcpkg (unofficial-cld3)")
+    set(CLD3_TARGET unofficial::cld3::cld3)
+else()
+    find_package(Protobuf CONFIG QUIET)
+    if (NOT Protobuf_FOUND)
+        find_package(Protobuf QUIET)
+    endif()
+    if (NOT Protobuf_FOUND)
+        message(STATUS "Protobuf not found; building from source via FetchContent")
+        include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/FetchProtobuf.cmake)
+    endif()
+
+    set(_PROTOBUF_PROTOC_TARGET "")
+    if (TARGET protobuf::protoc)
+        set(_PROTOBUF_PROTOC "$<TARGET_FILE:protobuf::protoc>")
+        set(_PROTOBUF_PROTOC_TARGET protobuf::protoc)
+    elseif (TARGET protoc)
+        set(_PROTOBUF_PROTOC "$<TARGET_FILE:protoc>")
+        set(_PROTOBUF_PROTOC_TARGET protoc)
+    else()
+        if (DEFINED Protobuf_PROTOC_EXECUTABLE)
+            set(_PROTOBUF_PROTOC "${Protobuf_PROTOC_EXECUTABLE}")
+        else()
+            find_program(_PROTOBUF_PROTOC protoc)
+        endif()
+    endif()
+    if (NOT _PROTOBUF_PROTOC)
+        message(FATAL_ERROR "Language detection plugin requires protoc to build CLD3")
+    endif()
+
+    message(STATUS "CLD3 not found via package; building from source via FetchContent")
+    message(STATUS "Using protoc: ${_PROTOBUF_PROTOC}")
+    include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/FetchCLD3.cmake)
+    set(CLD3_TARGET cld3::cld3)
+endif()
+
 get_target_property(OMEGA_EDIT_INCLUDE_DIRS omega_edit::omega_edit INTERFACE_INCLUDE_DIRECTORIES)
 
 if (NOT DEFINED OMEGA_EDIT_TRANSFORM_PLUGIN_OUTPUT_DIR)
@@ -96,10 +171,12 @@ foreach (plugin_src
         src/bitwise.c
         src/case_change.c
         src/character_transcode.cpp
+        src/content_type.cpp
         src/common_checksums.cpp
         src/decimal_codecs.cpp
         src/endian_swap.cpp
         src/format_inspectors.cpp
+        src/language.cpp
         src/openssl_ciphers.c
         src/openssl_digests.c
         src/record_text_helpers.cpp
@@ -113,6 +190,19 @@ foreach (plugin_src
     target_include_directories(${plugin_target} PRIVATE ${OMEGA_EDIT_INCLUDE_DIRS})
     if (plugin_name STREQUAL "zlib")
         target_link_libraries(${plugin_target} PRIVATE ZLIB::ZLIB)
+    endif()
+    if (plugin_name STREQUAL "content_type")
+        if (OMEGA_EDIT_HAS_LIBMAGIC)
+            target_compile_definitions(${plugin_target} PRIVATE OMEGA_EDIT_HAS_LIBMAGIC)
+            target_link_libraries(${plugin_target} PRIVATE ${LIBMAGIC_TARGET} ${CMAKE_DL_LIBS})
+        endif()
+        if (OMEGA_EDIT_HAS_LIBMAGIC AND OMEGA_EDIT_LIBMAGIC_DICTIONARY)
+            target_compile_definitions(${plugin_target} PRIVATE
+                    "MAGIC_MGC_PATH=\"${OMEGA_EDIT_LIBMAGIC_DICTIONARY}\"")
+        endif()
+    endif()
+    if (plugin_name STREQUAL "language")
+        target_link_libraries(${plugin_target} PRIVATE ${CLD3_TARGET})
     endif()
     if (plugin_name MATCHES "^openssl_")
         target_link_libraries(${plugin_target} PRIVATE OpenSSL::Crypto)
@@ -135,6 +225,15 @@ foreach (plugin_src
             RUNTIME_OUTPUT_DIRECTORY_RELEASE "${OMEGA_EDIT_TRANSFORM_PLUGIN_OUTPUT_DIR}"
             LIBRARY_OUTPUT_DIRECTORY_RELEASE "${OMEGA_EDIT_TRANSFORM_PLUGIN_OUTPUT_DIR}"
     )
+    if (plugin_name STREQUAL "content_type" AND OMEGA_EDIT_HAS_LIBMAGIC AND OMEGA_EDIT_LIBMAGIC_DICTIONARY)
+        add_custom_command(
+                TARGET ${plugin_target}
+                POST_BUILD
+                COMMAND ${CMAKE_COMMAND} -E copy_if_different
+                "${OMEGA_EDIT_LIBMAGIC_DICTIONARY}"
+                "${OMEGA_EDIT_TRANSFORM_PLUGIN_OUTPUT_DIR}/magic.mgc"
+                COMMENT "Copying libmagic database for content type detection plugin")
+    endif()
     list(APPEND OMEGA_EDIT_TRANSFORM_PLUGIN_TARGETS ${plugin_target})
 endforeach()
 
@@ -166,6 +265,7 @@ if (BUILD_TESTS)
     include(CTest)
 
     set(OMEGA_EDIT_TRANSFORM_PLUGIN_TEST_BINARY_DIR ${CMAKE_CURRENT_BINARY_DIR}/tests)
+    set(OMEGA_EDIT_LANGUAGE_TEST_DATA_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../packages/client/tests/specs/data")
     file(MAKE_DIRECTORY "${OMEGA_EDIT_TRANSFORM_PLUGIN_TEST_BINARY_DIR}")
     configure_file(
             tests/test_util.hpp.in
@@ -216,6 +316,11 @@ if (CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
     install(TARGETS ${OMEGA_EDIT_TRANSFORM_PLUGIN_TARGETS}
             RUNTIME DESTINATION "${CMAKE_INSTALL_LIBDIR}/omega_edit/plugins"
             LIBRARY DESTINATION "${CMAKE_INSTALL_LIBDIR}/omega_edit/plugins")
+    if (OMEGA_EDIT_HAS_LIBMAGIC AND OMEGA_EDIT_LIBMAGIC_DICTIONARY)
+        install(FILES "${OMEGA_EDIT_LIBMAGIC_DICTIONARY}"
+                DESTINATION "${CMAKE_INSTALL_LIBDIR}/omega_edit/plugins"
+                RENAME magic.mgc)
+    endif()
     install(TARGETS omega-transform-plugin-harness RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}")
 
     set(_fmt "TGZ")

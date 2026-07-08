@@ -1075,8 +1075,6 @@
         { label: strings.profiler.dosEol, value: '-' },
         { label: strings.profiler.modeByte, value: '-' },
         { label: strings.profiler.textPrintable(textEncodingLabel()), value: '-' },
-        { label: strings.profiler.content, value: '-' },
-        { label: strings.profiler.language, value: '-' },
         { label: strings.profiler.bom, value: '-' },
         { label: strings.profiler.bomBytes, value: '-' },
         { label: strings.profiler.oneByteChars, value: '-' },
@@ -1108,8 +1106,6 @@
           printablePercent
         )}`,
       },
-      { label: strings.profiler.content, value: dataProfile.contentType || '-' },
-      { label: strings.profiler.language, value: dataProfile.language || '-' },
       { label: strings.profiler.bom, value: characterCount.byteOrderMark || '-' },
       {
         label: strings.profiler.bomBytes,

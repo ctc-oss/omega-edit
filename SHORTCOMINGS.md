@@ -22,9 +22,11 @@ code-quality cleanup for computed-content inspection lock scope,
 descriptor-preserving temp-file writes, explicit C-string/named-options APIs, OpenSSL
 cipher key scrubbing, shared C plugin option parsing, targeted duplication
 extractions, and the replace/save failure-signaling edges is also complete and
-no longer listed as open. Mutation-capable transform RPCs still intentionally
-serialize the session while a plugin runs because they can modify the current
-core model.
+no longer listed as open. The in-process libmagic/CLD3 content and language
+detection RPCs have also been removed in favor of on-demand inspect/calculation
+plugins, so that item is no longer listed as open. Mutation-capable transform
+RPCs still intentionally serialize the session while a plugin runs because they
+can modify the current core model.
 
 Recent core/server/plugin review findings have been folded into the priority
 list below rather than kept as a second appended review. A fresh core/server
@@ -375,34 +377,6 @@ Suggested fix:
 - Batch redo by transaction.
 - Reuse notification batching and viewport-update coalescing where possible.
 
-### 30. Content detection feeds untrusted bytes to third-party parsers
-
-**Impact:** Low to Medium
-**Risk:** Low
-**Area:** C++ server content/language detection
-
-`GetContentType` and `GetLanguage` hand segment bytes to libmagic and CLD3.
-libmagic has a long history of parser CVEs, and both run in-process. Access is
-serialized and bounded to the requested segment, so this is a dependency-currency
-and isolation concern rather than a code defect.
-
-Relevant code:
-- `server/cpp/src/libmagic_content_detector.cpp:129`
-- `server/cpp/src/cld3_language_detector.cpp:132`
-
-Suggested fix:
-- Move content-type and language guessing behind detector/inspect plugins that
-  run through the existing transform-plugin worker boundary instead of calling
-  libmagic/CLD3 in the server process.
-- Keep `GetContentType` and `GetLanguage` as compatibility RPCs that dispatch
-  to configured detector plugins, or introduce plugin-backed replacement RPCs
-  and deprecate the in-process implementations.
-- Treat libmagic/CLD3-backed detectors as optional operator-selected plugins,
-  with the same production/experimental support levels, cancellation, resource
-  limits, and worker sandboxing policy as transform plugins.
-- Track and update bundled detector plugin dependencies as part of the release
-  process, and document the plugin trust boundary for deployments.
-
 ## Testing Gaps For Attestation
 
 These are not separate product shortcomings, but they are worth closing before
@@ -478,9 +452,9 @@ These areas were in the old document but are no longer open backlog items:
 - Unbounded `SearchSession` unary responses; the server now enforces a
   configurable `max_search_matches` policy and returns `RESOURCE_EXHAUSTED`
   instead of silently truncating when a search would exceed it.
-- Unbounded `GetSegment`, `GetContentType`, and `GetLanguage` allocations; the
-  server now applies a configurable read/classification segment limit that
-  defaults to the viewport capacity and can be disabled with `0`.
+- Unbounded `GetSegment` allocations; the server now applies a configurable
+  read segment limit that defaults to the viewport capacity and can be disabled
+  with `0`.
 - Service-wide transform plugin execution locking; server plugin calls now
   snapshot registry metadata under a short lock and execute under session/content
   guards.

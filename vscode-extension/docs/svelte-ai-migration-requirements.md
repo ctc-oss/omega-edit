@@ -163,8 +163,6 @@ Machine-readable editor state should include:
 - visible range
 - bytes per row
 - offset radix
-- content type
-- language/encoding hints when available
 - undo/redo counts
 - change count
 - current checkpoint/change-log status when available
@@ -198,8 +196,8 @@ The OmegaEdit server or extension host should own:
 - viewport lifecycle
 - large search
 - replace-all and checkpointed edits
-- content type and language detection
 - profiling and character counts
+- on-demand inspect/calculation plugin discovery and execution
 - transform discovery and execution
 - save, save-as, backup, revert, checkpoint, rollback, and replay
 - server health and heartbeat data
@@ -339,8 +337,8 @@ from the OmegaEdit host/server path.
 - The Svelte webview posts compact `editorStateChanged` messages to the host.
   `omegaEdit.getEditorState` returns machine-readable state for the active or
   targeted editor, including URI, file size, dirty state, visible range,
-  selection, radix, active pane, undo/redo counts, cached content/language hints
-  when available, transform summaries, and external highlights.
+  selection, radix, active pane, undo/redo counts, transform summaries, and
+  external highlights.
 
 ## Acceptance Criteria
 
