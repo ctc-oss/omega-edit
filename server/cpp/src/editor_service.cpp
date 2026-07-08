@@ -118,7 +118,7 @@ namespace omega_edit {
 
         static bool to_core_search_case_folding(search_case_folding value, omega_search_case_folding_t &result) {
             switch (value) {
-                case ::omega_edit::v1::SEARCH_CASE_FOLDING_NONE:
+                case ::omega_edit::v1::SEARCH_CASE_FOLDING_UNSPECIFIED:
                     result = OMEGA_SEARCH_CASE_FOLDING_NONE;
                     return true;
                 case ::omega_edit::v1::SEARCH_CASE_FOLDING_ASCII:
@@ -2190,8 +2190,9 @@ namespace omega_edit {
                                                       const ::omega_edit::v1::SearchSessionRequest *request,
                                                       ::omega_edit::v1::SearchSessionResponse *response) {
             bool is_reverse = request->has_is_reverse() ? request->is_reverse() : false;
-            const auto requested_case_folding =
-                    request->has_case_folding() ? request->case_folding() : ::omega_edit::v1::SEARCH_CASE_FOLDING_NONE;
+            const auto requested_case_folding = request->has_case_folding()
+                                                        ? request->case_folding()
+                                                        : ::omega_edit::v1::SEARCH_CASE_FOLDING_UNSPECIFIED;
             omega_search_case_folding_t case_folding = OMEGA_SEARCH_CASE_FOLDING_NONE;
             if (!to_core_search_case_folding(requested_case_folding, case_folding)) {
                 return grpc::Status(grpc::StatusCode::INVALID_ARGUMENT, "search case folding is unsupported");
@@ -2293,8 +2294,9 @@ namespace omega_edit {
             // the mutation attempt has completed.
 
             const bool is_reverse = request->has_is_reverse() ? request->is_reverse() : false;
-            const auto requested_case_folding =
-                    request->has_case_folding() ? request->case_folding() : ::omega_edit::v1::SEARCH_CASE_FOLDING_NONE;
+            const auto requested_case_folding = request->has_case_folding()
+                                                        ? request->case_folding()
+                                                        : ::omega_edit::v1::SEARCH_CASE_FOLDING_UNSPECIFIED;
             omega_search_case_folding_t case_folding = OMEGA_SEARCH_CASE_FOLDING_NONE;
             if (!to_core_search_case_folding(requested_case_folding, case_folding)) {
                 return grpc::Status(grpc::StatusCode::INVALID_ARGUMENT, "replace case folding is unsupported");
@@ -2437,8 +2439,9 @@ namespace omega_edit {
             // handlers during potentially long payload and size checks, while still preventing transforms from starting until
             // the mutation attempt has completed.
 
-            const auto requested_case_folding =
-                    request->has_case_folding() ? request->case_folding() : ::omega_edit::v1::SEARCH_CASE_FOLDING_NONE;
+            const auto requested_case_folding = request->has_case_folding()
+                                                        ? request->case_folding()
+                                                        : ::omega_edit::v1::SEARCH_CASE_FOLDING_UNSPECIFIED;
             omega_search_case_folding_t case_folding = OMEGA_SEARCH_CASE_FOLDING_NONE;
             if (!to_core_search_case_folding(requested_case_folding, case_folding)) {
                 return grpc::Status(grpc::StatusCode::INVALID_ARGUMENT,
