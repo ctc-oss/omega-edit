@@ -301,9 +301,8 @@ TEST_CASE("Packaged Transform Plugins", "[TransformPlugin]") {
     REQUIRE(0 == omega_transform_plugin_options_match_args_schema("{}", content_type_info->args_schema));
     REQUIRE(0 == omega_transform_plugin_options_match_args_schema("{\"filePath\":\"notes.md\"}",
                                                                   content_type_info->args_schema));
-    REQUIRE(-1 ==
-            omega_transform_plugin_options_match_args_schema("{\"byteOrderMark\":\"UTF-8\"}",
-                                                            content_type_info->args_schema));
+    REQUIRE(-1 == omega_transform_plugin_options_match_args_schema("{\"byteOrderMark\":\"UTF-8\"}",
+                                                                   content_type_info->args_schema));
     const auto language_info = omega_transform_plugin_registry_find_info(registry_ptr, "omega.detect.language");
     REQUIRE("Language Detection" == std::string(language_info->name));
     REQUIRE(OMEGA_TRANSFORM_PLUGIN_OPERATION_INSPECT == language_info->operation);
@@ -414,8 +413,7 @@ TEST_CASE("Packaged Transform Plugins", "[TransformPlugin]") {
     REQUIRE(content_type_session_ptr);
     REQUIRE(0 < omega_edit_insert_string(content_type_session_ptr, 0, "Hello, World!\n"));
     REQUIRE(0 == omega_transform_plugin_registry_apply_to_session(registry_ptr, "omega.detect.content_type",
-                                                                  content_type_session_ptr, 0, 14, nullptr,
-                                                                  &response));
+                                                                  content_type_session_ptr, 0, 14, nullptr, &response));
     REQUIRE("text/plain" == response_text(response));
     REQUIRE("content-type" == std::string(response.result_label));
     omega_transform_plugin_response_clear(&response);
@@ -423,30 +421,29 @@ TEST_CASE("Packaged Transform Plugins", "[TransformPlugin]") {
 
     const std::vector<omega_byte_t> binary_detection_bytes = {0x00, 0x01, 0x02, 0xff, 0xfe, 0xfd};
     const auto binary_detection_session_ptr = create_session_from_vector(binary_detection_bytes);
-    REQUIRE(0 == omega_transform_plugin_registry_apply_to_session(registry_ptr, "omega.detect.content_type",
-                                                                  binary_detection_session_ptr, 0,
-                                                                  static_cast<int64_t>(binary_detection_bytes.size()),
-                                                                  nullptr, &response));
+    REQUIRE(0 == omega_transform_plugin_registry_apply_to_session(
+                         registry_ptr, "omega.detect.content_type", binary_detection_session_ptr, 0,
+                         static_cast<int64_t>(binary_detection_bytes.size()), nullptr, &response));
     REQUIRE("application/octet-stream" == response_text(response));
     omega_transform_plugin_response_clear(&response);
     omega_edit_destroy_session(binary_detection_session_ptr);
 
     const std::vector<omega_byte_t> png_detection_bytes = {0x89, 'P', 'N', 'G', 0x0d, 0x0a, 0x1a, 0x0a};
     const auto png_detection_session_ptr = create_session_from_vector(png_detection_bytes);
-    REQUIRE(0 == omega_transform_plugin_registry_apply_to_session(registry_ptr, "omega.detect.content_type",
-                                                                  png_detection_session_ptr, 0,
-                                                                  static_cast<int64_t>(png_detection_bytes.size()),
-                                                                  nullptr, &response));
+    REQUIRE(0 == omega_transform_plugin_registry_apply_to_session(
+                         registry_ptr, "omega.detect.content_type", png_detection_session_ptr, 0,
+                         static_cast<int64_t>(png_detection_bytes.size()), nullptr, &response));
     REQUIRE("image/png" == response_text(response));
     omega_transform_plugin_response_clear(&response);
     omega_edit_destroy_session(png_detection_session_ptr);
 
-    const auto markdown_detection_session_ptr = omega_edit_create_session(nullptr, nullptr, nullptr, NO_EVENTS, nullptr);
+    const auto markdown_detection_session_ptr =
+            omega_edit_create_session(nullptr, nullptr, nullptr, NO_EVENTS, nullptr);
     REQUIRE(markdown_detection_session_ptr);
     REQUIRE(0 < omega_edit_insert_string(markdown_detection_session_ptr, 0, "# Title\n\n- one\n- two\n"));
-    REQUIRE(0 == omega_transform_plugin_registry_apply_to_session(
-                         registry_ptr, "omega.detect.content_type", markdown_detection_session_ptr, 0, 0,
-                         "{\"filePath\":\"notes.md\"}", &response));
+    REQUIRE(0 == omega_transform_plugin_registry_apply_to_session(registry_ptr, "omega.detect.content_type",
+                                                                  markdown_detection_session_ptr, 0, 0,
+                                                                  "{\"filePath\":\"notes.md\"}", &response));
     REQUIRE("text/markdown" == response_text(response));
     omega_transform_plugin_response_clear(&response);
     omega_edit_destroy_session(markdown_detection_session_ptr);
@@ -486,9 +483,9 @@ TEST_CASE("Packaged Transform Plugins", "[TransformPlugin]") {
         const auto language_session_ptr = create_session_from_vector(bytes);
         const std::string language_options =
                 std::string("{\"byteOrderMark\":\"") + language_case.byte_order_mark + "\"}";
-        REQUIRE(0 == omega_transform_plugin_registry_apply_to_session(
-                             registry_ptr, "omega.detect.language", language_session_ptr, 0, 0,
-                             language_options.c_str(), &response));
+        REQUIRE(0 == omega_transform_plugin_registry_apply_to_session(registry_ptr, "omega.detect.language",
+                                                                      language_session_ptr, 0, 0,
+                                                                      language_options.c_str(), &response));
         REQUIRE(language_case.expected == response_text(response));
         REQUIRE("language" == std::string(response.result_label));
         REQUIRE("text/plain" == std::string(response.result_mime_type));

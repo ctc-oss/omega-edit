@@ -94,35 +94,28 @@ namespace {
         if (bom == "UTF-16LE") {
             const int64_t start = (length >= 2 && data[0] == 0xff && data[1] == 0xfe) ? 2 : 0;
             for (int64_t i = start; i + 1 < length; i += 2) {
-                push_utf8_codepoint(result,
-                                    static_cast<uint16_t>(data[i]) |
-                                            (static_cast<uint16_t>(data[i + 1]) << 8));
+                push_utf8_codepoint(result, static_cast<uint16_t>(data[i]) | (static_cast<uint16_t>(data[i + 1]) << 8));
             }
         } else if (bom == "UTF-16BE") {
             const int64_t start = (length >= 2 && data[0] == 0xfe && data[1] == 0xff) ? 2 : 0;
             for (int64_t i = start; i + 1 < length; i += 2) {
-                push_utf8_codepoint(result,
-                                    (static_cast<uint16_t>(data[i]) << 8) | static_cast<uint16_t>(data[i + 1]));
+                push_utf8_codepoint(result, (static_cast<uint16_t>(data[i]) << 8) | static_cast<uint16_t>(data[i + 1]));
             }
         } else if (bom == "UTF-32LE") {
             const int64_t start =
-                    (length >= 4 && data[0] == 0xff && data[1] == 0xfe && data[2] == 0x00 && data[3] == 0x00) ? 4
-                                                                                                              : 0;
+                    (length >= 4 && data[0] == 0xff && data[1] == 0xfe && data[2] == 0x00 && data[3] == 0x00) ? 4 : 0;
             for (int64_t i = start; i + 3 < length; i += 4) {
-                push_utf8_codepoint(result, static_cast<uint32_t>(data[i]) |
-                                                    (static_cast<uint32_t>(data[i + 1]) << 8) |
+                push_utf8_codepoint(result, static_cast<uint32_t>(data[i]) | (static_cast<uint32_t>(data[i + 1]) << 8) |
                                                     (static_cast<uint32_t>(data[i + 2]) << 16) |
                                                     (static_cast<uint32_t>(data[i + 3]) << 24));
             }
         } else if (bom == "UTF-32BE") {
             const int64_t start =
-                    (length >= 4 && data[0] == 0x00 && data[1] == 0x00 && data[2] == 0xfe && data[3] == 0xff) ? 4
-                                                                                                              : 0;
+                    (length >= 4 && data[0] == 0x00 && data[1] == 0x00 && data[2] == 0xfe && data[3] == 0xff) ? 4 : 0;
             for (int64_t i = start; i + 3 < length; i += 4) {
-                push_utf8_codepoint(result, (static_cast<uint32_t>(data[i]) << 24) |
-                                                    (static_cast<uint32_t>(data[i + 1]) << 16) |
-                                                    (static_cast<uint32_t>(data[i + 2]) << 8) |
-                                                    static_cast<uint32_t>(data[i + 3]));
+                push_utf8_codepoint(
+                        result, (static_cast<uint32_t>(data[i]) << 24) | (static_cast<uint32_t>(data[i + 1]) << 16) |
+                                        (static_cast<uint32_t>(data[i + 2]) << 8) | static_cast<uint32_t>(data[i + 3]));
             }
         } else {
             return std::string(reinterpret_cast<const char *>(data), static_cast<size_t>(length));
