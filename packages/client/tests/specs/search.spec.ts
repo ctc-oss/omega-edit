@@ -311,7 +311,7 @@ describe('Searching', () => {
   })
 
   it('Should search and replace with explicit single-byte code-page folding', async () => {
-    await overwrite(session_id, 0, Buffer.from([0xc1, 0x81, 0xc2, 0x82]))
+    await overwrite(session_id, 0, Buffer.from([0xc1, 0xc2, 0x81, 0x82]))
 
     expect(
       await searchSession(
@@ -362,7 +362,7 @@ describe('Searching', () => {
     )
     expect(replacementCount).to.equal(2)
     expect(await getSegment(session_id, 0, 4)).deep.equals(
-      Buffer.from([0x40, 0x40, 0xc2, 0x82])
+      Buffer.from([0x40, 0xc2, 0x40, 0x82])
     )
   })
 
