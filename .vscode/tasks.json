@@ -4,7 +4,7 @@
     {
       "label": "compile:vscode-extension",
       "type": "shell",
-      "command": "npm run compile:extension",
+      "command": "npm run compile",
       "options": {
         "cwd": "${workspaceFolder}/vscode-extension"
       },

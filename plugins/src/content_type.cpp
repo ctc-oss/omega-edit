@@ -148,11 +148,11 @@ namespace {
     }
 
     bool extension_is_plain_text(const std::string &ext) {
-        return ext == ".txt" || ext == ".log" || ext == ".csv" || ext == ".tsv" || ext == ".yaml" ||
-               ext == ".yml" || ext == ".toml" || ext == ".ini" || ext == ".css" || ext == ".js" ||
-               ext == ".ts" || ext == ".tsx" || ext == ".jsx" || ext == ".py" || ext == ".sh" ||
-               ext == ".ps1" || ext == ".c" || ext == ".cc" || ext == ".cpp" || ext == ".h" || ext == ".hpp" ||
-               ext == ".java" || ext == ".rs" || ext == ".go" || ext == ".sql";
+        return ext == ".txt" || ext == ".log" || ext == ".csv" || ext == ".tsv" || ext == ".yaml" || ext == ".yml" ||
+               ext == ".toml" || ext == ".ini" || ext == ".css" || ext == ".js" || ext == ".ts" || ext == ".tsx" ||
+               ext == ".jsx" || ext == ".py" || ext == ".sh" || ext == ".ps1" || ext == ".c" || ext == ".cc" ||
+               ext == ".cpp" || ext == ".h" || ext == ".hpp" || ext == ".java" || ext == ".rs" || ext == ".go" ||
+               ext == ".sql";
     }
 
     bool looks_like_markdown(const std::string &text) {
@@ -173,9 +173,7 @@ namespace {
         const std::string leading = first == std::string::npos ? "" : text.substr(first, 32);
 
         if (extension_is_markdown(ext) || looks_like_markdown(text)) { return "text/markdown"; }
-        if (ext == ".json" || leading.rfind("{", 0) == 0 || leading.rfind("[", 0) == 0) {
-            return "application/json";
-        }
+        if (ext == ".json" || leading.rfind("{", 0) == 0 || leading.rfind("[", 0) == 0) { return "application/json"; }
         if (ext == ".xml" || leading.rfind("<?xml", 0) == 0) { return "application/xml"; }
         if (ext == ".html" || ext == ".htm" || leading.rfind("<!doctype html", 0) == 0 ||
             leading.rfind("<html", 0) == 0) {

@@ -326,8 +326,23 @@ const englishStrings = {
       mode: string
     ) =>
       `${pane}\nOffset: ${offset}\nValue: 0x${hex} / ${decimal} / ${binary}\nText: ${text}\nClass: ${byteClass}\nMode: ${mode}`,
+    byteTooltipTitle: (
+      pane: string,
+      offset: string,
+      hex: string,
+      decimal: string,
+      binary: string,
+      textLabel: string,
+      text: string,
+      byteClass: string
+    ) =>
+      `${pane}\nOffset: ${offset}\nValue: 0x${hex} / ${decimal} / ${binary}\n${textLabel}: ${text}\nClass: ${byteClass}`,
     externalHighlight: (label: string, source?: string) =>
       source ? `External: ${label} (${source})` : `External: ${label}`,
+    externalHighlightRange: (start: string, end: string) =>
+      `Range: ${start}-${end}`,
+    externalHighlightPosition: (position: number, length: number) =>
+      `Position: byte ${formatNumber(position)} of ${formatNumber(length)}`,
     externalHighlightStale: 'Stale: content changed; reparse to refresh labels',
   },
   inspector: {
