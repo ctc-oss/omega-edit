@@ -193,11 +193,12 @@ button:focus-visible {
   text-transform: uppercase;
 }
 
-.offset-jump-input {
+.offset-jump-input-shell {
+  display: inline-flex;
+  align-items: center;
   width: clamp(86px, 10vw, 132px);
   min-width: 72px;
   height: 26px;
-  padding: 3px 7px;
   border: 1px solid var(--vscode-input-border, var(--vscode-editorGroup-border));
   border-radius: 2px;
   color: var(--vscode-input-foreground);
@@ -205,13 +206,39 @@ button:focus-visible {
   font: inherit;
 }
 
-.offset-jump-input:focus {
+.offset-jump-input-shell:focus-within {
   outline: 1px solid var(--vscode-focusBorder);
   outline-offset: -1px;
 }
 
-.offset-jump-input[aria-invalid='true'] {
+.offset-jump-input-shell.invalid {
   border-color: var(--vscode-inputValidation-errorBorder);
+}
+
+.offset-jump-prefix {
+  flex: none;
+  padding-left: 7px;
+  color: var(--vscode-descriptionForeground);
+  user-select: none;
+}
+
+.offset-jump-input {
+  flex: 1 1 auto;
+  min-width: 0;
+  height: 100%;
+  padding: 3px 7px;
+  border: 0;
+  color: inherit;
+  background: transparent;
+  font: inherit;
+}
+
+.offset-jump-input-shell.hex .offset-jump-input {
+  padding-left: 2px;
+}
+
+.offset-jump-input:focus {
+  outline: none;
 }
 
 .offset-jump-button {
