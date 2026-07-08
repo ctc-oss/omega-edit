@@ -823,7 +823,14 @@ test('compiled extension entrypoints exist after build', () => {
   assert.match(providerJs, /viewportHasMoreMatches:\s*viewport\.hasMore/)
   assert.match(providerSource, /SearchCaseFolding/)
   assert.match(providerSource, /function searchCaseFoldingForTextEncoding/)
-  assert.match(providerSource, /function searchCaseFoldingForRequest/)
+  assert.match(
+    providerSource,
+    /function searchCaseFoldingForRequest\(\s*caseInsensitive: boolean \| undefined,\s*encoding: TextEncoding \| undefined/
+  )
+  assert.doesNotMatch(
+    providerSource,
+    /searchCaseFoldingForRequest\(\s*msg\.isHex/
+  )
   assert.match(
     providerSource,
     /case 'windows-1252':\s*return SearchCaseFolding\.WINDOWS_1252/
@@ -1297,7 +1304,7 @@ test('compiled extension entrypoints exist after build', () => {
   )
   assert.match(svelteAppSource, /type: 'insert'/)
   assert.match(svelteAppSource, /type: 'overwrite'/)
-  assert.match(svelteAppSource, /invalidAsciiByte/)
+  assert.match(svelteAppSource, /invalidTextByte/)
   assert.match(svelteAppSource, /pendingHexLabel/)
   assert.match(
     svelteAppSource,

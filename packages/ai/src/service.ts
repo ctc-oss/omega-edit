@@ -41,6 +41,7 @@ import {
   restoreToChangeCount,
   runSessionTransaction,
   saveSession,
+  SearchCaseFolding,
   searchSession,
   startServer,
   stopServerGraceful,
@@ -341,6 +342,12 @@ function assertNonNegativeInteger(name: string, value: number): void {
   if (!isFiniteInteger(value) || value < 0) {
     throw new Error(`${name} must be a non-negative integer`)
   }
+}
+
+function searchCaseFoldingForRequest(
+  caseInsensitive: boolean | undefined
+): SearchCaseFolding {
+  return caseInsensitive ? SearchCaseFolding.ASCII : SearchCaseFolding.NONE
 }
 
 function parseNonNegativeInt64(value: unknown, name: string): bigint {
@@ -2396,7 +2403,7 @@ export class OmegaEditToolkit {
     const matches = await searchSession(
       request.sessionId,
       pattern,
-      request.caseInsensitive || false,
+      searchCaseFoldingForRequest(request.caseInsensitive),
       request.reverse || false,
       offset,
       length,
@@ -2455,7 +2462,7 @@ export class OmegaEditToolkit {
       request.sessionId,
       pattern,
       replacement,
-      request.caseInsensitive || false,
+      searchCaseFoldingForRequest(request.caseInsensitive),
       request.reverse || false,
       offset,
       length,

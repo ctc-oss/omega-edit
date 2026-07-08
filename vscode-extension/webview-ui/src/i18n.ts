@@ -556,6 +556,17 @@ const localeOverrides: Record<string, LocaleStringOverrides> = {
       showSearchPanelTitle: 'Mostrar buscar y reemplazar',
       hideSearchPanelTitle: 'Ocultar buscar y reemplazar',
     },
+    encoding: {
+      ascii: 'ASCII',
+      windows1252: 'Windows-1252',
+      cp437: 'CP437',
+      ebcdic037: 'EBCDIC',
+      macRoman: 'MacRoman',
+      notRepresentable:
+        'No representable en la codificacion de texto seleccionada',
+      printable: (label: string) => `Imprimible (${label})`,
+      inspectorText: (label: string) => `Texto (${label})`,
+    },
     navigation: {
       offsetLabel: 'Desplazamiento',
       offsetTitleHex: 'Ir al desplazamiento hexadecimal',
@@ -732,6 +743,7 @@ function createStringTable(): WebviewStrings {
   return {
     app: { ...englishStrings.app },
     toolbar: { ...englishStrings.toolbar },
+    encoding: { ...englishStrings.encoding },
     navigation: { ...englishStrings.navigation },
     transform: { ...englishStrings.transform },
     search: { ...englishStrings.search },
@@ -747,6 +759,7 @@ export const strings: WebviewStrings = createStringTable()
 function applyLocaleOverrides(overrides?: LocaleStringOverrides): void {
   Object.assign(strings.app, englishStrings.app, overrides?.app)
   Object.assign(strings.toolbar, englishStrings.toolbar, overrides?.toolbar)
+  Object.assign(strings.encoding, englishStrings.encoding, overrides?.encoding)
   Object.assign(
     strings.navigation,
     englishStrings.navigation,

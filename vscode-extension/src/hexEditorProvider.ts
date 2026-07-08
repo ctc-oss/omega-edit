@@ -779,11 +779,10 @@ function searchCaseFoldingForTextEncoding(
 }
 
 function searchCaseFoldingForRequest(
-  isHex: boolean,
   caseInsensitive: boolean | undefined,
   encoding: TextEncoding | undefined
 ): SearchCaseFolding {
-  if (isHex || !caseInsensitive) {
+  if (!caseInsensitive) {
     return SearchCaseFolding.NONE
   }
   return searchCaseFoldingForTextEncoding(encoding ?? 'ascii')
@@ -6568,7 +6567,6 @@ export class HexEditorProvider
 
         case 'replaceAllMatches': {
           const caseFolding = searchCaseFoldingForRequest(
-            msg.isHex,
             msg.caseInsensitive,
             msg.textEncoding
           )
@@ -6694,7 +6692,6 @@ export class HexEditorProvider
         // --- Search ---
         case 'search': {
           const caseFolding = searchCaseFoldingForRequest(
-            msg.isHex,
             msg.caseInsensitive,
             msg.textEncoding
           )
@@ -6725,7 +6722,6 @@ export class HexEditorProvider
 
         case 'findAdjacentMatch': {
           const caseFolding = searchCaseFoldingForRequest(
-            msg.isHex,
             msg.caseInsensitive,
             msg.textEncoding
           )
