@@ -81,8 +81,6 @@ export interface AssistantSessionContext {
     id: string
     uri: string | null
     filePath: string | null
-    contentType: string | null
-    language: string | null
   }
   sizes: {
     computed: number
@@ -324,7 +322,6 @@ export interface ProfileRangeResult {
   nonAsciiBytes: number
   asciiPercent: number
   dosLineEndings: number
-  contentType: string
   frequency: number[]
   topBytes: ByteFrequencyEntry[]
 }

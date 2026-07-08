@@ -148,8 +148,6 @@ export interface WebviewEditorState extends WebviewEditorUiState {
     flags: number
   }>
   contentSources: WebviewSessionContentInfo[]
-  contentType?: string
-  language?: string
 }
 
 export type WebviewToHostMessage =
@@ -352,8 +350,6 @@ export type HostToWebviewMessage =
       durationMs: number
       byteProfile: number[]
       numAscii: number
-      contentType: string
-      language: string
       characterCount: WebviewCharacterCount
     }
   | { type: 'searchStateCleared' }

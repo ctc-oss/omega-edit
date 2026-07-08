@@ -17,6 +17,7 @@
   "omegaEdit.command.redo.title": "OmegaEdit: Redo",
   "omegaEdit.command.toggleInsertDirection.title": "OmegaEdit: Toggle Insert Direction",
   "omegaEdit.command.setTextEncoding.title": "OmegaEdit: Set Text Encoding",
+  "omegaEdit.command.toggleExperimentalTransformPlugins.title": "OmegaEdit: Toggle Experimental Transform Plugins",
   "omegaEdit.command.refreshTransformPlugins.title": "OmegaEdit: Refresh Transform List",
   "omegaEdit.command.exportChangeLog.title": "OmegaEdit: Export Change Log",
   "omegaEdit.command.previewChangeLog.title": "OmegaEdit: Preview Change Log",

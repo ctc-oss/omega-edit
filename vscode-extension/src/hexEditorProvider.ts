@@ -49,9 +49,7 @@ import {
   getChangeDetails,
   getClientVersion,
   getComputedFileSize,
-  getContentType,
   getCounts,
-  getLanguage,
   getSegment,
   getServerInfo,
   getSessionContentInfo,
@@ -165,8 +163,6 @@ interface EditorSession {
   pendingHistoryOperation?: 'undo' | 'redo'
   pendingHistoryCount?: number
   historyCommandTask?: Promise<void>
-  contentType?: string
-  language?: string
 }
 
 interface ExternalHighlightBaseline {
@@ -4533,8 +4529,6 @@ export class HexEditorProvider
         flags: plugin.flags,
       })),
       contentSources: session.contentSources,
-      contentType: session.contentType,
-      language: session.language,
     }
   }
 
@@ -4565,8 +4559,6 @@ export class HexEditorProvider
         id: session.sessionId,
         uri: session.document.uri.toString(),
         filePath: session.filePath,
-        contentType: session.contentType ?? null,
-        language: session.language ?? null,
       },
       sizes: {
         computed: session.fileSize,
@@ -5111,8 +5103,6 @@ export class HexEditorProvider
         durationMs: 0,
         byteProfile: new Array(257).fill(0),
         numAscii: 0,
-        contentType: '',
-        language: '',
         characterCount: {
           byteOrderMark: 'none',
           byteOrderMarkBytes: 0,
@@ -5139,12 +5129,12 @@ export class HexEditorProvider
     }
 
     const bomName = bom.getByteOrderMark()
-    const contentTypeSampleLength = Math.min(session.fileSize, 16 * 1024)
-    const [characterCount, contentType, language] = await Promise.all([
-      countCharacters(session.sessionId, clampedOffset, clampedLength, bomName),
-      getContentType(session.sessionId, 0, contentTypeSampleLength),
-      getLanguage(session.sessionId, clampedOffset, clampedLength, bomName),
-    ])
+    const characterCount = await countCharacters(
+      session.sessionId,
+      clampedOffset,
+      clampedLength,
+      bomName
+    )
     if (
       session.pendingAnalysisProfile ||
       session.scope.isDisposed ||
@@ -5152,9 +5142,6 @@ export class HexEditorProvider
     ) {
       return
     }
-
-    session.contentType = contentType.getContentType()
-    session.language = language.getLanguage()
 
     this.postWebviewMessage(session, {
       type: 'analysisProfile',
@@ -5167,8 +5154,6 @@ export class HexEditorProvider
       durationMs: Date.now() - startedAt,
       byteProfile,
       numAscii: numAscii(byteProfile),
-      contentType: session.contentType,
-      language: session.language,
       characterCount: {
         byteOrderMark: characterCount.getByteOrderMark(),
         byteOrderMarkBytes: characterCount.getByteOrderMarkBytes(),

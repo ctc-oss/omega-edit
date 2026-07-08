@@ -162,13 +162,6 @@ service EditorService {
     // Detect the byte-order mark (BOM) at the beginning of the session data.
     rpc GetByteOrderMark(GetByteOrderMarkRequest) returns (GetByteOrderMarkResponse);
 
-    // Detect the content/MIME type of a segment of session data.
-    rpc GetContentType(GetContentTypeRequest) returns (GetContentTypeResponse);
-
-    // Detect the natural language of a UTF-encoded text segment, returned as an
-    // ISO 639-1 two-letter code.
-    rpc GetLanguage(GetLanguageRequest) returns (GetLanguageResponse);
-
     // Return one or more counts for a session (file size, changes, undos,
     // viewports, checkpoints, etc.) in a single round-trip.
     rpc GetCount(GetCountRequest) returns (GetCountResponse);
@@ -830,37 +823,6 @@ message GetByteOrderMarkResponse {
     int64 length = 3;     // BOM length in bytes (0, 2, 3, or 4).
     string byte_order_mark =
             4;// Human-readable BOM name: "UTF-8", "UTF-16LE", "UTF-16BE", "UTF-32LE", "UTF-32BE", or "none".
-}
-
-// Request to detect the content/MIME type of a segment.
-message GetContentTypeRequest {
-    string session_id = 1;// Session ID.
-    int64 offset = 2;     // Starting byte offset.
-    int64 length = 3;     // Number of bytes to examine.
-}
-
-// Content/MIME type detection result.
-message GetContentTypeResponse {
-    string session_id = 1;  // Session ID.
-    int64 offset = 2;       // Byte offset where detection started.
-    int64 length = 3;       // Number of bytes examined.
-    string content_type = 4;// Detected MIME type.
-}
-
-// Request to detect the natural language of a text segment.
-message GetLanguageRequest {
-    string session_id = 1;     // Session ID.
-    int64 offset = 2;          // Starting byte offset.
-    int64 length = 3;          // Number of bytes to read.
-    string byte_order_mark = 4;// Encoding hint.
-}
-
-// Natural language detection result.
-message GetLanguageResponse {
-    string session_id = 1;// Session ID.
-    int64 offset = 2;     // Byte offset where detection started.
-    int64 length = 3;     // Number of bytes examined.
-    string language = 4;  // ISO 639-1 two-letter language code.
 }
 
 // Request one or more counts for a session.

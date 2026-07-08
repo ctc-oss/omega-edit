@@ -52,12 +52,10 @@ const {
   ByteOrderMarkResponse,
   ChangeDetailsResponse,
   CharacterCountResponse,
-  ContentTypeResponse,
   CreateSessionResponse,
   EventSubscriptionRequest,
   HeartbeatRequest,
   HeartbeatResponse,
-  LanguageResponse,
   SaveSessionResponse,
   ServerControlRequest,
   ServerControlResponse,
@@ -69,10 +67,8 @@ const {
   wrapByteOrderMarkResponse,
   wrapChangeDetailsResponse,
   wrapCharacterCountResponse,
-  wrapContentTypeResponse,
   wrapCreateSessionResponse,
   wrapHeartbeatResponse,
-  wrapLanguageResponse,
   wrapSaveSessionResponse,
   wrapServerControlResponse,
   wrapServerInfoResponse,
@@ -305,22 +301,6 @@ describe('Proto Compatibility', () => {
     expect(bom.getByteOrderMark()).to.equal('utf-8')
     expect(bom.getByteOrderMarkBytes()).to.equal(3)
 
-    const contentType = new ContentTypeResponse({
-      sessionId: 'sid',
-      offset: 1,
-      length: 2,
-      contentType: 'text/plain',
-    })
-    expect(contentType.getContentType()).to.equal('text/plain')
-
-    const language = new LanguageResponse({
-      sessionId: 'sid',
-      offset: 1,
-      length: 2,
-      language: 'english',
-    })
-    expect(language.getLanguage()).to.equal('english')
-
     const characterCount = new CharacterCountResponse({
       sessionId: 'sid',
       offset: 1,
@@ -452,12 +432,6 @@ describe('Proto Compatibility', () => {
     expect(
       wrapByteOrderMarkResponse(bom.toObject()).getByteOrderMark()
     ).to.equal('utf-8')
-    expect(
-      wrapContentTypeResponse(contentType.toObject()).getContentType()
-    ).to.equal('text/plain')
-    expect(wrapLanguageResponse(language.toObject()).getLanguage()).to.equal(
-      'english'
-    )
     expect(
       wrapCharacterCountResponse(characterCount.toObject()).getInvalidBytes()
     ).to.equal(7)

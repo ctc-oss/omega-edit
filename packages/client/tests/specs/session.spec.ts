@@ -33,9 +33,7 @@ import {
   getClient,
   getChangeCount,
   getComputedFileSize,
-  getContentType,
   getCounts,
-  getLanguage,
   getSegment,
   getSessionBytes,
   getServerHeartbeat,
@@ -458,7 +456,7 @@ describe('Sessions', () => {
     expect(await getSessionCount()).to.equal(0)
   })
 
-  it('Should be able to detect various languages', async () => {
+  it('Should count characters for representative encodings', async () => {
     let testFile = path.join(__dirname, 'data', 'arabic.txt')
     let session = await createSession(testFile)
     let fileSize = await getComputedFileSize(session.getSessionId())
@@ -480,13 +478,6 @@ describe('Sessions', () => {
     expect(charCounts.getTripleByteChars()).to.equal(0)
     expect(charCounts.getQuadByteChars()).to.equal(0)
     expect(charCounts.getInvalidBytes()).to.equal(0)
-    let languageResponse = await getLanguage(
-      session.getSessionId(),
-      0,
-      fileSize,
-      byteOrderMarkResponse.getByteOrderMark()
-    )
-    expect(languageResponse.getLanguage()).to.equal('ar')
     await destroySession(session.getSessionId())
 
     testFile = path.join(__dirname, 'data', 'chinese.txt')
@@ -494,13 +485,6 @@ describe('Sessions', () => {
     fileSize = await getComputedFileSize(session.getSessionId())
     byteOrderMarkResponse = await getByteOrderMark(session.getSessionId())
     expect(byteOrderMarkResponse.getByteOrderMark()).to.equal('none')
-    languageResponse = await getLanguage(
-      session.getSessionId(),
-      0,
-      fileSize,
-      byteOrderMarkResponse.getByteOrderMark()
-    )
-    expect(languageResponse.getLanguage()).to.equal('zh-CN')
     await destroySession(session.getSessionId())
 
     testFile = path.join(__dirname, 'data', 'dutch.txt')
@@ -508,13 +492,6 @@ describe('Sessions', () => {
     fileSize = await getComputedFileSize(session.getSessionId())
     byteOrderMarkResponse = await getByteOrderMark(session.getSessionId())
     expect(byteOrderMarkResponse.getByteOrderMark()).to.equal('none')
-    languageResponse = await getLanguage(
-      session.getSessionId(),
-      0,
-      fileSize,
-      byteOrderMarkResponse.getByteOrderMark()
-    )
-    expect(languageResponse.getLanguage()).to.equal('nl')
     await destroySession(session.getSessionId())
 
     testFile = path.join(__dirname, 'data', 'english.txt')
@@ -522,13 +499,6 @@ describe('Sessions', () => {
     fileSize = await getComputedFileSize(session.getSessionId())
     byteOrderMarkResponse = await getByteOrderMark(session.getSessionId())
     expect(byteOrderMarkResponse.getByteOrderMark()).to.equal('none')
-    languageResponse = await getLanguage(
-      session.getSessionId(),
-      0,
-      fileSize,
-      byteOrderMarkResponse.getByteOrderMark()
-    )
-    expect(languageResponse.getLanguage()).to.equal('en')
     await destroySession(session.getSessionId())
 
     testFile = path.join(__dirname, 'data', 'french.txt')
@@ -536,13 +506,6 @@ describe('Sessions', () => {
     fileSize = await getComputedFileSize(session.getSessionId())
     byteOrderMarkResponse = await getByteOrderMark(session.getSessionId())
     expect(byteOrderMarkResponse.getByteOrderMark()).to.equal('none')
-    languageResponse = await getLanguage(
-      session.getSessionId(),
-      0,
-      fileSize,
-      byteOrderMarkResponse.getByteOrderMark()
-    )
-    expect(languageResponse.getLanguage()).to.equal('fr')
     await destroySession(session.getSessionId())
 
     testFile = path.join(__dirname, 'data', 'german.txt')
@@ -550,13 +513,6 @@ describe('Sessions', () => {
     fileSize = await getComputedFileSize(session.getSessionId())
     byteOrderMarkResponse = await getByteOrderMark(session.getSessionId())
     expect(byteOrderMarkResponse.getByteOrderMark()).to.equal('none')
-    languageResponse = await getLanguage(
-      session.getSessionId(),
-      0,
-      fileSize,
-      byteOrderMarkResponse.getByteOrderMark()
-    )
-    expect(languageResponse.getLanguage()).to.equal('de')
     await destroySession(session.getSessionId())
 
     testFile = path.join(__dirname, 'data', 'greek.txt')
@@ -564,13 +520,6 @@ describe('Sessions', () => {
     fileSize = await getComputedFileSize(session.getSessionId())
     byteOrderMarkResponse = await getByteOrderMark(session.getSessionId())
     expect(byteOrderMarkResponse.getByteOrderMark()).to.equal('none')
-    languageResponse = await getLanguage(
-      session.getSessionId(),
-      0,
-      fileSize,
-      byteOrderMarkResponse.getByteOrderMark()
-    )
-    expect(languageResponse.getLanguage()).to.equal('el')
     charCounts = await countCharacters(
       session.getSessionId(),
       0,
@@ -593,13 +542,6 @@ describe('Sessions', () => {
     fileSize = await getComputedFileSize(session.getSessionId())
     byteOrderMarkResponse = await getByteOrderMark(session.getSessionId())
     expect(byteOrderMarkResponse.getByteOrderMark()).to.equal('UTF-8')
-    languageResponse = await getLanguage(
-      session.getSessionId(),
-      0,
-      fileSize,
-      byteOrderMarkResponse.getByteOrderMark()
-    )
-    expect(languageResponse.getLanguage()).to.equal('el')
     charCounts = await countCharacters(
       session.getSessionId(),
       0,
@@ -623,13 +565,6 @@ describe('Sessions', () => {
     fileSize = await getComputedFileSize(session.getSessionId())
     byteOrderMarkResponse = await getByteOrderMark(session.getSessionId())
     expect(byteOrderMarkResponse.getByteOrderMark()).to.equal('UTF-16LE')
-    languageResponse = await getLanguage(
-      session.getSessionId(),
-      0,
-      fileSize,
-      byteOrderMarkResponse.getByteOrderMark()
-    )
-    expect(languageResponse.getLanguage()).to.equal('el')
     charCounts = await countCharacters(
       session.getSessionId(),
       0,
@@ -653,13 +588,6 @@ describe('Sessions', () => {
     fileSize = await getComputedFileSize(session.getSessionId())
     byteOrderMarkResponse = await getByteOrderMark(session.getSessionId())
     expect(byteOrderMarkResponse.getByteOrderMark()).to.equal('UTF-16BE')
-    languageResponse = await getLanguage(
-      session.getSessionId(),
-      0,
-      fileSize,
-      byteOrderMarkResponse.getByteOrderMark()
-    )
-    expect(languageResponse.getLanguage()).to.equal('el')
     charCounts = await countCharacters(
       session.getSessionId(),
       0,
@@ -683,13 +611,6 @@ describe('Sessions', () => {
     fileSize = await getComputedFileSize(session.getSessionId())
     byteOrderMarkResponse = await getByteOrderMark(session.getSessionId())
     expect(byteOrderMarkResponse.getByteOrderMark()).to.equal('UTF-32LE')
-    languageResponse = await getLanguage(
-      session.getSessionId(),
-      0,
-      fileSize,
-      byteOrderMarkResponse.getByteOrderMark()
-    )
-    expect(languageResponse.getLanguage()).to.equal('el')
     charCounts = await countCharacters(
       session.getSessionId(),
       0,
@@ -732,13 +653,6 @@ describe('Sessions', () => {
     fileSize = await getComputedFileSize(session.getSessionId())
     byteOrderMarkResponse = await getByteOrderMark(session.getSessionId())
     expect(byteOrderMarkResponse.getByteOrderMark()).to.equal('UTF-32BE')
-    languageResponse = await getLanguage(
-      session.getSessionId(),
-      0,
-      fileSize,
-      byteOrderMarkResponse.getByteOrderMark()
-    )
-    expect(languageResponse.getLanguage()).to.equal('el')
     charCounts = await countCharacters(
       session.getSessionId(),
       0,
@@ -762,13 +676,6 @@ describe('Sessions', () => {
     fileSize = await getComputedFileSize(session.getSessionId())
     byteOrderMarkResponse = await getByteOrderMark(session.getSessionId())
     expect(byteOrderMarkResponse.getByteOrderMark()).to.equal('none')
-    languageResponse = await getLanguage(
-      session.getSessionId(),
-      0,
-      fileSize,
-      byteOrderMarkResponse.getByteOrderMark()
-    )
-    expect(languageResponse.getLanguage()).to.equal('hi')
     await destroySession(session.getSessionId())
 
     testFile = path.join(__dirname, 'data', 'italian.txt')
@@ -776,28 +683,13 @@ describe('Sessions', () => {
     fileSize = await getComputedFileSize(session.getSessionId())
     byteOrderMarkResponse = await getByteOrderMark(session.getSessionId())
     expect(byteOrderMarkResponse.getByteOrderMark()).to.equal('none')
-    languageResponse = await getLanguage(
-      session.getSessionId(),
-      0,
-      fileSize,
-      byteOrderMarkResponse.getByteOrderMark()
-    )
-    expect(languageResponse.getLanguage()).to.equal('it')
     await destroySession(session.getSessionId())
 
-    // The short Japanese file is not long enough to be detected as Japanese
     testFile = path.join(__dirname, 'data', 'japanese-short.txt')
     session = await createSession(testFile)
     fileSize = await getComputedFileSize(session.getSessionId())
     byteOrderMarkResponse = await getByteOrderMark(session.getSessionId())
     expect(byteOrderMarkResponse.getByteOrderMark()).to.equal('none')
-    languageResponse = await getLanguage(
-      session.getSessionId(),
-      0,
-      fileSize,
-      byteOrderMarkResponse.getByteOrderMark()
-    )
-    expect(languageResponse.getLanguage()).to.equal('unknown')
     await destroySession(session.getSessionId())
 
     testFile = path.join(__dirname, 'data', 'japanese.txt')
@@ -805,13 +697,6 @@ describe('Sessions', () => {
     fileSize = await getComputedFileSize(session.getSessionId())
     byteOrderMarkResponse = await getByteOrderMark(session.getSessionId())
     expect(byteOrderMarkResponse.getByteOrderMark()).to.equal('none')
-    languageResponse = await getLanguage(
-      session.getSessionId(),
-      0,
-      fileSize,
-      byteOrderMarkResponse.getByteOrderMark()
-    )
-    expect(languageResponse.getLanguage()).to.equal('ja')
     await destroySession(session.getSessionId())
 
     testFile = path.join(__dirname, 'data', 'korean.txt')
@@ -819,13 +704,6 @@ describe('Sessions', () => {
     fileSize = await getComputedFileSize(session.getSessionId())
     byteOrderMarkResponse = await getByteOrderMark(session.getSessionId())
     expect(byteOrderMarkResponse.getByteOrderMark()).to.equal('none')
-    languageResponse = await getLanguage(
-      session.getSessionId(),
-      0,
-      fileSize,
-      byteOrderMarkResponse.getByteOrderMark()
-    )
-    expect(languageResponse.getLanguage()).to.equal('ko')
     await destroySession(session.getSessionId())
 
     testFile = path.join(__dirname, 'data', 'portuguese.txt')
@@ -833,13 +711,6 @@ describe('Sessions', () => {
     fileSize = await getComputedFileSize(session.getSessionId())
     byteOrderMarkResponse = await getByteOrderMark(session.getSessionId())
     expect(byteOrderMarkResponse.getByteOrderMark()).to.equal('none')
-    languageResponse = await getLanguage(
-      session.getSessionId(),
-      0,
-      fileSize,
-      byteOrderMarkResponse.getByteOrderMark()
-    )
-    expect(languageResponse.getLanguage()).to.equal('pt')
     await destroySession(session.getSessionId())
 
     testFile = path.join(__dirname, 'data', 'russian.txt')
@@ -847,13 +718,6 @@ describe('Sessions', () => {
     fileSize = await getComputedFileSize(session.getSessionId())
     byteOrderMarkResponse = await getByteOrderMark(session.getSessionId())
     expect(byteOrderMarkResponse.getByteOrderMark()).to.equal('none')
-    languageResponse = await getLanguage(
-      session.getSessionId(),
-      0,
-      fileSize,
-      byteOrderMarkResponse.getByteOrderMark()
-    )
-    expect(languageResponse.getLanguage()).to.equal('ru')
     await destroySession(session.getSessionId())
 
     testFile = path.join(__dirname, 'data', 'spanish.txt')
@@ -861,13 +725,6 @@ describe('Sessions', () => {
     fileSize = await getComputedFileSize(session.getSessionId())
     byteOrderMarkResponse = await getByteOrderMark(session.getSessionId())
     expect(byteOrderMarkResponse.getByteOrderMark()).to.equal('none')
-    languageResponse = await getLanguage(
-      session.getSessionId(),
-      0,
-      fileSize,
-      byteOrderMarkResponse.getByteOrderMark()
-    )
-    expect(languageResponse.getLanguage()).to.equal('es')
     await destroySession(session.getSessionId())
 
     testFile = path.join(__dirname, 'data', 'swedish.txt')
@@ -875,13 +732,6 @@ describe('Sessions', () => {
     fileSize = await getComputedFileSize(session.getSessionId())
     byteOrderMarkResponse = await getByteOrderMark(session.getSessionId())
     expect(byteOrderMarkResponse.getByteOrderMark()).to.equal('none')
-    languageResponse = await getLanguage(
-      session.getSessionId(),
-      0,
-      fileSize,
-      byteOrderMarkResponse.getByteOrderMark()
-    )
-    expect(languageResponse.getLanguage()).to.equal('sv')
     await destroySession(session.getSessionId())
 
     testFile = path.join(__dirname, 'data', 'empty.txt')
@@ -889,13 +739,6 @@ describe('Sessions', () => {
     fileSize = await getComputedFileSize(session.getSessionId())
     byteOrderMarkResponse = await getByteOrderMark(session.getSessionId())
     expect(byteOrderMarkResponse.getByteOrderMark()).to.equal('none')
-    languageResponse = await getLanguage(
-      session.getSessionId(),
-      0,
-      fileSize,
-      byteOrderMarkResponse.getByteOrderMark()
-    )
-    expect(languageResponse.getLanguage()).to.equal('unknown')
     await destroySession(session.getSessionId())
 
     expect(await getSessionCount()).to.equal(0)
@@ -1178,35 +1021,6 @@ describe('Sessions', () => {
 
     await destroySession(session_id)
     expect(await getSessionCount()).to.equal(0)
-  })
-
-  it('Should detect text and binary content types', async () => {
-    let session = await createSession()
-    let session_id = session.getSessionId()
-
-    await insert(session_id, 0, Buffer.from('Hello, World!\n'))
-    let fileSize = await getComputedFileSize(session_id)
-    expect(fileSize).to.equal(14)
-
-    let contentTypeResponse = await getContentType(session_id, 0, fileSize)
-    expect(contentTypeResponse.getContentType()).to.be.a('string').and.not.be
-      .empty
-
-    await destroySession(session_id)
-
-    session = await createSession()
-    session_id = session.getSessionId()
-    await insert(
-      session_id,
-      0,
-      Buffer.from([0x00, 0x01, 0x02, 0xff, 0xfe, 0xfd])
-    )
-
-    contentTypeResponse = await getContentType(session_id, 0, 6)
-    expect(contentTypeResponse.getContentType()).to.be.a('string').and.not.be
-      .empty
-
-    await destroySession(session_id)
   })
 
   it('Should overwrite existing files when saving edited sessions', async () => {

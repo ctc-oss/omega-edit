@@ -25,8 +25,6 @@ import {
   destroySession,
   getComputedFileSize,
   getClient,
-  getContentType,
-  getLanguage,
   getSegment,
   getServerHeartbeat,
   getSessionCount,
@@ -780,38 +778,6 @@ describe('Server Resource Limits', () => {
       await getSegment(session_id, 0, 2)
       expect.fail(
         'getSegment should reject lengths larger than maxReadSegmentBytes'
-      )
-    } catch (err) {
-      expectResourceExhausted(err, 'configured read segment limit of 1 bytes')
-    }
-  })
-
-  it(`on port ${serverTestPort} should reject content classification reads larger than configured`, async () => {
-    await insert(session_id, 0, Uint8Array.from([0x41]))
-    expect((await getContentType(session_id, 0, 1)).getContentType()).to.be.a(
-      'string'
-    )
-
-    try {
-      await getContentType(session_id, 0, 2)
-      expect.fail(
-        'getContentType should reject lengths larger than maxReadSegmentBytes'
-      )
-    } catch (err) {
-      expectResourceExhausted(err, 'configured read segment limit of 1 bytes')
-    }
-  })
-
-  it(`on port ${serverTestPort} should reject language detection reads larger than configured`, async () => {
-    await insert(session_id, 0, Uint8Array.from([0x41]))
-    expect((await getLanguage(session_id, 0, 1, 'none')).getLanguage()).to.be.a(
-      'string'
-    )
-
-    try {
-      await getLanguage(session_id, 0, 2, 'none')
-      expect.fail(
-        'getLanguage should reject lengths larger than maxReadSegmentBytes'
       )
     } catch (err) {
       expectResourceExhausted(err, 'configured read segment limit of 1 bytes')

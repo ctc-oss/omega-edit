@@ -9,7 +9,10 @@ class OmegaEditTransformPluginsConan(ConanFile):
 
     def requirements(self):
         self.requires("openssl/3.3.2")
+        self.requires("protobuf/5.27.0")
         self.requires("zlib/1.3.1")
+        if self.settings.os != "Windows":
+            self.requires("libmagic/5.45")
 
     def layout(self):
         self.folders.source = "."

@@ -42,7 +42,6 @@ find_package(gRPC CONFIG REQUIRED)
 find_package(Threads REQUIRED)
 
 # ── Resolve protoc and grpc_cpp_plugin executables ────────────────────────────
-# Must happen before FetchCLD3.cmake which uses _PROTOBUF_PROTOC.
 # Try target property first, fall back to find_program.
 # Note: With vcpkg static triplets, tools may be in the non-static triplet directory
 # (e.g., x64-windows/tools/ instead of x64-windows-static/tools/)
@@ -68,37 +67,6 @@ endif()
 
 message(STATUS "Using protoc: ${_PROTOBUF_PROTOC}")
 message(STATUS "Using grpc_cpp_plugin: ${_GRPC_CPP_PLUGIN}")
-
-# CLD3: try vcpkg-style package first, fall back to FetchContent build
-find_package(unofficial-cld3 CONFIG QUIET)
-if(unofficial-cld3_FOUND)
-    message(STATUS "Found CLD3 via vcpkg (unofficial-cld3)")
-    set(CLD3_TARGET unofficial::cld3::cld3)
-else()
-    message(STATUS "CLD3 not found via vcpkg; building from source via FetchContent")
-    include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/FetchCLD3.cmake)
-    set(CLD3_TARGET cld3::cld3)
-endif()
-
-# libmagic: try vcpkg-style package first, fall back to Conan-style, or skip
-# entirely (e.g., Windows CI where libmagic is unavailable via Conan).
-find_package(unofficial-libmagic CONFIG QUIET)
-if(unofficial-libmagic_FOUND)
-    message(STATUS "Found libmagic via vcpkg (unofficial-libmagic)")
-    set(LIBMAGIC_TARGET unofficial::libmagic::libmagic)
-    set(HAS_LIBMAGIC TRUE)
-else()
-    find_package(libmagic CONFIG QUIET)
-    if(libmagic_FOUND)
-        message(STATUS "Found libmagic via Conan")
-        set(LIBMAGIC_TARGET libmagic::libmagic)
-        set(HAS_LIBMAGIC TRUE)
-    else()
-        message(STATUS "libmagic not found — content-type detection will use built-in heuristics")
-        set(LIBMAGIC_TARGET "")
-        set(HAS_LIBMAGIC FALSE)
-    endif()
-endif()
 
 # On Windows with static CRT (vcpkg x64-windows-static), ensure we use /MT
 if(VCPKG_TARGET_TRIPLET MATCHES "static$" AND MSVC)
@@ -173,19 +141,9 @@ set(SERVER_SOURCES
     src/editor_service.h
     src/session_manager.cpp
     src/session_manager.h
-    src/content_detection.cpp
-    src/content_detection.h
-    src/cld3_language_detector.cpp
     ${PROTO_SRCS}
     ${GRPC_SRCS}
 )
-
-# Only compile the libmagic-backed detector when libmagic is available
-if(HAS_LIBMAGIC)
-    list(APPEND SERVER_SOURCES src/libmagic_content_detector.cpp)
-else()
-    list(APPEND SERVER_SOURCES src/stub_content_detector.cpp)
-endif()
 
 add_executable(omega-edit-grpc-server ${SERVER_SOURCES})
 
@@ -209,7 +167,6 @@ if(omega_edit_FOUND)
         ${_GRPC_REFLECTION_LIB}
         protobuf::libprotobuf
         Threads::Threads
-        ${CLD3_TARGET}
     )
 else()
     target_include_directories(omega-edit-grpc-server PRIVATE ${OMEGA_EDIT_INCLUDE})
@@ -219,7 +176,6 @@ else()
         ${_GRPC_REFLECTION_LIB}
         protobuf::libprotobuf
         Threads::Threads
-        ${CLD3_TARGET}
     )
 endif()
 
@@ -227,19 +183,6 @@ endif()
 target_compile_definitions(omega-edit-grpc-server PRIVATE
     "SERVER_VERSION=\"${OMEGA_EDIT_SERVER_VERSION_FULL}\""
 )
-
-# libmagic compile definition and link
-if(HAS_LIBMAGIC)
-    target_compile_definitions(omega-edit-grpc-server PRIVATE HAS_LIBMAGIC)
-    target_link_libraries(omega-edit-grpc-server PRIVATE ${LIBMAGIC_TARGET})
-endif()
-
-# Provide the path to the magic database file for content type detection
-if(HAS_LIBMAGIC AND DEFINED unofficial-libmagic_DICTIONARY)
-    target_compile_definitions(omega-edit-grpc-server PRIVATE
-        "MAGIC_MGC_PATH=\"${unofficial-libmagic_DICTIONARY}\""
-    )
-endif()
 
 # Platform-specific link libraries
 if(WIN32)

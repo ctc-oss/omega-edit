@@ -990,9 +990,7 @@ namespace omega_edit {
                                              std::string transform_plugin_host_path,
                                              bool allow_experimental_transform_plugins,
                                              bool allow_test_transform_plugins)
-            : session_manager_(resource_limits), content_type_detector_(create_default_content_type_detector()),
-              language_detector_(create_default_language_detector()),
-              transform_plugin_registry_(omega_transform_plugin_registry_create()),
+            : session_manager_(resource_limits), transform_plugin_registry_(omega_transform_plugin_registry_create()),
               start_time_(std::chrono::steady_clock::now()), heartbeat_config_(heartbeat_config),
               resource_limits_(resource_limits), shutdown_callback_(std::move(shutdown_callback)) {
             if (!transform_plugin_host_path.empty()) {
@@ -1818,92 +1816,6 @@ namespace omega_edit {
             response->set_offset(request->offset());
             response->set_length(bom_size);
             response->set_byte_order_mark(bom_str);
-            return grpc::Status::OK;
-        }
-
-        grpc::Status EditorServiceImpl::GetContentType(grpc::ServerContext * /*context*/,
-                                                       const ::omega_edit::v1::GetContentTypeRequest *request,
-                                                       ::omega_edit::v1::GetContentTypeResponse *response) {
-            auto request_status = validate_materialized_segment_request(
-                    "content type", request->offset(), request->length(), resource_limits_.max_read_segment_bytes);
-            if (!request_status.ok()) { return request_status; }
-
-            auto locked_session = session_manager_.lock_session(request->session_id());
-            if (!locked_session) {
-                return grpc::Status(grpc::StatusCode::NOT_FOUND, "session not found: " + request->session_id());
-            }
-            auto *session = locked_session.session();
-
-            if (request->length() <= 0) {
-                response->set_session_id(request->session_id());
-                response->set_offset(request->offset());
-                response->set_length(0);
-                response->set_content_type("application/octet-stream");
-                return grpc::Status::OK;
-            }
-            auto segment = std::unique_ptr<omega_segment_t, decltype(&omega_segment_destroy)>(
-                    omega_segment_create(request->length()), omega_segment_destroy);
-            if (!segment) { return grpc::Status(grpc::StatusCode::INTERNAL, "failed to allocate segment"); }
-
-            int result = omega_session_get_segment(session, segment.get(), request->offset());
-            std::string content_type;
-            int64_t actual_length = 0;
-            if (result == 0) {
-                auto *data = omega_segment_get_data(segment.get());
-                actual_length = omega_segment_get_length(segment.get());
-                content_type =
-                        content_type_detector_->detect(data, actual_length, locked_session.info->canonical_file_path);
-            } else {
-                return grpc::Status(grpc::StatusCode::NOT_FOUND, "couldn't get segment");
-            }
-
-            response->set_session_id(request->session_id());
-            response->set_offset(request->offset());
-            response->set_length(actual_length);
-            response->set_content_type(content_type);
-            return grpc::Status::OK;
-        }
-
-        grpc::Status EditorServiceImpl::GetLanguage(grpc::ServerContext * /*context*/,
-                                                    const ::omega_edit::v1::GetLanguageRequest *request,
-                                                    ::omega_edit::v1::GetLanguageResponse *response) {
-            auto request_status = validate_materialized_segment_request(
-                    "language", request->offset(), request->length(), resource_limits_.max_read_segment_bytes);
-            if (!request_status.ok()) { return request_status; }
-
-            auto locked_session = session_manager_.lock_session(request->session_id());
-            if (!locked_session) {
-                return grpc::Status(grpc::StatusCode::NOT_FOUND, "session not found: " + request->session_id());
-            }
-            auto *session = locked_session.session();
-
-            if (request->length() <= 0) {
-                response->set_session_id(request->session_id());
-                response->set_offset(request->offset());
-                response->set_length(0);
-                response->set_language("unknown");
-                return grpc::Status::OK;
-            }
-            auto segment = std::unique_ptr<omega_segment_t, decltype(&omega_segment_destroy)>(
-                    omega_segment_create(request->length()), omega_segment_destroy);
-            if (!segment) { return grpc::Status(grpc::StatusCode::INTERNAL, "failed to allocate segment"); }
-
-            int result = omega_session_get_segment(session, segment.get(), request->offset());
-            std::string language;
-            int64_t actual_length = 0;
-            if (result == 0) {
-                auto *data = omega_segment_get_data(segment.get());
-                actual_length = omega_segment_get_length(segment.get());
-                std::string bom_str = request->byte_order_mark();
-                language = language_detector_->detect(data, actual_length, bom_str);
-            } else {
-                return grpc::Status(grpc::StatusCode::NOT_FOUND, "couldn't get segment");
-            }
-
-            response->set_session_id(request->session_id());
-            response->set_offset(request->offset());
-            response->set_length(actual_length);
-            response->set_language(language);
             return grpc::Status::OK;
         }
 

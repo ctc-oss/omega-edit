@@ -55,6 +55,7 @@ import {
   OMEGA_EDIT_SET_EXTERNAL_HIGHLIGHTS_COMMAND,
   OMEGA_EDIT_ROLLBACK_CHECKPOINT_COMMAND,
   OMEGA_EDIT_SET_TEXT_ENCODING_COMMAND,
+  OMEGA_EDIT_TOGGLE_EXPERIMENTAL_TRANSFORM_PLUGINS_COMMAND,
   OMEGA_EDIT_TOGGLE_INSERT_DIRECTION_COMMAND,
   OMEGA_EDIT_UNDO_COMMAND,
   OMEGA_EDIT_UNLOAD_RANGE_MAP_COMMAND,
@@ -400,6 +401,17 @@ function resolveAllowExperimentalTransformPlugins(
   config: vscode.WorkspaceConfiguration
 ): boolean {
   return config.get<boolean>('allowExperimentalTransformPlugins', false)
+}
+
+function resolveConfigurationUpdateTarget(
+  config: vscode.WorkspaceConfiguration,
+  key: string
+): vscode.ConfigurationTarget {
+  const inspected = config.inspect<unknown>(key)
+  return inspected?.workspaceValue !== undefined ||
+    inspected?.workspaceFolderValue !== undefined
+    ? vscode.ConfigurationTarget.Workspace
+    : vscode.ConfigurationTarget.Global
 }
 
 function isTestRuntime(): boolean {
@@ -964,6 +976,41 @@ export async function activate(
               uri: state.uri,
             })
           : state
+      }
+    )
+  )
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand(
+      OMEGA_EDIT_TOGGLE_EXPERIMENTAL_TRANSFORM_PLUGINS_COMMAND,
+      async () => {
+        const latestConfig = vscode.workspace.getConfiguration('omegaEdit')
+        const enabled = !resolveAllowExperimentalTransformPlugins(latestConfig)
+        await latestConfig.update(
+          'allowExperimentalTransformPlugins',
+          enabled,
+          resolveConfigurationUpdateTarget(
+            latestConfig,
+            'allowExperimentalTransformPlugins'
+          )
+        )
+
+        const reload = vscode.l10n.t('Reload Window')
+        const message = enabled
+          ? vscode.l10n.t(
+              'Experimental OmegaEdit transform plugins will load after the window reloads.'
+            )
+          : vscode.l10n.t(
+              'Experimental OmegaEdit transform plugins will be disabled after the window reloads.'
+            )
+        const selected = await vscode.window.showInformationMessage(
+          message,
+          reload
+        )
+        if (selected === reload) {
+          await vscode.commands.executeCommand('workbench.action.reloadWindow')
+        }
+        return enabled
       }
     )
   )

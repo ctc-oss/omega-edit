@@ -10,7 +10,7 @@
 # implied.  See the License for the specific language governing permissions and limitations under the License.
 
 # FetchCLD3.cmake - Downloads and builds CLD3 (Compact Language Detector v3)
-# from source as a static library.  CLD3 is not available on Conan Center, so
+# from source as a static library. CLD3 is not available on Conan Center, so
 # this module provides an alternative to the vcpkg port.
 #
 # Requires: protobuf (must already be found via find_package)
@@ -30,8 +30,7 @@ if(NOT cld3_POPULATED)
     FetchContent_Populate(cld3)
 endif()
 
-# ── Apply patches that the vcpkg port uses ────────────────────────────────────
-# Patch base.h and utf8statetable.cc: COMPILER_MSVC → _MSC_VER
+# Apply patches used by the vcpkg port.
 file(READ "${cld3_SOURCE_DIR}/src/base.h" _base_h)
 string(REPLACE "COMPILER_MSVC" "_MSC_VER" _base_h "${_base_h}")
 file(WRITE "${cld3_SOURCE_DIR}/src/base.h" "${_base_h}")
@@ -44,7 +43,6 @@ file(READ "${cld3_SOURCE_DIR}/src/sentence_features.h" _sentfeat_h)
 string(REPLACE "COMPILER_MSVC" "_MSC_VER" _sentfeat_h "${_sentfeat_h}")
 file(WRITE "${cld3_SOURCE_DIR}/src/sentence_features.h" "${_sentfeat_h}")
 
-# ── Generate protobuf sources for CLD3 ───────────────────────────────────────
 set(_CLD3_PROTO_DIR "${cld3_SOURCE_DIR}/src")
 set(_CLD3_PROTO_GEN "${CMAKE_CURRENT_BINARY_DIR}/cld3_proto_gen")
 file(MAKE_DIRECTORY "${_CLD3_PROTO_GEN}/cld_3/protos")
@@ -62,6 +60,10 @@ foreach(_proto ${_CLD3_PROTO_FILES})
     list(APPEND _CLD3_PROTO_SRCS "${_CLD3_PROTO_GEN}/cld_3/protos/${_proto_name}.pb.cc")
     list(APPEND _CLD3_PROTO_HDRS "${_CLD3_PROTO_GEN}/cld_3/protos/${_proto_name}.pb.h")
 endforeach()
+set(_CLD3_PROTO_DEPENDS ${_CLD3_PROTO_FILES})
+if(_PROTOBUF_PROTOC_TARGET)
+    list(APPEND _CLD3_PROTO_DEPENDS ${_PROTOBUF_PROTOC_TARGET})
+endif()
 
 add_custom_command(
     OUTPUT ${_CLD3_PROTO_SRCS} ${_CLD3_PROTO_HDRS}
@@ -69,11 +71,10 @@ add_custom_command(
     ARGS --cpp_out=${_CLD3_PROTO_GEN}/cld_3/protos
          -I "${_CLD3_PROTO_DIR}"
          ${_CLD3_PROTO_FILES}
-    DEPENDS ${_CLD3_PROTO_FILES}
+    DEPENDS ${_CLD3_PROTO_DEPENDS}
     COMMENT "Generating CLD3 protobuf sources"
 )
 
-# ── Build CLD3 as a static library ───────────────────────────────────────────
 set(_CLD3_SOURCES
     "${cld3_SOURCE_DIR}/src/base.cc"
     "${cld3_SOURCE_DIR}/src/embedding_feature_extractor.cc"
@@ -103,11 +104,9 @@ set(_CLD3_SOURCES
 )
 
 add_library(cld3_lib STATIC ${_CLD3_SOURCES})
-set_target_properties(cld3_lib PROPERTIES OUTPUT_NAME cld3)
+set_target_properties(cld3_lib PROPERTIES OUTPUT_NAME cld3 POSITION_INDEPENDENT_CODE ON)
 target_compile_features(cld3_lib PUBLIC cxx_std_11)
 
-# Create a wrapper include directory so consumers can use #include <cld3/xxx.h>
-# (mirrors the layout installed by vcpkg's unofficial-cld3 port).
 set(_CLD3_INCLUDE_WRAPPER "${CMAKE_CURRENT_BINARY_DIR}/_cld3_include")
 file(MAKE_DIRECTORY "${_CLD3_INCLUDE_WRAPPER}")
 file(COPY "${cld3_SOURCE_DIR}/src/" DESTINATION "${_CLD3_INCLUDE_WRAPPER}/cld3"
@@ -115,26 +114,23 @@ file(COPY "${cld3_SOURCE_DIR}/src/" DESTINATION "${_CLD3_INCLUDE_WRAPPER}/cld3"
 
 target_include_directories(cld3_lib
     PUBLIC
-        "${cld3_SOURCE_DIR}/src"            # bare includes used inside CLD3 itself
-        "${_CLD3_INCLUDE_WRAPPER}"          # allows #include <cld3/xxx.h>
-        "${_CLD3_PROTO_GEN}"               # CLD3 public headers transitively include generated protos
+        "${cld3_SOURCE_DIR}/src"
+        "${_CLD3_INCLUDE_WRAPPER}"
+        "${_CLD3_PROTO_GEN}"
 )
 
-# Link against protobuf-lite (prefer lite variant for smaller binary)
 if(TARGET protobuf::libprotobuf-lite)
     target_link_libraries(cld3_lib PUBLIC protobuf::libprotobuf-lite)
 else()
     target_link_libraries(cld3_lib PUBLIC protobuf::libprotobuf)
 endif()
 
-# Suppress warnings in third-party code
 if(MSVC)
     target_compile_options(cld3_lib PRIVATE /W0)
 else()
     target_compile_options(cld3_lib PRIVATE -w)
 endif()
 
-# Create a namespaced alias for uniform usage
 add_library(cld3::cld3 ALIAS cld3_lib)
 
 message(STATUS "CLD3 built from source via FetchContent")
