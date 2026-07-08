@@ -50,9 +50,9 @@ std::string omega_session_get_segment_string(const omega_session_t *session_ptr,
 
 omega_search_context_t *omega_search_create_context_string(omega_session_t *session_ptr,
                                                            const std::string_view &pattern, int64_t session_offset,
-                                                           int64_t session_length, bool case_insensitive,
+                                                           int64_t session_length,
+                                                           omega_search_case_folding_t case_folding,
                                                            bool reverse_search) noexcept {
     return omega_search_create_context(session_ptr, pattern.data(), static_cast<int64_t>(pattern.length()),
-                                       session_offset, session_length, case_insensitive ? 1 : 0,
-                                       reverse_search ? 1 : 0);
+                                       session_offset, session_length, case_folding, reverse_search ? 1 : 0);
 }

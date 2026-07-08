@@ -19,6 +19,7 @@
 
 import {
   CountKind,
+  SearchCaseFolding,
   SessionContentSource,
   SessionFingerprintContent,
   type ApplyTransformPluginResponse,
@@ -1317,7 +1318,7 @@ export async function countCharacters(
 export async function searchSession(
   sessionId: string,
   pattern: string | Uint8Array,
-  isCaseInsensitive: boolean = false,
+  caseFolding: SearchCaseFolding = SearchCaseFolding.UNSPECIFIED,
   isReverse: boolean = false,
   offset: number = 0,
   length: number = 0,
@@ -1339,7 +1340,8 @@ export async function searchSession(
     offset: offset,
   }
 
-  if (isCaseInsensitive) request.isCaseInsensitive = true
+  if (caseFolding !== SearchCaseFolding.UNSPECIFIED)
+    request.caseFolding = caseFolding
   if (isReverse) request.isReverse = true
   if (length > 0) request.length = length
   if (limit > 0) request.limit = limit
@@ -1384,7 +1386,7 @@ export async function replaceSessionCheckpointed(
   sessionId: string,
   pattern: string | Uint8Array,
   replacement: string | Uint8Array,
-  isCaseInsensitive: boolean = false,
+  caseFolding: SearchCaseFolding = SearchCaseFolding.UNSPECIFIED,
   offset: number = 0,
   length: number = 0
 ): Promise<ReplaceSessionCheckpointedResponse> {
@@ -1402,7 +1404,7 @@ export async function replaceSessionCheckpointed(
         typeof replacement === 'string'
           ? Buffer.from(replacement)
           : replacement,
-      isCaseInsensitive,
+      caseFolding,
       offset,
       length,
       replacementCount: 0,
@@ -1417,7 +1419,8 @@ export async function replaceSessionCheckpointed(
     offset,
   }
 
-  if (isCaseInsensitive) request.isCaseInsensitive = true
+  if (caseFolding !== SearchCaseFolding.UNSPECIFIED)
+    request.caseFolding = caseFolding
   if (length > 0) request.length = length
 
   debugLog(log, () => ({
@@ -1562,7 +1565,7 @@ export async function replaceSession(
   sessionId: string,
   pattern: string | Uint8Array,
   replacement: string | Uint8Array,
-  isCaseInsensitive: boolean = false,
+  caseFolding: SearchCaseFolding = SearchCaseFolding.UNSPECIFIED,
   isReverse: boolean = false,
   offset: number = 0,
   length: number = 0,
@@ -1584,7 +1587,7 @@ export async function replaceSession(
         typeof replacement === 'string'
           ? Buffer.from(replacement)
           : replacement,
-      isCaseInsensitive,
+      caseFolding,
       isReverse,
       offset,
       length,
@@ -1606,7 +1609,8 @@ export async function replaceSession(
     offset,
   }
 
-  if (isCaseInsensitive) request.isCaseInsensitive = true
+  if (caseFolding !== SearchCaseFolding.UNSPECIFIED)
+    request.caseFolding = caseFolding
   if (isReverse) request.isReverse = true
   if (length > 0) request.length = length
   if (limit > 0) request.limit = limit

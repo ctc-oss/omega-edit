@@ -23,6 +23,7 @@ import type {
   GridEditPane,
   InsertDirection,
   OffsetRadix,
+  TextEncoding,
   WebviewEditMode,
 } from './webviewProtocol'
 
@@ -80,6 +81,7 @@ export interface AssistantSessionContext {
     activePane: GridEditPane | null
     editMode: WebviewEditMode | null
     insertDirection: InsertDirection | null
+    textEncoding: TextEncoding | null
   }
   history: {
     changeCount: number

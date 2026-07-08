@@ -4,6 +4,7 @@
     BytesPerRow,
     HostToWebviewMessage,
     ServerHealthMessage,
+    TextEncoding,
     WebviewExternalHighlight,
     WebviewRangeMapNode,
   } from '../protocol'
@@ -42,6 +43,7 @@
     scrollOffset?: number
     bytesPerRow?: BytesPerRow
     offsetRadix?: OffsetRadix
+    textEncoding?: TextEncoding
     selectedOffset?: number
     selectionStart?: number
     selectionEnd?: number
@@ -116,6 +118,7 @@
     scrollOffset = visibleOffset,
     bytesPerRow = 16,
     offsetRadix = 'hex',
+    textEncoding = 'ascii',
     selectedOffset = -1,
     selectionStart = -1,
     selectionEnd = -1,
@@ -381,6 +384,7 @@
           offset={visibleOffset}
           {bytesPerRow}
           {offsetRadix}
+          {textEncoding}
           {selectedOffset}
           {selectionStart}
           {selectionEnd}
@@ -449,6 +453,7 @@
     {viewportLength}
     {visibleRows}
     {offsetRadix}
+    {textEncoding}
     {visibleBytes}
     {selectedBytes}
     {selectionLength}

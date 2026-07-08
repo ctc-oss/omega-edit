@@ -38,6 +38,7 @@ import {
   replaceSession,
   replaceSessionCheckpointed,
   resetClient,
+  SearchCaseFolding,
   searchSession,
   setLogger,
   startServer,
@@ -647,7 +648,7 @@ describe('Server Resource Limits', () => {
         session_id,
         Uint8Array.from([0x41, 0x42]),
         Uint8Array.from([0x43]),
-        false,
+        SearchCaseFolding.NONE,
         0,
         0
       )
@@ -669,7 +670,7 @@ describe('Server Resource Limits', () => {
       session_id,
       Uint8Array.from([]),
       Uint8Array.from([0x42]),
-      false,
+      SearchCaseFolding.NONE,
       false,
       0,
       0,
@@ -688,7 +689,7 @@ describe('Server Resource Limits', () => {
         session_id,
         Uint8Array.from([0x41, 0x42]),
         Uint8Array.from([0x43]),
-        false,
+        SearchCaseFolding.NONE,
         false,
         0,
         0,
@@ -712,7 +713,7 @@ describe('Server Resource Limits', () => {
         session_id,
         Uint8Array.from([0x41]),
         Uint8Array.from([0x42, 0x43]),
-        false,
+        SearchCaseFolding.NONE,
         0,
         0
       )
@@ -732,7 +733,7 @@ describe('Server Resource Limits', () => {
         session_id,
         Uint8Array.from([0x41]),
         Uint8Array.from([0x42, 0x43]),
-        false,
+        SearchCaseFolding.NONE,
         false,
         0,
         0,
@@ -823,11 +824,27 @@ describe('Server Resource Limits', () => {
     await insert(session_id, 2, Uint8Array.from([0x61]))
 
     expect(
-      await searchSession(session_id, 'a', false, false, 0, 0, 2)
+      await searchSession(
+        session_id,
+        'a',
+        SearchCaseFolding.NONE,
+        false,
+        0,
+        0,
+        2
+      )
     ).deep.equals([0, 1])
 
     try {
-      await searchSession(session_id, 'a', false, false, 0, 0, 0)
+      await searchSession(
+        session_id,
+        'a',
+        SearchCaseFolding.NONE,
+        false,
+        0,
+        0,
+        0
+      )
       expect.fail(
         'searchSession should reject responses larger than maxSearchMatches'
       )
@@ -844,7 +861,7 @@ describe('Server Resource Limits', () => {
         session_id,
         'a',
         'b',
-        false,
+        SearchCaseFolding.NONE,
         false,
         0,
         0,
@@ -864,7 +881,7 @@ describe('Server Resource Limits', () => {
         session_id,
         'a',
         'b',
-        false,
+        SearchCaseFolding.NONE,
         true,
         0,
         0,
@@ -884,7 +901,7 @@ describe('Server Resource Limits', () => {
         session_id,
         'a',
         'b',
-        false,
+        SearchCaseFolding.NONE,
         false,
         0,
         0,

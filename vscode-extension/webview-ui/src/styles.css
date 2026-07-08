@@ -85,7 +85,7 @@ button:focus-visible {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
+  gap: 8px;
   min-width: 0;
   min-height: 38px;
   padding: 6px 8px;
@@ -113,12 +113,49 @@ button:focus-visible {
 .bytes-per-row-control {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 4px;
   min-width: 0;
 }
 
-.bytes-per-row-control .segmented {
-  --segmented-button-width: 44px;
+.toolbar-select-control {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  color: var(--vscode-descriptionForeground);
+  font-size: 11px;
+  letter-spacing: 0;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.toolbar-select {
+  height: 26px;
+  min-width: 0;
+  padding: 2px 20px 2px 6px;
+  border: 1px solid var(--vscode-dropdown-border, var(--vscode-editorGroup-border));
+  border-radius: 2px;
+  color: var(--vscode-dropdown-foreground);
+  background: var(--vscode-dropdown-background);
+  font: inherit;
+  text-transform: none;
+}
+
+.toolbar-select:focus {
+  outline: 1px solid var(--vscode-focusBorder);
+  outline-offset: -1px;
+}
+
+.bytes-per-row-select {
+  width: 74px;
+}
+
+.offset-radix-select {
+  width: 68px;
+}
+
+.text-encoding-select {
+  width: clamp(104px, 11vw, 144px);
 }
 
 .bytes-per-row-input {

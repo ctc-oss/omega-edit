@@ -3,6 +3,7 @@ import type { AssistantSessionContext } from './assistantContext'
 import type {
   ExternalHighlightKind,
   InsertDirection,
+  TextEncoding,
   WebviewEditorState,
   WebviewExternalHighlight,
 } from './webviewProtocol'
@@ -17,6 +18,7 @@ export type OmegaEditExternalHighlightKind = ExternalHighlightKind
 export type OmegaEditExternalHighlight = WebviewExternalHighlight
 export type OmegaEditEditorState = WebviewEditorState
 export type OmegaEditInsertDirection = InsertDirection
+export type OmegaEditTextEncoding = TextEncoding
 export type OmegaEditAssistantContext = AssistantSessionContext
 
 export interface OmegaEditEditorSelector {

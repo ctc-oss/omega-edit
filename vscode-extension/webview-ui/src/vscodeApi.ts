@@ -2,6 +2,7 @@ import type {
   WebviewExternalHighlight,
   WebviewRangeMapNode,
   WebviewToHostMessage,
+  TextEncoding,
 } from './protocol'
 
 export interface PersistedViewportSnapshot {
@@ -17,6 +18,7 @@ export interface PersistedPreviewState {
   bytesPerRow?: number
   bytesPerRowMode?: 'fixed' | 'auto'
   offsetRadix?: 'hex' | 'dec'
+  textEncoding?: TextEncoding
   insertDirection?: 'forward' | 'backward'
   searchPanelVisible?: boolean
   profilerExpanded?: boolean
