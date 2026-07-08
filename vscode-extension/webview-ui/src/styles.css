@@ -525,9 +525,11 @@ button:focus-visible {
 
 .transform-action-heading {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 6px;
   min-width: 0;
+  row-gap: 3px;
 }
 
 .transform-action-name {
@@ -555,10 +557,9 @@ button:focus-visible {
   display: inline-flex;
   flex: 0 0 auto;
   align-items: center;
-  max-width: 13ch;
+  min-width: max-content;
   height: 16px;
   padding: 0 5px;
-  overflow: hidden;
   border: 1px solid var(--vscode-editorGroup-border);
   border-radius: 3px;
   color: var(--vscode-descriptionForeground);
@@ -566,7 +567,6 @@ button:focus-visible {
   font-weight: 600;
   letter-spacing: 0;
   line-height: 1;
-  text-overflow: ellipsis;
   text-transform: uppercase;
   white-space: nowrap;
 }

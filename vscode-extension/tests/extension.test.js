@@ -1666,6 +1666,16 @@ test('compiled extension entrypoints exist after build', () => {
   assert.match(transformPanelSource, /class="transform-action-input"/)
   assert.match(transformPanelSource, /class="transform-action-menu"/)
   assert.match(svelteStylesSource, /\.transform-support-badge/)
+  const supportBadgeRule =
+    svelteStylesSource.match(/\.transform-support-badge\s*\{[^}]+\}/)?.[0] ?? ''
+  assert.match(supportBadgeRule, /min-width:\s*max-content/)
+  assert.doesNotMatch(supportBadgeRule, /max-width:/)
+  assert.doesNotMatch(supportBadgeRule, /overflow:\s*hidden/)
+  assert.doesNotMatch(supportBadgeRule, /text-overflow:/)
+  assert.match(
+    svelteStylesSource,
+    /\.transform-action-heading\s*\{[^}]+flex-wrap:\s*wrap/
+  )
   assert.match(svelteStylesSource, /\.transform-dialog-title/)
   assert.match(i18nSource, /supportExperimental:\s*['"]Experimental['"]/)
   assert.match(transformPanelSource, /actionQuery\.trim\(\)\.length === 0/)
