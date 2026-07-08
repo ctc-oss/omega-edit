@@ -116,23 +116,39 @@ function doctor() {
     checks.push(
       { command: 'xcode-select', args: ['-p'] },
       { command: 'xcrun', args: ['--find', 'clang++'] },
-      { command: 'xcrun', args: ['--show-sdk-path'] }
+      { command: 'xcrun', args: ['--show-sdk-path'] },
+      {
+        label: 'Apple C++17 standard headers',
+        probe: probeAppleCxx17Headers,
+      }
     )
   }
 
   let failed = false
   for (const check of checks) {
+    if (check.probe) {
+      const result = check.probe()
+      if (result.ok) {
+        console.log(`OK   ${check.label}`)
+      } else {
+        failed = true
+        console.log(`FAIL ${check.label}`)
+        console.log(result.message)
+      }
+      continue
+    }
+
     const { command, args, minVersion } = check
     const result = runMaybe(command, args, repoRoot, { stdio: 'pipe' })
     const output = `${result.stdout || ''}${result.stderr || ''}`.trim()
 
     if (result.error || result.status !== 0) {
       failed = true
-      console.error(`FAIL ${formatCommand(command, args)}`)
+      console.log(`FAIL ${formatCommand(command, args)}`)
       if (result.error) {
-        console.error(result.error.message)
+        console.log(result.error.message)
       } else if (output) {
-        console.error(output)
+        console.log(output)
       }
       continue
     }
@@ -140,8 +156,8 @@ function doctor() {
     const version = minVersion ? parseVersion(output) : null
     if (minVersion && (!version || compareVersions(version, minVersion) < 0)) {
       failed = true
-      console.error(`FAIL ${formatCommand(command, args)}`)
-      console.error(
+      console.log(`FAIL ${formatCommand(command, args)}`)
+      console.log(
         `Requires ${formatVersion(minVersion)} or newer; found ${version ? formatVersion(version) : 'unknown version'}.`
       )
       continue
@@ -307,7 +323,20 @@ function testVSCodeExtensionIntegration() {
 }
 
 function packageVSCodeExtension() {
-  run('npm', ['run', 'package:vsix'], extensionDir)
+  ensureVSCodePackagingNodeVersion()
+
+  const restorePackageJson = usePackagedVSCodeDependencySpecs()
+  const result = runMaybe('npm', ['run', 'package:vsix'], extensionDir)
+  restorePackageJson()
+
+  if (result.error) {
+    console.error(result.error)
+    process.exit(1)
+  }
+
+  if (result.status !== 0) {
+    process.exit(result.status ?? 1)
+  }
 }
 
 function installLocalVSCodePackages() {
@@ -317,6 +346,8 @@ function installLocalVSCodePackages() {
       'install',
       '--no-save',
       '--package-lock=false',
+      '--no-audit',
+      '--fund=false',
       packageTarball('server', 'omega-edit-node-server'),
       packageTarball('client', 'omega-edit-node-client'),
     ],
@@ -361,6 +392,38 @@ function packageTarball(workspaceName, packageStem) {
   }
 
   return tarballPath
+}
+
+function usePackagedVSCodeDependencySpecs() {
+  const packageJsonPath = path.join(extensionDir, 'package.json')
+  const original = fs.readFileSync(packageJsonPath, 'utf8')
+  const packageJson = JSON.parse(original)
+
+  packageJson.dependencies = {
+    ...packageJson.dependencies,
+    '@omega-edit/client': version,
+  }
+
+  fs.writeFileSync(packageJsonPath, `${JSON.stringify(packageJson, null, 2)}\n`)
+
+  return () => {
+    fs.writeFileSync(packageJsonPath, original)
+  }
+}
+
+function ensureVSCodePackagingNodeVersion() {
+  const minimum = [20, 18, 1]
+  const current = parseVersion(process.version)
+
+  if (current && compareVersions(current, minimum) >= 0) {
+    return
+  }
+
+  console.error(
+    `VS Code extension packaging requires Node ${formatVersion(minimum)} or newer; found ${process.version}.`
+  )
+  console.error('Use a Node 20.18+ shell, then rerun yarn vscode:package.')
+  process.exit(1)
 }
 
 function run(command, args, cwd, options = {}) {
@@ -476,4 +539,47 @@ function compareVersions(left, right) {
 
 function formatVersion(version) {
   return version.join('.')
+}
+
+function probeAppleCxx17Headers() {
+  const source = [
+    '#include <cstdint>',
+    '#include <filesystem>',
+    '#include <optional>',
+    '#include <variant>',
+    'int main() { std::optional<int> value = 1; return *value; }',
+    '',
+  ].join('\n')
+  const result = spawnSync(
+    resolveCommand('xcrun'),
+    ['clang++', '-x', 'c++', '-std=c++17', '-fsyntax-only', '-'],
+    {
+      cwd: repoRoot,
+      input: source,
+      encoding: 'utf8',
+      shell: false,
+    }
+  )
+
+  if (result.status === 0) {
+    return { ok: true }
+  }
+
+  const output = `${result.stderr || ''}${result.stdout || ''}`.trim()
+  return {
+    ok: false,
+    message: [
+      'Apple clang++ could not compile a minimal C++17 standard-header probe.',
+      'This usually means the selected Xcode Command Line Tools install is incomplete or mismatched.',
+      firstDiagnosticLine(output),
+    ]
+      .filter(Boolean)
+      .join('\n'),
+  }
+}
+
+function firstDiagnosticLine(output) {
+  return output
+    .split(/\r?\n/)
+    .find((line) => /fatal error:|error:/.test(line))
 }

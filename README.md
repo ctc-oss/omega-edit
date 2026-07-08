@@ -186,6 +186,8 @@ unset SDKROOT CPATH CPLUS_INCLUDE_PATH C_INCLUDE_PATH
 yarn dev:doctor
 ```
 
+If `yarn dev:doctor` reports that Apple C++17 standard headers are missing, reinstall the Command Line Tools or switch to a complete Xcode install. A broken Command Line Tools install can still provide `clang++` and an SDK path while missing most files under `/Library/Developer/CommandLineTools/usr/include/c++/v1`.
+
 ### Quick Tool Check
 
 These commands should all succeed before running `yarn native` or `yarn vscode:setup`:

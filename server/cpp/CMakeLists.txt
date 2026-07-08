@@ -43,16 +43,67 @@ find_package(Threads REQUIRED)
 
 # ── Resolve protoc and grpc_cpp_plugin executables ────────────────────────────
 # Try target property first, fall back to find_program.
+# Must happen before FetchCLD3.cmake which uses _PROTOBUF_PROTOC.
+# Prefer package-manager tool paths before PATH so generated protobuf code
+# matches the protobuf headers used for compilation.
 # Note: With vcpkg static triplets, tools may be in the non-static triplet directory
 # (e.g., x64-windows/tools/ instead of x64-windows-static/tools/)
 string(REGEX REPLACE "-static$" "" _VCPKG_TOOL_TRIPLET "${VCPKG_TARGET_TRIPLET}")
 
-get_target_property(_PROTOBUF_PROTOC protobuf::protoc IMPORTED_LOCATION)
+set(_PROTOBUF_PROTOC_CANDIDATES "")
+
+foreach(_protobuf_config IN ITEMS "${CMAKE_BUILD_TYPE}" Release Debug RelWithDebInfo MinSizeRel)
+    if(_protobuf_config)
+        string(TOUPPER "${_protobuf_config}" _protobuf_config_upper)
+        if(DEFINED protobuf_PACKAGE_FOLDER_${_protobuf_config_upper})
+            list(APPEND _PROTOBUF_PROTOC_CANDIDATES
+                "${protobuf_PACKAGE_FOLDER_${_protobuf_config_upper}}/bin/protoc${CMAKE_EXECUTABLE_SUFFIX}")
+        endif()
+    endif()
+endforeach()
+
+list(APPEND _PROTOBUF_PROTOC_CANDIDATES
+    "${_VCPKG_INSTALLED_DIR}/${_VCPKG_TOOL_TRIPLET}/tools/protobuf/protoc${CMAKE_EXECUTABLE_SUFFIX}"
+    "${_VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/tools/protobuf/protoc${CMAKE_EXECUTABLE_SUFFIX}")
+
+if(TARGET protobuf::protoc)
+    get_target_property(_PROTOBUF_PROTOC protobuf::protoc IMPORTED_LOCATION)
+endif()
+
+foreach(_protoc_candidate ${_PROTOBUF_PROTOC_CANDIDATES})
+    if(EXISTS "${_protoc_candidate}")
+        set(_PROTOBUF_PROTOC "${_protoc_candidate}")
+        break()
+    endif()
+endforeach()
+
 if(NOT _PROTOBUF_PROTOC OR _PROTOBUF_PROTOC STREQUAL "_PROTOBUF_PROTOC-NOTFOUND")
-    find_program(_PROTOBUF_PROTOC protoc
-        HINTS "${_VCPKG_INSTALLED_DIR}/${_VCPKG_TOOL_TRIPLET}/tools/protobuf"
-              "${_VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/tools/protobuf"
-        REQUIRED)
+    if(Protobuf_PROTOC_EXECUTABLE)
+        set(_PROTOBUF_PROTOC "${Protobuf_PROTOC_EXECUTABLE}")
+    else()
+        find_program(_PROTOBUF_PROTOC protoc REQUIRED)
+    endif()
+endif()
+
+execute_process(
+    COMMAND "${_PROTOBUF_PROTOC}" --version
+    OUTPUT_VARIABLE _PROTOBUF_PROTOC_VERSION_OUTPUT
+    ERROR_VARIABLE _PROTOBUF_PROTOC_VERSION_ERROR
+    RESULT_VARIABLE _PROTOBUF_PROTOC_VERSION_RESULT
+    OUTPUT_STRIP_TRAILING_WHITESPACE
+    ERROR_STRIP_TRAILING_WHITESPACE)
+if(NOT _PROTOBUF_PROTOC_VERSION_RESULT EQUAL 0)
+    message(FATAL_ERROR "Could not run protoc at ${_PROTOBUF_PROTOC}: ${_PROTOBUF_PROTOC_VERSION_ERROR}")
+endif()
+
+if(Protobuf_VERSION MATCHES "^[0-9]+\\.([0-9]+)\\.([0-9]+)")
+    set(_PROTOBUF_EXPECTED_PROTOC_VERSION "${CMAKE_MATCH_1}.${CMAKE_MATCH_2}")
+    if(NOT _PROTOBUF_PROTOC_VERSION_OUTPUT MATCHES "libprotoc ${_PROTOBUF_EXPECTED_PROTOC_VERSION}([^0-9.]|$)")
+        message(FATAL_ERROR
+            "protoc version mismatch: ${_PROTOBUF_PROTOC} reports '${_PROTOBUF_PROTOC_VERSION_OUTPUT}', "
+            "but protobuf headers are ${Protobuf_VERSION}. "
+            "Use the protoc from the same package manager as protobuf.")
+    endif()
 endif()
 
 if(TARGET gRPC::grpc_cpp_plugin)
