@@ -595,6 +595,10 @@ test('compiled extension entrypoints exist after build', () => {
     path.resolve(__dirname, '../webview-ui/src/components/PreviewGrid.svelte'),
     'utf8'
   )
+  const byteTooltipSource = fs.readFileSync(
+    path.resolve(__dirname, '../webview-ui/src/components/ByteTooltip.svelte'),
+    'utf8'
+  )
   const fileScrollbarSource = fs.readFileSync(
     path.resolve(
       __dirname,
@@ -660,6 +664,7 @@ test('compiled extension entrypoints exist after build', () => {
   const svelteComponentSources = [
     ['App.svelte', svelteAppSource],
     ['PreviewGrid.svelte', previewGridSource],
+    ['ByteTooltip.svelte', byteTooltipSource],
     ['FileScrollbar.svelte', fileScrollbarSource],
     ['Toolbar.svelte', toolbarSource],
     ['OffsetJump.svelte', offsetJumpSource],
@@ -1009,6 +1014,12 @@ test('compiled extension entrypoints exist after build', () => {
   assert.match(svelteBundleCss, /\.byte\.externalRangeEnd/)
   assert.match(svelteBundleCss, /\.byte\.externalHighlightHovered/)
   assert.match(svelteBundleCss, /\.byte\.externalStale/)
+  assert.match(svelteBundleCss, /\.byte-tooltip/)
+  assert.match(svelteBundleCss, /\.byte-tooltip\.showAccent/)
+  assert.match(
+    svelteBundleCss,
+    /\.byte-tooltip\.showAccent:before[\s\S]*var\(--omega-external-highlight-accent\)/
+  )
   assert.match(svelteBundleCss, /\.byte\[data-external-color="0"\]/)
   assert.match(svelteBundleCss, /\.byte\[data-external-color="11"\]/)
   assert.match(svelteBundleCss, /--omega-external-highlight-accent/)
@@ -1475,7 +1486,17 @@ test('compiled extension entrypoints exist after build', () => {
   assert.match(previewGridSource, /function formatTooltipText/)
   assert.match(previewGridSource, /function byteClassLabel/)
   assert.match(previewGridSource, /function formatByteHoverTitle/)
+  assert.match(previewGridSource, /function formatByteTooltipTitle/)
   assert.match(previewGridSource, /strings\.grid\.byteHoverTitle/)
+  assert.match(previewGridSource, /strings\.grid\.byteTooltipTitle/)
+  assert.match(previewGridSource, /textEncodingLabel\(\)/)
+  assert.match(
+    previewGridSource,
+    /if \(!highlight\) \{\s*return baseTitle\s*\}/
+  )
+  assert.match(previewGridSource, /strings\.grid\.externalHighlightRange/)
+  assert.match(previewGridSource, /strings\.grid\.externalHighlightPosition/)
+  assert.match(previewGridSource, /const bytePosition = Math\.max/)
   assert.match(previewGridSource, /strings\.grid\.notPrintable/)
   assert.match(previewGridSource, /offsetRadix/)
   assert.match(previewGridSource, /function formatColumnOffset/)
@@ -1503,6 +1524,20 @@ test('compiled extension entrypoints exist after build', () => {
   assert.match(previewGridSource, /hoveredExternalHighlightId/)
   assert.match(previewGridSource, /function hashExternalHighlightId/)
   assert.match(previewGridSource, /function externalHighlightColorSlot/)
+  assert.match(previewGridSource, /import ByteTooltip/)
+  assert.match(previewGridSource, /<ByteTooltip/)
+  assert.match(previewGridSource, /showAccent=\{!!externalHighlight\}/)
+  assert.doesNotMatch(previewGridSource, /title=\{externalHighlight/)
+  assert.match(
+    previewGridSource,
+    /strings\.grid\.externalHighlight\(\s*highlight\.label\s*\)/
+  )
+  assert.match(byteTooltipSource, /class="byte-tooltip"/)
+  assert.match(byteTooltipSource, /class:alignRight/)
+  assert.match(byteTooltipSource, /class:below/)
+  assert.match(byteTooltipSource, /class:showAccent/)
+  assert.match(byteTooltipSource, /aria-hidden="true"/)
+  assert.match(byteTooltipSource, /title\.split\('\\n'\)/)
   assert.match(previewGridSource, /function isExternalRangeStart/)
   assert.match(previewGridSource, /function isExternalRangeEnd/)
   assert.match(previewGridSource, /function isExternalHighlightHovered/)
@@ -1528,7 +1563,8 @@ test('compiled extension entrypoints exist after build', () => {
   assert.match(previewGridSource, /role="gridcell"/)
   assert.match(previewGridSource, /aria-selected/)
   assert.match(previewGridSource, /aria-label=\{byteTitle\}/)
-  assert.match(previewGridSource, /title=\{byteTitle\}/)
+  assert.match(previewGridSource, /<ByteTooltip[\s\S]*formatByteTooltipTitle/)
+  assert.doesNotMatch(previewGridSource, /\s+title=\{byteTitle\}/)
   assert.match(previewGridSource, /searchStart/)
   assert.match(previewGridSource, /class:searchHit/)
   assert.match(previewGridSource, /class="text-byte"/)
@@ -1540,6 +1576,10 @@ test('compiled extension entrypoints exist after build', () => {
   assert.match(i18nSource, /export function formatNumber/)
   assert.match(i18nSource, /es: \{/)
   assert.match(i18nSource, /byteHoverTitle/)
+  assert.match(i18nSource, /byteTooltipTitle/)
+  assert.match(i18nSource, /\$\{textLabel\}: \$\{text\}/)
+  assert.match(i18nSource, /externalHighlightRange/)
+  assert.match(i18nSource, /externalHighlightPosition/)
   assert.match(i18nSource, /HEX Byte/)
   assert.match(
     i18nSource,
