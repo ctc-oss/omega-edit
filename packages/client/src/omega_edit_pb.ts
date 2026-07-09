@@ -253,10 +253,6 @@ export class ServerControlResponse {
     return this.response_.pid
   }
 
-  getResponseCode(): number {
-    return this.response_.responseCode
-  }
-
   getStatus(): ServerControlStatus | undefined {
     return this.response_.status
   }
@@ -291,8 +287,8 @@ export class HeartbeatResponse {
     return this.response_.cpuCount
   }
 
-  getCpuLoadAverage(): number | undefined {
-    return this.response_.loadAverage ?? this.response_.cpuLoadAverage
+  getLoadAverage(): number | undefined {
+    return this.response_.loadAverage
   }
 
   getResidentMemoryBytes(): number | undefined {

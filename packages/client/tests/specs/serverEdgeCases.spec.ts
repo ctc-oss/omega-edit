@@ -47,6 +47,7 @@ const {
   startServer,
   startServerHeartbeatLoop,
   startServerUnixSocket,
+  ServerControlStatus,
   stopProcessUsingPID,
   stopServiceOnPort,
   stopServerImmediate,
@@ -150,8 +151,8 @@ describe('Server Edge Cases', () => {
       expect(heartbeat.latency).to.be.greaterThanOrEqual(0)
       expect(heartbeat.sessionCount).to.equal(0)
       expect(heartbeat.serverCpuCount).to.be.greaterThanOrEqual(0)
-      if (heartbeat.serverCpuLoadAverage !== undefined) {
-        expect(heartbeat.serverCpuLoadAverage).to.be.a('number')
+      if (heartbeat.serverLoadAverage !== undefined) {
+        expect(heartbeat.serverLoadAverage).to.be.a('number')
       }
       if (heartbeat.serverResidentMemoryBytes !== undefined) {
         expect(heartbeat.serverResidentMemoryBytes).to.be.greaterThanOrEqual(0)
@@ -168,7 +169,7 @@ describe('Server Edge Cases', () => {
         expect(heartbeat.serverVirtualMemoryBytes).to.equal(undefined)
       }
 
-      expect((await stopServerImmediate()).responseCode).to.equal(0)
+      expect((await stopServerImmediate()).status).to.equal('completed')
       for (let attempt = 0; attempt < 30; attempt += 1) {
         await delay(100)
         if (await stopServiceOnPort(port as number)) {
@@ -243,7 +244,7 @@ describe('Server Edge Cases', () => {
     }
   })
 
-  it('should leave deprecated native server health fields at protobuf defaults', async () => {
+  it('should expose native server health fields through current protobuf fields', async () => {
     const port = await findFirstAvailablePort(9200, 9300)
     expect(port).to.not.equal(null)
 
@@ -266,10 +267,9 @@ describe('Server Edge Cases', () => {
           })
         }
       )
-
-      expect(serverInfo.jvmVersion).to.equal('')
-      expect(serverInfo.jvmVendor).to.equal('')
-      expect(serverInfo.jvmPath).to.equal('')
+      expect(serverInfo.runtimeKind).to.equal('native')
+      expect(serverInfo.runtimeName).to.be.a('string').and.not.be.empty
+      expect(serverInfo.availableProcessors).to.be.greaterThan(0)
 
       const heartbeat = await new Promise<Record<string, any>>(
         (resolve, reject) => {
@@ -289,16 +289,11 @@ describe('Server Edge Cases', () => {
       )
       const wrappedHeartbeat = await getServerHeartbeat([])
 
-      expect(heartbeat.maxMemory).to.equal(0)
-      expect(heartbeat.committedMemory).to.equal(0)
-      expect(heartbeat.usedMemory).to.equal(0)
       if (heartbeat.loadAverage === undefined) {
-        expect(heartbeat.cpuLoadAverage).to.equal(0)
-        expect(wrappedHeartbeat.serverCpuLoadAverage).to.equal(undefined)
+        expect(wrappedHeartbeat.serverLoadAverage).to.equal(undefined)
       } else {
-        expect(heartbeat.cpuLoadAverage).to.equal(heartbeat.loadAverage)
-        expect(wrappedHeartbeat.serverCpuLoadAverage).to.not.equal(undefined)
-        expect(wrappedHeartbeat.serverCpuLoadAverage).to.be.a('number')
+        expect(wrappedHeartbeat.serverLoadAverage).to.not.equal(undefined)
+        expect(wrappedHeartbeat.serverLoadAverage).to.be.a('number')
       }
     } finally {
       await stopServiceOnPort(port as number, 'SIGKILL')
@@ -334,7 +329,7 @@ describe('Server Edge Cases', () => {
       const serverInfo = await getServerInfo()
       expect(serverInfo.serverProcessId).to.equal(pid)
 
-      expect((await stopServerImmediate()).responseCode).to.equal(0)
+      expect((await stopServerImmediate()).status).to.equal('completed')
       for (let attempt = 0; attempt < 30; attempt += 1) {
         await delay(100)
         if (!pidIsRunning(pid as number)) {
@@ -384,7 +379,6 @@ describe('Server Edge Cases', () => {
       expect((await getServerInfo()).serverProcessId).to.equal(udsPid)
 
       const stopResponse = await stopServerImmediate()
-      expect(stopResponse.responseCode).to.equal(0)
       expect(stopResponse.status).to.equal('completed')
       expect(stopResponse.serverProcessId).to.equal(udsPid)
     } finally {
@@ -708,12 +702,12 @@ describe('Server Edge Cases', () => {
     )
 
     try {
-      expect((await serverModule.stopServerImmediate()).responseCode).to.equal(
-        -1
+      expect((await serverModule.stopServerImmediate()).status).to.equal(
+        'unknown'
       )
       errorMessage = 'INTERNAL: unavailable'
-      expect((await serverModule.stopServerImmediate()).responseCode).to.equal(
-        -1
+      expect((await serverModule.stopServerImmediate()).status).to.equal(
+        'unknown'
       )
     } finally {
       restoreGetClient()
@@ -741,14 +735,12 @@ describe('Server Edge Cases', () => {
 
     try {
       const cancelledResponse = await serverModule.stopServerImmediate()
-      expect(cancelledResponse.responseCode).to.equal(-1)
       expect(cancelledResponse.serverProcessId).to.equal(-1)
       expect(cancelledResponse.status).to.equal('unknown')
 
       grpcCode = GrpcStatus.UNKNOWN
 
       const unknownResponse = await serverModule.stopServerImmediate()
-      expect(unknownResponse.responseCode).to.equal(-1)
       expect(unknownResponse.serverProcessId).to.equal(-1)
       expect(unknownResponse.status).to.equal('unknown')
     } finally {
@@ -756,7 +748,8 @@ describe('Server Edge Cases', () => {
     }
   })
 
-  it('should return nonzero shutdown response codes from the RPC client', async () => {
+  it('should report explicit shutdown statuses from the RPC client', async () => {
+    let status: number = ServerControlStatus.COMPLETED
     const restoreGetClient = overrideProperty(
       clientModule as Record<string, any>,
       'getClient',
@@ -765,16 +758,12 @@ describe('Server Edge Cases', () => {
           _request: unknown,
           callback: (
             err: null,
-            response: { getResponseCode(): number; getStatus(): number }
+            response: { pid: number; status: number }
           ) => void
         ) {
           callback(null, {
-            getResponseCode() {
-              return 7
-            },
-            getStatus() {
-              return 0
-            },
+            pid: 321,
+            status,
           })
         },
       })
@@ -782,14 +771,20 @@ describe('Server Edge Cases', () => {
 
     try {
       const response = await serverModule.stopServerImmediate()
-      expect(response.responseCode).to.equal(7)
-      expect(response.status).to.equal('unknown')
+      expect(response.serverProcessId).to.equal(321)
+      expect(response.status).to.equal('completed')
+
+      status = ServerControlStatus.DRAINING
+      const drainingResponse = await serverModule.stopServerGraceful()
+      expect(drainingResponse.serverProcessId).to.equal(321)
+      expect(drainingResponse.status).to.equal('draining')
     } finally {
       restoreGetClient()
     }
   })
 
-  it('should treat missing shutdown status with nonzero response codes as unknown', async () => {
+  it('should treat missing or unspecified shutdown status as unknown', async () => {
+    let responseStatus: number | undefined = ServerControlStatus.UNSPECIFIED
     const restoreGetClient = overrideProperty(
       clientModule as Record<string, any>,
       'getClient',
@@ -798,16 +793,12 @@ describe('Server Edge Cases', () => {
           _request: unknown,
           callback: (
             err: null,
-            response: { getResponseCode(): number; getPid(): number }
+            response: { pid: number; status?: number }
           ) => void
         ) {
           callback(null, {
-            getResponseCode() {
-              return 7
-            },
-            getPid() {
-              return 321
-            },
+            pid: 321,
+            status: responseStatus,
           })
         },
       })
@@ -815,108 +806,19 @@ describe('Server Edge Cases', () => {
 
     try {
       const response = await serverModule.stopServerImmediate()
-      expect(response.responseCode).to.equal(7)
       expect(response.serverProcessId).to.equal(321)
       expect(response.status).to.equal('unknown')
+
+      responseStatus = undefined
+      const missingResponse = await serverModule.stopServerImmediate()
+      expect(missingResponse.serverProcessId).to.equal(321)
+      expect(missingResponse.status).to.equal('unknown')
     } finally {
       restoreGetClient()
     }
   })
 
-  it('should treat an explicit UNSPECIFIED shutdown status as unknown', async () => {
-    const restoreGetClient = overrideProperty(
-      clientModule as Record<string, any>,
-      'getClient',
-      async () => ({
-        serverControl(
-          _request: unknown,
-          callback: (
-            err: null,
-            response: { getResponseCode(): number; getStatus(): number }
-          ) => void
-        ) {
-          callback(null, {
-            getResponseCode() {
-              return 0
-            },
-            getStatus() {
-              return 0
-            },
-          })
-        },
-      })
-    )
-
-    try {
-      const response = await serverModule.stopServerImmediate()
-      expect(response.responseCode).to.equal(0)
-      expect(response.status).to.equal('unknown')
-    } finally {
-      restoreGetClient()
-    }
-  })
-
-  it('should preserve response-code fallback when shutdown status is absent', async () => {
-    const restoreGetClient = overrideProperty(
-      clientModule as Record<string, any>,
-      'getClient',
-      async () => ({
-        serverControl(
-          _request: unknown,
-          callback: (
-            err: null,
-            response: { getResponseCode(): number; getStatus?: undefined }
-          ) => void
-        ) {
-          callback(null, {
-            getResponseCode() {
-              return 0
-            },
-          })
-        },
-      })
-    )
-
-    try {
-      const response = await serverModule.stopServerImmediate()
-      expect(response.responseCode).to.equal(0)
-      expect(response.status).to.equal('completed')
-    } finally {
-      restoreGetClient()
-    }
-  })
-
-  it('should infer draining for graceful shutdown when status is absent', async () => {
-    const restoreGetClient = overrideProperty(
-      clientModule as Record<string, any>,
-      'getClient',
-      async () => ({
-        serverControl(
-          _request: unknown,
-          callback: (
-            err: null,
-            response: { getResponseCode(): number; getStatus?: undefined }
-          ) => void
-        ) {
-          callback(null, {
-            getResponseCode() {
-              return 1
-            },
-          })
-        },
-      })
-    )
-
-    try {
-      const response = await serverModule.stopServerGraceful()
-      expect(response.responseCode).to.equal(1)
-      expect(response.status).to.equal('draining')
-    } finally {
-      restoreGetClient()
-    }
-  })
-
-  it('should return an error code for generic shutdown exceptions', async () => {
+  it('should return an unknown shutdown status for generic shutdown exceptions', async () => {
     let mode: 'error' | 'string' = 'error'
     const restoreGetClient = overrideProperty(
       clientModule as Record<string, any>,
@@ -937,12 +839,12 @@ describe('Server Edge Cases', () => {
     )
 
     try {
-      expect((await serverModule.stopServerImmediate()).responseCode).to.equal(
-        -1
+      expect((await serverModule.stopServerImmediate()).status).to.equal(
+        'unknown'
       )
       mode = 'string'
-      expect((await serverModule.stopServerImmediate()).responseCode).to.equal(
-        -1
+      expect((await serverModule.stopServerImmediate()).status).to.equal(
+        'unknown'
       )
     } finally {
       restoreGetClient()
@@ -965,7 +867,6 @@ describe('Server Edge Cases', () => {
 
     try {
       const response = await serverModule.stopServerImmediate()
-      expect(response.responseCode).to.equal(-1)
       expect(response.serverProcessId).to.equal(-1)
       expect(response.status).to.equal('unknown')
     } finally {

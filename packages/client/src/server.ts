@@ -31,6 +31,7 @@ import waitPort from 'wait-port'
 export type { HeartbeatOptions }
 import {
   ServerControlKind,
+  type ServerControlResponse as RawServerControlResponse,
   ServerControlStatus,
 } from './protobuf_ts/generated/omega_edit/v1/omega_edit'
 import {
@@ -1155,31 +1156,13 @@ export function stopServerImmediate(): Promise<IServerControlResult> {
 export type ServerControlState = 'completed' | 'draining' | 'unknown'
 
 export interface IServerControlResult {
-  responseCode: number
   serverProcessId: number
   status: ServerControlState
 }
 
-type RawServerControlResponse =
-  | { responseCode: number; pid?: number; status?: ServerControlStatus }
-  | {
-      getResponseCode(): number
-      getPid?(): number
-      getStatus?(): ServerControlStatus | undefined
-    }
-
 function getServerControlStatus(
-  response: RawServerControlResponse,
-  kind: ServerControlKind,
-  responseCode: number
+  rawStatus?: ServerControlStatus
 ): ServerControlState {
-  const rawStatus =
-    'getStatus' in response && typeof response.getStatus === 'function'
-      ? response.getStatus()
-      : 'status' in response
-        ? response.status
-        : undefined
-
   switch (rawStatus) {
     case ServerControlStatus.COMPLETED:
       return 'completed'
@@ -1188,17 +1171,6 @@ function getServerControlStatus(
     case ServerControlStatus.UNSPECIFIED:
       return 'unknown'
     default:
-      if (rawStatus === undefined) {
-        if (
-          kind === ServerControlKind.GRACEFUL_SHUTDOWN &&
-          responseCode === 1
-        ) {
-          return 'draining'
-        }
-        if (responseCode === 0) {
-          return 'completed'
-        }
-      }
       return 'unknown'
   }
 }
@@ -1234,21 +1206,14 @@ async function stopServer(
       }
     )
 
-    const responseCode =
-      'getResponseCode' in resp ? resp.getResponseCode() : resp.responseCode
-    const serverProcessId =
-      'getPid' in resp && typeof resp.getPid === 'function'
-        ? resp.getPid()
-        : 'pid' in resp && typeof resp.pid === 'number'
-          ? resp.pid
-          : -1
-    const status = getServerControlStatus(resp, kind, responseCode)
+    const serverProcessId = typeof resp.pid === 'number' ? resp.pid : -1
+    const status = getServerControlStatus(resp.status)
 
-    if (responseCode !== 0 && status !== 'draining') {
+    if (status === 'unknown') {
       log.error({
         ...logMetadata,
         stopped: false,
-        err: { msg: 'stopServer exit status: ' + responseCode },
+        err: { msg: 'server returned unknown control status' },
       })
     } else {
       log.debug({
@@ -1258,7 +1223,6 @@ async function stopServer(
       })
     }
     return {
-      responseCode,
       serverProcessId,
       status,
     }
@@ -1317,7 +1281,6 @@ async function stopServer(
       })
     }
     return {
-      responseCode: -1,
       serverProcessId: -1,
       status: 'unknown',
     }
@@ -1422,7 +1385,7 @@ export interface IServerHeartbeat {
   serverTimestamp: number // timestamp in ms
   serverUptime: number // uptime in ms
   serverCpuCount: number // cpu count
-  serverCpuLoadAverage?: number // load average when available
+  serverLoadAverage?: number // load average when available
   serverResidentMemoryBytes?: number // resident memory in bytes
   serverVirtualMemoryBytes?: number // virtual memory in bytes
   serverPeakResidentMemoryBytes?: number // peak resident memory in bytes
@@ -1505,7 +1468,7 @@ export async function getServerHeartbeat(
               heartbeatResponse.uptime
             ),
             serverCpuCount: heartbeatResponse.cpuCount,
-            serverCpuLoadAverage: heartbeatResponse.loadAverage,
+            serverLoadAverage: heartbeatResponse.loadAverage,
             serverResidentMemoryBytes: requireOptionalSafeIntegerOutput(
               'server resident memory bytes',
               heartbeatResponse.residentMemoryBytes

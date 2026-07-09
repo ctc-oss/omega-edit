@@ -662,7 +662,7 @@ namespace omega_edit {
             return value;
         }
 
-        static std::optional<double> get_cpu_load_average() {
+        static std::optional<double> get_load_average() {
 #ifdef _WIN32
             return std::nullopt;
 #else
@@ -2763,11 +2763,9 @@ namespace omega_edit {
                     graceful_shutdown_.store(true);
                     // Check if no sessions remain - if so, we can stop immediately
                     if (session_manager_.session_count() == 0) {
-                        response->set_response_code(0);
                         response->set_status(::omega_edit::v1::SERVER_CONTROL_STATUS_COMPLETED);
                         request_shutdown();
                     } else {
-                        response->set_response_code(0);
                         response->set_status(::omega_edit::v1::SERVER_CONTROL_STATUS_DRAINING);
                     }
                     break;
@@ -2775,7 +2773,6 @@ namespace omega_edit {
                 case ::omega_edit::v1::SERVER_CONTROL_KIND_IMMEDIATE_SHUTDOWN:
                     graceful_shutdown_.store(true);
                     session_manager_.destroy_all();
-                    response->set_response_code(0);
                     response->set_status(::omega_edit::v1::SERVER_CONTROL_STATUS_COMPLETED);
                     request_shutdown();
                     break;
@@ -2804,8 +2801,7 @@ namespace omega_edit {
             response->set_uptime(std::chrono::duration_cast<std::chrono::milliseconds>(uptime).count());
             response->set_cpu_count(get_cpu_count());
 
-            if (const auto load_average = get_cpu_load_average(); load_average.has_value()) {
-                response->set_cpu_load_average(*load_average);
+            if (const auto load_average = get_load_average(); load_average.has_value()) {
                 response->set_load_average(*load_average);
             }
 

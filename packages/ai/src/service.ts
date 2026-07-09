@@ -1589,7 +1589,7 @@ export class OmegaEditToolkit {
     await this.connectToRunningServer()
     const response = await stopServerGraceful()
     resetClient()
-    if (response.responseCode === 0 || response.status === 'draining') {
+    if (response.status === 'completed' || response.status === 'draining') {
       await this.waitForServerToStop()
       resetClient()
     }

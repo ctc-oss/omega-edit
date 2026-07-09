@@ -204,14 +204,12 @@ describe('Proto Compatibility', () => {
     const serverControl = new ServerControlResponse({
       kind: ProtoServerControlKind.IMMEDIATE_SHUTDOWN,
       pid: 99,
-      responseCode: 0,
       status: ProtoServerControlStatus.COMPLETED,
     })
     expect(serverControl.getKind()).to.equal(
       ProtoServerControlKind.IMMEDIATE_SHUTDOWN
     )
     expect(serverControl.getPid()).to.equal(99)
-    expect(serverControl.getResponseCode()).to.equal(0)
     expect(serverControl.getStatus()).to.equal(ServerControlStatus.COMPLETED)
     expect(ServerControlStatus.COMPLETED).to.equal(
       ProtoServerControlStatus.COMPLETED
@@ -220,7 +218,6 @@ describe('Proto Compatibility', () => {
       new ServerControlResponse({
         kind: ProtoServerControlKind.GRACEFUL_SHUTDOWN,
         pid: 77,
-        responseCode: 1,
       }).getStatus()
     ).to.equal(undefined)
 
@@ -229,7 +226,7 @@ describe('Proto Compatibility', () => {
       timestamp: 3,
       uptime: 4,
       cpuCount: 8,
-      cpuLoadAverage: 1.5,
+      loadAverage: 1.5,
       residentMemoryBytes: 10,
       virtualMemoryBytes: 11,
       peakResidentMemoryBytes: 12,
@@ -238,7 +235,7 @@ describe('Proto Compatibility', () => {
     expect(heartbeat.getTimestamp()).to.equal(3)
     expect(heartbeat.getUptime()).to.equal(4)
     expect(heartbeat.getCpuCount()).to.equal(8)
-    expect(heartbeat.getCpuLoadAverage()).to.equal(1.5)
+    expect(heartbeat.getLoadAverage()).to.equal(1.5)
     expect(heartbeat.getResidentMemoryBytes()).to.equal(10)
     expect(heartbeat.getVirtualMemoryBytes()).to.equal(11)
     expect(heartbeat.getPeakResidentMemoryBytes()).to.equal(12)
@@ -250,7 +247,7 @@ describe('Proto Compatibility', () => {
       cpuCount: 4,
       loadAverage: 0.75,
     })
-    expect(heartbeatWithLoadAverageOnly.getCpuLoadAverage()).to.equal(0.75)
+    expect(heartbeatWithLoadAverageOnly.getLoadAverage()).to.equal(0.75)
 
     const viewportData = new ViewportDataResponse({
       viewportId: 'vid',
@@ -412,7 +409,6 @@ describe('Proto Compatibility', () => {
       wrapServerControlResponse({
         kind: ProtoServerControlKind.GRACEFUL_SHUTDOWN,
         pid: 77,
-        responseCode: 1,
       }).getStatus()
     ).to.equal(undefined)
     expect(
@@ -421,7 +417,7 @@ describe('Proto Compatibility', () => {
     expect(
       wrapHeartbeatResponse(
         heartbeatWithLoadAverageOnly.toObject()
-      ).getCpuLoadAverage()
+      ).getLoadAverage()
     ).to.equal(0.75)
     expect(
       wrapViewportDataResponse(viewportData.toObject()).getFollowingByteCount()
