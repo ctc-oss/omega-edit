@@ -381,6 +381,7 @@
       <div class="editor-grid-scroller" bind:this={gridScrollerElement}>
         <PreviewGrid
           {data}
+          emptyFile={fileSize === 0}
           offset={visibleOffset}
           {bytesPerRow}
           {offsetRadix}
