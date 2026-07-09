@@ -426,8 +426,8 @@ message ServerControlResponse {
     reserved 3;
     reserved "response_code";
 
-    ServerControlKind kind = 1;   // The command that was executed.
-    int32 pid = 2;                // Server process ID.
+    ServerControlKind kind = 1;    // The command that was executed.
+    int32 pid = 2;                 // Server process ID.
     ServerControlStatus status = 4;// Explicit shutdown progress for accepted commands.
 }
 
@@ -442,11 +442,11 @@ message GetHeartbeatResponse {
     reserved 5, 6, 7, 8;
     reserved "cpu_load_average", "max_memory", "committed_memory", "used_memory";
 
-    int32 session_count = 1;                 // Total active sessions on the server.
-    int64 timestamp = 2;                     // Server wall-clock time in milliseconds since epoch.
-    int64 uptime = 3;                        // Server uptime in milliseconds.
-    int32 cpu_count = 4;                     // Number of logical CPU cores.
-    optional double load_average = 9;        // 1-min load average when the platform can report it.
+    int32 session_count = 1;                  // Total active sessions on the server.
+    int64 timestamp = 2;                      // Server wall-clock time in milliseconds since epoch.
+    int64 uptime = 3;                         // Server uptime in milliseconds.
+    int32 cpu_count = 4;                      // Number of logical CPU cores.
+    optional double load_average = 9;         // 1-min load average when the platform can report it.
     optional int64 resident_memory_bytes = 10;// Resident set size (RSS) in bytes.
     optional int64 virtual_memory_bytes =
             11;// Virtual address space usage in bytes when the platform can report it consistently.
