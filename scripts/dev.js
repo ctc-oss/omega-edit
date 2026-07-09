@@ -21,7 +21,7 @@ const serverBuildDir = path.join(
   serverDir,
   isDefaultGenerator ? 'build' : `build-${generatorSlug}`
 )
-const extensionDir = path.join(repoRoot, 'examples', 'vscode-extension')
+const extensionDir = path.join(repoRoot, 'vscode-extension')
 const coreLibDir = path.join(coreInstallDir, 'lib')
 const version = fs.readFileSync(path.join(repoRoot, 'VERSION'), 'utf8').trim()
 
