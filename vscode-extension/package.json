@@ -155,7 +155,11 @@
       {
         "command": "omegaEdit.rollbackSession",
         "title": "%omegaEdit.command.rollbackSession.title%",
-        "enablement": "omegaEdit.hexEditorActive && omegaEdit.hasPendingChanges && !omegaEdit.transformInFlight"
+        "enablement": "omegaEdit.hexEditorActive && omegaEdit.hasPendingChanges && !omegaEdit.transformInFlight",
+        "icon":{
+          "light": "images/icons/light/omega-edit-editor-rollback.png",
+          "dark": "images/icons/dark/omega-edit-editor-rollback.png"
+        }
       },
       {
         "command": "omegaEdit.rollbackCheckpoint",
