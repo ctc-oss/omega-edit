@@ -247,11 +247,11 @@ For the reference VS Code extension:
 
 ```bash
 yarn vscode:setup              # full one-time setup for extension development
-yarn vscode:build              # compile examples/vscode-extension
+yarn vscode:build              # compile vscode-extension
 yarn vscode:test:unit          # lint, compile, and run fast unit tests
 yarn vscode:test:integration   # run VS Code integration tests
 yarn vscode:test               # run the extension's full npm test script
-yarn vscode:package            # create examples/vscode-extension/omega-edit-hex-editor.vsix
+yarn vscode:package            # create vscode-extension/omega-edit-hex-editor.vsix
 ```
 
 `yarn vscode:setup` is the recommended first command for extension work. It builds the native pieces, packages the local server/client/AI artifacts, refreshes the extension dependencies, and installs the freshly built local server/client tarballs into the extension without rewriting its lockfile.

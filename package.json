@@ -40,8 +40,8 @@
     "vscode:test:unit": "node scripts/dev.js vscode:test:unit",
     "vscode:test:integration": "node scripts/dev.js vscode:test:integration",
     "vscode:package": "node scripts/dev.js vscode:package",
-    "lint": "yarn check:proto-paths && biome ci package.json biome.json sync-version.js scripts packages examples/vscode-extension/package.json examples/vscode-extension/tsconfig.json examples/vscode-extension/src examples/vscode-extension/tests",
-    "lint:fix": "yarn check:proto-paths && biome check --write package.json biome.json sync-version.js scripts packages examples/vscode-extension/package.json examples/vscode-extension/tsconfig.json examples/vscode-extension/src examples/vscode-extension/tests",
+    "lint": "yarn check:proto-paths && biome ci package.json biome.json sync-version.js scripts packages vscode-extension/package.json vscode-extension/tsconfig.json vscode-extension/src vscode-extension/tests",
+    "lint:fix": "yarn check:proto-paths && biome check --write package.json biome.json sync-version.js scripts packages vscode-extension/package.json vscode-extension/tsconfig.json vscode-extension/src vscode-extension/tests",
     "package": "yarn workspace @omega-edit/server package && yarn workspace @omega-edit/client package && yarn workspace @omega-edit/ai package"
   },
   "devDependencies": {

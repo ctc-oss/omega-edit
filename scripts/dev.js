@@ -77,7 +77,7 @@ Common commands:
   vscode:test                Run VS Code extension lint, compile, unit, and integration tests
   vscode:test:unit           Run VS Code extension lint, compile, and unit tests
   vscode:test:integration    Run VS Code extension integration tests
-  vscode:package             Build examples/vscode-extension/omega-edit-hex-editor.vsix
+  vscode:package             Build vscode-extension/omega-edit-hex-editor.vsix
 
 Advanced commands:
   core:configure             Configure the core C/C++ build
@@ -106,7 +106,10 @@ function doctor() {
     { command: 'git', args: ['--version'] },
     { command: 'cmake', args: ['--version'], minVersion: [3, 16, 0] },
     { command: 'conan', args: ['--version'], minVersion: [2, 0, 0] },
-    { command: 'python3', args: ['--version'], minVersion: [3, 10, 0] },
+    {
+      label: 'Python 3.10+',
+      probe: probePythonVersion,
+    },
     { command: 'node', args: ['--version'], minVersion: [18, 0, 0] },
     { command: 'yarn', args: ['--version'], minVersion: [1, 0, 0] },
     { command: 'npm', args: ['--version'] },
@@ -130,6 +133,9 @@ function doctor() {
       const result = check.probe()
       if (result.ok) {
         console.log(`OK   ${check.label}`)
+        if (result.message) {
+          console.log(`     ${result.message}`)
+        }
       } else {
         failed = true
         console.log(`FAIL ${check.label}`)
@@ -539,6 +545,39 @@ function compareVersions(left, right) {
 
 function formatVersion(version) {
   return version.join('.')
+}
+
+function probePythonVersion() {
+  const minimum = [3, 10, 0]
+  const candidates = isWin ? ['python', 'python3'] : ['python3', 'python']
+  let lastFailure = ''
+
+  for (const command of candidates) {
+    const result = runMaybe(command, ['--version'], repoRoot, { stdio: 'pipe' })
+    const output = `${result.stdout || ''}${result.stderr || ''}`.trim()
+
+    if (result.error || result.status !== 0) {
+      lastFailure = result.error ? result.error.message : output
+      continue
+    }
+
+    const version = parseVersion(output)
+    if (version && compareVersions(version, minimum) >= 0) {
+      return {
+        ok: true,
+        message: `${command}: ${output.split(/\r?\n/)[0]}`,
+      }
+    }
+
+    lastFailure = `Requires ${formatVersion(minimum)} or newer; found ${
+      version ? formatVersion(version) : 'unknown version'
+    } from ${command}.`
+  }
+
+  return {
+    ok: false,
+    message: lastFailure || 'Could not find a Python 3.10+ executable.',
+  }
 }
 
 function probeAppleCxx17Headers() {
