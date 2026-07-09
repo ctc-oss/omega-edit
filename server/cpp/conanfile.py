@@ -15,12 +15,9 @@ from conan import ConanFile
 class OmegaEditGrpcServerConan(ConanFile):
     """Conan recipe for the Omega Edit C++ gRPC middleware server.
 
-    Provides gRPC, protobuf, and libmagic from Conan Center with pre-built
-    binaries where available (dramatically faster CI builds compared to
-    building from source via vcpkg).
-
-    CLD3 is NOT on Conan Center and is instead built from source via CMake
-    FetchContent (see cmake/FetchCLD3.cmake).
+    Provides gRPC and protobuf from Conan Center with pre-built binaries where
+    available (dramatically faster CI builds compared to building from source
+    via vcpkg).
     """
 
     settings = "os", "compiler", "build_type", "arch"
@@ -28,12 +25,8 @@ class OmegaEditGrpcServerConan(ConanFile):
 
     def requirements(self):
         self.requires("grpc/1.72.0")
-        # libmagic is not available on Windows via Conan Center, so only
-        # require it on Linux and macOS where pre-built binaries exist.
-        if getattr(self.settings, "os", None) != "Windows":
-            self.requires("libmagic/5.45")
         # protobuf is a transitive dependency of grpc and will be pulled in
-        # automatically.  CLD3 is handled via FetchContent in CMakeLists.txt.
+        # automatically.
 
     def layout(self):
         # Use a flat layout so that --output-folder=build places all

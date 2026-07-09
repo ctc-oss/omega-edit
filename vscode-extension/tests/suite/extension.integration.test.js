@@ -287,6 +287,7 @@ suite('OmegaEdit VS Code extension', () => {
         selectionLength: 3,
         bytesPerRow: 16,
         offsetRadix: 'hex',
+        textEncoding: 'ascii',
         activePane: 'hex',
         editMode: 'insert',
       })
@@ -1838,6 +1839,7 @@ suite('OmegaEdit VS Code extension', () => {
         selectionLength: 3,
         bytesPerRow: 16,
         offsetRadix: 'dec',
+        textEncoding: 'cp437',
         activePane: 'ascii',
         editMode: 'insert',
       })

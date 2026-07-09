@@ -29,7 +29,9 @@ const {
   OMEGA_EDIT_SEARCH_NEXT_COMMAND,
   OMEGA_EDIT_SEARCH_PREVIOUS_COMMAND,
   OMEGA_EDIT_SET_EXTERNAL_HIGHLIGHTS_COMMAND,
+  OMEGA_EDIT_SET_TEXT_ENCODING_COMMAND,
   OMEGA_EDIT_ROLLBACK_CHECKPOINT_COMMAND,
+  OMEGA_EDIT_TOGGLE_EXPERIMENTAL_TRANSFORM_PLUGINS_COMMAND,
   OMEGA_EDIT_TOGGLE_INSERT_DIRECTION_COMMAND,
   OMEGA_EDIT_UNDO_COMMAND,
   OMEGA_EDIT_UNLOAD_RANGE_MAP_COMMAND,
@@ -87,6 +89,22 @@ function findRangeMapTreeNode(nodes, id) {
     }
   }
   return undefined
+}
+
+function readConstNumberArray(source, name) {
+  const prefix = `const ${name} = [`
+  const start = source.indexOf(prefix)
+  assert.notEqual(start, -1, `Missing ${name} lookup table`)
+  const bodyStart = start + prefix.length
+  const end = source.indexOf('] as const', bodyStart)
+  assert.notEqual(end, -1, `Missing ${name} lookup table terminator`)
+  return [
+    ...source.slice(bodyStart, end).matchAll(/undefined|0x[0-9a-f]+|\d+/gi),
+  ].map(([token]) =>
+    token === 'undefined'
+      ? undefined
+      : Number.parseInt(token, token.startsWith('0x') ? 16 : 10)
+  )
 }
 
 test('package.json matches shared extension constants', () => {
@@ -170,7 +188,7 @@ test('package.json matches shared extension constants', () => {
   )
   assert.equal(
     packageJson.contributes.commands[7].command,
-    OMEGA_EDIT_REFRESH_TRANSFORM_PLUGINS_COMMAND
+    OMEGA_EDIT_SET_TEXT_ENCODING_COMMAND
   )
   assert.equal(
     packageJson.contributes.commands[7].enablement,
@@ -178,15 +196,15 @@ test('package.json matches shared extension constants', () => {
   )
   assert.equal(
     packageJson.contributes.commands[8].command,
-    OMEGA_EDIT_EXPORT_CHANGE_LOG_COMMAND
+    OMEGA_EDIT_REFRESH_TRANSFORM_PLUGINS_COMMAND
   )
   assert.equal(
     packageJson.contributes.commands[8].enablement,
-    'omegaEdit.hexEditorActive && !omegaEdit.transformInFlight'
+    'omegaEdit.hexEditorActive'
   )
   assert.equal(
     packageJson.contributes.commands[9].command,
-    OMEGA_EDIT_PREVIEW_CHANGE_LOG_COMMAND
+    OMEGA_EDIT_EXPORT_CHANGE_LOG_COMMAND
   )
   assert.equal(
     packageJson.contributes.commands[9].enablement,
@@ -194,7 +212,7 @@ test('package.json matches shared extension constants', () => {
   )
   assert.equal(
     packageJson.contributes.commands[10].command,
-    OMEGA_EDIT_APPLY_CHANGE_LOG_COMMAND
+    OMEGA_EDIT_PREVIEW_CHANGE_LOG_COMMAND
   )
   assert.equal(
     packageJson.contributes.commands[10].enablement,
@@ -202,23 +220,23 @@ test('package.json matches shared extension constants', () => {
   )
   assert.equal(
     packageJson.contributes.commands[11].command,
-    OMEGA_EDIT_ROLLBACK_SESSION_COMMAND
+    OMEGA_EDIT_APPLY_CHANGE_LOG_COMMAND
   )
   assert.equal(
     packageJson.contributes.commands[11].enablement,
-    'omegaEdit.hexEditorActive && omegaEdit.hasPendingChanges && !omegaEdit.transformInFlight'
-  )
-  assert.equal(
-    packageJson.contributes.commands[12].command,
-    OMEGA_EDIT_ROLLBACK_CHECKPOINT_COMMAND
-  )
-  assert.equal(
-    packageJson.contributes.commands[12].enablement,
     'omegaEdit.hexEditorActive && !omegaEdit.transformInFlight'
   )
   assert.equal(
+    packageJson.contributes.commands[12].command,
+    OMEGA_EDIT_ROLLBACK_SESSION_COMMAND
+  )
+  assert.equal(
+    packageJson.contributes.commands[12].enablement,
+    'omegaEdit.hexEditorActive && omegaEdit.hasPendingChanges && !omegaEdit.transformInFlight'
+  )
+  assert.equal(
     packageJson.contributes.commands[13].command,
-    OMEGA_EDIT_RESTORE_CHECKPOINT_COMMAND
+    OMEGA_EDIT_ROLLBACK_CHECKPOINT_COMMAND
   )
   assert.equal(
     packageJson.contributes.commands[13].enablement,
@@ -226,14 +244,22 @@ test('package.json matches shared extension constants', () => {
   )
   assert.equal(
     packageJson.contributes.commands[14].command,
-    OMEGA_EDIT_CREATE_CHECKPOINT_COMMAND
+    OMEGA_EDIT_RESTORE_CHECKPOINT_COMMAND
   )
   assert.equal(
     packageJson.contributes.commands[14].enablement,
     'omegaEdit.hexEditorActive && !omegaEdit.transformInFlight'
   )
+  assert.equal(
+    packageJson.contributes.commands[15].command,
+    OMEGA_EDIT_CREATE_CHECKPOINT_COMMAND
+  )
+  assert.equal(
+    packageJson.contributes.commands[15].enablement,
+    'omegaEdit.hexEditorActive && !omegaEdit.transformInFlight'
+  )
   assert.deepEqual(
-    packageJson.contributes.commands.slice(15).map((entry) => entry.command),
+    packageJson.contributes.commands.slice(16).map((entry) => entry.command),
     [
       OMEGA_EDIT_GET_EDITOR_STATE_COMMAND,
       OMEGA_EDIT_GET_ASSISTANT_CONTEXT_COMMAND,
@@ -241,11 +267,20 @@ test('package.json matches shared extension constants', () => {
       OMEGA_EDIT_CLEAR_EXTERNAL_HIGHLIGHTS_COMMAND,
       OMEGA_EDIT_LOAD_RANGE_MAP_COMMAND,
       OMEGA_EDIT_UNLOAD_RANGE_MAP_COMMAND,
+      OMEGA_EDIT_TOGGLE_EXPERIMENTAL_TRANSFORM_PLUGINS_COMMAND,
     ]
   )
   assert.equal(
     packageNls['omegaEdit.command.toggleInsertDirection.title'],
     'OmegaEdit: Toggle Insert Direction'
+  )
+  assert.equal(
+    packageNls['omegaEdit.command.setTextEncoding.title'],
+    'OmegaEdit: Set Text Encoding'
+  )
+  assert.equal(
+    packageNls['omegaEdit.command.toggleExperimentalTransformPlugins.title'],
+    'OmegaEdit: Toggle Experimental Transform Plugins'
   )
   assert.equal(
     packageNls['omegaEdit.command.previewChangeLog.title'],
@@ -346,10 +381,29 @@ test('package.json matches shared extension constants', () => {
   )
   assert.deepEqual(
     packageJson.contributes.menus.commandPalette.find(
+      (entry) =>
+        entry.command ===
+        OMEGA_EDIT_TOGGLE_EXPERIMENTAL_TRANSFORM_PLUGINS_COMMAND
+    ),
+    {
+      command: OMEGA_EDIT_TOGGLE_EXPERIMENTAL_TRANSFORM_PLUGINS_COMMAND,
+    }
+  )
+  assert.deepEqual(
+    packageJson.contributes.menus.commandPalette.find(
       (entry) => entry.command === OMEGA_EDIT_REFRESH_TRANSFORM_PLUGINS_COMMAND
     ),
     {
       command: OMEGA_EDIT_REFRESH_TRANSFORM_PLUGINS_COMMAND,
+      when: 'omegaEdit.hexEditorActive',
+    }
+  )
+  assert.deepEqual(
+    packageJson.contributes.menus.commandPalette.find(
+      (entry) => entry.command === OMEGA_EDIT_SET_TEXT_ENCODING_COMMAND
+    ),
+    {
+      command: OMEGA_EDIT_SET_TEXT_ENCODING_COMMAND,
       when: 'omegaEdit.hexEditorActive',
     }
   )
@@ -426,6 +480,32 @@ test('root build stages transform plugins before packaging the VSIX', () => {
     stageTransformPluginsScript,
     /platforms = platformFilter[\s\S]*: supportedPlatforms/
   )
+})
+
+test('text encoding lookup tables cover supported single-byte code pages', () => {
+  const source = fs.readFileSync(
+    path.resolve(__dirname, '../src/textEncoding.ts'),
+    'utf8'
+  )
+  const windows1252 = readConstNumberArray(source, 'WINDOWS_1252_EXTENSION')
+  const cp437 = readConstNumberArray(source, 'CP437_HIGH')
+  const macRoman = readConstNumberArray(source, 'MAC_ROMAN_HIGH')
+  const ebcdic037 = readConstNumberArray(source, 'EBCDIC_037')
+
+  assert.equal(windows1252.length, 32)
+  assert.equal(cp437.length, 128)
+  assert.equal(macRoman.length, 128)
+  assert.equal(ebcdic037.length, 256)
+  assert.equal(windows1252[0], 0x20ac)
+  assert.equal(windows1252[1], undefined)
+  assert.equal(cp437[0], 0x00c7)
+  assert.equal(cp437[0x9a - 0x80], 0x00dc)
+  assert.equal(macRoman[0], 0x00c4)
+  assert.equal(macRoman[0xdb - 0x80], 0x20ac)
+  assert.equal(ebcdic037[0x40], 0x0020)
+  assert.equal(ebcdic037[0x81], 0x0061)
+  assert.equal(ebcdic037[0xad], 0x00dd)
+  assert.equal(ebcdic037[0xc1], 0x0041)
 })
 
 test('compiled extension entrypoints exist after build', () => {
@@ -515,6 +595,10 @@ test('compiled extension entrypoints exist after build', () => {
     path.resolve(__dirname, '../webview-ui/src/components/PreviewGrid.svelte'),
     'utf8'
   )
+  const byteTooltipSource = fs.readFileSync(
+    path.resolve(__dirname, '../webview-ui/src/components/ByteTooltip.svelte'),
+    'utf8'
+  )
   const fileScrollbarSource = fs.readFileSync(
     path.resolve(
       __dirname,
@@ -580,6 +664,7 @@ test('compiled extension entrypoints exist after build', () => {
   const svelteComponentSources = [
     ['App.svelte', svelteAppSource],
     ['PreviewGrid.svelte', previewGridSource],
+    ['ByteTooltip.svelte', byteTooltipSource],
     ['FileScrollbar.svelte', fileScrollbarSource],
     ['Toolbar.svelte', toolbarSource],
     ['OffsetJump.svelte', offsetJumpSource],
@@ -707,8 +792,8 @@ test('compiled extension entrypoints exist after build', () => {
   assert.match(providerJs, /pickFileSpliceBytes/)
   assert.match(providerJs, /postFileActionComplete/)
   assert.match(providerJs, /kind:\s*['"]REPLACE['"]/)
-  assert.match(providerJs, /getContentType/)
-  assert.match(providerJs, /getLanguage/)
+  assert.doesNotMatch(providerJs, /getContentType/)
+  assert.doesNotMatch(providerJs, /getLanguage/)
   assert.match(providerJs, /enqueueAnalysisProfile/)
   assert.match(providerJs, /processAnalysisProfileQueue/)
   assert.match(providerJs, /getEditorState/)
@@ -757,6 +842,49 @@ test('compiled extension entrypoints exist after build', () => {
   assert.match(providerJs, /findViewportMatches/)
   assert.match(providerJs, /viewportMatches:\s*viewport\.matches/)
   assert.match(providerJs, /viewportHasMoreMatches:\s*viewport\.hasMore/)
+  assert.match(providerSource, /SearchCaseFolding/)
+  assert.match(providerSource, /function searchCaseFoldingForTextEncoding/)
+  assert.match(
+    providerSource,
+    /function searchCaseFoldingForRequest\(\s*caseInsensitive: boolean \| undefined,\s*encoding: TextEncoding \| undefined/
+  )
+  assert.doesNotMatch(
+    providerSource,
+    /searchCaseFoldingForRequest\(\s*msg\.isHex/
+  )
+  assert.match(
+    providerSource,
+    /case 'windows-1252':\s*return SearchCaseFolding\.WINDOWS_1252/
+  )
+  assert.match(
+    providerSource,
+    /case 'cp437':\s*return SearchCaseFolding\.CP437/
+  )
+  assert.match(
+    providerSource,
+    /case 'ebcdic-037':\s*return SearchCaseFolding\.EBCDIC_037/
+  )
+  assert.match(
+    providerSource,
+    /case 'macroman':\s*return SearchCaseFolding\.MAC_ROMAN/
+  )
+  assert.match(
+    providerSource,
+    /replaceSessionCheckpointed\([\s\S]*transaction\.caseFolding,[\s\S]*0,[\s\S]*0/
+  )
+  assert.match(
+    providerSource,
+    /session\.search\.replaceAll\(\{[\s\S]*caseFolding,/
+  )
+  assert.match(providerSource, /session\.search\.search\(\{[\s\S]*caseFolding,/)
+  assert.match(
+    providerSource,
+    /session\.search\.findAdjacent\(\{[\s\S]*caseFolding,/
+  )
+  assert.match(
+    providerSource,
+    /session\.search\.findViewportMatches\(\{[\s\S]*caseFolding,/
+  )
   assert.match(providerJs, /setSessionRangeMap/)
   assert.match(providerJs, /case\s+['"]loadRangeMap['"]/)
   assert.match(providerJs, /case\s+['"]unloadRangeMap['"]/)
@@ -777,11 +905,7 @@ test('compiled extension entrypoints exist after build', () => {
   assert.match(providerJs, /case\s+['"]editorStateChanged['"]/)
   assert.match(providerJs, /buildEditorState/)
   assert.match(providerJs, /clampedLength <= 0/)
-  assert.match(providerJs, /const contentTypeSampleLength = Math\.min/)
-  assert.match(
-    providerJs,
-    /getContentType\)\(session\.sessionId,\s*0,\s*contentTypeSampleLength\)/
-  )
+  assert.doesNotMatch(providerJs, /contentTypeSampleLength/)
   assert.doesNotMatch(providerJs, /experimentalSvelteWebview/)
   assert.match(providerJs, /getSvelteWebviewContent/)
   assert.match(protocolJs, /normalizeWebviewMessage/)
@@ -796,6 +920,13 @@ test('compiled extension entrypoints exist after build', () => {
   assert.match(protocolSource, /type: 'unloadRangeMap'/)
   assert.match(protocolSource, /type: 'bytesPerRow'/)
   assert.match(protocolSource, /bytesPerRowMode: BytesPerRowMode/)
+  assert.match(protocolSource, /type: 'textEncoding'/)
+  assert.match(protocolSource, /TextEncoding/)
+  assert.match(protocolSource, /textEncoding\?: TextEncoding/)
+  assert.match(
+    protocolSource,
+    /\.\.\.\(textEncoding \? \{ textEncoding \} : \{\}\)/
+  )
   assert.match(protocolSource, /stale\?: boolean/)
   assert.match(protocolSource, /serial\?: number/)
   assert.match(protocolSource, /descriptorJson: string/)
@@ -883,6 +1014,14 @@ test('compiled extension entrypoints exist after build', () => {
   assert.match(svelteBundleCss, /\.byte\.externalRangeEnd/)
   assert.match(svelteBundleCss, /\.byte\.externalHighlightHovered/)
   assert.match(svelteBundleCss, /\.byte\.externalStale/)
+  assert.match(svelteBundleCss, /\.byte-tooltip/)
+  assert.match(svelteBundleCss, /\.byte-tooltip\.showAccent/)
+  assert.match(
+    svelteBundleCss,
+    /\.byte-tooltip\.showAccent:before[\s\S]*var\(--omega-external-highlight-accent(?:\s*,\s*(?:var\([^)]*\)|[^)]*))?\)/
+  )
+  assert.match(svelteStylesSource, /\.byte\s*\{[^}]*position:\s*relative/)
+  assert.match(svelteStylesSource, /\.text-byte\s*\{[^}]*position:\s*relative/)
   assert.match(svelteBundleCss, /\.byte\[data-external-color="0"\]/)
   assert.match(svelteBundleCss, /\.byte\[data-external-color="11"\]/)
   assert.match(svelteBundleCss, /--omega-external-highlight-accent/)
@@ -1032,10 +1171,20 @@ test('compiled extension entrypoints exist after build', () => {
   assert.doesNotMatch(svelteAppSource, /strings\.app\.title/)
   assert.match(svelteAppSource, /SearchPanel/)
   assert.match(svelteAppSource, /normalizeSearchQuery/)
+  assert.match(svelteAppSource, /encodeTextToHex\(trimmed, textEncoding\)/)
+  assert.match(svelteAppSource, /encodeTextToHex\(replacement, textEncoding\)/)
   assert.match(svelteAppSource, /getSearchPatternByteLength/)
   assert.match(svelteAppSource, /type: 'search'/)
   assert.match(svelteAppSource, /type: 'replace'/)
   assert.match(svelteAppSource, /type: 'replaceAllMatches'/)
+  assert.equal(
+    (
+      svelteAppSource.match(
+        /\.\.\.\(searchHex \? \{\} : \{ textEncoding \}\)/g
+      ) || []
+    ).length,
+    3
+  )
   assert.match(
     svelteAppSource,
     /transformFeedback = strings\.search\.replacingAll/
@@ -1076,9 +1225,16 @@ test('compiled extension entrypoints exist after build', () => {
   assert.match(svelteAppSource, /function replaceRangeWithFile/)
   assert.match(svelteAppSource, /type: 'replaceRangeWithFile'/)
   assert.match(svelteAppSource, /offsetRadix: 'hex' \| 'dec'/)
+  assert.match(svelteAppSource, /textEncoding: TextEncoding/)
+  assert.match(svelteAppSource, /type: 'setTextEncoding'/)
+  assert.match(svelteAppSource, /case 'textEncoding'/)
   assert.match(
     svelteAppSource,
     /normalizeOffsetRadix\(restoredState\?\.offsetRadix\)/
+  )
+  assert.match(
+    svelteAppSource,
+    /normalizeTextEncoding\(restoredState\?\.textEncoding\)/
   )
   assert.match(svelteAppSource, /savePreviewState\(\{ offsetRadix: radix \}\)/)
   assert.match(
@@ -1157,6 +1313,7 @@ test('compiled extension entrypoints exist after build', () => {
   assert.match(svelteAppSource, /function toggleInspectorExpanded/)
   assert.match(svelteAppSource, /function setOffsetRadix/)
   assert.match(svelteAppSource, /offsetRadix = \$state<'hex' \| 'dec'>/)
+  assert.match(svelteAppSource, /textEncoding = \$state<TextEncoding>/)
   assert.match(svelteAppSource, /function formatSearchOffset/)
   assert.match(
     svelteAppSource,
@@ -1172,7 +1329,7 @@ test('compiled extension entrypoints exist after build', () => {
   )
   assert.match(svelteAppSource, /type: 'insert'/)
   assert.match(svelteAppSource, /type: 'overwrite'/)
-  assert.match(svelteAppSource, /invalidAsciiByte/)
+  assert.match(svelteAppSource, /invalidTextByte/)
   assert.match(svelteAppSource, /pendingHexLabel/)
   assert.match(
     svelteAppSource,
@@ -1331,7 +1488,17 @@ test('compiled extension entrypoints exist after build', () => {
   assert.match(previewGridSource, /function formatTooltipText/)
   assert.match(previewGridSource, /function byteClassLabel/)
   assert.match(previewGridSource, /function formatByteHoverTitle/)
+  assert.match(previewGridSource, /function formatByteTooltipTitle/)
   assert.match(previewGridSource, /strings\.grid\.byteHoverTitle/)
+  assert.match(previewGridSource, /strings\.grid\.byteTooltipTitle/)
+  assert.match(previewGridSource, /textEncodingLabel\(\)/)
+  assert.match(
+    previewGridSource,
+    /if \(!highlight\) \{\s*return baseTitle\s*\}/
+  )
+  assert.match(previewGridSource, /strings\.grid\.externalHighlightRange/)
+  assert.match(previewGridSource, /strings\.grid\.externalHighlightPosition/)
+  assert.match(previewGridSource, /const bytePosition = Math\.max/)
   assert.match(previewGridSource, /strings\.grid\.notPrintable/)
   assert.match(previewGridSource, /offsetRadix/)
   assert.match(previewGridSource, /function formatColumnOffset/)
@@ -1359,6 +1526,23 @@ test('compiled extension entrypoints exist after build', () => {
   assert.match(previewGridSource, /hoveredExternalHighlightId/)
   assert.match(previewGridSource, /function hashExternalHighlightId/)
   assert.match(previewGridSource, /function externalHighlightColorSlot/)
+  assert.match(previewGridSource, /import ByteTooltip/)
+  assert.match(previewGridSource, /<ByteTooltip/)
+  assert.match(previewGridSource, /showAccent=\{!!externalHighlight\}/)
+  assert.doesNotMatch(previewGridSource, /title=\{externalHighlight/)
+  assert.match(
+    previewGridSource,
+    /strings\.grid\.externalHighlight\(\s*highlight\.label\s*\)/
+  )
+  assert.match(byteTooltipSource, /class="byte-tooltip"/)
+  assert.match(byteTooltipSource, /class:alignRight/)
+  assert.match(byteTooltipSource, /class:below/)
+  assert.match(byteTooltipSource, /class:showAccent/)
+  assert.match(byteTooltipSource, /id:\s*string/)
+  assert.match(byteTooltipSource, /id=\{id\}/)
+  assert.match(byteTooltipSource, /role="tooltip"/)
+  assert.doesNotMatch(byteTooltipSource, /aria-hidden="true"/)
+  assert.match(byteTooltipSource, /title\.split\('\\n'\)/)
   assert.match(previewGridSource, /function isExternalRangeStart/)
   assert.match(previewGridSource, /function isExternalRangeEnd/)
   assert.match(previewGridSource, /function isExternalHighlightHovered/)
@@ -1384,7 +1568,11 @@ test('compiled extension entrypoints exist after build', () => {
   assert.match(previewGridSource, /role="gridcell"/)
   assert.match(previewGridSource, /aria-selected/)
   assert.match(previewGridSource, /aria-label=\{byteTitle\}/)
-  assert.match(previewGridSource, /title=\{byteTitle\}/)
+  assert.match(previewGridSource, /function byteTooltipId/)
+  assert.match(previewGridSource, /aria-describedby=\{tooltipId\}/)
+  assert.match(previewGridSource, /id=\{tooltipId\}/)
+  assert.match(previewGridSource, /<ByteTooltip[\s\S]*formatByteTooltipTitle/)
+  assert.doesNotMatch(previewGridSource, /\s+title=\{byteTitle\}/)
   assert.match(previewGridSource, /searchStart/)
   assert.match(previewGridSource, /class:searchHit/)
   assert.match(previewGridSource, /class="text-byte"/)
@@ -1396,6 +1584,10 @@ test('compiled extension entrypoints exist after build', () => {
   assert.match(i18nSource, /export function formatNumber/)
   assert.match(i18nSource, /es: \{/)
   assert.match(i18nSource, /byteHoverTitle/)
+  assert.match(i18nSource, /byteTooltipTitle/)
+  assert.match(i18nSource, /\$\{textLabel\}: \$\{text\}/)
+  assert.match(i18nSource, /externalHighlightRange/)
+  assert.match(i18nSource, /externalHighlightPosition/)
   assert.match(i18nSource, /HEX Byte/)
   assert.match(
     i18nSource,
@@ -1433,6 +1625,10 @@ test('compiled extension entrypoints exist after build', () => {
   assert.match(toolbarSource, /strings\.toolbar\.hexOffsets/)
   assert.match(toolbarSource, /strings\.toolbar\.decOffsets/)
   assert.match(toolbarSource, /onOffsetRadix/)
+  assert.match(toolbarSource, /strings\.toolbar\.textEncoding/)
+  assert.match(toolbarSource, /onTextEncoding/)
+  assert.match(toolbarSource, /TEXT_ENCODING_OPTIONS/)
+  assert.match(toolbarSource, /class="toolbar-select text-encoding-select"/)
   assert.match(toolbarSource, /OffsetJump/)
   assert.match(toolbarSource, /fileSize/)
   assert.match(toolbarSource, /onGoToOffset/)
@@ -1518,6 +1714,16 @@ test('compiled extension entrypoints exist after build', () => {
   assert.match(transformPanelSource, /class="transform-action-input"/)
   assert.match(transformPanelSource, /class="transform-action-menu"/)
   assert.match(svelteStylesSource, /\.transform-support-badge/)
+  const supportBadgeRule =
+    svelteStylesSource.match(/\.transform-support-badge\s*\{[^}]+\}/)?.[0] ?? ''
+  assert.match(supportBadgeRule, /min-width:\s*max-content/)
+  assert.doesNotMatch(supportBadgeRule, /max-width:/)
+  assert.doesNotMatch(supportBadgeRule, /overflow:\s*hidden/)
+  assert.doesNotMatch(supportBadgeRule, /text-overflow:/)
+  assert.match(
+    svelteStylesSource,
+    /\.transform-action-heading\s*\{[^}]+flex-wrap:\s*wrap/
+  )
   assert.match(svelteStylesSource, /\.transform-dialog-title/)
   assert.match(i18nSource, /supportExperimental:\s*['"]Experimental['"]/)
   assert.match(transformPanelSource, /actionQuery\.trim\(\)\.length === 0/)
@@ -1604,7 +1810,19 @@ test('compiled extension entrypoints exist after build', () => {
   assert.match(offsetJumpSource, /strings\.navigation\.offsetLabel/)
   assert.match(offsetJumpSource, /strings\.navigation\.offsetPlaceholderHex/)
   assert.match(offsetJumpSource, /strings\.navigation\.offsetPlaceholderDec/)
-  assert.match(offsetJumpSource, /offsetRadix === 'hex'/)
+  assert.match(offsetJumpSource, /radix === 'hex'/)
+  assert.match(offsetJumpSource, /HEX_PREFIX = '0x'/)
+  assert.match(offsetJumpSource, /class="offset-jump-prefix"/)
+  assert.match(offsetJumpSource, /aria-hidden="true"/)
+  assert.match(offsetJumpSource, /sanitizeOffsetTextForRadix/)
+  assert.match(offsetJumpSource, /replace\(\/\\D\/g, ''\)/)
+  assert.match(offsetJumpSource, /replace\(\/\[\^0-9a-f\]\/gi, ''\)/)
+  assert.doesNotMatch(offsetJumpSource, /\$\{HEX_PREFIX\}\$\{source\.replace/)
+  assert.match(offsetJumpSource, /inputmode=\{offsetInputMode\}/)
+  assert.match(offsetJumpSource, /pattern=\{offsetPattern\}/)
+  assert.match(offsetJumpSource, /\[0-9A-Fa-f\]\*/)
+  assert.doesNotMatch(offsetJumpSource, /'0x\[0-9A-Fa-f\]\*'/)
+  assert.match(offsetJumpSource, /onbeforeinput=\{handleBeforeInput\}/)
   assert.match(offsetJumpSource, /Number\.parseInt\(source, valueBase\)/)
   assert.match(offsetJumpSource, /parsedOffset >= fileSize/)
   assert.match(offsetJumpSource, /aria-invalid/)
@@ -1811,6 +2029,7 @@ test('compiled extension entrypoints exist after build', () => {
   assert.match(extensionJs, /OMEGA_EDIT_UNDO_COMMAND/)
   assert.match(extensionJs, /OMEGA_EDIT_REDO_COMMAND/)
   assert.match(extensionJs, /OMEGA_EDIT_TOGGLE_INSERT_DIRECTION_COMMAND/)
+  assert.match(extensionJs, /OMEGA_EDIT_SET_TEXT_ENCODING_COMMAND/)
   assert.match(extensionJs, /OMEGA_EDIT_REFRESH_TRANSFORM_PLUGINS_COMMAND/)
   assert.match(extensionJs, /OMEGA_EDIT_SEARCH_NEXT_COMMAND/)
   assert.match(extensionJs, /OMEGA_EDIT_SEARCH_PREVIOUS_COMMAND/)
@@ -1842,6 +2061,7 @@ test('compiled extension entrypoints exist after build', () => {
   assert.match(extensionJs, /undoActive/)
   assert.match(extensionJs, /redoActive/)
   assert.match(extensionJs, /setInsertDirection/)
+  assert.match(extensionJs, /setTextEncoding/)
   assert.match(extensionJs, /rollbackActiveSession/)
   assert.match(extensionJs, /rollbackCheckpoint/)
   assert.match(extensionJs, /restoreCheckpoint/)
@@ -2063,6 +2283,7 @@ test('webview protocol normalizes editor commands and rejects invalid ranges', (
       selectionLength: 4,
       bytesPerRow: 16,
       offsetRadix: 'hex',
+      textEncoding: 'windows-1252',
       activePane: 'ascii',
       editMode: 'overwrite',
       insertDirection: 'forward',
@@ -2077,6 +2298,7 @@ test('webview protocol normalizes editor commands and rejects invalid ranges', (
       selectionLength: 4,
       bytesPerRow: 16,
       offsetRadix: 'hex',
+      textEncoding: 'windows-1252',
       activePane: 'ascii',
       editMode: 'overwrite',
       insertDirection: 'forward',
@@ -2093,6 +2315,7 @@ test('webview protocol normalizes editor commands and rejects invalid ranges', (
       selectionLength: 4,
       bytesPerRow: 16,
       offsetRadix: 'hex',
+      textEncoding: 'windows-1252',
       activePane: 'ascii',
       editMode: 'overwrite',
     }),
@@ -2106,6 +2329,7 @@ test('webview protocol normalizes editor commands and rejects invalid ranges', (
       selectionLength: 4,
       bytesPerRow: 16,
       offsetRadix: 'hex',
+      textEncoding: 'windows-1252',
       activePane: 'ascii',
       editMode: 'overwrite',
       insertDirection: 'forward',
@@ -2122,6 +2346,7 @@ test('webview protocol normalizes editor commands and rejects invalid ranges', (
       selectionLength: 3,
       bytesPerRow: 16,
       offsetRadix: 'hex',
+      textEncoding: 'not-a-code-page',
       activePane: 'ascii',
       editMode: 'insert',
       insertDirection: 'backward',
@@ -2149,6 +2374,23 @@ test('webview protocol normalizes editor commands and rejects invalid ranges', (
       type: 'setInsertDirection',
       insertDirection: 'backward',
     }
+  )
+  assert.deepEqual(
+    normalizeWebviewMessage(context, {
+      type: 'setTextEncoding',
+      textEncoding: 'cp437',
+    }),
+    {
+      type: 'setTextEncoding',
+      textEncoding: 'cp437',
+    }
+  )
+  assert.equal(
+    normalizeWebviewMessage(context, {
+      type: 'setTextEncoding',
+      textEncoding: 'utf-8',
+    }),
+    undefined
   )
   assert.deepEqual(
     normalizeWebviewMessage(context, {
@@ -2439,6 +2681,7 @@ test('webview protocol normalizes analysis, search, and transform messages', () 
       isHex: false,
       caseInsensitive: true,
       isReverse: true,
+      textEncoding: 'cp437',
     }),
     {
       type: 'search',
@@ -2446,13 +2689,24 @@ test('webview protocol normalizes analysis, search, and transform messages', () 
       isHex: false,
       caseInsensitive: true,
       isReverse: true,
+      textEncoding: 'cp437',
     }
+  )
+  assert.equal(
+    normalizeWebviewMessage(context, {
+      type: 'search',
+      query: 'needle',
+      isHex: false,
+      textEncoding: 'utf-8',
+    }),
+    undefined
   )
   assert.deepEqual(
     normalizeWebviewMessage(context, {
       type: 'findAdjacentMatch',
       query: '41 42',
       isHex: true,
+      textEncoding: 'ebcdic-037',
       direction: 'forward',
       offset: 99_999,
     }),
@@ -2461,9 +2715,54 @@ test('webview protocol normalizes analysis, search, and transform messages', () 
       query: '4142',
       isHex: true,
       caseInsensitive: false,
+      textEncoding: 'ebcdic-037',
       direction: 'forward',
       offset: 99_999,
     }
+  )
+  assert.equal(
+    normalizeWebviewMessage(context, {
+      type: 'findAdjacentMatch',
+      query: '41 42',
+      isHex: true,
+      textEncoding: 'utf-8',
+      direction: 'forward',
+      offset: 99_999,
+    }),
+    undefined
+  )
+  assert.deepEqual(
+    normalizeWebviewMessage(context, {
+      type: 'replaceAllMatches',
+      query: '8a',
+      isHex: true,
+      caseInsensitive: true,
+      isReverse: false,
+      textEncoding: 'macroman',
+      length: 1,
+      data: '2e',
+    }),
+    {
+      type: 'replaceAllMatches',
+      query: '8a',
+      isHex: true,
+      caseInsensitive: true,
+      isReverse: false,
+      textEncoding: 'macroman',
+      length: 1,
+      data: '2e',
+    }
+  )
+  assert.equal(
+    normalizeWebviewMessage(context, {
+      type: 'replaceAllMatches',
+      query: '8a',
+      isHex: true,
+      textEncoding: 'utf-8',
+      length: 1,
+      data: '2e',
+    }),
+    undefined
   )
   assert.deepEqual(
     normalizeWebviewMessage(context, {

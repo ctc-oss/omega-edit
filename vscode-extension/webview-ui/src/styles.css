@@ -85,7 +85,7 @@ button:focus-visible {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
+  gap: 8px;
   min-width: 0;
   min-height: 38px;
   padding: 6px 8px;
@@ -113,12 +113,49 @@ button:focus-visible {
 .bytes-per-row-control {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 4px;
   min-width: 0;
 }
 
-.bytes-per-row-control .segmented {
-  --segmented-button-width: 44px;
+.toolbar-select-control {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  color: var(--vscode-descriptionForeground);
+  font-size: 11px;
+  letter-spacing: 0;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.toolbar-select {
+  height: 26px;
+  min-width: 0;
+  padding: 2px 20px 2px 6px;
+  border: 1px solid var(--vscode-dropdown-border, var(--vscode-editorGroup-border));
+  border-radius: 2px;
+  color: var(--vscode-dropdown-foreground);
+  background: var(--vscode-dropdown-background);
+  font: inherit;
+  text-transform: none;
+}
+
+.toolbar-select:focus {
+  outline: 1px solid var(--vscode-focusBorder);
+  outline-offset: -1px;
+}
+
+.bytes-per-row-select {
+  width: 74px;
+}
+
+.offset-radix-select {
+  width: 68px;
+}
+
+.text-encoding-select {
+  width: clamp(104px, 11vw, 144px);
 }
 
 .bytes-per-row-input {
@@ -156,11 +193,12 @@ button:focus-visible {
   text-transform: uppercase;
 }
 
-.offset-jump-input {
+.offset-jump-input-shell {
+  display: inline-flex;
+  align-items: center;
   width: clamp(86px, 10vw, 132px);
   min-width: 72px;
   height: 26px;
-  padding: 3px 7px;
   border: 1px solid var(--vscode-input-border, var(--vscode-editorGroup-border));
   border-radius: 2px;
   color: var(--vscode-input-foreground);
@@ -168,13 +206,39 @@ button:focus-visible {
   font: inherit;
 }
 
-.offset-jump-input:focus {
+.offset-jump-input-shell:focus-within {
   outline: 1px solid var(--vscode-focusBorder);
   outline-offset: -1px;
 }
 
-.offset-jump-input[aria-invalid='true'] {
+.offset-jump-input-shell.invalid {
   border-color: var(--vscode-inputValidation-errorBorder);
+}
+
+.offset-jump-prefix {
+  flex: none;
+  padding-left: 7px;
+  color: var(--vscode-descriptionForeground);
+  user-select: none;
+}
+
+.offset-jump-input {
+  flex: 1 1 auto;
+  min-width: 0;
+  height: 100%;
+  padding: 3px 7px;
+  border: 0;
+  color: inherit;
+  background: transparent;
+  font: inherit;
+}
+
+.offset-jump-input-shell.hex .offset-jump-input {
+  padding-left: 2px;
+}
+
+.offset-jump-input:focus {
+  outline: none;
 }
 
 .offset-jump-button {
@@ -461,9 +525,11 @@ button:focus-visible {
 
 .transform-action-heading {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 6px;
   min-width: 0;
+  row-gap: 3px;
 }
 
 .transform-action-name {
@@ -491,10 +557,9 @@ button:focus-visible {
   display: inline-flex;
   flex: 0 0 auto;
   align-items: center;
-  max-width: 13ch;
+  min-width: max-content;
   height: 16px;
   padding: 0 5px;
-  overflow: hidden;
   border: 1px solid var(--vscode-editorGroup-border);
   border-radius: 3px;
   color: var(--vscode-descriptionForeground);
@@ -502,7 +567,6 @@ button:focus-visible {
   font-weight: 600;
   letter-spacing: 0;
   line-height: 1;
-  text-overflow: ellipsis;
   text-transform: uppercase;
   white-space: nowrap;
 }
@@ -2256,6 +2320,12 @@ button.dialog-backdrop:focus-visible {
 .byte:hover,
 .text-byte:hover {
   background: var(--vscode-list-hoverBackground);
+  z-index: 3;
+}
+
+.byte:focus-visible,
+.text-byte:focus-visible {
+  z-index: 3;
 }
 
 .byte.columnHover:not(.selected):not(.searchHit),
@@ -2393,6 +2463,74 @@ button.dialog-backdrop:focus-visible {
     var(--omega-external-highlight-fill) 20%,
     transparent
   );
+}
+
+.byte-tooltip {
+  position: absolute;
+  bottom: calc(100% + 6px);
+  left: 0;
+  z-index: 6;
+  display: none;
+  width: max-content;
+  max-width: min(360px, calc(100vw - 24px));
+  padding: 7px 9px;
+  border: 1px solid var(--vscode-editorGroup-border);
+  border-radius: 4px;
+  color: var(--vscode-foreground);
+  background: var(--vscode-editorWidget-background);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.28);
+  font-size: 11px;
+  font-weight: 400;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+  pointer-events: none;
+  text-align: left;
+  white-space: normal;
+}
+
+.byte-tooltip.showAccent {
+  padding-left: 22px;
+}
+
+.byte-tooltip.showAccent::before {
+  position: absolute;
+  top: 7px;
+  bottom: 7px;
+  left: 7px;
+  width: 8px;
+  border-top: 2px solid
+    var(--omega-external-highlight-accent, var(--vscode-focusBorder));
+  border-bottom: 2px solid
+    var(--omega-external-highlight-accent, var(--vscode-focusBorder));
+  border-left: 3px solid
+    var(--omega-external-highlight-accent, var(--vscode-focusBorder));
+  border-radius: 3px 0 0 3px;
+  content: "";
+}
+
+.byte-tooltip span {
+  display: block;
+}
+
+.byte-tooltip span:first-child {
+  font-weight: 600;
+}
+
+.byte-tooltip.alignRight {
+  right: 0;
+  left: auto;
+}
+
+.byte-tooltip.below {
+  top: calc(100% + 6px);
+  bottom: auto;
+}
+
+.byte:hover .byte-tooltip,
+.byte:focus-visible .byte-tooltip,
+.text-byte:hover .byte-tooltip,
+.text-byte:focus-visible .byte-tooltip {
+  display: block;
 }
 
 .file-scrollbar-range-marker[data-external-color="0"],

@@ -1,5 +1,11 @@
 <script lang="ts">
   import { formatNumber, strings } from '../i18n'
+  import type { TextEncoding } from '../protocol'
+  import {
+    decodeTextByte,
+    encodeTextToHex,
+    isPrintableTextByte,
+  } from '../../../src/textEncoding'
 
   interface InspectorField {
     key: string
@@ -26,6 +32,7 @@
     clipboardMessage?: string
     littleEndian?: boolean
     offsetRadix?: 'hex' | 'dec'
+    textEncoding?: TextEncoding
     expanded?: boolean
     disabled?: boolean
     onToggleExpanded: () => void
@@ -42,6 +49,7 @@
     clipboardMessage = '',
     littleEndian = true,
     offsetRadix = 'hex',
+    textEncoding = 'ascii',
     expanded = true,
     disabled = false,
     onToggleExpanded,
@@ -87,6 +95,21 @@
 
   function isPrintableAscii(byte: number): boolean {
     return byte >= 0x20 && byte <= 0x7e
+  }
+
+  function textEncodingLabel(): string {
+    switch (textEncoding) {
+      case 'ascii':
+        return strings.encoding.ascii
+      case 'windows-1252':
+        return strings.encoding.windows1252
+      case 'cp437':
+        return strings.encoding.cp437
+      case 'ebcdic-037':
+        return strings.encoding.ebcdic037
+      case 'macroman':
+        return strings.encoding.macRoman
+    }
   }
 
   function quoted(value: string): string {
@@ -295,6 +318,36 @@
           signed,
           useLittleEndian
         ),
+    }
+  }
+
+  function activeTextEncodingField(): InspectorField {
+    return {
+      key: `text-${textEncoding}`,
+      label: strings.encoding.inspectorText(textEncodingLabel()),
+      minBytes: 1,
+      editable: true,
+      read: (value) => {
+        if (!isPrintableTextByte(value[0], textEncoding)) {
+          throw new Error(strings.inspector.invalidTextByte)
+        }
+        return quoted(decodeTextByte(value[0], textEncoding) ?? '')
+      },
+      write: (raw) => {
+        const text = firstUnicodeCharacter(raw)
+        if (!text || Array.from(text).length !== 1) {
+          throw new Error(strings.inspector.invalidTextByte)
+        }
+        const data = encodeTextToHex(text, textEncoding)
+        if (
+          !data ||
+          data.length !== 2 ||
+          !isPrintableTextByte(parseInt(data, 16), textEncoding)
+        ) {
+          throw new Error(strings.inspector.invalidTextByte)
+        }
+        return data
+      },
     }
   }
 
@@ -516,9 +569,11 @@
     }
   }
 
-  const renderedFields = $derived(fields.map((field) =>
-    buildFieldView(field, bytes, littleEndian)
-  ))
+  const renderedFields = $derived([
+    ...fields.slice(0, 2),
+    activeTextEncodingField(),
+    ...fields.slice(2),
+  ].map((field) => buildFieldView(field, bytes, littleEndian)))
   $effect(() => {
     if (selectedOffset !== lastSelectedOffset) {
       lastSelectedOffset = selectedOffset

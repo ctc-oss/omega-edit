@@ -29,14 +29,19 @@ const englishStrings = {
     label: 'OmegaEdit editor toolbar',
     bytesPerRow: 'Bytes per row',
     bytesPerRowTitle: (count: number) => `Show ${count} bytes per row`,
+    bytesPerRowSelect: 'Rows',
+    customBytesPerRowOption: 'Custom',
     customBytesPerRow: 'Custom bytes per row',
     customBytesPerRowTitle: (min: number, max: number) =>
       `Set bytes per row from ${min} to ${max}`,
     offsetRadix: 'Offset radix',
+    offsetRadixTitle: (label: string) => `Display offsets in ${label}`,
     hexOffsets: 'Hex',
     decOffsets: 'Dec',
     hexOffsetsTitle: 'Display offsets in hexadecimal',
     decOffsetsTitle: 'Display offsets in decimal',
+    textEncoding: 'Text encoding',
+    textEncodingTitle: (label: string) => `Display TEXT bytes as ${label}`,
     insertDirection: 'Insert direction',
     forwardInsert: 'Forward',
     backwardInsert: 'Backward',
@@ -45,6 +50,16 @@ const englishStrings = {
     searchPanel: 'Find',
     showSearchPanelTitle: 'Show search and replace',
     hideSearchPanelTitle: 'Hide search and replace',
+  },
+  encoding: {
+    ascii: 'ASCII',
+    windows1252: 'Windows-1252',
+    cp437: 'CP437',
+    ebcdic037: 'EBCDIC',
+    macRoman: 'MacRoman',
+    notRepresentable: 'Not representable in selected text encoding',
+    printable: (label: string) => `Printable (${label})`,
+    inspectorText: (label: string) => `Text (${label})`,
   },
   navigation: {
     offsetLabel: 'Offset',
@@ -293,6 +308,7 @@ const englishStrings = {
     overwriteTitle: 'Overwrite mode',
     notPrintable: 'Not printable',
     printableByte: 'Printable ASCII',
+    printableTextByte: (label: string) => `Printable ${label}`,
     controlByte: 'Control byte',
     highBitByte: 'High-bit byte',
     byteLabel: (hex: string, offset: string) => `Byte ${hex} at offset ${offset}`,
@@ -310,8 +326,23 @@ const englishStrings = {
       mode: string
     ) =>
       `${pane}\nOffset: ${offset}\nValue: 0x${hex} / ${decimal} / ${binary}\nText: ${text}\nClass: ${byteClass}\nMode: ${mode}`,
+    byteTooltipTitle: (
+      pane: string,
+      offset: string,
+      hex: string,
+      decimal: string,
+      binary: string,
+      textLabel: string,
+      text: string,
+      byteClass: string
+    ) =>
+      `${pane}\nOffset: ${offset}\nValue: 0x${hex} / ${decimal} / ${binary}\n${textLabel}: ${text}\nClass: ${byteClass}`,
     externalHighlight: (label: string, source?: string) =>
       source ? `External: ${label} (${source})` : `External: ${label}`,
+    externalHighlightRange: (start: string, end: string) =>
+      `Range: ${start}-${end}`,
+    externalHighlightPosition: (position: number, length: number) =>
+      `Position: byte ${formatNumber(position)} of ${formatNumber(length)}`,
     externalHighlightStale: 'Stale: content changed; reparse to refresh labels',
   },
   inspector: {
@@ -366,6 +397,7 @@ const englishStrings = {
     valueInput: (label: string) => `${label} value`,
     invalidHexByte: 'Enter exactly two hex digits',
     invalidAsciiByte: 'Enter one printable ASCII character',
+    invalidTextByte: 'Enter one character representable in the selected encoding',
     invalidBinaryByte: 'Enter up to eight binary digits',
     invalidOctalByte: 'Enter a byte-sized octal value',
     invalidInteger: 'Invalid integer',
@@ -374,6 +406,7 @@ const englishStrings = {
     outOfRange: 'Out of range',
     invalidHexPaste: 'Clipboard does not contain valid hex bytes',
     invalidAsciiPaste: 'Clipboard does not contain printable ASCII',
+    invalidTextPaste: 'Clipboard text is not representable in the selected encoding',
     cannotOverwrite: 'Select an existing byte to overwrite',
     insertedByte: 'Inserted 1 byte',
     overwroteByte: 'Overwrote 1 byte',
@@ -473,6 +506,7 @@ const englishStrings = {
     dosEol: 'DOS EOL',
     modeByte: 'Mode',
     ascii: 'ASCII',
+    textPrintable: (label: string) => `Printable ${label}`,
     content: 'Content',
     language: 'Language',
     bom: 'BOM',
@@ -536,6 +570,17 @@ const localeOverrides: Record<string, LocaleStringOverrides> = {
       searchPanel: 'Buscar',
       showSearchPanelTitle: 'Mostrar buscar y reemplazar',
       hideSearchPanelTitle: 'Ocultar buscar y reemplazar',
+    },
+    encoding: {
+      ascii: 'ASCII',
+      windows1252: 'Windows-1252',
+      cp437: 'CP437',
+      ebcdic037: 'EBCDIC',
+      macRoman: 'MacRoman',
+      notRepresentable:
+        'No representable en la codificacion de texto seleccionada',
+      printable: (label: string) => `Imprimible (${label})`,
+      inspectorText: (label: string) => `Texto (${label})`,
     },
     navigation: {
       offsetLabel: 'Desplazamiento',
@@ -713,6 +758,7 @@ function createStringTable(): WebviewStrings {
   return {
     app: { ...englishStrings.app },
     toolbar: { ...englishStrings.toolbar },
+    encoding: { ...englishStrings.encoding },
     navigation: { ...englishStrings.navigation },
     transform: { ...englishStrings.transform },
     search: { ...englishStrings.search },
@@ -728,6 +774,7 @@ export const strings: WebviewStrings = createStringTable()
 function applyLocaleOverrides(overrides?: LocaleStringOverrides): void {
   Object.assign(strings.app, englishStrings.app, overrides?.app)
   Object.assign(strings.toolbar, englishStrings.toolbar, overrides?.toolbar)
+  Object.assign(strings.encoding, englishStrings.encoding, overrides?.encoding)
   Object.assign(
     strings.navigation,
     englishStrings.navigation,

@@ -54,12 +54,19 @@ import {
   OMEGA_EDIT_SEARCH_PREVIOUS_COMMAND,
   OMEGA_EDIT_SET_EXTERNAL_HIGHLIGHTS_COMMAND,
   OMEGA_EDIT_ROLLBACK_CHECKPOINT_COMMAND,
+  OMEGA_EDIT_SET_TEXT_ENCODING_COMMAND,
+  OMEGA_EDIT_TOGGLE_EXPERIMENTAL_TRANSFORM_PLUGINS_COMMAND,
   OMEGA_EDIT_TOGGLE_INSERT_DIRECTION_COMMAND,
   OMEGA_EDIT_UNDO_COMMAND,
   OMEGA_EDIT_UNLOAD_RANGE_MAP_COMMAND,
   OMEGA_EDIT_VIEW_TYPE,
 } from './constants'
 import { HexEditorProvider } from './hexEditorProvider'
+import {
+  TEXT_ENCODING_OPTIONS,
+  normalizeTextEncoding,
+  type TextEncoding,
+} from './webviewProtocol'
 
 let activeProvider: HexEditorProvider | undefined
 let activeServerConnection: ServerConnection | undefined
@@ -179,6 +186,41 @@ function parseOffsetInput(value: string): number | undefined {
     ? Number.parseInt(text.slice(2), 16)
     : Number.parseInt(text, 10)
   return Number.isSafeInteger(offset) && offset >= 0 ? offset : undefined
+}
+
+function safeTextEncoding(value: unknown): TextEncoding | undefined {
+  const textEncoding = normalizeTextEncoding(value)
+  return value === textEncoding ? textEncoding : undefined
+}
+
+function textEncodingQuickPickLabel(encoding: TextEncoding): string {
+  switch (encoding) {
+    case 'ascii':
+      return vscode.l10n.t('ASCII')
+    case 'windows-1252':
+      return vscode.l10n.t('Windows-1252')
+    case 'cp437':
+      return vscode.l10n.t('CP437')
+    case 'ebcdic-037':
+      return vscode.l10n.t('EBCDIC')
+    case 'macroman':
+      return vscode.l10n.t('MacRoman')
+  }
+}
+
+function textEncodingQuickPickDescription(encoding: TextEncoding): string {
+  switch (encoding) {
+    case 'ascii':
+      return vscode.l10n.t('7-bit printable ASCII')
+    case 'windows-1252':
+      return vscode.l10n.t('Western ANSI code page')
+    case 'cp437':
+      return vscode.l10n.t('DOS/OEM United States')
+    case 'ebcdic-037':
+      return vscode.l10n.t('IBM037 US/Canada')
+    case 'macroman':
+      return vscode.l10n.t('Classic Macintosh Roman')
+  }
 }
 
 function transformPluginFileExtensions(): string[] {
@@ -359,6 +401,17 @@ function resolveAllowExperimentalTransformPlugins(
   config: vscode.WorkspaceConfiguration
 ): boolean {
   return config.get<boolean>('allowExperimentalTransformPlugins', false)
+}
+
+function resolveConfigurationUpdateTarget(
+  config: vscode.WorkspaceConfiguration,
+  key: string
+): vscode.ConfigurationTarget {
+  const inspected = config.inspect<unknown>(key)
+  return inspected?.workspaceValue !== undefined ||
+    inspected?.workspaceFolderValue !== undefined
+    ? vscode.ConfigurationTarget.Workspace
+    : vscode.ConfigurationTarget.Global
 }
 
 function isTestRuntime(): boolean {
@@ -877,6 +930,88 @@ export async function activate(
       OMEGA_EDIT_TOGGLE_INSERT_DIRECTION_COMMAND,
       (directionOrOptions?: unknown, options?: unknown) =>
         provider.setInsertDirection(directionOrOptions, options)
+    )
+  )
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand(
+      OMEGA_EDIT_SET_TEXT_ENCODING_COMMAND,
+      async (encodingOrOptions?: unknown, options?: unknown) => {
+        const requestedEncoding =
+          safeTextEncoding(encodingOrOptions) ??
+          (isRecord(encodingOrOptions)
+            ? safeTextEncoding(
+                encodingOrOptions.textEncoding ?? encodingOrOptions.encoding
+              )
+            : undefined)
+
+        if (requestedEncoding) {
+          return provider.setTextEncoding(requestedEncoding, options)
+        }
+
+        const state = provider.getEditorState(
+          isRecord(encodingOrOptions) ? encodingOrOptions : options
+        )
+        if (!state) {
+          void vscode.window.showWarningMessage(
+            vscode.l10n.t('Open an OmegaEdit data editor first')
+          )
+          return undefined
+        }
+
+        const picked = await vscode.window.showQuickPick(
+          TEXT_ENCODING_OPTIONS.map((encoding) => ({
+            label: textEncodingQuickPickLabel(encoding),
+            description: textEncodingQuickPickDescription(encoding),
+            encoding,
+            picked: encoding === state.textEncoding,
+          })),
+          {
+            title: vscode.l10n.t('Select Text Encoding'),
+            placeHolder: vscode.l10n.t('Choose the TEXT pane encoding'),
+          }
+        )
+        return picked
+          ? provider.setTextEncoding(picked.encoding, {
+              uri: state.uri,
+            })
+          : state
+      }
+    )
+  )
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand(
+      OMEGA_EDIT_TOGGLE_EXPERIMENTAL_TRANSFORM_PLUGINS_COMMAND,
+      async () => {
+        const latestConfig = vscode.workspace.getConfiguration('omegaEdit')
+        const enabled = !resolveAllowExperimentalTransformPlugins(latestConfig)
+        await latestConfig.update(
+          'allowExperimentalTransformPlugins',
+          enabled,
+          resolveConfigurationUpdateTarget(
+            latestConfig,
+            'allowExperimentalTransformPlugins'
+          )
+        )
+
+        const reload = vscode.l10n.t('Reload Window')
+        const message = enabled
+          ? vscode.l10n.t(
+              'Experimental OmegaEdit transform plugins will load after the window reloads.'
+            )
+          : vscode.l10n.t(
+              'Experimental OmegaEdit transform plugins will be disabled after the window reloads.'
+            )
+        const selected = await vscode.window.showInformationMessage(
+          message,
+          reload
+        )
+        if (selected === reload) {
+          await vscode.commands.executeCommand('workbench.action.reloadWindow')
+        }
+        return enabled
+      }
     )
   )
 

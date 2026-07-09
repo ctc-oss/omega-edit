@@ -5,8 +5,14 @@
     HostToWebviewMessage,
     ServerHealthMessage,
     ServerHealthMetricId,
+    TextEncoding,
     WebviewRangeMapNode,
   } from '../protocol'
+  import {
+    classifyTextByte,
+    decodeTextByte,
+    isPrintableTextByte,
+  } from '../../../src/textEncoding'
 
   type AnalysisProfileMessage = Extract<
     HostToWebviewMessage,
@@ -104,6 +110,7 @@
     viewportLength?: number
     visibleRows?: number
     offsetRadix?: 'hex' | 'dec'
+    textEncoding?: TextEncoding
     visibleBytes?: number[]
     selectedBytes?: number[]
     selectionLength?: number
@@ -147,6 +154,7 @@
     viewportLength = 0,
     visibleRows = 0,
     offsetRadix = 'hex',
+    textEncoding = 'ascii',
     visibleBytes = [],
     selectedBytes = [],
     selectionLength = 0,
@@ -787,18 +795,34 @@
     return byte.toString(16).toUpperCase().padStart(2, '0')
   }
 
+  function textEncodingLabel(): string {
+    switch (textEncoding) {
+      case 'ascii':
+        return strings.encoding.ascii
+      case 'windows-1252':
+        return strings.encoding.windows1252
+      case 'cp437':
+        return strings.encoding.cp437
+      case 'ebcdic-037':
+        return strings.encoding.ebcdic037
+      case 'macroman':
+        return strings.encoding.macRoman
+    }
+  }
+
   function isPrintable(byte: number): boolean {
-    return byte >= 0x20 && byte <= 0x7e
+    return isPrintableTextByte(byte, textEncoding)
   }
 
   function formatByteLabel(byte: number): string {
     if (!isPrintable(byte)) {
       return `0x${toHex2(byte)}`
     }
-    if (byte === 0x20) {
-      return '0x20 SP'
+    const text = decodeTextByte(byte, textEncoding) ?? ''
+    if (text === ' ') {
+      return `0x${toHex2(byte)} SP`
     }
-    return `0x${toHex2(byte)} '${String.fromCharCode(byte)}'`
+    return `0x${toHex2(byte)} '${text}'`
   }
 
   function formatModeByte(
@@ -814,19 +838,7 @@
   }
 
   function byteClass(byte: number): ByteClass {
-    if (byte === 0x00) {
-      return 'Null'
-    }
-    if (byte === 0xff) {
-      return 'FF'
-    }
-    if (byte >= 0x20 && byte <= 0x7e) {
-      return 'Printable'
-    }
-    if (byte < 0x20 || byte === 0x7f) {
-      return 'Control'
-    }
-    return 'High-bit'
+    return classifyTextByte(byte, textEncoding)
   }
 
   function frequencyBarClass(byte: number, count: number): string {
@@ -896,6 +908,16 @@
         colorClass: classColorClass(label),
       })
     )
+  }
+
+  function printableCountFromCounts(counts: number[]): number {
+    return counts
+      .slice(0, 256)
+      .reduce(
+        (sum, count, byte) =>
+          sum + (byteClass(byte) === 'Printable' ? count : 0),
+        0
+      )
   }
 
   function computeFrequencySpread(counts: number[], total: number): number {
@@ -1052,9 +1074,7 @@
         { label: strings.profiler.bytes, value: '-' },
         { label: strings.profiler.dosEol, value: '-' },
         { label: strings.profiler.modeByte, value: '-' },
-        { label: strings.profiler.ascii, value: '-' },
-        { label: strings.profiler.content, value: '-' },
-        { label: strings.profiler.language, value: '-' },
+        { label: strings.profiler.textPrintable(textEncodingLabel()), value: '-' },
         { label: strings.profiler.bom, value: '-' },
         { label: strings.profiler.bomBytes, value: '-' },
         { label: strings.profiler.oneByteChars, value: '-' },
@@ -1066,8 +1086,9 @@
       ]
     }
 
-    const asciiPercent =
-      byteTotal > 0 ? (dataProfile.numAscii / byteTotal) * 100 : 0
+    const printableCount = printableCountFromCounts(byteCounts)
+    const printablePercent =
+      byteTotal > 0 ? (printableCount / byteTotal) * 100 : 0
     const characterCount = dataProfile.characterCount
     const modeByte = topProfileBytes[0] ?? null
 
@@ -1080,13 +1101,11 @@
       },
       { label: strings.profiler.modeByte, value: formatModeByte(modeByte, byteTotal) },
       {
-        label: strings.profiler.ascii,
-        value: `${formatNumber(dataProfile.numAscii)} / ${formatPercent(
-          asciiPercent
+        label: strings.profiler.textPrintable(textEncodingLabel()),
+        value: `${formatNumber(printableCount)} / ${formatPercent(
+          printablePercent
         )}`,
       },
-      { label: strings.profiler.content, value: dataProfile.contentType || '-' },
-      { label: strings.profiler.language, value: dataProfile.language || '-' },
       { label: strings.profiler.bom, value: characterCount.byteOrderMark || '-' },
       {
         label: strings.profiler.bomBytes,
@@ -1160,7 +1179,7 @@
         value:
           structureAnalysis.longestRunByte === null
             ? '-'
-            : `0x${toHex2(
+            : `${formatByteLabel(
                 structureAnalysis.longestRunByte
               )} x ${formatNumber(structureAnalysis.longestRunLength)}`,
       },

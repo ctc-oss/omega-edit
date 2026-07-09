@@ -22,6 +22,7 @@
 
 #include "byte.h"
 #include "fwd_defs.h"
+#include "search.h"
 #include "utility.h"
 
 #ifdef __cplusplus
@@ -466,7 +467,7 @@ int64_t omega_edit_replace_cstring(omega_session_t *session_ptr, int64_t offset,
  * Options for replacing matches with named fields.
  */
 typedef struct {
-    omega_edit_bool_t case_insensitive;
+    omega_search_case_folding_t case_folding;
     omega_edit_bool_t is_reverse;
     int64_t offset;
     int64_t length;
@@ -498,7 +499,7 @@ typedef struct {
  * @param pattern_length explicit number of bytes in pattern
  * @param replacement replacement bytes, or null if `replacement_length` is zero
  * @param replacement_length explicit number of bytes in replacement
- * @param case_insensitive zero for case-sensitive matching and non-zero for case-insensitive matching
+ * @param case_folding case folding mode; use OMEGA_SEARCH_CASE_FOLDING_NONE for exact byte matching
  * @param is_reverse zero to search forward and non-zero to search backward before applying replacements
  * @param offset starting byte offset of the replace range
  * @param length number of bytes in the replace range, or zero to search from `offset` to end of session
@@ -514,9 +515,10 @@ typedef struct {
  * @return zero on success and non-zero otherwise
  */
 int omega_edit_replace_matches_bytes(omega_session_t *session_ptr, const omega_byte_t *pattern, int64_t pattern_length,
-                                     const omega_byte_t *replacement, int64_t replacement_length, int case_insensitive,
-                                     int is_reverse, int64_t offset, int64_t length, int64_t limit, int front_to_back,
-                                     int overwrite_only, int64_t *replacement_count_out, int64_t *delete_count_out,
+                                     const omega_byte_t *replacement, int64_t replacement_length,
+                                     omega_search_case_folding_t case_folding, int is_reverse, int64_t offset,
+                                     int64_t length, int64_t limit, int front_to_back, int overwrite_only,
+                                     int64_t *replacement_count_out, int64_t *delete_count_out,
                                      int64_t *insert_count_out, int64_t *overwrite_count_out);
 
 /**
@@ -541,7 +543,7 @@ int omega_edit_replace_matches_bytes_with_options(omega_session_t *session_ptr, 
  * @param pattern_length explicit pattern length (if 0, strlen will be used)
  * @param replacement replacement C string, or null if `replacement_length` is zero
  * @param replacement_length explicit replacement length (if 0, strlen will be used)
- * @param case_insensitive zero for case-sensitive matching and non-zero for case-insensitive matching
+ * @param case_folding case folding mode; use OMEGA_SEARCH_CASE_FOLDING_NONE for exact byte matching
  * @param is_reverse zero to search forward and non-zero to search backward before applying replacements
  * @param offset starting byte offset of the replace range
  * @param length number of bytes in the replace range, or zero to search from `offset` to end of session
@@ -557,10 +559,10 @@ int omega_edit_replace_matches_bytes_with_options(omega_session_t *session_ptr, 
  * @return zero on success and non-zero otherwise
  */
 int omega_edit_replace_matches(omega_session_t *session_ptr, const char *pattern, int64_t pattern_length,
-                               const char *replacement, int64_t replacement_length, int case_insensitive,
-                               int is_reverse, int64_t offset, int64_t length, int64_t limit, int front_to_back,
-                               int overwrite_only, int64_t *replacement_count_out, int64_t *delete_count_out,
-                               int64_t *insert_count_out, int64_t *overwrite_count_out);
+                               const char *replacement, int64_t replacement_length,
+                               omega_search_case_folding_t case_folding, int is_reverse, int64_t offset, int64_t length,
+                               int64_t limit, int front_to_back, int overwrite_only, int64_t *replacement_count_out,
+                               int64_t *delete_count_out, int64_t *insert_count_out, int64_t *overwrite_count_out);
 
 /**
  * Replace matching C-string patterns using named options.
@@ -573,7 +575,7 @@ int omega_edit_replace_matches_with_options(omega_session_t *session_ptr, const 
  * Options for streamed replace-all operations.
  */
 typedef struct {
-    omega_edit_bool_t case_insensitive;
+    omega_search_case_folding_t case_folding;
     omega_edit_bool_t is_reverse;
     int64_t offset;
     int64_t length;
@@ -597,7 +599,7 @@ typedef struct {
  * @param pattern_length explicit number of bytes in pattern
  * @param replacement replacement bytes, or null if `replacement_length` is zero
  * @param replacement_length explicit number of bytes in replacement
- * @param case_insensitive zero for case-sensitive matching and non-zero for case-insensitive matching
+ * @param case_folding case folding mode; use OMEGA_SEARCH_CASE_FOLDING_NONE for exact byte matching
  * @param offset starting byte offset of the replace-all range
  * @param length number of bytes in the replace-all range, or zero to search from `offset` to end of session
  * @param replacement_count_out optional out-parameter that receives the number of replacements performed
@@ -608,8 +610,9 @@ typedef struct {
  * strings.
  */
 int omega_edit_replace_all_bytes(omega_session_t *session_ptr, const omega_byte_t *pattern, int64_t pattern_length,
-                                 const omega_byte_t *replacement, int64_t replacement_length, int case_insensitive,
-                                 int64_t offset, int64_t length, int64_t *replacement_count_out);
+                                 const omega_byte_t *replacement, int64_t replacement_length,
+                                 omega_search_case_folding_t case_folding, int64_t offset, int64_t length,
+                                 int64_t *replacement_count_out);
 
 /**
  * Replace all non-overlapping matches of a byte pattern using a streamed checkpoint rewrite and explicit search
@@ -624,7 +627,7 @@ int omega_edit_replace_all_bytes(omega_session_t *session_ptr, const omega_byte_
  * @param pattern_length explicit number of bytes in pattern
  * @param replacement replacement bytes, or null if `replacement_length` is zero
  * @param replacement_length explicit number of bytes in replacement
- * @param case_insensitive zero for case-sensitive matching and non-zero for case-insensitive matching
+ * @param case_folding case folding mode; use OMEGA_SEARCH_CASE_FOLDING_NONE for exact byte matching
  * @param is_reverse zero to select matches forward and non-zero to select matches backward
  * @param offset starting byte offset of the replace range
  * @param length number of bytes in the replace range, or zero to search from `offset` to end of session
@@ -633,8 +636,9 @@ int omega_edit_replace_all_bytes(omega_session_t *session_ptr, const omega_byte_
  */
 int omega_edit_replace_all_bytes_directional(omega_session_t *session_ptr, const omega_byte_t *pattern,
                                              int64_t pattern_length, const omega_byte_t *replacement,
-                                             int64_t replacement_length, int case_insensitive, int is_reverse,
-                                             int64_t offset, int64_t length, int64_t *replacement_count_out);
+                                             int64_t replacement_length, omega_search_case_folding_t case_folding,
+                                             int is_reverse, int64_t offset, int64_t length,
+                                             int64_t *replacement_count_out);
 
 /**
  * Replace all non-overlapping matches of a byte pattern using named options.
@@ -651,7 +655,7 @@ int omega_edit_replace_all_bytes_with_options(omega_session_t *session_ptr, cons
  * @param pattern_length length of the pattern string (if 0, strlen will be used for null-terminated text)
  * @param replacement replacement C string, or null if `replacement_length` is zero
  * @param replacement_length length of the replacement string (if 0, strlen will be used for null-terminated text)
- * @param case_insensitive zero for case-sensitive matching and non-zero for case-insensitive matching
+ * @param case_folding case folding mode; use OMEGA_SEARCH_CASE_FOLDING_NONE for exact byte matching
  * @param offset starting byte offset of the replace-all range
  * @param length number of bytes in the replace-all range, or zero to search from `offset` to end of session
  * @param replacement_count_out optional out-parameter that receives the number of replacements performed
@@ -660,8 +664,9 @@ int omega_edit_replace_all_bytes_with_options(omega_session_t *session_ptr, cons
  * use omega_edit_replace_all_bytes and pass explicit byte lengths.
  */
 int omega_edit_replace_all(omega_session_t *session_ptr, const char *pattern, int64_t pattern_length,
-                           const char *replacement, int64_t replacement_length, int case_insensitive, int64_t offset,
-                           int64_t length, int64_t *replacement_count_out);
+                           const char *replacement, int64_t replacement_length,
+                           omega_search_case_folding_t case_folding, int64_t offset, int64_t length,
+                           int64_t *replacement_count_out);
 
 /**
  * Replace all non-overlapping C-string matches using named options.
@@ -676,7 +681,7 @@ int omega_edit_replace_all_with_options(omega_session_t *session_ptr, const char
  * This is the explicit inferred-length text variant. Binary callers should use omega_edit_replace_all_bytes.
  */
 int omega_edit_replace_all_cstring(omega_session_t *session_ptr, const char *pattern, const char *replacement,
-                                   int case_insensitive, int64_t offset, int64_t length,
+                                   omega_search_case_folding_t case_folding, int64_t offset, int64_t length,
                                    int64_t *replacement_count_out);
 
 /**

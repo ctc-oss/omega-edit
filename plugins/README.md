@@ -1,9 +1,9 @@
 # Omega Edit Transform Plugins
 
-This package builds the exemplar native transform plugins for Omega Edit.
+This package builds the native transform plugins for Omega Edit.
 
 The plugins consume the Omega Edit transform plugin ABI and SDK from the core
-package. Third-party transform dependencies, such as zlib and OpenSSL 3, are
+package. Third-party transform dependencies, such as libmagic, CLD3, zlib, and OpenSSL 3, are
 owned here rather than by the core library.
 
 Transform plugin metadata includes a description, help text, example arguments,
@@ -15,6 +15,11 @@ example `{"operator":"xor","byte":"0x42"}` or
 `action` field for compression or decompression; compression accepts `level`
 values from `-1` through `9`, and decompression accepts `maxOutputBytes` with a
 64 MiB default cap.
+The production detector plugins provide on-demand MIME content type detection
+(`omega.detect.content_type`) and language detection (`omega.detect.language`).
+Content type detection uses libmagic when available and falls back to built-in
+signatures/text heuristics. Language detection uses CLD3 and accepts a
+`byteOrderMark` option for UTF-16/UTF-32 input.
 The richer data-format exemplars cover digest/hash inspection, AES cipher
 transforms, CRC/checksum inspection, binary-to-text codecs, character set
 transcoding, decimal field encodings, byte-order swaps, record/text escaping
@@ -50,4 +55,4 @@ cmake --install build --prefix /path/to/plugin/prefix --config Release
 ```
 
 The repository root build also includes this project so native and client tests
-can exercise the exemplar plugins.
+can exercise the production and exemplar plugins.

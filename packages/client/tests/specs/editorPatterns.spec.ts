@@ -23,7 +23,8 @@ import { getModuleCompat } from './moduleCompat.js'
 const { require } = getModuleCompat(import.meta.url)
 const clientPackage =
   require('../../dist/cjs/index.js') as typeof import('../../src/index')
-const { EditorHistoryController, EditorSearchController } = clientPackage
+const { EditorHistoryController, EditorSearchController, SearchCaseFolding } =
+  clientPackage
 
 describe('Editor Patterns', () => {
   beforeAll(async () => {
@@ -45,7 +46,7 @@ describe('Editor Patterns', () => {
       kind: 'CHECKPOINT_REPLACE_ALL',
       query: 'PD',
       isHex: false,
-      caseInsensitive: false,
+      caseFolding: SearchCaseFolding.NONE,
       data: '504446',
     })
     history.markSaved()
@@ -281,7 +282,7 @@ describe('Editor Patterns', () => {
       async searchSession(
         _sessionId: string,
         _pattern: string | Uint8Array,
-        _caseInsensitive: boolean = false,
+        _caseFolding: number = SearchCaseFolding.NONE,
         isReverse: boolean = false,
         offset: number = 0,
         length: number = 0,
@@ -350,7 +351,7 @@ describe('Editor Patterns', () => {
       async searchSession(
         _sessionId: string,
         _pattern: string | Uint8Array,
-        _caseInsensitive: boolean = false,
+        _caseFolding: number = SearchCaseFolding.NONE,
         isReverse: boolean = false,
         offset: number = 0,
         length: number = 0,

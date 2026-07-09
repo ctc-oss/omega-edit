@@ -7,6 +7,7 @@ export type {
   ServerHealthMetric,
   ServerHealthMetricId,
   ServerHealthMessage,
+  TextEncoding,
   WebviewEditorUiState,
   WebviewExternalHighlight,
   WebviewRangeMapNode,
@@ -18,13 +19,16 @@ export type {
 
 export {
   DEFAULT_BYTES_PER_ROW,
+  DEFAULT_TEXT_ENCODING,
   FIXED_BYTES_PER_ROW_OPTIONS,
   MAX_ANALYSIS_PROFILE_BYTES,
   MAX_BYTES_PER_ROW,
   MAX_TRANSFORM_OPTIONS_LENGTH,
   MIN_BYTES_PER_ROW,
+  TEXT_ENCODING_OPTIONS,
   bytesPerRowFromSetting,
   normalizeBytesPerRow,
   normalizeBytesPerRowMode,
   normalizeBytesPerRowSetting,
+  normalizeTextEncoding,
 } from '../../src/webviewProtocol'

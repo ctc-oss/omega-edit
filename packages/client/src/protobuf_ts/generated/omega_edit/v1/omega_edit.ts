@@ -55,21 +55,6 @@ export interface GetServerInfoResponse {
    */
   serverVersion: string // Omega Edit server version string.
   /**
-   * @deprecated
-   * @generated from protobuf field: string jvm_version = 4 [deprecated = true]
-   */
-  jvmVersion: string // Legacy JVM field; the native server leaves it unset so it reads as the proto default empty string.
-  /**
-   * @deprecated
-   * @generated from protobuf field: string jvm_vendor = 5 [deprecated = true]
-   */
-  jvmVendor: string // Legacy JVM field; the native server leaves it unset so it reads as the proto default empty string.
-  /**
-   * @deprecated
-   * @generated from protobuf field: string jvm_path = 6 [deprecated = true]
-   */
-  jvmPath: string // Legacy JVM field; the native server leaves it unset so it reads as the proto default empty string.
-  /**
    * @generated from protobuf field: int32 available_processors = 7
    */
   availableProcessors: number // Number of logical CPU cores.
@@ -124,14 +109,9 @@ export interface ServerControlResponse {
    */
   pid: number // Server process ID.
   /**
-   * @deprecated
-   * @generated from protobuf field: int32 response_code = 3 [deprecated = true]
+   * @generated from protobuf field: omega_edit.v1.ServerControlStatus status = 4
    */
-  responseCode: number // Legacy field: 0 when the command was accepted, non-zero only for compatibility with older clients.
-  /**
-   * @generated from protobuf field: optional omega_edit.v1.ServerControlStatus status = 4
-   */
-  status?: ServerControlStatus // Explicit shutdown progress for accepted commands; optional so clients can detect older servers that omitted the field and fall back to legacy compatibility handling.
+  status: ServerControlStatus // Explicit shutdown progress for accepted commands.
 }
 /**
  * Client heartbeat request. The client lists the session IDs it still holds so
@@ -167,26 +147,6 @@ export interface GetHeartbeatResponse {
    * @generated from protobuf field: int32 cpu_count = 4
    */
   cpuCount: number // Number of logical CPU cores.
-  /**
-   * @deprecated
-   * @generated from protobuf field: double cpu_load_average = 5 [deprecated = true]
-   */
-  cpuLoadAverage: number // Legacy load average field mirrored from load_average when available, otherwise left unset so it reads as the proto default 0.
-  /**
-   * @deprecated
-   * @generated from protobuf field: int64 max_memory = 6 [deprecated = true]
-   */
-  maxMemory: number // Legacy JVM heap field; the native server leaves it unset so it reads as the proto default 0.
-  /**
-   * @deprecated
-   * @generated from protobuf field: int64 committed_memory = 7 [deprecated = true]
-   */
-  committedMemory: number // Legacy JVM heap field; the native server leaves it unset so it reads as the proto default 0.
-  /**
-   * @deprecated
-   * @generated from protobuf field: int64 used_memory = 8 [deprecated = true]
-   */
-  usedMemory: number // Legacy JVM heap field; the native server leaves it unset so it reads as the proto default 0.
   /**
    * @generated from protobuf field: optional double load_average = 9
    */
@@ -1102,94 +1062,6 @@ export interface GetByteOrderMarkResponse {
   byteOrderMark: string // Human-readable BOM name: "UTF-8", "UTF-16LE", "UTF-16BE", "UTF-32LE", "UTF-32BE", or "none".
 }
 /**
- * Request to detect the content/MIME type of a segment.
- *
- * @generated from protobuf message omega_edit.v1.GetContentTypeRequest
- */
-export interface GetContentTypeRequest {
-  /**
-   * @generated from protobuf field: string session_id = 1
-   */
-  sessionId: string // Session ID.
-  /**
-   * @generated from protobuf field: int64 offset = 2
-   */
-  offset: number // Starting byte offset.
-  /**
-   * @generated from protobuf field: int64 length = 3
-   */
-  length: number // Number of bytes to examine.
-}
-/**
- * Content/MIME type detection result.
- *
- * @generated from protobuf message omega_edit.v1.GetContentTypeResponse
- */
-export interface GetContentTypeResponse {
-  /**
-   * @generated from protobuf field: string session_id = 1
-   */
-  sessionId: string // Session ID.
-  /**
-   * @generated from protobuf field: int64 offset = 2
-   */
-  offset: number // Byte offset where detection started.
-  /**
-   * @generated from protobuf field: int64 length = 3
-   */
-  length: number // Number of bytes examined.
-  /**
-   * @generated from protobuf field: string content_type = 4
-   */
-  contentType: string // Detected MIME type.
-}
-/**
- * Request to detect the natural language of a text segment.
- *
- * @generated from protobuf message omega_edit.v1.GetLanguageRequest
- */
-export interface GetLanguageRequest {
-  /**
-   * @generated from protobuf field: string session_id = 1
-   */
-  sessionId: string // Session ID.
-  /**
-   * @generated from protobuf field: int64 offset = 2
-   */
-  offset: number // Starting byte offset.
-  /**
-   * @generated from protobuf field: int64 length = 3
-   */
-  length: number // Number of bytes to read.
-  /**
-   * @generated from protobuf field: string byte_order_mark = 4
-   */
-  byteOrderMark: string // Encoding hint.
-}
-/**
- * Natural language detection result.
- *
- * @generated from protobuf message omega_edit.v1.GetLanguageResponse
- */
-export interface GetLanguageResponse {
-  /**
-   * @generated from protobuf field: string session_id = 1
-   */
-  sessionId: string // Session ID.
-  /**
-   * @generated from protobuf field: int64 offset = 2
-   */
-  offset: number // Byte offset where detection started.
-  /**
-   * @generated from protobuf field: int64 length = 3
-   */
-  length: number // Number of bytes examined.
-  /**
-   * @generated from protobuf field: string language = 4
-   */
-  language: string // ISO 639-1 two-letter language code.
-}
-/**
  * Request one or more counts for a session.
  *
  * @generated from protobuf message omega_edit.v1.GetCountRequest
@@ -1516,10 +1388,6 @@ export interface GetSegmentResponse {
    */
   data: Uint8Array // Raw bytes.
 }
-// ===========================================================================
-// Request / Response messages — Search and profiling
-// ===========================================================================
-
 /**
  * Request to search for a byte pattern in a session.
  *
@@ -1535,9 +1403,9 @@ export interface SearchSessionRequest {
    */
   pattern: Uint8Array // Byte pattern to find.
   /**
-   * @generated from protobuf field: optional bool is_case_insensitive = 3
+   * @generated from protobuf field: optional omega_edit.v1.SearchCaseFolding case_folding = 3
    */
-  isCaseInsensitive?: boolean // When true, perform case-insensitive matching.
+  caseFolding?: SearchCaseFolding // Case folding mode (UNSPECIFIED = exact byte matching).
   /**
    * @generated from protobuf field: optional bool is_reverse = 4
    */
@@ -1570,9 +1438,9 @@ export interface SearchSessionResponse {
    */
   pattern: Uint8Array // The pattern that was searched for.
   /**
-   * @generated from protobuf field: bool is_case_insensitive = 3
+   * @generated from protobuf field: omega_edit.v1.SearchCaseFolding case_folding = 3
    */
-  isCaseInsensitive: boolean // Whether the search was case-insensitive.
+  caseFolding: SearchCaseFolding // Case folding mode used for matching.
   /**
    * @generated from protobuf field: bool is_reverse = 4
    */
@@ -1609,9 +1477,9 @@ export interface ReplaceSessionRequest {
    */
   replacement: Uint8Array // Replacement bytes.
   /**
-   * @generated from protobuf field: optional bool is_case_insensitive = 4
+   * @generated from protobuf field: optional omega_edit.v1.SearchCaseFolding case_folding = 4
    */
-  isCaseInsensitive?: boolean // When true, perform case-insensitive matching.
+  caseFolding?: SearchCaseFolding // Case folding mode (UNSPECIFIED = exact byte matching).
   /**
    * @generated from protobuf field: optional bool is_reverse = 5
    */
@@ -1656,9 +1524,9 @@ export interface ReplaceSessionResponse {
    */
   replacement: Uint8Array // Replacement bytes that were written.
   /**
-   * @generated from protobuf field: bool is_case_insensitive = 4
+   * @generated from protobuf field: omega_edit.v1.SearchCaseFolding case_folding = 4
    */
-  isCaseInsensitive: boolean // Whether the match was case-insensitive.
+  caseFolding: SearchCaseFolding // Case folding mode used for matching.
   /**
    * @generated from protobuf field: bool is_reverse = 5
    */
@@ -1719,9 +1587,9 @@ export interface ReplaceSessionCheckpointedRequest {
    */
   replacement: Uint8Array // Replacement bytes.
   /**
-   * @generated from protobuf field: optional bool is_case_insensitive = 4
+   * @generated from protobuf field: optional omega_edit.v1.SearchCaseFolding case_folding = 4
    */
-  isCaseInsensitive?: boolean // When true, perform case-insensitive matching.
+  caseFolding?: SearchCaseFolding // Case folding mode (UNSPECIFIED = exact byte matching).
   /**
    * @generated from protobuf field: optional int64 offset = 5
    */
@@ -1750,9 +1618,9 @@ export interface ReplaceSessionCheckpointedResponse {
    */
   replacement: Uint8Array // The replacement bytes that were written.
   /**
-   * @generated from protobuf field: bool is_case_insensitive = 4
+   * @generated from protobuf field: omega_edit.v1.SearchCaseFolding case_folding = 4
    */
-  isCaseInsensitive: boolean // Whether the match was case-insensitive.
+  caseFolding: SearchCaseFolding // Case folding mode used for matching.
   /**
    * @generated from protobuf field: int64 offset = 5
    */
@@ -2718,6 +2586,43 @@ export enum SessionContentSource {
    */
   LATEST_CHECKPOINT = 3,
 }
+// ===========================================================================
+// Request / Response messages — Search and profiling
+// ===========================================================================
+
+/**
+ * Single-byte case folding mode used when searching or replacing bytes.
+ *
+ * @generated from protobuf enum omega_edit.v1.SearchCaseFolding
+ */
+export enum SearchCaseFolding {
+  /**
+   * Default (exact byte matching, no case folding).
+   *
+   * @generated from protobuf enum value: SEARCH_CASE_FOLDING_UNSPECIFIED = 0;
+   */
+  UNSPECIFIED = 0,
+  /**
+   * @generated from protobuf enum value: SEARCH_CASE_FOLDING_ASCII = 1;
+   */
+  ASCII = 1,
+  /**
+   * @generated from protobuf enum value: SEARCH_CASE_FOLDING_WINDOWS_1252 = 2;
+   */
+  WINDOWS_1252 = 2,
+  /**
+   * @generated from protobuf enum value: SEARCH_CASE_FOLDING_CP437 = 3;
+   */
+  CP437 = 3,
+  /**
+   * @generated from protobuf enum value: SEARCH_CASE_FOLDING_EBCDIC_037 = 4;
+   */
+  EBCDIC_037 = 4,
+  /**
+   * @generated from protobuf enum value: SEARCH_CASE_FOLDING_MAC_ROMAN = 5;
+   */
+  MAC_ROMAN = 5,
+}
 /**
  * Transform plugin operation mode.
  *
@@ -2837,14 +2742,6 @@ class GetServerInfoResponse$Type extends MessageType<GetServerInfoResponse> {
         T: 9 /*ScalarType.STRING*/,
       },
       {
-        no: 4,
-        name: 'jvm_version',
-        kind: 'scalar',
-        T: 9 /*ScalarType.STRING*/,
-      },
-      { no: 5, name: 'jvm_vendor', kind: 'scalar', T: 9 /*ScalarType.STRING*/ },
-      { no: 6, name: 'jvm_path', kind: 'scalar', T: 9 /*ScalarType.STRING*/ },
-      {
         no: 7,
         name: 'available_processors',
         kind: 'scalar',
@@ -2883,9 +2780,6 @@ class GetServerInfoResponse$Type extends MessageType<GetServerInfoResponse> {
     message.hostname = ''
     message.processId = 0
     message.serverVersion = ''
-    message.jvmVersion = ''
-    message.jvmVendor = ''
-    message.jvmPath = ''
     message.availableProcessors = 0
     message.runtimeKind = ''
     message.runtimeName = ''
@@ -2916,15 +2810,6 @@ class GetServerInfoResponse$Type extends MessageType<GetServerInfoResponse> {
           break
         case /* string server_version */ 3:
           message.serverVersion = reader.string()
-          break
-        case /* string jvm_version = 4 [deprecated = true] */ 4:
-          message.jvmVersion = reader.string()
-          break
-        case /* string jvm_vendor = 5 [deprecated = true] */ 5:
-          message.jvmVendor = reader.string()
-          break
-        case /* string jvm_path = 6 [deprecated = true] */ 6:
-          message.jvmPath = reader.string()
           break
         case /* int32 available_processors */ 7:
           message.availableProcessors = reader.int32()
@@ -2980,15 +2865,6 @@ class GetServerInfoResponse$Type extends MessageType<GetServerInfoResponse> {
     /* string server_version = 3; */
     if (message.serverVersion !== '')
       writer.tag(3, WireType.LengthDelimited).string(message.serverVersion)
-    /* string jvm_version = 4 [deprecated = true]; */
-    if (message.jvmVersion !== '')
-      writer.tag(4, WireType.LengthDelimited).string(message.jvmVersion)
-    /* string jvm_vendor = 5 [deprecated = true]; */
-    if (message.jvmVendor !== '')
-      writer.tag(5, WireType.LengthDelimited).string(message.jvmVendor)
-    /* string jvm_path = 6 [deprecated = true]; */
-    if (message.jvmPath !== '')
-      writer.tag(6, WireType.LengthDelimited).string(message.jvmPath)
     /* int32 available_processors = 7; */
     if (message.availableProcessors !== 0)
       writer.tag(7, WireType.Varint).int32(message.availableProcessors)
@@ -3117,16 +2993,9 @@ class ServerControlResponse$Type extends MessageType<ServerControlResponse> {
       },
       { no: 2, name: 'pid', kind: 'scalar', T: 5 /*ScalarType.INT32*/ },
       {
-        no: 3,
-        name: 'response_code',
-        kind: 'scalar',
-        T: 5 /*ScalarType.INT32*/,
-      },
-      {
         no: 4,
         name: 'status',
         kind: 'enum',
-        opt: true,
         T: () => [
           'omega_edit.v1.ServerControlStatus',
           ServerControlStatus,
@@ -3139,7 +3008,7 @@ class ServerControlResponse$Type extends MessageType<ServerControlResponse> {
     const message = globalThis.Object.create(this.messagePrototype!)
     message.kind = 0
     message.pid = 0
-    message.responseCode = 0
+    message.status = 0
     if (value !== undefined)
       reflectionMergePartial<ServerControlResponse>(this, message, value)
     return message
@@ -3161,10 +3030,7 @@ class ServerControlResponse$Type extends MessageType<ServerControlResponse> {
         case /* int32 pid */ 2:
           message.pid = reader.int32()
           break
-        case /* int32 response_code = 3 [deprecated = true] */ 3:
-          message.responseCode = reader.int32()
-          break
-        case /* optional omega_edit.v1.ServerControlStatus status */ 4:
+        case /* omega_edit.v1.ServerControlStatus status */ 4:
           message.status = reader.int32()
           break
         default:
@@ -3195,11 +3061,8 @@ class ServerControlResponse$Type extends MessageType<ServerControlResponse> {
     if (message.kind !== 0) writer.tag(1, WireType.Varint).int32(message.kind)
     /* int32 pid = 2; */
     if (message.pid !== 0) writer.tag(2, WireType.Varint).int32(message.pid)
-    /* int32 response_code = 3 [deprecated = true]; */
-    if (message.responseCode !== 0)
-      writer.tag(3, WireType.Varint).int32(message.responseCode)
-    /* optional omega_edit.v1.ServerControlStatus status = 4; */
-    if (message.status !== undefined)
+    /* omega_edit.v1.ServerControlStatus status = 4; */
+    if (message.status !== 0)
       writer.tag(4, WireType.Varint).int32(message.status)
     let u = options.writeUnknownFields
     if (u !== false)
@@ -3316,33 +3179,6 @@ class GetHeartbeatResponse$Type extends MessageType<GetHeartbeatResponse> {
       },
       { no: 4, name: 'cpu_count', kind: 'scalar', T: 5 /*ScalarType.INT32*/ },
       {
-        no: 5,
-        name: 'cpu_load_average',
-        kind: 'scalar',
-        T: 1 /*ScalarType.DOUBLE*/,
-      },
-      {
-        no: 6,
-        name: 'max_memory',
-        kind: 'scalar',
-        T: 3 /*ScalarType.INT64*/,
-        L: 2 /*LongType.NUMBER*/,
-      },
-      {
-        no: 7,
-        name: 'committed_memory',
-        kind: 'scalar',
-        T: 3 /*ScalarType.INT64*/,
-        L: 2 /*LongType.NUMBER*/,
-      },
-      {
-        no: 8,
-        name: 'used_memory',
-        kind: 'scalar',
-        T: 3 /*ScalarType.INT64*/,
-        L: 2 /*LongType.NUMBER*/,
-      },
-      {
         no: 9,
         name: 'load_average',
         kind: 'scalar',
@@ -3381,10 +3217,6 @@ class GetHeartbeatResponse$Type extends MessageType<GetHeartbeatResponse> {
     message.timestamp = 0
     message.uptime = 0
     message.cpuCount = 0
-    message.cpuLoadAverage = 0
-    message.maxMemory = 0
-    message.committedMemory = 0
-    message.usedMemory = 0
     if (value !== undefined)
       reflectionMergePartial<GetHeartbeatResponse>(this, message, value)
     return message
@@ -3411,18 +3243,6 @@ class GetHeartbeatResponse$Type extends MessageType<GetHeartbeatResponse> {
           break
         case /* int32 cpu_count */ 4:
           message.cpuCount = reader.int32()
-          break
-        case /* double cpu_load_average = 5 [deprecated = true] */ 5:
-          message.cpuLoadAverage = reader.double()
-          break
-        case /* int64 max_memory = 6 [deprecated = true] */ 6:
-          message.maxMemory = reader.int64().toNumber()
-          break
-        case /* int64 committed_memory = 7 [deprecated = true] */ 7:
-          message.committedMemory = reader.int64().toNumber()
-          break
-        case /* int64 used_memory = 8 [deprecated = true] */ 8:
-          message.usedMemory = reader.int64().toNumber()
           break
         case /* optional double load_average */ 9:
           message.loadAverage = reader.double()
@@ -3472,18 +3292,6 @@ class GetHeartbeatResponse$Type extends MessageType<GetHeartbeatResponse> {
     /* int32 cpu_count = 4; */
     if (message.cpuCount !== 0)
       writer.tag(4, WireType.Varint).int32(message.cpuCount)
-    /* double cpu_load_average = 5 [deprecated = true]; */
-    if (message.cpuLoadAverage !== 0)
-      writer.tag(5, WireType.Bit64).double(message.cpuLoadAverage)
-    /* int64 max_memory = 6 [deprecated = true]; */
-    if (message.maxMemory !== 0)
-      writer.tag(6, WireType.Varint).int64(message.maxMemory)
-    /* int64 committed_memory = 7 [deprecated = true]; */
-    if (message.committedMemory !== 0)
-      writer.tag(7, WireType.Varint).int64(message.committedMemory)
-    /* int64 used_memory = 8 [deprecated = true]; */
-    if (message.usedMemory !== 0)
-      writer.tag(8, WireType.Varint).int64(message.usedMemory)
     /* optional double load_average = 9; */
     if (message.loadAverage !== undefined)
       writer.tag(9, WireType.Bit64).double(message.loadAverage)
@@ -8176,430 +7984,6 @@ class GetByteOrderMarkResponse$Type extends MessageType<GetByteOrderMarkResponse
  */
 export const GetByteOrderMarkResponse = new GetByteOrderMarkResponse$Type()
 // @generated message type with reflection information, may provide speed optimized methods
-class GetContentTypeRequest$Type extends MessageType<GetContentTypeRequest> {
-  constructor() {
-    super('omega_edit.v1.GetContentTypeRequest', [
-      { no: 1, name: 'session_id', kind: 'scalar', T: 9 /*ScalarType.STRING*/ },
-      {
-        no: 2,
-        name: 'offset',
-        kind: 'scalar',
-        T: 3 /*ScalarType.INT64*/,
-        L: 2 /*LongType.NUMBER*/,
-      },
-      {
-        no: 3,
-        name: 'length',
-        kind: 'scalar',
-        T: 3 /*ScalarType.INT64*/,
-        L: 2 /*LongType.NUMBER*/,
-      },
-    ])
-  }
-  create(value?: PartialMessage<GetContentTypeRequest>): GetContentTypeRequest {
-    const message = globalThis.Object.create(this.messagePrototype!)
-    message.sessionId = ''
-    message.offset = 0
-    message.length = 0
-    if (value !== undefined)
-      reflectionMergePartial<GetContentTypeRequest>(this, message, value)
-    return message
-  }
-  internalBinaryRead(
-    reader: IBinaryReader,
-    length: number,
-    options: BinaryReadOptions,
-    target?: GetContentTypeRequest
-  ): GetContentTypeRequest {
-    let message = target ?? this.create(),
-      end = reader.pos + length
-    while (reader.pos < end) {
-      let [fieldNo, wireType] = reader.tag()
-      switch (fieldNo) {
-        case /* string session_id */ 1:
-          message.sessionId = reader.string()
-          break
-        case /* int64 offset */ 2:
-          message.offset = reader.int64().toNumber()
-          break
-        case /* int64 length */ 3:
-          message.length = reader.int64().toNumber()
-          break
-        default:
-          let u = options.readUnknownField
-          if (u === 'throw')
-            throw new globalThis.Error(
-              `Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`
-            )
-          let d = reader.skip(wireType)
-          if (u !== false)
-            (u === true ? UnknownFieldHandler.onRead : u)(
-              this.typeName,
-              message,
-              fieldNo,
-              wireType,
-              d
-            )
-      }
-    }
-    return message
-  }
-  internalBinaryWrite(
-    message: GetContentTypeRequest,
-    writer: IBinaryWriter,
-    options: BinaryWriteOptions
-  ): IBinaryWriter {
-    /* string session_id = 1; */
-    if (message.sessionId !== '')
-      writer.tag(1, WireType.LengthDelimited).string(message.sessionId)
-    /* int64 offset = 2; */
-    if (message.offset !== 0)
-      writer.tag(2, WireType.Varint).int64(message.offset)
-    /* int64 length = 3; */
-    if (message.length !== 0)
-      writer.tag(3, WireType.Varint).int64(message.length)
-    let u = options.writeUnknownFields
-    if (u !== false)
-      (u == true ? UnknownFieldHandler.onWrite : u)(
-        this.typeName,
-        message,
-        writer
-      )
-    return writer
-  }
-}
-/**
- * @generated MessageType for protobuf message omega_edit.v1.GetContentTypeRequest
- */
-export const GetContentTypeRequest = new GetContentTypeRequest$Type()
-// @generated message type with reflection information, may provide speed optimized methods
-class GetContentTypeResponse$Type extends MessageType<GetContentTypeResponse> {
-  constructor() {
-    super('omega_edit.v1.GetContentTypeResponse', [
-      { no: 1, name: 'session_id', kind: 'scalar', T: 9 /*ScalarType.STRING*/ },
-      {
-        no: 2,
-        name: 'offset',
-        kind: 'scalar',
-        T: 3 /*ScalarType.INT64*/,
-        L: 2 /*LongType.NUMBER*/,
-      },
-      {
-        no: 3,
-        name: 'length',
-        kind: 'scalar',
-        T: 3 /*ScalarType.INT64*/,
-        L: 2 /*LongType.NUMBER*/,
-      },
-      {
-        no: 4,
-        name: 'content_type',
-        kind: 'scalar',
-        T: 9 /*ScalarType.STRING*/,
-      },
-    ])
-  }
-  create(
-    value?: PartialMessage<GetContentTypeResponse>
-  ): GetContentTypeResponse {
-    const message = globalThis.Object.create(this.messagePrototype!)
-    message.sessionId = ''
-    message.offset = 0
-    message.length = 0
-    message.contentType = ''
-    if (value !== undefined)
-      reflectionMergePartial<GetContentTypeResponse>(this, message, value)
-    return message
-  }
-  internalBinaryRead(
-    reader: IBinaryReader,
-    length: number,
-    options: BinaryReadOptions,
-    target?: GetContentTypeResponse
-  ): GetContentTypeResponse {
-    let message = target ?? this.create(),
-      end = reader.pos + length
-    while (reader.pos < end) {
-      let [fieldNo, wireType] = reader.tag()
-      switch (fieldNo) {
-        case /* string session_id */ 1:
-          message.sessionId = reader.string()
-          break
-        case /* int64 offset */ 2:
-          message.offset = reader.int64().toNumber()
-          break
-        case /* int64 length */ 3:
-          message.length = reader.int64().toNumber()
-          break
-        case /* string content_type */ 4:
-          message.contentType = reader.string()
-          break
-        default:
-          let u = options.readUnknownField
-          if (u === 'throw')
-            throw new globalThis.Error(
-              `Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`
-            )
-          let d = reader.skip(wireType)
-          if (u !== false)
-            (u === true ? UnknownFieldHandler.onRead : u)(
-              this.typeName,
-              message,
-              fieldNo,
-              wireType,
-              d
-            )
-      }
-    }
-    return message
-  }
-  internalBinaryWrite(
-    message: GetContentTypeResponse,
-    writer: IBinaryWriter,
-    options: BinaryWriteOptions
-  ): IBinaryWriter {
-    /* string session_id = 1; */
-    if (message.sessionId !== '')
-      writer.tag(1, WireType.LengthDelimited).string(message.sessionId)
-    /* int64 offset = 2; */
-    if (message.offset !== 0)
-      writer.tag(2, WireType.Varint).int64(message.offset)
-    /* int64 length = 3; */
-    if (message.length !== 0)
-      writer.tag(3, WireType.Varint).int64(message.length)
-    /* string content_type = 4; */
-    if (message.contentType !== '')
-      writer.tag(4, WireType.LengthDelimited).string(message.contentType)
-    let u = options.writeUnknownFields
-    if (u !== false)
-      (u == true ? UnknownFieldHandler.onWrite : u)(
-        this.typeName,
-        message,
-        writer
-      )
-    return writer
-  }
-}
-/**
- * @generated MessageType for protobuf message omega_edit.v1.GetContentTypeResponse
- */
-export const GetContentTypeResponse = new GetContentTypeResponse$Type()
-// @generated message type with reflection information, may provide speed optimized methods
-class GetLanguageRequest$Type extends MessageType<GetLanguageRequest> {
-  constructor() {
-    super('omega_edit.v1.GetLanguageRequest', [
-      { no: 1, name: 'session_id', kind: 'scalar', T: 9 /*ScalarType.STRING*/ },
-      {
-        no: 2,
-        name: 'offset',
-        kind: 'scalar',
-        T: 3 /*ScalarType.INT64*/,
-        L: 2 /*LongType.NUMBER*/,
-      },
-      {
-        no: 3,
-        name: 'length',
-        kind: 'scalar',
-        T: 3 /*ScalarType.INT64*/,
-        L: 2 /*LongType.NUMBER*/,
-      },
-      {
-        no: 4,
-        name: 'byte_order_mark',
-        kind: 'scalar',
-        T: 9 /*ScalarType.STRING*/,
-      },
-    ])
-  }
-  create(value?: PartialMessage<GetLanguageRequest>): GetLanguageRequest {
-    const message = globalThis.Object.create(this.messagePrototype!)
-    message.sessionId = ''
-    message.offset = 0
-    message.length = 0
-    message.byteOrderMark = ''
-    if (value !== undefined)
-      reflectionMergePartial<GetLanguageRequest>(this, message, value)
-    return message
-  }
-  internalBinaryRead(
-    reader: IBinaryReader,
-    length: number,
-    options: BinaryReadOptions,
-    target?: GetLanguageRequest
-  ): GetLanguageRequest {
-    let message = target ?? this.create(),
-      end = reader.pos + length
-    while (reader.pos < end) {
-      let [fieldNo, wireType] = reader.tag()
-      switch (fieldNo) {
-        case /* string session_id */ 1:
-          message.sessionId = reader.string()
-          break
-        case /* int64 offset */ 2:
-          message.offset = reader.int64().toNumber()
-          break
-        case /* int64 length */ 3:
-          message.length = reader.int64().toNumber()
-          break
-        case /* string byte_order_mark */ 4:
-          message.byteOrderMark = reader.string()
-          break
-        default:
-          let u = options.readUnknownField
-          if (u === 'throw')
-            throw new globalThis.Error(
-              `Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`
-            )
-          let d = reader.skip(wireType)
-          if (u !== false)
-            (u === true ? UnknownFieldHandler.onRead : u)(
-              this.typeName,
-              message,
-              fieldNo,
-              wireType,
-              d
-            )
-      }
-    }
-    return message
-  }
-  internalBinaryWrite(
-    message: GetLanguageRequest,
-    writer: IBinaryWriter,
-    options: BinaryWriteOptions
-  ): IBinaryWriter {
-    /* string session_id = 1; */
-    if (message.sessionId !== '')
-      writer.tag(1, WireType.LengthDelimited).string(message.sessionId)
-    /* int64 offset = 2; */
-    if (message.offset !== 0)
-      writer.tag(2, WireType.Varint).int64(message.offset)
-    /* int64 length = 3; */
-    if (message.length !== 0)
-      writer.tag(3, WireType.Varint).int64(message.length)
-    /* string byte_order_mark = 4; */
-    if (message.byteOrderMark !== '')
-      writer.tag(4, WireType.LengthDelimited).string(message.byteOrderMark)
-    let u = options.writeUnknownFields
-    if (u !== false)
-      (u == true ? UnknownFieldHandler.onWrite : u)(
-        this.typeName,
-        message,
-        writer
-      )
-    return writer
-  }
-}
-/**
- * @generated MessageType for protobuf message omega_edit.v1.GetLanguageRequest
- */
-export const GetLanguageRequest = new GetLanguageRequest$Type()
-// @generated message type with reflection information, may provide speed optimized methods
-class GetLanguageResponse$Type extends MessageType<GetLanguageResponse> {
-  constructor() {
-    super('omega_edit.v1.GetLanguageResponse', [
-      { no: 1, name: 'session_id', kind: 'scalar', T: 9 /*ScalarType.STRING*/ },
-      {
-        no: 2,
-        name: 'offset',
-        kind: 'scalar',
-        T: 3 /*ScalarType.INT64*/,
-        L: 2 /*LongType.NUMBER*/,
-      },
-      {
-        no: 3,
-        name: 'length',
-        kind: 'scalar',
-        T: 3 /*ScalarType.INT64*/,
-        L: 2 /*LongType.NUMBER*/,
-      },
-      { no: 4, name: 'language', kind: 'scalar', T: 9 /*ScalarType.STRING*/ },
-    ])
-  }
-  create(value?: PartialMessage<GetLanguageResponse>): GetLanguageResponse {
-    const message = globalThis.Object.create(this.messagePrototype!)
-    message.sessionId = ''
-    message.offset = 0
-    message.length = 0
-    message.language = ''
-    if (value !== undefined)
-      reflectionMergePartial<GetLanguageResponse>(this, message, value)
-    return message
-  }
-  internalBinaryRead(
-    reader: IBinaryReader,
-    length: number,
-    options: BinaryReadOptions,
-    target?: GetLanguageResponse
-  ): GetLanguageResponse {
-    let message = target ?? this.create(),
-      end = reader.pos + length
-    while (reader.pos < end) {
-      let [fieldNo, wireType] = reader.tag()
-      switch (fieldNo) {
-        case /* string session_id */ 1:
-          message.sessionId = reader.string()
-          break
-        case /* int64 offset */ 2:
-          message.offset = reader.int64().toNumber()
-          break
-        case /* int64 length */ 3:
-          message.length = reader.int64().toNumber()
-          break
-        case /* string language */ 4:
-          message.language = reader.string()
-          break
-        default:
-          let u = options.readUnknownField
-          if (u === 'throw')
-            throw new globalThis.Error(
-              `Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`
-            )
-          let d = reader.skip(wireType)
-          if (u !== false)
-            (u === true ? UnknownFieldHandler.onRead : u)(
-              this.typeName,
-              message,
-              fieldNo,
-              wireType,
-              d
-            )
-      }
-    }
-    return message
-  }
-  internalBinaryWrite(
-    message: GetLanguageResponse,
-    writer: IBinaryWriter,
-    options: BinaryWriteOptions
-  ): IBinaryWriter {
-    /* string session_id = 1; */
-    if (message.sessionId !== '')
-      writer.tag(1, WireType.LengthDelimited).string(message.sessionId)
-    /* int64 offset = 2; */
-    if (message.offset !== 0)
-      writer.tag(2, WireType.Varint).int64(message.offset)
-    /* int64 length = 3; */
-    if (message.length !== 0)
-      writer.tag(3, WireType.Varint).int64(message.length)
-    /* string language = 4; */
-    if (message.language !== '')
-      writer.tag(4, WireType.LengthDelimited).string(message.language)
-    let u = options.writeUnknownFields
-    if (u !== false)
-      (u == true ? UnknownFieldHandler.onWrite : u)(
-        this.typeName,
-        message,
-        writer
-      )
-    return writer
-  }
-}
-/**
- * @generated MessageType for protobuf message omega_edit.v1.GetLanguageResponse
- */
-export const GetLanguageResponse = new GetLanguageResponse$Type()
-// @generated message type with reflection information, may provide speed optimized methods
 class GetCountRequest$Type extends MessageType<GetCountRequest> {
   constructor() {
     super('omega_edit.v1.GetCountRequest', [
@@ -10362,10 +9746,14 @@ class SearchSessionRequest$Type extends MessageType<SearchSessionRequest> {
       { no: 2, name: 'pattern', kind: 'scalar', T: 12 /*ScalarType.BYTES*/ },
       {
         no: 3,
-        name: 'is_case_insensitive',
-        kind: 'scalar',
+        name: 'case_folding',
+        kind: 'enum',
         opt: true,
-        T: 8 /*ScalarType.BOOL*/,
+        T: () => [
+          'omega_edit.v1.SearchCaseFolding',
+          SearchCaseFolding,
+          'SEARCH_CASE_FOLDING_',
+        ],
       },
       {
         no: 4,
@@ -10425,8 +9813,8 @@ class SearchSessionRequest$Type extends MessageType<SearchSessionRequest> {
         case /* bytes pattern */ 2:
           message.pattern = reader.bytes()
           break
-        case /* optional bool is_case_insensitive */ 3:
-          message.isCaseInsensitive = reader.bool()
+        case /* optional omega_edit.v1.SearchCaseFolding case_folding */ 3:
+          message.caseFolding = reader.int32()
           break
         case /* optional bool is_reverse */ 4:
           message.isReverse = reader.bool()
@@ -10470,9 +9858,9 @@ class SearchSessionRequest$Type extends MessageType<SearchSessionRequest> {
     /* bytes pattern = 2; */
     if (message.pattern.length)
       writer.tag(2, WireType.LengthDelimited).bytes(message.pattern)
-    /* optional bool is_case_insensitive = 3; */
-    if (message.isCaseInsensitive !== undefined)
-      writer.tag(3, WireType.Varint).bool(message.isCaseInsensitive)
+    /* optional omega_edit.v1.SearchCaseFolding case_folding = 3; */
+    if (message.caseFolding !== undefined)
+      writer.tag(3, WireType.Varint).int32(message.caseFolding)
     /* optional bool is_reverse = 4; */
     if (message.isReverse !== undefined)
       writer.tag(4, WireType.Varint).bool(message.isReverse)
@@ -10507,9 +9895,13 @@ class SearchSessionResponse$Type extends MessageType<SearchSessionResponse> {
       { no: 2, name: 'pattern', kind: 'scalar', T: 12 /*ScalarType.BYTES*/ },
       {
         no: 3,
-        name: 'is_case_insensitive',
-        kind: 'scalar',
-        T: 8 /*ScalarType.BOOL*/,
+        name: 'case_folding',
+        kind: 'enum',
+        T: () => [
+          'omega_edit.v1.SearchCaseFolding',
+          SearchCaseFolding,
+          'SEARCH_CASE_FOLDING_',
+        ],
       },
       { no: 4, name: 'is_reverse', kind: 'scalar', T: 8 /*ScalarType.BOOL*/ },
       {
@@ -10540,7 +9932,7 @@ class SearchSessionResponse$Type extends MessageType<SearchSessionResponse> {
     const message = globalThis.Object.create(this.messagePrototype!)
     message.sessionId = ''
     message.pattern = new Uint8Array(0)
-    message.isCaseInsensitive = false
+    message.caseFolding = 0
     message.isReverse = false
     message.offset = 0
     message.length = 0
@@ -10566,8 +9958,8 @@ class SearchSessionResponse$Type extends MessageType<SearchSessionResponse> {
         case /* bytes pattern */ 2:
           message.pattern = reader.bytes()
           break
-        case /* bool is_case_insensitive */ 3:
-          message.isCaseInsensitive = reader.bool()
+        case /* omega_edit.v1.SearchCaseFolding case_folding */ 3:
+          message.caseFolding = reader.int32()
           break
         case /* bool is_reverse */ 4:
           message.isReverse = reader.bool()
@@ -10614,9 +10006,9 @@ class SearchSessionResponse$Type extends MessageType<SearchSessionResponse> {
     /* bytes pattern = 2; */
     if (message.pattern.length)
       writer.tag(2, WireType.LengthDelimited).bytes(message.pattern)
-    /* bool is_case_insensitive = 3; */
-    if (message.isCaseInsensitive !== false)
-      writer.tag(3, WireType.Varint).bool(message.isCaseInsensitive)
+    /* omega_edit.v1.SearchCaseFolding case_folding = 3; */
+    if (message.caseFolding !== 0)
+      writer.tag(3, WireType.Varint).int32(message.caseFolding)
     /* bool is_reverse = 4; */
     if (message.isReverse !== false)
       writer.tag(4, WireType.Varint).bool(message.isReverse)
@@ -10661,10 +10053,14 @@ class ReplaceSessionRequest$Type extends MessageType<ReplaceSessionRequest> {
       },
       {
         no: 4,
-        name: 'is_case_insensitive',
-        kind: 'scalar',
+        name: 'case_folding',
+        kind: 'enum',
         opt: true,
-        T: 8 /*ScalarType.BOOL*/,
+        T: () => [
+          'omega_edit.v1.SearchCaseFolding',
+          SearchCaseFolding,
+          'SEARCH_CASE_FOLDING_',
+        ],
       },
       {
         no: 5,
@@ -10742,8 +10138,8 @@ class ReplaceSessionRequest$Type extends MessageType<ReplaceSessionRequest> {
         case /* bytes replacement */ 3:
           message.replacement = reader.bytes()
           break
-        case /* optional bool is_case_insensitive */ 4:
-          message.isCaseInsensitive = reader.bool()
+        case /* optional omega_edit.v1.SearchCaseFolding case_folding */ 4:
+          message.caseFolding = reader.int32()
           break
         case /* optional bool is_reverse */ 5:
           message.isReverse = reader.bool()
@@ -10796,9 +10192,9 @@ class ReplaceSessionRequest$Type extends MessageType<ReplaceSessionRequest> {
     /* bytes replacement = 3; */
     if (message.replacement.length)
       writer.tag(3, WireType.LengthDelimited).bytes(message.replacement)
-    /* optional bool is_case_insensitive = 4; */
-    if (message.isCaseInsensitive !== undefined)
-      writer.tag(4, WireType.Varint).bool(message.isCaseInsensitive)
+    /* optional omega_edit.v1.SearchCaseFolding case_folding = 4; */
+    if (message.caseFolding !== undefined)
+      writer.tag(4, WireType.Varint).int32(message.caseFolding)
     /* optional bool is_reverse = 5; */
     if (message.isReverse !== undefined)
       writer.tag(5, WireType.Varint).bool(message.isReverse)
@@ -10845,9 +10241,13 @@ class ReplaceSessionResponse$Type extends MessageType<ReplaceSessionResponse> {
       },
       {
         no: 4,
-        name: 'is_case_insensitive',
-        kind: 'scalar',
-        T: 8 /*ScalarType.BOOL*/,
+        name: 'case_folding',
+        kind: 'enum',
+        T: () => [
+          'omega_edit.v1.SearchCaseFolding',
+          SearchCaseFolding,
+          'SEARCH_CASE_FOLDING_',
+        ],
       },
       { no: 5, name: 'is_reverse', kind: 'scalar', T: 8 /*ScalarType.BOOL*/ },
       {
@@ -10920,7 +10320,7 @@ class ReplaceSessionResponse$Type extends MessageType<ReplaceSessionResponse> {
     message.sessionId = ''
     message.pattern = new Uint8Array(0)
     message.replacement = new Uint8Array(0)
-    message.isCaseInsensitive = false
+    message.caseFolding = 0
     message.isReverse = false
     message.offset = 0
     message.length = 0
@@ -10955,8 +10355,8 @@ class ReplaceSessionResponse$Type extends MessageType<ReplaceSessionResponse> {
         case /* bytes replacement */ 3:
           message.replacement = reader.bytes()
           break
-        case /* bool is_case_insensitive */ 4:
-          message.isCaseInsensitive = reader.bool()
+        case /* omega_edit.v1.SearchCaseFolding case_folding */ 4:
+          message.caseFolding = reader.int32()
           break
         case /* bool is_reverse */ 5:
           message.isReverse = reader.bool()
@@ -11021,9 +10421,9 @@ class ReplaceSessionResponse$Type extends MessageType<ReplaceSessionResponse> {
     /* bytes replacement = 3; */
     if (message.replacement.length)
       writer.tag(3, WireType.LengthDelimited).bytes(message.replacement)
-    /* bool is_case_insensitive = 4; */
-    if (message.isCaseInsensitive !== false)
-      writer.tag(4, WireType.Varint).bool(message.isCaseInsensitive)
+    /* omega_edit.v1.SearchCaseFolding case_folding = 4; */
+    if (message.caseFolding !== 0)
+      writer.tag(4, WireType.Varint).int32(message.caseFolding)
     /* bool is_reverse = 5; */
     if (message.isReverse !== false)
       writer.tag(5, WireType.Varint).bool(message.isReverse)
@@ -11081,10 +10481,14 @@ class ReplaceSessionCheckpointedRequest$Type extends MessageType<ReplaceSessionC
       },
       {
         no: 4,
-        name: 'is_case_insensitive',
-        kind: 'scalar',
+        name: 'case_folding',
+        kind: 'enum',
         opt: true,
-        T: 8 /*ScalarType.BOOL*/,
+        T: () => [
+          'omega_edit.v1.SearchCaseFolding',
+          SearchCaseFolding,
+          'SEARCH_CASE_FOLDING_',
+        ],
       },
       {
         no: 5,
@@ -11139,8 +10543,8 @@ class ReplaceSessionCheckpointedRequest$Type extends MessageType<ReplaceSessionC
         case /* bytes replacement */ 3:
           message.replacement = reader.bytes()
           break
-        case /* optional bool is_case_insensitive */ 4:
-          message.isCaseInsensitive = reader.bool()
+        case /* optional omega_edit.v1.SearchCaseFolding case_folding */ 4:
+          message.caseFolding = reader.int32()
           break
         case /* optional int64 offset */ 5:
           message.offset = reader.int64().toNumber()
@@ -11181,9 +10585,9 @@ class ReplaceSessionCheckpointedRequest$Type extends MessageType<ReplaceSessionC
     /* bytes replacement = 3; */
     if (message.replacement.length)
       writer.tag(3, WireType.LengthDelimited).bytes(message.replacement)
-    /* optional bool is_case_insensitive = 4; */
-    if (message.isCaseInsensitive !== undefined)
-      writer.tag(4, WireType.Varint).bool(message.isCaseInsensitive)
+    /* optional omega_edit.v1.SearchCaseFolding case_folding = 4; */
+    if (message.caseFolding !== undefined)
+      writer.tag(4, WireType.Varint).int32(message.caseFolding)
     /* optional int64 offset = 5; */
     if (message.offset !== undefined)
       writer.tag(5, WireType.Varint).int64(message.offset)
@@ -11219,9 +10623,13 @@ class ReplaceSessionCheckpointedResponse$Type extends MessageType<ReplaceSession
       },
       {
         no: 4,
-        name: 'is_case_insensitive',
-        kind: 'scalar',
-        T: 8 /*ScalarType.BOOL*/,
+        name: 'case_folding',
+        kind: 'enum',
+        T: () => [
+          'omega_edit.v1.SearchCaseFolding',
+          SearchCaseFolding,
+          'SEARCH_CASE_FOLDING_',
+        ],
       },
       {
         no: 5,
@@ -11253,7 +10661,7 @@ class ReplaceSessionCheckpointedResponse$Type extends MessageType<ReplaceSession
     message.sessionId = ''
     message.pattern = new Uint8Array(0)
     message.replacement = new Uint8Array(0)
-    message.isCaseInsensitive = false
+    message.caseFolding = 0
     message.offset = 0
     message.length = 0
     message.replacementCount = 0
@@ -11285,8 +10693,8 @@ class ReplaceSessionCheckpointedResponse$Type extends MessageType<ReplaceSession
         case /* bytes replacement */ 3:
           message.replacement = reader.bytes()
           break
-        case /* bool is_case_insensitive */ 4:
-          message.isCaseInsensitive = reader.bool()
+        case /* omega_edit.v1.SearchCaseFolding case_folding */ 4:
+          message.caseFolding = reader.int32()
           break
         case /* int64 offset */ 5:
           message.offset = reader.int64().toNumber()
@@ -11330,9 +10738,9 @@ class ReplaceSessionCheckpointedResponse$Type extends MessageType<ReplaceSession
     /* bytes replacement = 3; */
     if (message.replacement.length)
       writer.tag(3, WireType.LengthDelimited).bytes(message.replacement)
-    /* bool is_case_insensitive = 4; */
-    if (message.isCaseInsensitive !== false)
-      writer.tag(4, WireType.Varint).bool(message.isCaseInsensitive)
+    /* omega_edit.v1.SearchCaseFolding case_folding = 4; */
+    if (message.caseFolding !== 0)
+      writer.tag(4, WireType.Varint).int32(message.caseFolding)
     /* int64 offset = 5; */
     if (message.offset !== 0)
       writer.tag(5, WireType.Varint).int64(message.offset)
@@ -14214,18 +13622,6 @@ export const EditorService = new ServiceType('omega_edit.v1.EditorService', [
     options: {},
     I: GetByteOrderMarkRequest,
     O: GetByteOrderMarkResponse,
-  },
-  {
-    name: 'GetContentType',
-    options: {},
-    I: GetContentTypeRequest,
-    O: GetContentTypeResponse,
-  },
-  {
-    name: 'GetLanguage',
-    options: {},
-    I: GetLanguageRequest,
-    O: GetLanguageResponse,
   },
   { name: 'GetCount', options: {}, I: GetCountRequest, O: GetCountResponse },
   {

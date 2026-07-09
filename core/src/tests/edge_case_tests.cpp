@@ -36,6 +36,7 @@
 #include <new>
 #include <string>
 #include <type_traits>
+#include <vector>
 
 using namespace std;
 using Catch::Matchers::Equals;
@@ -44,6 +45,52 @@ static_assert(!std::is_copy_constructible<omega_data_t>::value, "omega_data_t mu
 static_assert(!std::is_copy_assignable<omega_data_t>::value, "omega_data_t must not be copy assignable");
 static_assert(std::is_move_constructible<omega_data_t>::value, "omega_data_t must be move constructible");
 static_assert(std::is_move_assignable<omega_data_t>::value, "omega_data_t must be move assignable");
+
+struct case_fold_pair {
+    omega_byte_t upper;
+    omega_byte_t lower;
+};
+
+static std::vector<int64_t> collect_case_folded_match_offsets(const std::vector<omega_byte_t> &bytes,
+                                                              const std::vector<omega_byte_t> &pattern,
+                                                              omega_search_case_folding_t case_folding,
+                                                              bool reverse = false, int64_t offset = 0,
+                                                              int64_t length = 0) {
+    const auto session_ptr = omega_edit_create_session(nullptr, nullptr, nullptr, 0, nullptr);
+    REQUIRE(session_ptr);
+
+    REQUIRE(0 < omega_edit_insert_bytes(session_ptr, 0, bytes.data(), static_cast<int64_t>(bytes.size())));
+    const auto search_context =
+            omega_search_create_context_bytes(session_ptr, pattern.data(), static_cast<int64_t>(pattern.size()), offset,
+                                              length, case_folding, reverse ? 1 : 0);
+    REQUIRE(search_context);
+
+    std::vector<int64_t> offsets;
+    while (omega_search_next_match(search_context, 1) > 0) {
+        offsets.push_back(omega_search_context_get_match_offset(search_context));
+    }
+
+    omega_search_destroy_context(search_context);
+    omega_edit_destroy_session(session_ptr);
+    return offsets;
+}
+
+static void require_all_case_fold_pairs_match(omega_search_case_folding_t case_folding,
+                                              const std::vector<case_fold_pair> &pairs) {
+    for (const auto &pair : pairs) {
+        const std::vector<omega_byte_t> bytes{pair.upper, pair.lower};
+
+        INFO("upper=" << static_cast<int>(pair.upper) << " lower=" << static_cast<int>(pair.lower));
+        REQUIRE(std::vector<int64_t>{0, 1} == collect_case_folded_match_offsets(bytes, {pair.lower}, case_folding));
+        REQUIRE(std::vector<int64_t>{0, 1} == collect_case_folded_match_offsets(bytes, {pair.upper}, case_folding));
+        REQUIRE(std::vector<int64_t>{1, 0} ==
+                collect_case_folded_match_offsets(bytes, {pair.lower}, case_folding, true));
+        REQUIRE(std::vector<int64_t>{0} ==
+                collect_case_folded_match_offsets(bytes, {pair.upper}, OMEGA_SEARCH_CASE_FOLDING_NONE));
+        REQUIRE(std::vector<int64_t>{1} ==
+                collect_case_folded_match_offsets(bytes, {pair.lower}, OMEGA_SEARCH_CASE_FOLDING_NONE));
+    }
+}
 
 // ─── Empty-string and zero-length edit operations ────────────────────────────
 
@@ -114,12 +161,158 @@ TEST_CASE("Byte APIs preserve embedded nulls with explicit lengths", "[EdgeCase]
             omega_session_get_segment_string(session_ptr, 0, 4));
 
     const omega_byte_t pattern[] = {'\0', 'R'};
-    const auto search_context =
-            omega_search_create_context_bytes(session_ptr, pattern, static_cast<int64_t>(sizeof(pattern)), 0, 0, 0, 0);
+    const auto search_context = omega_search_create_context_bytes(
+            session_ptr, pattern, static_cast<int64_t>(sizeof(pattern)), 0, 0, OMEGA_SEARCH_CASE_FOLDING_NONE, 0);
     REQUIRE(search_context);
     REQUIRE(1 == omega_search_next_match(search_context, 1));
     REQUIRE(1 == omega_search_context_get_match_offset(search_context));
     omega_search_destroy_context(search_context);
+
+    omega_edit_destroy_session(session_ptr);
+}
+
+TEST_CASE("Byte search folds every mapped single-byte code-page pair", "[EdgeCase][Search]") {
+    const std::vector<case_fold_pair> ascii_pairs{
+            {0x41, 0x61}, {0x42, 0x62}, {0x43, 0x63}, {0x44, 0x64}, {0x45, 0x65}, {0x46, 0x66}, {0x47, 0x67},
+            {0x48, 0x68}, {0x49, 0x69}, {0x4a, 0x6a}, {0x4b, 0x6b}, {0x4c, 0x6c}, {0x4d, 0x6d}, {0x4e, 0x6e},
+            {0x4f, 0x6f}, {0x50, 0x70}, {0x51, 0x71}, {0x52, 0x72}, {0x53, 0x73}, {0x54, 0x74}, {0x55, 0x75},
+            {0x56, 0x76}, {0x57, 0x77}, {0x58, 0x78}, {0x59, 0x79}, {0x5a, 0x7a},
+    };
+    require_all_case_fold_pairs_match(OMEGA_SEARCH_CASE_FOLDING_ASCII, ascii_pairs);
+
+    auto windows_1252_pairs = ascii_pairs;
+    windows_1252_pairs.insert(windows_1252_pairs.end(),
+                              {{0x8a, 0x9a}, {0x8c, 0x9c}, {0x8e, 0x9e}, {0x9f, 0xff}, {0xc0, 0xe0}, {0xc1, 0xe1},
+                               {0xc2, 0xe2}, {0xc3, 0xe3}, {0xc4, 0xe4}, {0xc5, 0xe5}, {0xc6, 0xe6}, {0xc7, 0xe7},
+                               {0xc8, 0xe8}, {0xc9, 0xe9}, {0xca, 0xea}, {0xcb, 0xeb}, {0xcc, 0xec}, {0xcd, 0xed},
+                               {0xce, 0xee}, {0xcf, 0xef}, {0xd0, 0xf0}, {0xd1, 0xf1}, {0xd2, 0xf2}, {0xd3, 0xf3},
+                               {0xd4, 0xf4}, {0xd5, 0xf5}, {0xd6, 0xf6}, {0xd8, 0xf8}, {0xd9, 0xf9}, {0xda, 0xfa},
+                               {0xdb, 0xfb}, {0xdc, 0xfc}, {0xdd, 0xfd}, {0xde, 0xfe}});
+    require_all_case_fold_pairs_match(OMEGA_SEARCH_CASE_FOLDING_WINDOWS_1252, windows_1252_pairs);
+
+    auto cp437_pairs = ascii_pairs;
+    cp437_pairs.insert(cp437_pairs.end(), {{0x80, 0x87},
+                                           {0x8e, 0x84},
+                                           {0x8f, 0x86},
+                                           {0x90, 0x82},
+                                           {0x92, 0x91},
+                                           {0x99, 0x94},
+                                           {0x9a, 0x81},
+                                           {0xa5, 0xa4},
+                                           {0xe4, 0xe5},
+                                           {0xe8, 0xed}});
+    require_all_case_fold_pairs_match(OMEGA_SEARCH_CASE_FOLDING_CP437, cp437_pairs);
+
+    const std::vector<case_fold_pair> ebcdic_037_pairs{
+            {0x62, 0x42}, {0x63, 0x43}, {0x64, 0x44}, {0x65, 0x45}, {0x66, 0x46}, {0x67, 0x47}, {0x68, 0x48},
+            {0x69, 0x49}, {0x71, 0x51}, {0x72, 0x52}, {0x73, 0x53}, {0x74, 0x54}, {0x75, 0x55}, {0x76, 0x56},
+            {0x77, 0x57}, {0x78, 0x58}, {0x80, 0x70}, {0x9e, 0x9c}, {0xac, 0x8c}, {0xad, 0x8d}, {0xae, 0x8e},
+            {0xc1, 0x81}, {0xc2, 0x82}, {0xc3, 0x83}, {0xc4, 0x84}, {0xc5, 0x85}, {0xc6, 0x86}, {0xc7, 0x87},
+            {0xc8, 0x88}, {0xc9, 0x89}, {0xd1, 0x91}, {0xd2, 0x92}, {0xd3, 0x93}, {0xd4, 0x94}, {0xd5, 0x95},
+            {0xd6, 0x96}, {0xd7, 0x97}, {0xd8, 0x98}, {0xd9, 0x99}, {0xe2, 0xa2}, {0xe3, 0xa3}, {0xe4, 0xa4},
+            {0xe5, 0xa5}, {0xe6, 0xa6}, {0xe7, 0xa7}, {0xe8, 0xa8}, {0xe9, 0xa9}, {0xeb, 0xcb}, {0xec, 0xcc},
+            {0xed, 0xcd}, {0xee, 0xce}, {0xef, 0xcf}, {0xfb, 0xdb}, {0xfc, 0xdc}, {0xfd, 0xdd}, {0xfe, 0xde},
+    };
+    require_all_case_fold_pairs_match(OMEGA_SEARCH_CASE_FOLDING_EBCDIC_037, ebcdic_037_pairs);
+
+    auto mac_roman_pairs = ascii_pairs;
+    mac_roman_pairs.insert(mac_roman_pairs.end(),
+                           {{0x80, 0x8a}, {0x81, 0x8c}, {0x82, 0x8d}, {0x83, 0x8e}, {0x84, 0x96}, {0x85, 0x9a},
+                            {0x86, 0x9f}, {0xae, 0xbe}, {0xaf, 0xbf}, {0xcb, 0x88}, {0xcc, 0x8b}, {0xcd, 0x9b},
+                            {0xce, 0xcf}, {0xd9, 0xd8}, {0xe5, 0x89}, {0xe6, 0x90}, {0xe7, 0x87}, {0xe8, 0x91},
+                            {0xe9, 0x8f}, {0xea, 0x92}, {0xeb, 0x94}, {0xec, 0x95}, {0xed, 0x93}, {0xee, 0x97},
+                            {0xef, 0x99}, {0xf1, 0x98}, {0xf2, 0x9c}, {0xf3, 0x9e}, {0xf4, 0x9d}});
+    require_all_case_fold_pairs_match(OMEGA_SEARCH_CASE_FOLDING_MAC_ROMAN, mac_roman_pairs);
+}
+
+TEST_CASE("Case-insensitive byte search folds multi-byte patterns in range and reverse scans", "[EdgeCase][Search]") {
+    const std::vector<omega_byte_t> bytes{0xc1, 0xc2, 0x40, 0x81, 0x82, 0x40, 0xc1, 0x82};
+
+    REQUIRE(std::vector<int64_t>{0, 3, 6} ==
+            collect_case_folded_match_offsets(bytes, {0x81, 0x82}, OMEGA_SEARCH_CASE_FOLDING_EBCDIC_037));
+    REQUIRE(std::vector<int64_t>{6, 3, 0} ==
+            collect_case_folded_match_offsets(bytes, {0xc1, 0xc2}, OMEGA_SEARCH_CASE_FOLDING_EBCDIC_037, true));
+    REQUIRE(std::vector<int64_t>{3} ==
+            collect_case_folded_match_offsets(bytes, {0x81, 0x82}, OMEGA_SEARCH_CASE_FOLDING_EBCDIC_037, false, 2, 4));
+    REQUIRE(std::vector<int64_t>{3} ==
+            collect_case_folded_match_offsets(bytes, {0x81, 0x82}, OMEGA_SEARCH_CASE_FOLDING_ASCII));
+    REQUIRE(std::vector<int64_t>{0} ==
+            collect_case_folded_match_offsets(bytes, {0xc1, 0xc2}, OMEGA_SEARCH_CASE_FOLDING_NONE));
+}
+
+TEST_CASE("Unknown case folding identifiers are rejected", "[EdgeCase][Search]") {
+    const auto session_ptr = omega_edit_create_session(nullptr, nullptr, nullptr, 0, nullptr);
+    REQUIRE(session_ptr);
+
+    const omega_byte_t bytes[] = {0x41, 0x61};
+    const omega_byte_t pattern[] = {0x61};
+    const auto unknown_case_folding = static_cast<omega_search_case_folding_t>(999);
+
+    REQUIRE(0 < omega_edit_insert_bytes(session_ptr, 0, bytes, static_cast<int64_t>(sizeof(bytes))));
+    REQUIRE(nullptr == omega_search_create_context_bytes(session_ptr, pattern, static_cast<int64_t>(sizeof(pattern)), 0,
+                                                         0, unknown_case_folding, 0));
+    REQUIRE(nullptr == omega_search_create_context(session_ptr, "a", 0, 0, 0, unknown_case_folding, 0));
+
+    omega_edit_destroy_session(session_ptr);
+}
+
+TEST_CASE("Replace all folds EBCDIC CP037 bytes", "[EdgeCase][CheckpointReplaceAll]") {
+    const auto session_ptr = omega_edit_create_session(nullptr, nullptr, nullptr, 0, nullptr);
+    REQUIRE(session_ptr);
+
+    const omega_byte_t bytes[] = {0xc1, 0x81, 0xc1};
+    const omega_byte_t pattern[] = {0x81};
+    const omega_byte_t replacement[] = {0x40};
+    int64_t replacement_count = 0;
+    REQUIRE(0 < omega_edit_insert_bytes(session_ptr, 0, bytes, static_cast<int64_t>(sizeof(bytes))));
+    REQUIRE(0 == omega_edit_replace_all_bytes(session_ptr, pattern, static_cast<int64_t>(sizeof(pattern)), replacement,
+                                              static_cast<int64_t>(sizeof(replacement)),
+                                              OMEGA_SEARCH_CASE_FOLDING_EBCDIC_037, 0, 0, &replacement_count));
+    REQUIRE(3 == replacement_count);
+    REQUIRE(std::string("\x40\x40\x40", 3) == omega_session_get_segment_string(session_ptr, 0, 3));
+
+    omega_edit_destroy_session(session_ptr);
+}
+
+TEST_CASE("Transactional replace folds code-page bytes with offset deltas", "[EdgeCase][ReplaceMatches]") {
+    const auto session_ptr = omega_edit_create_session(nullptr, nullptr, nullptr, 0, nullptr);
+    REQUIRE(session_ptr);
+
+    const omega_byte_t bytes[] = {0x9a, 0x00, 0x81, 0x9a};
+    const omega_byte_t pattern[] = {0x81};
+    const omega_byte_t replacement[] = {0x58, 0x59};
+    int64_t replacement_count = 0;
+    REQUIRE(0 < omega_edit_insert_bytes(session_ptr, 0, bytes, static_cast<int64_t>(sizeof(bytes))));
+    REQUIRE(0 == omega_edit_replace_matches_bytes(session_ptr, pattern, static_cast<int64_t>(sizeof(pattern)),
+                                                  replacement, static_cast<int64_t>(sizeof(replacement)),
+                                                  OMEGA_SEARCH_CASE_FOLDING_CP437, 0, 0, 0, 0, 1, 0, &replacement_count,
+                                                  nullptr, nullptr, nullptr));
+    REQUIRE(3 == replacement_count);
+    REQUIRE(std::string("\x58\x59\x00\x58\x59\x58\x59", 7) == omega_session_get_segment_string(session_ptr, 0, 7));
+
+    omega_edit_destroy_session(session_ptr);
+}
+
+TEST_CASE("Named replace-all options honor code-page folding and ranges", "[EdgeCase][CheckpointReplaceAll]") {
+    const auto session_ptr = omega_edit_create_session(nullptr, nullptr, nullptr, 0, nullptr);
+    REQUIRE(session_ptr);
+
+    const omega_byte_t bytes[] = {0x80, 0x8a, 0x20, 0x80};
+    const omega_byte_t pattern[] = {0x8a};
+    const omega_byte_t replacement[] = {0x2e};
+    int64_t replacement_count = 0;
+    omega_edit_replace_all_options_t options{};
+    options.case_folding = OMEGA_SEARCH_CASE_FOLDING_MAC_ROMAN;
+    options.offset = 0;
+    options.length = 2;
+    options.replacement_count_out = &replacement_count;
+
+    REQUIRE(0 < omega_edit_insert_bytes(session_ptr, 0, bytes, static_cast<int64_t>(sizeof(bytes))));
+    REQUIRE(0 == omega_edit_replace_all_bytes_with_options(session_ptr, pattern, static_cast<int64_t>(sizeof(pattern)),
+                                                           replacement, static_cast<int64_t>(sizeof(replacement)),
+                                                           &options));
+    REQUIRE(2 == replacement_count);
+    REQUIRE(std::string("\x2e\x2e\x20\x80", 4) == omega_session_get_segment_string(session_ptr, 0, 4));
 
     omega_edit_destroy_session(session_ptr);
 }
@@ -188,7 +381,8 @@ TEST_CASE("Byte APIs treat zero-length inputs as empty and keep string helpers c
     REQUIRE(-1 == omega_edit_replace(session_ptr, 0, 0, "X", -1));
     REQUIRE("tBCDt" == omega_session_get_segment_string(session_ptr, 0, 5));
 
-    const auto cstring_search = omega_search_create_context(session_ptr, "BCD", 0, 0, 0, 0, 0);
+    const auto cstring_search =
+            omega_search_create_context(session_ptr, "BCD", 0, 0, 0, OMEGA_SEARCH_CASE_FOLDING_NONE, 0);
     REQUIRE(cstring_search);
     REQUIRE(1 == omega_search_next_match(cstring_search, 1));
     REQUIRE(1 == omega_search_context_get_match_offset(cstring_search));
@@ -201,7 +395,8 @@ TEST_CASE("Byte APIs treat zero-length inputs as empty and keep string helpers c
     REQUIRE(0 < omega_edit_replace_cstring(session_ptr, 1, 3, "oo"));
     REQUIRE("AooE" == omega_session_get_segment_string(session_ptr, 0, 4));
 
-    REQUIRE(nullptr == omega_search_create_context_bytes(session_ptr, bytes, 0, 0, 0, 0, 0));
+    REQUIRE(nullptr ==
+            omega_search_create_context_bytes(session_ptr, bytes, 0, 0, 0, OMEGA_SEARCH_CASE_FOLDING_NONE, 0));
 
     omega_edit_destroy_session(session_ptr);
 }
@@ -617,8 +812,10 @@ TEST_CASE("Public Search Replace And Viewport APIs Reject Int64 Overflow Ranges"
     int64_t insert_count = -1;
     int64_t overwrite_count = -1;
 
-    REQUIRE(nullptr == omega_search_create_context_bytes(session_ptr, pattern, 2, max, 1, 0, 0));
-    REQUIRE(-1 == omega_edit_replace_matches_bytes(session_ptr, pattern, 2, replacement, 1, 0, 0, max, 1, 1, 1, 0,
+    REQUIRE(nullptr ==
+            omega_search_create_context_bytes(session_ptr, pattern, 2, max, 1, OMEGA_SEARCH_CASE_FOLDING_NONE, 0));
+    REQUIRE(-1 == omega_edit_replace_matches_bytes(session_ptr, pattern, 2, replacement, 1,
+                                                   OMEGA_SEARCH_CASE_FOLDING_NONE, 0, max, 1, 1, 1, 0,
                                                    &replacement_count, &delete_count, &insert_count, &overwrite_count));
     REQUIRE(0 == replacement_count);
     REQUIRE(0 == delete_count);
@@ -626,11 +823,13 @@ TEST_CASE("Public Search Replace And Viewport APIs Reject Int64 Overflow Ranges"
     REQUIRE(0 == overwrite_count);
 
     replacement_count = -1;
-    REQUIRE(-1 == omega_edit_replace_all_bytes(session_ptr, pattern, 2, replacement, 1, 0, max, 1, &replacement_count));
+    REQUIRE(-1 == omega_edit_replace_all_bytes(session_ptr, pattern, 2, replacement, 1, OMEGA_SEARCH_CASE_FOLDING_NONE,
+                                               max, 1, &replacement_count));
     REQUIRE(0 == replacement_count);
 
     replacement_count = -1;
-    REQUIRE(-1 == omega_edit_replace_all_bytes_directional(session_ptr, pattern, 2, replacement, 1, 0, 1, max, 1,
+    REQUIRE(-1 == omega_edit_replace_all_bytes_directional(session_ptr, pattern, 2, replacement, 1,
+                                                           OMEGA_SEARCH_CASE_FOLDING_NONE, 1, max, 1,
                                                            &replacement_count));
     REQUIRE(0 == replacement_count);
 
@@ -816,7 +1015,8 @@ TEST_CASE("Overflow Sized Read Ranges Are Rejected", "[EdgeCase][Overflow]") {
 
     const auto max = (std::numeric_limits<int64_t>::max)();
 
-    REQUIRE(nullptr == omega_search_create_context_string(session_ptr, "b", 1, max, false, false));
+    REQUIRE(nullptr ==
+            omega_search_create_context_string(session_ptr, "b", 1, max, OMEGA_SEARCH_CASE_FOLDING_NONE, false));
 
     omega_byte_frequency_profile_t profile;
     REQUIRE(-1 == omega_session_byte_frequency_profile(session_ptr, &profile, 1, max));
@@ -841,7 +1041,8 @@ TEST_CASE("Search Reports Backing Read Failures", "[EdgeCase][Search]") {
     REQUIRE(session_ptr);
     REQUIRE(omega_session_get_computed_file_size(session_ptr) > 0);
 
-    auto *search_context = omega_search_create_context_string(session_ptr, "a", 1, 0, false, false);
+    auto *search_context =
+            omega_search_create_context_string(session_ptr, "a", 1, 0, OMEGA_SEARCH_CASE_FOLDING_NONE, false);
     REQUIRE(search_context);
 
     auto &first_segment = session_ptr->models_.back()->model_segments.front();
@@ -974,7 +1175,8 @@ TEST_CASE("Checkpoint Replace All Streams Non-Overlapping Matches", "[EdgeCase][
     int64_t replacement_count = -1;
 
     REQUIRE(0 == omega_edit_replace_all_bytes(session_ptr, pattern, static_cast<int64_t>(sizeof(pattern)), replacement,
-                                              static_cast<int64_t>(sizeof(replacement)), 0, 0, 0, &replacement_count));
+                                              static_cast<int64_t>(sizeof(replacement)), OMEGA_SEARCH_CASE_FOLDING_NONE,
+                                              0, 0, &replacement_count));
     REQUIRE(2 == replacement_count);
     REQUIRE(1 == omega_session_get_num_checkpoints(session_ptr));
     REQUIRE(1 == omega_session_get_num_changes(session_ptr));
@@ -994,7 +1196,8 @@ TEST_CASE("Checkpoint Replace All Supports Range And Case Insensitivity", "[Edge
                                         static_cast<int64_t>(content.size())));
 
     int64_t replacement_count = -1;
-    REQUIRE(0 == omega_edit_replace_all(session_ptr, "aa", 0, "ZZ", 0, 1, 8, 13, &replacement_count));
+    REQUIRE(0 == omega_edit_replace_all(session_ptr, "aa", 0, "ZZ", 0, OMEGA_SEARCH_CASE_FOLDING_ASCII, 8, 13,
+                                        &replacement_count));
     REQUIRE(2 == replacement_count);
     REQUIRE(1 == omega_session_get_num_checkpoints(session_ptr));
     REQUIRE(omega_session_get_segment_string(session_ptr, 0, omega_session_get_computed_file_size(session_ptr)) ==
@@ -1011,9 +1214,10 @@ TEST_CASE("Directional Checkpoint Replace All Preserves Reverse Overlap Selectio
     REQUIRE(0 < omega_edit_insert_string(forward_session_ptr, 0, "aaaaaaa"));
 
     int64_t replacement_count = -1;
-    REQUIRE(0 == omega_edit_replace_all_bytes_directional(
-                         forward_session_ptr, reinterpret_cast<const omega_byte_t *>("aa"), 2,
-                         reinterpret_cast<const omega_byte_t *>("b"), 1, 0, 0, 0, 0, &replacement_count));
+    REQUIRE(0 == omega_edit_replace_all_bytes_directional(forward_session_ptr,
+                                                          reinterpret_cast<const omega_byte_t *>("aa"), 2,
+                                                          reinterpret_cast<const omega_byte_t *>("b"), 1,
+                                                          OMEGA_SEARCH_CASE_FOLDING_NONE, 0, 0, 0, &replacement_count));
     REQUIRE(3 == replacement_count);
     REQUIRE(omega_session_get_segment_string(forward_session_ptr, 0,
                                              omega_session_get_computed_file_size(forward_session_ptr)) == "bbba");
@@ -1025,9 +1229,10 @@ TEST_CASE("Directional Checkpoint Replace All Preserves Reverse Overlap Selectio
     REQUIRE(0 < omega_edit_insert_string(reverse_session_ptr, 0, "aaaaaaa"));
 
     replacement_count = -1;
-    REQUIRE(0 == omega_edit_replace_all_bytes_directional(
-                         reverse_session_ptr, reinterpret_cast<const omega_byte_t *>("aa"), 2,
-                         reinterpret_cast<const omega_byte_t *>("b"), 1, 0, 1, 0, 0, &replacement_count));
+    REQUIRE(0 == omega_edit_replace_all_bytes_directional(reverse_session_ptr,
+                                                          reinterpret_cast<const omega_byte_t *>("aa"), 2,
+                                                          reinterpret_cast<const omega_byte_t *>("b"), 1,
+                                                          OMEGA_SEARCH_CASE_FOLDING_NONE, 1, 0, 0, &replacement_count));
     REQUIRE(3 == replacement_count);
     REQUIRE(omega_session_get_segment_string(reverse_session_ptr, 0,
                                              omega_session_get_computed_file_size(reverse_session_ptr)) == "abbb");
@@ -1045,7 +1250,8 @@ TEST_CASE("Checkpoint Replace All Leaves Session Unchanged Without Matches", "[E
     const auto checkpoints_before = omega_session_get_num_checkpoints(session_ptr);
 
     int64_t replacement_count = -1;
-    REQUIRE(0 == omega_edit_replace_all(session_ptr, "zz", 0, "qq", 0, 0, 0, 0, &replacement_count));
+    REQUIRE(0 == omega_edit_replace_all(session_ptr, "zz", 0, "qq", 0, OMEGA_SEARCH_CASE_FOLDING_NONE, 0, 0,
+                                        &replacement_count));
     REQUIRE(0 == replacement_count);
     REQUIRE(checkpoints_before == omega_session_get_num_checkpoints(session_ptr));
     REQUIRE(original_content ==
@@ -1065,8 +1271,8 @@ TEST_CASE("Transactional Replace Matches Uses Non-Overlapping Semantics", "[Edge
     int64_t delete_count = -1;
     int64_t insert_count = -1;
     int64_t overwrite_count = -1;
-    REQUIRE(0 == omega_edit_replace_matches(session_ptr, "aa", 0, "b", 0, 0, 0, 0, 0, 0, 1, 0, &replacement_count,
-                                            &delete_count, &insert_count, &overwrite_count));
+    REQUIRE(0 == omega_edit_replace_matches(session_ptr, "aa", 0, "b", 0, OMEGA_SEARCH_CASE_FOLDING_NONE, 0, 0, 0, 0, 1,
+                                            0, &replacement_count, &delete_count, &insert_count, &overwrite_count));
     REQUIRE(3 == replacement_count);
     REQUIRE(3 == delete_count);
     REQUIRE(3 == insert_count);
@@ -1088,8 +1294,9 @@ TEST_CASE("Transactional Replace Matches Honors Reverse Limits And Lowered Stats
     int64_t delete_count = -1;
     int64_t insert_count = -1;
     int64_t overwrite_count = -1;
-    REQUIRE(0 == omega_edit_replace_matches(session_ptr, "Item", 0, "Item-1", 0, 0, 1, 0, 0, 1, 1, 0,
-                                            &replacement_count, &delete_count, &insert_count, &overwrite_count));
+    REQUIRE(0 == omega_edit_replace_matches(session_ptr, "Item", 0, "Item-1", 0, OMEGA_SEARCH_CASE_FOLDING_NONE, 1, 0,
+                                            0, 1, 1, 0, &replacement_count, &delete_count, &insert_count,
+                                            &overwrite_count));
     REQUIRE(1 == replacement_count);
     REQUIRE(0 == delete_count);
     REQUIRE(1 == insert_count);
@@ -1117,8 +1324,8 @@ TEST_CASE("Transactional Replace Matches OverwriteOnly FrontToBack Uses Zero Off
     int64_t overwrite_count = -1;
     // Overwrite 'aa' (2 bytes) with 'x' (1 byte), overwrite_only=1, front_to_back=1.
     // Without the fix, match[1] would be adjusted by -1 and land at offset 3 instead of 4.
-    REQUIRE(0 == omega_edit_replace_matches(session_ptr, "aa", 0, "x", 0, 0, 0, 0, 0, 0, 1, 1, &replacement_count,
-                                            &delete_count, &insert_count, &overwrite_count));
+    REQUIRE(0 == omega_edit_replace_matches(session_ptr, "aa", 0, "x", 0, OMEGA_SEARCH_CASE_FOLDING_NONE, 0, 0, 0, 0, 1,
+                                            1, &replacement_count, &delete_count, &insert_count, &overwrite_count));
     REQUIRE(2 == replacement_count);
     REQUIRE(0 == delete_count);
     REQUIRE(0 == insert_count);

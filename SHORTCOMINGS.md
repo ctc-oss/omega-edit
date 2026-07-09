@@ -22,9 +22,11 @@ code-quality cleanup for computed-content inspection lock scope,
 descriptor-preserving temp-file writes, explicit C-string/named-options APIs, OpenSSL
 cipher key scrubbing, shared C plugin option parsing, targeted duplication
 extractions, and the replace/save failure-signaling edges is also complete and
-no longer listed as open. Mutation-capable transform RPCs still intentionally
-serialize the session while a plugin runs because they can modify the current
-core model.
+no longer listed as open. The in-process libmagic/CLD3 content and language
+detection RPCs have also been removed in favor of on-demand inspect/calculation
+plugins, so that item is no longer listed as open. Mutation-capable transform
+RPCs still intentionally serialize the session while a plugin runs because they
+can modify the current core model.
 
 Recent core/server/plugin review findings have been folded into the priority
 list below rather than kept as a second appended review. A fresh core/server
@@ -375,67 +377,6 @@ Suggested fix:
 - Batch redo by transaction.
 - Reuse notification batching and viewport-update coalescing where possible.
 
-### 30. Content detection feeds untrusted bytes to third-party parsers
-
-**Impact:** Low to Medium
-**Risk:** Low
-**Area:** C++ server content/language detection
-
-`GetContentType` and `GetLanguage` hand segment bytes to libmagic and CLD3.
-libmagic has a long history of parser CVEs, and both run in-process. Access is
-serialized and bounded to the requested segment, so this is a dependency-currency
-and isolation concern rather than a code defect.
-
-Relevant code:
-- `server/cpp/src/libmagic_content_detector.cpp:129`
-- `server/cpp/src/cld3_language_detector.cpp:132`
-
-Suggested fix:
-- Move content-type and language guessing behind detector/inspect plugins that
-  run through the existing transform-plugin worker boundary instead of calling
-  libmagic/CLD3 in the server process.
-- Keep `GetContentType` and `GetLanguage` as compatibility RPCs that dispatch
-  to configured detector plugins, or introduce plugin-backed replacement RPCs
-  and deprecate the in-process implementations.
-- Treat libmagic/CLD3-backed detectors as optional operator-selected plugins,
-  with the same production/experimental support levels, cancellation, resource
-  limits, and worker sandboxing policy as transform plugins.
-- Track and update bundled detector plugin dependencies as part of the release
-  process, and document the plugin trust boundary for deployments.
-
-### 31. Text pane and Data Inspector only expose ASCII-oriented byte display
-
-**Impact:** Low
-**Risk:** Low
-**Area:** VS Code hex editor text pane, Data Inspector, text search
-
-The TEXT pane currently treats bytes as ASCII-ish printable characters with a
-placeholder for non-printable values. Other hex editors let users switch that
-view among common single-byte character sets such as ASCII, Windows ANSI
-code pages, DOS/OEM code pages, EBCDIC, and Macintosh/MacRoman. The Data
-Inspector should expose the same byte-to-character interpretations so a selected
-byte or range can be inspected without mentally translating high-bit bytes.
-Text search should use the selected text encoding when converting the query to
-bytes, while hex search should remain byte-literal and unaffected.
-
-Important product detail: "ANSI" and "DOS" are families, not one universal
-mapping. The UI should pick explicit defaults such as Windows-1252 and CP437,
-while leaving room for additional code pages later.
-
-Suggested fix:
-- Add a text encoding selector for the TEXT pane, initially covering ASCII,
-  Windows-1252, CP437, EBCDIC, and MacRoman.
-- Add matching Data Inspector fields for the selected byte/range so high-bit
-  bytes can be interpreted in the same supported character sets.
-- Route text search query encoding through the selected character set, keep
-  match offsets byte-native, and make charset changes invalidate/re-run any
-  active text search window.
-- Keep the core byte model unchanged; this should be display/inspection-layer
-  decoding unless a later API need emerges.
-- Cover printable ASCII identity, high-byte divergence across encodings,
-  EBCDIC alphabet bytes, non-printable placeholder behavior, and text-search
-  byte encoding for each supported character set in tests.
-
 ## Testing Gaps For Attestation
 
 These are not separate product shortcomings, but they are worth closing before
@@ -511,9 +452,9 @@ These areas were in the old document but are no longer open backlog items:
 - Unbounded `SearchSession` unary responses; the server now enforces a
   configurable `max_search_matches` policy and returns `RESOURCE_EXHAUSTED`
   instead of silently truncating when a search would exceed it.
-- Unbounded `GetSegment`, `GetContentType`, and `GetLanguage` allocations; the
-  server now applies a configurable read/classification segment limit that
-  defaults to the viewport capacity and can be disabled with `0`.
+- Unbounded `GetSegment` allocations; the server now applies a configurable
+  read segment limit that defaults to the viewport capacity and can be disabled
+  with `0`.
 - Service-wide transform plugin execution locking; server plugin calls now
   snapshot registry metadata under a short lock and execute under session/content
   guards.
@@ -546,5 +487,9 @@ These areas were in the old document but are no longer open backlog items:
   external range-map/debugger highlight overlays independently.
 - Near-`INT64_MAX` overflow coverage now exercises public C APIs and raw server
   RPC boundaries for search, replace, segment, and viewport ranges.
+- VS Code text display encoding selection now covers ASCII, Windows-1252,
+  CP437, EBCDIC, and MacRoman across the TEXT pane, Data Inspector, Analyzer
+  labels/classification, and text search byte encoding, with both toolbar and
+  command-palette affordances.
 - Event mask signed `ALL_EVENTS` ambiguity.
 - Output collision suffix range and deprecated protobuf generator dependencies.

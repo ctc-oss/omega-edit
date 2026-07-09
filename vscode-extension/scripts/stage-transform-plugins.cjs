@@ -98,5 +98,10 @@ for (const platform of platforms) {
     }
   }
 
+  const magicDb = path.join(sourceDir, 'magic.mgc')
+  if (fs.existsSync(magicDb) && fs.statSync(magicDb).isFile()) {
+    fs.copyFileSync(magicDb, path.join(destinationDir, 'magic.mgc'))
+  }
+
   console.log(`Staged ${plugins.length} transform plugins for ${platform.id}`)
 }

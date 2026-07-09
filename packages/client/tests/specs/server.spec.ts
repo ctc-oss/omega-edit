@@ -25,8 +25,6 @@ import {
   destroySession,
   getComputedFileSize,
   getClient,
-  getContentType,
-  getLanguage,
   getSegment,
   getServerHeartbeat,
   getSessionCount,
@@ -38,6 +36,7 @@ import {
   replaceSession,
   replaceSessionCheckpointed,
   resetClient,
+  SearchCaseFolding,
   searchSession,
   setLogger,
   startServer,
@@ -178,7 +177,6 @@ describe('Server', () => {
   it(`on port ${serverTestPort} should stop gracefully via API`, async () => {
     // stop the server gracefully
     const response = await stopServerGraceful()
-    expect(response.responseCode).to.equal(0)
     expect(response.status).to.equal('draining')
     expect(response.serverProcessId).to.equal(pid)
 
@@ -213,7 +211,6 @@ describe('Server', () => {
     expect(await getSessionCount()).to.equal(0)
 
     const response = await stopServerGraceful()
-    expect(response.responseCode).to.equal(0)
     expect(response.status).to.equal('completed')
     expect(response.serverProcessId).to.equal(pid)
 
@@ -647,7 +644,7 @@ describe('Server Resource Limits', () => {
         session_id,
         Uint8Array.from([0x41, 0x42]),
         Uint8Array.from([0x43]),
-        false,
+        SearchCaseFolding.NONE,
         0,
         0
       )
@@ -669,7 +666,7 @@ describe('Server Resource Limits', () => {
       session_id,
       Uint8Array.from([]),
       Uint8Array.from([0x42]),
-      false,
+      SearchCaseFolding.NONE,
       false,
       0,
       0,
@@ -688,7 +685,7 @@ describe('Server Resource Limits', () => {
         session_id,
         Uint8Array.from([0x41, 0x42]),
         Uint8Array.from([0x43]),
-        false,
+        SearchCaseFolding.NONE,
         false,
         0,
         0,
@@ -712,7 +709,7 @@ describe('Server Resource Limits', () => {
         session_id,
         Uint8Array.from([0x41]),
         Uint8Array.from([0x42, 0x43]),
-        false,
+        SearchCaseFolding.NONE,
         0,
         0
       )
@@ -732,7 +729,7 @@ describe('Server Resource Limits', () => {
         session_id,
         Uint8Array.from([0x41]),
         Uint8Array.from([0x42, 0x43]),
-        false,
+        SearchCaseFolding.NONE,
         false,
         0,
         0,
@@ -785,49 +782,33 @@ describe('Server Resource Limits', () => {
     }
   })
 
-  it(`on port ${serverTestPort} should reject content classification reads larger than configured`, async () => {
-    await insert(session_id, 0, Uint8Array.from([0x41]))
-    expect((await getContentType(session_id, 0, 1)).getContentType()).to.be.a(
-      'string'
-    )
-
-    try {
-      await getContentType(session_id, 0, 2)
-      expect.fail(
-        'getContentType should reject lengths larger than maxReadSegmentBytes'
-      )
-    } catch (err) {
-      expectResourceExhausted(err, 'configured read segment limit of 1 bytes')
-    }
-  })
-
-  it(`on port ${serverTestPort} should reject language detection reads larger than configured`, async () => {
-    await insert(session_id, 0, Uint8Array.from([0x41]))
-    expect((await getLanguage(session_id, 0, 1, 'none')).getLanguage()).to.be.a(
-      'string'
-    )
-
-    try {
-      await getLanguage(session_id, 0, 2, 'none')
-      expect.fail(
-        'getLanguage should reject lengths larger than maxReadSegmentBytes'
-      )
-    } catch (err) {
-      expectResourceExhausted(err, 'configured read segment limit of 1 bytes')
-    }
-  })
-
   it(`on port ${serverTestPort} should reject unbounded searches above the configured match limit`, async () => {
     await insert(session_id, 0, Uint8Array.from([0x61]))
     await insert(session_id, 1, Uint8Array.from([0x61]))
     await insert(session_id, 2, Uint8Array.from([0x61]))
 
     expect(
-      await searchSession(session_id, 'a', false, false, 0, 0, 2)
+      await searchSession(
+        session_id,
+        'a',
+        SearchCaseFolding.NONE,
+        false,
+        0,
+        0,
+        2
+      )
     ).deep.equals([0, 1])
 
     try {
-      await searchSession(session_id, 'a', false, false, 0, 0, 0)
+      await searchSession(
+        session_id,
+        'a',
+        SearchCaseFolding.NONE,
+        false,
+        0,
+        0,
+        0
+      )
       expect.fail(
         'searchSession should reject responses larger than maxSearchMatches'
       )
@@ -844,7 +825,7 @@ describe('Server Resource Limits', () => {
         session_id,
         'a',
         'b',
-        false,
+        SearchCaseFolding.NONE,
         false,
         0,
         0,
@@ -864,7 +845,7 @@ describe('Server Resource Limits', () => {
         session_id,
         'a',
         'b',
-        false,
+        SearchCaseFolding.NONE,
         true,
         0,
         0,
@@ -884,7 +865,7 @@ describe('Server Resource Limits', () => {
         session_id,
         'a',
         'b',
-        false,
+        SearchCaseFolding.NONE,
         false,
         0,
         0,

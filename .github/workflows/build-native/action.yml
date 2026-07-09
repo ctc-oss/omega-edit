@@ -173,10 +173,42 @@ runs:
         echo "libname=${libname}" >> $GITHUB_ENV
         echo "libpath=${libpath}" >> $GITHUB_ENV
 
-    - name: Upload Native Library (${{ inputs.os-name }}-${{ env.libname }})
+    - name: Upload Native Library (${{ inputs.os-name }}-${{ env.libname }}) (attempt 1)
+      id: upload_native_library_1
+      continue-on-error: true
       uses: actions/upload-artifact@v7
       with:
         name: ${{ inputs.os-name }}-${{ env.libname }}
         path: ${{ env.libpath }}
+        overwrite: true
         retention-days: 5
         if-no-files-found: error
+
+    - name: Upload Native Library (${{ inputs.os-name }}-${{ env.libname }}) (attempt 2)
+      id: upload_native_library_2
+      if: ${{ steps.upload_native_library_1.outcome == 'failure' }}
+      continue-on-error: true
+      uses: actions/upload-artifact@v7
+      with:
+        name: ${{ inputs.os-name }}-${{ env.libname }}
+        path: ${{ env.libpath }}
+        overwrite: true
+        retention-days: 5
+        if-no-files-found: error
+
+    - name: Upload Native Library (${{ inputs.os-name }}-${{ env.libname }}) (attempt 3)
+      id: upload_native_library_3
+      if: ${{ steps.upload_native_library_2.outcome == 'failure' }}
+      continue-on-error: true
+      uses: actions/upload-artifact@v7
+      with:
+        name: ${{ inputs.os-name }}-${{ env.libname }}
+        path: ${{ env.libpath }}
+        overwrite: true
+        retention-days: 5
+        if-no-files-found: error
+
+    - name: Fail if native library artifact upload retries are exhausted
+      if: ${{ steps.upload_native_library_3.outcome == 'failure' }}
+      shell: bash
+      run: exit 1

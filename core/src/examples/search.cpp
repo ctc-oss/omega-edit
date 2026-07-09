@@ -20,19 +20,19 @@ using namespace std;
 int main(int argc, char **argv) {
     if (argc != 7) {
         cerr << "This program finds patterns from the infile using Ωedit.\n\nUSAGE: " << argv[0]
-             << " infile pattern offset length case_insensitive reverse_search" << endl;
+             << " infile pattern offset length case_folding reverse_search" << endl;
         return -1;
     }
     const auto in_filename = argv[1];
     const auto pattern = argv[2];
     const auto start_offset = stoi(argv[3]);
     const auto length = stoi(argv[4]);
-    const auto case_insensitive = stoi(argv[5]);
+    const auto case_folding = static_cast<omega_search_case_folding_t>(stoi(argv[5]));
     const auto reverse_search = stoi(argv[6]);
     if (auto session_ptr = omega_edit_create_session(in_filename, nullptr, nullptr, NO_EVENTS, nullptr)) {
         int num_matches = 0;
-        auto search_context = omega_search_create_context(session_ptr, pattern, 0, start_offset, length,
-                                                          case_insensitive, reverse_search);
+        auto search_context = omega_search_create_context(session_ptr, pattern, 0, start_offset, length, case_folding,
+                                                          reverse_search);
         while (omega_search_next_match(search_context, 1) > 0) {
             const auto match_offset = omega_search_context_get_match_offset(search_context);
             const auto match_length = omega_search_context_get_pattern_length(search_context);

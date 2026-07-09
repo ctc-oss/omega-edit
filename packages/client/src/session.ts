@@ -21,6 +21,7 @@ import {
   TransformPluginOperation as RawProtoTransformPluginOperation,
   TransformPluginSupport as RawProtoTransformPluginSupport,
   IOFlags as ProtoIOFlags,
+  SearchCaseFolding as RawProtoSearchCaseFolding,
   SessionContentSource as RawProtoSessionContentSource,
   SessionFingerprintContent as RawProtoSessionFingerprintContent,
   SessionEventKind as RawProtoSessionEventKind,
@@ -48,9 +49,7 @@ import {
   destroySession as rawDestroySession,
   getByteOrderMark as rawGetByteOrderMark,
   getComputedFileSize as rawGetComputedFileSize,
-  getContentType as rawGetContentType,
   getCounts as rawGetCounts,
-  getLanguage as rawGetLanguage,
   getSegment as rawGetSegment,
   getSessionContentInfo as rawGetSessionContentInfo,
   getSessionFingerprint as rawGetSessionFingerprint,
@@ -77,16 +76,12 @@ import {
 import {
   wrapByteOrderMarkResponse,
   wrapCharacterCountResponse,
-  wrapContentTypeResponse,
   wrapCreateSessionResponse,
-  wrapLanguageResponse,
   wrapSaveSessionResponse,
   wrapSingleCount,
   type ByteOrderMarkResponse,
   type CharacterCountResponse,
-  type ContentTypeResponse,
   type CreateSessionResponse,
-  type LanguageResponse,
   type SaveSessionResponse,
   type SingleCount,
 } from './omega_edit_pb'
@@ -115,6 +110,17 @@ export const IOFlags = {
   FORCE_OVERWRITE: ProtoIOFlags.IO_FLAGS_FORCE_OVERWRITE,
 } as const
 export type IOFlags = (typeof IOFlags)[keyof typeof IOFlags]
+
+export const SearchCaseFolding = {
+  NONE: RawProtoSearchCaseFolding.UNSPECIFIED,
+  ASCII: RawProtoSearchCaseFolding.ASCII,
+  WINDOWS_1252: RawProtoSearchCaseFolding.WINDOWS_1252,
+  CP437: RawProtoSearchCaseFolding.CP437,
+  EBCDIC_037: RawProtoSearchCaseFolding.EBCDIC_037,
+  MAC_ROMAN: RawProtoSearchCaseFolding.MAC_ROMAN,
+} as const
+export type SearchCaseFolding =
+  (typeof SearchCaseFolding)[keyof typeof SearchCaseFolding]
 
 export const SessionEventKind = {
   UNSPECIFIED: RawProtoSessionEventKind.UNSPECIFIED,
@@ -603,36 +609,6 @@ export async function getByteOrderMark(
   )
 }
 
-export async function getContentType(
-  session_id: string,
-  offset: number,
-  length: number
-): Promise<ContentTypeResponse> {
-  return wrapContentTypeResponse(
-    await rawGetContentType(
-      session_id,
-      requireSafeIntegerInput('getContentType offset', offset),
-      requireSafeIntegerInput('getContentType length', length)
-    )
-  )
-}
-
-export async function getLanguage(
-  session_id: string,
-  offset: number,
-  length: number,
-  bom: string
-): Promise<LanguageResponse> {
-  return wrapLanguageResponse(
-    await rawGetLanguage(
-      session_id,
-      requireSafeIntegerInput('getLanguage offset', offset),
-      requireSafeIntegerInput('getLanguage length', length),
-      bom
-    )
-  )
-}
-
 export async function countCharacters(
   session_id: string,
   offset: number = 0,
@@ -652,7 +628,7 @@ export async function countCharacters(
 export function searchSession(
   session_id: string,
   pattern: string | Uint8Array,
-  is_case_insensitive: boolean = false,
+  case_folding: SearchCaseFolding = SearchCaseFolding.NONE,
   is_reverse: boolean = false,
   offset: number = 0,
   length: number = 0,
@@ -661,7 +637,7 @@ export function searchSession(
   return rawSearchSession(
     session_id,
     pattern,
-    is_case_insensitive,
+    case_folding,
     is_reverse,
     requireSafeIntegerInput('searchSession offset', offset),
     requireSafeIntegerInput('searchSession length', length),
@@ -673,7 +649,7 @@ export async function replaceSession(
   session_id: string,
   pattern: string | Uint8Array,
   replacement: string | Uint8Array,
-  is_case_insensitive: boolean = false,
+  case_folding: SearchCaseFolding = SearchCaseFolding.NONE,
   is_reverse: boolean = false,
   offset: number = 0,
   length: number = 0,
@@ -691,7 +667,7 @@ export async function replaceSession(
         session_id,
         pattern,
         replacement,
-        is_case_insensitive,
+        case_folding,
         is_reverse,
         requireSafeIntegerInput('replaceSession offset', offset),
         requireSafeIntegerInput('replaceSession length', length),
@@ -726,7 +702,7 @@ export async function replaceSessionCheckpointed(
   session_id: string,
   pattern: string | Uint8Array,
   replacement: string | Uint8Array,
-  is_case_insensitive: boolean = false,
+  case_folding: SearchCaseFolding = SearchCaseFolding.NONE,
   offset: number = 0,
   length: number = 0
 ): Promise<number> {
@@ -735,7 +711,7 @@ export async function replaceSessionCheckpointed(
       session_id,
       pattern,
       replacement,
-      is_case_insensitive,
+      case_folding,
       requireSafeIntegerInput('replaceSessionCheckpointed offset', offset),
       requireSafeIntegerInput('replaceSessionCheckpointed length', length)
     )
@@ -750,7 +726,7 @@ export async function replaceOneSession(
   session_id: string,
   pattern: string | Uint8Array,
   replacement: string | Uint8Array,
-  is_case_insensitive: boolean = false,
+  case_folding: SearchCaseFolding = SearchCaseFolding.NONE,
   is_reverse: boolean = false,
   offset: number = 0,
   length: number = 0,
@@ -773,7 +749,7 @@ export async function replaceOneSession(
     const foundLocations = await searchSession(
       session_id,
       patternArray,
-      is_case_insensitive,
+      case_folding,
       is_reverse,
       safeOffset,
       safeLength,

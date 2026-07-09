@@ -190,6 +190,7 @@ namespace omega_edit {
                 return false;
             }
             if (omega_transform_plugin_sdk_is_cancelled(request_ptr)) { return false; }
+            if (request_ptr->input_length == 0) { return true; }
             out.assign(request_ptr->input_bytes, request_ptr->input_bytes + request_ptr->input_length);
             return true;
         }

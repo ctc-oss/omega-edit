@@ -18,7 +18,6 @@ import {
   getChangeDetails,
   getClient,
   getComputedFileSize,
-  getContentType,
   getCounts,
   getLastChange,
   getServerInfo,
@@ -41,6 +40,7 @@ import {
   restoreToChangeCount,
   runSessionTransaction,
   saveSession,
+  SearchCaseFolding,
   searchSession,
   startServer,
   stopServerGraceful,
@@ -341,6 +341,12 @@ function assertNonNegativeInteger(name: string, value: number): void {
   if (!isFiniteInteger(value) || value < 0) {
     throw new Error(`${name} must be a non-negative integer`)
   }
+}
+
+function searchCaseFoldingForRequest(
+  caseInsensitive: boolean | undefined
+): SearchCaseFolding {
+  return caseInsensitive ? SearchCaseFolding.ASCII : SearchCaseFolding.NONE
 }
 
 function parseNonNegativeInt64(value: unknown, name: string): bigint {
@@ -1583,7 +1589,7 @@ export class OmegaEditToolkit {
     await this.connectToRunningServer()
     const response = await stopServerGraceful()
     resetClient()
-    if (response.responseCode === 0 || response.status === 'draining') {
+    if (response.status === 'completed' || response.status === 'draining') {
       await this.waitForServerToStop()
       resetClient()
     }
@@ -1695,8 +1701,6 @@ export class OmegaEditToolkit {
         id: sessionId,
         uri: null,
         filePath: filePath || null,
-        contentType: null,
-        language: null,
       },
       sizes: {
         computed: status.computedSize,
@@ -2316,17 +2320,10 @@ export class OmegaEditToolkit {
 
     const actualLength = Math.min(length, Math.max(0, computedSize - offset))
     let frequency: number[]
-    let contentTypeValue = 'application/octet-stream'
     if (actualLength === 0) {
       frequency = new Array(257).fill(0)
     } else {
-      const contentTypeLength = Math.min(computedSize, 16 * 1024)
-      const [rangeProfile, contentType] = await Promise.all([
-        profileSession(sessionId, offset, actualLength),
-        getContentType(sessionId, 0, contentTypeLength),
-      ])
-      frequency = rangeProfile
-      contentTypeValue = contentType.getContentType()
+      frequency = await profileSession(sessionId, offset, actualLength)
     }
 
     const totalBytes = frequency
@@ -2361,7 +2358,6 @@ export class OmegaEditToolkit {
       nonAsciiBytes: totalBytes - asciiBytes,
       asciiPercent: totalBytes > 0 ? (asciiBytes / totalBytes) * 100 : 0,
       dosLineEndings: frequency[PROFILE_DOS_EOL] || 0,
-      contentType: contentTypeValue,
       frequency,
       topBytes,
     }
@@ -2396,7 +2392,7 @@ export class OmegaEditToolkit {
     const matches = await searchSession(
       request.sessionId,
       pattern,
-      request.caseInsensitive || false,
+      searchCaseFoldingForRequest(request.caseInsensitive),
       request.reverse || false,
       offset,
       length,
@@ -2455,7 +2451,7 @@ export class OmegaEditToolkit {
       request.sessionId,
       pattern,
       replacement,
-      request.caseInsensitive || false,
+      searchCaseFoldingForRequest(request.caseInsensitive),
       request.reverse || false,
       offset,
       length,

@@ -29,6 +29,7 @@ const {
 } = require('../../dist/cjs/proto.js')
 const {
   IOFlags,
+  SearchCaseFolding: PublicSearchCaseFolding,
   SessionEventKind: PublicSessionEventKind,
   ViewportEventKind: PublicViewportEventKind,
 } = require('../../dist/cjs/session.js')
@@ -39,20 +40,23 @@ const {
   IOFlags: ProtoIOFlags,
   CountKind: ProtoCountKind,
   ServerControlKind: ProtoServerControlKind,
+  ServerControlResponse: ProtoServerControlResponseMessage,
   ServerControlStatus: ProtoServerControlStatus,
+  SearchCaseFolding: ProtoSearchCaseFolding,
+  SearchSessionRequest,
   SessionEventKind,
   ViewportEventKind,
+  ReplaceSessionCheckpointedRequest,
+  ReplaceSessionRequest,
 } = require('../../dist/cjs/protobuf_ts/generated/omega_edit/v1/omega_edit.js')
 const {
   ByteOrderMarkResponse,
   ChangeDetailsResponse,
   CharacterCountResponse,
-  ContentTypeResponse,
   CreateSessionResponse,
   EventSubscriptionRequest,
   HeartbeatRequest,
   HeartbeatResponse,
-  LanguageResponse,
   SaveSessionResponse,
   ServerControlRequest,
   ServerControlResponse,
@@ -64,10 +68,8 @@ const {
   wrapByteOrderMarkResponse,
   wrapChangeDetailsResponse,
   wrapCharacterCountResponse,
-  wrapContentTypeResponse,
   wrapCreateSessionResponse,
   wrapHeartbeatResponse,
-  wrapLanguageResponse,
   wrapSaveSessionResponse,
   wrapServerControlResponse,
   wrapServerInfoResponse,
@@ -203,32 +205,36 @@ describe('Proto Compatibility', () => {
     const serverControl = new ServerControlResponse({
       kind: ProtoServerControlKind.IMMEDIATE_SHUTDOWN,
       pid: 99,
-      responseCode: 0,
       status: ProtoServerControlStatus.COMPLETED,
     })
     expect(serverControl.getKind()).to.equal(
       ProtoServerControlKind.IMMEDIATE_SHUTDOWN
     )
     expect(serverControl.getPid()).to.equal(99)
-    expect(serverControl.getResponseCode()).to.equal(0)
     expect(serverControl.getStatus()).to.equal(ServerControlStatus.COMPLETED)
     expect(ServerControlStatus.COMPLETED).to.equal(
       ProtoServerControlStatus.COMPLETED
     )
     expect(
+      ProtoServerControlResponseMessage.create({
+        kind: ProtoServerControlKind.GRACEFUL_SHUTDOWN,
+        pid: 77,
+      }).status
+    ).to.equal(ProtoServerControlStatus.UNSPECIFIED)
+    expect(
       new ServerControlResponse({
         kind: ProtoServerControlKind.GRACEFUL_SHUTDOWN,
         pid: 77,
-        responseCode: 1,
+        status: ProtoServerControlStatus.UNSPECIFIED,
       }).getStatus()
-    ).to.equal(undefined)
+    ).to.equal(ServerControlStatus.UNSPECIFIED)
 
     const heartbeat = new HeartbeatResponse({
       sessionCount: 2,
       timestamp: 3,
       uptime: 4,
       cpuCount: 8,
-      cpuLoadAverage: 1.5,
+      loadAverage: 1.5,
       residentMemoryBytes: 10,
       virtualMemoryBytes: 11,
       peakResidentMemoryBytes: 12,
@@ -237,7 +243,7 @@ describe('Proto Compatibility', () => {
     expect(heartbeat.getTimestamp()).to.equal(3)
     expect(heartbeat.getUptime()).to.equal(4)
     expect(heartbeat.getCpuCount()).to.equal(8)
-    expect(heartbeat.getCpuLoadAverage()).to.equal(1.5)
+    expect(heartbeat.getLoadAverage()).to.equal(1.5)
     expect(heartbeat.getResidentMemoryBytes()).to.equal(10)
     expect(heartbeat.getVirtualMemoryBytes()).to.equal(11)
     expect(heartbeat.getPeakResidentMemoryBytes()).to.equal(12)
@@ -249,7 +255,7 @@ describe('Proto Compatibility', () => {
       cpuCount: 4,
       loadAverage: 0.75,
     })
-    expect(heartbeatWithLoadAverageOnly.getCpuLoadAverage()).to.equal(0.75)
+    expect(heartbeatWithLoadAverageOnly.getLoadAverage()).to.equal(0.75)
 
     const viewportData = new ViewportDataResponse({
       viewportId: 'vid',
@@ -299,22 +305,6 @@ describe('Proto Compatibility', () => {
     expect(bom.getLength()).to.equal(3)
     expect(bom.getByteOrderMark()).to.equal('utf-8')
     expect(bom.getByteOrderMarkBytes()).to.equal(3)
-
-    const contentType = new ContentTypeResponse({
-      sessionId: 'sid',
-      offset: 1,
-      length: 2,
-      contentType: 'text/plain',
-    })
-    expect(contentType.getContentType()).to.equal('text/plain')
-
-    const language = new LanguageResponse({
-      sessionId: 'sid',
-      offset: 1,
-      length: 2,
-      language: 'english',
-    })
-    expect(language.getLanguage()).to.equal('english')
 
     const characterCount = new CharacterCountResponse({
       sessionId: 'sid',
@@ -427,16 +417,16 @@ describe('Proto Compatibility', () => {
       wrapServerControlResponse({
         kind: ProtoServerControlKind.GRACEFUL_SHUTDOWN,
         pid: 77,
-        responseCode: 1,
+        status: ProtoServerControlStatus.UNSPECIFIED,
       }).getStatus()
-    ).to.equal(undefined)
+    ).to.equal(ServerControlStatus.UNSPECIFIED)
     expect(
       wrapHeartbeatResponse(heartbeat.toObject()).getSessionCount()
     ).to.equal(2)
     expect(
       wrapHeartbeatResponse(
         heartbeatWithLoadAverageOnly.toObject()
-      ).getCpuLoadAverage()
+      ).getLoadAverage()
     ).to.equal(0.75)
     expect(
       wrapViewportDataResponse(viewportData.toObject()).getFollowingByteCount()
@@ -447,12 +437,6 @@ describe('Proto Compatibility', () => {
     expect(
       wrapByteOrderMarkResponse(bom.toObject()).getByteOrderMark()
     ).to.equal('utf-8')
-    expect(
-      wrapContentTypeResponse(contentType.toObject()).getContentType()
-    ).to.equal('text/plain')
-    expect(wrapLanguageResponse(language.toObject()).getLanguage()).to.equal(
-      'english'
-    )
     expect(
       wrapCharacterCountResponse(characterCount.toObject()).getInvalidBytes()
     ).to.equal(7)
@@ -488,6 +472,54 @@ describe('Proto Compatibility', () => {
       false
     )
     expect('VIEWPORT_EVT_EDIT' in PublicViewportEventKind).to.equal(false)
+  })
+
+  it('should preserve search case-folding enum values and request field numbers', () => {
+    expect(PublicSearchCaseFolding.NONE).to.equal(
+      ProtoSearchCaseFolding.UNSPECIFIED
+    )
+    expect(PublicSearchCaseFolding.ASCII).to.equal(ProtoSearchCaseFolding.ASCII)
+    expect(PublicSearchCaseFolding.WINDOWS_1252).to.equal(
+      ProtoSearchCaseFolding.WINDOWS_1252
+    )
+    expect(PublicSearchCaseFolding.CP437).to.equal(ProtoSearchCaseFolding.CP437)
+    expect(PublicSearchCaseFolding.EBCDIC_037).to.equal(
+      ProtoSearchCaseFolding.EBCDIC_037
+    )
+    expect(PublicSearchCaseFolding.MAC_ROMAN).to.equal(
+      ProtoSearchCaseFolding.MAC_ROMAN
+    )
+
+    const searchBytes = [
+      ...SearchSessionRequest.toBinary({
+        sessionId: 's',
+        pattern: new Uint8Array([0x81]),
+        limit: 2,
+        caseFolding: ProtoSearchCaseFolding.EBCDIC_037,
+      }),
+    ]
+    expect(searchBytes).to.include(0x38) // limit = field 7, varint
+    expect(searchBytes).to.include(0x18) // case_folding = field 3, varint
+
+    const replaceBytes = [
+      ...ReplaceSessionRequest.toBinary({
+        sessionId: 's',
+        pattern: new Uint8Array([0x81]),
+        replacement: new Uint8Array([0x40]),
+        caseFolding: ProtoSearchCaseFolding.MAC_ROMAN,
+      }),
+    ]
+    expect(replaceBytes).to.include(0x20) // case_folding = field 4, varint
+
+    const checkpointedBytes = [
+      ...ReplaceSessionCheckpointedRequest.toBinary({
+        sessionId: 's',
+        pattern: new Uint8Array([0x81]),
+        replacement: new Uint8Array([0x40]),
+        caseFolding: ProtoSearchCaseFolding.CP437,
+      }),
+    ]
+    expect(checkpointedBytes).to.include(0x20) // case_folding = field 4, varint
   })
 
   it('should wrap subscription data events for legacy EditorClient consumers', () => {

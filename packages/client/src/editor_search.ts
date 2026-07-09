@@ -22,6 +22,7 @@ import { enqueueSessionMutation } from './mutation_queue'
 import {
   replaceSession as defaultReplaceSession,
   replaceSessionCheckpointed as defaultReplaceSessionCheckpointed,
+  SearchCaseFolding,
   searchSession as defaultSearchSession,
 } from './session'
 
@@ -39,7 +40,7 @@ export interface EditorSearchResults {
 export interface EditorSearchRequest {
   query: string
   isHex: boolean
-  caseInsensitive?: boolean
+  caseFolding?: SearchCaseFolding
   isReverse?: boolean
 }
 
@@ -97,7 +98,7 @@ interface EditorSearchControllerOptions {
 interface ActiveSearchState {
   query: string
   isHex: boolean
-  caseInsensitive: boolean
+  caseFolding: SearchCaseFolding
   patternLength: number
   mode: EditorSearchMode
 }
@@ -200,7 +201,7 @@ export class EditorSearchController {
   ): Promise<EditorSearchResults> {
     const normalizedQuery = request.query.trim()
     const pattern = toPatternBytes(normalizedQuery, request.isHex)
-    const caseInsensitive = request.caseInsensitive ?? false
+    const caseFolding = request.caseFolding ?? SearchCaseFolding.NONE
     const isReverse = request.isReverse ?? false
 
     if (!normalizedQuery || pattern.length === 0) {
@@ -218,7 +219,7 @@ export class EditorSearchController {
     const matches = await this.searchSession(
       this.sessionId,
       pattern,
-      caseInsensitive,
+      caseFolding,
       isReverse,
       0,
       0,
@@ -231,7 +232,7 @@ export class EditorSearchController {
     this.activeSearch = {
       query: normalizedQuery,
       isHex: request.isHex,
-      caseInsensitive,
+      caseFolding,
       patternLength: pattern.length,
       mode,
     }
@@ -266,7 +267,7 @@ export class EditorSearchController {
         offset >= 0
           ? await this.collectViewportMatches(
               pattern,
-              request.caseInsensitive ?? false,
+              request.caseFolding ?? SearchCaseFolding.NONE,
               request.fileSize,
               request.viewportOffset,
               request.viewportLength,
@@ -287,7 +288,7 @@ export class EditorSearchController {
         const matches = await this.searchSession(
           this.sessionId,
           pattern,
-          request.caseInsensitive ?? false,
+          request.caseFolding ?? SearchCaseFolding.NONE,
           false,
           nextOffset,
           0,
@@ -305,7 +306,7 @@ export class EditorSearchController {
       const wrappedMatches = await this.searchSession(
         this.sessionId,
         pattern,
-        request.caseInsensitive ?? false,
+        request.caseFolding ?? SearchCaseFolding.NONE,
         false,
         0,
         wrapLength,
@@ -322,7 +323,7 @@ export class EditorSearchController {
       const matches = await this.searchSession(
         this.sessionId,
         pattern,
-        request.caseInsensitive ?? false,
+        request.caseFolding ?? SearchCaseFolding.NONE,
         true,
         0,
         reverseLength,
@@ -337,7 +338,7 @@ export class EditorSearchController {
     const wrappedMatches = await this.searchSession(
       this.sessionId,
       pattern,
-      request.caseInsensitive ?? false,
+      request.caseFolding ?? SearchCaseFolding.NONE,
       true,
       wrapOffset,
       0,
@@ -357,7 +358,7 @@ export class EditorSearchController {
 
     return await this.collectViewportMatches(
       pattern,
-      request.caseInsensitive ?? false,
+      request.caseFolding ?? SearchCaseFolding.NONE,
       request.fileSize,
       request.viewportOffset,
       request.viewportLength,
@@ -368,7 +369,7 @@ export class EditorSearchController {
 
   private async collectViewportMatches(
     pattern: Uint8Array,
-    caseInsensitive: boolean,
+    caseFolding: SearchCaseFolding,
     fileSize: number,
     viewportOffset: number | undefined,
     viewportLength: number | undefined,
@@ -407,7 +408,7 @@ export class EditorSearchController {
     const rawMatches = await this.searchSession(
       this.sessionId,
       pattern,
-      caseInsensitive,
+      caseFolding,
       false,
       searchOffset,
       searchEnd - searchOffset,
@@ -457,6 +458,7 @@ export class EditorSearchController {
     return enqueueSessionMutation(this.sessionId, async () => {
       const normalizedQuery = request.query.trim()
       const pattern = toPatternBytes(normalizedQuery, request.isHex)
+      const caseFolding = request.caseFolding ?? SearchCaseFolding.NONE
       if (!normalizedQuery || pattern.length === 0) {
         return {
           strategy: 'bounded',
@@ -469,7 +471,7 @@ export class EditorSearchController {
       const searchProbe = await this.searchSession(
         this.sessionId,
         pattern,
-        request.caseInsensitive ?? false,
+        caseFolding,
         request.isReverse ?? false,
         0,
         0,
@@ -490,7 +492,7 @@ export class EditorSearchController {
           this.sessionId,
           pattern,
           request.replacement,
-          request.caseInsensitive ?? false,
+          caseFolding,
           0,
           0
         )
@@ -508,7 +510,7 @@ export class EditorSearchController {
                   kind: 'CHECKPOINT_REPLACE_ALL',
                   query: normalizedQuery,
                   isHex: request.isHex,
-                  caseInsensitive: request.caseInsensitive ?? false,
+                  caseFolding,
                   data: request.replacementData,
                 }
               : undefined,
@@ -521,11 +523,14 @@ export class EditorSearchController {
         this.sessionId,
         pattern,
         request.replacement,
-        request.caseInsensitive ?? false,
+        caseFolding,
         request.isReverse ?? false,
         0,
         0,
-        nonOverlappingOffsets.length
+        nonOverlappingOffsets.length,
+        true,
+        false,
+        undefined
       )
 
       return {

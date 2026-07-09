@@ -29,24 +29,14 @@
   "devDependencies": {
     "@biomejs/biome": "^2.5.2",
     "@types/node": "^22.20.0",
-    "copy-webpack-plugin": "^14.0.0",
     "run-script-os": "^1.1.6",
-    "ts-loader": "^9.6.2",
     "typedoc": "^0.28.19",
     "typescript": "^6.0.3",
     "vite": "^8.1.0",
-    "vitest": "^4.1.9",
-    "webpack": "^5.108.1",
-    "webpack-cli": "^7.1.0"
+    "vitest": "^4.1.9"
   },
   "resolutions": {
-    "@types/eslint-scope": "8.4.0",
     "@types/node": "22.20.0",
-    "copy-webpack-plugin/**/ajv": "8.20.0",
-    "copy-webpack-plugin/**/picomatch": "4.0.4",
-    "copy-webpack-plugin/serialize-javascript": "7.0.6",
-    "ts-loader/**/picomatch": "2.3.2",
-    "webpack/**/ajv": "8.20.0",
     "globby/**/brace-expansion": "1.1.13",
     "rimraf/**/brace-expansion": "1.1.13"
   },

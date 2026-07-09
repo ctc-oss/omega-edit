@@ -1,7 +1,18 @@
 <script lang="ts">
   import { onMount, tick } from 'svelte'
   import { formatNumber, strings } from '../i18n'
-  import type { BytesPerRow, WebviewExternalHighlight } from '../protocol'
+  import ByteTooltip from './ByteTooltip.svelte'
+  import type {
+    BytesPerRow,
+    TextEncoding,
+    WebviewExternalHighlight,
+  } from '../protocol'
+  import {
+    classifyTextByte,
+    decodeTextByte,
+    formatTextByte,
+    isPrintableTextByte,
+  } from '../../../src/textEncoding'
 
   const FALLBACK_VISIBLE_ROWS = 16
   // Must match the number of data-external-color selectors (0..N-1) defined in styles.css
@@ -12,6 +23,7 @@
     offset?: number
     bytesPerRow?: BytesPerRow
     offsetRadix?: 'hex' | 'dec'
+    textEncoding?: TextEncoding
     selectedOffset?: number
     selectionStart?: number
     selectionEnd?: number
@@ -46,6 +58,7 @@
     offset = 0,
     bytesPerRow = 16,
     offsetRadix = 'hex',
+    textEncoding = 'ascii',
     selectedOffset = -1,
     selectionStart = -1,
     selectionEnd = -1,
@@ -160,20 +173,37 @@
     return byte.toString(16).toUpperCase().padStart(2, '0')
   }
 
+  function textEncodingLabel(): string {
+    switch (textEncoding) {
+      case 'ascii':
+        return strings.encoding.ascii
+      case 'windows-1252':
+        return strings.encoding.windows1252
+      case 'cp437':
+        return strings.encoding.cp437
+      case 'ebcdic-037':
+        return strings.encoding.ebcdic037
+      case 'macroman':
+        return strings.encoding.macRoman
+    }
+  }
+
   function isPrintable(byte: number): boolean {
-    return byte >= 0x20 && byte <= 0x7e
+    return isPrintableTextByte(byte, textEncoding)
   }
 
   function isControlByte(byte: number): boolean {
-    return byte < 0x20 || byte === 0x7f
+    const byteClass = classifyTextByte(byte, textEncoding)
+    return byteClass === 'Control' || byteClass === 'Null'
   }
 
   function isHighBitByte(byte: number): boolean {
-    return byte >= 0x80
+    const byteClass = classifyTextByte(byte, textEncoding)
+    return byteClass === 'High-bit' || byteClass === 'FF'
   }
 
   function formatAscii(byte: number): string {
-    return isPrintable(byte) ? String.fromCharCode(byte) : '.'
+    return formatTextByte(byte, textEncoding)
   }
 
   function formatBinary(byte: number): string {
@@ -182,18 +212,21 @@
 
   function formatTooltipText(byte: number): string {
     return isPrintable(byte)
-      ? `'${String.fromCharCode(byte)}'`
+      ? `'${decodeTextByte(byte, textEncoding) ?? ''}'`
       : strings.grid.notPrintable
   }
 
   function byteClassLabel(byte: number): string {
-    if (isControlByte(byte)) {
-      return strings.grid.controlByte
+    switch (classifyTextByte(byte, textEncoding)) {
+      case 'Control':
+      case 'Null':
+        return strings.grid.controlByte
+      case 'High-bit':
+      case 'FF':
+        return strings.grid.highBitByte
+      case 'Printable':
+        return strings.grid.printableTextByte(textEncodingLabel())
     }
-    if (isHighBitByte(byte)) {
-      return strings.grid.highBitByte
-    }
-    return strings.grid.printableByte
   }
 
   function formatOffset(offset: number): string {
@@ -239,6 +272,49 @@
     return `${baseTitle}\n${strings.grid.externalHighlight(
       highlight.label,
       highlight.source
+    )}${staleSuffix}`
+  }
+
+  function formatByteTooltipTitle(
+    pane: 'hex' | 'ascii',
+    byte: number,
+    byteOffset: number,
+    highlight: WebviewExternalHighlight | undefined
+  ): string {
+    const hex = formatHex(byte)
+    const baseTitle = strings.grid.byteTooltipTitle(
+      pane === 'hex'
+        ? strings.grid.hexByteTitle(hex)
+        : strings.grid.textByteTitle,
+      formatOffset(byteOffset),
+      hex,
+      formatNumber(byte),
+      formatBinary(byte),
+      textEncodingLabel(),
+      formatTooltipText(byte),
+      byteClassLabel(byte)
+    )
+    if (!highlight) {
+      return baseTitle
+    }
+
+    const rangeLength = Math.max(1, highlight.length)
+    const rangeEndOffset = highlight.offset + rangeLength - 1
+    const bytePosition = Math.max(
+      1,
+      Math.min(rangeLength, byteOffset - highlight.offset + 1)
+    )
+    const staleSuffix = highlight.stale
+      ? `\n${strings.grid.externalHighlightStale}`
+      : ''
+    return `${baseTitle}\n${strings.grid.externalHighlight(
+      highlight.label
+    )}\n${strings.grid.externalHighlightRange(
+      formatOffset(highlight.offset),
+      formatOffset(rangeEndOffset)
+    )}\n${strings.grid.externalHighlightPosition(
+      bytePosition,
+      rangeLength
     )}${staleSuffix}`
   }
 
@@ -289,9 +365,25 @@
     if (!highlight) {
       return undefined
     }
-    return String(
-      hashExternalHighlightId(highlight.id) % EXTERNAL_HIGHLIGHT_COLOR_COUNT
-    )
+    return String(externalHighlightColorIndex(highlight))
+  }
+
+  function externalHighlightColorIndex(
+    highlight: WebviewExternalHighlight
+  ): number {
+    return hashExternalHighlightId(highlight.id) % EXTERNAL_HIGHLIGHT_COLOR_COUNT
+  }
+
+  function isTooltipAlignedRight(pane: 'hex' | 'ascii', column: number): boolean {
+    return pane === 'ascii' || column >= Math.max(0, bytesPerRow - 4)
+  }
+
+  function isTooltipBelow(rowIndex: number): boolean {
+    return rowIndex <= 1
+  }
+
+  function byteTooltipId(pane: 'hex' | 'ascii', byteOffset: number): string {
+    return `byte-tooltip-${pane}-${byteOffset}`
   }
 
   function isExternalRangeStart(
@@ -641,6 +733,7 @@
               byteOffset,
               externalHighlight
             )}
+            {@const tooltipId = byteTooltipId('hex', byteOffset)}
             <button
               type="button"
               class="byte"
@@ -678,7 +771,7 @@
               aria-colindex={index + 2}
               aria-selected={isSelected(byteOffset)}
               aria-label={byteTitle}
-              title={byteTitle}
+              aria-describedby={tooltipId}
               onpointerdown={(event) =>
                 handlePointerDown('hex', byteOffset, rowIndex, index, event)}
             >
@@ -687,6 +780,18 @@
               pendingHexLabel
                 ? pendingHexLabel
                 : formatHex(byte)}
+              <ByteTooltip
+                id={tooltipId}
+                title={formatByteTooltipTitle(
+                  'hex',
+                  byte,
+                  byteOffset,
+                  externalHighlight
+                )}
+                alignRight={isTooltipAlignedRight('hex', index)}
+                below={isTooltipBelow(rowIndex)}
+                showAccent={!!externalHighlight}
+              />
             </button>
           {/each}
         </div>
@@ -703,6 +808,7 @@
               byteOffset,
               externalHighlight
             )}
+            {@const tooltipId = byteTooltipId('ascii', byteOffset)}
             <button
               type="button"
               class="text-byte"
@@ -743,11 +849,23 @@
               aria-colindex={bytesPerRow + index + 2}
               aria-selected={isSelected(byteOffset)}
               aria-label={byteTitle}
-              title={byteTitle}
+              aria-describedby={tooltipId}
               onpointerdown={(event) =>
                 handlePointerDown('ascii', byteOffset, rowIndex, index, event)}
             >
               {formatAscii(byte)}
+              <ByteTooltip
+                id={tooltipId}
+                title={formatByteTooltipTitle(
+                  'ascii',
+                  byte,
+                  byteOffset,
+                  externalHighlight
+                )}
+                alignRight={isTooltipAlignedRight('ascii', index)}
+                below={isTooltipBelow(rowIndex)}
+                showAccent={!!externalHighlight}
+              />
             </button>
           {/each}
         </span>

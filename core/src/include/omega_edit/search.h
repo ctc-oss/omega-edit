@@ -35,6 +35,21 @@ extern "C" {
 #endif
 
 /**
+ * Single-byte case folding mode used when byte search compares text.
+ *
+ * The byte model remains unchanged.  OMEGA_SEARCH_CASE_FOLDING_NONE performs exact byte matching. Other enum values
+ * control the one-byte-to-one-byte lowercase transform applied to the search pattern and candidate bytes.
+ */
+typedef enum {
+    OMEGA_SEARCH_CASE_FOLDING_NONE = 0,
+    OMEGA_SEARCH_CASE_FOLDING_ASCII = 1,
+    OMEGA_SEARCH_CASE_FOLDING_WINDOWS_1252 = 2,
+    OMEGA_SEARCH_CASE_FOLDING_CP437 = 3,
+    OMEGA_SEARCH_CASE_FOLDING_EBCDIC_037 = 4,
+    OMEGA_SEARCH_CASE_FOLDING_MAC_ROMAN = 5
+} omega_search_case_folding_t;
+
+/**
  * Create a search context
  * @param session_ptr session to find patterns in
  * @param pattern pointer to the pattern to find (as a sequence of bytes)
@@ -42,7 +57,7 @@ extern "C" {
  * @param session_offset start searching at this offset within the session
  * @param session_length search from the starting offset within the session up to this many bytes, if set to zero, it
  * will track the computed session length
- * @param case_insensitive zero for case sensitive match and non-zero otherwise
+ * @param case_folding case folding mode; use OMEGA_SEARCH_CASE_FOLDING_NONE for exact byte matching
  * @param is_reverse_search zero for forward search and non-zero for reverse search
  * @return search context
  * @warning This byte-oriented API never infers a pattern length from strlen. Use omega_search_create_context for
@@ -52,7 +67,8 @@ extern "C" {
  */
 omega_search_context_t *omega_search_create_context_bytes(omega_session_t *session_ptr, const omega_byte_t *pattern,
                                                           int64_t pattern_length, int64_t session_offset,
-                                                          int64_t session_length, int case_insensitive,
+                                                          int64_t session_length,
+                                                          omega_search_case_folding_t case_folding,
                                                           int is_reverse_search);
 
 /**
@@ -64,7 +80,7 @@ omega_search_context_t *omega_search_create_context_bytes(omega_session_t *sessi
  * @param session_offset start searching at this offset within the session
  * @param session_length search from the starting offset within the session up to this many bytes, if set to zero, it
  * will search to the end of the session
- * @param case_insensitive zero for case-sensitive matching and non-zero for case-insensitive matching
+ * @param case_folding case folding mode; use OMEGA_SEARCH_CASE_FOLDING_NONE for exact byte matching
  * @param is_reverse_search zero for forward search and non-zero for reverse search
  * @return search context
  * @warning This helper is for null-terminated text patterns. For binary data or patterns that may contain embedded
@@ -74,7 +90,7 @@ omega_search_context_t *omega_search_create_context_bytes(omega_session_t *sessi
  */
 omega_search_context_t *omega_search_create_context(omega_session_t *session_ptr, const char *pattern,
                                                     int64_t pattern_length, int64_t session_offset,
-                                                    int64_t session_length, int case_insensitive,
+                                                    int64_t session_length, omega_search_case_folding_t case_folding,
                                                     int is_reverse_search);
 
 /**

@@ -3,10 +3,11 @@
     FIXED_BYTES_PER_ROW_OPTIONS,
     MAX_BYTES_PER_ROW,
     MIN_BYTES_PER_ROW,
+    TEXT_ENCODING_OPTIONS,
     normalizeBytesPerRow,
     type BytesPerRow,
-    type BytesPerRowMode,
     type InsertDirection,
+    type TextEncoding,
     type WebviewSessionContentInfo,
     type WebviewSessionContentSource,
     type WebviewTransformPlugin,
@@ -27,8 +28,8 @@
 
   interface Props {
     bytesPerRow: BytesPerRow
-    bytesPerRowMode: BytesPerRowMode
     offsetRadix?: 'hex' | 'dec'
+    textEncoding?: TextEncoding
     insertDirection?: InsertDirection
     fileSize?: number
     contentSources?: WebviewSessionContentInfo[]
@@ -48,6 +49,7 @@
     selectionLength?: number
     onBytesPerRow: (bytesPerRow: BytesPerRow) => void
     onOffsetRadix: (radix: 'hex' | 'dec') => void
+    onTextEncoding: (encoding: TextEncoding) => void
     onInsertDirection: (direction: InsertDirection) => void
     onGoToOffset: (offset: number) => void
     onRequestTransforms: () => void
@@ -73,8 +75,8 @@
 
   let {
     bytesPerRow,
-    bytesPerRowMode,
     offsetRadix = 'hex',
+    textEncoding = 'ascii',
     insertDirection = 'forward',
     fileSize = 0,
     contentSources = [],
@@ -94,6 +96,7 @@
     selectionLength = 0,
     onBytesPerRow,
     onOffsetRadix,
+    onTextEncoding,
     onInsertDirection,
     onGoToOffset,
     onRequestTransforms,
@@ -113,6 +116,26 @@
 
   const rowOptions: BytesPerRow[] = [...FIXED_BYTES_PER_ROW_OPTIONS]
   let customBytesPerRowValue = $state('')
+  const bytesPerRowSelectValue = $derived(
+    rowOptions.includes(bytesPerRow as (typeof rowOptions)[number])
+      ? String(bytesPerRow)
+      : 'custom'
+  )
+
+  function textEncodingLabel(encoding: TextEncoding): string {
+    switch (encoding) {
+      case 'ascii':
+        return strings.encoding.ascii
+      case 'windows-1252':
+        return strings.encoding.windows1252
+      case 'cp437':
+        return strings.encoding.cp437
+      case 'ebcdic-037':
+        return strings.encoding.ebcdic037
+      case 'macroman':
+        return strings.encoding.macRoman
+    }
+  }
 
   function clampBytesPerRow(value: number): BytesPerRow {
     if (!Number.isFinite(value)) {
@@ -125,6 +148,26 @@
 
   function handleCustomBytesInput(event: Event): void {
     customBytesPerRowValue = (event.currentTarget as HTMLInputElement).value
+  }
+
+  function handleBytesPerRowSelect(event: Event): void {
+    const value = (event.currentTarget as HTMLSelectElement).value
+    if (value === 'custom') {
+      return
+    }
+    onBytesPerRow(clampBytesPerRow(Number.parseInt(value, 10)))
+  }
+
+  function handleOffsetRadixSelect(event: Event): void {
+    const value = (event.currentTarget as HTMLSelectElement).value
+    onOffsetRadix(value === 'dec' ? 'dec' : 'hex')
+  }
+
+  function handleTextEncodingSelect(event: Event): void {
+    const value = (event.currentTarget as HTMLSelectElement).value
+    if (TEXT_ENCODING_OPTIONS.includes(value as TextEncoding)) {
+      onTextEncoding(value as TextEncoding)
+    }
   }
 
   function commitCustomBytesPerRow(force = false): void {
@@ -156,19 +199,21 @@
 
 <div class="toolbar" role="toolbar" aria-label={strings.toolbar.label}>
   <div class="bytes-per-row-control">
-    <div class="segmented" aria-label={strings.toolbar.bytesPerRow}>
-      {#each rowOptions as option}
-        <button
-          type="button"
-          class:active={bytesPerRowMode === 'fixed' && option === bytesPerRow}
-          aria-pressed={bytesPerRowMode === 'fixed' && option === bytesPerRow}
-          title={strings.toolbar.bytesPerRowTitle(option)}
-          onclick={() => onBytesPerRow(option)}
-        >
-          {option}
-        </button>
-      {/each}
-    </div>
+    <label class="toolbar-select-control">
+      <span>{strings.toolbar.bytesPerRowSelect}</span>
+      <select
+        class="toolbar-select bytes-per-row-select"
+        value={bytesPerRowSelectValue}
+        aria-label={strings.toolbar.bytesPerRow}
+        title={strings.toolbar.bytesPerRowTitle(bytesPerRow)}
+        onchange={handleBytesPerRowSelect}
+      >
+        {#each rowOptions as option}
+          <option value={option}>{option}</option>
+        {/each}
+        <option value="custom">{strings.toolbar.customBytesPerRowOption}</option>
+      </select>
+    </label>
     <input
       class="bytes-per-row-input"
       type="number"
@@ -186,26 +231,38 @@
     />
   </div>
 
-  <div class="segmented" aria-label={strings.toolbar.offsetRadix}>
-    <button
-      type="button"
-      class:active={offsetRadix === 'hex'}
-      aria-pressed={offsetRadix === 'hex'}
-      title={strings.toolbar.hexOffsetsTitle}
-      onclick={() => onOffsetRadix('hex')}
+  <label class="toolbar-select-control">
+    <span>{strings.toolbar.offsetRadix}</span>
+    <select
+      class="toolbar-select offset-radix-select"
+      value={offsetRadix}
+      aria-label={strings.toolbar.offsetRadix}
+      title={strings.toolbar.offsetRadixTitle(
+        offsetRadix === 'hex'
+          ? strings.toolbar.hexOffsets
+          : strings.toolbar.decOffsets
+      )}
+      onchange={handleOffsetRadixSelect}
     >
-      {strings.toolbar.hexOffsets}
-    </button>
-    <button
-      type="button"
-      class:active={offsetRadix === 'dec'}
-      aria-pressed={offsetRadix === 'dec'}
-      title={strings.toolbar.decOffsetsTitle}
-      onclick={() => onOffsetRadix('dec')}
+      <option value="hex">{strings.toolbar.hexOffsets}</option>
+      <option value="dec">{strings.toolbar.decOffsets}</option>
+    </select>
+  </label>
+
+  <label class="toolbar-select-control">
+    <span>{strings.toolbar.textEncoding}</span>
+    <select
+      class="toolbar-select text-encoding-select"
+      value={textEncoding}
+      aria-label={strings.toolbar.textEncoding}
+      title={strings.toolbar.textEncodingTitle(textEncodingLabel(textEncoding))}
+      onchange={handleTextEncodingSelect}
     >
-      {strings.toolbar.decOffsets}
-    </button>
-  </div>
+      {#each TEXT_ENCODING_OPTIONS as encoding}
+        <option value={encoding}>{textEncodingLabel(encoding)}</option>
+      {/each}
+    </select>
+  </label>
 
   <button
     type="button"

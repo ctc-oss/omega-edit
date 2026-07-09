@@ -429,7 +429,7 @@ function buildTools(toolkit: OmegaEditToolkit): ToolDefinition[] {
     {
       name: 'omega_edit_profile_range',
       description:
-        'Profile a bounded byte range and return frequency bins, byte-class counts, top bytes, line endings, and content type.',
+        'Profile a bounded byte range and return frequency bins, byte-class counts, top bytes, and line endings.',
       inputSchema: {
         type: 'object',
         properties: {

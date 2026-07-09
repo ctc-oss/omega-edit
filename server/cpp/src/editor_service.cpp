@@ -114,6 +114,32 @@ namespace omega_edit {
 
         using session_content_source = ::omega_edit::v1::SessionContentSource;
         using session_fingerprint_content = ::omega_edit::v1::SessionFingerprintContent;
+        using search_case_folding = ::omega_edit::v1::SearchCaseFolding;
+
+        static bool to_core_search_case_folding(search_case_folding value, omega_search_case_folding_t &result) {
+            switch (value) {
+                case ::omega_edit::v1::SEARCH_CASE_FOLDING_UNSPECIFIED:
+                    result = OMEGA_SEARCH_CASE_FOLDING_NONE;
+                    return true;
+                case ::omega_edit::v1::SEARCH_CASE_FOLDING_ASCII:
+                    result = OMEGA_SEARCH_CASE_FOLDING_ASCII;
+                    return true;
+                case ::omega_edit::v1::SEARCH_CASE_FOLDING_WINDOWS_1252:
+                    result = OMEGA_SEARCH_CASE_FOLDING_WINDOWS_1252;
+                    return true;
+                case ::omega_edit::v1::SEARCH_CASE_FOLDING_CP437:
+                    result = OMEGA_SEARCH_CASE_FOLDING_CP437;
+                    return true;
+                case ::omega_edit::v1::SEARCH_CASE_FOLDING_EBCDIC_037:
+                    result = OMEGA_SEARCH_CASE_FOLDING_EBCDIC_037;
+                    return true;
+                case ::omega_edit::v1::SEARCH_CASE_FOLDING_MAC_ROMAN:
+                    result = OMEGA_SEARCH_CASE_FOLDING_MAC_ROMAN;
+                    return true;
+                default:
+                    return false;
+            }
+        }
 
         static session_content_source fingerprint_content_to_session_content(session_fingerprint_content content) {
             switch (content) {
@@ -636,7 +662,7 @@ namespace omega_edit {
             return value;
         }
 
-        static std::optional<double> get_cpu_load_average() {
+        static std::optional<double> get_load_average() {
 #ifdef _WIN32
             return std::nullopt;
 #else
@@ -869,8 +895,8 @@ namespace omega_edit {
         }
 
         static grpc::Status count_replace_matches_until_limit(omega_session_t *session, const std::string &pattern,
-                                                              bool case_insensitive, bool is_reverse, int64_t offset,
-                                                              int64_t length, int64_t session_size,
+                                                              omega_search_case_folding_t case_folding, bool is_reverse,
+                                                              int64_t offset, int64_t length, int64_t session_size,
                                                               int64_t max_selected_matches,
                                                               int64_t &selected_match_count,
                                                               bool &selected_match_limit_exceeded) {
@@ -884,10 +910,9 @@ namespace omega_edit {
                     length > 0 ? (std::min)(length, session_size - offset) : session_size - offset;
             if (static_cast<int64_t>(pattern.size()) > effective_length) { return grpc::Status::OK; }
 
-            auto *ctx =
-                    omega_search_create_context_bytes(session, reinterpret_cast<const omega_byte_t *>(pattern.data()),
-                                                      static_cast<int64_t>(pattern.size()), offset, effective_length,
-                                                      case_insensitive ? 1 : 0, is_reverse ? 1 : 0);
+            auto *ctx = omega_search_create_context_bytes(
+                    session, reinterpret_cast<const omega_byte_t *>(pattern.data()),
+                    static_cast<int64_t>(pattern.size()), offset, effective_length, case_folding, is_reverse ? 1 : 0);
             if (!ctx) {
                 return grpc::Status(grpc::StatusCode::INVALID_ARGUMENT, "replace search context could not be created");
             }
@@ -965,9 +990,7 @@ namespace omega_edit {
                                              std::string transform_plugin_host_path,
                                              bool allow_experimental_transform_plugins,
                                              bool allow_test_transform_plugins)
-            : session_manager_(resource_limits), content_type_detector_(create_default_content_type_detector()),
-              language_detector_(create_default_language_detector()),
-              transform_plugin_registry_(omega_transform_plugin_registry_create()),
+            : session_manager_(resource_limits), transform_plugin_registry_(omega_transform_plugin_registry_create()),
               start_time_(std::chrono::steady_clock::now()), heartbeat_config_(heartbeat_config),
               resource_limits_(resource_limits), shutdown_callback_(std::move(shutdown_callback)) {
             if (!transform_plugin_host_path.empty()) {
@@ -1796,92 +1819,6 @@ namespace omega_edit {
             return grpc::Status::OK;
         }
 
-        grpc::Status EditorServiceImpl::GetContentType(grpc::ServerContext * /*context*/,
-                                                       const ::omega_edit::v1::GetContentTypeRequest *request,
-                                                       ::omega_edit::v1::GetContentTypeResponse *response) {
-            auto request_status = validate_materialized_segment_request(
-                    "content type", request->offset(), request->length(), resource_limits_.max_read_segment_bytes);
-            if (!request_status.ok()) { return request_status; }
-
-            auto locked_session = session_manager_.lock_session(request->session_id());
-            if (!locked_session) {
-                return grpc::Status(grpc::StatusCode::NOT_FOUND, "session not found: " + request->session_id());
-            }
-            auto *session = locked_session.session();
-
-            if (request->length() <= 0) {
-                response->set_session_id(request->session_id());
-                response->set_offset(request->offset());
-                response->set_length(0);
-                response->set_content_type("application/octet-stream");
-                return grpc::Status::OK;
-            }
-            auto segment = std::unique_ptr<omega_segment_t, decltype(&omega_segment_destroy)>(
-                    omega_segment_create(request->length()), omega_segment_destroy);
-            if (!segment) { return grpc::Status(grpc::StatusCode::INTERNAL, "failed to allocate segment"); }
-
-            int result = omega_session_get_segment(session, segment.get(), request->offset());
-            std::string content_type;
-            int64_t actual_length = 0;
-            if (result == 0) {
-                auto *data = omega_segment_get_data(segment.get());
-                actual_length = omega_segment_get_length(segment.get());
-                content_type =
-                        content_type_detector_->detect(data, actual_length, locked_session.info->canonical_file_path);
-            } else {
-                return grpc::Status(grpc::StatusCode::NOT_FOUND, "couldn't get segment");
-            }
-
-            response->set_session_id(request->session_id());
-            response->set_offset(request->offset());
-            response->set_length(actual_length);
-            response->set_content_type(content_type);
-            return grpc::Status::OK;
-        }
-
-        grpc::Status EditorServiceImpl::GetLanguage(grpc::ServerContext * /*context*/,
-                                                    const ::omega_edit::v1::GetLanguageRequest *request,
-                                                    ::omega_edit::v1::GetLanguageResponse *response) {
-            auto request_status = validate_materialized_segment_request(
-                    "language", request->offset(), request->length(), resource_limits_.max_read_segment_bytes);
-            if (!request_status.ok()) { return request_status; }
-
-            auto locked_session = session_manager_.lock_session(request->session_id());
-            if (!locked_session) {
-                return grpc::Status(grpc::StatusCode::NOT_FOUND, "session not found: " + request->session_id());
-            }
-            auto *session = locked_session.session();
-
-            if (request->length() <= 0) {
-                response->set_session_id(request->session_id());
-                response->set_offset(request->offset());
-                response->set_length(0);
-                response->set_language("unknown");
-                return grpc::Status::OK;
-            }
-            auto segment = std::unique_ptr<omega_segment_t, decltype(&omega_segment_destroy)>(
-                    omega_segment_create(request->length()), omega_segment_destroy);
-            if (!segment) { return grpc::Status(grpc::StatusCode::INTERNAL, "failed to allocate segment"); }
-
-            int result = omega_session_get_segment(session, segment.get(), request->offset());
-            std::string language;
-            int64_t actual_length = 0;
-            if (result == 0) {
-                auto *data = omega_segment_get_data(segment.get());
-                actual_length = omega_segment_get_length(segment.get());
-                std::string bom_str = request->byte_order_mark();
-                language = language_detector_->detect(data, actual_length, bom_str);
-            } else {
-                return grpc::Status(grpc::StatusCode::NOT_FOUND, "couldn't get segment");
-            }
-
-            response->set_session_id(request->session_id());
-            response->set_offset(request->offset());
-            response->set_length(actual_length);
-            response->set_language(language);
-            return grpc::Status::OK;
-        }
-
         // ---------- Counts ----------
 
         grpc::Status EditorServiceImpl::GetCount(grpc::ServerContext * /*context*/,
@@ -2164,8 +2101,14 @@ namespace omega_edit {
         grpc::Status EditorServiceImpl::SearchSession(grpc::ServerContext * /*context*/,
                                                       const ::omega_edit::v1::SearchSessionRequest *request,
                                                       ::omega_edit::v1::SearchSessionResponse *response) {
-            bool case_insensitive = request->has_is_case_insensitive() ? request->is_case_insensitive() : false;
             bool is_reverse = request->has_is_reverse() ? request->is_reverse() : false;
+            const auto requested_case_folding = request->has_case_folding()
+                                                        ? request->case_folding()
+                                                        : ::omega_edit::v1::SEARCH_CASE_FOLDING_UNSPECIFIED;
+            omega_search_case_folding_t case_folding = OMEGA_SEARCH_CASE_FOLDING_NONE;
+            if (!to_core_search_case_folding(requested_case_folding, case_folding)) {
+                return grpc::Status(grpc::StatusCode::INVALID_ARGUMENT, "search case folding is unsupported");
+            }
             int64_t offset = request->has_offset() ? request->offset() : 0;
             int64_t length = request->has_length() ? request->length() : 0;
             int64_t limit = request->has_limit() ? request->limit() : 0;// 0 = no limit
@@ -2204,7 +2147,7 @@ namespace omega_edit {
                 if (static_cast<int64_t>(request->pattern().size()) <= effective_length) {
                     auto *ctx = omega_search_create_context_bytes(
                             session, reinterpret_cast<const omega_byte_t *>(request->pattern().data()),
-                            static_cast<int64_t>(request->pattern().size()), offset, length, case_insensitive ? 1 : 0,
+                            static_cast<int64_t>(request->pattern().size()), offset, length, case_folding,
                             is_reverse ? 1 : 0);
 
                     if (!ctx) {
@@ -2242,7 +2185,7 @@ namespace omega_edit {
 
             response->set_session_id(request->session_id());
             response->set_pattern(request->pattern());
-            response->set_is_case_insensitive(case_insensitive);
+            response->set_case_folding(requested_case_folding);
             response->set_is_reverse(is_reverse);
             response->set_offset(offset);
             response->set_length(length);
@@ -2262,8 +2205,14 @@ namespace omega_edit {
             // handlers during potentially long payload and size checks, while still preventing transforms from starting until
             // the mutation attempt has completed.
 
-            const bool case_insensitive = request->has_is_case_insensitive() ? request->is_case_insensitive() : false;
             const bool is_reverse = request->has_is_reverse() ? request->is_reverse() : false;
+            const auto requested_case_folding = request->has_case_folding()
+                                                        ? request->case_folding()
+                                                        : ::omega_edit::v1::SEARCH_CASE_FOLDING_UNSPECIFIED;
+            omega_search_case_folding_t case_folding = OMEGA_SEARCH_CASE_FOLDING_NONE;
+            if (!to_core_search_case_folding(requested_case_folding, case_folding)) {
+                return grpc::Status(grpc::StatusCode::INVALID_ARGUMENT, "replace case folding is unsupported");
+            }
             const int64_t offset = request->has_offset() ? request->offset() : 0;
             const int64_t length = request->has_length() ? request->length() : 0;
             const int64_t limit = request->has_limit() ? request->limit() : 0;
@@ -2285,7 +2234,7 @@ namespace omega_edit {
             response->set_session_id(request->session_id());
             response->set_pattern(request->pattern());
             response->set_replacement(request->replacement());
-            response->set_is_case_insensitive(case_insensitive);
+            response->set_case_folding(requested_case_folding);
             response->set_is_reverse(is_reverse);
             response->set_offset(offset);
             response->set_length(length);
@@ -2339,7 +2288,7 @@ namespace omega_edit {
                     auto selected_match_count = int64_t{0};
                     auto selected_match_limit_exceeded = false;
                     const auto preflight_status = count_replace_matches_until_limit(
-                            session, request->pattern(), case_insensitive, is_reverse, offset, length, session_size,
+                            session, request->pattern(), case_folding, is_reverse, offset, length, session_size,
                             replace_match_limit, selected_match_count, selected_match_limit_exceeded);
                     if (!preflight_status.ok()) { return preflight_status; }
                     if (selected_match_limit_exceeded) {
@@ -2354,8 +2303,8 @@ namespace omega_edit {
                                 session, reinterpret_cast<const omega_byte_t *>(request->pattern().data()),
                                 static_cast<int64_t>(request->pattern().size()),
                                 reinterpret_cast<const omega_byte_t *>(request->replacement().data()),
-                                static_cast<int64_t>(request->replacement().size()), case_insensitive ? 1 : 0,
-                                is_reverse ? 1 : 0, offset, length, &replacement_count);
+                                static_cast<int64_t>(request->replacement().size()), case_folding, is_reverse ? 1 : 0,
+                                offset, length, &replacement_count);
                         if (rc != 0) {
                             return grpc::Status(grpc::StatusCode::INTERNAL,
                                                 "checkpointed replace fallback failed for session: " +
@@ -2373,9 +2322,9 @@ namespace omega_edit {
                             session, reinterpret_cast<const omega_byte_t *>(request->pattern().data()),
                             static_cast<int64_t>(request->pattern().size()),
                             reinterpret_cast<const omega_byte_t *>(request->replacement().data()),
-                            static_cast<int64_t>(request->replacement().size()), case_insensitive ? 1 : 0,
-                            is_reverse ? 1 : 0, offset, length, bounded_replace_limit, front_to_back ? 1 : 0,
-                            overwrite_only ? 1 : 0, &replacement_count, &delete_count, &insert_count, &overwrite_count);
+                            static_cast<int64_t>(request->replacement().size()), case_folding, is_reverse ? 1 : 0,
+                            offset, length, bounded_replace_limit, front_to_back ? 1 : 0, overwrite_only ? 1 : 0,
+                            &replacement_count, &delete_count, &insert_count, &overwrite_count);
                     if (rc != 0) {
                         return grpc::Status(grpc::StatusCode::INTERNAL,
                                             "replace failed for session: " + request->session_id());
@@ -2402,7 +2351,14 @@ namespace omega_edit {
             // handlers during potentially long payload and size checks, while still preventing transforms from starting until
             // the mutation attempt has completed.
 
-            const bool case_insensitive = request->has_is_case_insensitive() ? request->is_case_insensitive() : false;
+            const auto requested_case_folding = request->has_case_folding()
+                                                        ? request->case_folding()
+                                                        : ::omega_edit::v1::SEARCH_CASE_FOLDING_UNSPECIFIED;
+            omega_search_case_folding_t case_folding = OMEGA_SEARCH_CASE_FOLDING_NONE;
+            if (!to_core_search_case_folding(requested_case_folding, case_folding)) {
+                return grpc::Status(grpc::StatusCode::INVALID_ARGUMENT,
+                                    "checkpointed replace case folding is unsupported");
+            }
             const int64_t offset = request->has_offset() ? request->offset() : 0;
             const int64_t length = request->has_length() ? request->length() : 0;
 
@@ -2442,7 +2398,7 @@ namespace omega_edit {
                     response->set_session_id(request->session_id());
                     response->set_pattern(request->pattern());
                     response->set_replacement(request->replacement());
-                    response->set_is_case_insensitive(case_insensitive);
+                    response->set_case_folding(requested_case_folding);
                     response->set_offset(offset);
                     response->set_length(length);
                     response->set_replacement_count(0);
@@ -2459,7 +2415,7 @@ namespace omega_edit {
                         session, reinterpret_cast<const omega_byte_t *>(request->pattern().data()),
                         static_cast<int64_t>(request->pattern().size()),
                         reinterpret_cast<const omega_byte_t *>(request->replacement().data()),
-                        static_cast<int64_t>(request->replacement().size()), case_insensitive ? 1 : 0, offset, length,
+                        static_cast<int64_t>(request->replacement().size()), case_folding, offset, length,
                         &replacement_count);
                 if (rc != 0) {
                     return grpc::Status(grpc::StatusCode::INTERNAL,
@@ -2470,7 +2426,7 @@ namespace omega_edit {
             response->set_session_id(request->session_id());
             response->set_pattern(request->pattern());
             response->set_replacement(request->replacement());
-            response->set_is_case_insensitive(case_insensitive);
+            response->set_case_folding(requested_case_folding);
             response->set_offset(offset);
             response->set_length(length);
             response->set_replacement_count(replacement_count);
@@ -2807,11 +2763,9 @@ namespace omega_edit {
                     graceful_shutdown_.store(true);
                     // Check if no sessions remain - if so, we can stop immediately
                     if (session_manager_.session_count() == 0) {
-                        response->set_response_code(0);
                         response->set_status(::omega_edit::v1::SERVER_CONTROL_STATUS_COMPLETED);
                         request_shutdown();
                     } else {
-                        response->set_response_code(0);
                         response->set_status(::omega_edit::v1::SERVER_CONTROL_STATUS_DRAINING);
                     }
                     break;
@@ -2819,7 +2773,6 @@ namespace omega_edit {
                 case ::omega_edit::v1::SERVER_CONTROL_KIND_IMMEDIATE_SHUTDOWN:
                     graceful_shutdown_.store(true);
                     session_manager_.destroy_all();
-                    response->set_response_code(0);
                     response->set_status(::omega_edit::v1::SERVER_CONTROL_STATUS_COMPLETED);
                     request_shutdown();
                     break;
@@ -2848,8 +2801,7 @@ namespace omega_edit {
             response->set_uptime(std::chrono::duration_cast<std::chrono::milliseconds>(uptime).count());
             response->set_cpu_count(get_cpu_count());
 
-            if (const auto load_average = get_cpu_load_average(); load_average.has_value()) {
-                response->set_cpu_load_average(*load_average);
+            if (const auto load_average = get_load_average(); load_average.has_value()) {
                 response->set_load_average(*load_average);
             }
 

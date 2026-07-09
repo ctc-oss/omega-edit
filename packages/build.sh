@@ -60,7 +60,7 @@ OPTIONS:
 # Check the Omega Edit install directory for the locally installed, or OE_LIB_DIR environment variable, library directory
 # The packages cannot be built unless Omega Edit has successfully built and been installed.
 check_oe_install() {
-  # Match the same library naming/layout that packages/server/webpack.config.js uses.
+  # Match the same library naming/layout that packages/server/scripts/build-package.js uses.
   # Windows builds produce "omega_edit.dll" (no "lib" prefix); macOS/Linux produce
   # "libomega_edit.dylib"/"libomega_edit.so*". The library may live directly in the
   # install dir or in its "lib"/"bin" subdirectories.

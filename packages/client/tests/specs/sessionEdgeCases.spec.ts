@@ -426,28 +426,6 @@ describe('Session Edge Cases', () => {
             })
           )
         },
-        getContentType(
-          _request: unknown,
-          callback: (err: Error | null, response?: unknown) => void
-        ) {
-          callback(
-            Object.assign(new Error('content type failed'), {
-              code: 13,
-              details: 'rpc failed',
-            })
-          )
-        },
-        getLanguage(
-          _request: unknown,
-          callback: (err: Error | null, response?: unknown) => void
-        ) {
-          callback(
-            Object.assign(new Error('language failed'), {
-              code: 13,
-              details: 'rpc failed',
-            })
-          )
-        },
         getCharacterCounts(
           _request: unknown,
           callback: (err: Error | null, response?: unknown) => void
@@ -467,24 +445,6 @@ describe('Session Edge Cases', () => {
       expect.fail('getByteOrderMark should reject when the RPC fails')
     } catch (err) {
       expectErrorMessage(expect, err, 'getByteOrderMark error: bom failed')
-    }
-
-    try {
-      await sessionModule.getContentType('session-id', 0, 1)
-      expect.fail('getContentType should reject when the RPC fails')
-    } catch (err) {
-      expectErrorMessage(
-        expect,
-        err,
-        'getContentType error: content type failed'
-      )
-    }
-
-    try {
-      await sessionModule.getLanguage('session-id', 0, 1, 'none')
-      expect.fail('getLanguage should reject when the RPC fails')
-    } catch (err) {
-      expectErrorMessage(expect, err, 'getLanguage error: language failed')
     }
 
     try {
