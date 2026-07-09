@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount, tick } from 'svelte'
   import { formatNumber, strings } from '../i18n'
+  import ByteTooltip from './ByteTooltip.svelte'
   import type {
     BytesPerRow,
     TextEncoding,
@@ -274,6 +275,49 @@
     )}${staleSuffix}`
   }
 
+  function formatByteTooltipTitle(
+    pane: 'hex' | 'ascii',
+    byte: number,
+    byteOffset: number,
+    highlight: WebviewExternalHighlight | undefined
+  ): string {
+    const hex = formatHex(byte)
+    const baseTitle = strings.grid.byteTooltipTitle(
+      pane === 'hex'
+        ? strings.grid.hexByteTitle(hex)
+        : strings.grid.textByteTitle,
+      formatOffset(byteOffset),
+      hex,
+      formatNumber(byte),
+      formatBinary(byte),
+      textEncodingLabel(),
+      formatTooltipText(byte),
+      byteClassLabel(byte)
+    )
+    if (!highlight) {
+      return baseTitle
+    }
+
+    const rangeLength = Math.max(1, highlight.length)
+    const rangeEndOffset = highlight.offset + rangeLength - 1
+    const bytePosition = Math.max(
+      1,
+      Math.min(rangeLength, byteOffset - highlight.offset + 1)
+    )
+    const staleSuffix = highlight.stale
+      ? `\n${strings.grid.externalHighlightStale}`
+      : ''
+    return `${baseTitle}\n${strings.grid.externalHighlight(
+      highlight.label
+    )}\n${strings.grid.externalHighlightRange(
+      formatOffset(highlight.offset),
+      formatOffset(rangeEndOffset)
+    )}\n${strings.grid.externalHighlightPosition(
+      bytePosition,
+      rangeLength
+    )}${staleSuffix}`
+  }
+
   function isSelected(byteOffset: number): boolean {
     return (
       selectionStart >= 0 &&
@@ -321,9 +365,21 @@
     if (!highlight) {
       return undefined
     }
-    return String(
-      hashExternalHighlightId(highlight.id) % EXTERNAL_HIGHLIGHT_COLOR_COUNT
-    )
+    return String(externalHighlightColorIndex(highlight))
+  }
+
+  function externalHighlightColorIndex(
+    highlight: WebviewExternalHighlight
+  ): number {
+    return hashExternalHighlightId(highlight.id) % EXTERNAL_HIGHLIGHT_COLOR_COUNT
+  }
+
+  function isTooltipAlignedRight(pane: 'hex' | 'ascii', column: number): boolean {
+    return pane === 'ascii' || column >= Math.max(0, bytesPerRow - 4)
+  }
+
+  function isTooltipBelow(rowIndex: number): boolean {
+    return rowIndex <= 1
   }
 
   function isExternalRangeStart(
@@ -710,7 +766,6 @@
               aria-colindex={index + 2}
               aria-selected={isSelected(byteOffset)}
               aria-label={byteTitle}
-              title={byteTitle}
               onpointerdown={(event) =>
                 handlePointerDown('hex', byteOffset, rowIndex, index, event)}
             >
@@ -719,6 +774,17 @@
               pendingHexLabel
                 ? pendingHexLabel
                 : formatHex(byte)}
+              <ByteTooltip
+                title={formatByteTooltipTitle(
+                  'hex',
+                  byte,
+                  byteOffset,
+                  externalHighlight
+                )}
+                alignRight={isTooltipAlignedRight('hex', index)}
+                below={isTooltipBelow(rowIndex)}
+                showAccent={!!externalHighlight}
+              />
             </button>
           {/each}
         </div>
@@ -775,11 +841,21 @@
               aria-colindex={bytesPerRow + index + 2}
               aria-selected={isSelected(byteOffset)}
               aria-label={byteTitle}
-              title={byteTitle}
               onpointerdown={(event) =>
                 handlePointerDown('ascii', byteOffset, rowIndex, index, event)}
             >
               {formatAscii(byte)}
+              <ByteTooltip
+                title={formatByteTooltipTitle(
+                  'ascii',
+                  byte,
+                  byteOffset,
+                  externalHighlight
+                )}
+                alignRight={isTooltipAlignedRight('ascii', index)}
+                below={isTooltipBelow(rowIndex)}
+                showAccent={!!externalHighlight}
+              />
             </button>
           {/each}
         </span>

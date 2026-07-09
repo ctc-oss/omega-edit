@@ -2320,6 +2320,12 @@ button.dialog-backdrop:focus-visible {
 .byte:hover,
 .text-byte:hover {
   background: var(--vscode-list-hoverBackground);
+  z-index: 3;
+}
+
+.byte:focus-visible,
+.text-byte:focus-visible {
+  z-index: 3;
 }
 
 .byte.columnHover:not(.selected):not(.searchHit),
@@ -2457,6 +2463,74 @@ button.dialog-backdrop:focus-visible {
     var(--omega-external-highlight-fill) 20%,
     transparent
   );
+}
+
+.byte-tooltip {
+  position: absolute;
+  bottom: calc(100% + 6px);
+  left: 0;
+  z-index: 6;
+  display: none;
+  width: max-content;
+  max-width: min(360px, calc(100vw - 24px));
+  padding: 7px 9px;
+  border: 1px solid var(--vscode-editorGroup-border);
+  border-radius: 4px;
+  color: var(--vscode-foreground);
+  background: var(--vscode-editorWidget-background);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.28);
+  font-size: 11px;
+  font-weight: 400;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+  pointer-events: none;
+  text-align: left;
+  white-space: normal;
+}
+
+.byte-tooltip.showAccent {
+  padding-left: 22px;
+}
+
+.byte-tooltip.showAccent::before {
+  position: absolute;
+  top: 7px;
+  bottom: 7px;
+  left: 7px;
+  width: 8px;
+  border-top: 2px solid
+    var(--omega-external-highlight-accent, var(--vscode-focusBorder));
+  border-bottom: 2px solid
+    var(--omega-external-highlight-accent, var(--vscode-focusBorder));
+  border-left: 3px solid
+    var(--omega-external-highlight-accent, var(--vscode-focusBorder));
+  border-radius: 3px 0 0 3px;
+  content: "";
+}
+
+.byte-tooltip span {
+  display: block;
+}
+
+.byte-tooltip span:first-child {
+  font-weight: 600;
+}
+
+.byte-tooltip.alignRight {
+  right: 0;
+  left: auto;
+}
+
+.byte-tooltip.below {
+  top: calc(100% + 6px);
+  bottom: auto;
+}
+
+.byte:hover .byte-tooltip,
+.byte:focus-visible .byte-tooltip,
+.text-byte:hover .byte-tooltip,
+.text-byte:focus-visible .byte-tooltip {
+  display: block;
 }
 
 .file-scrollbar-range-marker[data-external-color="0"],
