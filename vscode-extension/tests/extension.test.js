@@ -1018,8 +1018,10 @@ test('compiled extension entrypoints exist after build', () => {
   assert.match(svelteBundleCss, /\.byte-tooltip\.showAccent/)
   assert.match(
     svelteBundleCss,
-    /\.byte-tooltip\.showAccent:before[\s\S]*var\(--omega-external-highlight-accent\)/
+    /\.byte-tooltip\.showAccent:before[\s\S]*var\(--omega-external-highlight-accent(?:\s*,\s*(?:var\([^)]*\)|[^)]*))?\)/
   )
+  assert.match(svelteStylesSource, /\.byte\s*\{[^}]*position:\s*relative/)
+  assert.match(svelteStylesSource, /\.text-byte\s*\{[^}]*position:\s*relative/)
   assert.match(svelteBundleCss, /\.byte\[data-external-color="0"\]/)
   assert.match(svelteBundleCss, /\.byte\[data-external-color="11"\]/)
   assert.match(svelteBundleCss, /--omega-external-highlight-accent/)
@@ -1536,7 +1538,10 @@ test('compiled extension entrypoints exist after build', () => {
   assert.match(byteTooltipSource, /class:alignRight/)
   assert.match(byteTooltipSource, /class:below/)
   assert.match(byteTooltipSource, /class:showAccent/)
-  assert.match(byteTooltipSource, /aria-hidden="true"/)
+  assert.match(byteTooltipSource, /id:\s*string/)
+  assert.match(byteTooltipSource, /id=\{id\}/)
+  assert.match(byteTooltipSource, /role="tooltip"/)
+  assert.doesNotMatch(byteTooltipSource, /aria-hidden="true"/)
   assert.match(byteTooltipSource, /title\.split\('\\n'\)/)
   assert.match(previewGridSource, /function isExternalRangeStart/)
   assert.match(previewGridSource, /function isExternalRangeEnd/)
@@ -1563,6 +1568,9 @@ test('compiled extension entrypoints exist after build', () => {
   assert.match(previewGridSource, /role="gridcell"/)
   assert.match(previewGridSource, /aria-selected/)
   assert.match(previewGridSource, /aria-label=\{byteTitle\}/)
+  assert.match(previewGridSource, /function byteTooltipId/)
+  assert.match(previewGridSource, /aria-describedby=\{tooltipId\}/)
+  assert.match(previewGridSource, /id=\{tooltipId\}/)
   assert.match(previewGridSource, /<ByteTooltip[\s\S]*formatByteTooltipTitle/)
   assert.doesNotMatch(previewGridSource, /\s+title=\{byteTitle\}/)
   assert.match(previewGridSource, /searchStart/)

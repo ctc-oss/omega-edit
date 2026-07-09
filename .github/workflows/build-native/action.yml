@@ -198,7 +198,7 @@ runs:
 
     - name: Upload Native Library (${{ inputs.os-name }}-${{ env.libname }}) (attempt 3)
       id: upload_native_library_3
-      if: ${{ steps.upload_native_library_1.outcome == 'failure' && steps.upload_native_library_2.outcome == 'failure' }}
+      if: ${{ steps.upload_native_library_2.outcome == 'failure' }}
       continue-on-error: true
       uses: actions/upload-artifact@v7
       with:
@@ -209,6 +209,6 @@ runs:
         if-no-files-found: error
 
     - name: Fail if native library artifact upload retries are exhausted
-      if: ${{ steps.upload_native_library_1.outcome == 'failure' && steps.upload_native_library_2.outcome == 'failure' && steps.upload_native_library_3.outcome == 'failure' }}
+      if: ${{ steps.upload_native_library_3.outcome == 'failure' }}
       shell: bash
       run: exit 1
