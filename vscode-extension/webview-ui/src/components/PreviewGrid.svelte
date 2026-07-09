@@ -382,6 +382,10 @@
     return rowIndex <= 1
   }
 
+  function byteTooltipId(pane: 'hex' | 'ascii', byteOffset: number): string {
+    return `byte-tooltip-${pane}-${byteOffset}`
+  }
+
   function isExternalRangeStart(
     byteOffset: number,
     highlight: WebviewExternalHighlight | undefined
@@ -729,6 +733,7 @@
               byteOffset,
               externalHighlight
             )}
+            {@const tooltipId = byteTooltipId('hex', byteOffset)}
             <button
               type="button"
               class="byte"
@@ -766,6 +771,7 @@
               aria-colindex={index + 2}
               aria-selected={isSelected(byteOffset)}
               aria-label={byteTitle}
+              aria-describedby={tooltipId}
               onpointerdown={(event) =>
                 handlePointerDown('hex', byteOffset, rowIndex, index, event)}
             >
@@ -775,6 +781,7 @@
                 ? pendingHexLabel
                 : formatHex(byte)}
               <ByteTooltip
+                id={tooltipId}
                 title={formatByteTooltipTitle(
                   'hex',
                   byte,
@@ -801,6 +808,7 @@
               byteOffset,
               externalHighlight
             )}
+            {@const tooltipId = byteTooltipId('ascii', byteOffset)}
             <button
               type="button"
               class="text-byte"
@@ -841,11 +849,13 @@
               aria-colindex={bytesPerRow + index + 2}
               aria-selected={isSelected(byteOffset)}
               aria-label={byteTitle}
+              aria-describedby={tooltipId}
               onpointerdown={(event) =>
                 handlePointerDown('ascii', byteOffset, rowIndex, index, event)}
             >
               {formatAscii(byte)}
               <ByteTooltip
+                id={tooltipId}
                 title={formatByteTooltipTitle(
                   'ascii',
                   byte,
