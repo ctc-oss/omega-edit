@@ -124,8 +124,9 @@ function main() {
     path.join(repoRoot, 'server', 'cpp', 'cmake'),
     path.join(repoRoot, 'server', 'cpp', 'src'),
     path.join(repoRoot, 'packages', 'server', 'package.json'),
+    path.join(repoRoot, 'packages', 'server', 'scripts'),
     path.join(repoRoot, 'packages', 'server', 'src'),
-    path.join(repoRoot, 'packages', 'server', 'webpack.config.js'),
+    path.join(repoRoot, 'packages', 'server', 'tsconfig.json'),
   ]
 
   const latestInputMtime = inputs.reduce(

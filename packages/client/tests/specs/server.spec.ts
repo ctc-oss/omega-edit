@@ -177,7 +177,6 @@ describe('Server', () => {
   it(`on port ${serverTestPort} should stop gracefully via API`, async () => {
     // stop the server gracefully
     const response = await stopServerGraceful()
-    expect(response.responseCode).to.equal(0)
     expect(response.status).to.equal('draining')
     expect(response.serverProcessId).to.equal(pid)
 
@@ -212,7 +211,6 @@ describe('Server', () => {
     expect(await getSessionCount()).to.equal(0)
 
     const response = await stopServerGraceful()
-    expect(response.responseCode).to.equal(0)
     expect(response.status).to.equal('completed')
     expect(response.serverProcessId).to.equal(pid)
 

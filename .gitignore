@@ -62,6 +62,7 @@ package-lock.json
 .bsp
 
 **/.vscode/settings.json
+!.vscode/settings.json
 
 .metals
 .bloop

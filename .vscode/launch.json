@@ -14,6 +14,12 @@
       "outFiles": [
         "${workspaceFolder}/vscode-extension/out/**/*.js"
       ],
+      "windows": {
+        "env": {
+          "CPP_SERVER_BINARY": "${workspaceFolder}/packages/server/out/bin/omega-edit-grpc-server.exe",
+          "CPP_TRANSFORM_PLUGIN_HOST_BINARY": "${workspaceFolder}/packages/server/out/bin/omega-transform-plugin-host.exe"
+        }
+      },
       "preLaunchTask": "compile:vscode-extension"
     }
   ]

@@ -1,5 +1,6 @@
 <script lang="ts">
   interface Props {
+    id: string
     title: string
     alignRight?: boolean
     below?: boolean
@@ -7,6 +8,7 @@
   }
 
   let {
+    id,
     title,
     alignRight = false,
     below = false,
@@ -17,11 +19,12 @@
 </script>
 
 <span
+  id={id}
   class="byte-tooltip"
   class:alignRight
   class:below
   class:showAccent
-  aria-hidden="true"
+  role="tooltip"
 >
   {#each lines as line}
     <span>{line}</span>

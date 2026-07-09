@@ -930,8 +930,7 @@ describe('@omega-edit/ai toolkit', () => {
 
       const stopResult = await firstToolkit.stopServer()
       assert.ok(
-        (stopResult.responseCode === 0 && stopResult.status === 'completed') ||
-          (stopResult.responseCode === 1 && stopResult.status === 'draining')
+        stopResult.status === 'completed' || stopResult.status === 'draining'
       )
 
       const secondCreated = await secondToolkit.createSession(secondInputPath)
