@@ -15,6 +15,10 @@ const coreBuildDir = path.join(
   repoRoot,
   isDefaultGenerator ? '_build_core' : `_build_core-${generatorSlug}`
 )
+const pluginConanBuildDir = path.join(
+  repoRoot,
+  isDefaultGenerator ? '_build_plugin_conan' : `_build_plugin_conan-${generatorSlug}`
+)
 const coreInstallDir = path.join(repoRoot, '_install_core')
 const serverDir = path.join(repoRoot, 'server', 'cpp')
 const serverBuildDir = path.join(
@@ -184,6 +188,30 @@ function doctor() {
 }
 
 function configureCore() {
+  const pluginConanToolchainFile = path.join(
+    pluginConanBuildDir,
+    'conan_toolchain.cmake'
+  )
+
+  ensureConanProfile(repoRoot)
+  installConanRequirements(
+    path.join(repoRoot, 'plugins', 'conanfile.py'),
+    pluginConanBuildDir,
+    repoRoot,
+    [
+      'conan',
+      'install',
+      'plugins',
+      `--output-folder=${pluginConanBuildDir}`,
+      '--build=missing',
+      '-s',
+      `build_type=${buildType}`,
+      '-c',
+      `tools.cmake.cmaketoolchain:generator=${generator}`,
+    ]
+  )
+  resetBuildDirIfToolchainChanged(coreBuildDir, pluginConanToolchainFile)
+
   run(
     'cmake',
     [
@@ -194,6 +222,7 @@ function configureCore() {
       '-B',
       coreBuildDir,
       `-DCMAKE_BUILD_TYPE=${buildType}`,
+      `-DCMAKE_TOOLCHAIN_FILE=${pluginConanToolchainFile}`,
       '-DBUILD_SHARED_LIBS=OFF',
       '-DBUILD_DOCS=OFF',
       '-DBUILD_EXAMPLES=OFF',
@@ -241,10 +270,13 @@ function installCore() {
 
 function configureServer() {
   ensureCoreInstalled()
-  run('conan', ['profile', 'detect', '--force'], serverDir)
-  run(
-    'conan',
+  ensureConanProfile(serverDir)
+  installConanRequirements(
+    path.join(serverDir, 'conanfile.py'),
+    serverBuildDir,
+    serverDir,
     [
+      'conan',
       'install',
       '.',
       `--output-folder=${serverBuildDir}`,
@@ -255,8 +287,7 @@ function configureServer() {
       'compiler.cppstd=17',
       '-c',
       `tools.cmake.cmaketoolchain:generator=${generator}`,
-    ],
-    serverDir
+    ]
   )
 
   run(
@@ -381,6 +412,47 @@ function ensureCoreInstalled() {
     `Missing installed core library at ${coreLibDir}. Run "yarn native" or "yarn core:install" first.`
   )
   process.exit(1)
+}
+
+function ensureConanProfile(cwd) {
+  run('conan', ['profile', 'detect', '--force'], cwd)
+}
+
+function installConanRequirements(conanfile, outputFolder, cwd, installCommand) {
+  run(
+    'node',
+    [
+      path.join(repoRoot, 'scripts', 'conan-install.js'),
+      '--conanfile',
+      conanfile,
+      '--output-folder',
+      outputFolder,
+      '--',
+      ...installCommand,
+    ],
+    cwd
+  )
+}
+
+function resetBuildDirIfToolchainChanged(buildDir, expectedToolchainFile) {
+  const cachePath = path.join(buildDir, 'CMakeCache.txt')
+  if (!fs.existsSync(cachePath)) {
+    return
+  }
+
+  const cache = fs.readFileSync(cachePath, 'utf8')
+  const expected = path.resolve(expectedToolchainFile)
+  const match = cache.match(/^CMAKE_TOOLCHAIN_FILE:FILEPATH=(.*)$/m)
+  const cached = match ? path.resolve(match[1]) : ''
+
+  if (cached === expected) {
+    return
+  }
+
+  console.log(
+    `CMake toolchain changed for ${path.relative(repoRoot, buildDir)}; removing stale build directory.`
+  )
+  fs.rmSync(buildDir, { recursive: true, force: true })
 }
 
 function packageTarball(workspaceName, packageStem) {
