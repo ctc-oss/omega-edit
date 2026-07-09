@@ -22,7 +22,7 @@
   },
   "scripts": {
     "test": "echo 'C++ server tests run via yarn workspace @omega-edit/client test'",
-    "build": "node scripts/ensure-native-server-built.js && webpack --mode=production",
+    "build": "node scripts/ensure-native-server-built.js && node scripts/build-package.js",
     "prepackage": "yarn build",
     "package": "node ../../scripts/pack-workspace.js omega-edit-node-server",
     "lint": "biome ci .",

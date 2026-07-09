@@ -118,8 +118,10 @@ packages/server/
 │   ├── index.js           # Compiled launcher
 │   └── bin/               # Native binary (dev builds)
 ├── package.json
+├── scripts/
+│   ├── build-package.js   # TypeScript compile and artifact staging
+│   └── ensure-native-server-built.js
 ├── tsconfig.json
-├── webpack.config.js      # Webpack config for production build
 └── DEVELOPMENT.md         # This file
 ```
 

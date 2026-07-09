@@ -5497,7 +5497,7 @@ export class HexEditorProvider
     sessionCount: number
     serverUptime: number
     serverCpuCount: number
-    serverCpuLoadAverage?: number
+    serverLoadAverage?: number
     serverResidentMemoryBytes?: number
     serverVirtualMemoryBytes?: number
     serverPeakResidentMemoryBytes?: number
@@ -5607,12 +5607,12 @@ export class HexEditorProvider
         ),
       ]
 
-      if (heartbeat.serverCpuLoadAverage !== undefined) {
+      if (heartbeat.serverLoadAverage !== undefined) {
         metrics.push(
           serverHealthMetric(
             'loadAverage',
             vscode.l10n.t('Load Avg'),
-            heartbeat.serverCpuLoadAverage.toFixed(2)
+            heartbeat.serverLoadAverage.toFixed(2)
           )
         )
       }
