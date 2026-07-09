@@ -41,19 +41,9 @@ heartbeat metrics as "unavailable" rather than `0`.
 equivalent process metric is not consistently available.
 `GetHeartbeatRequest` is intentionally session-centric in 2.x: the unused
 hostname / process / interval request fields were removed outright.
-The legacy JVM-shaped fields remain in the schema as deprecated compatibility
-fields so existing protobuf consumers do not break on the wire. The native C++
-server leaves deprecated JVM-only fields unset rather than fabricating placeholder
-values. In proto3, that means these scalar fields are typically omitted from the
-serialized message; when decoded by consumers, they appear as language defaults:
-
-- `jvm_version`, `jvm_vendor`, and `jvm_path` decode as empty strings when not populated
-- `max_memory`, `committed_memory`, and `used_memory` decode as `0` when not populated
-- `cpu_load_average` mirrors `load_average` only when the platform reports a
-  real load average; otherwise it is not populated by the native server, so
-  consumers decoding the message will observe `0`. Because `0` may also be a
-  legitimate value, consumers that need presence semantics should prefer the
-  optional `load_average` field
+The legacy JVM-shaped fields are removed and their field numbers are reserved so
+new code cannot accidentally reuse the old wire tags. The native process metrics
+keep their original v1 field numbers for wire compatibility.
 
 ### Server Lifecycle Contract Note
 
@@ -62,11 +52,9 @@ Shutdown lifecycle behavior is now explicit in the wire contract:
 - `CreateSession` fails with gRPC `UNAVAILABLE` once shutdown begins, including
   both graceful and immediate shutdown
 - `ServerControlResponse.status` distinguishes `COMPLETED` from `DRAINING`
-  when present, and remains `optional` so newer clients can detect older
-  servers that omitted the field and fall back to legacy response-code
-  handling
-- the deprecated `response_code` field remains for compatibility and is `0`
-  for accepted commands, including graceful shutdown while draining
+  and is always populated by the server for accepted commands
+- the deprecated `response_code` field is removed and its field number is
+  reserved
 
 ## Using with Buf
 

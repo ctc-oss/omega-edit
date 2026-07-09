@@ -438,8 +438,9 @@ function removeStaleArtifact(artifactPath) {
     if (process.env.CI) {
       throw error
     }
+    const errorMessage = error instanceof Error ? error.message : String(error)
     console.warn(
-      `WARNING: Unable to remove stale packaged artifact ${artifactPath}: ${error.message}`
+      `WARNING: Unable to remove stale packaged artifact ${artifactPath}: ${errorMessage}`
     )
   }
 }

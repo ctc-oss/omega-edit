@@ -253,7 +253,7 @@ export class ServerControlResponse {
     return this.response_.pid
   }
 
-  getStatus(): ServerControlStatus | undefined {
+  getStatus(): ServerControlStatus {
     return this.response_.status
   }
 

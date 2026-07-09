@@ -40,6 +40,7 @@ const {
   IOFlags: ProtoIOFlags,
   CountKind: ProtoCountKind,
   ServerControlKind: ProtoServerControlKind,
+  ServerControlResponse: ProtoServerControlResponseMessage,
   ServerControlStatus: ProtoServerControlStatus,
   SearchCaseFolding: ProtoSearchCaseFolding,
   SearchSessionRequest,
@@ -215,11 +216,18 @@ describe('Proto Compatibility', () => {
       ProtoServerControlStatus.COMPLETED
     )
     expect(
+      ProtoServerControlResponseMessage.create({
+        kind: ProtoServerControlKind.GRACEFUL_SHUTDOWN,
+        pid: 77,
+      }).status
+    ).to.equal(ProtoServerControlStatus.UNSPECIFIED)
+    expect(
       new ServerControlResponse({
         kind: ProtoServerControlKind.GRACEFUL_SHUTDOWN,
         pid: 77,
+        status: ProtoServerControlStatus.UNSPECIFIED,
       }).getStatus()
-    ).to.equal(undefined)
+    ).to.equal(ServerControlStatus.UNSPECIFIED)
 
     const heartbeat = new HeartbeatResponse({
       sessionCount: 2,
@@ -409,8 +417,9 @@ describe('Proto Compatibility', () => {
       wrapServerControlResponse({
         kind: ProtoServerControlKind.GRACEFUL_SHUTDOWN,
         pid: 77,
+        status: ProtoServerControlStatus.UNSPECIFIED,
       }).getStatus()
-    ).to.equal(undefined)
+    ).to.equal(ServerControlStatus.UNSPECIFIED)
     expect(
       wrapHeartbeatResponse(heartbeat.toObject()).getSessionCount()
     ).to.equal(2)
