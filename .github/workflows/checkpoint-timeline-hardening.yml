@@ -42,7 +42,9 @@ jobs:
         shell: bash
         run: |
           binary=build-fuzz/core/src/tests/differential_fuzz_tests
-          if [ "${{ runner.os }}" = "Windows" ]; then binary="${binary}.exe"; fi
+          if [ "${{ runner.os }}" = "Windows" ]; then
+            binary=build-fuzz/core/src/tests/Release/differential_fuzz_tests.exe
+          fi
           "$binary" '[DifferentialFuzz]'
         env:
           OMEGA_EDIT_FUZZ_ITERATIONS: '96'
