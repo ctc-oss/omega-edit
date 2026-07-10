@@ -94,11 +94,17 @@ function validateFingerprint(
     fail('CHANGE_LOG_RPC_FRAMING', `${name} digest must use sha256`)
   }
   if (!/^[0-9a-f]{64}$/.test(fingerprint.digestValue)) {
-    fail('CHANGE_LOG_RPC_FRAMING', `${name} digest must be 64 lowercase hex characters`)
+    fail(
+      'CHANGE_LOG_RPC_FRAMING',
+      `${name} digest must be 64 lowercase hex characters`
+    )
   }
 }
 
-function validateEntry(entry: ChangeLogEntryHeader, expectedIndex: bigint): bigint {
+function validateEntry(
+  entry: ChangeLogEntryHeader,
+  expectedIndex: bigint
+): bigint {
   const index = parseDecimal(entry.entryIndexDecimal, 'entry.entryIndexDecimal')
   if (index !== expectedIndex) {
     fail(
@@ -244,7 +250,10 @@ export async function* streamChangeLogExport(
           }
           const header = frame.frame.header
           if (header.formatVersion !== 2) {
-            fail('CHANGE_LOG_RPC_FRAMING', 'unsupported change-log stream version')
+            fail(
+              'CHANGE_LOG_RPC_FRAMING',
+              'unsupported change-log stream version'
+            )
           }
           parseDecimal(
             header.resolvedFirstSerialDecimal,
@@ -279,7 +288,7 @@ export async function* streamChangeLogExport(
             currentPayload = {
               entryIndex: expectedEntry,
               declared,
-            received: ZERO,
+              received: ZERO,
             }
           }
           break
@@ -303,16 +312,25 @@ export async function* streamChangeLogExport(
             payload.data.length === 0 ||
             payload.data.length > MAX_PAYLOAD_CHUNK
           ) {
-            fail('CHANGE_LOG_RPC_FRAMING', 'payload chunk is not contiguous or bounded')
+            fail(
+              'CHANGE_LOG_RPC_FRAMING',
+              'payload chunk is not contiguous or bounded'
+            )
           }
           currentPayload.received += BigInt(payload.data.length)
           payloadBytes += BigInt(payload.data.length)
           if (currentPayload.received > currentPayload.declared) {
-            fail('CHANGE_LOG_RPC_FRAMING', 'payload exceeds its declared length')
+            fail(
+              'CHANGE_LOG_RPC_FRAMING',
+              'payload exceeds its declared length'
+            )
           }
           const atEnd = currentPayload.received === currentPayload.declared
           if (payload.finalChunk !== atEnd) {
-            fail('CHANGE_LOG_RPC_FRAMING', 'payload final-chunk marker is invalid')
+            fail(
+              'CHANGE_LOG_RPC_FRAMING',
+              'payload final-chunk marker is invalid'
+            )
           }
           payloadDigest.update(payload.data)
           yield { type: 'payload', payload }
@@ -324,7 +342,10 @@ export async function* streamChangeLogExport(
         }
         case 'complete': {
           if (!sawHeader || currentPayload) {
-            fail('CHANGE_LOG_RPC_FRAMING', 'completion arrived with an open entry')
+            fail(
+              'CHANGE_LOG_RPC_FRAMING',
+              'completion arrived with an open entry'
+            )
           }
           const complete = frame.frame.complete
           if (
@@ -338,7 +359,10 @@ export async function* streamChangeLogExport(
             ) !== payloadBytes ||
             complete.payloadSha256.length !== 32
           ) {
-            fail('CHANGE_LOG_RPC_FRAMING', 'completion counts or digest length are invalid')
+            fail(
+              'CHANGE_LOG_RPC_FRAMING',
+              'completion counts or digest length are invalid'
+            )
           }
           const actualDigest = payloadDigest.digest()
           if (!actualDigest.equals(Buffer.from(complete.payloadSha256))) {
@@ -356,11 +380,17 @@ export async function* streamChangeLogExport(
       throw streamError
     }
     if (!sawHeader || !sawComplete) {
-      fail('CHANGE_LOG_RPC_FRAMING', 'change-log stream ended before completion')
+      fail(
+        'CHANGE_LOG_RPC_FRAMING',
+        'change-log stream ended before completion'
+      )
     }
   } catch (error) {
     stream.cancel()
-    if (options.signal?.aborted && !(error instanceof ChangeLogCancelledError)) {
+    if (
+      options.signal?.aborted &&
+      !(error instanceof ChangeLogCancelledError)
+    ) {
       throw new ChangeLogCancelledError()
     }
     throw error

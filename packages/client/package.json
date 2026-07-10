@@ -64,7 +64,7 @@
     "test:codec": "vitest run --config vitest.codec.config.ts",
     "test:lifecycle": "node scripts/run-vitest-suite.cjs lifecycle",
     "benchmark:undo": "node scripts/run-undo-benchmark.cjs",
-    "benchmark:changelog": "node scripts/run-changelog-benchmark.cjs",
+    "benchmark:changelog": "yarn generate-version && node scripts/run-changelog-benchmark.cjs",
     "test:coverage": "yarn build && node scripts/run-vitest-suite.cjs coverage",
     "test:coverage:uds": "yarn build && node scripts/run-vitest-suite.cjs coverage --transport uds",
     "test:client:uds": "node scripts/run-vitest-suite.cjs client --transport uds",

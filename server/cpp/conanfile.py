@@ -25,6 +25,7 @@ class OmegaEditGrpcServerConan(ConanFile):
 
     def requirements(self):
         self.requires("grpc/1.72.0")
+        self.requires("openssl/3.3.2")
         # protobuf is a transitive dependency of grpc and will be pulled in
         # automatically.
 

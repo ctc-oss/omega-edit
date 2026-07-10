@@ -46,10 +46,7 @@ import {
   ChangeLogEntryKind,
   type ChangeLogStreamHeader,
 } from '../../protobuf_ts/generated/omega_edit/v1/omega_edit'
-import {
-  streamChangeLogExport,
-  type ChangeLogRpcExportOptions,
-} from './rpc'
+import { streamChangeLogExport, type ChangeLogRpcExportOptions } from './rpc'
 
 export * from './rpc'
 
@@ -442,7 +439,9 @@ export async function writeChangeLogFileAtomic(
   }
 }
 
-function rpcEntryKind(kind: ChangeLogEntryKind): NormalizedChangeLogEntry['kind'] {
+function rpcEntryKind(
+  kind: ChangeLogEntryKind
+): NormalizedChangeLogEntry['kind'] {
   switch (kind) {
     case ChangeLogEntryKind.DELETE:
       return 'DELETE'
@@ -544,7 +543,9 @@ export async function writeChangeLogRpcExportAtomic(
           unavailableChangeCount: '0',
           unavailableChangeSerials: [],
         }
-        await writeText(`${JSON.stringify(metadata).replace(/}$/, ',"changes":[')}`)
+        await writeText(
+          `${JSON.stringify(metadata).replace(/}$/, ',"changes":[')}`
+        )
       } else if (frame.type === 'entry') {
         const entry = frame.entry
         const kind = rpcEntryKind(entry.kind)
@@ -616,7 +617,9 @@ export async function writeChangeLogRpcExportAtomic(
             'RPC completed before its JSON document could be closed'
           )
         }
-        if (frame.complete.emittedChangeCountDecimal !== entryCount.toString()) {
+        if (
+          frame.complete.emittedChangeCountDecimal !== entryCount.toString()
+        ) {
           throw new ChangeLogCodecError(
             'CHANGE_LOG_RPC_FRAMING',
             'RPC entry count changed while writing JSON'

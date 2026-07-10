@@ -1283,7 +1283,7 @@ export class CheckpointTimelineStorageSession {
   async openInterval(checkpoint: number): Promise<ChangeLogFileReadResult> {
     this.assertOpen()
     const entry = this.value.intervals[checkpoint - 1]
-    if (!entry || entry.state !== 'ready' || !entry.archive)
+    if (entry?.state !== 'ready' || !entry.archive)
       throw new TimelineStorageError(
         'TIMELINE_INTERVAL_UNAVAILABLE',
         `Checkpoint ${checkpoint} is unavailable`
