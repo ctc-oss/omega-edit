@@ -835,6 +835,13 @@ test('compiled extension entrypoints exist after build', () => {
   assert.match(providerJs, /new vscode\.MarkdownString/)
   assert.match(providerJs, /Ωedit™ Server/)
   assert.match(providerJs, /formatServerHealthLatencyBand/)
+  assert.match(providerJs, /formatServerUptime/)
+  assert.match(providerJs, /86400/)
+  assert.match(providerJs, /vscode\.env\.language/)
+  assert.match(providerJs, /\{count\}d/)
+  assert.match(providerJs, /\{count\}h/)
+  assert.match(providerJs, /\{count\}m/)
+  assert.match(providerJs, /\{count\}s/)
   assert.match(providerJs, /serverTooltip\.value/)
   assert.match(providerJs, /appendServerHealthTooltipSection/)
   assert.match(providerJs, /Live Status/)
@@ -1861,6 +1868,9 @@ test('compiled extension entrypoints exist after build', () => {
   assert.match(offsetJumpSource, /aria-invalid/)
   assert.match(offsetJumpSource, /id="offsetJumpInput"/)
   assert.match(offsetJumpSource, /onGoToOffset\(parsedOffset\)/)
+  assert.match(offsetJumpSource, /event\.key === 'Enter'/)
+  assert.doesNotMatch(offsetJumpSource, /offset-jump-button/)
+  assert.doesNotMatch(offsetJumpSource, /strings\.navigation\.go(?:Title)?/)
   assert.match(fileScrollbarSource, /role="scrollbar"/)
   assert.match(fileScrollbarSource, /aria-controls="previewGrid"/)
   assert.match(fileScrollbarSource, /strings\.navigation\.scrollbarLabel/)
@@ -2133,12 +2143,22 @@ test('compiled extension entrypoints exist after build', () => {
   )
   assert.match(
     extensionJs,
+    /workspaceFolderValue[^}]+ConfigurationTarget\.WorkspaceFolder/s
+  )
+  assert.match(
+    extensionJs,
     /startServer\)\(\s*tcpConnection\.port,\s*undefined,\s*undefined,\s*serverOptions/
   )
   assert.match(
     extensionJs,
     /getClient\)\(connection\.port,\s*undefined,\s*\{\s*socketPath:\s*connection\.socketPath/
   )
+  assert.match(svelteStylesSource, /@media \(max-width: 1024px\)/)
+  assert.match(
+    svelteStylesSource,
+    /grid-template-columns:\s*repeat\(4, minmax\(8ch, 1fr\)\)/
+  )
+  assert.match(svelteStylesSource, /@media \(max-width: 320px\)/)
 })
 
 test('range map parser loads the OmegaEdit PNG logo fixture', () => {

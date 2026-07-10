@@ -408,10 +408,13 @@ function resolveConfigurationUpdateTarget(
   key: string
 ): vscode.ConfigurationTarget {
   const inspected = config.inspect<unknown>(key)
-  return inspected?.workspaceValue !== undefined ||
-    inspected?.workspaceFolderValue !== undefined
-    ? vscode.ConfigurationTarget.Workspace
-    : vscode.ConfigurationTarget.Global
+  if (inspected?.workspaceFolderValue !== undefined) {
+    return vscode.ConfigurationTarget.WorkspaceFolder
+  }
+  if (inspected?.workspaceValue !== undefined) {
+    return vscode.ConfigurationTarget.Workspace
+  }
+  return vscode.ConfigurationTarget.Global
 }
 
 function isTestRuntime(): boolean {
