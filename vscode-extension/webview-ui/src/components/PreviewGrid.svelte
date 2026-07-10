@@ -20,6 +20,8 @@
 
   interface Props {
     data?: number[]
+    emptyFile?: boolean
+    fileSize?: number
     offset?: number
     bytesPerRow?: BytesPerRow
     offsetRadix?: 'hex' | 'dec'
@@ -55,6 +57,8 @@
 
   let {
     data = [],
+    emptyFile = false,
+    fileSize = 0,
     offset = 0,
     bytesPerRow = 16,
     offsetRadix = 'hex',
@@ -106,6 +110,27 @@
       return { rowOffset, bytes }
     }
   ))
+  const emptyCellOffsets = $derived(
+    emptyFile && data.length === 0
+      ? Array.from({ length: bytesPerRow }, () => 0)
+      : []
+  )
+  const viewportAtFileEnd = $derived(offset + data.length >= fileSize)
+  const appendRowVisible = $derived(
+    fileSize > 0 &&
+      viewportAtFileEnd &&
+      data.length > 0 &&
+      data.length % bytesPerRow === 0
+  )
+
+  function trailingEmptyCellCount(rowIndex: number, byteLength: number): number {
+    if (!viewportAtFileEnd || rowIndex !== rows.length - 1) {
+      return 0
+    }
+    return byteLength > 0 && byteLength < bytesPerRow
+      ? bytesPerRow - byteLength
+      : 0
+  }
   const externalHighlightByOffset = $derived.by(() => {
     const lookup = new Map<number, WebviewExternalHighlight>()
     const visibleStart = offset
@@ -669,7 +694,10 @@
   tabindex="0"
   aria-label={strings.grid.label}
   aria-colcount={1 + bytesPerRow * 2}
-  aria-rowcount={rows.length + 1}
+  aria-rowcount={Math.max(
+    rows.length,
+    emptyCellOffsets.length > 0 ? 1 : 0
+  ) + (appendRowVisible ? 1 : 0) + 1}
   onkeydown={handleKeydown}
   onpointermove={handlePointerMove}
   onpointerup={stopDraggingSelection}
@@ -702,7 +730,62 @@
     </span>
   </div>
 
-  {#if rows.length === 0}
+  {#if emptyCellOffsets.length > 0}
+    <div class="grid-row empty-byte-row" role="row" aria-rowindex="2">
+      <span class="offset" role="rowheader" aria-colindex="1">
+        {formatOffset(0)}
+      </span>
+      <div class="hex-cells" role="presentation">
+        {#each emptyCellOffsets as byteOffset, index}
+          <button
+            type="button"
+            class="byte empty-byte"
+            class:focused={index === 0 && selectedOffset === byteOffset}
+            class:activePane={index === 0 &&
+              activePane === 'hex' &&
+              selectedOffset === byteOffset}
+            data-column={index}
+            data-offset={byteOffset}
+            data-pane="hex"
+            data-row-index="0"
+            role="gridcell"
+            aria-colindex={index + 2}
+            aria-label={`${formatOffset(byteOffset)} ${strings.grid
+              .insertTitle}`}
+            onpointerdown={(event) =>
+              handlePointerDown('hex', byteOffset, 0, index, event)}
+          >{index === 0 &&
+            activePane === 'hex' &&
+            selectedOffset === byteOffset &&
+            pendingHexLabel
+              ? pendingHexLabel
+              : '\u00a0\u00a0'}</button>
+        {/each}
+      </div>
+      <span class="ascii" role="presentation">
+        {#each emptyCellOffsets as byteOffset, index}
+          <button
+            type="button"
+            class="text-byte empty-byte"
+            class:focused={index === 0 && selectedOffset === byteOffset}
+            class:activePane={index === 0 &&
+              activePane === 'ascii' &&
+              selectedOffset === byteOffset}
+            data-column={index}
+            data-offset={byteOffset}
+            data-pane="ascii"
+            data-row-index="0"
+            role="gridcell"
+            aria-colindex={bytesPerRow + index + 2}
+            aria-label={`${formatOffset(byteOffset)} ${strings.grid
+              .insertTitle}`}
+            onpointerdown={(event) =>
+              handlePointerDown('ascii', byteOffset, 0, index, event)}
+          >{'\u00a0'}</button>
+        {/each}
+      </span>
+    </div>
+  {:else if rows.length === 0}
     <div class="empty-row">{strings.grid.waitingForData}</div>
   {:else}
     {#each rows as row, rowIndex}
@@ -794,6 +877,32 @@
               />
             </button>
           {/each}
+          {#each Array.from({ length: trailingEmptyCellCount(rowIndex, row.bytes.length) }) as _, emptyIndex}
+            {@const index = row.bytes.length + emptyIndex}
+            <button
+              type="button"
+              class="byte empty-byte"
+              class:focused={emptyIndex === 0 && selectedOffset === fileSize}
+              class:activePane={emptyIndex === 0 &&
+                activePane === 'hex' &&
+                selectedOffset === fileSize}
+              data-column={index}
+              data-offset={fileSize}
+              data-pane="hex"
+              data-row-index={rowIndex}
+              role="gridcell"
+              aria-colindex={index + 2}
+              aria-label={`${formatOffset(fileSize)} ${strings.grid
+                .insertTitle}`}
+              onpointerdown={(event) =>
+                handlePointerDown('hex', fileSize, rowIndex, index, event)}
+            >{emptyIndex === 0 &&
+              activePane === 'hex' &&
+              selectedOffset === fileSize &&
+              pendingHexLabel
+                ? pendingHexLabel
+                : '\u00a0\u00a0'}</button>
+          {/each}
         </div>
         <span class="ascii" role="presentation">
           {#each row.bytes as byte, index}
@@ -868,8 +977,72 @@
               />
             </button>
           {/each}
+          {#each Array.from({ length: trailingEmptyCellCount(rowIndex, row.bytes.length) }) as _, emptyIndex}
+            {@const index = row.bytes.length + emptyIndex}
+            <button
+              type="button"
+              class="text-byte empty-byte"
+              class:focused={emptyIndex === 0 && selectedOffset === fileSize}
+              class:activePane={emptyIndex === 0 &&
+                activePane === 'ascii' &&
+                selectedOffset === fileSize}
+              data-column={index}
+              data-offset={fileSize}
+              data-pane="ascii"
+              data-row-index={rowIndex}
+              role="gridcell"
+              aria-colindex={bytesPerRow + index + 2}
+              aria-label={`${formatOffset(fileSize)} ${strings.grid
+                .insertTitle}`}
+              onpointerdown={(event) =>
+                handlePointerDown('ascii', fileSize, rowIndex, index, event)}
+            >{'\u00a0'}</button>
+          {/each}
         </span>
       </div>
     {/each}
+    {#if appendRowVisible}
+      <div class="grid-row empty-byte-row" role="row" aria-rowindex={rows.length + 2}>
+        <span class="offset" role="rowheader" aria-colindex="1">
+          {formatOffset(fileSize)}
+        </span>
+        <div class="hex-cells" role="presentation">
+          <button
+            type="button"
+            class="byte empty-byte"
+            class:focused={selectedOffset === fileSize}
+            class:activePane={activePane === 'hex' && selectedOffset === fileSize}
+            data-column="0"
+            data-offset={fileSize}
+            data-pane="hex"
+            data-row-index={rows.length}
+            role="gridcell"
+            aria-colindex="2"
+            aria-label={`${formatOffset(fileSize)} ${strings.grid.insertTitle}`}
+            onpointerdown={(event) =>
+              handlePointerDown('hex', fileSize, rows.length, 0, event)}
+          >{activePane === 'hex' && selectedOffset === fileSize && pendingHexLabel
+              ? pendingHexLabel
+              : '\u00a0\u00a0'}</button>
+        </div>
+        <span class="ascii" role="presentation">
+          <button
+            type="button"
+            class="text-byte empty-byte"
+            class:focused={selectedOffset === fileSize}
+            class:activePane={activePane === 'ascii' && selectedOffset === fileSize}
+            data-column="0"
+            data-offset={fileSize}
+            data-pane="ascii"
+            data-row-index={rows.length}
+            role="gridcell"
+            aria-colindex={bytesPerRow + 2}
+            aria-label={`${formatOffset(fileSize)} ${strings.grid.insertTitle}`}
+            onpointerdown={(event) =>
+              handlePointerDown('ascii', fileSize, rows.length, 0, event)}
+          >{'\u00a0'}</button>
+        </span>
+      </div>
+    {/if}
   {/if}
 </div>
