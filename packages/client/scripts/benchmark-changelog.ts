@@ -6,10 +6,18 @@ import * as fs from 'node:fs/promises'
 import * as os from 'node:os'
 import * as path from 'node:path'
 import { performance } from 'node:perf_hooks'
-import { openChangeLogFile, writeChangeLogFileAtomic } from '../src/index'
+import {
+  openChangeLogFile,
+  writeChangeLogFileAtomic,
+} from '../src/changeLog/node/index'
 
 const entryCount = Number.parseInt(
   process.env.OMEGA_EDIT_BENCHMARK_ENTRIES ?? '1000000',
+  10
+)
+const maxRssGrowthBytes = Number.parseInt(
+  process.env.OMEGA_EDIT_BENCHMARK_MAX_RSS_GROWTH_BYTES ??
+    String(256 * 1024 * 1024),
   10
 )
 if (
@@ -19,6 +27,11 @@ if (
 ) {
   throw new Error(
     'OMEGA_EDIT_BENCHMARK_ENTRIES must be an integer from 1 through 1000000'
+  )
+}
+if (!Number.isSafeInteger(maxRssGrowthBytes) || maxRssGrowthBytes < 1) {
+  throw new Error(
+    'OMEGA_EDIT_BENCHMARK_MAX_RSS_GROWTH_BYTES must be a positive integer'
   )
 }
 
@@ -89,8 +102,9 @@ async function main(): Promise<void> {
       baselineRssBytes: baselineRss,
       peakRssBytes: peakRss,
       rssGrowthBytes: peakRss - baselineRss,
+      maxRssGrowthBytes,
     }
-    if (report.rssGrowthBytes > 256 * 1024 * 1024) {
+    if (report.rssGrowthBytes > maxRssGrowthBytes) {
       throw new Error(
         `Streaming codec RSS grew by ${report.rssGrowthBytes} bytes`
       )

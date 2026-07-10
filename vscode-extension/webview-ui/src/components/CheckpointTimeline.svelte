@@ -37,6 +37,10 @@
     onClose,
   }: Props = $props()
 
+  const unavailableCount = $derived(
+    checkpoints.filter((checkpoint) => !checkpoint.available).length
+  )
+
   function handleChange(event: Event): void {
     const target = Number.parseInt((event.currentTarget as HTMLInputElement).value, 10)
     if (Number.isInteger(target) && target !== cursor) {
@@ -44,9 +48,6 @@
     }
   }
 
-  function unavailableCount(): number {
-    return checkpoints.filter((checkpoint) => !checkpoint.available).length
-  }
 </script>
 
 <section
@@ -115,7 +116,7 @@
     {/each}
   </div>
   <span id="timeline-availability" class="visually-hidden" aria-live="polite">
-    {unavailableCount() > 0 ? strings.timeline.unavailableCount(unavailableCount()) : ''}
+    {unavailableCount > 0 ? strings.timeline.unavailableCount(unavailableCount) : ''}
   </span>
   <button
     type="button"

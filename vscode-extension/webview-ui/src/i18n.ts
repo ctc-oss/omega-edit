@@ -781,29 +781,29 @@ const localeOverrides: Record<string, LocaleStringOverrides> = {
       no: 'No',
     },
     timeline: {
-      label: 'Linea de tiempo de puntos de control',
+      label: 'Línea de tiempo de puntos de control',
       original: 'Archivo original',
       checkpoint: (checkpoint: number) =>
         `Punto de control ${formatNumber(checkpoint)}`,
       position: (position: string, count: number) =>
         `${position} de ${formatNumber(count)}`,
       savedAtChange: (change: number) =>
-        `Ultimo guardado en el cambio ${formatNumber(change)}`,
-      savedAtOriginal: 'Ultimo guardado en el archivo original',
+        `Último guardado en el cambio ${formatNumber(change)}`,
+      savedAtOriginal: 'Último guardado en el archivo original',
       savedAtCheckpoint: (checkpoint: number) =>
-        `Ultimo guardado en el punto de control ${formatNumber(checkpoint)}`,
-      savedOffBranch: 'El ultimo estado guardado ya no esta en esta rama',
+        `Último guardado en el punto de control ${formatNumber(checkpoint)}`,
+      savedOffBranch: 'El último estado guardado ya no está en esta rama',
       previous: 'Punto de control anterior',
       previousTitle: 'Retroceder un punto de control',
       next: 'Punto de control siguiente',
       nextTitle: 'Avanzar un punto de control',
       current: 'Punto de control actual',
       originalMarker: 'Original',
-      unavailable: 'Reproduccion no disponible',
+      unavailable: 'Reproducción no disponible',
       unavailableCount: (count: number) =>
         `${formatNumber(count)} punto${count === 1 ? '' : 's'} de control no disponible${count === 1 ? '' : 's'}`,
       navigating: 'Moviendo por el historial de puntos de control',
-      close: 'Cerrar la linea de tiempo de puntos de control',
+      close: 'Cerrar la línea de tiempo de puntos de control',
     },
     status: {
       hexPending: (label: string) => `Edicion hex: ${label}`,

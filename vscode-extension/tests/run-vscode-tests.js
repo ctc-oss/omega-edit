@@ -1,6 +1,7 @@
 const cp = require('node:child_process')
 const fs = require('node:fs')
 const net = require('node:net')
+const os = require('node:os')
 const path = require('node:path')
 const { downloadAndUnzipVSCode } = require('@vscode/test-electron')
 
@@ -23,8 +24,9 @@ async function main() {
   const versionTag = sanitizeVersionTag(version ?? 'stable')
   const vscodeTestRoot = path.join(extensionDevelopmentPath, '.vscode-test')
   fs.mkdirSync(vscodeTestRoot, { recursive: true })
+  const profileBase = process.env.RUNNER_TEMP || os.tmpdir()
   const profileRoot = fs.mkdtempSync(
-    path.join(vscodeTestRoot, `profile-${versionTag}-`)
+    path.join(profileBase, `oe-vscode-${versionTag}-`)
   )
   const extensionsDir = path.join(profileRoot, 'extensions')
   const userDataDir = path.join(profileRoot, 'user-data')

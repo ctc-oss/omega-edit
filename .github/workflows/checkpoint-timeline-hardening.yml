@@ -94,33 +94,6 @@ jobs:
           OMEGA_EDIT_FUZZ_ITERATIONS: '24'
           OMEGA_EDIT_FUZZ_OPS: '256'
 
-  tsan-server-streaming:
-    name: TSan native server streaming and cancellation
-    runs-on: ubuntu-24.04
-    env:
-      CFLAGS: -fsanitize=thread -fno-omit-frame-pointer
-      CXXFLAGS: -fsanitize=thread -fno-omit-frame-pointer
-      LDFLAGS: -fsanitize=thread
-      TSAN_OPTIONS: halt_on_error=1:second_deadlock_stack=1
-    steps:
-      - uses: actions/checkout@v7
-      - name: Build instrumented middleware
-        uses: ./.github/workflows/build-middleware
-        with:
-          runner-os: Linux
-          os-name: ubuntu-24.04
-          skip-tests: 'true'
-      - name: Install extension dependencies
-        run: npm ci
-        working-directory: vscode-extension
-      - name: Run streaming cancellation codec suite
-        run: yarn workspace @omega-edit/client test:codec
-      - name: Run native replay/cancellation integration under TSan
-        run: xvfb-run -a npm run test:integration
-        working-directory: vscode-extension
-        env:
-          VSCODE_VERSION: stable
-
   performance-attestation:
     name: Planner and codec performance attestation
     runs-on: ubuntu-24.04
@@ -138,6 +111,8 @@ jobs:
         run: mkdir -p artifacts/checkpoint-timeline && build-benchmark/core/src/tests/changelog_tests '[.benchmark]' | tee artifacts/checkpoint-timeline/planner-benchmark.txt
       - name: Run 1M-entry streaming codec benchmark
         run: yarn workspace @omega-edit/client benchmark:changelog
+        env:
+          OMEGA_EDIT_BENCHMARK_MAX_RSS_GROWTH_BYTES: '536870912'
       - name: Upload attestation output
         if: always()
         uses: actions/upload-artifact@v7

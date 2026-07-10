@@ -2786,8 +2786,9 @@ async function waitForFileText(filePath, expected, timeoutMs = 10000) {
   while (Date.now() < deadline) {
     if (
       (await fs.readFile(filePath, 'utf8').catch(() => undefined)) === expected
-    )
+    ) {
       return
+    }
     await delay(25)
   }
   assert.fail(

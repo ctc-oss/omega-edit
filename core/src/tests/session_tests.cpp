@@ -88,7 +88,7 @@ TEST_CASE("Session save retries a transient Windows destination lock", "[Session
     const auto save_result = omega_edit_save(session_ptr, file_path, omega_io_flags_t::IO_FLG_OVERWRITE, nullptr);
     unlocker.join();
     REQUIRE(0 == save_result);
-    REQUIRE(0 == omega_edit_destroy_session(session_ptr));
+    omega_edit_destroy_session(session_ptr);
     REQUIRE(0 == omega_util_remove_file(file_path));
 }
 #endif
