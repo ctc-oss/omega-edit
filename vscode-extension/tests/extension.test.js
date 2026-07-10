@@ -143,6 +143,10 @@ test('package.json matches shared extension constants', () => {
     OMEGA_EDIT_OPEN_IN_HEX_EDITOR_COMMAND
   )
   assert.equal(
+    packageJson.contributes.commands[0].enablement,
+    'activeCustomEditorId != omegaEdit.hexEditor && resourcePath not in omegaEdit.activeSessionResourcePaths'
+  )
+  assert.equal(
     packageJson.contributes.commands[1].command,
     OMEGA_EDIT_GO_TO_OFFSET_COMMAND
   )
@@ -359,6 +363,26 @@ test('package.json matches shared extension constants', () => {
       (entry) => entry.command === 'omegaEdit.revertFile'
     ),
     false
+  )
+  assert.deepEqual(
+    packageJson.contributes.menus['explorer/context'].find(
+      (entry) => entry.command === OMEGA_EDIT_OPEN_IN_HEX_EDITOR_COMMAND
+    ),
+    {
+      command: OMEGA_EDIT_OPEN_IN_HEX_EDITOR_COMMAND,
+      when: 'resourcePath not in omegaEdit.activeSessionResourcePaths',
+      group: 'navigation',
+    }
+  )
+  assert.deepEqual(
+    packageJson.contributes.menus['editor/title'].find(
+      (entry) => entry.command === OMEGA_EDIT_OPEN_IN_HEX_EDITOR_COMMAND
+    ),
+    {
+      command: OMEGA_EDIT_OPEN_IN_HEX_EDITOR_COMMAND,
+      when: 'activeCustomEditorId != omegaEdit.hexEditor && resourcePath not in omegaEdit.activeSessionResourcePaths',
+      group: 'navigation',
+    }
   )
   assert.deepEqual(
     packageJson.contributes.menus['editor/title'].find(
@@ -749,6 +773,7 @@ test('compiled extension entrypoints exist after build', () => {
   assert.match(providerJs, /omegaEdit\.hexEditorActive/)
   assert.match(providerJs, /omegaEdit\.canUndo/)
   assert.match(providerJs, /omegaEdit\.canRedo/)
+  assert.match(providerJs, /omegaEdit\.activeSessionResourcePaths/)
   assert.match(providerJs, /setContext/)
   assert.match(providerJs, /searchNextActive/)
   assert.match(providerJs, /searchPreviousActive/)

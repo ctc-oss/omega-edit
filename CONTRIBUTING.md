@@ -35,9 +35,39 @@ omega-edit/
 | Tool | Version | Purpose |
 | --- | --- | --- |
 | CMake | 3.16+ | C/C++ build system |
-| C++17 compiler | GCC 9+, Clang 10+, MSVC 2019+ | Native library and server |
-| Node.js | 24.x | TypeScript packages |
+| C++17 compiler and platform SDK | GCC 9+, Clang 10+, MSVC 2019+, or Apple Clang from Xcode/Command Line Tools | Native library and server |
+| Conan | 2.x | C++ server dependencies |
+| Python | 3.10+ | Conan and supporting build tools |
+| Ninja or Make | Current stable | CMake build execution |
+| Node.js | 20.x recommended, 18+ minimum for the VS Code extension | TypeScript packages |
 | Yarn | 1.x | Package manager (workspaces) |
+| npm | Bundled with Node.js | VS Code extension example |
+
+On macOS, install Apple's Command Line Tools or full Xcode before configuring CMake:
+
+```bash
+xcode-select --install
+xcode-select -p
+xcrun --find clang++
+xcrun --show-sdk-path
+```
+
+If a native build fails with `fatal error: 'cstdint' file not found`, the selected Apple compiler/SDK is incomplete or misconfigured. Reinstall or reselect the Command Line Tools/Xcode, then configure again from a fresh CMake build directory.
+
+On Apple Silicon with Homebrew, install source-development tools from a native arm64 terminal:
+
+```bash
+brew install cmake conan ninja node yarn
+```
+
+If the Apple SDK checks pass but standard headers are still missing, clear stale include or SDK overrides before reconfiguring:
+
+```bash
+unset SDKROOT CPATH CPLUS_INCLUDE_PATH C_INCLUDE_PATH
+yarn dev:doctor
+```
+
+If `yarn dev:doctor` reports missing Apple C++17 standard headers, reinstall the Command Line Tools or switch to a complete Xcode install. A partial Command Line Tools install can expose `clang++` and an SDK path while still missing libc++ headers such as `<cstdint>`, `<filesystem>`, and `<optional>`.
 
 ### First-time setup
 

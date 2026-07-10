@@ -243,11 +243,16 @@ plugin_conan_dir="${PWD}/build-plugin-conan"
 ensure_plugin_deps() {
   [[ "$is_windows" == "YES" ]] || return 0
 
-  conan install plugins --output-folder="$plugin_conan_dir" \
-    --build=missing \
-    -s build_type="$type" \
-    ${CONAN_MSBUILD_VS_CONF:-} \
-    -c "tools.cmake.cmaketoolchain:generator=$generator"
+  node scripts/conan-install.js \
+    --conanfile plugins/conanfile.py \
+    --output-folder "$plugin_conan_dir" \
+    --package protobuf \
+    -- \
+    conan install plugins --output-folder="$plugin_conan_dir" \
+      --build=missing \
+      -s build_type="$type" \
+      ${CONAN_MSBUILD_VS_CONF:-} \
+      -c "tools.cmake.cmaketoolchain:generator=$generator"
 
   local toolchain
   toolchain="$(to_native_path "${plugin_conan_dir}/conan_toolchain.cmake")"
