@@ -1394,6 +1394,14 @@ test('compiled extension entrypoints exist after build', () => {
   assert.match(svelteAppSource, /visibleByteCount=\{visibleByteCount\(\)\}/)
   assert.match(svelteAppSource, /searchLength=\{searchPatternLength\}/)
   assert.match(editorWorkspaceSource, /PreviewGrid/)
+  assert.match(editorWorkspaceSource, /emptyFile=\{fileSize === 0\}/)
+  assert.match(previewGridSource, /emptyFile = false/)
+  assert.match(
+    previewGridSource,
+    /emptyFile \? strings\.grid\.emptyFile : strings\.grid\.waitingForData/
+  )
+  assert.match(i18nSource, /emptyFile: 'Empty file'/)
+  assert.match(i18nSource, /emptyFile: 'Archivo vacío'/)
   assert.match(editorWorkspaceSource, /FileScrollbar/)
   assert.match(editorWorkspaceSource, /editor-grid-shell/)
   assert.match(editorWorkspaceSource, /editor-grid-scroller/)
