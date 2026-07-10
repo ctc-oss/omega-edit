@@ -21,16 +21,21 @@
 #include <omega_edit/utility.h>
 #include <omega_edit/version.h>
 
+#include <openssl/evp.h>
+
 #include <algorithm>
+#include <array>
 #include <atomic>
 #include <cctype>
 #include <chrono>
 #include <cstdio>
+#include <cstdlib>
 #include <cstring>
 #include <filesystem>
 #include <fstream>
 #include <iostream>
 #include <limits>
+#include <memory>
 #include <optional>
 #include <sstream>
 #include <thread>
@@ -82,6 +87,322 @@ namespace omega_edit {
         static constexpr char SESSION_FINGERPRINT_DIGEST_PLUGIN_ID[] = "omega.example.openssl_digests";
         static constexpr char DEFAULT_SESSION_FINGERPRINT_ALGORITHM[] = "sha256";
         static constexpr int64_t SESSION_CONTENT_INSPECTION_CHUNK_SIZE = 1024 * 1024;
+        static constexpr int64_t CHANGELOG_PAYLOAD_CHUNK_SIZE = 256 * 1024;
+        static constexpr size_t CHANGELOG_TRANSFORM_ID_LIMIT = 4096;
+        static constexpr size_t CHANGELOG_TRANSFORM_OPTIONS_LIMIT = 1024 * 1024;
+
+        static bool parse_canonical_decimal(const std::string &value, const char *field_name, int64_t &result,
+                                            grpc::Status &status) {
+            if (value.empty() || (value.size() > 1 && value.front() == '0') ||
+                std::any_of(value.begin(), value.end(), [](unsigned char ch) { return ch < '0' || ch > '9'; })) {
+                status = grpc::Status(grpc::StatusCode::INVALID_ARGUMENT,
+                                      std::string(field_name) + " must be a canonical unsigned decimal int64");
+                return false;
+            }
+            uint64_t parsed = 0;
+            for (const auto ch : value) {
+                const auto digit = static_cast<uint64_t>(ch - '0');
+                if (parsed > (static_cast<uint64_t>(std::numeric_limits<int64_t>::max()) - digit) / 10) {
+                    status = grpc::Status(grpc::StatusCode::INVALID_ARGUMENT,
+                                          std::string(field_name) + " exceeds signed int64 range");
+                    return false;
+                }
+                parsed = parsed * 10 + digit;
+            }
+            result = static_cast<int64_t>(parsed);
+            return true;
+        }
+
+        static std::string digest_hex(const unsigned char *digest, unsigned int length) {
+            static constexpr char HEX[] = "0123456789abcdef";
+            std::string result(length * 2, '0');
+            for (unsigned int index = 0; index < length; ++index) {
+                result[index * 2] = HEX[digest[index] >> 4U];
+                result[index * 2 + 1] = HEX[digest[index] & 0x0FU];
+            }
+            return result;
+        }
+
+        class sha256_context {
+        public:
+            sha256_context() : context_(EVP_MD_CTX_new(), EVP_MD_CTX_free) {
+                valid_ = context_ && EVP_DigestInit_ex(context_.get(), EVP_sha256(), nullptr) == 1;
+            }
+
+            bool update(const void *data, size_t length) {
+                return valid_ && EVP_DigestUpdate(context_.get(), data, length) == 1;
+            }
+
+            bool finish(std::array<unsigned char, EVP_MAX_MD_SIZE> &digest, unsigned int &length) {
+                if (!valid_ || EVP_DigestFinal_ex(context_.get(), digest.data(), &length) != 1 || length != 32) {
+                    return false;
+                }
+                valid_ = false;
+                return true;
+            }
+
+        private:
+            std::unique_ptr<EVP_MD_CTX, decltype(&EVP_MD_CTX_free)> context_;
+            bool valid_{};
+        };
+
+        static bool digest_changelog_source(const omega_changelog_content_source_t &source, std::string &hex) {
+            sha256_context digest;
+            std::vector<omega_byte_t> buffer(static_cast<size_t>(CHANGELOG_PAYLOAD_CHUNK_SIZE));
+            int64_t offset = 0;
+            while (offset < source.length) {
+                const auto read = source.read(source.context, offset, buffer.data(),
+                                              std::min<int64_t>(source.length - offset, CHANGELOG_PAYLOAD_CHUNK_SIZE));
+                if (read <= 0 || !digest.update(buffer.data(), static_cast<size_t>(read))) { return false; }
+                offset += read;
+            }
+            std::array<unsigned char, EVP_MAX_MD_SIZE> bytes{};
+            unsigned int length = 0;
+            if (!digest.finish(bytes, length)) { return false; }
+            hex = digest_hex(bytes.data(), length);
+            return true;
+        }
+
+        class changelog_spool {
+        public:
+            explicit changelog_spool(int64_t byte_limit) : byte_limit_(byte_limit) {
+                auto *temporary_directory = omega_util_get_temp_directory();
+                if (!temporary_directory) { return; }
+                std::string path_template = std::string(temporary_directory) + omega_util_directory_separator() +
+                                            ".OmegaEdit-changelog.XXXXXX";
+                free(temporary_directory);
+                if (path_template.size() > FILENAME_MAX) { return; }
+                std::vector<char> path(path_template.begin(), path_template.end());
+                path.push_back('\0');
+                const auto fd = omega_util_mkstemp(path.data(), 0600);
+                if (fd < 0) { return; }
+#ifdef _WIN32
+                file_ = _fdopen(fd, "w+b");
+#else
+                file_ = fdopen(fd, "w+b");
+#endif
+                if (!file_) {
+#ifdef _WIN32
+                    _close(fd);
+#else
+                    close(fd);
+#endif
+                    omega_util_remove_file(path.data());
+                    return;
+                }
+                path_ = path.data();
+            }
+
+            ~changelog_spool() {
+                if (file_) { fclose(file_); }
+                if (!path_.empty()) { omega_util_remove_file(path_.c_str()); }
+            }
+
+            bool valid() const { return file_ != nullptr; }
+            bool exhausted() const { return exhausted_; }
+
+            bool write(const ::omega_edit::v1::ExportChangeLogResponse &frame) {
+                std::string serialized;
+                if (!frame.SerializeToString(&serialized) || serialized.size() > std::numeric_limits<uint32_t>::max()) {
+                    return false;
+                }
+                std::array<unsigned char, 5> prefix{};
+                auto value = static_cast<uint32_t>(serialized.size());
+                size_t prefix_length = 0;
+                do {
+                    auto byte = static_cast<unsigned char>(value & 0x7FU);
+                    value >>= 7U;
+                    if (value != 0) { byte |= 0x80U; }
+                    prefix[prefix_length++] = byte;
+                } while (value != 0);
+                const auto frame_length = static_cast<int64_t>(prefix_length + serialized.size());
+                if (bytes_written_ > byte_limit_ - frame_length) {
+                    exhausted_ = true;
+                    return false;
+                }
+                if (fwrite(prefix.data(), 1, prefix_length, file_) != prefix_length ||
+                    fwrite(serialized.data(), 1, serialized.size(), file_) != serialized.size()) {
+                    return false;
+                }
+                bytes_written_ += frame_length;
+                return true;
+            }
+
+            bool finish() {
+                if (!file_ || fflush(file_) != 0) { return false; }
+#ifdef _WIN32
+                if (_commit(_fileno(file_)) != 0) { return false; }
+#else
+                if (fsync(fileno(file_)) != 0) { return false; }
+#endif
+                if (fclose(file_) != 0) {
+                    file_ = nullptr;
+                    return false;
+                }
+                file_ = nullptr;
+                return true;
+            }
+
+            bool open_for_read() {
+                if (file_ || path_.empty()) { return false; }
+                file_ = fopen(path_.c_str(), "rb");
+                return file_ != nullptr;
+            }
+
+            bool read(::omega_edit::v1::ExportChangeLogResponse &frame, bool &end) {
+                end = false;
+                const auto first = fgetc(file_);
+                if (first == EOF) {
+                    end = feof(file_) != 0;
+                    return end;
+                }
+                uint32_t size = static_cast<uint32_t>(first & 0x7F);
+                int shift = 7;
+                auto byte = first;
+                while ((byte & 0x80) != 0) {
+                    if (shift >= 35) { return false; }
+                    byte = fgetc(file_);
+                    if (byte == EOF) { return false; }
+                    size |= static_cast<uint32_t>(byte & 0x7F) << shift;
+                    shift += 7;
+                }
+                std::string serialized(size, '\0');
+                if (size > 0 && fread(serialized.data(), 1, size, file_) != size) { return false; }
+                return frame.ParseFromString(serialized);
+            }
+
+        private:
+            std::string path_{};
+            FILE *file_{};
+            int64_t byte_limit_{};
+            int64_t bytes_written_{};
+            bool exhausted_{};
+        };
+
+        struct changelog_export_context {
+            grpc::ServerContext *rpc_context{};
+            changelog_spool *spool{};
+            sha256_context payload_digest{};
+            int64_t entry_count{};
+            int64_t payload_bytes{};
+            bool optimized{};
+            int failure{};
+        };
+
+        static int write_changelog_summary(const omega_changelog_export_summary_t *summary, void *user_data) {
+            auto &context = *static_cast<changelog_export_context *>(user_data);
+            if (context.rpc_context->IsCancelled()) {
+                context.failure = -10;
+                return context.failure;
+            }
+            std::string before_digest;
+            std::string after_digest;
+            if (!digest_changelog_source(summary->before, before_digest) ||
+                !digest_changelog_source(summary->after, after_digest)) {
+                context.failure = -12;
+                return context.failure;
+            }
+            ::omega_edit::v1::ExportChangeLogResponse frame;
+            auto *header = frame.mutable_header();
+            header->set_format_version(2);
+            header->set_resolved_first_serial_decimal(std::to_string(summary->resolved_first_change_serial));
+            header->set_resolved_last_serial_decimal(std::to_string(summary->resolved_last_change_serial));
+            header->set_source_change_count_decimal(std::to_string(summary->source_change_count));
+            header->set_optimized(context.optimized);
+            auto *before = header->mutable_before();
+            before->set_byte_length_decimal(std::to_string(summary->before.length));
+            before->set_digest_algorithm("sha256");
+            before->set_digest_value(before_digest);
+            auto *after = header->mutable_after();
+            after->set_byte_length_decimal(std::to_string(summary->after.length));
+            after->set_digest_algorithm("sha256");
+            after->set_digest_value(after_digest);
+            if (!context.spool->write(frame)) {
+                context.failure = context.spool->exhausted() ? -11 : -12;
+                return context.failure;
+            }
+            return 0;
+        }
+
+        static ::omega_edit::v1::ChangeLogEntryKind changelog_kind(omega_changelog_plan_kind_t kind) {
+            switch (kind) {
+                case OMEGA_CHANGELOG_PLAN_DELETE:
+                    return ::omega_edit::v1::CHANGE_LOG_ENTRY_KIND_DELETE;
+                case OMEGA_CHANGELOG_PLAN_INSERT:
+                    return ::omega_edit::v1::CHANGE_LOG_ENTRY_KIND_INSERT;
+                case OMEGA_CHANGELOG_PLAN_OVERWRITE:
+                    return ::omega_edit::v1::CHANGE_LOG_ENTRY_KIND_OVERWRITE;
+                case OMEGA_CHANGELOG_PLAN_REPLACE:
+                    return ::omega_edit::v1::CHANGE_LOG_ENTRY_KIND_REPLACE;
+                case OMEGA_CHANGELOG_PLAN_TRANSFORM:
+                    return ::omega_edit::v1::CHANGE_LOG_ENTRY_KIND_TRANSFORM;
+            }
+            return ::omega_edit::v1::CHANGE_LOG_ENTRY_KIND_UNSPECIFIED;
+        }
+
+        static int write_changelog_entry(const omega_changelog_plan_entry_t *entry, void *user_data) {
+            auto &context = *static_cast<changelog_export_context *>(user_data);
+            if (context.rpc_context->IsCancelled()) {
+                context.failure = -10;
+                return context.failure;
+            }
+            ::omega_edit::v1::ExportChangeLogResponse frame;
+            auto *header = frame.mutable_entry();
+            header->set_entry_index_decimal(std::to_string(context.entry_count));
+            header->set_kind(changelog_kind(entry->kind));
+            header->set_offset_decimal(std::to_string(entry->offset));
+            header->set_length_decimal(std::to_string(entry->length));
+            header->set_payload_length_decimal(std::to_string(entry->payload_length));
+            if (entry->kind == OMEGA_CHANGELOG_PLAN_TRANSFORM) {
+                const std::string transform_id = entry->transform_id ? entry->transform_id : "";
+                const std::string options_json = entry->options_json ? entry->options_json : "";
+                if (transform_id.size() > CHANGELOG_TRANSFORM_ID_LIMIT ||
+                    options_json.size() > CHANGELOG_TRANSFORM_OPTIONS_LIMIT) {
+                    context.failure = -11;
+                    return context.failure;
+                }
+                auto *transform = header->mutable_transform();
+                transform->set_transform_id(transform_id);
+                transform->set_options_json(options_json);
+                transform->set_replacement_length_decimal(std::to_string(entry->replacement_length));
+                transform->set_computed_file_size_before_decimal(std::to_string(entry->computed_file_size_before));
+                transform->set_computed_file_size_after_decimal(std::to_string(entry->computed_file_size_after));
+            }
+            if (!context.spool->write(frame)) {
+                context.failure = context.spool->exhausted() ? -11 : -12;
+                return context.failure;
+            }
+
+            std::vector<omega_byte_t> buffer(static_cast<size_t>(CHANGELOG_PAYLOAD_CHUNK_SIZE));
+            int64_t offset = 0;
+            while (offset < entry->payload_length) {
+                if (context.rpc_context->IsCancelled()) {
+                    context.failure = -10;
+                    return context.failure;
+                }
+                const auto read = entry->read_payload(
+                        entry->payload_context, offset, buffer.data(),
+                        std::min<int64_t>(entry->payload_length - offset, CHANGELOG_PAYLOAD_CHUNK_SIZE));
+                if (read <= 0 || !context.payload_digest.update(buffer.data(), static_cast<size_t>(read))) {
+                    context.failure = -12;
+                    return context.failure;
+                }
+                frame.Clear();
+                auto *payload = frame.mutable_payload();
+                payload->set_entry_index_decimal(std::to_string(context.entry_count));
+                payload->set_chunk_offset_decimal(std::to_string(offset));
+                payload->set_data(buffer.data(), static_cast<size_t>(read));
+                offset += read;
+                payload->set_final_chunk(offset == entry->payload_length);
+                if (!context.spool->write(frame)) {
+                    context.failure = context.spool->exhausted() ? -11 : -12;
+                    return context.failure;
+                }
+                context.payload_bytes += read;
+            }
+            ++context.entry_count;
+            return 0;
+        }
 
         static bool path_argument_is_safe_for_core(const std::string &path) {
             return path.size() < FILENAME_MAX && std::none_of(path.begin(), path.end(), [](unsigned char ch) {
@@ -1774,6 +2095,145 @@ namespace omega_edit {
             if (!change) { return grpc::Status(grpc::StatusCode::UNKNOWN, "no undone changes available"); }
 
             fill_change_details(change, request->id(), response);
+            return grpc::Status::OK;
+        }
+
+        grpc::Status
+        EditorServiceImpl::ExportChangeLog(grpc::ServerContext *context,
+                                           const ::omega_edit::v1::ExportChangeLogRequest *request,
+                                           grpc::ServerWriter<::omega_edit::v1::ExportChangeLogResponse> *writer) {
+            grpc::Status parse_status;
+            int64_t first = 0;
+            int64_t last = 0;
+            int64_t max_span_bytes = 0;
+            int64_t requested_entries = 0;
+            int64_t requested_output_bytes = 0;
+            if ((request->has_first_change_serial_decimal() &&
+                 !parse_canonical_decimal(request->first_change_serial_decimal(), "first_change_serial_decimal", first,
+                                          parse_status)) ||
+                (request->has_last_change_serial_decimal() &&
+                 !parse_canonical_decimal(request->last_change_serial_decimal(), "last_change_serial_decimal", last,
+                                          parse_status)) ||
+                (request->has_max_span_bytes_decimal() &&
+                 !parse_canonical_decimal(request->max_span_bytes_decimal(), "max_span_bytes_decimal", max_span_bytes,
+                                          parse_status)) ||
+                (request->has_max_entries_decimal() &&
+                 !parse_canonical_decimal(request->max_entries_decimal(), "max_entries_decimal", requested_entries,
+                                          parse_status)) ||
+                (request->has_max_output_bytes_decimal() &&
+                 !parse_canonical_decimal(request->max_output_bytes_decimal(), "max_output_bytes_decimal",
+                                          requested_output_bytes, parse_status))) {
+                return parse_status;
+            }
+
+            const auto entry_cap = requested_entries == 0
+                                           ? resource_limits_.max_changelog_export_entries
+                                           : std::min(requested_entries, resource_limits_.max_changelog_export_entries);
+            const auto output_cap = requested_output_bytes == 0 ? resource_limits_.max_changelog_spool_bytes
+                                                                : std::min(requested_output_bytes,
+                                                                           resource_limits_.max_changelog_spool_bytes);
+            if (entry_cap <= 0 || output_cap <= 0) {
+                return grpc::Status(grpc::StatusCode::RESOURCE_EXHAUSTED,
+                                    "change-log export is disabled by server resource limits");
+            }
+
+            changelog_spool spool(output_cap);
+            if (!spool.valid()) {
+                return grpc::Status(grpc::StatusCode::RESOURCE_EXHAUSTED,
+                                    "failed to create secure change-log export spool");
+            }
+            changelog_export_context export_context{context, &spool};
+            export_context.optimized = request->optimize();
+
+            {
+                auto locked_session = session_manager_.lock_session(request->session_id());
+                if (!locked_session) {
+                    return grpc::Status(grpc::StatusCode::NOT_FOUND, "session not found: " + request->session_id());
+                }
+                omega_changelog_export_options_t options{};
+                options.first_change_serial = first;
+                options.last_change_serial = last;
+                options.max_span_bytes = max_span_bytes;
+                options.max_entries = entry_cap;
+                options.prefer_overwrite_form = 1;
+                const auto active_tip = omega_session_get_num_changes(locked_session.session());
+                const auto resolved_first = first == 0 ? 1 : first;
+                const auto resolved_last = last == 0 ? active_tip : last;
+                if (active_tip <= 0 || resolved_first <= 0 || resolved_last < resolved_first ||
+                    resolved_last > active_tip || !omega_session_get_change(locked_session.session(), resolved_first) ||
+                    !omega_session_get_change(locked_session.session(), resolved_last)) {
+                    return grpc::Status(grpc::StatusCode::INVALID_ARGUMENT,
+                                        "change-log export range must identify ordered active serials");
+                }
+                const auto result =
+                        omega_edit_export_changelog(locked_session.session(), &options, request->optimize() ? 1 : 0,
+                                                    write_changelog_summary, write_changelog_entry, &export_context);
+                if (result != 0) {
+                    if (export_context.failure == -10 || context->IsCancelled()) {
+                        return grpc::Status(grpc::StatusCode::CANCELLED, "change-log export cancelled");
+                    }
+                    if (result == -2 || export_context.failure == -11 || spool.exhausted()) {
+                        return grpc::Status(grpc::StatusCode::RESOURCE_EXHAUSTED,
+                                            "change-log export exceeded a configured resource limit");
+                    }
+                    return grpc::Status(grpc::StatusCode::INTERNAL,
+                                        "change-log range validation, planning, or spool write failed");
+                }
+
+                std::array<unsigned char, EVP_MAX_MD_SIZE> payload_digest{};
+                unsigned int payload_digest_length = 0;
+                if (!export_context.payload_digest.finish(payload_digest, payload_digest_length)) {
+                    return grpc::Status(grpc::StatusCode::INTERNAL, "failed to finalize change-log payload digest");
+                }
+                ::omega_edit::v1::ExportChangeLogResponse complete_frame;
+                auto *complete = complete_frame.mutable_complete();
+                complete->set_emitted_change_count_decimal(std::to_string(export_context.entry_count));
+                complete->set_payload_byte_count_decimal(std::to_string(export_context.payload_bytes));
+                complete->set_payload_sha256(payload_digest.data(), payload_digest_length);
+                if (!spool.write(complete_frame)) {
+                    return grpc::Status(spool.exhausted() ? grpc::StatusCode::RESOURCE_EXHAUSTED
+                                                          : grpc::StatusCode::INTERNAL,
+                                        "failed to finalize change-log export spool");
+                }
+                if (!spool.finish()) {
+                    return grpc::Status(grpc::StatusCode::RESOURCE_EXHAUSTED,
+                                        "failed to flush change-log export spool");
+                }
+            }
+
+            if (context->IsCancelled()) {
+                return grpc::Status(grpc::StatusCode::CANCELLED, "change-log export cancelled");
+            }
+            if (!spool.open_for_read()) {
+                return grpc::Status(grpc::StatusCode::INTERNAL, "failed to reopen change-log export spool");
+            }
+            bool saw_header = false;
+            bool saw_complete = false;
+            while (true) {
+                ::omega_edit::v1::ExportChangeLogResponse frame;
+                bool end = false;
+                if (!spool.read(frame, end)) {
+                    return grpc::Status(grpc::StatusCode::DATA_LOSS, "corrupt change-log export spool");
+                }
+                if (end) { break; }
+                if (!saw_header) {
+                    if (!frame.has_header()) {
+                        return grpc::Status(grpc::StatusCode::DATA_LOSS,
+                                            "change-log spool does not begin with a header");
+                    }
+                    saw_header = true;
+                } else if (saw_complete) {
+                    return grpc::Status(grpc::StatusCode::DATA_LOSS,
+                                        "change-log spool contains frames after completion");
+                }
+                if (frame.has_complete()) { saw_complete = true; }
+                if (context->IsCancelled() || !writer->Write(frame)) {
+                    return grpc::Status(grpc::StatusCode::CANCELLED, "change-log export cancelled");
+                }
+            }
+            if (!saw_header || !saw_complete) {
+                return grpc::Status(grpc::StatusCode::DATA_LOSS, "incomplete change-log export spool");
+            }
             return grpc::Status::OK;
         }
 

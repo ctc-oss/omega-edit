@@ -21,6 +21,7 @@
 #define OMEGA_OMEGA_EDIT_H
 
 #include "omega_edit/change.h"
+#include "omega_edit/changelog.h"
 #include "omega_edit/edit.h"
 #include "omega_edit/license.h"
 #include "omega_edit/search.h"

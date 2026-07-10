@@ -152,6 +152,9 @@ service EditorService {
     // Retrieve details of the most recent undone change in a session.
     rpc GetLastUndo(GetLastUndoRequest) returns (GetLastUndoResponse);
 
+    // Export an inclusive active-serial range as a bounded, validated frame stream.
+    rpc ExportChangeLog(ExportChangeLogRequest) returns (stream ExportChangeLogResponse);
+
     // ---------------------------------------------------------------------------
     // Data inspection
     // ---------------------------------------------------------------------------
@@ -284,6 +287,16 @@ enum ChangeKind {
     CHANGE_KIND_OVERWRITE = 3;
     // Transform bytes through a checkpoint-backed operation.
     CHANGE_KIND_TRANSFORM = 4;
+}
+
+// Replay operation emitted by ranged change-log export.
+enum ChangeLogEntryKind {
+    CHANGE_LOG_ENTRY_KIND_UNSPECIFIED = 0;
+    CHANGE_LOG_ENTRY_KIND_DELETE = 1;
+    CHANGE_LOG_ENTRY_KIND_INSERT = 2;
+    CHANGE_LOG_ENTRY_KIND_OVERWRITE = 3;
+    CHANGE_LOG_ENTRY_KIND_REPLACE = 4;
+    CHANGE_LOG_ENTRY_KIND_TRANSFORM = 5;
 }
 
 // Session-level event kinds.  Values are powers of two so they can be OR'd
@@ -776,6 +789,72 @@ message TransformChangeDetails {
     int64 replacement_length = 3;       // Number of bytes materialized into the checkpoint.
     int64 computed_file_size_before = 4;// Session size before the transform.
     int64 computed_file_size_after = 5; // Session size after the transform.
+}
+
+// Inclusive active-serial range and resource limits for change-log export.
+message ExportChangeLogRequest {
+    string session_id = 1;
+    bool optimize = 2;
+    optional string first_change_serial_decimal = 3;// Absent/"0" = serial 1.
+    optional string last_change_serial_decimal = 4; // Absent/"0" = active tip.
+    optional string max_span_bytes_decimal = 5;     // Absent/"0" = 64 MiB.
+    optional string max_entries_decimal = 6;        // Absent/"0" = server cap.
+    optional string max_output_bytes_decimal = 7;   // Absent/"0" = server cap.
+}
+
+message ChangeLogStreamFingerprint {
+    string byte_length_decimal = 1;
+    string digest_algorithm = 2;
+    string digest_value = 3;
+}
+
+message ChangeLogStreamHeader {
+    int32 format_version = 1;
+    string resolved_first_serial_decimal = 2;
+    string resolved_last_serial_decimal = 3;
+    string source_change_count_decimal = 4;
+    ChangeLogStreamFingerprint before = 5;
+    ChangeLogStreamFingerprint after = 6;
+    bool optimized = 7;
+}
+
+message ChangeLogStreamTransform {
+    string transform_id = 1;
+    string options_json = 2;
+    string replacement_length_decimal = 3;
+    string computed_file_size_before_decimal = 4;
+    string computed_file_size_after_decimal = 5;
+}
+
+message ChangeLogEntryHeader {
+    string entry_index_decimal = 1;
+    ChangeLogEntryKind kind = 2;
+    string offset_decimal = 3;
+    string length_decimal = 4;
+    string payload_length_decimal = 5;
+    optional ChangeLogStreamTransform transform = 6;
+}
+
+message ChangeLogPayloadChunk {
+    string entry_index_decimal = 1;
+    string chunk_offset_decimal = 2;
+    bytes data = 3;
+    bool final_chunk = 4;
+}
+
+message ChangeLogStreamComplete {
+    string emitted_change_count_decimal = 1;
+    string payload_byte_count_decimal = 2;
+    bytes payload_sha256 = 3;
+}
+
+message ExportChangeLogResponse {
+    oneof frame {
+        ChangeLogStreamHeader header = 1;
+        ChangeLogEntryHeader entry = 2;
+        ChangeLogPayloadChunk payload = 3;
+        ChangeLogStreamComplete complete = 4;
+    }
 }
 
 // ===========================================================================

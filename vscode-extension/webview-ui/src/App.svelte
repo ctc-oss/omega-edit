@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount, untrack } from 'svelte'
   import ByteInspector from './components/ByteInspector.svelte'
+  import CheckpointTimeline from './components/CheckpointTimeline.svelte'
   import EditorWorkspace from './components/EditorWorkspace.svelte'
   import SearchPanel from './components/SearchPanel.svelte'
   import Toolbar from './components/Toolbar.svelte'
@@ -79,6 +80,10 @@
   type SessionActionCompleteMessage = Extract<
     HostToWebviewMessage,
     { type: 'sessionActionComplete' }
+  >
+  type CheckpointTimelineMessage = Extract<
+    HostToWebviewMessage,
+    { type: 'checkpointTimeline' }
   >
   type ViewportDataMessage = Extract<
     HostToWebviewMessage,
@@ -221,6 +226,18 @@
   let canRedo = $state(false)
   let undoCount = $state(0)
   let redoCount = $state(0)
+  let checkpointTimeline = $state<CheckpointTimelineMessage>({
+    type: 'checkpointTimeline',
+    visible: false,
+    cursor: 0,
+    checkpointCount: 0,
+    savedChangeCount: 0,
+    savedOffBranch: false,
+    canRewind: false,
+    canFastForward: false,
+    navigating: false,
+    checkpoints: [],
+  })
   let latestDataProfile = $state<AnalysisProfileMessage | undefined>(undefined)
   let latestViewportProfile = $state<ProfilerViewportSnapshot | undefined>(
     undefined
@@ -2587,6 +2604,9 @@
           requestAnalysisProfile(true)
         }
         break
+      case 'checkpointTimeline':
+        checkpointTimeline = message
+        break
       case 'analysisProfile':
         latestDataProfile = message
         break
@@ -2728,6 +2748,23 @@
     onExportChangeLog={exportChangeLog}
     onApplyChangeLog={applyChangeLog}
   />
+
+  {#if checkpointTimeline.visible}
+    <CheckpointTimeline
+      cursor={checkpointTimeline.cursor}
+      checkpointCount={checkpointTimeline.checkpointCount}
+      savedChangeCount={checkpointTimeline.savedChangeCount}
+      savedCheckpoint={checkpointTimeline.savedCheckpoint}
+      savedOffBranch={checkpointTimeline.savedOffBranch}
+      canRewind={checkpointTimeline.canRewind}
+      canFastForward={checkpointTimeline.canFastForward}
+      checkpoints={checkpointTimeline.checkpoints}
+      navigating={checkpointTimeline.navigating}
+      onNavigate={(checkpoint) =>
+        postToHost({ type: 'navigateCheckpointTimeline', checkpoint })}
+      onClose={() => postToHost({ type: 'hideCheckpointTimeline' })}
+    />
+  {/if}
 
   <div class="top-panels">
     {#if searchPanelVisible}

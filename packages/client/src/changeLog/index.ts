@@ -1,6 +1,4 @@
 /*
- * Copyright (c) 2021 Concurrent Technologies Corporation.
- *
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with
  * this work for additional information regarding copyright ownership.
@@ -17,21 +15,6 @@
  * limitations under the License.
  */
 
-export * from './change'
-export * from './changeLog/index'
-export * from './changeLog/node/index'
-export * from './client'
-export * from './constants'
-export * from './editor_history'
-export * from './editor_scoped_session'
-export * from './editor_search'
-export * from './editor_session_model'
-export * from './logger'
-export * from './server'
-export * from './session'
-export * from './subscriptions'
-export * from './version'
-export * from './viewport'
-
-// generated files from protoc
-export * from './proto'
+export * from './codec'
+export * from './stream'
+export * from './types'

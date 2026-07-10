@@ -531,6 +531,33 @@ const englishStrings = {
     yes: 'Yes',
     no: 'No',
   },
+  timeline: {
+    label: 'Checkpoint timeline',
+    original: 'Original file',
+    checkpoint: (checkpoint: number) =>
+      `Checkpoint ${formatNumber(checkpoint)}`,
+    position: (position: string, count: number) =>
+      `${position} of ${formatNumber(count)}`,
+    savedAtChange: (change: number) =>
+      `Last saved at change ${formatNumber(change)}`,
+    savedAtOriginal: 'Last saved at original file',
+    savedAtCheckpoint: (checkpoint: number) =>
+      `Last saved at checkpoint ${formatNumber(checkpoint)}`,
+    savedOffBranch: 'Last saved state is no longer on this branch',
+    previous: 'Previous checkpoint',
+    previousTitle: 'Rewind one checkpoint',
+    next: 'Next checkpoint',
+    nextTitle: 'Fast-forward one checkpoint',
+    current: 'Current checkpoint',
+    originalMarker: 'Original',
+    marker: (checkpoint: number, changes: number, saved: boolean) =>
+      `Checkpoint ${formatNumber(checkpoint)}, ${formatNumber(changes)} changes${saved ? ', last saved' : ''}`,
+    unavailable: 'Replay unavailable',
+    unavailableCount: (count: number) =>
+      `${formatNumber(count)} checkpoint${count === 1 ? '' : 's'} unavailable`,
+    navigating: 'Moving through checkpoint history',
+    close: 'Close checkpoint timeline',
+  },
   status: {
     hexPending: (label: string) => `Hex edit: ${label}`,
   },
@@ -753,6 +780,31 @@ const localeOverrides: Record<string, LocaleStringOverrides> = {
       yes: 'Si',
       no: 'No',
     },
+    timeline: {
+      label: 'Linea de tiempo de puntos de control',
+      original: 'Archivo original',
+      checkpoint: (checkpoint: number) =>
+        `Punto de control ${formatNumber(checkpoint)}`,
+      position: (position: string, count: number) =>
+        `${position} de ${formatNumber(count)}`,
+      savedAtChange: (change: number) =>
+        `Ultimo guardado en el cambio ${formatNumber(change)}`,
+      savedAtOriginal: 'Ultimo guardado en el archivo original',
+      savedAtCheckpoint: (checkpoint: number) =>
+        `Ultimo guardado en el punto de control ${formatNumber(checkpoint)}`,
+      savedOffBranch: 'El ultimo estado guardado ya no esta en esta rama',
+      previous: 'Punto de control anterior',
+      previousTitle: 'Retroceder un punto de control',
+      next: 'Punto de control siguiente',
+      nextTitle: 'Avanzar un punto de control',
+      current: 'Punto de control actual',
+      originalMarker: 'Original',
+      unavailable: 'Reproduccion no disponible',
+      unavailableCount: (count: number) =>
+        `${formatNumber(count)} punto${count === 1 ? '' : 's'} de control no disponible${count === 1 ? '' : 's'}`,
+      navigating: 'Moviendo por el historial de puntos de control',
+      close: 'Cerrar la linea de tiempo de puntos de control',
+    },
     status: {
       hexPending: (label: string) => `Edicion hex: ${label}`,
     },
@@ -770,6 +822,7 @@ function createStringTable(): WebviewStrings {
     grid: { ...englishStrings.grid },
     inspector: { ...englishStrings.inspector },
     profiler: { ...englishStrings.profiler },
+    timeline: { ...englishStrings.timeline },
     status: { ...englishStrings.status },
   }
 }
@@ -790,6 +843,7 @@ function applyLocaleOverrides(overrides?: LocaleStringOverrides): void {
   Object.assign(strings.grid, englishStrings.grid, overrides?.grid)
   Object.assign(strings.inspector, englishStrings.inspector, overrides?.inspector)
   Object.assign(strings.profiler, englishStrings.profiler, overrides?.profiler)
+  Object.assign(strings.timeline, englishStrings.timeline, overrides?.timeline)
   Object.assign(strings.status, englishStrings.status, overrides?.status)
 }
 

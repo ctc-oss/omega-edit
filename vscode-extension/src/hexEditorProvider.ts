@@ -30,6 +30,10 @@
 import {
   ALL_EVENTS,
   applyTransformPlugin,
+  CHANGE_LOG_FORMAT,
+  CHANGE_LOG_VERSION,
+  ChangeLogCancelledError,
+  changeLogHeaderForExport,
   ChangeKind,
   checkSessionModel,
   clear,
@@ -63,6 +67,8 @@ import {
   insert,
   listTransformPlugins,
   modifyViewport,
+  normalizeChangeLogDocument,
+  openChangeLogFile,
   numAscii,
   overwrite,
   profileSession,
@@ -72,6 +78,7 @@ import {
   restoreToChangeCount,
   runSessionTransaction,
   saveSession,
+  serializeChangeLogEntry,
   SessionContentSource,
   SessionFingerprintContent,
   SessionEventKind,
@@ -81,13 +88,13 @@ import {
   type TransformPluginInfo,
   type ServerHeartbeatLoop,
   undo,
+  writeChangeLogRpcExportAtomic,
+  writeChangeLogFileAtomic,
+  type PreparedChangeLog,
   ViewportEventKind,
 } from '@omega-edit/client'
-import { once } from 'node:events'
-import { createWriteStream } from 'node:fs'
-import * as nodeFs from 'node:fs/promises'
-import * as nodePath from 'node:path'
-import { finished } from 'node:stream/promises'
+import * as os from 'node:os'
+import * as path from 'node:path'
 import * as vscode from 'vscode'
 import { OMEGA_EDIT_VIEW_TYPE } from './constants'
 import {
@@ -127,6 +134,14 @@ import {
   normalizeWebviewMessage,
 } from './webviewProtocol'
 import { decodeTextBytes } from './textEncoding'
+import {
+  CheckpointTimelineStorageManager,
+  type CheckpointTimelineStorageSession,
+  type CheckpointIntervalManifestEntryV1,
+  CHECKPOINT_HISTORY_DEFAULTS,
+  TimelineStorageError,
+  writeEmptyCheckpointInterval,
+} from './checkpointTimelineStorage'
 
 interface EditorSession {
   readonly sessionId: string
@@ -163,6 +178,37 @@ interface EditorSession {
   pendingHistoryOperation?: 'undo' | 'redo'
   pendingHistoryCount?: number
   historyCommandTask?: Promise<void>
+  checkpointTimeline: CheckpointTimelineState
+}
+
+interface CheckpointTimelineEntry {
+  changeCount: number
+  interval: CheckpointIntervalManifestEntryV1
+}
+
+interface CheckpointTimelineState {
+  entries: CheckpointTimelineEntry[]
+  storage?: CheckpointTimelineStorageSession
+  originalFingerprint: ChangeLogFingerprint
+  lastArchivedChangeCount: number
+  cursor: number
+  savedChangeCount: number
+  savedFingerprint: ChangeLogFingerprint
+  currentFingerprint: ChangeLogFingerprint
+  visible: boolean
+  navigating: boolean
+  operation?: Promise<void>
+}
+
+function timelineFingerprintsEqual(
+  left: ChangeLogFingerprint,
+  right: ChangeLogFingerprint
+): boolean {
+  return (
+    String(left.byteLength) === String(right.byteLength) &&
+    left.digest.algorithm === right.digest.algorithm &&
+    left.digest.value === right.digest.value
+  )
 }
 
 interface ExternalHighlightBaseline {
@@ -197,22 +243,18 @@ interface ChangeLogFingerprint {
 }
 
 interface ParsedChangeLog {
-  changes: ParsedChangeRecord[]
   complete: boolean
   before: ChangeLogFingerprint
   after: ChangeLogFingerprint
   changeCount: string
   sourceChangeCount: string
   unavailableChangeCount: string
-  unavailableChangeSerials: number[]
-}
-
-interface ChangeLogDocumentMetadata {
-  complete: boolean
-  changeCount: string
-  sourceChangeCount: string
-  unavailableChangeCount: string
-  unavailableChangeSerials: number[]
+  unavailableChangeSerials: string[]
+  entryCount: number
+  primitiveCounts: ChangeLogPrimitiveCounts
+  transformDescriptors: ChangeLogTransformDescriptorPreview[]
+  requiredPlugins: string[]
+  entries(): AsyncIterable<ParsedChangeRecord>
 }
 
 interface TransformPrimitiveDescriptor {
@@ -300,7 +342,7 @@ interface ChangeLogApplyResult {
   before?: ChangeLogFingerprint
   after?: ChangeLogFingerprint
   unavailableChangeCount?: number
-  unavailableChangeSerials?: number[]
+  unavailableChangeSerials?: Array<number | string>
   cancelled?: boolean
   preview?: ChangeLogPreview
   rollback?: {
@@ -311,6 +353,12 @@ interface ChangeLogApplyResult {
     error?: string
   }
   finalFingerprint?: ChangeLogFingerprint
+}
+
+export interface CheckpointTimelineResult {
+  state: WebviewEditorState
+  checkpointCount: number
+  moved: boolean
 }
 
 interface ChangeLogReplayFailureDetails {
@@ -352,9 +400,10 @@ const SERVER_HEALTH_ERROR_LATENCY_MS = 250
 const MAX_TRANSFORM_RESULT_TEXT_LENGTH = 240
 const MAX_TRANSFORM_RESULT_PREVIEW_BYTES = 4 * 1024
 const MAX_FILE_SPLICE_BYTES = 32 * 1024 * 1024
-const CHANGE_LOG_FORMAT = 'omega-edit.change-log'
-const CHANGE_LOG_VERSION = 2
+const MAX_NON_FILE_CHANGE_LOG_BYTES = 64 * 1024 * 1024
+const MAX_NON_FILE_CHANGE_LOG_ENTRIES = 10_000
 const DEFAULT_CHANGE_LOG_DIGEST_ALGORITHM = 'sha256'
+const INTERNAL_REPLACE_ALL_REPLAY_ID = 'omega.internal.replace-all'
 const GRPC_NOT_FOUND = 5
 const MAX_INT64 = 9_223_372_036_854_775_807n
 const CONTEXT_HEX_EDITOR_ACTIVE = 'omegaEdit.hexEditorActive'
@@ -708,13 +757,10 @@ function isMutationWebviewMessage(message: WebviewToHostMessage): boolean {
     case 'delete':
     case 'overwrite':
     case 'replace':
-    case 'insertFile':
-    case 'replaceRangeWithFile':
     case 'replaceAllMatches':
     case 'createCheckpoint':
     case 'rollbackCheckpoint':
     case 'restoreCheckpoint':
-    case 'applyChangeLog':
     case 'undo':
     case 'redo':
     case 'revert':
@@ -1325,11 +1371,15 @@ async function collectChangeLogRecords(
   sessionId: string,
   sourceChangeCount: number,
   onRecord?: (record: ChangeRecord) => Promise<void>,
-  onProgress?: (processedSerial: number) => void
+  onProgress?: (processedSerial: number) => void,
+  signal?: AbortSignal
 ): Promise<CollectedChangeLogRecords> {
   const changes = onRecord ? undefined : ([] as ChangeRecord[])
   const unavailableChangeSerials: number[] = []
   for (let serial = 1; serial <= sourceChangeCount; serial += 1) {
+    if (signal?.aborted) {
+      throw new ChangeLogCancelledError()
+    }
     try {
       const record = changeDetailsToChangeRecord(
         await getChangeDetails(sessionId, serial)
@@ -1351,28 +1401,6 @@ async function collectChangeLogRecords(
   return { changes, unavailableChangeSerials }
 }
 
-function serializeChangeLogRecord(
-  record: ChangeRecord
-): Record<string, unknown> {
-  return {
-    serial: int64ToDecimal(record.serial),
-    kind: record.kind,
-    offset: int64ToDecimal(record.offset),
-    length: int64ToDecimal(record.length),
-    data: record.data,
-    ...(record.groupId ? { groupId: record.groupId } : {}),
-  }
-}
-
-async function writeStreamText(
-  stream: NodeJS.WritableStream,
-  text: string
-): Promise<void> {
-  if (!stream.write(text)) {
-    await once(stream, 'drain')
-  }
-}
-
 async function writeChangeLogFile(
   targetPath: string,
   sourceChangeCount: number,
@@ -1381,61 +1409,41 @@ async function writeChangeLogFile(
   writeRecords: (
     writeRecord: (record: ChangeRecord) => Promise<void>
   ) => Promise<CollectedChangeLogRecords>,
-  verifyBeforeCommit?: () => Promise<void>
+  verifyBeforeCommit?: () => Promise<void>,
+  signal?: AbortSignal
 ): Promise<CollectedChangeLogRecords> {
-  const tempPath = nodePath.join(
-    nodePath.dirname(targetPath),
-    `.${nodePath.basename(targetPath)}.${process.pid}.${Date.now()}.tmp`
-  )
-  const stream = createWriteStream(tempPath, {
-    encoding: 'utf8',
-    flags: 'wx',
+  const header = changeLogHeaderForExport({
+    complete: true,
+    before: {
+      byteLength: int64ToDecimal(before.byteLength),
+      digest: before.digest,
+    },
+    after: {
+      byteLength: int64ToDecimal(after.byteLength),
+      digest: after.digest,
+    },
+    changeCount: sourceChangeCount,
+    sourceChangeCount,
+    unavailableChangeSerials: [],
   })
-  let committed = false
-
-  try {
-    const metadata = {
-      format: CHANGE_LOG_FORMAT,
-      version: CHANGE_LOG_VERSION,
-      complete: true,
-      before,
-      after,
-      changeCount: sourceChangeCount.toString(),
-      sourceChangeCount: sourceChangeCount.toString(),
-      unavailableChangeCount: '0',
-      unavailableChangeSerials: [],
+  let collected: CollectedChangeLogRecords | undefined
+  await writeChangeLogFileAtomic(
+    targetPath,
+    header,
+    async (sink) => {
+      collected = await writeRecords(async (record) => sink.writeEntry(record))
+      assertCompleteChangeLog('export', collected.unavailableChangeSerials)
+    },
+    {
+      overwrite: true,
+      beforeCommit: verifyBeforeCommit,
+      ...(signal ? { signal } : {}),
     }
-    const prefix = `${JSON.stringify(metadata, null, 2).replace(/\n}$/, ',\n  "changes": [')}\n`
-    await writeStreamText(stream, prefix)
-
-    let first = true
-    const collected = await writeRecords(async (record) => {
-      const serialized = JSON.stringify(
-        serializeChangeLogRecord(record),
-        null,
-        2
-      )
-        .split('\n')
-        .map((line) => `    ${line}`)
-        .join('\n')
-      await writeStreamText(stream, `${first ? '' : ',\n'}${serialized}`)
-      first = false
-    })
-    await writeStreamText(stream, '\n  ]\n}\n')
-    stream.end()
-    await finished(stream)
-
-    assertCompleteChangeLog('export', collected.unavailableChangeSerials)
-    await verifyBeforeCommit?.()
-    await nodeFs.rename(tempPath, targetPath)
-    committed = true
-    return collected
-  } finally {
-    if (!committed) {
-      stream.destroy()
-      await nodeFs.rm(tempPath, { force: true }).catch(() => undefined)
-    }
+  )
+  if (!collected) {
+    throw new Error('Change log export did not collect completion metadata')
   }
+  return collected
 }
 
 async function rollbackSessionToChangeCount(
@@ -1475,6 +1483,22 @@ function replayErrorMessage(error: unknown): string {
 
 function replayError(error: unknown): ChangeLogReplayError {
   return error instanceof Error ? error : new Error(String(error))
+}
+
+function isChangeLogCancellationError(error: unknown): boolean {
+  let current: unknown = error
+  const seen = new Set<unknown>()
+  while (current && !seen.has(current)) {
+    seen.add(current)
+    if (
+      current instanceof ChangeLogCancelledError ||
+      (isRecord(current) && current.code === 'CHANGE_LOG_CANCELLED')
+    ) {
+      return true
+    }
+    current = isRecord(current) ? current.cause : undefined
+  }
+  return false
 }
 
 function attachChangeLogReplayDetails(
@@ -1643,142 +1667,7 @@ function safeChangeRecord(value: unknown): ParsedChangeRecord | undefined {
   }
 }
 
-function validateChangeRecordMetadata(
-  changes: ChangeRecord[],
-  entries: unknown[]
-): void {
-  const serialEntryCount = entries.filter(
-    (entry) => isRecord(entry) && entry.serial !== undefined
-  ).length
-  if (serialEntryCount > 0 && serialEntryCount !== changes.length) {
-    throw new Error('Change log serial metadata must be present on every entry')
-  }
-
-  for (let index = 0; index < changes.length; index += 1) {
-    if (serialEntryCount > 0 && changes[index].serial !== index + 1) {
-      throw new Error(
-        `Change log serial metadata must be contiguous; entry ${index} has serial ${
-          changes[index].serial
-        }, expected ${index + 1}`
-      )
-    }
-  }
-
-  const closedGroups = new Set<string>()
-  let activeGroup: string | undefined
-  for (const [index, change] of changes.entries()) {
-    const groupId = change.groupId
-    if (!groupId) {
-      if (activeGroup) {
-        closedGroups.add(activeGroup)
-        activeGroup = undefined
-      }
-      continue
-    }
-
-    if (groupId !== activeGroup) {
-      if (closedGroups.has(groupId)) {
-        throw new Error(
-          `Change log groupId "${groupId}" is not contiguous at entry ${index}`
-        )
-      }
-      if (activeGroup) {
-        closedGroups.add(activeGroup)
-      }
-      activeGroup = groupId
-    }
-  }
-}
-
-function readChangeLogDocumentCount(
-  document: Record<string, unknown>,
-  key: string
-): bigint {
-  return parseNonNegativeInt64(document[key], `Change log ${key}`)
-}
-
-function normalizeUnavailableChangeSerials(
-  value: unknown,
-  sourceChangeCount: bigint
-): number[] {
-  if (!Array.isArray(value)) {
-    throw new Error('Change log unavailableChangeSerials must be an array')
-  }
-
-  const seen = new Set<number>()
-  return value.map((serial, index) => {
-    let serialValue: bigint
-    try {
-      serialValue = parsePositiveInt64(
-        serial,
-        `Change log unavailableChangeSerials[${index}]`
-      )
-    } catch {
-      throw new Error(
-        `Change log unavailableChangeSerials[${index}] must be a positive int64`
-      )
-    }
-    if (serialValue > sourceChangeCount) {
-      throw new Error(
-        `Change log unavailableChangeSerials[${index}] exceeds sourceChangeCount`
-      )
-    }
-    const serialNumber = int64ToSafeNumber(
-      serialValue,
-      `Change log unavailableChangeSerials[${index}]`
-    )
-    if (seen.has(serialNumber)) {
-      throw new Error(
-        `Change log unavailableChangeSerials[${index}] duplicates serial ${serialNumber}`
-      )
-    }
-    seen.add(serialNumber)
-    return serialNumber
-  })
-}
-
-function normalizeChangeLogFingerprint(
-  value: unknown,
-  key: 'before' | 'after'
-): ChangeLogFingerprint {
-  if (!isRecord(value)) {
-    throw new Error(`Change log ${key} fingerprint must be an object`)
-  }
-
-  let byteLength: string
-  try {
-    byteLength = parseNonNegativeInt64(
-      value.byteLength,
-      `Change log ${key}.byteLength`
-    ).toString()
-  } catch {
-    throw new Error(`Change log ${key}.byteLength must be a non-negative int64`)
-  }
-
-  if (!isRecord(value.digest)) {
-    throw new Error(`Change log ${key}.digest must be an object`)
-  }
-
-  const algorithm = value.digest.algorithm
-  if (typeof algorithm !== 'string' || !algorithm.trim()) {
-    throw new Error(`Change log ${key}.digest.algorithm must be a string`)
-  }
-
-  const digestValue = value.digest.value
-  if (typeof digestValue !== 'string' || !digestValue.trim()) {
-    throw new Error(`Change log ${key}.digest.value must be a string`)
-  }
-
-  return {
-    byteLength,
-    digest: {
-      algorithm: algorithm.trim().toLowerCase(),
-      value: digestValue.trim().toLowerCase(),
-    },
-  }
-}
-
-function describeUnavailableSerials(serials: number[]): string {
+function describeUnavailableSerials(serials: Array<number | string>): string {
   const preview = serials.slice(0, 10).join(', ')
   const suffix = serials.length > 10 ? ', ...' : ''
   return preview ? ` (serials: ${preview}${suffix})` : ''
@@ -1792,7 +1681,7 @@ function incompleteChangeLogMessage(action: 'export' | 'apply'): string {
 
 function assertCompleteChangeLog(
   action: 'export' | 'apply',
-  unavailableChangeSerials: number[]
+  unavailableChangeSerials: Array<number | string>
 ): void {
   if (unavailableChangeSerials.length === 0) {
     return
@@ -1893,39 +1782,6 @@ async function assertChangeLogExportStable(
   }
 }
 
-function createPrimitiveCounts(
-  changes: ParsedChangeRecord[]
-): ChangeLogPrimitiveCounts {
-  const counts: ChangeLogPrimitiveCounts = {
-    total: changes.length,
-    insert: 0,
-    delete: 0,
-    overwrite: 0,
-    replace: 0,
-    transform: 0,
-  }
-  for (const change of changes) {
-    switch (change.kind) {
-      case 'INSERT':
-        counts.insert += 1
-        break
-      case 'DELETE':
-        counts.delete += 1
-        break
-      case 'OVERWRITE':
-        counts.overwrite += 1
-        break
-      case 'REPLACE':
-        counts.replace += 1
-        break
-      case 'TRANSFORM':
-        counts.transform += 1
-        break
-    }
-  }
-  return counts
-}
-
 function createExpectedSizeDelta(parsed: ParsedChangeLog): ChangeLogSizeDelta {
   const beforeByteLength = parseNonNegativeInt64(
     parsed.before.byteLength,
@@ -1940,37 +1796,6 @@ function createExpectedSizeDelta(parsed: ParsedChangeLog): ChangeLogSizeDelta {
     afterByteLength: afterByteLength.toString(),
     deltaBytes: (afterByteLength - beforeByteLength).toString(),
   }
-}
-
-function createTransformDescriptorPreviews(
-  changes: ParsedChangeRecord[]
-): ChangeLogTransformDescriptorPreview[] {
-  return changes.flatMap((change, index) => {
-    if (change.kind !== 'TRANSFORM' || !change.transformDescriptor) {
-      return []
-    }
-    return [
-      {
-        index,
-        ...(change.serial ? { serial: int64ToDecimal(change.serial) } : {}),
-        offset: int64ToDecimal(change.offset),
-        length: int64ToDecimal(change.length),
-        transformId: change.transformDescriptor.transformId,
-        ...(change.transformDescriptor.optionsJson
-          ? { optionsJson: change.transformDescriptor.optionsJson }
-          : {}),
-        descriptorSource: 'data' as const,
-      },
-    ]
-  })
-}
-
-function createRequiredPlugins(
-  descriptors: ChangeLogTransformDescriptorPreview[]
-): string[] {
-  return Array.from(
-    new Set(descriptors.map((descriptor) => descriptor.transformId))
-  ).sort()
 }
 
 function replayPreviewErrorMessage(preview: ChangeLogPreview): string {
@@ -1993,102 +1818,80 @@ function serializeChangeLogPreviewForDisplay(
   }
 }
 
-function validateChangeLogDocumentMetadata(
-  document: Record<string, unknown>,
-  changes: ChangeRecord[]
-): ChangeLogDocumentMetadata {
-  if (typeof document.complete !== 'boolean') {
-    throw new Error('Change log complete must be a boolean')
-  }
-
-  const changeCount = readChangeLogDocumentCount(document, 'changeCount')
-  const sourceChangeCount = readChangeLogDocumentCount(
-    document,
-    'sourceChangeCount'
-  )
-  const unavailableChangeCount = readChangeLogDocumentCount(
-    document,
-    'unavailableChangeCount'
-  )
-  if (changeCount !== BigInt(changes.length)) {
-    throw new Error('Change log changeCount must match changes length')
-  }
-  if (sourceChangeCount < changeCount) {
-    throw new Error('Change log sourceChangeCount must cover changeCount')
-  }
-
-  const unavailableChangeSerials = normalizeUnavailableChangeSerials(
-    document.unavailableChangeSerials,
-    sourceChangeCount
-  )
-  if (unavailableChangeCount !== BigInt(unavailableChangeSerials.length)) {
-    throw new Error(
-      'Change log unavailableChangeCount must match unavailableChangeSerials length'
-    )
-  }
-  if (document.complete !== (unavailableChangeCount === 0n)) {
-    throw new Error(
-      'Change log complete must match unavailable change metadata'
-    )
-  }
-
+function preparedChangeLogToParsed(
+  prepared: PreparedChangeLog
+): ParsedChangeLog {
   return {
-    complete: document.complete,
-    changeCount: changeCount.toString(),
-    sourceChangeCount: sourceChangeCount.toString(),
-    unavailableChangeCount: unavailableChangeCount.toString(),
-    unavailableChangeSerials,
+    complete: prepared.complete,
+    before: prepared.before,
+    after: prepared.after,
+    changeCount: prepared.changeCount,
+    sourceChangeCount: prepared.sourceChangeCount,
+    unavailableChangeCount: prepared.unavailableChangeCount,
+    unavailableChangeSerials: prepared.unavailableChangeSerials,
+    entryCount: prepared.entryCount,
+    primitiveCounts: prepared.primitiveCounts,
+    transformDescriptors: prepared.transformDescriptors.map((descriptor) => ({
+      ...descriptor,
+      descriptorSource: 'data',
+    })),
+    requiredPlugins: prepared.requiredPlugins,
+    async *entries(): AsyncIterable<ParsedChangeRecord> {
+      for await (const entry of prepared.entries()) {
+        const change = safeChangeRecord(entry)
+        if (!change) {
+          throw new Error(
+            'Validated change log entry is not client-addressable'
+          )
+        }
+        yield change
+      }
+    },
   }
 }
 
 function parseChangeLog(content: Uint8Array): ParsedChangeLog {
   let parsed: unknown
   try {
-    parsed = JSON.parse(new TextDecoder().decode(content))
+    parsed = JSON.parse(
+      new TextDecoder('utf-8', { fatal: true }).decode(content)
+    )
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error)
     throw new Error(`Invalid change log JSON: ${message}`)
   }
+  return preparedChangeLogToParsed(normalizeChangeLogDocument(parsed))
+}
 
-  let entries: unknown[] | undefined
-  let document: Record<string, unknown> | undefined
-  if (isRecord(parsed)) {
-    if (parsed.format !== CHANGE_LOG_FORMAT) {
-      throw new Error('Unsupported change log format')
-    }
-    if (parsed.version !== CHANGE_LOG_VERSION) {
-      throw new Error('Unsupported change log version')
-    }
-    document = parsed
-    entries = Array.isArray(parsed.changes) ? parsed.changes : undefined
-  }
-
-  if (!entries) {
-    throw new Error(
-      'Change log must be a versioned omega-edit.change-log document'
+async function openParsedChangeLog(
+  uri: vscode.Uri,
+  signal?: AbortSignal
+): Promise<ParsedChangeLog> {
+  if (uri.scheme === 'file') {
+    return preparedChangeLogToParsed(
+      await openChangeLogFile(uri.fsPath, signal ? { signal } : undefined)
     )
   }
-
-  const changes = entries.map((entry, index) => {
-    const change = safeChangeRecord(entry)
-    if (!change) {
-      throw new Error(`Invalid change record at index ${index}`)
-    }
-    return change
-  })
-  validateChangeRecordMetadata(changes, entries)
-  if (document) {
-    const metadata = validateChangeLogDocumentMetadata(document, changes)
-    return {
-      changes,
-      ...metadata,
-      before: normalizeChangeLogFingerprint(document.before, 'before'),
-      after: normalizeChangeLogFingerprint(document.after, 'after'),
-    }
+  const stat = await vscode.workspace.fs.stat(uri)
+  if (stat.size > MAX_NON_FILE_CHANGE_LOG_BYTES) {
+    throw new Error(
+      `Non-file change logs are limited to ${MAX_NON_FILE_CHANGE_LOG_BYTES} bytes because this file system provider does not expose streaming reads`
+    )
   }
-  throw new Error(
-    'Change log must be a versioned omega-edit.change-log document'
-  )
+  if (signal?.aborted) {
+    throw new ChangeLogCancelledError()
+  }
+  const content = await vscode.workspace.fs.readFile(uri)
+  if (content.byteLength > MAX_NON_FILE_CHANGE_LOG_BYTES) {
+    throw new Error(
+      `Non-file change logs are limited to ${MAX_NON_FILE_CHANGE_LOG_BYTES} bytes because this file system provider does not expose streaming reads`
+    )
+  }
+  const parsed = parseChangeLog(content)
+  if (signal?.aborted) {
+    throw new ChangeLogCancelledError()
+  }
+  return parsed
 }
 
 function backupIdToFilePath(backupId: string | undefined): string | undefined {
@@ -2152,6 +1955,8 @@ export class HexEditorProvider
 
   private lastServerStatusItemKey = ''
 
+  private readonly timelineStorage?: Promise<CheckpointTimelineStorageManager>
+
   private readonly statusItems = {
     offset: vscode.window.createStatusBarItem(
       vscode.StatusBarAlignment.Right,
@@ -2178,7 +1983,7 @@ export class HexEditorProvider
   constructor(
     private readonly extensionContext?: Pick<
       vscode.ExtensionContext,
-      'extensionUri' | 'subscriptions'
+      'extensionUri' | 'subscriptions' | 'storageUri' | 'globalStorageUri'
     >
   ) {
     this.extensionContext?.subscriptions.push(
@@ -2188,6 +1993,37 @@ export class HexEditorProvider
       this.statusItems.dirty,
       this.statusItems.server
     )
+    const configuration = vscode.workspace.getConfiguration('omegaEdit')
+    const configuredStorage =
+      this.extensionContext?.storageUri?.fsPath ||
+      this.extensionContext?.globalStorageUri?.fsPath
+    const storageRoot =
+      configuredStorage ??
+      path.join(os.tmpdir(), 'omega-edit-vscode-checkpoint-storage')
+    this.timelineStorage = Promise.resolve().then(async () => {
+      const manager = new CheckpointTimelineStorageManager(storageRoot, {
+        limits: {
+          maxBytesPerSession: configuration.get(
+            'checkpointHistory.maxBytesPerSession',
+            CHECKPOINT_HISTORY_DEFAULTS.maxBytesPerSession
+          ),
+          maxBytesTotal: configuration.get(
+            'checkpointHistory.maxBytesTotal',
+            CHECKPOINT_HISTORY_DEFAULTS.maxBytesTotal
+          ),
+          maxCheckpoints: configuration.get(
+            'checkpointHistory.maxCheckpoints',
+            CHECKPOINT_HISTORY_DEFAULTS.maxCheckpoints
+          ),
+          staleRetentionDays: configuration.get(
+            'checkpointHistory.staleRetentionDays',
+            CHECKPOINT_HISTORY_DEFAULTS.staleRetentionDays
+          ),
+        },
+      })
+      await manager.initialize()
+      return manager
+    })
     this.hideStatusBar()
   }
 
@@ -2520,6 +2356,46 @@ export class HexEditorProvider
       return
     }
 
+    let fingerprintFailure: unknown
+    const originalFingerprint = await getChangeLogFingerprint(
+      scope.sessionId,
+      SessionFingerprintContent.COMPUTED,
+      DEFAULT_CHANGE_LOG_DIGEST_ALGORITHM
+    ).catch((error) => {
+      fingerprintFailure = error
+      return {
+        byteLength: String(scope.model.fileSize),
+        digest: { algorithm: 'sha256', value: '0'.repeat(64) },
+      }
+    })
+    const timelineStorage = fingerprintFailure
+      ? undefined
+      : await this.timelineStorage
+          ?.then((manager) =>
+            manager.createSession(
+              document.uri.toString(true),
+              originalFingerprint,
+              path.basename(filePath)
+            )
+          )
+          .catch((error) => {
+            fingerprintFailure = error
+            return undefined
+          })
+    if (fingerprintFailure) {
+      void vscode.window.showWarningMessage(
+        vscode.l10n.t(
+          'Checkpoint history storage is unavailable; editing remains enabled. {message}',
+          {
+            message:
+              fingerprintFailure instanceof Error
+                ? fingerprintFailure.message
+                : String(fingerprintFailure),
+          }
+        )
+      )
+    }
+
     const session: EditorSession = {
       get sessionId() {
         return this.scope.sessionId
@@ -2555,6 +2431,28 @@ export class HexEditorProvider
       transformPlugins: [],
       transformInFlight: false,
       restoredFromBackup: wasRestoredFromBackup,
+      checkpointTimeline: {
+        entries: [],
+        storage: timelineStorage,
+        originalFingerprint,
+        lastArchivedChangeCount: 0,
+        cursor: 0,
+        savedChangeCount: 0,
+        savedFingerprint: originalFingerprint,
+        currentFingerprint: originalFingerprint,
+        visible: false,
+        navigating: false,
+      },
+    }
+    if (timelineStorage) {
+      const heartbeatTimer = setInterval(() => {
+        void timelineStorage.heartbeat().catch((error) => {
+          console.warn(
+            `Failed to refresh checkpoint timeline heartbeat: ${error instanceof Error ? error.message : String(error)}`
+          )
+        })
+      }, 60_000)
+      panelDisposables.push({ dispose: () => clearInterval(heartbeatTimer) })
     }
     this.sessions.set(uri.toString(), session)
     this.updateActiveSessionResourcePathContext()
@@ -2602,7 +2500,13 @@ export class HexEditorProvider
         this.updateEditCommandContexts(undefined)
       }
       this.stopHealthPollingIfIdle()
+      await session.checkpointTimeline.operation?.catch(() => undefined)
       await session.scope.dispose()
+      await session.checkpointTimeline.storage?.close().catch((error) => {
+        console.warn(
+          `Failed to remove checkpoint timeline storage: ${error instanceof Error ? error.message : String(error)}`
+        )
+      })
     })
   }
 
@@ -2623,6 +2527,18 @@ export class HexEditorProvider
     )
     session.restoredFromBackup = false
     session.history.markSaved()
+    session.checkpointTimeline.savedChangeCount = await getChangeCount(
+      session.sessionId
+    )
+    const fingerprint = await getChangeLogFingerprint(
+      session.sessionId,
+      SessionFingerprintContent.COMPUTED,
+      'sha256'
+    )
+    session.checkpointTimeline.savedFingerprint = fingerprint
+    session.checkpointTimeline.currentFingerprint = fingerprint
+    await session.checkpointTimeline.storage?.setSavedFingerprint(fingerprint)
+    this.postCheckpointTimeline(session)
     this.postEditState(session)
   }
 
@@ -2647,6 +2563,18 @@ export class HexEditorProvider
     )
     session.restoredFromBackup = false
     session.history.markSaved()
+    session.checkpointTimeline.savedChangeCount = await getChangeCount(
+      session.sessionId
+    )
+    const fingerprint = await getChangeLogFingerprint(
+      session.sessionId,
+      SessionFingerprintContent.COMPUTED,
+      'sha256'
+    )
+    session.checkpointTimeline.savedFingerprint = fingerprint
+    session.checkpointTimeline.currentFingerprint = fingerprint
+    await session.checkpointTimeline.storage?.setSavedFingerprint(fingerprint)
+    this.postCheckpointTimeline(session)
     this.postEditState(session)
   }
 
@@ -3021,10 +2949,8 @@ export class HexEditorProvider
     scriptUri: vscode.Uri | undefined
   ): Promise<ChangeLogPreview> {
     const safetyIssues: ChangeLogSafetyIssue[] = []
-    const transformDescriptors = createTransformDescriptorPreviews(
-      parsed.changes
-    )
-    const requiredPlugins = createRequiredPlugins(transformDescriptors)
+    const transformDescriptors = parsed.transformDescriptors
+    const requiredPlugins = parsed.requiredPlugins
     let missingPlugins: string[] = []
 
     if (parsed.unavailableChangeSerials.length > 0) {
@@ -3082,7 +3008,7 @@ export class HexEditorProvider
       version: CHANGE_LOG_VERSION,
       complete: parsed.complete,
       canApply: errorCount === 0,
-      primitiveCounts: createPrimitiveCounts(parsed.changes),
+      primitiveCounts: parsed.primitiveCounts,
       before: parsed.before,
       after: parsed.after,
       current,
@@ -3092,9 +3018,7 @@ export class HexEditorProvider
       missingPlugins,
       unavailablePrimitives: {
         count: parsed.unavailableChangeCount,
-        serials: parsed.unavailableChangeSerials.map((serial) =>
-          serial.toString()
-        ),
+        serials: parsed.unavailableChangeSerials,
       },
       rollbackProtection: {
         available: true,
@@ -3199,8 +3123,35 @@ export class HexEditorProvider
       }
     }
 
-    const content = await vscode.workspace.fs.readFile(scriptUri)
-    const parsed = parseChangeLog(content)
+    const controller = new AbortController()
+    let parsed: ParsedChangeLog
+    try {
+      parsed = await vscode.window.withProgress(
+        {
+          location: vscode.ProgressLocation.Notification,
+          title: vscode.l10n.t('Validating OmegaEdit change log…'),
+          cancellable: true,
+        },
+        async (_progress, token) => {
+          const subscription = token.onCancellationRequested(() =>
+            controller.abort()
+          )
+          try {
+            return await openParsedChangeLog(scriptUri, controller.signal)
+          } finally {
+            subscription.dispose()
+          }
+        }
+      )
+    } catch (error) {
+      if (isChangeLogCancellationError(error)) {
+        void vscode.window.showInformationMessage(
+          vscode.l10n.t('Change log preview cancelled')
+        )
+        return
+      }
+      throw error
+    }
     const preview = await this.createChangeLogPreview(
       session,
       parsed,
@@ -3279,19 +3230,38 @@ export class HexEditorProvider
       SessionFingerprintContent.COMPUTED,
       before.digest.algorithm
     )
-
-    let changeCount = sourceChangeCount
-    let unavailableChangeSerials: number[] = []
-    if (scriptUri.scheme === 'file') {
-      const collected = await vscode.window.withProgress(
+    const controller = new AbortController()
+    const withExportProgress = async <T>(
+      work: (
+        progress: vscode.Progress<{ increment?: number; message?: string }>,
+        signal: AbortSignal
+      ) => Promise<T>
+    ): Promise<T> =>
+      await vscode.window.withProgress(
         {
           location: vscode.ProgressLocation.Notification,
           title: vscode.l10n.t('Exporting {count} change log entries…', {
             count: sourceChangeCount,
           }),
-          cancellable: false,
+          cancellable: true,
         },
-        async (progress) => {
+        async (progress, token) => {
+          const subscription = token.onCancellationRequested(() =>
+            controller.abort()
+          )
+          try {
+            return await work(progress, controller.signal)
+          } finally {
+            subscription.dispose()
+          }
+        }
+      )
+
+    let changeCount = sourceChangeCount
+    let unavailableChangeSerials: number[] = []
+    try {
+      if (scriptUri.scheme === 'file') {
+        const collected = await withExportProgress(async (progress, signal) => {
           let previousSerial = 0
           return await writeChangeLogFile(
             scriptUri.fsPath,
@@ -3316,83 +3286,120 @@ export class HexEditorProvider
                       total: sourceChangeCount,
                     }),
                   })
-                }
+                },
+                signal
               ),
             async () =>
               await assertChangeLogExportStable(
                 session.sessionId,
                 sourceChangeCount,
                 after
+              ),
+            signal
+          )
+        })
+        unavailableChangeSerials = collected.unavailableChangeSerials
+      } else {
+        const changes: ChangeRecord[] = []
+        if (sourceChangeCount > 0) {
+          let encodedEntryBytes = 0
+          const collected = await withExportProgress(
+            async (progress, signal) => {
+              let previousSerial = 0
+              return await collectChangeLogRecords(
+                session.sessionId,
+                sourceChangeCount,
+                async (record) => {
+                  if (changes.length >= MAX_NON_FILE_CHANGE_LOG_ENTRIES) {
+                    throw new Error(
+                      `Non-file change log export is limited to ${MAX_NON_FILE_CHANGE_LOG_ENTRIES} entries because this file system provider does not expose streaming writes`
+                    )
+                  }
+                  encodedEntryBytes += Buffer.byteLength(
+                    JSON.stringify(serializeChangeLogEntry(record)),
+                    'utf8'
+                  )
+                  if (encodedEntryBytes > MAX_NON_FILE_CHANGE_LOG_BYTES) {
+                    throw new Error(
+                      `Non-file change log export is limited to ${MAX_NON_FILE_CHANGE_LOG_BYTES} bytes because this file system provider does not expose streaming writes`
+                    )
+                  }
+                  changes.push(record)
+                },
+                (serial) => {
+                  const increment =
+                    ((serial - previousSerial) / sourceChangeCount) * 100
+                  previousSerial = serial
+                  progress.report({
+                    increment,
+                    message: vscode.l10n.t('{current} of {total}', {
+                      current: serial,
+                      total: sourceChangeCount,
+                    }),
+                  })
+                },
+                signal
               )
+            }
+          )
+          unavailableChangeSerials = collected.unavailableChangeSerials
+        }
+        assertCompleteChangeLog('export', unavailableChangeSerials)
+        await assertChangeLogExportStable(
+          session.sessionId,
+          sourceChangeCount,
+          after
+        )
+        changeCount = changes.length
+        const unavailableChangeCount = unavailableChangeSerials.length
+        const content = Buffer.from(
+          JSON.stringify(
+            {
+              format: CHANGE_LOG_FORMAT,
+              version: CHANGE_LOG_VERSION,
+              complete: unavailableChangeCount === 0,
+              before,
+              after,
+              changeCount: changeCount.toString(),
+              sourceChangeCount: sourceChangeCount.toString(),
+              unavailableChangeCount: unavailableChangeCount.toString(),
+              unavailableChangeSerials: unavailableChangeSerials.map((serial) =>
+                serial.toString()
+              ),
+              changes: changes.map(serializeChangeLogEntry),
+            },
+            null,
+            2
+          ),
+          'utf8'
+        )
+        if (content.byteLength > MAX_NON_FILE_CHANGE_LOG_BYTES) {
+          throw new Error(
+            `Non-file change log export is limited to ${MAX_NON_FILE_CHANGE_LOG_BYTES} bytes because this file system provider does not expose streaming writes`
           )
         }
-      )
-      unavailableChangeSerials = collected.unavailableChangeSerials
-    } else {
-      let changes: ChangeRecord[] = []
-      if (sourceChangeCount > 0) {
-        const collected = await vscode.window.withProgress(
-          {
-            location: vscode.ProgressLocation.Notification,
-            title: vscode.l10n.t('Exporting {count} change log entries…', {
-              count: sourceChangeCount,
-            }),
-            cancellable: false,
-          },
-          async (progress) => {
-            let previousSerial = 0
-            return await collectChangeLogRecords(
-              session.sessionId,
-              sourceChangeCount,
-              undefined,
-              (serial) => {
-                const increment =
-                  ((serial - previousSerial) / sourceChangeCount) * 100
-                previousSerial = serial
-                progress.report({
-                  increment,
-                  message: vscode.l10n.t('{current} of {total}', {
-                    current: serial,
-                    total: sourceChangeCount,
-                  }),
-                })
-              }
-            )
-          }
-        )
-        changes = collected.changes ?? []
-        unavailableChangeSerials = collected.unavailableChangeSerials
+        if (controller.signal.aborted) {
+          throw new ChangeLogCancelledError()
+        }
+        await vscode.workspace.fs.writeFile(scriptUri, content)
       }
-      assertCompleteChangeLog('export', unavailableChangeSerials)
-      await assertChangeLogExportStable(
-        session.sessionId,
+    } catch (error) {
+      if (!isChangeLogCancellationError(error)) {
+        throw error
+      }
+      this.postSessionActionComplete(session, {
+        action: 'exportChangeLog',
+        changeCount: 0,
+        cancelled: true,
+        message: vscode.l10n.t('Change log export cancelled'),
+      })
+      return {
+        state: this.buildEditorState(session),
+        uri: scriptUri,
+        changeCount: 0,
         sourceChangeCount,
-        after
-      )
-      changeCount = changes.length
-      const unavailableChangeCount = unavailableChangeSerials.length
-      const content = Buffer.from(
-        JSON.stringify(
-          {
-            format: CHANGE_LOG_FORMAT,
-            version: CHANGE_LOG_VERSION,
-            complete: unavailableChangeCount === 0,
-            before,
-            after,
-            changeCount: changeCount.toString(),
-            sourceChangeCount: sourceChangeCount.toString(),
-            unavailableChangeCount: unavailableChangeCount.toString(),
-            unavailableChangeSerials: unavailableChangeSerials.map((serial) =>
-              serial.toString()
-            ),
-            changes: changes.map(serializeChangeLogRecord),
-          },
-          null,
-          2
-        ),
-        'utf8'
-      )
-      await vscode.workspace.fs.writeFile(scriptUri, content)
+        cancelled: true,
+      }
     }
     assertCompleteChangeLog('export', unavailableChangeSerials)
     const unavailableChangeCount = unavailableChangeSerials.length
@@ -3463,10 +3470,26 @@ export class HexEditorProvider
       }
     }
 
-    const content = await vscode.workspace.fs.readFile(scriptUri)
+    const controller = new AbortController()
     let parsed: ParsedChangeLog
     try {
-      parsed = parseChangeLog(content)
+      parsed = await vscode.window.withProgress(
+        {
+          location: vscode.ProgressLocation.Notification,
+          title: vscode.l10n.t('Validating OmegaEdit change log…'),
+          cancellable: true,
+        },
+        async (_progress, token) => {
+          const subscription = token.onCancellationRequested(() =>
+            controller.abort()
+          )
+          try {
+            return await openParsedChangeLog(scriptUri, controller.signal)
+          } finally {
+            subscription.dispose()
+          }
+        }
+      )
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error)
       this.postSessionActionComplete(session, {
@@ -3475,11 +3498,17 @@ export class HexEditorProvider
         cancelled: true,
         message,
       })
-      void vscode.window.showErrorMessage(
-        vscode.l10n.t('Invalid OmegaEdit change log: {message}', {
-          message,
-        })
-      )
+      if (isChangeLogCancellationError(error)) {
+        void vscode.window.showInformationMessage(
+          vscode.l10n.t('Change log apply cancelled')
+        )
+      } else {
+        void vscode.window.showErrorMessage(
+          vscode.l10n.t('Invalid OmegaEdit change log: {message}', {
+            message,
+          })
+        )
+      }
       return {
         state: this.buildEditorState(session),
         uri: scriptUri,
@@ -3491,8 +3520,6 @@ export class HexEditorProvider
         },
       }
     }
-    const { changes } = parsed
-
     const preview = await this.createChangeLogPreview(
       session,
       parsed,
@@ -3511,7 +3538,7 @@ export class HexEditorProvider
       uri: scriptUri,
       changeCount: appliedCount,
       appliedCount,
-      sourceChangeCount: changes.length,
+      sourceChangeCount: parsed.entryCount,
       complete: parsed.complete,
       before: parsed.before,
       after: parsed.after,
@@ -3582,16 +3609,23 @@ export class HexEditorProvider
         {
           location: vscode.ProgressLocation.Notification,
           title: vscode.l10n.t('Applying {count} change log entries…', {
-            count: changes.length,
+            count: parsed.entryCount,
           }),
-          cancellable: false,
+          cancellable: true,
         },
-        async () => {
-          appliedChangeCount = await this.applyChangeLogEntries(
-            session,
-            changes,
-            parsed.after
+        async (_progress, token) => {
+          const subscription = token.onCancellationRequested(() =>
+            controller.abort()
           )
+          try {
+            appliedChangeCount = await this.applyChangeLogEntries(
+              session,
+              parsed.entries(),
+              parsed.after
+            )
+          } finally {
+            subscription.dispose()
+          }
         }
       )
     } catch (error) {
@@ -3606,6 +3640,15 @@ export class HexEditorProvider
         details?.finalFingerprint
       )
       detailedError.result = result
+      if (isChangeLogCancellationError(error)) {
+        this.postSessionActionComplete(session, {
+          action: 'applyChangeLog',
+          changeCount: result.appliedCount ?? 0,
+          cancelled: true,
+          message: vscode.l10n.t('Change log apply cancelled'),
+        })
+        return { ...result, cancelled: true }
+      }
       throw detailedError
     }
 
@@ -3614,6 +3657,10 @@ export class HexEditorProvider
       SessionFingerprintContent.COMPUTED,
       parsed.after.digest.algorithm
     )
+    if (appliedChangeCount > 0) {
+      await this.truncateCheckpointTimelineFuture(session)
+      session.checkpointTimeline.currentFingerprint = finalFingerprint
+    }
     this.postSessionActionComplete(session, {
       action: 'applyChangeLog',
       changeCount: appliedChangeCount,
@@ -3631,7 +3678,7 @@ export class HexEditorProvider
       uri: scriptUri,
       changeCount: appliedChangeCount,
       appliedCount: appliedChangeCount,
-      sourceChangeCount: changes.length,
+      sourceChangeCount: parsed.entryCount,
       complete: parsed.complete,
       before: parsed.before,
       after: parsed.after,
@@ -3855,6 +3902,8 @@ export class HexEditorProvider
       const sessionSyncVersion = session.sessionSyncVersion
       const dataHex = Buffer.from(picked.bytes).toString('hex')
       const serial = await insert(session.sessionId, offset, picked.bytes)
+      await this.truncateCheckpointTimelineFuture(session)
+      this.markCheckpointTimelineChanged(session)
       session.history.recordLocalChange({
         serial,
         kind: 'INSERT',
@@ -4083,6 +4132,289 @@ export class HexEditorProvider
     }
   }
 
+  async showCheckpointTimeline(
+    options?: unknown
+  ): Promise<CheckpointTimelineResult | undefined> {
+    const session = this.resolveCommandSession(options)
+    if (!session) {
+      void vscode.window.showWarningMessage(openEditorFirstMessage())
+      return
+    }
+    session.checkpointTimeline.visible = true
+    this.postCheckpointTimeline(session)
+    return {
+      state: this.buildEditorState(session),
+      checkpointCount: session.checkpointTimeline.entries.length,
+      moved: false,
+    }
+  }
+
+  private async navigateToCheckpoint(
+    session: EditorSession,
+    targetCheckpointCount: number
+  ): Promise<CheckpointTimelineResult> {
+    const timeline = session.checkpointTimeline
+    const checkpointCount = timeline.entries.length
+    if (
+      !Number.isInteger(targetCheckpointCount) ||
+      targetCheckpointCount < 0 ||
+      targetCheckpointCount > checkpointCount
+    ) {
+      throw new RangeError(
+        `Checkpoint target ${targetCheckpointCount} is outside 0..${checkpointCount}`
+      )
+    }
+
+    if (targetCheckpointCount === timeline.cursor) {
+      return {
+        state: this.buildEditorState(session),
+        checkpointCount,
+        moved: false,
+      }
+    }
+
+    timeline.navigating = true
+    this.postCheckpointTimeline(session)
+    this.postTransformStatus(
+      session,
+      true,
+      undefined,
+      vscode.l10n.t('Moving through checkpoint timeline...')
+    )
+    let failureMessage: string | undefined
+    const originalCursor = timeline.cursor
+    try {
+      const sessionSyncVersion = session.sessionSyncVersion
+      if (targetCheckpointCount < timeline.cursor) {
+        // A rewind destroys native checkpoints. Validate every archive that
+        // could be needed to recover to the durable tip before doing so.
+        for (
+          let checkpoint = targetCheckpointCount + 1;
+          checkpoint <= timeline.entries.length;
+          checkpoint += 1
+        ) {
+          await this.preflightCheckpointTimelineInterval(session, checkpoint)
+        }
+        let remaining = await this.getCheckpointCount(session)
+        while (remaining > targetCheckpointCount) {
+          remaining = await destroyLastCheckpoint(session.sessionId)
+        }
+        if (targetCheckpointCount > 0) {
+          await restoreLastCheckpoint(session.sessionId)
+        } else {
+          await clear(session.sessionId)
+        }
+        const expected =
+          targetCheckpointCount === 0
+            ? timeline.originalFingerprint
+            : timeline.entries[targetCheckpointCount - 1].interval.after
+        await assertCurrentSessionFingerprint(
+          session.sessionId,
+          expected,
+          'after'
+        )
+        timeline.cursor = targetCheckpointCount
+        await timeline.storage?.setCursor(targetCheckpointCount)
+      } else {
+        for (
+          let next = timeline.cursor + 1;
+          next <= targetCheckpointCount;
+          next += 1
+        ) {
+          const entry = timeline.entries[next - 1]
+          if (!entry || entry.interval.checkpoint !== next) {
+            throw new Error(`Checkpoint ${next} is missing from the timeline`)
+          }
+          await this.replayCheckpointTimelineInterval(session, next)
+          timeline.cursor = next
+          await timeline.storage?.setCursor(next)
+        }
+      }
+
+      await this.waitForSessionSync(session, sessionSyncVersion)
+      const currentFingerprint = await getChangeLogFingerprint(
+        session.sessionId,
+        SessionFingerprintContent.COMPUTED,
+        'sha256'
+      )
+      timeline.currentFingerprint = currentFingerprint
+      const isDirty = !timelineFingerprintsEqual(
+        currentFingerprint,
+        timeline.savedFingerprint
+      )
+      await this.resetSessionState(session, isDirty, isDirty, false)
+      await this.refreshSessionContentInfo(session)
+      this.clearSearchState(session)
+      this.postTransformStatus(
+        session,
+        false,
+        undefined,
+        vscode.l10n.t('Checkpoint timeline updated')
+      )
+      return {
+        state: this.buildEditorState(session),
+        checkpointCount: targetCheckpointCount,
+        moved: true,
+      }
+    } catch (error) {
+      failureMessage = error instanceof Error ? error.message : String(error)
+      console.warn(`Checkpoint timeline navigation failed: ${failureMessage}`)
+      let rollbackFailure: string | undefined
+      try {
+        let nativeCursor = await this.getCheckpointCount(session)
+        while (nativeCursor > originalCursor) {
+          nativeCursor = await destroyLastCheckpoint(session.sessionId)
+        }
+        while (nativeCursor < originalCursor) {
+          await this.replayCheckpointTimelineInterval(session, nativeCursor + 1)
+          nativeCursor += 1
+        }
+        const originalFingerprint =
+          originalCursor === 0
+            ? timeline.originalFingerprint
+            : timeline.entries[originalCursor - 1].interval.after
+        await assertCurrentSessionFingerprint(
+          session.sessionId,
+          originalFingerprint,
+          'after'
+        )
+        timeline.cursor = originalCursor
+        await timeline.storage?.setCursor(originalCursor)
+        timeline.currentFingerprint = await getChangeLogFingerprint(
+          session.sessionId,
+          SessionFingerprintContent.COMPUTED,
+          'sha256'
+        )
+      } catch (rollbackError) {
+        rollbackFailure =
+          rollbackError instanceof Error
+            ? rollbackError.message
+            : String(rollbackError)
+        timeline.cursor = await this.getCheckpointCount(session).catch(
+          () => timeline.cursor
+        )
+      }
+      await this.sendViewportData(session).catch(() => undefined)
+      if (rollbackFailure) {
+        throw new Error(
+          `${failureMessage}; rollback to checkpoint ${originalCursor} also failed: ${rollbackFailure}`
+        )
+      }
+      throw new Error(
+        `${failureMessage}; restored checkpoint ${originalCursor}`
+      )
+    } finally {
+      timeline.navigating = false
+      this.postCheckpointTimeline(session)
+      if (failureMessage) {
+        this.postTransformStatus(session, false, undefined, failureMessage)
+      }
+    }
+  }
+
+  private async preflightCheckpointTimelineInterval(
+    session: EditorSession,
+    checkpoint: number
+  ): Promise<void> {
+    const entry = session.checkpointTimeline.entries[checkpoint - 1]
+    if (!entry || entry.interval.checkpoint !== checkpoint) {
+      throw new TimelineStorageError(
+        'TIMELINE_INTERVAL_UNAVAILABLE',
+        `Checkpoint ${checkpoint} is missing from the timeline`
+      )
+    }
+    const availablePlugins = new Set(
+      session.transformPlugins.map((plugin) => plugin.id)
+    )
+    const missingPlugins = entry.interval.transformPluginIds.filter(
+      (id) => !availablePlugins.has(id)
+    )
+    if (missingPlugins.length > 0) {
+      throw new TimelineStorageError(
+        'TIMELINE_PLUGIN_UNAVAILABLE',
+        `Checkpoint ${checkpoint} requires unavailable transform plugin(s): ${missingPlugins.join(', ')}`
+      )
+    }
+    const storage = session.checkpointTimeline.storage
+    if (!storage) {
+      throw new TimelineStorageError(
+        'TIMELINE_INTERVAL_UNAVAILABLE',
+        `Checkpoint ${checkpoint} has no durable replay archive`
+      )
+    }
+    try {
+      await storage.openInterval(checkpoint)
+    } catch (error) {
+      const code =
+        error instanceof TimelineStorageError
+          ? error.code
+          : 'TIMELINE_PREFLIGHT_FAILED'
+      const message = error instanceof Error ? error.message : String(error)
+      entry.interval = {
+        ...entry.interval,
+        state: 'unavailable',
+        archive: undefined,
+        error: { code, message },
+      }
+      entry.interval = await storage
+        .markIntervalUnavailable(checkpoint, code, message)
+        .catch(() => entry.interval)
+      this.postCheckpointTimeline(session)
+      throw error
+    }
+  }
+
+  private async replayCheckpointTimelineInterval(
+    session: EditorSession,
+    checkpoint: number
+  ): Promise<void> {
+    await this.preflightCheckpointTimelineInterval(session, checkpoint)
+    const entry = session.checkpointTimeline.entries[checkpoint - 1]
+    const startChangeCount = await getChangeCount(session.sessionId)
+    const startCheckpointCount = await this.getCheckpointCount(session)
+    await assertCurrentSessionFingerprint(
+      session.sessionId,
+      entry.interval.before,
+      'before'
+    )
+    try {
+      const archive =
+        await session.checkpointTimeline.storage?.openInterval(checkpoint)
+      if (!archive) throw new Error(`Checkpoint ${checkpoint} is unavailable`)
+      await this.applyChangeLogEntries(
+        session,
+        preparedChangeLogToParsed(archive).entries(),
+        entry.interval.after
+      )
+      const replayCheckpointCount = await this.getCheckpointCount(session)
+      if (replayCheckpointCount < checkpoint) {
+        await createCheckpoint(session.sessionId)
+      } else if (replayCheckpointCount > checkpoint) {
+        throw new Error(
+          `Checkpoint replay reached ${replayCheckpointCount}, expected ${checkpoint}`
+        )
+      }
+      await assertCurrentSessionFingerprint(
+        session.sessionId,
+        entry.interval.after,
+        'after'
+      )
+      session.history = new EditorHistoryController()
+    } catch (error) {
+      let nativeCheckpointCount = await this.getCheckpointCount(session)
+      while (nativeCheckpointCount > startCheckpointCount) {
+        nativeCheckpointCount = await destroyLastCheckpoint(session.sessionId)
+      }
+      await restoreToChangeCount(session.sessionId, startChangeCount)
+      await assertCurrentSessionFingerprint(
+        session.sessionId,
+        entry.interval.before,
+        'before'
+      )
+      throw error
+    }
+  }
+
   async rollbackActiveSession(): Promise<WebviewEditorState | undefined> {
     const session = this.activeSession
     if (!session) {
@@ -4233,9 +4565,69 @@ export class HexEditorProvider
     this.postWebviewMessage(session, {
       type: 'editState',
       ...editState,
-      isDirty: editState.isDirty || !!session.restoredFromBackup,
+      isDirty: !timelineFingerprintsEqual(
+        session.checkpointTimeline.currentFingerprint,
+        session.checkpointTimeline.savedFingerprint
+      ),
     })
     this.fireEditorStateChanged(session)
+  }
+
+  private postCheckpointTimeline(session: EditorSession): void {
+    const timeline = session.checkpointTimeline
+    const manifest = timeline.storage?.manifest
+    const savedCheckpoint =
+      manifest?.saved.checkpoint ??
+      (timelineFingerprintsEqual(
+        timeline.savedFingerprint,
+        timeline.originalFingerprint
+      )
+        ? 0
+        : undefined)
+    const availablePlugins = new Set(
+      session.transformPlugins.map((plugin) => plugin.id)
+    )
+    const intervalAvailable = (checkpoint: number): boolean => {
+      const interval = timeline.entries[checkpoint - 1]?.interval
+      return (
+        !!timeline.storage &&
+        interval?.state === 'ready' &&
+        interval.transformPluginIds.every((id) => availablePlugins.has(id))
+      )
+    }
+    const canRewind =
+      timeline.cursor > 0 &&
+      timeline.entries
+        .slice(timeline.cursor - 1)
+        .every((entry) => intervalAvailable(entry.interval.checkpoint))
+    const canFastForward =
+      timeline.cursor < timeline.entries.length &&
+      intervalAvailable(timeline.cursor + 1)
+    this.postWebviewMessage(session, {
+      type: 'checkpointTimeline',
+      visible: timeline.visible,
+      cursor: timeline.cursor,
+      checkpointCount: timeline.entries.length,
+      savedChangeCount: timeline.savedChangeCount,
+      savedCheckpoint,
+      savedOffBranch:
+        manifest?.saved.offBranch ??
+        (!timelineFingerprintsEqual(
+          timeline.savedFingerprint,
+          timeline.originalFingerprint
+        ) &&
+          savedCheckpoint === undefined),
+      canRewind,
+      canFastForward,
+      navigating: timeline.navigating,
+      checkpoints: timeline.entries.map((entry) => ({
+        checkpoint: entry.interval.checkpoint,
+        changeCount: entry.changeCount,
+        createdAt: Date.parse(entry.interval.createdAt),
+        available: intervalAvailable(entry.interval.checkpoint),
+        error: entry.interval.error?.message,
+      })),
+    })
   }
 
   private postExternalHighlights(session: EditorSession): void {
@@ -4879,6 +5271,7 @@ export class HexEditorProvider
         type: 'transformPlugins',
         plugins: serializedPlugins,
       })
+      this.postCheckpointTimeline(session)
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error)
       session.transformPlugins = []
@@ -4890,6 +5283,7 @@ export class HexEditorProvider
         plugins: [],
         error: message,
       })
+      this.postCheckpointTimeline(session)
     }
   }
 
@@ -5007,6 +5401,8 @@ export class HexEditorProvider
         if (response.serial === undefined) {
           throw new Error('Transform did not return a change serial')
         }
+        await this.truncateCheckpointTimelineFuture(session)
+        this.markCheckpointTimelineChanged(session)
         session.history.recordLocalChange({
           serial: response.serial,
           kind: 'TRANSFORM',
@@ -5017,6 +5413,15 @@ export class HexEditorProvider
         this.postEditState(session)
         this.notifyDocumentChanged(session)
         await this.waitForSessionSync(session, sessionSyncVersion)
+        const checkpointCount = await this.getCheckpointCount(session)
+        if (checkpointCount > session.checkpointTimeline.entries.length) {
+          await this.recordCheckpointTimelineEntry(
+            session,
+            checkpointCount,
+            'transform',
+            [response.pluginId]
+          )
+        }
         this.clearSearchState(session)
       }
 
@@ -5253,6 +5658,189 @@ export class HexEditorProvider
     return counts[0]?.getCount() ?? 0
   }
 
+  private async recordCheckpointTimelineEntry(
+    session: EditorSession,
+    checkpointCount: number,
+    boundaryKind: 'plain' | 'transform' = 'plain',
+    transformPluginIds: string[] = [],
+    replayRecords: ChangeRecord[] = []
+  ): Promise<void> {
+    if (session.checkpointTimeline.navigating) {
+      return
+    }
+
+    const timeline = session.checkpointTimeline
+    let resolveTimelineOperation: () => void = () => undefined
+    timeline.operation = new Promise<void>((resolve) => {
+      resolveTimelineOperation = resolve
+    })
+    try {
+      const previousChangeCount = timeline.lastArchivedChangeCount
+      const changeCount = await getChangeCount(session.sessionId)
+      const after = await getChangeLogFingerprint(
+        session.sessionId,
+        SessionFingerprintContent.COMPUTED,
+        DEFAULT_CHANGE_LOG_DIGEST_ALGORITHM
+      )
+      const before =
+        timeline.entries.at(-1)?.interval.after ?? timeline.originalFingerprint
+      const sourceChangeCount =
+        replayRecords.length > 0
+          ? replayRecords.length
+          : Math.max(0, changeCount - previousChangeCount)
+      const storage = timeline.storage
+      let interval: CheckpointIntervalManifestEntryV1
+      const captureInput = {
+        checkpoint: checkpointCount,
+        expectedGeneration:
+          storage?.manifest.nextGeneration ??
+          (timeline.entries.at(-1)?.interval.generation ?? 0) + 1,
+        sourceChangeCount,
+        before,
+        after,
+        boundaryKind,
+        transformPluginIds,
+      } as const
+      try {
+        if (!storage) {
+          throw new TimelineStorageError(
+            'TIMELINE_STORAGE_UNAVAILABLE',
+            'Checkpoint history storage is unavailable'
+          )
+        }
+        const writeCandidate =
+          (optimize: boolean) =>
+          async (
+            outputPath: string,
+            maxBytes: number,
+            onBytesWritten: (byteLength: number) => Promise<void>
+          ) => {
+            if (replayRecords.length > 0) {
+              const result = await writeChangeLogFileAtomic(
+                outputPath,
+                changeLogHeaderForExport({
+                  complete: true,
+                  before: {
+                    byteLength: String(before.byteLength),
+                    digest: before.digest,
+                  },
+                  after: {
+                    byteLength: String(after.byteLength),
+                    digest: after.digest,
+                  },
+                  changeCount: replayRecords.length,
+                  sourceChangeCount: replayRecords.length,
+                  unavailableChangeSerials: [],
+                }),
+                async (sink) => {
+                  for (const record of replayRecords) {
+                    await sink.writeEntry(record)
+                  }
+                },
+                { maxBytes }
+              )
+              await onBytesWritten(result.byteLength)
+              return { byteLength: result.byteLength }
+            }
+            if (sourceChangeCount === 0) {
+              return await writeEmptyCheckpointInterval(
+                outputPath,
+                before,
+                after,
+                maxBytes
+              )
+            }
+            const result = await writeChangeLogRpcExportAtomic(
+              outputPath,
+              {
+                sessionId: session.sessionId,
+                optimize,
+                firstChangeSerial: previousChangeCount + 1,
+                lastChangeSerial: changeCount,
+                maxOutputBytes: maxBytes,
+              },
+              { maxBytes, onBytesWritten }
+            )
+            return { byteLength: result.byteLength }
+          }
+        interval = await storage.captureInterval({
+          ...captureInput,
+          writeRaw: writeCandidate(false),
+          writeOptimized: writeCandidate(true),
+        })
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error)
+        const unavailable: CheckpointIntervalManifestEntryV1 = {
+          checkpoint: checkpointCount,
+          generation: captureInput.expectedGeneration,
+          before: {
+            byteLength: String(before.byteLength),
+            digest: before.digest,
+          },
+          after: {
+            byteLength: String(after.byteLength),
+            digest: after.digest,
+          },
+          sourceChangeCount: String(sourceChangeCount),
+          createdAt: new Date().toISOString(),
+          boundaryKind,
+          transformPluginIds: [...new Set(transformPluginIds)].sort(),
+          state: 'unavailable',
+          error: {
+            code:
+              error instanceof TimelineStorageError
+                ? error.code
+                : 'TIMELINE_CAPTURE_FAILED',
+            message,
+          },
+        }
+        interval = storage
+          ? await storage
+              .recordUnavailable(
+                captureInput,
+                unavailable.error?.code ?? 'TIMELINE_CAPTURE_FAILED',
+                message
+              )
+              .catch(() => unavailable)
+          : unavailable
+      }
+
+      timeline.entries.splice(checkpointCount - 1)
+      timeline.entries.push({ changeCount, interval })
+      timeline.lastArchivedChangeCount = changeCount
+      timeline.cursor = checkpointCount
+      timeline.currentFingerprint = after
+      this.postCheckpointTimeline(session)
+    } finally {
+      resolveTimelineOperation()
+      timeline.operation = undefined
+    }
+  }
+
+  private async truncateCheckpointTimelineFuture(
+    session: EditorSession
+  ): Promise<void> {
+    const timeline = session.checkpointTimeline
+    if (timeline.navigating || timeline.cursor >= timeline.entries.length) {
+      return
+    }
+    await timeline.storage?.truncateFuture(timeline.cursor)
+    timeline.entries.splice(timeline.cursor)
+    timeline.lastArchivedChangeCount = timeline.entries.at(-1)?.changeCount ?? 0
+    this.postCheckpointTimeline(session)
+  }
+
+  private markCheckpointTimelineChanged(session: EditorSession): void {
+    const saved = session.checkpointTimeline.savedFingerprint
+    session.checkpointTimeline.currentFingerprint = {
+      byteLength: saved.byteLength,
+      digest: {
+        algorithm: saved.digest.algorithm,
+        value: `changed:${saved.digest.value}`,
+      },
+    }
+  }
+
   private async resetSessionState(
     session: EditorSession,
     restoredFromBackup: boolean,
@@ -5285,10 +5873,15 @@ export class HexEditorProvider
         created: false,
       }
     }
-
     const wasDirty =
       session.history.getEditState().isDirty || !!session.restoredFromBackup
-    if (!wasDirty) {
+    const currentChangeCount = await getChangeCount(session.sessionId)
+    const latestCheckpointChangeCount =
+      session.checkpointTimeline.entries.at(-1)?.changeCount ?? 0
+    const hasCheckpointableChanges =
+      currentChangeCount !== latestCheckpointChangeCount ||
+      !!session.restoredFromBackup
+    if (!hasCheckpointableChanges) {
       const checkpointCount = await this.getCheckpointCount(session)
       this.postTransformStatus(
         session,
@@ -5310,6 +5903,7 @@ export class HexEditorProvider
       const sessionSyncVersion = session.sessionSyncVersion
       const count = await createCheckpoint(session.sessionId)
       await this.waitForSessionSync(session, sessionSyncVersion)
+      await this.recordCheckpointTimelineEntry(session, count)
       await this.resetSessionState(session, wasDirty, false, false)
       this.postTransformStatus(
         session,
@@ -5330,12 +5924,11 @@ export class HexEditorProvider
 
   private async rollbackLastCheckpoint(
     session: EditorSession,
-    markDirty: boolean
+    _markDirty: boolean
   ): Promise<boolean> {
     if (!this.ensureSessionCanMutate(session, true)) {
       return false
     }
-
     const checkpointCount = await this.getCheckpointCount(session)
     if (checkpointCount <= 0) {
       void vscode.window.showWarningMessage(
@@ -5355,7 +5948,25 @@ export class HexEditorProvider
       const sessionSyncVersion = session.sessionSyncVersion
       await destroyLastCheckpoint(session.sessionId)
       await this.waitForSessionSync(session, sessionSyncVersion)
-      await this.resetSessionState(session, markDirty, markDirty, false)
+      session.checkpointTimeline.currentFingerprint =
+        await getChangeLogFingerprint(
+          session.sessionId,
+          SessionFingerprintContent.COMPUTED,
+          'sha256'
+        )
+      const isDirty = !timelineFingerprintsEqual(
+        session.checkpointTimeline.currentFingerprint,
+        session.checkpointTimeline.savedFingerprint
+      )
+      await this.resetSessionState(session, isDirty, isDirty, false)
+      await session.checkpointTimeline.storage?.truncateFuture(
+        checkpointCount - 1
+      )
+      session.checkpointTimeline.entries.splice(checkpointCount - 1)
+      session.checkpointTimeline.cursor = checkpointCount - 1
+      session.checkpointTimeline.lastArchivedChangeCount =
+        session.checkpointTimeline.entries.at(-1)?.changeCount ?? 0
+      this.postCheckpointTimeline(session)
       this.postTransformStatus(
         session,
         false,
@@ -5375,7 +5986,7 @@ export class HexEditorProvider
 
   private async restoreLastCheckpoint(
     session: EditorSession,
-    markDirty: boolean
+    _markDirty: boolean
   ): Promise<{
     restored: boolean
     checkpointCount: number
@@ -5390,7 +6001,6 @@ export class HexEditorProvider
         discardedChangeCount: 0,
       }
     }
-
     const checkpointCount = await this.getCheckpointCount(session)
     if (checkpointCount <= 0) {
       void vscode.window.showWarningMessage(
@@ -5416,7 +6026,17 @@ export class HexEditorProvider
       const response = await restoreLastCheckpoint(session.sessionId)
       await this.waitForSessionSync(session, sessionSyncVersion)
       await this.sendViewportData(session)
-      await this.resetSessionState(session, markDirty, markDirty, false)
+      session.checkpointTimeline.currentFingerprint =
+        await getChangeLogFingerprint(
+          session.sessionId,
+          SessionFingerprintContent.COMPUTED,
+          'sha256'
+        )
+      const isDirty = !timelineFingerprintsEqual(
+        session.checkpointTimeline.currentFingerprint,
+        session.checkpointTimeline.savedFingerprint
+      )
+      await this.resetSessionState(session, isDirty, isDirty, false)
       this.clearSearchState(session)
       this.postTransformStatus(
         session,
@@ -5442,11 +6062,16 @@ export class HexEditorProvider
 
   private async rollbackSession(
     session: EditorSession,
-    markDirty: boolean
+    _markDirty: boolean
   ): Promise<void> {
     if (!this.ensureSessionCanMutate(session, true)) {
       return
     }
+
+    let resolveTimelineOperation: () => void = () => undefined
+    session.checkpointTimeline.operation = new Promise<void>((resolve) => {
+      resolveTimelineOperation = resolve
+    })
 
     this.postTransformStatus(
       session,
@@ -5464,7 +6089,18 @@ export class HexEditorProvider
       }
       await clear(session.sessionId)
       await this.waitForSessionSync(session, sessionSyncVersion)
-      await this.resetSessionState(session, markDirty, markDirty, true)
+      session.checkpointTimeline.currentFingerprint =
+        session.checkpointTimeline.originalFingerprint
+      const isDirty = !timelineFingerprintsEqual(
+        session.checkpointTimeline.currentFingerprint,
+        session.checkpointTimeline.savedFingerprint
+      )
+      await this.resetSessionState(session, isDirty, isDirty, true)
+      await session.checkpointTimeline.storage?.truncateFuture(0)
+      session.checkpointTimeline.entries.length = 0
+      session.checkpointTimeline.cursor = 0
+      session.checkpointTimeline.lastArchivedChangeCount = 0
+      this.postCheckpointTimeline(session)
       this.postTransformStatus(
         session,
         false,
@@ -5478,6 +6114,8 @@ export class HexEditorProvider
       if (failureMessage) {
         this.postTransformStatus(session, false, undefined, failureMessage)
       }
+      resolveTimelineOperation()
+      session.checkpointTimeline.operation = undefined
     }
   }
 
@@ -5804,6 +6442,20 @@ export class HexEditorProvider
     if (didUndo) {
       this.markExternalHighlightsStale(session)
       await this.waitForSessionSync(session, sessionSyncVersion)
+      session.checkpointTimeline.cursor = Math.min(
+        await this.getCheckpointCount(session),
+        session.checkpointTimeline.entries.length
+      )
+      await session.checkpointTimeline.storage?.setCursor(
+        session.checkpointTimeline.cursor
+      )
+      session.checkpointTimeline.currentFingerprint =
+        await getChangeLogFingerprint(
+          session.sessionId,
+          SessionFingerprintContent.COMPUTED,
+          'sha256'
+        )
+      this.postCheckpointTimeline(session)
       this.reconcileExternalHighlightStaleness(session)
       this.clearSearchState(session)
     }
@@ -5822,6 +6474,20 @@ export class HexEditorProvider
     if (didRedo) {
       this.markExternalHighlightsStale(session)
       await this.waitForSessionSync(session, sessionSyncVersion)
+      session.checkpointTimeline.cursor = Math.min(
+        await this.getCheckpointCount(session),
+        session.checkpointTimeline.entries.length
+      )
+      await session.checkpointTimeline.storage?.setCursor(
+        session.checkpointTimeline.cursor
+      )
+      session.checkpointTimeline.currentFingerprint =
+        await getChangeLogFingerprint(
+          session.sessionId,
+          SessionFingerprintContent.COMPUTED,
+          'sha256'
+        )
+      this.postCheckpointTimeline(session)
       this.reconcileExternalHighlightStaleness(session)
       this.clearSearchState(session)
     }
@@ -5906,13 +6572,13 @@ export class HexEditorProvider
 
   private async applyChangeLogEntries(
     session: EditorSession,
-    changes: ParsedChangeRecord[],
+    changes: Iterable<ParsedChangeRecord> | AsyncIterable<ParsedChangeRecord>,
     expectedAfter?: ChangeLogFingerprint
   ): Promise<number> {
-    if (!this.ensureSessionCanMutate(session, true)) {
-      return 0
-    }
-    if (changes.length === 0 && !expectedAfter) {
+    if (
+      !session.checkpointTimeline.navigating &&
+      !this.ensureSessionCanMutate(session, true)
+    ) {
       return 0
     }
 
@@ -5948,6 +6614,7 @@ export class HexEditorProvider
       const appliedChange = await this.applyChangeLogEntry(session, change)
       return appliedChange
     }
+    const maxReplayBatchEntries = 1024
     let pendingBatch: ParsedChangeRecord[] = []
     const flushBatch = async () => {
       if (pendingBatch.length === 0) {
@@ -5972,21 +6639,22 @@ export class HexEditorProvider
     }
 
     try {
-      if (changes.length > 0) {
-        for (const change of changes) {
-          if (change.kind === 'TRANSFORM') {
+      for await (const change of changes) {
+        if (change.kind === 'TRANSFORM') {
+          await flushBatch()
+          const appliedChange = await applyOne(change)
+          if (appliedChange) {
+            appliedTransactions.push([appliedChange])
+            appliedChangeCount += 1
+          }
+        } else {
+          pendingBatch.push(change)
+          if (pendingBatch.length >= maxReplayBatchEntries) {
             await flushBatch()
-            const appliedChange = await applyOne(change)
-            if (appliedChange) {
-              appliedTransactions.push([appliedChange])
-              appliedChangeCount += 1
-            }
-          } else {
-            pendingBatch.push(change)
           }
         }
-        await flushBatch()
       }
+      await flushBatch()
       if (expectedAfter) {
         await assertCurrentSessionFingerprint(
           session.sessionId,
@@ -6105,6 +6773,46 @@ export class HexEditorProvider
           throw new Error('TRANSFORM change data was not normalized')
         }
 
+        if (descriptor.transformId === INTERNAL_REPLACE_ALL_REPLAY_ID) {
+          const options = parseTransformOptionsJson(
+            descriptor.optionsJson,
+            'checkpointed replace-all replay'
+          )
+          if (
+            typeof options.query !== 'string' ||
+            typeof options.isHex !== 'boolean' ||
+            typeof options.caseFolding !== 'number' ||
+            typeof options.data !== 'string'
+          ) {
+            throw new Error(
+              'Checkpointed replace-all replay descriptor is invalid'
+            )
+          }
+          const pattern = options.isHex
+            ? Buffer.from(options.query, 'hex')
+            : Buffer.from(options.query, 'utf8')
+          const replacedCount = await replaceSessionCheckpointed(
+            session.sessionId,
+            pattern,
+            Buffer.from(options.data, 'hex'),
+            options.caseFolding as SearchCaseFolding,
+            0,
+            0
+          )
+          if (replacedCount <= 0) {
+            throw new Error(
+              'Checkpointed replace-all replay produced no content change'
+            )
+          }
+          return {
+            serial: 1,
+            kind: 'TRANSFORM',
+            offset: 0,
+            length: 0,
+            data: change.data,
+          }
+        }
+
         const computedFileSizeBefore = await getComputedFileSize(
           session.sessionId
         )
@@ -6196,6 +6904,8 @@ export class HexEditorProvider
     )
 
     if (change) {
+      await this.truncateCheckpointTimelineFuture(session)
+      this.markCheckpointTimelineChanged(session)
       session.history.recordLocalChange(change)
       this.postEditState(session)
       this.notifyDocumentChanged(session)
@@ -6308,13 +7018,18 @@ export class HexEditorProvider
     }
 
     if (session.transformInFlight && isMutationWebviewMessage(msg)) {
-      this.postTransformStatus(
-        session,
-        true,
-        undefined,
-        transformMutationBlockedMessage()
-      )
-      return
+      if (session.checkpointTimeline.operation) {
+        await session.checkpointTimeline.operation.catch(() => undefined)
+      }
+      if (session.transformInFlight) {
+        this.postTransformStatus(
+          session,
+          true,
+          undefined,
+          transformMutationBlockedMessage()
+        )
+        return
+      }
     }
 
     try {
@@ -6443,6 +7158,8 @@ export class HexEditorProvider
             msg.format
           )
           const serial = await del(session.sessionId, msg.offset, msg.length)
+          await this.truncateCheckpointTimelineFuture(session)
+          this.markCheckpointTimelineChanged(session)
           session.history.recordLocalChange({
             serial,
             kind: 'DELETE',
@@ -6466,6 +7183,8 @@ export class HexEditorProvider
           const sessionSyncVersion = session.sessionSyncVersion
           const data = Buffer.from(msg.data, 'hex')
           const serial = await insert(session.sessionId, msg.offset, data)
+          await this.truncateCheckpointTimelineFuture(session)
+          this.markCheckpointTimelineChanged(session)
           session.history.recordLocalChange({
             serial,
             kind: 'INSERT',
@@ -6483,6 +7202,8 @@ export class HexEditorProvider
         case 'delete': {
           const sessionSyncVersion = session.sessionSyncVersion
           const serial = await del(session.sessionId, msg.offset, msg.length)
+          await this.truncateCheckpointTimelineFuture(session)
+          this.markCheckpointTimelineChanged(session)
           session.history.recordLocalChange({
             serial,
             kind: 'DELETE',
@@ -6504,6 +7225,8 @@ export class HexEditorProvider
             msg.offset,
             Buffer.from(msg.data, 'hex')
           )
+          await this.truncateCheckpointTimelineFuture(session)
+          this.markCheckpointTimelineChanged(session)
           session.history.recordLocalChange({
             serial,
             kind: 'OVERWRITE',
@@ -6564,6 +7287,40 @@ export class HexEditorProvider
           break
         }
 
+        case 'navigateCheckpointTimeline': {
+          const timeline = session.checkpointTimeline
+          if (msg.checkpoint > timeline.entries.length || timeline.navigating) {
+            break
+          }
+          const editState = session.history.getEditState()
+          if (
+            timeline.cursor === timeline.entries.length &&
+            msg.checkpoint !== timeline.cursor &&
+            editState.isDirty
+          ) {
+            const proceed = vscode.l10n.t('Move Anyway')
+            const selected = await vscode.window.showWarningMessage(
+              vscode.l10n.t(
+                'Moving on the checkpoint timeline discards edits made after the latest checkpoint.'
+              ),
+              { modal: true },
+              proceed
+            )
+            if (selected !== proceed) {
+              this.postCheckpointTimeline(session)
+              break
+            }
+          }
+          await this.navigateToCheckpoint(session, msg.checkpoint)
+          break
+        }
+
+        case 'hideCheckpointTimeline': {
+          session.checkpointTimeline.visible = false
+          this.postCheckpointTimeline(session)
+          break
+        }
+
         case 'rollbackCheckpoint': {
           await this.rollbackCheckpoint({ uri: session.document.uri })
           break
@@ -6620,12 +7377,15 @@ export class HexEditorProvider
               })
 
               if (result.replacedCount > 0) {
+                const checkpointTransaction = result.checkpointTransaction
+                await this.truncateCheckpointTimelineFuture(session)
+                this.markCheckpointTimelineChanged(session)
                 if (
                   result.strategy === 'checkpointed' &&
-                  result.checkpointTransaction
+                  checkpointTransaction
                 ) {
                   session.history.recordCheckpointReplaceAll(
-                    result.checkpointTransaction
+                    checkpointTransaction
                   )
                 } else {
                   session.history.recordLocalReplaceAll(
@@ -6637,6 +7397,35 @@ export class HexEditorProvider
                 this.postEditState(session)
                 this.notifyDocumentChanged(session)
                 await this.waitForSessionSync(session, sessionSyncVersion)
+                if (
+                  result.strategy === 'checkpointed' &&
+                  checkpointTransaction
+                ) {
+                  const checkpointCount = await this.getCheckpointCount(session)
+                  await this.recordCheckpointTimelineEntry(
+                    session,
+                    checkpointCount,
+                    'plain',
+                    [],
+                    [
+                      {
+                        serial: 1,
+                        kind: 'TRANSFORM',
+                        offset: 0,
+                        length: 0,
+                        data: encodeTransformPrimitiveDataHex(
+                          INTERNAL_REPLACE_ALL_REPLAY_ID,
+                          JSON.stringify({
+                            query: checkpointTransaction.query,
+                            isHex: checkpointTransaction.isHex,
+                            caseFolding: checkpointTransaction.caseFolding,
+                            data: checkpointTransaction.data,
+                          })
+                        ),
+                      },
+                    ]
+                  )
+                }
                 await this.sendViewportData(session)
               }
 

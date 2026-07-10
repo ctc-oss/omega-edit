@@ -44,6 +44,8 @@ namespace omega_edit {
             size_t max_viewports_per_session{256};                        ///< 0 = unbounded
             int64_t max_read_segment_bytes{OMEGA_VIEWPORT_CAPACITY_LIMIT};///< 0 = unbounded
             int64_t max_search_matches{1000000};                          ///< 0 = unbounded
+            int64_t max_changelog_export_entries{1000000};                ///< Must be positive
+            int64_t max_changelog_spool_bytes{1024LL * 1024 * 1024};      ///< Must be positive
         };
 
         struct TransformProgressData {

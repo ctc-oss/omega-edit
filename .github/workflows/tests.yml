@@ -23,7 +23,7 @@ jobs:
   vscode-extension:
     strategy:
       matrix:
-        os: [ubuntu-24.04, windows-2025]
+        os: [ubuntu-24.04, macos-14, windows-2025]
         vscode-version: ['1.110.0', stable]
       fail-fast: false
     name: VS Code extension checks on ${{ matrix.os }} with VS Code ${{ matrix.vscode-version }}
@@ -67,6 +67,14 @@ jobs:
 
       - name: Run VS Code extension integration tests on Windows
         if: runner.os == 'Windows'
+        run: npm run test:integration
+        working-directory: vscode-extension
+        env:
+          CPP_SERVER_BINARY: ''
+          VSCODE_VERSION: ${{ matrix.vscode-version }}
+
+      - name: Run VS Code extension integration tests on macOS
+        if: runner.os == 'macOS'
         run: npm run test:integration
         working-directory: vscode-extension
         env:

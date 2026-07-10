@@ -223,7 +223,7 @@ describe('@omega-edit/ai toolkit', () => {
       )
       await fs.promises.writeFile(
         deeplyNestedPath,
-        `${'['.repeat(257)}${']'.repeat(257)}`
+        `{"nested":${'['.repeat(257)}0${']'.repeat(257)},"changes":[]}`
       )
 
       await assert.rejects(
@@ -297,6 +297,17 @@ describe('@omega-edit/ai toolkit', () => {
           changes: [],
         }),
       /versioned omega-edit\.change-log document/
+    )
+
+    await assert.rejects(
+      () =>
+        toolkit.applyChangeLog({
+          sessionId: 'session',
+          dryRun: true,
+          changes: makeChangeLogDocument([]),
+          signal: { aborted: true },
+        }),
+      /cancelled/
     )
   })
 

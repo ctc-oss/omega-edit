@@ -86,6 +86,32 @@
           "type": "boolean",
           "default": false,
           "description": "%omegaEdit.configuration.allowExperimentalTransformPlugins.description%"
+        },
+        "omegaEdit.checkpointHistory.maxBytesPerSession": {
+          "type": "number",
+          "default": 1073741824,
+          "minimum": 1048576,
+          "description": "%omegaEdit.configuration.checkpointHistory.maxBytesPerSession.description%"
+        },
+        "omegaEdit.checkpointHistory.maxBytesTotal": {
+          "type": "number",
+          "default": 5368709120,
+          "minimum": 1048576,
+          "description": "%omegaEdit.configuration.checkpointHistory.maxBytesTotal.description%"
+        },
+        "omegaEdit.checkpointHistory.maxCheckpoints": {
+          "type": "number",
+          "default": 1000,
+          "minimum": 1,
+          "maximum": 1000000,
+          "description": "%omegaEdit.configuration.checkpointHistory.maxCheckpoints.description%"
+        },
+        "omegaEdit.checkpointHistory.staleRetentionDays": {
+          "type": "number",
+          "default": 7,
+          "minimum": 1,
+          "maximum": 365,
+          "description": "%omegaEdit.configuration.checkpointHistory.staleRetentionDays.description%"
         }
       }
     },
@@ -178,6 +204,12 @@
         "enablement": "omegaEdit.hexEditorActive && !omegaEdit.transformInFlight"
       },
       {
+        "command": "omegaEdit.showCheckpointTimeline",
+        "title": "%omegaEdit.command.showCheckpointTimeline.title%",
+        "icon": "$(history)",
+        "enablement": "omegaEdit.hexEditorActive && !omegaEdit.transformInFlight"
+      },
+      {
         "command": "omegaEdit.getEditorState",
         "title": "%omegaEdit.command.getEditorState.title%"
       },
@@ -226,6 +258,11 @@
           "command": "omegaEdit.rollbackSession",
           "when": "omegaEdit.hexEditorActive && omegaEdit.hasPendingChanges && !omegaEdit.transformInFlight",
           "group": "navigation@9"
+        },
+        {
+          "command": "omegaEdit.showCheckpointTimeline",
+          "when": "omegaEdit.hexEditorActive && !omegaEdit.transformInFlight",
+          "group": "navigation@8"
         }
       ],
       "commandPalette": [
@@ -292,6 +329,10 @@
           "when": "omegaEdit.hexEditorActive && !omegaEdit.transformInFlight"
         },
         {
+          "command": "omegaEdit.showCheckpointTimeline",
+          "when": "omegaEdit.hexEditorActive && !omegaEdit.transformInFlight"
+        },
+        {
           "command": "omegaEdit.getEditorState",
           "when": "false"
         },
@@ -324,7 +365,7 @@
     "format:write": "biome format --write .",
     "lint": "biome ci .",
     "lint:fix": "biome check --write .",
-    "test:unit": "node --test tests/extension.test.js",
+    "test:unit": "node --test tests/*.test.js",
     "test:integration": "node ./tests/run-vscode-tests.js",
     "test:integration:observe": "node ./tests/run-vscode-observe.js",
     "test": "npm run lint && npm run compile && npm run test:unit && npm run test:integration"

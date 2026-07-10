@@ -1,27 +1,29 @@
 # Change-Log Optimizer
 
-**Status:** Approved design. Supersedes `CHANGELOG-OPTIMIZER.md` and
-`CHANGELOG-OPTIMIZER-REVISED.md`.
+**Status:** Canonical design. This consolidated document supersedes the
+original and revised optimizer proposals that were formerly maintained as
+separate historical drafts. It does not supersede itself.
 
-**Audience:** A software engineer implementing this with AI coding assistants.
-Every section that matters for implementation names the real files, functions,
-and invariants in this repository so an assistant can be pointed at them
-directly. Verify any line numbers before relying on them — the code moves.
+**Audience:** Maintainers and engineers implementing or integrating optimized
+change-log export and future online history compaction. Implementation sections
+name the repository files, functions, and invariants they depend on. Verify any
+line numbers before relying on them—the code moves.
 
 ---
 
 ## 1. What this document is
 
-Two prior designs existed:
+Two prior designs existed before this consolidated file:
 
-- `CHANGELOG-OPTIMIZER.md` (original) proposed an in-core compactor built on
-  adjacent-entry pattern matching and an "interruptible scan with atomic vector
-  swap". **Do not implement it.** Section 12 explains, with concrete examples,
-  why its optimization rules are semantically wrong and why its concurrency
-  model doesn't match the core.
-- `CHANGELOG-OPTIMIZER-REVISED.md` corrected the model: a coordinate-aware
-  planner shared by a non-mutating export mode (ship first) and a later online
-  compaction mode. Its constraints section is accurate.
+- The original adjacent-entry draft, historically stored under this filename,
+  proposed an in-core compactor built on pattern matching and an
+  "interruptible scan with atomic vector swap". **Do not implement it.**
+  Section 12 explains why its optimization rules and concurrency model were
+  wrong.
+- The coordinate-aware revision, historically stored as
+  `CHANGELOG-OPTIMIZER-REVISED.md`, introduced the planner shared by a
+  non-mutating export mode and later online compaction. This document retains
+  that architecture and replaces both historical drafts.
 
 This document keeps the revised architecture, tightens the API, adds the
 implementation hints and pitfalls an engineer (and their AI assistant) needs,
@@ -47,8 +49,9 @@ Two use cases, in delivery order:
    content.
 
 Both are powered by **one shared planner** in the core C++ library. The
-TypeScript layer stays thin: routing, JSON formatting, fingerprints,
-presentation. No optimization logic in TS.
+TypeScript layer stays thin: routing, JSON formatting, requesting and comparing
+native fingerprints, and presentation. It does not hash session content or
+contain optimization logic.
 
 ## 3. Ground truth: how the core actually stores history
 
@@ -203,10 +206,33 @@ that may be planned together. Spans never cross:
 - the protected high-water tail (online compaction only)
 - redo state (compaction v1 requires empty redo)
 
+For ranged export, a model boundary is also a reconstruction boundary. A
+plain checkpoint emits no entry because it does not change content. A
+transform checkpoint emits its TRANSFORM entry exactly once when that serial
+is inside the requested range, then re-anchors subsequent planning to the
+transform model's checkpoint backing file.
+
 ### 4.2 The planner
 
-Per span, replay the span's changes **in order** into a lightweight piece
-table over the span's input document:
+Per span, replay the span's changes **in order** into an implicit AVL rope
+over the span's input document. Do not use a vector-backed piece table: middle
+splits and inserts make adversarial edit histories quadratic.
+
+Each AVL node is one piece and stores subtree byte length, subtree node count,
+height, and one of:
+
+- a base slice `(model, source_offset, length)`; or
+- a payload slice `(change, payload_offset, length)`.
+
+The rope must support split-at-document-offset, ordered join, range removal,
+and splice in worst-case O(log p), where `p` is the live piece count. Split
+pieces retain shared ownership of their source. Coalesce adjacent slices when
+they reference contiguous bytes from the same source. Arithmetic on subtree
+lengths uses the core's checked int64 helpers. Tree traversal order, not node
+address or allocation order, determines emitted output, so output is
+byte-for-byte deterministic across runs and platforms.
+
+Planner operations are:
 
 - Pieces are either *base* (range of the span input) or *insert* (payload
   bytes of a raw change, referenced not copied).
@@ -227,9 +253,26 @@ script in replay coordinates (offsets valid at replay time, front to back):
 - OVERWRITE when lengths match (optional; callers may prefer REPLACE form)
 - REPLACE otherwise
 
-Complexity: piece count is O(#changes in span), not O(file size). Memory is
-bounded by piece metadata plus payload references; `max_span_bytes` splits
-oversized spans into subspans as a safety valve (correct, just less optimal).
+Complexity is O((changes + emitted pieces) log p). Piece count is O(changes in
+the current subspan), not O(file size). Memory is bounded by piece metadata
+plus payload references.
+
+`max_span_bytes` is a monotonic planning budget, not a document-size limit. It
+equals:
+
+1. the union length of base-document byte ranges removed, overwritten, or
+   read for prefix/suffix trimming by the subspan; plus
+2. the sum of forward INSERT/OVERWRITE replacement payload lengths consumed
+   by the subspan, even when later edits delete those inserted bytes.
+
+Before applying a raw change, map its affected current-coordinate range
+through the rope, compute the newly touched base intervals and payload
+contribution, and split before that change if accepting it would exceed the
+limit. Start the next subspan from the exact output state of the prior
+subspan. The interval union prevents double-counting repeatedly edited base
+bytes; payload accounting remains deliberately conservative and monotonic. A
+single raw change over the limit is emitted unchanged as a one-change raw
+subspan. `0` selects the 64 MiB default. Negative values are invalid.
 
 ### 4.3 What each consumer does with plan entries
 
@@ -238,6 +281,68 @@ oversized spans into subspans as a safety valve (correct, just less optimal).
   valid only during the callback.
 - **Compaction** lowers them into real core changes, rebuilds the model, and
   atomically installs the candidate (§7).
+
+### 4.4 Ranged export and input-state reconstruction
+
+Timeline intervals require an inclusive active-serial range `[first, last]`.
+The exporter validates the entire request before invoking a visitor:
+
+- `first == 0` resolves to serial 1; `last == 0` resolves to the active tip;
+- both resolved bounds must be positive, active, present, and ordered;
+- undone/negative serials, gaps, overflow, and a bound beyond the captured
+  active tip are invalid;
+- the resolved tip and model list are stable for the call because the caller
+  holds the session's core lock;
+- a zero-change interval is represented by the storage layer as an empty
+  change-log document and does not call this API.
+
+Reconstruct the content immediately before `first` without mutating the live
+session:
+
+1. Locate the model containing `first` using `change_serial_base` and the
+   active `changes` vectors.
+2. If `first` is the leading TRANSFORM of a transform model, use the previous
+   model's tip as the input state. The requested TRANSFORM must be emitted and
+   is what advances replay to the new model's backing content.
+3. Otherwise seed a scratch read model from the containing model's backing
+   file and replay that model's active non-transform prefix through
+   `first - 1`. A leading TRANSFORM is not replayed in this case because that
+   backing file already contains its output.
+4. Plan requested changes in serial order. At a plain checkpoint boundary,
+   finish the current span, emit nothing, and re-anchor to the next model's
+   byte-identical backing file. At a TRANSFORM boundary, finish the preceding
+   span, emit the exact TRANSFORM, and re-anchor to its output backing file.
+5. Stop after `last`; no later model boundary or change participates.
+
+Required worked examples:
+
+| Models and requested range | Input and output contract |
+| --- | --- |
+| model 0: `I1 I2`; plain checkpoint; model 1: `I3 I4`, range `[2,3]` | Reconstruct after `I1`; plan `I2`; cross the plain boundary without output; plan `I3`. |
+| model 0: `I1`; transform model: `T2 I3`, range `[2,3]` | Input is model 0 tip; emit `T2` exactly; plan `I3` against the transform checkpoint bytes. |
+| model 0: `I1`; transform model: `T2 I3 I4`, range `[3,4]` | Input is transform-model backing bytes; do not emit or rerun `T2`; plan `I3 I4`. |
+| model 0: `I1`; consecutive plain checkpoints; model 2: `I2`, range `[2,2]` | Input is the last checkpoint backing bytes; checkpoints emit nothing; plan only `I2`. |
+
+For every row, raw replay, optimized replay, and direct restoration to `last`
+must produce the same size and fingerprint. Tests must also cover ranges that
+end on a TRANSFORM, start/end at each model edge, and use `0` defaults.
+
+### 4.5 Plan completion and raw fallback
+
+The planner completes, validates, and counts a range before the first visitor
+callback. Therefore invalid bounds, `max_entries` overflow, allocation
+failure, or planning failure cannot expose a partial logical export.
+
+For each non-transform subspan, compare the completed optimized operation
+count with its raw operation count. Emit optimized entries only when the
+count is no greater; otherwise emit that subspan's raw entries in original
+order. TRANSFORM entries are always raw barriers. This proves emitted
+operation count is no greater than raw operation count, but does not claim
+that encoded bytes are smaller. A storage consumer must produce and validate
+raw and optimized temporary files and retain optimized only when its actual
+byte length is strictly smaller; ties retain raw. Any optimizer error outside
+a completed subspan abandons the optimized candidate and leaves the verified
+raw candidate usable.
 
 ## 5. Correctness rules (the invariants tests must pin)
 
@@ -273,7 +378,11 @@ New header: `core/src/include/omega_edit/changelog.h`. New source:
 (C linkage, Doxygen comments, `omega_edit_` prefix, status-code returns —
 note `omega_edit_status_result_is_success` treats `0` as success).
 
-### 6.1 Plan entry (shared by export visitor)
+### 6.1 Plan entry and streaming payload source
+
+Plan entries must not require a merged payload to be materialized in memory.
+The visitor receives a pull-based payload source valid only for the duration
+of that callback. A source may read across base-file and change-payload slices.
 
 ```c
 typedef enum {
@@ -284,12 +393,19 @@ typedef enum {
     OMEGA_CHANGELOG_PLAN_TRANSFORM = 5
 } omega_changelog_plan_kind_t;
 
+typedef int64_t (*omega_changelog_payload_read_cbk_t)(
+    void *context,
+    int64_t offset,
+    omega_byte_t *destination,
+    int64_t capacity);
+
 typedef struct {
     omega_changelog_plan_kind_t kind;
     int64_t offset;              /* replay-time document offset */
     int64_t length;              /* delete/overwrite/remove length */
-    const omega_byte_t *bytes;   /* borrowed; valid only during callback */
-    int64_t bytes_length;        /* insert/overwrite/replacement length */
+    int64_t payload_length;      /* insert/overwrite/replacement length */
+    omega_changelog_payload_read_cbk_t read_payload; /* NULL when length is 0 */
+    void *payload_context;       /* borrowed during callback */
 
     /* TRANSFORM only; borrowed during callback. */
     const char *transform_id;
@@ -300,6 +416,13 @@ typedef struct {
 } omega_changelog_plan_entry_t;
 ```
 
+`read_payload` returns bytes read, `0` only at `offset == payload_length`, and
+`-1` on invalid range or I/O failure. Reads must be contiguous and bounded by
+`capacity`; callers may choose any positive capacity. The server uses 256 KiB.
+The callback and payload source are synchronous. A consumer must copy or
+persist everything it needs before returning and must never retain the entry,
+context, or core payload pointers.
+
 ### 6.2 Optimized export (Phase 1)
 
 ```c
@@ -308,19 +431,44 @@ typedef int (*omega_changelog_plan_visitor_cbk_t)(
 
 typedef struct {
     uint32_t flags;              /* reserved; 0 for v1 */
-    int64_t max_span_bytes;      /* 0 = default; splits oversized spans */
+    int64_t first_change_serial; /* 0 = serial 1 */
+    int64_t last_change_serial;  /* 0 = active tip; inclusive */
+    int64_t max_span_bytes;      /* 0 = 64 MiB default; see section 4.2 */
     int64_t max_entries;         /* 0 = uncapped */
     int prefer_overwrite_form;   /* emit OVERWRITE instead of equal-length REPLACE */
 } omega_changelog_export_options_t;
 
-/** Non-mutating. Returns 0 on success, non-zero on error or when the
- *  visitor callback returns non-zero (propagated). */
+/** Non-mutating. The complete range is planned and max_entries is checked
+ *  before the first callback. Returns 0 on success, -1 for invalid input or
+ *  planning/I/O failure, -2 when max_entries would be exceeded, or the
+ *  visitor's non-zero result. */
 int omega_edit_export_changelog_optimized(
     const omega_session_t *session_ptr,
     const omega_changelog_export_options_t *options, /* NULL = defaults */
     omega_changelog_plan_visitor_cbk_t cbk,
     void *user_data);
 ```
+
+The implementation also exposes `omega_edit_export_changelog(...)`, an
+additive generalized entrypoint used by the server. It selects raw or optimized
+emission after applying the same all-model range validation and invokes an
+optional borrowed summary callback before entry callbacks. The summary carries
+the resolved bounds, source count, and pull-based content sources for the exact
+before/after range states. This lets the server compute interval fingerprints
+under the session lock without materializing either state. The design-named
+`omega_edit_export_changelog_optimized` remains the stable convenience wrapper.
+
+OVERWRITE removes `min(payload_length, bytes_available_after_offset)` and then
+inserts the complete forward payload. This detail is required because core
+OVERWRITE is allowed to extend content at EOF; its stored `length` describes
+the forward payload, not an unconditional in-bounds removal range.
+
+The implementation captures the resolved active tip once, validates the
+inclusive range exactly as §4.4 specifies, and never consults undone changes.
+`max_entries` applies to the final output including TRANSFORM entries and raw
+fallback subspans. Because planning completes first, `-2` produces zero
+callbacks. The raw server path uses the same validated all-model enumerator
+and range semantics, without invoking the optimizer.
 
 ### 6.3 Online compaction (Phase 3)
 
@@ -419,10 +567,11 @@ install. That is the desired cleanup (§3.5).
 
 ### 8.1 gRPC (service `EditorService`, `proto/omega_edit/v1/omega_edit.proto`)
 
-Export must be **server-streaming** — the server never configures message-size
-limits and currently inherits gRPC's 4 MiB inbound default and unlimited
-outbound (see `SHORTCOMINGS.md` item 15); a unary export response is exactly
-the kind of unbounded message that document flags.
+Export is **server-streaming**, but the server must finish a secure local spool
+before sending the first response. This keeps session locking independent of
+network backpressure and guarantees a client never observes a range that was
+only partially planned. The server never relies on unlimited outbound message
+configuration; payload frames are capped at 256 KiB.
 
 ```protobuf
 rpc ExportChangeLog(ExportChangeLogRequest)
@@ -431,10 +580,66 @@ rpc ExportChangeLog(ExportChangeLogRequest)
 message ExportChangeLogRequest {
     string session_id = 1;
     bool optimize = 2;
+    optional string first_change_serial_decimal = 3; // absent/"0" = serial 1
+    optional string last_change_serial_decimal = 4;  // absent/"0" = active tip
+    optional string max_span_bytes_decimal = 5;      // absent/"0" = 64 MiB
+    optional string max_entries_decimal = 6;         // absent/"0" = server cap
+    optional string max_output_bytes_decimal = 7;    // may lower server cap
 }
 
 message ExportChangeLogResponse {
-    ChangeLogEntry entry = 1;   // new message mirroring plan entries
+    oneof frame {
+        ChangeLogStreamHeader header = 1;
+        ChangeLogEntryHeader entry = 2;
+        ChangeLogPayloadChunk payload = 3;
+        ChangeLogStreamComplete complete = 4;
+    }
+}
+
+message ChangeLogStreamHeader {
+    int32 format_version = 1;       // 2
+    string resolved_first_serial_decimal = 2;
+    string resolved_last_serial_decimal = 3;
+    string source_change_count_decimal = 4;
+    ChangeLogStreamFingerprint before = 5;
+    ChangeLogStreamFingerprint after = 6;
+    bool optimized = 7;
+}
+
+message ChangeLogStreamFingerprint {
+    string byte_length_decimal = 1;
+    string digest_algorithm = 2;
+    string digest_value = 3;
+}
+
+message ChangeLogEntryHeader {
+    string entry_index_decimal = 1; // contiguous from zero
+    ChangeLogEntryKind kind = 2;
+    string offset_decimal = 3;
+    string length_decimal = 4;
+    string payload_length_decimal = 5;
+    ChangeLogStreamTransform transform = 6; // TRANSFORM only
+}
+
+message ChangeLogStreamTransform {
+    string transform_id = 1;
+    string options_json = 2;
+    string replacement_length_decimal = 3;
+    string computed_file_size_before_decimal = 4;
+    string computed_file_size_after_decimal = 5;
+}
+
+message ChangeLogPayloadChunk {
+    string entry_index_decimal = 1;
+    string chunk_offset_decimal = 2; // contiguous from zero
+    bytes data = 3;                 // 1..262144 bytes
+    bool final_chunk = 4;
+}
+
+message ChangeLogStreamComplete {
+    string emitted_change_count_decimal = 1;
+    string payload_byte_count_decimal = 2;
+    bytes payload_sha256 = 3;       // payload bytes in entry order
 }
 
 rpc CompactChanges(CompactChangesRequest) returns (CompactChangesResponse);
@@ -460,11 +665,53 @@ Server implementation notes (`server/cpp/src/editor_service.cpp`):
   `UndoLastChange`/`ClearChanges`: `session_manager_.try_begin_mutation(...)`,
   then `lock_session(...)`, then the core call, mapping `-2` to
   `FAILED_PRECONDITION` and `-1`/`-3` to `INTERNAL`.
-- `ExportChangeLog` is read-only: `lock_session` only. The visitor writes one
-  streamed response per entry; honor `context->IsCancelled()` between writes.
-  Note the core lock is held for the duration — the same availability caveat
-  as other whole-content reads (`SHORTCOMINGS.md` items 3/16 apply; keep the
-  per-entry work small and let the stream apply backpressure).
+- `ExportChangeLog` is read-only: `lock_session` only. While holding that lock,
+  resolve the range and fingerprints, plan the complete export, and write
+  length-delimited canonical frames to a `0600` exclusive temporary spool in
+  a server-managed directory. Copy payloads through a 256 KiB buffer. Flush,
+  close, and finalize the frame digest before releasing the lock.
+- After releasing the lock, reopen the immutable spool read-only and stream
+  its frames. No borrowed core pointer survives lock release. Network stalls
+  therefore block only the RPC worker, not edits to the session.
+- A scope guard removes the spool on success, cancellation, write failure,
+  client disconnect, and server shutdown. Check `context->IsCancelled()`
+  between planner callbacks, payload reads, spool reads, and `Write` calls.
+- The first frame is exactly one header. Entry indexes are contiguous. An
+  entry with `payload_length_decimal == "0"` has no payload frames. Otherwise
+  chunk offsets are contiguous, exactly one chunk has `final_chunk`, and its
+  end is exactly `payload_length_decimal`. The complete frame is last.
+  `payload_sha256` is
+  SHA-256 over the logical payload bytes in entry order, independent of chunk
+  boundaries; for no payload it is SHA-256 of empty input. Its counts and
+  digest must match. Any violation is `DATA_LOSS`; invalid ranges are
+  `INVALID_ARGUMENT`; limit or disk exhaustion is `RESOURCE_EXHAUSTED`;
+  cancellation is `CANCELLED`.
+- Every `*_decimal` field uses canonical unsigned decimal grammar
+  `0|[1-9][0-9]*` and must parse within signed int64 range. Negative signs,
+  leading zeroes, whitespace, exponents, empty strings, and overflow are
+  `INVALID_ARGUMENT` in requests and `DATA_LOSS` in responses/spools. This is
+  deliberate: generated TypeScript currently maps protobuf int64 to unsafe
+  JavaScript numbers. No unbounded numeric stream field uses protobuf int64.
+  Fingerprint byte length follows the same grammar; SHA-256 digest values are
+  exactly 64 lowercase hexadecimal characters.
+- Entry headers are bounded too: UTF-8 `transform_id` is at most 4096 bytes
+  and UTF-8 `options_json` is at most 1 MiB. Digest algorithm is exactly
+  `sha256` for v2. An existing transform over either metadata limit makes
+  export `RESOURCE_EXHAUSTED`; it is never truncated. All other header fields
+  are fixed-size or bounded decimal text, keeping every response safely below
+  gRPC's 4 MiB default.
+- The server applies `min(request.max_entries_decimal, configured entry cap)`
+  and `min(request.max_output_bytes_decimal, configured spool cap)`, treating
+  absent/zero request values as the server cap. Defaults are 1,000,000 entries
+  and 1 GiB of length-delimited spool bytes. Expose operator overrides as
+  `OMEGA_EDIT_MAX_CHANGELOG_EXPORT_ENTRIES` and
+  `OMEGA_EDIT_MAX_CHANGELOG_SPOOL_BYTES` plus matching CLI flags. Requests may
+  lower but never raise those limits. The counting spool writer checks before
+  every frame write.
+- The client writes only to its own temporary output while consuming frames.
+  It validates the framing and complete digest before closing and atomically
+  committing that output. A half-entry may exist only in a disposable temp
+  file, never in a committed log or timeline manifest.
 - Forward `SESSION_EVT_CHANGELOG_COMPACTED` through the existing session event
   subscription plumbing (`session_event_callback` in
   `server/cpp/src/session_manager.cpp` — add the payload fields to
@@ -473,8 +720,9 @@ Server implementation notes (`server/cpp/src/editor_service.cpp`):
 ### 8.2 TypeScript (`packages/ai/src/service.ts`, `packages/ai/src/mcp.ts`)
 
 The TS layer keeps its current responsibilities: `ChangeLogDocument` JSON
-shape (`packages/ai/src/types.ts`), streaming to file, before/after
-fingerprints, replay validation, CLI/MCP presentation.
+shape (`packages/ai/src/types.ts`), streaming to file, requesting and comparing
+server-computed before/after fingerprints, replay validation, and CLI/MCP
+presentation.
 
 - `exportChangeLog(...)` (service.ts) gains `optimize?: boolean`; when set it
   consumes the streaming RPC instead of per-serial `getChangeDetails`.
@@ -647,6 +895,21 @@ Pin the coordinate semantics first:
 | edits interleaved around a TRANSFORM | two independent spans; TRANSFORM preserved verbatim between them |
 | span exceeding `max_span_bytes` | split into subspans; content still correct |
 
+Ranged reconstruction matrix (each case compares raw, optimized, and direct
+content/fingerprint at the requested `last` serial):
+
+- range wholly inside the front model, with explicit and `0` bounds;
+- range starting/ending on both sides of a plain checkpoint;
+- two consecutive plain checkpoints with no intervening change;
+- range starting at a leading TRANSFORM, ending at a TRANSFORM, and crossing
+  multiple transform models;
+- range starting after a leading TRANSFORM, proving the plugin is not rerun;
+- first/last equal for every stored change kind;
+- invalid negative, undone, reversed, sparse, overflowed, and past-tip bounds,
+  each producing zero callbacks;
+- `max_entries` one below the completed result, producing `-2` and zero
+  callbacks.
+
 Then the adversarial edge matrix — every row runs against empty, 1-byte,
 odd-sized, and multi-gigabyte-sparse base documents:
 
@@ -660,6 +923,13 @@ odd-sized, and multi-gigabyte-sparse base documents:
   (prefix/suffix trim must not over-trim)
 - degenerate `max_span_bytes` (1) — pathological subspan splitting must
   still be correct, merely unoptimal
+- exact `max_span_bytes` accounting: repeated edits of the same base byte
+  count that base byte once; every forward payload byte counts even when
+  deleted later; the change that crosses the limit starts the next subspan;
+  one oversized change is emitted raw
+- alternating inserts/deletes at the middle and ends of a 100k-piece rope;
+  record AVL height and operation count to prove logarithmic behavior and run
+  it under the 100k performance gate
 - **determinism**: same input planned twice (and on Windows/Linux/macOS CI)
   yields byte-identical output
 - **idempotence**: exporting, replaying, and re-exporting optimized output
@@ -774,7 +1044,7 @@ Environmental abuse, in the same spirit:
   criteria: no deadlock, no data race reported, every read returns either
   the (identical) content, and p99 stall of unrelated-session RPCs stays
   under a set budget (this doubles as a regression test for the
-  global-mutex findings in `SHORTCOMINGS.md` item 3).
+  global-mutex findings in `dev-notes/SHORTCOMINGS.md` item 3).
 - **Destruction races.** `DestroySession` issued while the sweeper holds the
   compaction guard; sweeper ticking during server shutdown; both must
   resolve without crash, leak, or orphaned checkpoint directory.
@@ -782,6 +1052,21 @@ Environmental abuse, in the same spirit:
   fields faithfully copied.
 - TS round-trip: `exportChangeLog({optimize:true})` → `applyChangeLog` →
   fingerprints match; synthetic entries carry no `serial`.
+- **Spool/backpressure:** pause a client after the first response while edits
+  continue on the same session; edits must complete because the core lock was
+  released before the first `Write`. The stream must remain the captured
+  range even when later edits occur.
+- **Framing:** payload lengths `{0, 1, 262143, 262144, 262145, >4 MiB}`;
+  chunks are contiguous and capped, the final digest/counts match, and a
+  corrupt/missing/duplicate/final chunk is rejected without committing a
+  client file.
+- **Header bounds:** transform id and options at one byte below, exactly at,
+  and one byte above their 4096-byte/1-MiB UTF-8 limits, including multibyte
+  code points at the boundary; oversize metadata is never truncated.
+- **Spool cleanup:** cancellation during planning, payload copy, post-lock
+  streaming, and final write; disk-full and read-only spool directory; server
+  shutdown and session destruction after lock release. Every case leaves no
+  spool and returns the specified gRPC status.
 
 ### 10.7 Filesystem hygiene and platform matrix
 
@@ -803,7 +1088,7 @@ CI matrix legs, not comments:
 | ------ | ---- |
 | plan + export, 100k-change session | < 1 s |
 | online compaction, 100k changes (incl. validation) | < 2 s |
-| export memory | O(#changes); measured peak < 2× raw-entry metadata size |
+| export memory | O(#changes) metadata plus two 256 KiB I/O buffers; no payload-sized allocation |
 | edit-path overhead with policy **disabled** | zero (compiled-out or single branch); benchmarked, not asserted by eye |
 | edit-path overhead with sweeper enabled | < 1% on the keystroke benchmark |
 | streaming export of a 1M-entry log | bounded resident memory (no full-log buffering) |
@@ -843,9 +1128,11 @@ parameter.
 and the §10.3 differential fuzz in export mode, TS round-trip, streaming RPC
 cancellation.
 
-*Exit:* optimized export is never larger than raw export, replays to an
-identical fingerprint, and provably performs no session mutation
-(const-correct API + a test asserting change count/content unchanged).
+*Exit:* optimized export emits no more operations than raw export, replays to
+an identical fingerprint, uses bounded payload buffers, and provably performs
+no session mutation (const-correct API + a test asserting change count/content
+unchanged). Storage tests separately prove that the smaller verified encoded
+file wins and that ties retain raw.
 
 ### Phase 2 — Candidate builder (no install)
 
@@ -917,7 +1204,7 @@ Hard rules, tied to earlier findings:
 
 - The sweeper must **never** hold the global `SessionManager::mutex_` while
   waiting on a per-session `core_mutex` or while compacting (that is exactly
-  the stall pattern flagged in `SHORTCOMINGS.md` item 3). Snapshot ids, then
+  the stall pattern flagged in `dev-notes/SHORTCOMINGS.md` item 3). Snapshot ids, then
   operate per session with the normal guard + lock sequence.
 - A `-2` (blocked) result is not an error — the session was busy or had redo
   state; the counters stay armed and the next sweep retries.
@@ -1155,6 +1442,13 @@ test-first execution plan.
 | Event | `SESSION_EVT_CHANGELOG_COMPACTED = 1 << 19`, one per compaction. |
 | OVERWRITE vs REPLACE emission | `prefer_overwrite_form` option; default REPLACE. |
 | Auto-compaction | Phase 4 server sweeper + policy schema (§Phase 4.2); disabled by default. |
+| Ranged export | Inclusive active serials; `0` defaults; reconstruct exactly as §4.4; zero-change intervals bypass the core API. |
+| Piece sequence | Deterministic implicit AVL rope with worst-case O(log p) split/join/splice. |
+| Span budget | 64 MiB default; unique touched base bytes plus all accepted forward payload bytes (§4.2). |
+| Payload framing | Pull-based core payload source; server frames capped at 256 KiB. |
+| Stream locking | Complete secure spool under the core lock; release lock before the first network write. |
+| Encoded size | Core guarantees operation count only; storage retains optimized only when verified bytes are strictly smaller. |
+| Stream integers | Canonical unsigned decimal strings for every unbounded field; never protobuf int64 through the current TypeScript generator. |
 
 ## 14. Out of scope for initial delivery
 

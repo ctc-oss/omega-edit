@@ -191,6 +191,8 @@ export type WebviewToHostMessage =
   | { type: 'createCheckpoint' }
   | { type: 'rollbackCheckpoint' }
   | { type: 'restoreCheckpoint' }
+  | { type: 'navigateCheckpointTimeline'; checkpoint: number }
+  | { type: 'hideCheckpointTimeline' }
   | { type: 'exportChangeLog' }
   | { type: 'applyChangeLog' }
   | { type: 'loadRangeMap' }
@@ -331,6 +333,25 @@ export type HostToWebviewMessage =
       checkpointCount?: number
       cancelled?: boolean
       message?: string
+    }
+  | {
+      type: 'checkpointTimeline'
+      visible: boolean
+      cursor: number
+      checkpointCount: number
+      savedChangeCount: number
+      savedCheckpoint?: number
+      savedOffBranch: boolean
+      canRewind: boolean
+      canFastForward: boolean
+      navigating: boolean
+      checkpoints: Array<{
+        checkpoint: number
+        changeCount: number
+        createdAt: number
+        available: boolean
+        error?: string
+      }>
     }
   | {
       type: 'clipboardComplete'
@@ -918,6 +939,16 @@ export function normalizeWebviewMessage(
     case 'saveAs':
     case 'revert':
       return { type: raw.type }
+
+    case 'hideCheckpointTimeline':
+      return { type: raw.type }
+
+    case 'navigateCheckpointTimeline': {
+      const checkpoint = safeNonNegativeInteger(raw.checkpoint)
+      return checkpoint !== undefined
+        ? { type: raw.type, checkpoint }
+        : undefined
+    }
 
     case 'copySelection':
     case 'cutSelection': {

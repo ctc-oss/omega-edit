@@ -15,6 +15,18 @@ Use these naming rules in user-facing Ωedit™ documentation:
 - **`@omega-edit/...`** for npm package names
 - **`omega_edit`** for C/C++ identifiers, include paths, and protobuf namespaces
 
+## Architecture and Design
+
+- [Checkpoint Timeline Design](Checkpoint-Timeline-Design) — storage-backed
+  rewind/fast-forward semantics, Auto Save, branching, reliability, and
+  accessibility.
+- [Change-Log Optimizer](Change-Log-Optimizer) — coordinate-aware optimized
+  export and future online history compaction.
+- [Change Log Large-File Design](Change-Log-Large-File-Design) — streaming
+  persistence and int64 representation at the TypeScript boundary.
+- [Transform Plugins](Transform-Plugins) — native transform ABI, packaging,
+  and runtime registration.
+
 ## Quick Start
 
 Choose the path that matches your use case. All five get you to a working edit in under five minutes.

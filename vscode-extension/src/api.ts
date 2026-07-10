@@ -164,7 +164,7 @@ export interface OmegaEditChangeLogResult {
   before?: OmegaEditChangeLogFingerprint
   after?: OmegaEditChangeLogFingerprint
   unavailableChangeCount?: number
-  unavailableChangeSerials?: number[]
+  unavailableChangeSerials?: Array<number | string>
   cancelled?: boolean
   preview?: OmegaEditChangeLogPreview
   rollback?: {

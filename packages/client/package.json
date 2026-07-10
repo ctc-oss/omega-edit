@@ -17,6 +17,16 @@
         "types": "./dist/cjs/index.d.ts",
         "default": "./dist/cjs/index.js"
       }
+    },
+    "./change-log/node": {
+      "import": {
+        "types": "./dist/esm/changeLog/node/index.d.ts",
+        "default": "./dist/esm/changeLog/node/index.js"
+      },
+      "require": {
+        "types": "./dist/cjs/changeLog/node/index.d.ts",
+        "default": "./dist/cjs/changeLog/node/index.js"
+      }
     }
   },
   "files": [
@@ -51,8 +61,10 @@
     "package": "yarn prepare && node ../../scripts/pack-workspace.js omega-edit-node-client",
     "test:prepare": "node scripts/ensure-test-prereqs.cjs",
     "test:client": "node scripts/run-vitest-suite.cjs client",
+    "test:codec": "vitest run --config vitest.codec.config.ts",
     "test:lifecycle": "node scripts/run-vitest-suite.cjs lifecycle",
     "benchmark:undo": "node scripts/run-undo-benchmark.cjs",
+    "benchmark:changelog": "node scripts/run-changelog-benchmark.cjs",
     "test:coverage": "yarn build && node scripts/run-vitest-suite.cjs coverage",
     "test:coverage:uds": "yarn build && node scripts/run-vitest-suite.cjs coverage --transport uds",
     "test:client:uds": "node scripts/run-vitest-suite.cjs client --transport uds",

@@ -30,6 +30,7 @@ const {
   OMEGA_EDIT_SEARCH_PREVIOUS_COMMAND,
   OMEGA_EDIT_SET_EXTERNAL_HIGHLIGHTS_COMMAND,
   OMEGA_EDIT_SET_TEXT_ENCODING_COMMAND,
+  OMEGA_EDIT_SHOW_CHECKPOINT_TIMELINE_COMMAND,
   OMEGA_EDIT_ROLLBACK_CHECKPOINT_COMMAND,
   OMEGA_EDIT_TOGGLE_EXPERIMENTAL_TRANSFORM_PLUGINS_COMMAND,
   OMEGA_EDIT_TOGGLE_INSERT_DIRECTION_COMMAND,
@@ -127,6 +128,25 @@ test('package.json matches shared extension constants', () => {
   assert.equal(bytesPerRowConfiguration.minimum, 8)
   assert.equal(bytesPerRowConfiguration.maximum, 64)
   assert.equal(bytesPerRowConfiguration.anyOf, undefined)
+  const historyConfiguration = packageJson.contributes.configuration.properties
+  assert.equal(
+    historyConfiguration['omegaEdit.checkpointHistory.maxBytesPerSession']
+      .default,
+    1073741824
+  )
+  assert.equal(
+    historyConfiguration['omegaEdit.checkpointHistory.maxBytesTotal'].default,
+    5368709120
+  )
+  assert.equal(
+    historyConfiguration['omegaEdit.checkpointHistory.maxCheckpoints'].default,
+    1000
+  )
+  assert.equal(
+    historyConfiguration['omegaEdit.checkpointHistory.staleRetentionDays']
+      .default,
+    7
+  )
   assert.equal(
     packageJson.scripts['package:vsix'],
     'vsce package --out omega-edit-data-editor.vsix'
@@ -262,8 +282,16 @@ test('package.json matches shared extension constants', () => {
     packageJson.contributes.commands[15].enablement,
     'omegaEdit.hexEditorActive && !omegaEdit.transformInFlight'
   )
+  assert.equal(
+    packageJson.contributes.commands[16].command,
+    OMEGA_EDIT_SHOW_CHECKPOINT_TIMELINE_COMMAND
+  )
+  assert.equal(
+    packageJson.contributes.commands[16].enablement,
+    'omegaEdit.hexEditorActive && !omegaEdit.transformInFlight'
+  )
   assert.deepEqual(
-    packageJson.contributes.commands.slice(16).map((entry) => entry.command),
+    packageJson.contributes.commands.slice(17).map((entry) => entry.command),
     [
       OMEGA_EDIT_GET_EDITOR_STATE_COMMAND,
       OMEGA_EDIT_GET_ASSISTANT_CONTEXT_COMMAND,
@@ -2119,6 +2147,7 @@ test('compiled extension entrypoints exist after build', () => {
   assert.match(extensionJs, /OMEGA_EDIT_ROLLBACK_SESSION_COMMAND/)
   assert.match(extensionJs, /OMEGA_EDIT_ROLLBACK_CHECKPOINT_COMMAND/)
   assert.match(extensionJs, /OMEGA_EDIT_CREATE_CHECKPOINT_COMMAND/)
+  assert.match(extensionJs, /OMEGA_EDIT_SHOW_CHECKPOINT_TIMELINE_COMMAND/)
   assert.match(extensionJs, /OMEGA_EDIT_GET_EDITOR_STATE_COMMAND/)
   assert.match(extensionJs, /OMEGA_EDIT_GET_ASSISTANT_CONTEXT_COMMAND/)
   assert.match(extensionJs, /OMEGA_EDIT_SET_EXTERNAL_HIGHLIGHTS_COMMAND/)
@@ -2455,6 +2484,22 @@ test('webview protocol normalizes editor commands and rejects invalid ranges', (
       type: 'cancelTransform',
     }
   )
+  assert.deepEqual(
+    normalizeWebviewMessage(context, {
+      type: 'navigateCheckpointTimeline',
+      checkpoint: 3,
+    }),
+    { type: 'navigateCheckpointTimeline', checkpoint: 3 }
+  )
+  for (const checkpoint of [-1, 1.5, Number.NaN, '2']) {
+    assert.equal(
+      normalizeWebviewMessage(context, {
+        type: 'navigateCheckpointTimeline',
+        checkpoint,
+      }),
+      undefined
+    )
+  }
   assert.deepEqual(
     normalizeWebviewMessage(context, {
       type: 'setInsertDirection',

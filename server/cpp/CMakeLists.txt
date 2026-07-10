@@ -40,6 +40,7 @@ set(CMAKE_VERBOSE_MAKEFILE ON)
 find_package(Protobuf CONFIG REQUIRED)
 find_package(gRPC CONFIG REQUIRED)
 find_package(Threads REQUIRED)
+find_package(OpenSSL REQUIRED COMPONENTS Crypto)
 
 # ── Resolve protoc and grpc_cpp_plugin executables ────────────────────────────
 # Try target property first, fall back to find_program.
@@ -253,6 +254,7 @@ if(omega_edit_FOUND)
         ${_GRPC_REFLECTION_LIB}
         protobuf::libprotobuf
         Threads::Threads
+        OpenSSL::Crypto
     )
 else()
     target_include_directories(omega-edit-grpc-server PRIVATE ${OMEGA_EDIT_INCLUDE})
@@ -262,6 +264,7 @@ else()
         ${_GRPC_REFLECTION_LIB}
         protobuf::libprotobuf
         Threads::Threads
+        OpenSSL::Crypto
     )
 endif()
 

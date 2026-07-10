@@ -1,5 +1,7 @@
 import {
   ChangeKind,
+  CHANGE_LOG_FORMAT,
+  CHANGE_LOG_VERSION,
   CountKind,
   delay,
   type IServerControlResult,
@@ -30,6 +32,8 @@ import {
   listTransformPlugins as listClientTransformPlugins,
   numAscii,
   overwrite,
+  normalizeChangeLogDocument,
+  serializeChangeLogEntry,
   PROFILE_DOS_EOL,
   profileSession,
   redo,
@@ -45,12 +49,15 @@ import {
   startServer,
   stopServerGraceful,
   undo,
+  type NormalizedChangeLogEntry,
+  type PreparedChangeLog,
 } from '@omega-edit/client'
-import { once } from 'node:events'
-import { createWriteStream } from 'node:fs'
-import * as fs from 'node:fs/promises'
-import { dirname, basename, join } from 'node:path'
-import { finished } from 'node:stream/promises'
+import {
+  changeLogHeaderForExport,
+  openChangeLogFile,
+  writeChangeLogFileAtomic,
+  writeChangeLogRpcExportAtomic,
+} from '@omega-edit/client/change-log/node'
 import {
   DEFAULT_HOST,
   DEFAULT_MAX_EDIT_BYTES,
@@ -68,7 +75,6 @@ import {
   ApplyChangeLogRequest,
   ApplyChangeLogResult,
   ChangeLogPreview,
-  ChangeLogPrimitiveCounts,
   ChangeLogDocument,
   ChangeLogEntry,
   ChangeLogFingerprint,
@@ -96,8 +102,6 @@ import {
 } from './types'
 
 const MAX_CHANGE_LOG_JSON_NESTING = 256
-const CHANGE_LOG_FORMAT = 'omega-edit.change-log'
-const CHANGE_LOG_VERSION = 2
 const ASSISTANT_CONTEXT_VERSION = 1
 const DEFAULT_CHANGE_LOG_DIGEST_ALGORITHM = 'sha256'
 const GRPC_NOT_FOUND = 5
@@ -296,24 +300,7 @@ interface CollectedChangeLogEntries {
   unavailableChangeSerials: number[]
 }
 
-interface ParsedChangeLog {
-  changes: NormalizedChangeLogEntry[]
-  complete: boolean
-  before: ChangeLogFingerprint
-  after: ChangeLogFingerprint
-  changeCount: string
-  sourceChangeCount: string
-  unavailableChangeCount: string
-  unavailableChangeSerials: number[]
-}
-
-interface ChangeLogDocumentMetadata {
-  complete: boolean
-  changeCount: string
-  sourceChangeCount: string
-  unavailableChangeCount: string
-  unavailableChangeSerials: number[]
-}
+type ParsedChangeLog = PreparedChangeLog
 
 const changeKindNames = new Map<number, string>(
   Object.entries(ChangeKind)
@@ -372,14 +359,6 @@ function parseNonNegativeInt64(value: unknown, name: string): bigint {
   return parsed
 }
 
-function parsePositiveInt64(value: unknown, name: string): bigint {
-  const parsed = parseNonNegativeInt64(value, name)
-  if (parsed <= 0n) {
-    throw new Error(`${name} must be a positive int64`)
-  }
-  return parsed
-}
-
 function int64ToSafeNumber(value: bigint, name: string): number {
   if (value > BigInt(Number.MAX_SAFE_INTEGER)) {
     throw new Error(
@@ -396,10 +375,6 @@ function normalizeNonNegativeInt64ForClient(
   return int64ToSafeNumber(parseNonNegativeInt64(value, name), name)
 }
 
-function normalizePositiveInt64ForClient(value: unknown, name: string): number {
-  return int64ToSafeNumber(parsePositiveInt64(value, name), name)
-}
-
 function int64ToDecimal(value: number | string | bigint): string {
   return parseNonNegativeInt64(value, 'change log integer').toString()
 }
@@ -411,10 +386,6 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 interface TransformPrimitiveDescriptor {
   transformId: string
   optionsJson?: string
-}
-
-interface NormalizedChangeLogEntry extends ChangeLogEntry {
-  transformDescriptor?: TransformPrimitiveDescriptor
 }
 
 function parseJsonObject(text: string, name: string): Record<string, unknown> {
@@ -620,133 +591,7 @@ function assertJsonNestingLimit(text: string): void {
   }
 }
 
-function normalizeChangeLogEntries(value: unknown): ParsedChangeLog {
-  let entries: unknown[] | undefined
-  let document: Record<string, unknown> | undefined
-  if (isRecord(value)) {
-    if (value.format !== CHANGE_LOG_FORMAT) {
-      throw new Error('Unsupported change log format')
-    }
-    if (value.version !== CHANGE_LOG_VERSION) {
-      throw new Error('Unsupported change log version')
-    }
-    document = value
-    entries = Array.isArray(value.changes) ? value.changes : undefined
-  }
-
-  if (!entries) {
-    throw new Error(
-      'Change log must be a versioned omega-edit.change-log document'
-    )
-  }
-
-  const normalized = entries.map((entry, index) =>
-    normalizeChangeLogEntry(entry, index)
-  )
-  validateChangeLogMetadata(normalized)
-  if (document) {
-    const metadata = validateChangeLogDocumentMetadata(document, normalized)
-    return {
-      changes: normalized,
-      ...metadata,
-      before: normalizeChangeLogFingerprint(document.before, 'before'),
-      after: normalizeChangeLogFingerprint(document.after, 'after'),
-    }
-  }
-  throw new Error(
-    'Change log must be a versioned omega-edit.change-log document'
-  )
-}
-
-function readDocumentCount(
-  document: Record<string, unknown>,
-  key: string
-): bigint {
-  return parseNonNegativeInt64(document[key], `Change log ${key}`)
-}
-
-function normalizeUnavailableChangeSerials(
-  value: unknown,
-  sourceChangeCount: bigint
-): number[] {
-  if (!Array.isArray(value)) {
-    throw new Error('Change log unavailableChangeSerials must be an array')
-  }
-
-  const seen = new Set<number>()
-  return value.map((serial, index) => {
-    let serialValue: bigint
-    try {
-      serialValue = parsePositiveInt64(
-        serial,
-        `Change log unavailableChangeSerials[${index}]`
-      )
-    } catch {
-      throw new Error(
-        `Change log unavailableChangeSerials[${index}] must be a positive int64`
-      )
-    }
-    if (serialValue > sourceChangeCount) {
-      throw new Error(
-        `Change log unavailableChangeSerials[${index}] exceeds sourceChangeCount`
-      )
-    }
-    const serialNumber = int64ToSafeNumber(
-      serialValue,
-      `Change log unavailableChangeSerials[${index}]`
-    )
-    if (seen.has(serialNumber)) {
-      throw new Error(
-        `Change log unavailableChangeSerials[${index}] duplicates serial ${serialNumber}`
-      )
-    }
-    seen.add(serialNumber)
-    return serialNumber
-  })
-}
-
-function normalizeChangeLogFingerprint(
-  value: unknown,
-  key: 'before' | 'after'
-): ChangeLogFingerprint {
-  if (!isRecord(value)) {
-    throw new Error(`Change log ${key} fingerprint must be an object`)
-  }
-
-  let byteLength: string
-  try {
-    byteLength = parseNonNegativeInt64(
-      value.byteLength,
-      `Change log ${key}.byteLength`
-    ).toString()
-  } catch {
-    throw new Error(`Change log ${key}.byteLength must be a non-negative int64`)
-  }
-
-  if (!isRecord(value.digest)) {
-    throw new Error(`Change log ${key}.digest must be an object`)
-  }
-
-  const algorithm = value.digest.algorithm
-  if (typeof algorithm !== 'string' || !algorithm.trim()) {
-    throw new Error(`Change log ${key}.digest.algorithm must be a string`)
-  }
-
-  const digestValue = value.digest.value
-  if (typeof digestValue !== 'string' || !digestValue.trim()) {
-    throw new Error(`Change log ${key}.digest.value must be a string`)
-  }
-
-  return {
-    byteLength,
-    digest: {
-      algorithm: algorithm.trim().toLowerCase(),
-      value: digestValue.trim().toLowerCase(),
-    },
-  }
-}
-
-function describeUnavailableSerials(serials: number[]): string {
+function describeUnavailableSerials(serials: Array<number | string>): string {
   const preview = serials.slice(0, 10).join(', ')
   const suffix = serials.length > 10 ? ', ...' : ''
   return preview ? ` (serials: ${preview}${suffix})` : ''
@@ -760,7 +605,7 @@ function incompleteChangeLogMessage(action: 'export' | 'apply'): string {
 
 function assertCompleteChangeLog(
   action: 'export' | 'apply',
-  unavailableChangeSerials: number[]
+  unavailableChangeSerials: Array<number | string>
 ): void {
   if (unavailableChangeSerials.length === 0) {
     return
@@ -785,196 +630,24 @@ async function assertSessionModelValidForChangeLogExport(
   )
 }
 
-function validateChangeLogDocumentMetadata(
-  document: Record<string, unknown>,
-  changes: ChangeLogEntry[]
-): ChangeLogDocumentMetadata {
-  if (typeof document.complete !== 'boolean') {
-    throw new Error('Change log complete must be a boolean')
-  }
-
-  const changeCount = readDocumentCount(document, 'changeCount')
-  const sourceChangeCount = readDocumentCount(document, 'sourceChangeCount')
-  const unavailableChangeCount = readDocumentCount(
-    document,
-    'unavailableChangeCount'
-  )
-  if (changeCount !== BigInt(changes.length)) {
-    throw new Error('Change log changeCount must match changes length')
-  }
-  if (sourceChangeCount < changeCount) {
-    throw new Error('Change log sourceChangeCount must cover changeCount')
-  }
-
-  const unavailableChangeSerials = normalizeUnavailableChangeSerials(
-    document.unavailableChangeSerials,
-    sourceChangeCount
-  )
-  if (unavailableChangeCount !== BigInt(unavailableChangeSerials.length)) {
-    throw new Error(
-      'Change log unavailableChangeCount must match unavailableChangeSerials length'
-    )
-  }
-  if (document.complete !== (unavailableChangeCount === 0n)) {
-    throw new Error(
-      'Change log complete must match unavailable change metadata'
-    )
-  }
-
-  return {
-    complete: document.complete,
-    changeCount: changeCount.toString(),
-    sourceChangeCount: sourceChangeCount.toString(),
-    unavailableChangeCount: unavailableChangeCount.toString(),
-    unavailableChangeSerials,
-  }
-}
-
-function normalizeChangeLogEntry(
-  entry: unknown,
-  index: number
-): NormalizedChangeLogEntry {
-  if (!isRecord(entry)) {
-    throw new Error(`Change log entry ${index} must be an object`)
-  }
-
-  const { kind, offset, length, serial, data, groupId } = entry
-  if (
-    kind !== 'INSERT' &&
-    kind !== 'DELETE' &&
-    kind !== 'OVERWRITE' &&
-    kind !== 'REPLACE' &&
-    kind !== 'TRANSFORM'
-  ) {
-    throw new Error(`Change log entry ${index} has an unsupported kind`)
-  }
-  const normalizedOffset = normalizeNonNegativeInt64ForClient(
-    offset,
-    `change log entry ${index} offset`
-  )
-  const normalizedLength = normalizeNonNegativeInt64ForClient(
-    length,
-    `change log entry ${index} length`
-  )
-
-  const dataBytes =
-    typeof data === 'string' ? parseInputData(data, 'hex') : new Uint8Array(0)
-  if (
-    (kind === 'INSERT' || kind === 'DELETE' || kind === 'OVERWRITE') &&
-    dataBytes.length === 0
-  ) {
-    throw new Error(`Change log entry ${index} ${kind} requires data`)
-  }
-  if (kind === 'DELETE' && dataBytes.length !== normalizedLength) {
-    throw new Error(`Change log entry ${index} DELETE data length mismatch`)
-  }
-
-  const normalized: NormalizedChangeLogEntry = {
-    kind,
-    offset: normalizedOffset,
-    length: normalizedLength,
-    data: Buffer.from(dataBytes).toString('hex'),
-  }
-  if (kind === 'TRANSFORM') {
-    const legacyFields = [
-      'transformId',
-      'optionsJson',
-      'replacementLength',
-      'computedFileSizeBefore',
-      'computedFileSizeAfter',
-    ].filter((field) => Object.prototype.hasOwnProperty.call(entry, field))
-    if (legacyFields.length > 0) {
-      throw new Error(
-        `Change log entry ${index} TRANSFORM metadata must be carried in data`
-      )
-    }
-    normalized.transformDescriptor = parseTransformPrimitiveDescriptor(
-      dataBytes,
-      `Change log entry ${index} TRANSFORM data`
-    )
-  }
-  if (serial !== undefined) {
-    normalized.serial = normalizePositiveInt64ForClient(
-      serial,
-      `change log entry ${index} serial`
-    )
-  }
-  if (groupId !== undefined) {
-    if (typeof groupId !== 'string' || !groupId.trim()) {
-      throw new Error(`Change log entry ${index} groupId must be a string`)
-    }
-    normalized.groupId = groupId.trim()
-  }
-  return normalized
-}
-
-function validateChangeLogMetadata(entries: ChangeLogEntry[]): void {
-  const serializedEntries = entries.filter(
-    (entry) => entry.serial !== undefined
-  )
-  if (
-    serializedEntries.length > 0 &&
-    serializedEntries.length !== entries.length
-  ) {
-    throw new Error('Change log serial metadata must be present on every entry')
-  }
-
-  for (let index = 0; index < entries.length; index += 1) {
-    const serial = entries[index].serial
-    if (serial !== undefined && serial !== index + 1) {
-      throw new Error(
-        `Change log serial metadata must be contiguous; entry ${index} has serial ${serial}, expected ${
-          index + 1
-        }`
-      )
-    }
-  }
-
-  const closedGroups = new Set<string>()
-  let activeGroup: string | undefined
-  for (const [index, entry] of entries.entries()) {
-    const groupId = entry.groupId
-    if (!groupId) {
-      if (activeGroup) {
-        closedGroups.add(activeGroup)
-        activeGroup = undefined
-      }
-      continue
-    }
-
-    if (groupId !== activeGroup) {
-      if (closedGroups.has(groupId)) {
-        throw new Error(
-          `Change log groupId "${groupId}" is not contiguous at entry ${index}`
-        )
-      }
-      if (activeGroup) {
-        closedGroups.add(activeGroup)
-      }
-      activeGroup = groupId
-    }
-  }
-}
-
-async function readChangeLogFile(inputPath: string): Promise<ParsedChangeLog> {
-  const text = await fs.readFile(inputPath, 'utf8')
-  assertJsonNestingLimit(text)
-  let parsed: unknown
-  try {
-    parsed = JSON.parse(text)
-  } catch (error) {
-    const message = error instanceof Error ? error.message : String(error)
-    throw new Error(`Invalid change log JSON: ${message}`)
-  }
-  return normalizeChangeLogEntries(parsed)
-}
-
 async function readChangeLogRequest(
   request: PreviewChangeLogRequest
 ): Promise<ParsedChangeLog> {
-  return request.inputPath
-    ? await readChangeLogFile(request.inputPath)
-    : normalizeChangeLogEntries(request.changes)
+  const codecOptions = request.signal ? { signal: request.signal } : undefined
+  const parsed = request.inputPath
+    ? await openChangeLogFile(request.inputPath, codecOptions)
+    : normalizeChangeLogDocument(request.changes, codecOptions)
+
+  // The persisted format deliberately supports the full non-negative int64
+  // range, while the current protobuf-ts transport is number-based. Validate
+  // every replay range before previewing or mutating the session so a late
+  // unsafe entry cannot turn into a partial replay followed by rollback.
+  for await (const change of parsed.entries()) {
+    normalizeNonNegativeInt64ForClient(change.offset, 'change log entry offset')
+    normalizeNonNegativeInt64ForClient(change.length, 'change log entry length')
+  }
+
+  return parsed
 }
 
 function changeDetailsToLogEntry(
@@ -1193,39 +866,6 @@ async function assertChangeLogExportStable(
   }
 }
 
-function createPrimitiveCounts(
-  changes: NormalizedChangeLogEntry[]
-): ChangeLogPrimitiveCounts {
-  const counts: ChangeLogPrimitiveCounts = {
-    total: changes.length,
-    insert: 0,
-    delete: 0,
-    overwrite: 0,
-    replace: 0,
-    transform: 0,
-  }
-  for (const change of changes) {
-    switch (change.kind) {
-      case 'INSERT':
-        counts.insert += 1
-        break
-      case 'DELETE':
-        counts.delete += 1
-        break
-      case 'OVERWRITE':
-        counts.overwrite += 1
-        break
-      case 'REPLACE':
-        counts.replace += 1
-        break
-      case 'TRANSFORM':
-        counts.transform += 1
-        break
-    }
-  }
-  return counts
-}
-
 function createExpectedSizeDelta(parsed: ParsedChangeLog): ChangeLogSizeDelta {
   const beforeByteLength = parseNonNegativeInt64(
     parsed.before.byteLength,
@@ -1240,39 +880,6 @@ function createExpectedSizeDelta(parsed: ParsedChangeLog): ChangeLogSizeDelta {
     afterByteLength: afterByteLength.toString(),
     deltaBytes: (afterByteLength - beforeByteLength).toString(),
   }
-}
-
-function createTransformDescriptorPreviews(
-  changes: NormalizedChangeLogEntry[]
-): ChangeLogTransformDescriptorPreview[] {
-  return changes.flatMap((change, index) => {
-    if (change.kind !== 'TRANSFORM' || !change.transformDescriptor) {
-      return []
-    }
-    return [
-      {
-        index,
-        ...(change.serial !== undefined
-          ? { serial: int64ToDecimal(change.serial) }
-          : {}),
-        offset: int64ToDecimal(change.offset),
-        length: int64ToDecimal(change.length),
-        transformId: change.transformDescriptor.transformId,
-        ...(change.transformDescriptor.optionsJson
-          ? { optionsJson: change.transformDescriptor.optionsJson }
-          : {}),
-        descriptorSource: 'data' as const,
-      },
-    ]
-  })
-}
-
-function createRequiredPlugins(
-  descriptors: ChangeLogTransformDescriptorPreview[]
-): string[] {
-  return Array.from(
-    new Set(descriptors.map((descriptor) => descriptor.transformId))
-  ).sort()
 }
 
 function uniqueSortedStrings(values: string[]): string[] {
@@ -1329,22 +936,6 @@ function createChangeLogDocument(
   }
 }
 
-function serializeChangeLogEntry(entry: ChangeLogEntry): ChangeLogEntry {
-  const serialized: ChangeLogEntry = {
-    kind: entry.kind,
-    offset: int64ToDecimal(entry.offset),
-    length: int64ToDecimal(entry.length),
-    data: entry.data,
-  }
-  if (entry.serial !== undefined) {
-    serialized.serial = int64ToDecimal(entry.serial)
-  }
-  if (entry.groupId) {
-    serialized.groupId = entry.groupId
-  }
-  return serialized
-}
-
 function createChangeLogSummary(
   sessionId: string,
   sourceChangeCount: number,
@@ -1369,120 +960,6 @@ function createChangeLogSummary(
     ),
     ...(changes ? { changes: changes.map(serializeChangeLogEntry) } : {}),
     outputPath,
-  }
-}
-
-async function writeStreamText(
-  stream: NodeJS.WritableStream,
-  text: string
-): Promise<void> {
-  if (!stream.write(text)) {
-    await once(stream, 'drain')
-  }
-}
-
-async function syncFileToDisk(path: string): Promise<void> {
-  const handle = await fs.open(path, 'r+')
-  try {
-    await handle.sync()
-  } finally {
-    await handle.close()
-  }
-}
-
-async function syncParentDirectory(path: string): Promise<void> {
-  if (process.platform === 'win32') {
-    return
-  }
-  let handle: fs.FileHandle | undefined
-  try {
-    handle = await fs.open(dirname(path), 'r')
-    await handle.sync()
-  } catch {
-    // Some filesystems/platforms do not support directory fsync through Node.
-  } finally {
-    await handle?.close().catch(() => undefined)
-  }
-}
-
-async function writeChangeLogDocumentFile(
-  outputPath: string,
-  overwriteExisting: boolean,
-  sourceChangeCount: number,
-  before: ChangeLogFingerprint,
-  after: ChangeLogFingerprint,
-  writeEntries: (
-    writeEntry: (entry: ChangeLogEntry) => Promise<void>
-  ) => Promise<CollectedChangeLogEntries>,
-  verifyBeforeCommit?: () => Promise<void>
-): Promise<CollectedChangeLogEntries> {
-  if (!overwriteExisting) {
-    try {
-      await fs.access(outputPath)
-      throw new Error(
-        `Refusing to overwrite existing change log: ${outputPath}`
-      )
-    } catch (error) {
-      if (
-        !(error instanceof Error) ||
-        !('code' in error) ||
-        (error as NodeJS.ErrnoException).code !== 'ENOENT'
-      ) {
-        throw error
-      }
-    }
-  }
-
-  const tempPath = join(
-    dirname(outputPath),
-    `.${basename(outputPath)}.${process.pid}.${Date.now()}.tmp`
-  )
-  const stream = createWriteStream(tempPath, {
-    encoding: 'utf8',
-    flags: 'wx',
-  })
-  let committed = false
-
-  try {
-    const metadata = {
-      format: CHANGE_LOG_FORMAT,
-      version: CHANGE_LOG_VERSION,
-      complete: true,
-      before,
-      after,
-      changeCount: sourceChangeCount.toString(),
-      sourceChangeCount: sourceChangeCount.toString(),
-      unavailableChangeCount: '0',
-      unavailableChangeSerials: [],
-    }
-    const prefix = `${JSON.stringify(metadata, null, 2).replace(/\n}$/, ',\n  "changes": [')}\n`
-    await writeStreamText(stream, prefix)
-
-    let first = true
-    const collected = await writeEntries(async (entry) => {
-      const serialized = JSON.stringify(serializeChangeLogEntry(entry), null, 2)
-        .split('\n')
-        .map((line) => `    ${line}`)
-        .join('\n')
-      await writeStreamText(stream, `${first ? '' : ',\n'}${serialized}`)
-      first = false
-    })
-    await writeStreamText(stream, '\n  ]\n}\n')
-    stream.end()
-    await finished(stream)
-
-    assertCompleteChangeLog('export', collected.unavailableChangeSerials)
-    await syncFileToDisk(tempPath)
-    await verifyBeforeCommit?.()
-    await fs.rename(tempPath, outputPath)
-    await syncParentDirectory(outputPath)
-    committed = true
-    return collected
-  } finally {
-    if (!committed) {
-      stream.destroy()
-      await fs.rm(tempPath, { force: true }).catch(() => undefined)
-    }
   }
 }
 
@@ -1776,10 +1253,12 @@ export class OmegaEditToolkit {
     inspectSession: boolean
   ): Promise<ChangeLogPreview> {
     const safetyIssues: ChangeLogSafetyIssue[] = []
-    const transformDescriptors = createTransformDescriptorPreviews(
-      parsed.changes
-    )
-    const requiredPlugins = createRequiredPlugins(transformDescriptors)
+    const transformDescriptors: ChangeLogTransformDescriptorPreview[] =
+      parsed.transformDescriptors.map((descriptor) => ({
+        ...descriptor,
+        descriptorSource: 'data',
+      }))
+    const requiredPlugins = parsed.requiredPlugins
     let missingPlugins: string[] = []
     let current: ChangeLogFingerprint | undefined
     let rollbackProtection: ChangeLogRollbackProtection = {
@@ -1840,9 +1319,7 @@ export class OmegaEditToolkit {
       }
     }
 
-    const unavailableSerials = parsed.unavailableChangeSerials.map((serial) =>
-      serial.toString()
-    )
+    const unavailableSerials = parsed.unavailableChangeSerials
     const errorCount = safetyIssues.filter(
       (issue) => issue.severity === 'error'
     ).length
@@ -1854,7 +1331,7 @@ export class OmegaEditToolkit {
       version: CHANGE_LOG_VERSION,
       complete: parsed.complete,
       canApply: errorCount === 0,
-      primitiveCounts: createPrimitiveCounts(parsed.changes),
+      primitiveCounts: parsed.primitiveCounts,
       before: parsed.before,
       after: parsed.after,
       ...(current ? { current } : {}),
@@ -1938,11 +1415,37 @@ export class OmegaEditToolkit {
   async exportChangeLog(
     sessionId: string,
     outputPath?: string,
-    overwriteExisting: boolean = false
+    overwriteExisting: boolean = false,
+    optimize: boolean = false
   ): Promise<ChangeLogResult> {
     await this.ensureServerRunning()
 
     await assertSessionModelValidForChangeLogExport(sessionId)
+    if (optimize) {
+      if (!outputPath) {
+        throw new Error(
+          'Optimized change-log export requires outputPath so merged payloads remain streaming and bounded'
+        )
+      }
+      const result = await writeChangeLogRpcExportAtomic(
+        outputPath,
+        { sessionId, optimize: true },
+        { overwrite: overwriteExisting }
+      )
+      return {
+        sessionId,
+        format: CHANGE_LOG_FORMAT,
+        version: CHANGE_LOG_VERSION,
+        complete: true,
+        before: result.before,
+        after: result.after,
+        changeCount: result.entryCount.toString(),
+        sourceChangeCount: result.sourceChangeCount,
+        unavailableChangeCount: '0',
+        unavailableChangeSerials: [],
+        outputPath,
+      }
+    }
     const before = await getChangeLogFingerprint(
       sessionId,
       SessionFingerprintContent.ORIGINAL
@@ -1955,21 +1458,45 @@ export class OmegaEditToolkit {
     )
 
     if (outputPath) {
-      const collected = await writeChangeLogDocumentFile(
-        outputPath,
-        overwriteExisting,
+      let collected: CollectedChangeLogEntries | undefined
+      const header = changeLogHeaderForExport({
+        complete: true,
+        before: {
+          byteLength: int64ToDecimal(before.byteLength),
+          digest: before.digest,
+        },
+        after: {
+          byteLength: int64ToDecimal(after.byteLength),
+          digest: after.digest,
+        },
+        changeCount: sourceChangeCount,
         sourceChangeCount,
-        before,
-        after,
-        async (writeEntry) =>
-          await collectChangeLogEntries(
+        unavailableChangeSerials: [],
+      })
+      await writeChangeLogFileAtomic(
+        outputPath,
+        header,
+        async (sink) => {
+          collected = await collectChangeLogEntries(
             sessionId,
             sourceChangeCount,
-            writeEntry
-          ),
-        async () =>
-          await assertChangeLogExportStable(sessionId, sourceChangeCount, after)
+            sink.writeEntry
+          )
+          assertCompleteChangeLog('export', collected.unavailableChangeSerials)
+        },
+        {
+          overwrite: overwriteExisting,
+          beforeCommit: async () =>
+            await assertChangeLogExportStable(
+              sessionId,
+              sourceChangeCount,
+              after
+            ),
+        }
       )
+      if (!collected) {
+        throw new Error('Change log export did not collect completion metadata')
+      }
       return createChangeLogSummary(
         sessionId,
         sourceChangeCount,
@@ -2009,8 +1536,7 @@ export class OmegaEditToolkit {
     request: ApplyChangeLogRequest
   ): Promise<ApplyChangeLogResult> {
     const parsed = await readChangeLogRequest(request)
-    const { changes } = parsed
-    const inputChangeCount = changes.length
+    const inputChangeCount = parsed.entryCount
 
     if (request.dryRun) {
       const preview = await this.createChangeLogPreview(
@@ -2159,32 +1685,34 @@ export class OmegaEditToolkit {
           appliedChangeCount += 1
         }
       }
-      if (changes.length > 0) {
-        let pendingBatch: NormalizedChangeLogEntry[] = []
-        const flushBatch = async () => {
-          if (pendingBatch.length === 0) {
-            return
-          }
-
-          const batch = pendingBatch
-          pendingBatch = []
-          await runSessionTransaction(request.sessionId, async () => {
-            for (const change of batch) {
-              await applyAndCountChange(change)
-            }
-          })
+      const maxReplayBatchEntries = 1024
+      let pendingBatch: NormalizedChangeLogEntry[] = []
+      const flushBatch = async () => {
+        if (pendingBatch.length === 0) {
+          return
         }
 
-        for (const change of changes) {
-          if (change.kind === 'TRANSFORM') {
-            await flushBatch()
+        const batch = pendingBatch
+        pendingBatch = []
+        await runSessionTransaction(request.sessionId, async () => {
+          for (const change of batch) {
             await applyAndCountChange(change)
-          } else {
-            pendingBatch.push(change)
+          }
+        })
+      }
+
+      for await (const change of parsed.entries()) {
+        if (change.kind === 'TRANSFORM') {
+          await flushBatch()
+          await applyAndCountChange(change)
+        } else {
+          pendingBatch.push(change)
+          if (pendingBatch.length >= maxReplayBatchEntries) {
+            await flushBatch()
           }
         }
-        await flushBatch()
       }
+      await flushBatch()
 
       await assertCurrentSessionFingerprint(
         request.sessionId,

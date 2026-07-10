@@ -45,6 +45,12 @@ Risk guide:
 - **Medium**: touches shared behavior but has clear boundaries.
 - **High**: broad API, format, or core model changes.
 
+Related execution plans:
+- `CHECKPOINT-TIMELINE-PRODUCTION.md` is the canonical production backlog for
+  the storage-backed VS Code checkpoint timeline, streaming change-log codec,
+  and non-mutating optimized export work. Keep the streaming-import resolution
+  and shortcoming 12 aligned with that plan rather than duplicating details.
+
 ---
 
 ## Start Here
@@ -55,9 +61,7 @@ Risk guide:
    read/classification RPCs.
 3. **Undo performance batch**: implement the remaining low-risk undo pieces
    (transaction extents, redo batching, snapshot telemetry).
-4. **Streaming import**: pair existing streaming export with a streaming/chunked
-   import path.
-5. **Checkpoint caps/dedupe**: add server/API guardrails for unbounded checkpoint
+4. **Checkpoint caps/dedupe**: add server/API guardrails for unbounded checkpoint
    creation.
 
 The first batch now favors deployment hardening, resource caps, and remaining
@@ -155,27 +159,6 @@ Suggested fix:
   cheap references instead of deep clones.
 - Surface basic metrics for snapshot count/bytes in tests or debug logs.
 
-### 7. Change-log import is still full-document JSON parsing
-
-**Impact:** High
-**Risk:** Medium to High
-**Area:** AI service, VS Code extension, change-log format
-
-Change-log export can stream entries to a local file and former hard caps have
-been removed. Import still parses the entire JSON document before replay, and
-payload bytes are still hex encoded. That means large imports can be memory-heavy
-even though export no longer has to be.
-
-Relevant code:
-- `packages/ai/src/service.ts`
-- `vscode-extension/src/hexEditorProvider.ts`
-
-Suggested fix:
-- Introduce a streaming/chunked import reader for the current JSON format, or
-  define a v3 chunked/binary format if streaming JSON is too contorted.
-- Validate document header/fingerprint before reading all entries.
-- Replay entries incrementally while preserving atomic rollback semantics.
-
 ### 8. TypeScript live client still has a 2^53 int64 ceiling
 
 **Impact:** High for the "massive files" promise
@@ -268,6 +251,11 @@ Suggested fix:
 - Add configurable checkpoint count/bytes caps.
 - Consider dedupe when the computed content equals the latest checkpoint.
 - Return explicit "not needed" or "limit reached" results where appropriate.
+
+Execution: `CHECKPOINT-TIMELINE-PRODUCTION.md` §§5.4 and 7.8 define extension
+timeline quotas and retention. Native core/server checkpoint caps remain a
+separate part of this shortcoming and are not satisfied by extension storage
+limits.
 
 ### 13. gRPC message-size limits are unconfigured and inconsistent
 
