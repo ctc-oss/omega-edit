@@ -634,6 +634,13 @@ test('compiled extension entrypoints exist after build', () => {
     path.resolve(__dirname, '../webview-ui/src/components/Toolbar.svelte'),
     'utf8'
   )
+  const bytesPerRowComboboxSource = fs.readFileSync(
+    path.resolve(
+      __dirname,
+      '../webview-ui/src/components/BytesPerRowCombobox.svelte'
+    ),
+    'utf8'
+  )
   const offsetJumpSource = fs.readFileSync(
     path.resolve(__dirname, '../webview-ui/src/components/OffsetJump.svelte'),
     'utf8'
@@ -691,6 +698,7 @@ test('compiled extension entrypoints exist after build', () => {
     ['ByteTooltip.svelte', byteTooltipSource],
     ['FileScrollbar.svelte', fileScrollbarSource],
     ['Toolbar.svelte', toolbarSource],
+    ['BytesPerRowCombobox.svelte', bytesPerRowComboboxSource],
     ['OffsetJump.svelte', offsetJumpSource],
     ['TransformPanel.svelte', transformPanelSource],
     ['TransformResultPanel.svelte', transformResultPanelSource],
@@ -1148,6 +1156,35 @@ test('compiled extension entrypoints exist after build', () => {
   assert.match(svelteAppSource, /autoFitBytesPerRow=\{false\}/)
   assert.doesNotMatch(toolbarSource, /autoBytesPerRow/)
   assert.doesNotMatch(toolbarSource, /onBytesPerRowMode\('auto'\)/)
+  assert.match(toolbarSource, /BytesPerRowCombobox/)
+  assert.match(bytesPerRowComboboxSource, /role="combobox"/)
+  assert.match(bytesPerRowComboboxSource, /role="listbox"/)
+  assert.match(bytesPerRowComboboxSource, /role="option"/)
+  assert.match(bytesPerRowComboboxSource, /aria-activedescendant/)
+  assert.match(bytesPerRowComboboxSource, /type="number"/)
+  assert.match(bytesPerRowComboboxSource, /min=\{MIN_BYTES_PER_ROW\}/)
+  assert.match(bytesPerRowComboboxSource, /max=\{MAX_BYTES_PER_ROW\}/)
+  assert.match(bytesPerRowComboboxSource, /step="1"/)
+  assert.match(bytesPerRowComboboxSource, /validationMessage/)
+  assert.match(bytesPerRowComboboxSource, /aria-invalid/)
+  assert.match(bytesPerRowComboboxSource, /role="alert"/)
+  assert.match(bytesPerRowComboboxSource, /Number\.isInteger/)
+  assert.match(bytesPerRowComboboxSource, /bytesPerRowRange/)
+  assert.match(bytesPerRowComboboxSource, /event\.altKey/)
+  assert.match(
+    bytesPerRowComboboxSource,
+    /menuOpen && \(event\.key === 'ArrowDown'/
+  )
+  assert.match(bytesPerRowComboboxSource, /event\.key === 'Escape'/)
+  assert.match(
+    bytesPerRowComboboxSource,
+    /inputValue !== String\(bytesPerRow\)/
+  )
+  assert.match(i18nSource, /bytesPerRowSelect: 'Bytes\/row'/)
+  assert.match(bytesPerRowComboboxSource, /replace\(\/\\D\/g, ''\)/)
+  assert.doesNotMatch(bytesPerRowComboboxSource, /<datalist/)
+  assert.doesNotMatch(toolbarSource, /bytes-per-row-select/)
+  assert.doesNotMatch(toolbarSource, /customBytesPerRowOption/)
   assert.match(svelteAppSource, /type: 'editorStateChanged'/)
   assert.match(svelteAppSource, /type: 'toggleEditMode'/)
   assert.match(svelteAppSource, /case 'editMode'/)

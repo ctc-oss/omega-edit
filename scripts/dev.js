@@ -17,7 +17,9 @@ const coreBuildDir = path.join(
 )
 const pluginConanBuildDir = path.join(
   repoRoot,
-  isDefaultGenerator ? '_build_plugin_conan' : `_build_plugin_conan-${generatorSlug}`
+  isDefaultGenerator
+    ? '_build_plugin_conan'
+    : `_build_plugin_conan-${generatorSlug}`
 )
 const coreInstallDir = path.join(repoRoot, '_install_core')
 const serverDir = path.join(repoRoot, 'server', 'cpp')
@@ -180,7 +182,9 @@ function doctor() {
   }
 
   if (failed) {
-    console.log('\nInstall the missing prerequisites, then run yarn dev:doctor again.')
+    console.log(
+      '\nInstall the missing prerequisites, then run yarn dev:doctor again.'
+    )
     process.exit(1)
   }
 
@@ -418,7 +422,12 @@ function ensureConanProfile(cwd) {
   run('conan', ['profile', 'detect', '--force'], cwd)
 }
 
-function installConanRequirements(conanfile, outputFolder, cwd, installCommand) {
+function installConanRequirements(
+  conanfile,
+  outputFolder,
+  cwd,
+  installCommand
+) {
   run(
     'node',
     [
@@ -582,7 +591,9 @@ function slugGenerator(rawGenerator) {
 }
 
 function getServerBinaryPath() {
-  const binaryName = isWin ? 'omega-edit-grpc-server.exe' : 'omega-edit-grpc-server'
+  const binaryName = isWin
+    ? 'omega-edit-grpc-server.exe'
+    : 'omega-edit-grpc-server'
   const candidates = [
     path.join(serverBuildDir, binaryName),
     path.join(serverBuildDir, buildType, binaryName),
@@ -690,7 +701,5 @@ function probeAppleCxx17Headers() {
 }
 
 function firstDiagnosticLine(output) {
-  return output
-    .split(/\r?\n/)
-    .find((line) => /fatal error:|error:/.test(line))
+  return output.split(/\r?\n/).find((line) => /fatal error:|error:/.test(line))
 }
