@@ -127,18 +127,21 @@ OmegaEdit can discover native transform plugins from `.so`, `.dylib`, and `.dll`
 
 User documentation is published to https://ctc-oss.github.io/omega-edit/.
 
-## Requirements
+## Source Development Prerequisites
 
-### Command line tools
+Install these tools before building Ωedit™ from a source checkout:
 
-
-- **C/C++ compiler** (such as clang, gcc, mingw, or MSVC)
-- **CMake** (https://cmake.org/download/)
-- **conan** C/C++ package manager (https://conan.io)
-- **git** for version control (https://git-scm.com)
-- **make** or **ninja** for running the build scripts (https://www.gnu.org/software/make/ or https://ninja-build.org)
-- **Node.js 22+** and **yarn** for building, testing, and packaging the node artifacts (https://yarnpkg.com)
-- **nvm** or **nodeenv** for using specific versions of node.js
+| Tool | Version | Purpose |
+| --- | --- | --- |
+| C/C++ compiler and platform SDK | C++17-capable | Builds the native core library and C++ gRPC server |
+| CMake | 3.16+ | Configures native builds |
+| Conan | 2.x | Fetches C++ server dependencies |
+| Ninja or Make | Current stable | Runs CMake builds |
+| Python | 3.10+ | Installs/runs Conan and supporting build tools |
+| Node.js | 20.x recommended, 18+ minimum for the VS Code extension | Builds and tests TypeScript packages |
+| Yarn | 1.x | Builds root workspaces |
+| npm | Bundled with Node.js | Builds the standalone VS Code extension example |
+| git | Current stable | Source control |
 
 Optional documentation tools:
 
@@ -147,6 +150,64 @@ Optional documentation tools:
 - **sphinx** to generate user documentation (https://www.sphinx-doc.org)
   - **sphinx RTD theme** (https://github.com/readthedocs/sphinx_rtd_theme)
   - **breathe** ReStructuredText and Sphinx bridge to Doxygen (https://github.com/michaeljones/breathe)
+
+### macOS And Apple Silicon
+
+On macOS, install Apple's Command Line Tools or full Xcode before configuring CMake:
+
+```bash
+xcode-select --install
+xcode-select -p
+xcrun --find clang++
+xcrun --show-sdk-path
+```
+
+If full Xcode is installed instead of only the Command Line Tools, finish first-run setup and make sure the active developer directory points at Xcode:
+
+```bash
+sudo xcodebuild -runFirstLaunch
+sudo xcode-select --switch /Applications/Xcode.app/Contents/Developer
+```
+
+The native build must be able to find standard C++ headers through the selected Apple SDK. If you see an error like `fatal error: 'cstdint' file not found`, the compiler toolchain or SDK is not selected correctly. Re-run the commands above, then start from a fresh CMake build directory for the generator you want to use.
+
+Apple Silicon users should use a native arm64 terminal and native package manager installation where possible. Homebrew installs to `/opt/homebrew` on Apple Silicon; make sure that path is on `PATH` before installing CMake, Conan, Ninja, Node.js, or Yarn through Homebrew.
+
+For a Homebrew-based Apple Silicon setup:
+
+```bash
+brew install cmake conan ninja node yarn
+```
+
+If `xcrun --show-sdk-path` succeeds but the build still cannot find `<cstdint>`, clear stale compiler include or SDK overrides and reconfigure from a fresh build directory:
+
+```bash
+unset SDKROOT CPATH CPLUS_INCLUDE_PATH C_INCLUDE_PATH
+yarn dev:doctor
+```
+
+If `yarn dev:doctor` reports that Apple C++17 standard headers are missing, reinstall the Command Line Tools or switch to a complete Xcode install. A broken Command Line Tools install can still provide `clang++` and an SDK path while missing most files under `/Library/Developer/CommandLineTools/usr/include/c++/v1`.
+
+### Quick Tool Check
+
+These commands should all succeed before running `yarn native` or `yarn vscode:setup`:
+
+```bash
+cmake --version
+conan --version
+python3 --version
+node --version
+yarn --version
+npm --version
+```
+
+Or run the bundled prerequisite check:
+
+```bash
+yarn dev:doctor
+```
+
+On macOS, `yarn dev:doctor` also checks `xcode-select`, `xcrun --find clang++`, and `xcrun --show-sdk-path`.
 
 ### IDE
 
@@ -167,11 +228,49 @@ To use CMake presets in Visual Studio Code, install the [CMake Tools extension](
    ```
 4. When you run "CMake: Configure", you'll be prompted to select a preset from the available options
 
-## Build the core library (C/C++)
+## Build From Source
 
 :exclamation: These commands should be executed at the root level of the repository :exclamation:
 
-### Install conan:
+### Developer Build Commands
+
+The easiest local path is to use the root Yarn scripts. They wrap the CMake, Conan, Yarn, and npm commands used by CI and keep the VS Code extension setup in one place.
+
+```bash
+yarn dev:setup          # install root Yarn deps and VS Code extension npm deps
+yarn native             # configure, build, test, and install core; configure/build the C++ gRPC server
+yarn packages:build     # package @omega-edit/server, @omega-edit/client, and @omega-edit/ai
+yarn packages:test      # run client and AI package tests
+```
+
+For the reference VS Code extension:
+
+```bash
+yarn vscode:setup              # full one-time setup for extension development
+yarn vscode:build              # compile vscode-extension
+yarn vscode:test:unit          # lint, compile, and run fast unit tests
+yarn vscode:test:integration   # run VS Code integration tests
+yarn vscode:test               # run the extension's full npm test script
+yarn vscode:package            # create vscode-extension/omega-edit-hex-editor.vsix
+```
+
+`yarn vscode:setup` is the recommended first command for extension work. It builds the native pieces, packages the local server/client/AI artifacts, refreshes the extension dependencies, and installs the freshly built local server/client tarballs into the extension without rewriting its lockfile.
+
+Use these environment variables when you need to override defaults:
+
+```bash
+OMEGA_EDIT_BUILD_TYPE=Debug yarn native
+OMEGA_EDIT_CMAKE_GENERATOR="Unix Makefiles" yarn native
+VSCODE_VERSION=1.110.0 yarn vscode:test:integration
+```
+
+The helper also accepts the legacy `generator` environment variable used by `build.sh`, so `export generator="Unix Makefiles"` works too.
+
+Run `yarn dev:help` to list every wrapped command.
+
+### Build the core library (C/C++)
+
+#### Install conan:
 
 Conan is the package manager used to install the C/C++ dependencies.  It can be installed via pip.
 
@@ -179,13 +278,13 @@ Conan is the package manager used to install the C/C++ dependencies.  It can be 
 pip install conan
 ```
 
-### Configure a build:
+#### Configure a build:
 
 Depending on your linking needs, Ωedit™ can be built _either_ as a static (e.g., libomega_edit.a) or shared
 (e.g., libomega_edit.so) library.  `Release` or `Debug` versions can be created.  Example programs and documentation can
 also be built if desired.
 
-#### Using CMake Presets (Recommended):
+##### Using CMake Presets (Recommended):
 
 The project includes a `CMakePresets.json` file with predefined build configurations. To list available presets:
 
@@ -206,7 +305,7 @@ Available presets include combinations of:
 - Options: `*-minimal` (no docs/examples), default (all options), or `*-static` (static libraries)
 - CI presets: `ci` (for automated builds) and `ci-docs` (for documentation generation)
 
-#### Using Manual Configuration:
+##### Using Manual Configuration:
 
 Here is how to build a debug version of a shared library, with no documentation or example programs.
 
@@ -214,7 +313,7 @@ Here is how to build a debug version of a shared library, with no documentation 
 cmake -S . -B _build -DCMAKE_BUILD_TYPE=Debug -DBUILD_DOCS=NO -DBUILD_EXAMPLES=NO -DBUILD_SHARED_LIBS=YES
 ```
 
-#### Embedding the core library in another CMake project:
+##### Embedding the core library in another CMake project:
 
 If you want to consume Ωedit™ as a subproject, enable embed mode to automatically disable tests,
 documentation, examples, coverage instrumentation, and packaging:
@@ -223,7 +322,7 @@ documentation, examples, coverage instrumentation, and packaging:
 cmake -S . -B _build -DOMEGA_EDIT_EMBED_MODE=ON
 ```
 
-### Build the configured build:
+#### Build the configured build:
 
 This will build the core library, and any example programs or documentation if configured.  Note that the config type
 (`Debug` or `Release`) must match the config type (`CMAKE_BUILD_TYPE`) used when configuring the build.
@@ -232,7 +331,7 @@ This will build the core library, and any example programs or documentation if c
 cmake --build _build --config Debug
 ```
 
-### Run the test suite:
+#### Run the test suite:
 
 This will run the test suite for the core library.  Note that the build config (`Debug` or `Release`) must match the
 config type (`CMAKE_BUILD_TYPE`) used when configuring the build.
@@ -241,14 +340,14 @@ config type (`CMAKE_BUILD_TYPE`) used when configuring the build.
 ctest --build-config Debug --test-dir _build/core --output-on-failure
 ```
 
-### Install the core library:
+#### Install the core library:
 
 We're installing in a directory named `_install` in the root of the repository. This directory can be used as the default
 shared-library location, or you can set OE_LIB_DIR to a custom path. If you just want to use the library itself, you can
 install it anywhere you like (e.g., `/usr/local`).
 
 ```bash
-cmake --install _build --config Debug --prefix _install
+cmake --install _build/packages/core --config Debug --prefix _install
 ```
 
 ## Packaging Ωedit™ gRPC Server and Node Client
@@ -261,10 +360,10 @@ library built in the previous step and package a native C++ gRPC server binary. 
 node client, and the AI tooling package will include the `oe` CLI and stdio MCP server.
 
 ```bash
-yarn install
-yarn workspace @omega-edit/server package
-yarn workspace @omega-edit/client test
-yarn workspace @omega-edit/ai test
+yarn dev:setup
+yarn native
+yarn packages:build
+yarn packages:test
 ```
 
 Node packages will be in `.tgz` files located at:

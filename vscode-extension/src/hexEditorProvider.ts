@@ -362,6 +362,8 @@ const CONTEXT_CAN_UNDO = 'omegaEdit.canUndo'
 const CONTEXT_CAN_REDO = 'omegaEdit.canRedo'
 const CONTEXT_HAS_PENDING_CHANGES = 'omegaEdit.hasPendingChanges'
 const CONTEXT_TRANSFORM_IN_FLIGHT = 'omegaEdit.transformInFlight'
+const CONTEXT_ACTIVE_SESSION_RESOURCE_PATHS =
+  'omegaEdit.activeSessionResourcePaths'
 
 function openEditorFirstMessage(): string {
   return vscode.l10n.t('Open an OmegaEdit editor first')
@@ -2529,6 +2531,7 @@ export class HexEditorProvider
       restoredFromBackup: wasRestoredFromBackup,
     }
     this.sessions.set(uri.toString(), session)
+    this.updateActiveSessionResourcePathContext()
     this.pendingHealthWebviews.delete(webviewPanel.webview)
     resolvedSession = session
     this.activeSession = session
@@ -2567,6 +2570,7 @@ export class HexEditorProvider
       session.disposed = true
       vscode.Disposable.from(...panelDisposables).dispose()
       this.sessions.delete(uri.toString())
+      this.updateActiveSessionResourcePathContext()
       if (this.activeSession === session) {
         this.activeSession = undefined
         this.updateEditCommandContexts(undefined)
@@ -4736,6 +4740,23 @@ export class HexEditorProvider
       !!session?.transformInFlight
     )
     this.updateStatusBar(session)
+  }
+
+  private updateActiveSessionResourcePathContext(): void {
+    const activeSessionResourcePaths: Record<string, true> = {}
+    for (const session of this.sessions.values()) {
+      if (session.disposed || session.document.uri.scheme !== 'file') {
+        continue
+      }
+      activeSessionResourcePaths[session.document.uri.fsPath] = true
+      activeSessionResourcePaths[session.document.uri.path] = true
+    }
+
+    void vscode.commands.executeCommand(
+      'setContext',
+      CONTEXT_ACTIVE_SESSION_RESOURCE_PATHS,
+      activeSessionResourcePaths
+    )
   }
 
   private hideStatusBar(): void {

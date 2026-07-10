@@ -46,7 +46,12 @@ Install dependencies with Conan, then configure this directory with the generate
 toolchain and an installed Omega Edit core package on `CMAKE_PREFIX_PATH`:
 
 ```bash
-conan install . --output-folder=build --build=missing -s build_type=Release
+node ../scripts/conan-install.js \
+  --conanfile conanfile.py \
+  --output-folder build \
+  --package protobuf \
+  -- \
+  conan install . --output-folder=build --build=missing -s build_type=Release
 cmake -S . -B build -DCMAKE_BUILD_TYPE=Release \
   -DCMAKE_TOOLCHAIN_FILE=build/conan_toolchain.cmake \
   -DCMAKE_PREFIX_PATH=/path/to/omega_edit/prefix

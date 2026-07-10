@@ -92,7 +92,12 @@
     "commands": [
       {
         "command": "omegaEdit.openInHexEditor",
-        "title": "%omegaEdit.command.openInHexEditor.title%"
+        "title": "%omegaEdit.command.openInHexEditor.title%",
+        "enablement": "activeCustomEditorId != omegaEdit.hexEditor && resourcePath not in omegaEdit.activeSessionResourcePaths",
+        "icon": {
+          "dark": "images/icons/dark/omega-edit-editor-open.svg",
+          "light": "images/icons/light/omega-edit-editor-open.svg"
+        }
       },
       {
         "command": "omegaEdit.goToOffset",
@@ -151,7 +156,11 @@
       {
         "command": "omegaEdit.rollbackSession",
         "title": "%omegaEdit.command.rollbackSession.title%",
-        "enablement": "omegaEdit.hexEditorActive && omegaEdit.hasPendingChanges && !omegaEdit.transformInFlight"
+        "enablement": "omegaEdit.hexEditorActive && omegaEdit.hasPendingChanges && !omegaEdit.transformInFlight",
+        "icon": {
+          "light": "images/icons/light/omega-edit-editor-rollback.svg",
+          "dark": "images/icons/dark/omega-edit-editor-rollback.svg"
+        }
       },
       {
         "command": "omegaEdit.rollbackCheckpoint",
@@ -203,14 +212,14 @@
       "explorer/context": [
         {
           "command": "omegaEdit.openInHexEditor",
-          "when": "resourceScheme == file",
+          "when": "resourcePath not in omegaEdit.activeSessionResourcePaths",
           "group": "navigation"
         }
       ],
       "editor/title": [
         {
           "command": "omegaEdit.openInHexEditor",
-          "when": "resourceScheme == file",
+          "when": "activeCustomEditorId != omegaEdit.hexEditor && resourcePath not in omegaEdit.activeSessionResourcePaths",
           "group": "navigation"
         },
         {
