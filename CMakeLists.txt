@@ -35,6 +35,8 @@ project(omega_edit
         HOMEPAGE_URL "https://github.com/ctc-oss/omega-edit"
         LANGUAGES C CXX)
 
+include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/OmegaEditCcache.cmake")
+
 set(OMEGA_EDIT_VERSION "${OMEGA_EDIT_VERSION_FULL}")
 
 option(OMEGA_EDIT_EMBED_MODE "Configure a lean embeddable build with tests, docs, examples, and packaging disabled" OFF)

@@ -38,6 +38,8 @@ project(omega_edit_transform_plugins
         HOMEPAGE_URL "https://github.com/ctc-oss/omega-edit"
         LANGUAGES C CXX)
 
+include("${CMAKE_CURRENT_SOURCE_DIR}/../cmake/OmegaEditCcache.cmake" OPTIONAL)
+
 option(BUILD_TESTS "build plugin tests" ON)
 
 include(GNUInstallDirs)
