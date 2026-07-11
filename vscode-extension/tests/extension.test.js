@@ -1315,7 +1315,7 @@ test('compiled extension entrypoints exist after build', () => {
   assert.match(svelteAppSource, /type: 'delete'/)
   assert.match(svelteAppSource, /function handleGridType/)
   assert.match(svelteAppSource, /function commitByteEdit/)
-  assert.match(svelteAppSource, /if \(offset === fileSize\)/)
+  assert.match(svelteAppSource, /if \(offset >= fileSize\)/)
   assert.match(svelteAppSource, /const overwritingExistingByte/)
   assert.match(svelteAppSource, /function postDeleteRange/)
   assert.match(svelteAppSource, /function deleteFromKeyboard/)
@@ -1396,12 +1396,13 @@ test('compiled extension entrypoints exist after build', () => {
   assert.match(svelteAppSource, /visibleByteCount=\{visibleByteCount\(\)\}/)
   assert.match(svelteAppSource, /searchLength=\{searchPatternLength\}/)
   assert.match(editorWorkspaceSource, /PreviewGrid/)
-  assert.match(editorWorkspaceSource, /emptyFile=\{fileSize === 0\}/)
-  assert.match(previewGridSource, /emptyFile = false/)
   assert.match(
-    previewGridSource,
-    /emptyFile \? strings\.grid\.emptyFile : strings\.grid\.waitingForData/
+    editorWorkspaceSource,
+    /emptyFile=\{!preparing && fileSize === 0\}/
   )
+  assert.match(previewGridSource, /emptyFile = false/)
+  assert.match(previewGridSource, /const emptyCellOffsets/)
+  assert.match(previewGridSource, /strings\.grid\.waitingForData/)
   assert.match(i18nSource, /emptyFile: 'Empty file'/)
   assert.match(i18nSource, /emptyFile: 'Archivo vacío'/)
   assert.match(editorWorkspaceSource, /FileScrollbar/)

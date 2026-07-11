@@ -1010,7 +1010,7 @@
   }
 
   function selectOffset(offset: number, extend = false): void {
-    if (offset === fileSize) {
+    if (offset >= fileSize) {
       selectionAnchor = -1
       selectedOffset = fileSize
       clipboardMessage = ''
