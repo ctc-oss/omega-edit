@@ -31,6 +31,7 @@
     searchEnd?: number
     searchMatches?: number[]
     searchLength?: number
+    searchCurrentOffset?: number
     inspectorStart?: number
     inspectorEnd?: number
     externalHighlights?: WebviewExternalHighlight[]
@@ -67,6 +68,7 @@
     searchEnd = -1,
     searchMatches = [],
     searchLength = 0,
+    searchCurrentOffset = -1,
     inspectorStart = -1,
     inspectorEnd = -1,
     externalHighlights = [],
@@ -336,6 +338,11 @@
       byteOffset >= searchStart &&
       byteOffset <= searchEnd
     )
+  }
+
+  function isCurrentSearchMatch(byteOffset: number): boolean {
+    if (searchCurrentOffset < 0 || searchLength <= 0) return false
+    return byteOffset >= searchCurrentOffset && byteOffset < searchCurrentOffset + searchLength
   }
 
   function isInspectorByte(byteOffset: number): boolean {
@@ -746,6 +753,7 @@
               class="byte"
               class:columnHover={isColumnHover(index)}
               class:searchHit={isSearchHit(byteOffset)}
+              class:searchCurrentMatch={isCurrentSearchMatch(byteOffset)}
               class:inspectorRange={isInspectorByte(byteOffset)}
               class:externalHighlight={!!externalHighlight}
               class:externalCurrent={externalKind === 'current'}
@@ -824,6 +832,7 @@
               class:high-bit={isHighBitByte(byte)}
               class:columnHover={isColumnHover(index)}
               class:searchHit={isSearchHit(byteOffset)}
+              class:searchCurrentMatch={isCurrentSearchMatch(byteOffset)}
               class:inspectorRange={isInspectorByte(byteOffset)}
               class:externalHighlight={!!externalHighlight}
               class:externalCurrent={externalKind === 'current'}

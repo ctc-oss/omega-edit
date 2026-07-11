@@ -1280,7 +1280,7 @@ test('compiled extension entrypoints exist after build', () => {
         /\.\.\.\(searchHex \? \{\} : \{ textEncoding \}\)/g
       ) || []
     ).length,
-    3
+    4
   )
   assert.match(
     svelteAppSource,
@@ -1369,8 +1369,18 @@ test('compiled extension entrypoints exist after build', () => {
   assert.match(svelteAppSource, /clearSearchResults\(\)/)
   assert.match(svelteAppSource, /type: 'findAdjacentMatch'/)
   assert.match(svelteAppSource, /type: 'goToMatch'/)
-  assert.match(svelteAppSource, /viewportMatches \?\? \[\]/)
-  assert.match(svelteAppSource, /message\.viewportOffset === visibleOffset/)
+  assert.match(svelteAppSource, /type: 'searchViewportMatches'/)
+  assert.match(svelteAppSource, /case 'searchViewportMatchesResult'/)
+  assert.match(svelteAppSource, /viewportSearchMatches/)
+  assert.match(svelteAppSource, /requestViewportSearchMatches/)
+  assert.match(svelteAppSource, /syncSearchIndexToSelection/)
+  assert.match(svelteAppSource, /findAdjacentBoundedMatchIndex/)
+  assert.match(
+    svelteAppSource,
+    /const anchor = selectedOffset >= 0 \? selectedOffset : getCurrentSearchOffset\(\)/
+  )
+  assert.match(svelteAppSource, /offset: Math\.max\(0, anchor\)/)
+  assert.match(svelteAppSource, /searchMatches\[i\] > anchorOffset/)
   assert.match(svelteAppSource, /case 'searchNavigationCommand'/)
   assert.match(svelteAppSource, /case 'replaceComplete'/)
   assert.match(svelteAppSource, /normalizeReplacementHex/)
@@ -1948,7 +1958,6 @@ test('compiled extension entrypoints exist after build', () => {
   assert.match(fileScrollbarSource, /<svg/)
   assert.doesNotMatch(fileScrollbarSource, /dynamicThumbStyle/)
   assert.match(searchPanelSource, /strings\.search\.label/)
-  assert.match(searchPanelSource, /onSearch/)
   assert.match(searchPanelSource, /onNavigate/)
   assert.match(searchPanelSource, /strings\.search\.next/)
   assert.match(searchPanelSource, /strings\.search\.previous/)
@@ -1957,7 +1966,10 @@ test('compiled extension entrypoints exist after build', () => {
   assert.match(searchPanelSource, /canNavigate/)
   assert.match(searchPanelSource, /canReplace/)
   assert.match(searchPanelSource, /onReplaceAll/)
-  assert.match(searchPanelSource, /caseInsensitive/)
+  assert.match(searchPanelSource, /caseSensitive/)
+  assert.match(searchPanelSource, /onClose/)
+  assert.match(searchPanelSource, /onToggleReplace/)
+  assert.match(searchPanelSource, /replaceVisible/)
   assert.doesNotMatch(searchPanelSource, />Search Next</)
   assert.doesNotMatch(searchPanelSource, />Replace All</)
   assert.match(byteInspectorSource, /strings\.inspector\.label/)

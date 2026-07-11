@@ -21,6 +21,7 @@ export interface PersistedPreviewState {
   textEncoding?: TextEncoding
   insertDirection?: 'forward' | 'backward'
   searchPanelVisible?: boolean
+  replaceVisible?: boolean
   profilerExpanded?: boolean
   analysisSectionOrder?: Record<string, string[]>
   selectionAnchor?: number

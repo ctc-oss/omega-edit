@@ -240,6 +240,15 @@ export type WebviewToHostMessage =
       direction: 'forward' | 'backward'
       offset: number
     }
+  | {
+      type: 'searchViewportMatches'
+      query: string
+      isHex: boolean
+      caseInsensitive?: boolean
+      textEncoding?: TextEncoding
+      viewportOffset: number
+      viewportLength: number
+    }
 
 export type HostToWebviewMessage =
   | {
@@ -399,6 +408,13 @@ export type HostToWebviewMessage =
       viewportLength?: number
       viewportMatches?: number[]
       viewportHasMoreMatches?: boolean
+    }
+  | {
+      type: 'searchViewportMatchesResult'
+      viewportOffset: number
+      viewportLength: number
+      matches: number[]
+      patternLength: number
     }
   | {
       type: 'searchNavigationCommand'
@@ -1135,6 +1151,34 @@ export function normalizeWebviewMessage(
         ...(textEncoding ? { textEncoding } : {}),
         direction: raw.direction,
         offset,
+      }
+    }
+
+    case 'searchViewportMatches': {
+      const query = safeSearchQuery(raw)
+      const textEncoding =
+        raw.textEncoding === undefined
+          ? undefined
+          : safeTextEncoding(raw.textEncoding)
+      const viewportOffset = safeFileOffset(context, raw.viewportOffset)
+      const viewportLength = safeIntegerAtLeast(raw.viewportLength, 1)
+      if (
+        !query ||
+        viewportOffset === undefined ||
+        viewportLength === undefined ||
+        viewportLength <= 0 ||
+        (raw.textEncoding !== undefined && !textEncoding)
+      ) {
+        return undefined
+      }
+      return {
+        type: 'searchViewportMatches',
+        query,
+        isHex: raw.isHex === true,
+        caseInsensitive: safeBoolean(raw.caseInsensitive),
+        ...(textEncoding ? { textEncoding } : {}),
+        viewportOffset,
+        viewportLength,
       }
     }
 

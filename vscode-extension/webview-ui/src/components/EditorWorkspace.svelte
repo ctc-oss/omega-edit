@@ -51,6 +51,7 @@
     searchEnd?: number
     searchMatches?: number[]
     searchLength?: number
+    searchCurrentOffset?: number
     inspectorStart?: number
     inspectorEnd?: number
     externalHighlights?: WebviewExternalHighlight[]
@@ -127,6 +128,7 @@
     searchEnd = -1,
     searchMatches = [],
     searchLength = 0,
+    searchCurrentOffset = -1,
     inspectorStart = -1,
     inspectorEnd = -1,
     externalHighlights = [],
@@ -395,6 +397,7 @@
           searchEnd={searchEnd}
           {searchMatches}
           {searchLength}
+          {searchCurrentOffset}
           inspectorStart={inspectorStart}
           inspectorEnd={inspectorEnd}
           {externalHighlights}

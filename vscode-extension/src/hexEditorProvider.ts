@@ -7645,6 +7645,29 @@ export class HexEditorProvider
           })
           break
         }
+        case 'searchViewportMatches': {
+          const caseFolding = searchCaseFoldingForRequest(
+            msg.caseInsensitive,
+            msg.textEncoding
+          )
+          const patternLength = Math.floor(msg.query.length / 2)
+          const viewport = await session.search.findViewportMatches({
+            query: msg.query,
+            isHex: msg.isHex,
+            caseFolding,
+            fileSize: session.fileSize,
+            viewportOffset: msg.viewportOffset,
+            viewportLength: msg.viewportLength,
+          })
+          this.postWebviewMessage(session, {
+            type: 'searchViewportMatchesResult',
+            viewportOffset: msg.viewportOffset,
+            viewportLength: msg.viewportLength,
+            matches: viewport?.matches ?? [],
+            patternLength,
+          })
+          break
+        }
       }
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err)

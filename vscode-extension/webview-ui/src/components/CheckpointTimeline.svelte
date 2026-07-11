@@ -153,7 +153,7 @@
   </span>
   <button
     type="button"
-    class="timeline-close"
+    class="panel-close timeline-close"
     aria-label={strings.timeline.close}
     title={strings.timeline.close}
     onclick={onClose}
@@ -235,7 +235,6 @@
     grid-column: 5;
     grid-row: 1 / span 2;
     align-self: start;
-    font-size: 1.1rem;
   }
 
   .visually-hidden {
