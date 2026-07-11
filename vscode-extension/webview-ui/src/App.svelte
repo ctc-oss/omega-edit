@@ -1011,14 +1011,19 @@
 
   function selectOffset(offset: number, extend = false): void {
     if (offset >= fileSize) {
-      selectionAnchor = -1
-      selectedOffset = fileSize
-      clipboardMessage = ''
-      pendingHexNibble = undefined
-      pendingHexLabel = ''
-      clearInspectorHighlight()
-      saveSelectionState()
-      return
+      if (fileSize === 0 || !extend) {
+        selectionAnchor = -1
+        selectedOffset = fileSize
+        clipboardMessage = ''
+        pendingHexNibble = undefined
+        pendingHexLabel = ''
+        clearInspectorHighlight()
+        saveSelectionState()
+        return
+      }
+
+      // When extending a selection, clamp to the last existing byte.
+      offset = fileSize - 1
     }
 
     const nextOffset = clampOffset(offset)
