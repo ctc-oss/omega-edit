@@ -1004,6 +1004,32 @@ function formatServerHealthLatencyBand(
   }
 }
 
+function formatServerUptime(totalSeconds: number): string {
+  const remainingSeconds = Math.max(0, Math.floor(totalSeconds))
+  const days = Math.floor(remainingSeconds / 86_400)
+  const hours = Math.floor((remainingSeconds % 86_400) / 3_600)
+  const minutes = Math.floor((remainingSeconds % 3_600) / 60)
+  const seconds = remainingSeconds % 60
+  const formatCount = (count: number): string =>
+    count.toLocaleString(vscode.env.language, { useGrouping: false })
+  const parts: string[] = []
+
+  if (days > 0) {
+    parts.push(vscode.l10n.t('{count}d', { count: formatCount(days) }))
+  }
+  if (hours > 0) {
+    parts.push(vscode.l10n.t('{count}h', { count: formatCount(hours) }))
+  }
+  if (minutes > 0) {
+    parts.push(vscode.l10n.t('{count}m', { count: formatCount(minutes) }))
+  }
+  if (seconds > 0 || parts.length === 0) {
+    parts.push(vscode.l10n.t('{count}s', { count: formatCount(seconds) }))
+  }
+
+  return parts.join('')
+}
+
 interface ServerHealthTooltipEntry {
   label: string
   value: string
@@ -5531,10 +5557,7 @@ export class HexEditorProvider
       this.serverInfo ??= await getServerInfo()
       const serverInfo = this.serverInfo
 
-      const uptimeSeconds = Math.max(
-        0,
-        Math.round(heartbeat.serverUptime / 1000)
-      )
+      const uptimeSeconds = heartbeat.serverUptime / 1000
       const formatMemoryMiB = (bytes?: number): string =>
         bytes === undefined
           ? vscode.l10n.t('n/a')
@@ -5619,7 +5642,7 @@ export class HexEditorProvider
         serverHealthMetric(
           'uptime',
           vscode.l10n.t('Uptime'),
-          vscode.l10n.t('{seconds}s', { seconds: uptimeSeconds })
+          formatServerUptime(uptimeSeconds)
         ),
         serverHealthMetric(
           'logicalCpus',

@@ -28,9 +28,12 @@ const englishStrings = {
   toolbar: {
     label: 'OmegaEdit editor toolbar',
     bytesPerRow: 'Bytes per row',
-    bytesPerRowTitle: (count: number) => `Show ${count} bytes per row`,
-    bytesPerRowSelect: 'Rows',
-    customBytesPerRowOption: 'Custom',
+    bytesPerRowSelect: 'Bytes/row',
+    bytesPerRowOptions: 'Choose a standard bytes-per-row value',
+    bytesPerRowRequired: 'Enter a bytes-per-row value',
+    bytesPerRowInteger: 'Use a whole number',
+    bytesPerRowRange: (min: number, max: number) =>
+      `Use a value from ${min} to ${max}`,
     customBytesPerRow: 'Custom bytes per row',
     customBytesPerRowTitle: (min: number, max: number) =>
       `Set bytes per row from ${min} to ${max}`,
@@ -67,8 +70,6 @@ const englishStrings = {
     offsetPlaceholderDec: '0',
     offsetTitleHex: 'Go to hex offset',
     offsetTitleDec: 'Go to decimal offset',
-    go: 'Go',
-    goTitle: 'Go to offset',
     offsetRequired: 'Enter an offset',
     invalidHexOffset: 'Invalid hex offset',
     invalidDecimalOffset: 'Invalid decimal offset',
@@ -551,8 +552,12 @@ const localeOverrides: Record<string, LocaleStringOverrides> = {
     toolbar: {
       label: 'Barra de herramientas del editor OmegaEdit',
       bytesPerRow: 'Bytes por fila',
-      bytesPerRowTitle: (count: number) =>
-        `Mostrar ${formatNumber(count)} bytes por fila`,
+      bytesPerRowSelect: 'Bytes/fila',
+      bytesPerRowOptions: 'Elegir un valor estandar de bytes por fila',
+      bytesPerRowRequired: 'Introduce un valor de bytes por fila',
+      bytesPerRowInteger: 'Usa un numero entero',
+      bytesPerRowRange: (min: number, max: number) =>
+        `Usa un valor de ${formatNumber(min)} a ${formatNumber(max)}`,
       customBytesPerRow: 'Bytes por fila personalizados',
       customBytesPerRowTitle: (min: number, max: number) =>
         `Establecer bytes por fila de ${formatNumber(min)} a ${formatNumber(max)}`,
@@ -587,8 +592,6 @@ const localeOverrides: Record<string, LocaleStringOverrides> = {
       offsetLabel: 'Desplazamiento',
       offsetTitleHex: 'Ir al desplazamiento hexadecimal',
       offsetTitleDec: 'Ir al desplazamiento decimal',
-      go: 'Ir',
-      goTitle: 'Ir al desplazamiento',
       offsetRequired: 'Introduce un desplazamiento',
       invalidHexOffset: 'Desplazamiento hexadecimal no valido',
       invalidDecimalOffset: 'Desplazamiento decimal no valido',

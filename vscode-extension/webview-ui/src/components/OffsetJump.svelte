@@ -207,14 +207,6 @@
       onkeydown={handleKeydown}
     />
   </span>
-  <button
-    type="button"
-    class="secondary offset-jump-button"
-    title={strings.navigation.goTitle}
-    onclick={submitOffset}
-  >
-    {strings.navigation.go}
-  </button>
   {#if showValidation}
     <span id="offsetJumpStatus" class="offset-jump-status" aria-live="polite">
       {validationMessage}
