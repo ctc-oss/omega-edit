@@ -4165,6 +4165,12 @@ export class HexEditorProvider
       )
     }
 
+    const nativeCheckpointCount =
+      await this.assertCheckpointTimelineNativeAlignment(
+        session,
+        'before navigation'
+      )
+
     if (targetCheckpointCount === timeline.cursor) {
       return {
         state: this.buildEditorState(session),
@@ -4195,7 +4201,7 @@ export class HexEditorProvider
         ) {
           await this.preflightCheckpointTimelineInterval(session, checkpoint)
         }
-        let remaining = await this.getCheckpointCount(session)
+        let remaining = nativeCheckpointCount
         while (remaining > targetCheckpointCount) {
           remaining = await destroyLastCheckpoint(session.sessionId)
         }
@@ -5659,6 +5665,21 @@ export class HexEditorProvider
     return counts[0]?.getCount() ?? 0
   }
 
+  private async assertCheckpointTimelineNativeAlignment(
+    session: EditorSession,
+    context: string
+  ): Promise<number> {
+    const nativeCheckpointCount = await this.getCheckpointCount(session)
+    const durableCursor = session.checkpointTimeline.cursor
+    if (nativeCheckpointCount !== durableCursor) {
+      throw new TimelineStorageError(
+        'TIMELINE_CHECKPOINT_MISMATCH',
+        `Native checkpoint count ${nativeCheckpointCount} does not match timeline cursor ${durableCursor} ${context}`
+      )
+    }
+    return nativeCheckpointCount
+  }
+
   private async recordCheckpointTimelineEntry(
     session: EditorSession,
     checkpointCount: number,
@@ -5822,14 +5843,20 @@ export class HexEditorProvider
   }
 
   private async truncateCheckpointTimelineFuture(
-    session: EditorSession
+    session: EditorSession,
+    cursor = session.checkpointTimeline.cursor
   ): Promise<void> {
     const timeline = session.checkpointTimeline
-    if (timeline.navigating || timeline.cursor >= timeline.entries.length) {
+    if (
+      timeline.navigating ||
+      !Number.isInteger(cursor) ||
+      cursor < 0 ||
+      cursor >= timeline.entries.length
+    ) {
       return
     }
     try {
-      await timeline.storage?.truncateFuture(timeline.cursor)
+      await timeline.storage?.truncateFuture(cursor)
     } catch (error) {
       // The content mutation has already succeeded on the native server.
       // Detach storage so a lock or persistence failure cannot suppress edit
@@ -5841,7 +5868,8 @@ export class HexEditorProvider
         }`
       )
     }
-    timeline.entries.splice(timeline.cursor)
+    timeline.entries.splice(cursor)
+    timeline.cursor = cursor
     timeline.lastArchivedChangeCount = timeline.entries.at(-1)?.changeCount ?? 0
     this.postCheckpointTimeline(session)
   }
@@ -5889,6 +5917,10 @@ export class HexEditorProvider
         created: false,
       }
     }
+    await this.assertCheckpointTimelineNativeAlignment(
+      session,
+      'before checkpoint creation'
+    )
     const wasDirty =
       session.history.getEditState().isDirty || !!session.restoredFromBackup
     const currentChangeCount = await getChangeCount(session.sessionId)
@@ -5945,7 +5977,10 @@ export class HexEditorProvider
     if (!this.ensureSessionCanMutate(session, true)) {
       return false
     }
-    const checkpointCount = await this.getCheckpointCount(session)
+    const checkpointCount = await this.assertCheckpointTimelineNativeAlignment(
+      session,
+      'before checkpoint rollback'
+    )
     if (checkpointCount <= 0) {
       void vscode.window.showWarningMessage(
         vscode.l10n.t('No OmegaEdit checkpoint to roll back')
@@ -5975,14 +6010,7 @@ export class HexEditorProvider
         session.checkpointTimeline.savedFingerprint
       )
       await this.resetSessionState(session, isDirty, isDirty, false)
-      await session.checkpointTimeline.storage?.truncateFuture(
-        checkpointCount - 1
-      )
-      session.checkpointTimeline.entries.splice(checkpointCount - 1)
-      session.checkpointTimeline.cursor = checkpointCount - 1
-      session.checkpointTimeline.lastArchivedChangeCount =
-        session.checkpointTimeline.entries.at(-1)?.changeCount ?? 0
-      this.postCheckpointTimeline(session)
+      await this.truncateCheckpointTimelineFuture(session, checkpointCount - 1)
       this.postTransformStatus(
         session,
         false,
@@ -6017,7 +6045,10 @@ export class HexEditorProvider
         discardedChangeCount: 0,
       }
     }
-    const checkpointCount = await this.getCheckpointCount(session)
+    const checkpointCount = await this.assertCheckpointTimelineNativeAlignment(
+      session,
+      'before checkpoint restore'
+    )
     if (checkpointCount <= 0) {
       void vscode.window.showWarningMessage(
         vscode.l10n.t('No OmegaEdit checkpoint to restore')

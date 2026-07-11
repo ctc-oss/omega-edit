@@ -1338,11 +1338,25 @@ suite('OmegaEdit VS Code extension', () => {
       type: 'navigateCheckpointTimeline',
       checkpoint: 1,
     })
+    const abandonedArchiveFile =
+      session.checkpointTimeline.entries[1].interval.archive.file
     await provider.dispatchWebviewMessageForTesting(document.uri, {
       type: 'overwrite',
       offset: 1,
       data: Buffer.from('Y', 'utf8').toString('hex'),
     })
+    assert.equal(session.checkpointTimeline.entries.length, 1)
+    assert.equal(session.checkpointTimeline.storage.manifest.tip, 1)
+    await assert.rejects(
+      fs.stat(
+        path.join(
+          session.checkpointTimeline.storage.root,
+          'intervals',
+          abandonedArchiveFile
+        )
+      ),
+      { code: 'ENOENT' }
+    )
     assert.equal(
       (await provider.createCheckpoint({ uri: document.uri }))?.checkpointCount,
       2

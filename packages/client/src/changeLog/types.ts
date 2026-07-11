@@ -53,6 +53,11 @@ export interface ChangeLogDocument {
   before: ChangeLogFingerprint
   after: ChangeLogFingerprint
   changeCount: ChangeLogInt64
+  /**
+   * Number of source operations represented by this document. Optimized
+   * native exports count native changes; synthetic replay archives count the
+   * replay primitives supplied by their producer.
+   */
   sourceChangeCount: ChangeLogInt64
   unavailableChangeCount: ChangeLogInt64
   unavailableChangeSerials: ChangeLogInt64[]
