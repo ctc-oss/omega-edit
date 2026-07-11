@@ -203,6 +203,45 @@ TEST_CASE("Large delete payloads are file backed", "[UndoTests][PayloadTests]") 
     REQUIRE(audit.unchanged());
 }
 
+TEST_CASE("Compressible file-backed delete payloads use bounded zstd blocks", "[UndoTests][PayloadTests]") {
+    const ScratchDir data_scratch;
+    const ScratchDir checkpoint_scratch;
+    const auto file_path = (fs::path(data_scratch.str()) / "compressible-delete-payload.dat").string();
+    constexpr int64_t byte_count = 2 * 1024 * 1024 + 137;
+    auto *file_ptr = fill_file(file_path.c_str(), byte_count, "A", 1);
+    REQUIRE(file_ptr);
+    FCLOSE(file_ptr);
+
+    DirAudit audit(checkpoint_scratch.str());
+    {
+        TestSession session(file_path.c_str(), checkpoint_scratch.c_str(), NO_EVENTS);
+        REQUIRE(session);
+        REQUIRE(1 == omega_session_set_change_inline_payload_limit(session.get(), 1));
+        REQUIRE(0 < omega_edit_delete(session.get(), 0, byte_count));
+        const auto *change_ptr = omega_session_get_last_change(session.get());
+        REQUIRE(change_ptr);
+        REQUIRE(OMEGA_CHANGE_DATA_STORAGE_FILE_BACKED == omega_change_get_data_storage(change_ptr));
+
+        std::vector<fs::path> payload_files;
+        for (const auto &entry : fs::directory_iterator(checkpoint_scratch.str())) {
+            if (entry.is_regular_file() && entry.path().filename().string().find("-payload.") != std::string::npos) {
+                payload_files.push_back(entry.path());
+            }
+        }
+        REQUIRE(payload_files.size() == 1);
+        REQUIRE(fs::file_size(payload_files.front()) < static_cast<uintmax_t>(byte_count / 100));
+
+        const auto *deleted_bytes = omega_change_get_bytes(change_ptr);
+        REQUIRE(deleted_bytes);
+        REQUIRE(deleted_bytes[0] == static_cast<omega_byte_t>('A'));
+        REQUIRE(deleted_bytes[1024 * 1024] == static_cast<omega_byte_t>('A'));
+        REQUIRE(deleted_bytes[byte_count - 1] == static_cast<omega_byte_t>('A'));
+        REQUIRE(-1 == omega_edit_undo_last_change(session.get()));
+        REQUIRE(byte_count == omega_session_get_computed_file_size(session.get()));
+        REQUIRE(model_valid(session.get()));
+    }
+}
+
 TEST_CASE("Large overwrite inverse payloads are file backed", "[UndoTests][PayloadTests]") {
     const ScratchDir data_scratch;
     const ScratchDir checkpoint_scratch;

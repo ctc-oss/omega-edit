@@ -1297,6 +1297,10 @@ suite('OmegaEdit VS Code extension', () => {
       await provider.dispatchWebviewMessageForTesting(document.uri, {
         type: 'undo',
       })
+      await assertSessionText(session.sessionId, 'abc')
+      await provider.dispatchWebviewMessageForTesting(document.uri, {
+        type: 'redo',
+      })
       await assertSessionText(session.sessionId, 'Xbc')
 
       await provider.dispatchWebviewMessageForTesting(document.uri, {
@@ -1316,6 +1320,41 @@ suite('OmegaEdit VS Code extension', () => {
       checkpoint: 2,
     })
     await assertSessionText(session.sessionId, 'Xbc1')
+
+    await provider.dispatchWebviewMessageForTesting(document.uri, {
+      type: 'insert',
+      offset: 4,
+      data: Buffer.from('!', 'utf8').toString('hex'),
+    })
+    await assertSessionText(session.sessionId, 'Xbc1!')
+    await provider.dispatchWebviewMessageForTesting(document.uri, {
+      type: 'navigateCheckpointTimeline',
+      checkpoint: 0,
+    })
+    await assertSessionText(session.sessionId, 'abc')
+    assert.equal(session.checkpointTimeline.entries.length, 3)
+    assert.equal(
+      lastMessageOfType(panel.messages, 'checkpointTimeline').checkpoints
+        .length,
+      2
+    )
+    await provider.dispatchWebviewMessageForTesting(document.uri, {
+      type: 'navigateCheckpointTimeline',
+      checkpoint: 3,
+    })
+    await assertSessionText(session.sessionId, 'Xbc1!')
+    await provider.dispatchWebviewMessageForTesting(document.uri, {
+      type: 'navigateCheckpointTimeline',
+      checkpoint: 2,
+    })
+    await assertSessionText(session.sessionId, 'Xbc1')
+    await provider.dispatchWebviewMessageForTesting(document.uri, {
+      type: 'overwrite',
+      offset: 3,
+      data: Buffer.from('2', 'utf8').toString('hex'),
+    })
+    await assertSessionText(session.sessionId, 'Xbc2')
+    assert.equal(session.checkpointTimeline.entries.length, 2)
 
     await provider.dispatchWebviewMessageForTesting(document.uri, {
       type: 'navigateCheckpointTimeline',
@@ -1383,18 +1422,24 @@ suite('OmegaEdit VS Code extension', () => {
       ),
       'corrupt'
     )
+    await provider.navigateToCheckpoint(session, 1)
+    await assertSessionText(session.sessionId, 'Xbc')
     await assert.rejects(
-      provider.navigateToCheckpoint(session, 1),
-      /archive length changed.*restored checkpoint 2/
+      provider.navigateToCheckpoint(session, 2),
+      /archive length changed.*restored checkpoint 1/
     )
-    await assertSessionText(session.sessionId, 'XYc')
+    await assertSessionText(session.sessionId, 'Xbc')
     const unavailableTimeline = lastMessageOfType(
       panel.messages,
       'checkpointTimeline'
     )
-    assert.equal(unavailableTimeline.cursor, 2)
-    assert.equal(unavailableTimeline.canRewind, false)
+    assert.equal(unavailableTimeline.cursor, 1)
+    assert.equal(unavailableTimeline.canRewind, true)
+    assert.equal(unavailableTimeline.canFastForward, false)
     assert.equal(unavailableTimeline.checkpoints[1].available, false)
+
+    await provider.navigateToCheckpoint(session, 0)
+    await assertSessionText(session.sessionId, 'abc')
 
     await panel.fireDidDispose()
     await fs.rm(tmpDir, { recursive: true, force: true })

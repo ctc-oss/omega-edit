@@ -9,6 +9,8 @@ import { basename, dirname, join, relative, resolve, sep } from 'node:path'
 import {
   type ChangeLogFileReadResult,
   type ChangeLogFingerprint,
+  type EditorHistorySnapshot,
+  EditorHistoryController,
   openChangeLogFile,
   writeChangeLogFileAtomic,
 } from '@omega-edit/client'
@@ -39,7 +41,7 @@ export interface CheckpointHistoryLimits {
   staleRetentionDays: number
 }
 
-export type CheckpointBoundaryKind = 'plain' | 'transform'
+export type CheckpointBoundaryKind = 'plain' | 'transform' | 'tip'
 
 export interface NormalizedTimelineFingerprint {
   byteLength: string
@@ -55,6 +57,7 @@ export interface CheckpointIntervalManifestEntryV1 {
   createdAt: string
   boundaryKind: CheckpointBoundaryKind
   transformPluginIds: string[]
+  history?: EditorHistorySnapshot
   state: 'ready' | 'unavailable'
   archive?: {
     file: string
@@ -158,6 +161,7 @@ export interface CaptureCheckpointIntervalOptions {
   after: ChangeLogFingerprint
   boundaryKind: CheckpointBoundaryKind
   transformPluginIds?: string[]
+  history?: EditorHistorySnapshot
   writeRaw: TimelineArchiveWriter
   writeOptimized?: TimelineArchiveWriter
 }
@@ -467,6 +471,15 @@ function parseManifest(
     }
     const before = normalizeFingerprint(entry.before)
     const after = normalizeFingerprint(entry.after)
+    if (!['plain', 'transform', 'tip'].includes(entry.boundaryKind)) {
+      throw new TimelineStorageError(
+        'TIMELINE_INVALID_MANIFEST',
+        `Checkpoint ${entry.checkpoint} has an invalid boundary kind`
+      )
+    }
+    const history = entry.history
+      ? EditorHistoryController.fromSnapshot(entry.history).snapshot()
+      : undefined
     if (!fingerprintsEqual(previous, before)) {
       throw new TimelineStorageError(
         'TIMELINE_INVALID_MANIFEST',
@@ -520,6 +533,7 @@ function parseManifest(
       after,
       sourceChangeCount: decimal(entry.sourceChangeCount, 'sourceChangeCount'),
       transformPluginIds: plugins,
+      ...(history ? { history } : {}),
     }
   })
   return {
@@ -1185,6 +1199,13 @@ export class CheckpointTimelineStorageSession {
         transformPluginIds: [
           ...new Set(options.transformPluginIds ?? winner.requiredPlugins),
         ].sort(),
+        ...(options.history
+          ? {
+              history: EditorHistoryController.fromSnapshot(
+                options.history
+              ).snapshot(),
+            }
+          : {}),
         state: 'ready',
         archive: {
           file: finalName,
@@ -1260,6 +1281,13 @@ export class CheckpointTimelineStorageSession {
       createdAt: new Date(this.manager._now()).toISOString(),
       boundaryKind: input.boundaryKind,
       transformPluginIds: [...new Set(input.transformPluginIds ?? [])].sort(),
+      ...(input.history
+        ? {
+            history: EditorHistoryController.fromSnapshot(
+              input.history
+            ).snapshot(),
+          }
+        : {}),
       state: 'unavailable',
       error: { code, message },
     }

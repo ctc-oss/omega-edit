@@ -478,12 +478,17 @@ namespace {
             result.public_entry.kind = OMEGA_CHANGELOG_PLAN_INSERT;
         } else if (payload_length == 0) {
             result.public_entry.kind = OMEGA_CHANGELOG_PLAN_DELETE;
+            result.payload = slice_sequence_(baseline, baseline_offset + prefix, remove_length);
+            if (sequence_length_(result.payload) != remove_length) {
+                throw std::runtime_error("failed to retain deleted change-log payload");
+            }
+            result.public_entry.payload_length = remove_length;
         } else if (prefer_overwrite && remove_length == payload_length) {
             result.public_entry.kind = OMEGA_CHANGELOG_PLAN_OVERWRITE;
         } else {
             result.public_entry.kind = OMEGA_CHANGELOG_PLAN_REPLACE;
         }
-        if (payload_length > 0) {
+        if (result.public_entry.payload_length > 0) {
             result.public_entry.read_payload = payload_read_;
             result.public_entry.payload_context = &result;
         }
@@ -547,6 +552,7 @@ namespace {
             case change_kind_t::CHANGE_DELETE:
                 result.public_entry.kind = OMEGA_CHANGELOG_PLAN_DELETE;
                 result.public_entry.length = change->length;
+                result.public_entry.payload_length = change->data.length;
                 break;
             case change_kind_t::CHANGE_INSERT:
                 result.public_entry.kind = OMEGA_CHANGELOG_PLAN_INSERT;

@@ -186,6 +186,14 @@ TEST_CASE("coordinate-aware export coalesces deletes and replacements", "[change
     CHECK(delete_plan[0].kind == OMEGA_CHANGELOG_PLAN_DELETE);
     CHECK(delete_plan[0].offset == 5);
     CHECK(delete_plan[0].length == 5);
+    CHECK(std::string(delete_plan[0].payload.begin(), delete_plan[0].payload.end()) == "56789");
+
+    const auto raw_delete_plan = export_mode_(deletes.get(), false);
+    REQUIRE(raw_delete_plan.size() == 2);
+    CHECK(raw_delete_plan[0].kind == OMEGA_CHANGELOG_PLAN_DELETE);
+    CHECK(std::string(raw_delete_plan[0].payload.begin(), raw_delete_plan[0].payload.end()) == "567");
+    CHECK(raw_delete_plan[1].kind == OMEGA_CHANGELOG_PLAN_DELETE);
+    CHECK(std::string(raw_delete_plan[1].payload.begin(), raw_delete_plan[1].payload.end()) == "89");
 
     auto overwrite = from_text_("0123456789");
     REQUIRE(1 == omega_edit_overwrite(overwrite.get(), 4, "xxxx", 4));

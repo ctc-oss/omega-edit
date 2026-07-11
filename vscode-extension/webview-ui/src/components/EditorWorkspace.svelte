@@ -83,6 +83,7 @@
     editDisabled?: boolean
     readOnlyLabel?: string
     readOnlyTitle?: string
+    navigating?: boolean
     onSelect: (offset: number, extend: boolean) => void
     onSelectRangeMapNode: (node: WebviewRangeMapNode) => void
     onLoadRangeMap: () => void
@@ -158,6 +159,7 @@
     editDisabled = false,
     readOnlyLabel = strings.grid.readOnly,
     readOnlyTitle = readOnlyLabel,
+    navigating = false,
     onSelect,
     onSelectRangeMapNode,
     onLoadRangeMap,
@@ -409,6 +411,7 @@
           onTypeByte={onTypeByte}
           onDeleteByte={onDeleteByte}
           readOnly={editDisabled}
+          busy={navigating}
           onVisibleRowsChange={onVisibleRowsChange}
           onExternalHighlightHover={setHoveredExternalHighlightId}
           editMode={editMode}

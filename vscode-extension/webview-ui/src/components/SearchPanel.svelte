@@ -96,6 +96,7 @@
 <section class="search-panel" role="search" aria-label={strings.search.label}>
   <div class="search-fields">
     <input
+      id="searchQueryInput"
       class="search-input"
       type="text"
       value={query}
@@ -159,6 +160,7 @@
 
   <div class="replace-fields">
     <input
+      id="searchReplacementInput"
       class="search-input replace-input"
       type="text"
       value={replacement}

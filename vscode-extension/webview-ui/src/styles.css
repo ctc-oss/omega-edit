@@ -373,8 +373,8 @@ button:focus-visible {
 
 .direction-toggle {
   flex: 0 0 auto;
-  inline-size: 30px;
-  min-width: 30px;
+  inline-size: auto;
+  min-width: 54px;
   height: 26px;
   padding: 0;
   color: var(--vscode-descriptionForeground);
@@ -1152,10 +1152,18 @@ button.dialog-backdrop:focus-visible {
   overflow: hidden;
 }
 
+.editor-workspace-shell {
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) auto;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+
 .editor-grid-shell {
   position: relative;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 14px;
+  grid-template-columns: minmax(0, 1fr) 18px;
   min-width: 0;
   min-height: 0;
   overflow: hidden;
@@ -1261,8 +1269,8 @@ button.dialog-backdrop:focus-visible {
 }
 
 .file-scrollbar {
-  width: 14px;
-  min-width: 14px;
+  width: 18px;
+  min-width: 18px;
   min-height: 0;
   padding: 2px 2px 2px 0;
   border-left: 1px solid var(--vscode-editorGroup-border);
@@ -2767,16 +2775,13 @@ button.dialog-backdrop:focus-visible {
 
 .byte.selected:hover,
 .text-byte.selected:hover {
-  color: #111827;
-  background: var(--vscode-terminal-ansiYellow, #f59e0b);
-  border-color: var(--vscode-terminal-ansiYellow, #f59e0b);
-}
-
-body.vscode-light .byte.selected:hover,
-body.vscode-light .text-byte.selected:hover {
-  color: #ffffff;
-  background: var(--vscode-terminal-ansiRed, #a31515);
-  border-color: var(--vscode-terminal-ansiRed, #a31515);
+  color: var(--vscode-editor-selectionForeground, var(--vscode-editor-foreground));
+  background: color-mix(
+    in srgb,
+    var(--vscode-editor-selectionBackground) 78%,
+    var(--vscode-list-hoverBackground) 22%
+  );
+  border-color: var(--vscode-focusBorder);
 }
 
 body.vscode-high-contrast .byte.selected:hover,
@@ -2941,6 +2946,20 @@ body.vscode-high-contrast-light .text-byte.selected:hover {
   margin: 0;
 }
 
+.editor-status-strip {
+  display: flex;
+  min-height: 24px;
+  align-items: center;
+  gap: 0.85rem;
+  padding: 2px 8px;
+  overflow-x: auto;
+  border-top: 1px solid var(--vscode-editorGroup-border);
+  color: var(--vscode-statusBar-foreground, var(--vscode-foreground));
+  background: var(--vscode-statusBar-background, var(--vscode-sideBar-background));
+  font-size: 11px;
+  white-space: nowrap;
+}
+
 .inspector-values div {
   min-width: 0;
 }
@@ -3035,6 +3054,18 @@ body.vscode-high-contrast-light .text-byte.selected:hover {
   }
 }
 
+@media (max-width: 800px) {
+  .inspector-values {
+    grid-template-columns: repeat(5, minmax(8ch, 1fr));
+  }
+}
+
+@media (max-width: 660px) {
+  .inspector-values {
+    grid-template-columns: repeat(4, minmax(8ch, 1fr));
+  }
+}
+
 @media (max-width: 520px) {
   .toolbar {
     align-items: flex-start;
@@ -3118,5 +3149,25 @@ body.vscode-high-contrast-light .text-byte.selected:hover {
 @media (max-width: 320px) {
   .inspector-values {
     grid-template-columns: minmax(7ch, 1fr);
+  }
+}
+
+@media (forced-colors: active) {
+  .byte.selected,
+  .text-byte.selected,
+  .byte.selected:hover,
+  .text-byte.selected:hover {
+    border-color: Highlight;
+    color: HighlightText;
+    background: Highlight;
+    forced-color-adjust: none;
+  }
+
+  .byte:focus-visible,
+  .text-byte:focus-visible,
+  .toolbar button:focus-visible,
+  .editor-status-strip {
+    border-color: CanvasText;
+    outline-color: Highlight;
   }
 }

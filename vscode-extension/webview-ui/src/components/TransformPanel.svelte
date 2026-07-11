@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { tick } from 'svelte'
+  import { onMount, tick } from 'svelte'
   import { formatNumber, strings } from '../i18n'
   import {
     MAX_TRANSFORM_OPTIONS_LENGTH,
@@ -768,6 +768,12 @@
     }
     closeActionPicker()
   }
+
+  onMount(() => {
+    const dismissOnScroll = (): void => closeActionPicker()
+    window.addEventListener('scroll', dismissOnScroll, true)
+    return () => window.removeEventListener('scroll', dismissOnScroll, true)
+  })
 
   function advertisedTransformExamples(
     plugin: WebviewTransformPlugin | undefined

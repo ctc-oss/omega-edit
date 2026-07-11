@@ -4165,12 +4165,6 @@ export class HexEditorProvider
       )
     }
 
-    const nativeCheckpointCount =
-      await this.assertCheckpointTimelineNativeAlignment(
-        session,
-        'before navigation'
-      )
-
     if (targetCheckpointCount === timeline.cursor) {
       return {
         state: this.buildEditorState(session),
@@ -4178,6 +4172,13 @@ export class HexEditorProvider
         moved: false,
       }
     }
+
+    await this.captureCheckpointTimelineTip(session)
+    const nativeCheckpointCount =
+      await this.assertCheckpointTimelineNativeAlignment(
+        session,
+        'before navigation'
+      )
 
     timeline.navigating = true
     this.postCheckpointTimeline(session)
@@ -4192,15 +4193,9 @@ export class HexEditorProvider
     try {
       const sessionSyncVersion = session.sessionSyncVersion
       if (targetCheckpointCount < timeline.cursor) {
-        // A rewind destroys native checkpoints. Validate every archive that
-        // could be needed to recover to the durable tip before doing so.
-        for (
-          let checkpoint = targetCheckpointCount + 1;
-          checkpoint <= timeline.entries.length;
-          checkpoint += 1
-        ) {
-          await this.preflightCheckpointTimelineInterval(session, checkpoint)
-        }
+        // Rewind relies only on native checkpoints. Durable archives are
+        // validated when fast-forward crosses them, so an unavailable future
+        // interval never prevents returning to the original content.
         let remaining = nativeCheckpointCount
         while (remaining > targetCheckpointCount) {
           remaining = await destroyLastCheckpoint(session.sessionId)
@@ -4248,7 +4243,18 @@ export class HexEditorProvider
         currentFingerprint,
         timeline.savedFingerprint
       )
-      await this.resetSessionState(session, isDirty, isDirty, false)
+      const targetHistorySnapshot =
+        targetCheckpointCount > 0
+          ? timeline.entries[targetCheckpointCount - 1]?.interval.history
+          : undefined
+      const tipHistorySnapshot = timeline.entries.at(-1)?.interval.history
+      session.history = tipHistorySnapshot
+        ? EditorHistoryController.fromSnapshotAtDepth(
+            tipHistorySnapshot,
+            targetHistorySnapshot?.transactionLog.length ?? 0
+          )
+        : new EditorHistoryController()
+      await this.resetSessionState(session, isDirty, isDirty, false, true)
       await this.refreshSessionContentInfo(session)
       this.clearSearchState(session)
       this.postTransformStatus(
@@ -4405,7 +4411,6 @@ export class HexEditorProvider
         entry.interval.after,
         'after'
       )
-      session.history = new EditorHistoryController()
     } catch (error) {
       let nativeCheckpointCount = await this.getCheckpointCount(session)
       while (nativeCheckpointCount > startCheckpointCount) {
@@ -4602,11 +4607,7 @@ export class HexEditorProvider
         interval.transformPluginIds.every((id) => availablePlugins.has(id))
       )
     }
-    const canRewind =
-      timeline.cursor > 0 &&
-      timeline.entries
-        .slice(timeline.cursor - 1)
-        .every((entry) => intervalAvailable(entry.interval.checkpoint))
+    const canRewind = timeline.cursor > 0
     const canFastForward =
       timeline.cursor < timeline.entries.length &&
       intervalAvailable(timeline.cursor + 1)
@@ -4627,13 +4628,15 @@ export class HexEditorProvider
       canRewind,
       canFastForward,
       navigating: timeline.navigating,
-      checkpoints: timeline.entries.map((entry) => ({
-        checkpoint: entry.interval.checkpoint,
-        changeCount: entry.changeCount,
-        createdAt: Date.parse(entry.interval.createdAt),
-        available: intervalAvailable(entry.interval.checkpoint),
-        error: entry.interval.error?.message,
-      })),
+      checkpoints: timeline.entries
+        .filter((entry) => entry.interval.boundaryKind !== 'tip')
+        .map((entry) => ({
+          checkpoint: entry.interval.checkpoint,
+          changeCount: entry.changeCount,
+          createdAt: Date.parse(entry.interval.createdAt),
+          available: intervalAvailable(entry.interval.checkpoint),
+          error: entry.interval.error?.message,
+        })),
     })
   }
 
@@ -5683,7 +5686,7 @@ export class HexEditorProvider
   private async recordCheckpointTimelineEntry(
     session: EditorSession,
     checkpointCount: number,
-    boundaryKind: 'plain' | 'transform' = 'plain',
+    boundaryKind: 'plain' | 'transform' | 'tip' = 'plain',
     transformPluginIds: string[] = [],
     replayRecords: ChangeRecord[] = []
   ): Promise<void> {
@@ -5722,6 +5725,7 @@ export class HexEditorProvider
         after,
         boundaryKind,
         transformPluginIds,
+        history: session.history.snapshot(),
       } as const
       try {
         if (!storage) {
@@ -5807,6 +5811,7 @@ export class HexEditorProvider
           createdAt: new Date().toISOString(),
           boundaryKind,
           transformPluginIds: [...new Set(transformPluginIds)].sort(),
+          history: session.history.snapshot(),
           state: 'unavailable',
           error: {
             code:
@@ -5840,6 +5845,22 @@ export class HexEditorProvider
       resolveTimelineOperation()
       timeline.operation = undefined
     }
+  }
+
+  private async captureCheckpointTimelineTip(
+    session: EditorSession
+  ): Promise<void> {
+    const timeline = session.checkpointTimeline
+    if (timeline.cursor !== timeline.entries.length) return
+
+    const changeCount = await getChangeCount(session.sessionId)
+    if (changeCount === timeline.lastArchivedChangeCount) return
+
+    const sessionSyncVersion = session.sessionSyncVersion
+    const count = await createCheckpoint(session.sessionId)
+    session.history.recordMilestone()
+    await this.waitForSessionSync(session, sessionSyncVersion)
+    await this.recordCheckpointTimelineEntry(session, count, 'tip')
   }
 
   private async truncateCheckpointTimelineFuture(
@@ -5889,9 +5910,12 @@ export class HexEditorProvider
     session: EditorSession,
     restoredFromBackup: boolean,
     markDirty: boolean,
-    scrollToStart: boolean
+    scrollToStart: boolean,
+    preserveHistory = false
   ): Promise<void> {
-    session.history = new EditorHistoryController()
+    if (!preserveHistory) {
+      session.history = new EditorHistoryController()
+    }
     session.search = new EditorSearchController(session.sessionId)
     session.restoredFromBackup = restoredFromBackup
     this.clearSearchState(session)
@@ -5950,9 +5974,10 @@ export class HexEditorProvider
     try {
       const sessionSyncVersion = session.sessionSyncVersion
       const count = await createCheckpoint(session.sessionId)
+      session.history.recordMilestone()
       await this.waitForSessionSync(session, sessionSyncVersion)
       await this.recordCheckpointTimelineEntry(session, count)
-      await this.resetSessionState(session, wasDirty, false, false)
+      await this.resetSessionState(session, wasDirty, false, false, true)
       this.postTransformStatus(
         session,
         false,
@@ -6457,6 +6482,12 @@ export class HexEditorProvider
       },
       async redoLocal() {
         await redo(session.sessionId)
+      },
+      async undoMilestone() {
+        await destroyLastCheckpoint(session.sessionId)
+      },
+      async redoMilestone() {
+        await createCheckpoint(session.sessionId)
       },
       async undoCheckpoint() {
         await destroyLastCheckpoint(session.sessionId)
@@ -7338,25 +7369,6 @@ export class HexEditorProvider
           const timeline = session.checkpointTimeline
           if (msg.checkpoint > timeline.entries.length || timeline.navigating) {
             break
-          }
-          const editState = session.history.getEditState()
-          if (
-            timeline.cursor === timeline.entries.length &&
-            msg.checkpoint !== timeline.cursor &&
-            editState.isDirty
-          ) {
-            const proceed = vscode.l10n.t('Move Anyway')
-            const selected = await vscode.window.showWarningMessage(
-              vscode.l10n.t(
-                'Moving on the checkpoint timeline discards edits made after the latest checkpoint.'
-              ),
-              { modal: true },
-              proceed
-            )
-            if (selected !== proceed) {
-              this.postCheckpointTimeline(session)
-              break
-            }
           }
           await this.navigateToCheckpoint(session, msg.checkpoint)
           break

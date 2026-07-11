@@ -50,6 +50,8 @@ const englishStrings = {
     backwardInsert: 'Backward',
     forwardInsertTitle: 'Insert direction: Forward. Click for backward insert.',
     backwardInsertTitle: 'Insert direction: Backward. Click for forward insert.',
+    forwardInsertShort: 'Fwd',
+    backwardInsertShort: 'Bwd',
     searchPanel: 'Find',
     showSearchPanelTitle: 'Show search and replace',
     hideSearchPanelTitle: 'Hide search and replace',
@@ -303,6 +305,7 @@ const englishStrings = {
     text: 'TEXT',
     textPane: 'TEXT',
     waitingForData: 'Waiting for data',
+    emptyFile: 'Empty file',
     preparingFile: 'Preparing file...',
     readOnly: 'Read-only',
     insertTitle: 'Insert mode',
@@ -556,9 +559,19 @@ const englishStrings = {
       `${formatNumber(count)} checkpoint${count === 1 ? '' : 's'} unavailable`,
     navigating: 'Moving through checkpoint history',
     close: 'Close checkpoint timeline',
+    hiddenMarkers: (count: number) =>
+      `${formatNumber(count)} additional checkpoint markers`,
   },
   status: {
     hexPending: (label: string) => `Hex edit: ${label}`,
+    editorStatus: 'Editor status',
+    offset: 'Offset',
+    selection: 'Selection',
+    size: 'Size',
+    insert: 'Insert',
+    overwrite: 'Overwrite',
+    bytesPerRow: 'Bytes/row',
+    none: 'None',
   },
 }
 
@@ -697,6 +710,7 @@ const localeOverrides: Record<string, LocaleStringOverrides> = {
     grid: {
       offset: 'Desplazamiento',
       waitingForData: 'Esperando datos',
+      emptyFile: 'Archivo vacío',
       preparingFile: 'Preparando archivo...',
       readOnly: 'Solo lectura',
       insertTitle: 'Modo insertar',
@@ -779,32 +793,42 @@ const localeOverrides: Record<string, LocaleStringOverrides> = {
       no: 'No',
     },
     timeline: {
-      label: 'Línea de tiempo de puntos de control',
+      label: 'Linea de tiempo de puntos de control',
       original: 'Archivo original',
       checkpoint: (checkpoint: number) =>
         `Punto de control ${formatNumber(checkpoint)}`,
       position: (position: string, count: number) =>
         `${position} de ${formatNumber(count)}`,
       savedAtChange: (change: number) =>
-        `Último guardado en el cambio ${formatNumber(change)}`,
-      savedAtOriginal: 'Último guardado en el archivo original',
+        `Ultimo guardado en el cambio ${formatNumber(change)}`,
+      savedAtOriginal: 'Ultimo guardado en el archivo original',
       savedAtCheckpoint: (checkpoint: number) =>
-        `Último guardado en el punto de control ${formatNumber(checkpoint)}`,
-      savedOffBranch: 'El último estado guardado ya no está en esta rama',
+        `Ultimo guardado en el punto de control ${formatNumber(checkpoint)}`,
+      savedOffBranch: 'El ultimo estado guardado ya no esta en esta rama',
       previous: 'Punto de control anterior',
       previousTitle: 'Retroceder un punto de control',
       next: 'Punto de control siguiente',
       nextTitle: 'Avanzar un punto de control',
       current: 'Punto de control actual',
       originalMarker: 'Original',
-      unavailable: 'Reproducción no disponible',
+      unavailable: 'Reproduccion no disponible',
       unavailableCount: (count: number) =>
         `${formatNumber(count)} punto${count === 1 ? '' : 's'} de control no disponible${count === 1 ? '' : 's'}`,
       navigating: 'Moviendo por el historial de puntos de control',
-      close: 'Cerrar la línea de tiempo de puntos de control',
+      close: 'Cerrar la linea de tiempo de puntos de control',
+      hiddenMarkers: (count: number) =>
+        `${formatNumber(count)} marcador${count === 1 ? '' : 'es'} adicional${count === 1 ? '' : 'es'} de puntos de control`,
     },
     status: {
       hexPending: (label: string) => `Edicion hex: ${label}`,
+      editorStatus: 'Estado del editor',
+      offset: 'Desplazamiento',
+      selection: 'Seleccion',
+      size: 'Tamano',
+      insert: 'Insertar',
+      overwrite: 'Sobrescribir',
+      bytesPerRow: 'Bytes/fila',
+      none: 'Ninguno',
     },
   },
 } satisfies Record<string, LocaleStringOverrides>

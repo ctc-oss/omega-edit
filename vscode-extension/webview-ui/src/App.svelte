@@ -4,6 +4,7 @@
   import CheckpointTimeline from './components/CheckpointTimeline.svelte'
   import EditorWorkspace from './components/EditorWorkspace.svelte'
   import SearchPanel from './components/SearchPanel.svelte'
+  import StatusStrip from './components/StatusStrip.svelte'
   import Toolbar from './components/Toolbar.svelte'
   import TransformResultPanel from './components/TransformResultPanel.svelte'
   import { formatNumber, strings } from './i18n'
@@ -2667,16 +2668,54 @@
       handleHostMessage(event.data)
     }
     const keyListener = (event: KeyboardEvent) => {
-      if (
-        event.defaultPrevented ||
-        event.key !== 'Insert' ||
-        transformInFlight ||
-        isEditableTarget(event.target)
-      ) {
+      if (event.defaultPrevented) {
         return
       }
-      event.preventDefault()
-      toggleInspectorEditMode()
+      if (event.key === 'Insert') {
+        if (transformInFlight || isEditableTarget(event.target)) {
+          return
+        }
+        event.preventDefault()
+        toggleInspectorEditMode()
+        return
+      }
+      if (event.key !== 'Insert') {
+        const modifier = event.ctrlKey || event.metaKey
+        const key = event.key.toLowerCase()
+        if (event.key === 'F3' && !isEditableTarget(event.target)) {
+          event.preventDefault()
+          if (searchCanNavigate) {
+            navigateSearch(event.shiftKey ? 'backward' : 'forward')
+          }
+          return
+        }
+        if (modifier && key === 'f') {
+          event.preventDefault()
+          searchPanelVisible = true
+          savePreviewState({ searchPanelVisible: true })
+          requestAnimationFrame(() =>
+            document
+              .querySelector<HTMLInputElement>('#searchQueryInput')
+              ?.focus()
+          )
+          return
+        }
+        if (modifier && key === 'h') {
+          event.preventDefault()
+          searchPanelVisible = true
+          savePreviewState({ searchPanelVisible: true })
+          requestAnimationFrame(() =>
+            document
+              .querySelector<HTMLInputElement>('#searchReplacementInput')
+              ?.focus()
+          )
+          return
+        }
+        if (modifier && (key === 'g' || key === 'l')) {
+          event.preventDefault()
+          document.querySelector<HTMLInputElement>('#offsetJumpInput')?.focus()
+        }
+      }
     }
     const copyListener = (event: ClipboardEvent) => {
       handleClipboardCopy(event, 'copy')
@@ -2808,7 +2847,8 @@
     {/if}
   </div>
 
-  <EditorWorkspace
+  <div class="editor-workspace-shell">
+    <EditorWorkspace
     {data}
     {visibleOffset}
     scrollOffset={navigationOffset}
@@ -2866,13 +2906,28 @@
     editDisabled={transformInFlight}
     readOnlyLabel={strings.grid.readOnly}
     readOnlyTitle={transformFeedback || strings.transform.inFlight}
+    navigating={checkpointTimeline.navigating}
     onVisibleRowsChange={setVisibleRows}
     onAutoFitBytesPerRow={applyAutoFitBytesPerRow}
     onToggleProfilerExpanded={toggleProfilerExpanded}
     onProfilerModeChange={setProfilerMode}
     onMoveAnalysisSection={moveAnalysisSectionByDelta}
     onReorderAnalysisSection={reorderAnalysisSection}
-  />
+    />
+
+    <StatusStrip
+      {selectedOffset}
+      {selectionStart}
+      {selectionEnd}
+      {selectionLength}
+      {fileSize}
+      {offsetRadix}
+      {textEncoding}
+      editMode={inspectorEditMode}
+      {insertDirection}
+      {bytesPerRow}
+    />
+  </div>
 
   <ByteInspector
     {selectedOffset}

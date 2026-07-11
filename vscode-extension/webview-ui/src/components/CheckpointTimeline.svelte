@@ -1,6 +1,8 @@
 <script lang="ts">
   import { formatNumber, strings } from '../i18n'
 
+  const MAX_VISIBLE_MARKERS = 40
+
   interface CheckpointMarker {
     checkpoint: number
     changeCount: number
@@ -37,17 +39,43 @@
     onClose,
   }: Props = $props()
 
-  const unavailableCount = $derived(
-    checkpoints.filter((checkpoint) => !checkpoint.available).length
-  )
-
   function handleChange(event: Event): void {
+    if (navigating) return
     const target = Number.parseInt((event.currentTarget as HTMLInputElement).value, 10)
     if (Number.isInteger(target) && target !== cursor) {
       onNavigate(target)
     }
   }
 
+  function unavailableCount(): number {
+    return checkpoints.filter((checkpoint) => !checkpoint.available).length
+  }
+
+  const visibleCheckpoints = $derived.by(() => {
+    if (checkpoints.length <= MAX_VISIBLE_MARKERS) return checkpoints
+    const edgeCount = Math.floor(MAX_VISIBLE_MARKERS / 2)
+    const candidates = [
+      ...checkpoints.slice(0, edgeCount),
+      ...checkpoints.slice(-edgeCount),
+    ]
+    const saved = checkpoints.find(
+      (checkpoint) => checkpoint.checkpoint === savedCheckpoint
+    )
+    if (saved) candidates.push(saved)
+    return [...new Map(candidates.map((item) => [item.checkpoint, item])).values()].sort(
+      (left, right) => left.checkpoint - right.checkpoint
+    )
+  })
+
+  const savedPositionText = $derived(
+    savedOffBranch
+      ? strings.timeline.savedOffBranch
+      : savedCheckpoint === undefined
+        ? strings.timeline.savedAtChange(savedChangeCount)
+        : savedCheckpoint === 0
+          ? strings.timeline.savedAtOriginal
+          : strings.timeline.savedAtCheckpoint(savedCheckpoint)
+  )
 </script>
 
 <section
@@ -89,7 +117,7 @@
     value={cursor}
     aria-label={strings.timeline.current}
     aria-describedby="timeline-state timeline-saved timeline-availability"
-    aria-valuetext={cursor === 0 ? strings.timeline.original : strings.timeline.checkpoint(cursor)}
+    aria-valuetext={`${cursor === 0 ? strings.timeline.original : strings.timeline.checkpoint(cursor)}; ${savedPositionText}`}
     disabled={navigating || checkpointCount === 0}
     onchange={handleChange}
   />
@@ -103,7 +131,7 @@
   >&#x25B6;</button>
   <div class="timeline-markers" aria-hidden="true">
     <span class:saved={savedCheckpoint === 0}>{strings.timeline.originalMarker}</span>
-    {#each checkpoints as checkpoint}
+    {#each visibleCheckpoints as checkpoint}
       <span
         class:saved={checkpoint.checkpoint === savedCheckpoint}
         class:unavailable={!checkpoint.available}
@@ -114,9 +142,14 @@
         {formatNumber(checkpoint.checkpoint)}
       </span>
     {/each}
+    {#if checkpoints.length > visibleCheckpoints.length}
+      <span title={strings.timeline.hiddenMarkers(checkpoints.length - visibleCheckpoints.length)}>
+        +{formatNumber(checkpoints.length - visibleCheckpoints.length)}
+      </span>
+    {/if}
   </div>
   <span id="timeline-availability" class="visually-hidden" aria-live="polite">
-    {unavailableCount > 0 ? strings.timeline.unavailableCount(unavailableCount) : ''}
+    {unavailableCount() > 0 ? strings.timeline.unavailableCount(unavailableCount()) : ''}
   </span>
   <button
     type="button"

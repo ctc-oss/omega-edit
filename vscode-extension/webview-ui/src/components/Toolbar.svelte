@@ -195,9 +195,9 @@
       onInsertDirection(insertDirection === 'forward' ? 'backward' : 'forward')}
   >
     {#if insertDirection === 'forward'}
-      &rarr;
+      &rarr; <span>{strings.toolbar.forwardInsertShort}</span>
     {:else}
-      &larr;
+      &larr; <span>{strings.toolbar.backwardInsertShort}</span>
     {/if}
   </button>
 
