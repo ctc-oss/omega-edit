@@ -1445,6 +1445,73 @@ suite('OmegaEdit VS Code extension', () => {
     await fs.rm(tmpDir, { recursive: true, force: true })
   })
 
+  test('rewinds two delete checkpoints without replaying an archive', async () => {
+    const tmpDir = await fs.mkdtemp(
+      path.join(os.tmpdir(), 'omega-edit-vscode-delete-checkpoints-')
+    )
+    const samplePath = path.join(tmpDir, 'delete-checkpoints.bin')
+    await fs.writeFile(samplePath, Buffer.from('abcdefghij', 'utf8'))
+
+    const provider = new HexEditorProvider({ subscriptions: [] }, testPort)
+    const panel = createMockWebviewPanel()
+    const document = await provider.openCustomDocument(
+      vscode.Uri.file(samplePath),
+      { backupId: undefined, untitledDocumentData: undefined },
+      new vscode.CancellationTokenSource().token
+    )
+    await provider.resolveCustomEditor(
+      document,
+      panel,
+      new vscode.CancellationTokenSource().token
+    )
+    const session = provider.getSessionForTesting(document.uri)
+    assert.ok(session)
+
+    await provider.dispatchWebviewMessageForTesting(document.uri, {
+      type: 'delete',
+      offset: 2,
+      length: 2,
+    })
+    assert.equal(
+      (await provider.createCheckpoint({ uri: document.uri }))?.checkpointCount,
+      1
+    )
+    await assertSessionText(session.sessionId, 'abefghij')
+
+    await provider.dispatchWebviewMessageForTesting(document.uri, {
+      type: 'delete',
+      offset: 4,
+      length: 2,
+    })
+    assert.equal(
+      (await provider.createCheckpoint({ uri: document.uri }))?.checkpointCount,
+      2
+    )
+    await assertSessionText(session.sessionId, 'abefij')
+    assert.equal(session.checkpointTimeline.cursor, 2)
+
+    // Rewind is native-only and must remain available even if replay storage
+    // is unavailable or damaged.
+    const timelineStorage = session.checkpointTimeline.storage
+    session.checkpointTimeline.storage = undefined
+    await provider.navigateToCheckpoint(session, 1)
+    await assertSessionText(session.sessionId, 'abefghij')
+    assert.equal(session.checkpointTimeline.cursor, 1)
+    session.checkpointTimeline.storage = timelineStorage
+
+    for (let cycle = 0; cycle < 3; cycle += 1) {
+      await provider.navigateToCheckpoint(session, 0)
+      await assertSessionText(session.sessionId, 'abcdefghij')
+      await provider.navigateToCheckpoint(session, 1)
+      await assertSessionText(session.sessionId, 'abefghij')
+      await provider.navigateToCheckpoint(session, 2)
+      await assertSessionText(session.sessionId, 'abefij')
+    }
+
+    await panel.fireDidDispose()
+    await fs.rm(tmpDir, { recursive: true, force: true })
+  })
+
   test('reports search matches and keeps undo/redo disabled state in sync', async () => {
     const tmpDir = await fs.mkdtemp(
       path.join(os.tmpdir(), 'omega-edit-vscode-state-')

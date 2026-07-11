@@ -5689,7 +5689,7 @@ export class HexEditorProvider
     boundaryKind: 'plain' | 'transform' | 'tip' = 'plain',
     transformPluginIds: string[] = [],
     replayRecords: ChangeRecord[] = []
-  ): Promise<void> {
+  ): Promise<CheckpointIntervalManifestEntryV1 | undefined> {
     if (session.checkpointTimeline.navigating) {
       return
     }
@@ -5841,6 +5841,7 @@ export class HexEditorProvider
       timeline.cursor = checkpointCount
       timeline.currentFingerprint = after
       this.postCheckpointTimeline(session)
+      return interval
     } finally {
       resolveTimelineOperation()
       timeline.operation = undefined
@@ -5856,11 +5857,50 @@ export class HexEditorProvider
     const changeCount = await getChangeCount(session.sessionId)
     if (changeCount === timeline.lastArchivedChangeCount) return
 
+    const historyBefore = session.history.snapshot()
     const sessionSyncVersion = session.sessionSyncVersion
     const count = await createCheckpoint(session.sessionId)
     session.history.recordMilestone()
     await this.waitForSessionSync(session, sessionSyncVersion)
-    await this.recordCheckpointTimelineEntry(session, count, 'tip')
+    const interval = await this.recordCheckpointTimelineEntry(
+      session,
+      count,
+      'tip'
+    )
+    if (interval?.state !== 'ready') {
+      await this.rollbackUnusableTimelineBoundary(session, count, historyBefore)
+      throw new TimelineStorageError(
+        interval?.error?.code ?? 'TIMELINE_CAPTURE_FAILED',
+        interval?.error?.message ??
+          'Latest editor history could not be archived'
+      )
+    }
+  }
+
+  private async rollbackUnusableTimelineBoundary(
+    session: EditorSession,
+    checkpoint: number,
+    historyBefore: ReturnType<EditorHistoryController['snapshot']>
+  ): Promise<void> {
+    const timeline = session.checkpointTimeline
+    if ((await this.getCheckpointCount(session)) >= checkpoint) {
+      await destroyLastCheckpoint(session.sessionId)
+    }
+    try {
+      await timeline.storage?.truncateFuture(checkpoint - 1)
+    } catch (error) {
+      timeline.storage = undefined
+      console.warn(
+        `Failed to remove unusable checkpoint history; disabling persisted history for this session: ${
+          error instanceof Error ? error.message : String(error)
+        }`
+      )
+    }
+    timeline.entries.splice(checkpoint - 1)
+    timeline.cursor = checkpoint - 1
+    timeline.lastArchivedChangeCount = timeline.entries.at(-1)?.changeCount ?? 0
+    session.history = EditorHistoryController.fromSnapshot(historyBefore)
+    this.postCheckpointTimeline(session)
   }
 
   private async truncateCheckpointTimelineFuture(
@@ -5971,12 +6011,24 @@ export class HexEditorProvider
       vscode.l10n.t('Creating checkpoint...')
     )
     let failureMessage: string | undefined
+    const historyBefore = session.history.snapshot()
     try {
       const sessionSyncVersion = session.sessionSyncVersion
       const count = await createCheckpoint(session.sessionId)
       session.history.recordMilestone()
       await this.waitForSessionSync(session, sessionSyncVersion)
-      await this.recordCheckpointTimelineEntry(session, count)
+      const interval = await this.recordCheckpointTimelineEntry(session, count)
+      if (interval?.state !== 'ready') {
+        await this.rollbackUnusableTimelineBoundary(
+          session,
+          count,
+          historyBefore
+        )
+        throw new TimelineStorageError(
+          interval?.error?.code ?? 'TIMELINE_CAPTURE_FAILED',
+          interval?.error?.message ?? 'Checkpoint history could not be archived'
+        )
+      }
       await this.resetSessionState(session, wasDirty, false, false, true)
       this.postTransformStatus(
         session,
