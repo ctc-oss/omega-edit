@@ -20,7 +20,6 @@
 
   interface Props {
     data?: number[]
-    emptyFile?: boolean
     offset?: number
     bytesPerRow?: BytesPerRow
     offsetRadix?: 'hex' | 'dec'
@@ -56,7 +55,6 @@
 
   let {
     data = [],
-    emptyFile = false,
     offset = 0,
     bytesPerRow = 16,
     offsetRadix = 'hex',
@@ -705,9 +703,7 @@
   </div>
 
   {#if rows.length === 0}
-    <div class="empty-row">
-      {emptyFile ? strings.grid.emptyFile : strings.grid.waitingForData}
-    </div>
+    <div class="empty-row">{strings.grid.waitingForData}</div>
   {:else}
     {#each rows as row, rowIndex}
       <div

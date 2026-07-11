@@ -303,7 +303,6 @@ const englishStrings = {
     text: 'TEXT',
     textPane: 'TEXT',
     waitingForData: 'Waiting for data',
-    emptyFile: 'Empty file',
     preparingFile: 'Preparing file...',
     readOnly: 'Read-only',
     insertTitle: 'Insert mode',
@@ -671,7 +670,6 @@ const localeOverrides: Record<string, LocaleStringOverrides> = {
     grid: {
       offset: 'Desplazamiento',
       waitingForData: 'Esperando datos',
-      emptyFile: 'Archivo vacío',
       preparingFile: 'Preparando archivo...',
       readOnly: 'Solo lectura',
       insertTitle: 'Modo insertar',
