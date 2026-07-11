@@ -1,10 +1,6 @@
 <script lang="ts">
   import {
-    FIXED_BYTES_PER_ROW_OPTIONS,
-    MAX_BYTES_PER_ROW,
-    MIN_BYTES_PER_ROW,
     TEXT_ENCODING_OPTIONS,
-    normalizeBytesPerRow,
     type BytesPerRow,
     type InsertDirection,
     type TextEncoding,
@@ -13,6 +9,7 @@
     type WebviewTransformPlugin,
   } from '../protocol'
   import { strings } from '../i18n'
+  import BytesPerRowCombobox from './BytesPerRowCombobox.svelte'
   import OffsetJump from './OffsetJump.svelte'
   import TransformPanel from './TransformPanel.svelte'
 
@@ -114,14 +111,6 @@
     onApplyChangeLog,
   }: Props = $props()
 
-  const rowOptions: BytesPerRow[] = [...FIXED_BYTES_PER_ROW_OPTIONS]
-  let customBytesPerRowValue = $state('')
-  const bytesPerRowSelectValue = $derived(
-    rowOptions.includes(bytesPerRow as (typeof rowOptions)[number])
-      ? String(bytesPerRow)
-      : 'custom'
-  )
-
   function textEncodingLabel(encoding: TextEncoding): string {
     switch (encoding) {
       case 'ascii':
@@ -137,27 +126,6 @@
     }
   }
 
-  function clampBytesPerRow(value: number): BytesPerRow {
-    if (!Number.isFinite(value)) {
-      return bytesPerRow
-    }
-    return normalizeBytesPerRow(
-      Math.max(MIN_BYTES_PER_ROW, Math.min(MAX_BYTES_PER_ROW, Math.floor(value)))
-    )
-  }
-
-  function handleCustomBytesInput(event: Event): void {
-    customBytesPerRowValue = (event.currentTarget as HTMLInputElement).value
-  }
-
-  function handleBytesPerRowSelect(event: Event): void {
-    const value = (event.currentTarget as HTMLSelectElement).value
-    if (value === 'custom') {
-      return
-    }
-    onBytesPerRow(clampBytesPerRow(Number.parseInt(value, 10)))
-  }
-
   function handleOffsetRadixSelect(event: Event): void {
     const value = (event.currentTarget as HTMLSelectElement).value
     onOffsetRadix(value === 'dec' ? 'dec' : 'hex')
@@ -170,66 +138,10 @@
     }
   }
 
-  function commitCustomBytesPerRow(force = false): void {
-    const nextBytesPerRow = clampBytesPerRow(
-      Number.parseInt(customBytesPerRowValue, 10)
-    )
-    customBytesPerRowValue = String(nextBytesPerRow)
-    if (!force && nextBytesPerRow === bytesPerRow) {
-      return
-    }
-    onBytesPerRow(nextBytesPerRow)
-  }
-
-  function handleCustomBytesKeydown(event: KeyboardEvent): void {
-    if (event.key === 'Enter') {
-      event.preventDefault()
-      commitCustomBytesPerRow(true)
-    }
-  }
-
-  function handleCustomBytesBlur(): void {
-    commitCustomBytesPerRow()
-  }
-
-  $effect(() => {
-    customBytesPerRowValue = String(bytesPerRow)
-  })
 </script>
 
 <div class="toolbar" role="toolbar" aria-label={strings.toolbar.label}>
-  <div class="bytes-per-row-control">
-    <label class="toolbar-select-control">
-      <span>{strings.toolbar.bytesPerRowSelect}</span>
-      <select
-        class="toolbar-select bytes-per-row-select"
-        value={bytesPerRowSelectValue}
-        aria-label={strings.toolbar.bytesPerRow}
-        title={strings.toolbar.bytesPerRowTitle(bytesPerRow)}
-        onchange={handleBytesPerRowSelect}
-      >
-        {#each rowOptions as option}
-          <option value={option}>{option}</option>
-        {/each}
-        <option value="custom">{strings.toolbar.customBytesPerRowOption}</option>
-      </select>
-    </label>
-    <input
-      class="bytes-per-row-input"
-      type="number"
-      min={MIN_BYTES_PER_ROW}
-      max={MAX_BYTES_PER_ROW}
-      value={customBytesPerRowValue}
-      aria-label={strings.toolbar.customBytesPerRow}
-      title={strings.toolbar.customBytesPerRowTitle(
-        MIN_BYTES_PER_ROW,
-        MAX_BYTES_PER_ROW
-      )}
-      oninput={handleCustomBytesInput}
-      onblur={handleCustomBytesBlur}
-      onkeydown={handleCustomBytesKeydown}
-    />
-  </div>
+  <BytesPerRowCombobox {bytesPerRow} {onBytesPerRow} />
 
   <label class="toolbar-select-control">
     <span>{strings.toolbar.offsetRadix}</span>
