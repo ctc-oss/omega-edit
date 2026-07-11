@@ -156,17 +156,30 @@ This mode decision is made only when the user runs an explicit search. If a repl
 
 ## Keyboard Shortcuts
 
-| Key                      | Action                                                     |
-| ------------------------ | ---------------------------------------------------------- |
-| `Ctrl+Z`                 | Native VS Code undo                                       |
-| `Ctrl+Y`                 | Native VS Code redo                                       |
-| `Ctrl+S`                 | Native VS Code save                                       |
-| `Ctrl+Shift+S`           | Native VS Code save as                                    |
-| `Ctrl+F`                 | Focus search                                               |
-| Arrow keys               | Move selection, or scroll by line when nothing is selected |
-| `Page Up` / `Page Down`  | Scroll by 32 rows                                          |
-| `Ctrl+Home` / `Ctrl+End` | Jump to start / end                                        |
-| Mouse wheel              | Scroll by 4 rows                                           |
+| Key | Action |
+| --- | --- |
+| `Ctrl/Cmd+Z` | Native VS Code undo |
+| `Ctrl+Y` / `Cmd+Shift+Z` | Native VS Code redo |
+| `Ctrl/Cmd+S` | Native VS Code save |
+| `Ctrl/Cmd+Shift+S` | Native VS Code save as |
+| `Ctrl/Cmd+C`, `Ctrl/Cmd+X`, `Ctrl/Cmd+V` | Copy, cut, and paste selected bytes |
+| `Tab` | Switch between the hex and text panes |
+| Arrow keys | Move the selection by one byte or one row |
+| `Shift` + Arrow keys | Extend the selection while moving |
+| `Page Up` / `Page Down` | Move by one visible page and scroll |
+| `Home` / `End` | Jump to start / end |
+| `Insert` | Toggle insert/overwrite editing mode |
+| `Backspace` / `Delete` | Delete the selection or adjacent byte |
+| `Ctrl/Cmd+F` | Open search and focus the search field |
+| `Ctrl/Cmd+H` | Open search and replace and focus the replacement field |
+| `F3` / `Shift+F3` | Move to the next / previous search match |
+| `Ctrl/Cmd+G` / `Ctrl/Cmd+L` | Focus the offset jump field |
+| Mouse wheel | Scroll by 4 rows |
+
+The toolbar and command palette also expose the search actions. The `F3`
+shortcuts apply while focus is outside an editable input.
+See the [keyboard shortcuts wiki page](https://github.com/ctc-oss/omega-edit/wiki/VS-Code-Data-Editor-Keyboard-Shortcuts)
+for details.
 
 ## Testing
 
