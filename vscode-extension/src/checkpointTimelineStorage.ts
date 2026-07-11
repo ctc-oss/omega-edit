@@ -1010,6 +1010,10 @@ export class CheckpointTimelineStorageManager {
   async _hit(point: TimelineStorageFaultPoint): Promise<void> {
     await this.hit(point)
   }
+
+  _now(): number {
+    return this.now()
+  }
   async _close(key: string, root: string): Promise<void> {
     let deleted = false
     try {
@@ -1176,7 +1180,7 @@ export class CheckpointTimelineStorageSession {
           options.sourceChangeCount,
           'sourceChangeCount'
         ),
-        createdAt: new Date(Date.now()).toISOString(),
+        createdAt: new Date(this.manager._now()).toISOString(),
         boundaryKind: options.boundaryKind,
         transformPluginIds: [
           ...new Set(options.transformPluginIds ?? winner.requiredPlugins),
@@ -1192,7 +1196,7 @@ export class CheckpointTimelineStorageSession {
       }
       const candidate: CheckpointTimelineManifestV1 = {
         ...this.value,
-        updatedAt: new Date(Date.now()).toISOString(),
+        updatedAt: new Date(this.manager._now()).toISOString(),
         cursor: options.checkpoint,
         tip: options.checkpoint,
         nextGeneration: this.value.nextGeneration + 1,
@@ -1253,7 +1257,7 @@ export class CheckpointTimelineStorageSession {
       before,
       after,
       sourceChangeCount: decimal(input.sourceChangeCount, 'sourceChangeCount'),
-      createdAt: new Date(Date.now()).toISOString(),
+      createdAt: new Date(this.manager._now()).toISOString(),
       boundaryKind: input.boundaryKind,
       transformPluginIds: [...new Set(input.transformPluginIds ?? [])].sort(),
       state: 'unavailable',
@@ -1261,7 +1265,7 @@ export class CheckpointTimelineStorageSession {
     }
     const candidate = {
       ...this.value,
-      updatedAt: new Date(Date.now()).toISOString(),
+      updatedAt: new Date(this.manager._now()).toISOString(),
       cursor: input.checkpoint,
       tip: input.checkpoint,
       nextGeneration: this.value.nextGeneration + 1,
@@ -1339,7 +1343,7 @@ export class CheckpointTimelineStorageSession {
     }
     const candidate: CheckpointTimelineManifestV1 = {
       ...this.value,
-      updatedAt: new Date(Date.now()).toISOString(),
+      updatedAt: new Date(this.manager._now()).toISOString(),
       intervals: this.value.intervals.map((candidateEntry) =>
         candidateEntry.checkpoint === checkpoint ? unavailable : candidateEntry
       ),
@@ -1360,7 +1364,7 @@ export class CheckpointTimelineStorageSession {
     const removed = this.value.intervals.slice(cursor)
     const candidate: CheckpointTimelineManifestV1 = {
       ...this.value,
-      updatedAt: new Date(Date.now()).toISOString(),
+      updatedAt: new Date(this.manager._now()).toISOString(),
       cursor,
       tip: cursor,
       nextGeneration: this.value.nextGeneration + 1,
@@ -1402,7 +1406,7 @@ export class CheckpointTimelineStorageSession {
       )
     const candidate = {
       ...this.value,
-      updatedAt: new Date(Date.now()).toISOString(),
+      updatedAt: new Date(this.manager._now()).toISOString(),
       cursor,
     }
     await this.manager._hit('cursorManifestCommit')
@@ -1423,7 +1427,7 @@ export class CheckpointTimelineStorageSession {
         )?.checkpoint
     const candidate: CheckpointTimelineManifestV1 = {
       ...this.value,
-      updatedAt: new Date(Date.now()).toISOString(),
+      updatedAt: new Date(this.manager._now()).toISOString(),
       saved: {
         fingerprint: normalized,
         ...(checkpoint === undefined ? {} : { checkpoint }),
@@ -1437,7 +1441,7 @@ export class CheckpointTimelineStorageSession {
 
   async heartbeat(force = false): Promise<void> {
     this.assertOpen()
-    const now = Date.now()
+    const now = this.manager._now()
     if (!force && now - this.lastHeartbeat < HEARTBEAT_INTERVAL_MS) return
     await this.manager._hit('heartbeatRefresh')
     await this.manager._reconcile(this.sessionKey)

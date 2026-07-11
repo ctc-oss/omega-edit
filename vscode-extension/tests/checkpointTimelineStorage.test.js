@@ -140,6 +140,28 @@ test('commits only the smaller verified interval and retains no payload in the m
   assert.deepEqual(index.sessions, {})
 })
 
+test('session manifest timestamps use the injected clock', async (t) => {
+  let now = Date.parse('2026-01-01T00:00:00.000Z')
+  const { session } = await sessionFor(t, { now: () => now })
+
+  now += 1_000
+  const entry = await session.captureInterval({
+    checkpoint: 1,
+    expectedGeneration: 1,
+    sourceChangeCount: '2',
+    before,
+    after,
+    boundaryKind: 'plain',
+    writeRaw: archiveWriter(),
+  })
+  assert.equal(entry.createdAt, new Date(now).toISOString())
+  assert.equal(session.manifest.updatedAt, new Date(now).toISOString())
+
+  now += 1_000
+  await session.setCursor(0)
+  assert.equal(session.manifest.updatedAt, new Date(now).toISOString())
+})
+
 test('optimizer failure falls back to the independently verified raw archive', async (t) => {
   const { session } = await sessionFor(t)
   const entry = await session.captureInterval({

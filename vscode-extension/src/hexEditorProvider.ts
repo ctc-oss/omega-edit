@@ -4565,10 +4565,11 @@ export class HexEditorProvider
     this.postWebviewMessage(session, {
       type: 'editState',
       ...editState,
-      isDirty: !timelineFingerprintsEqual(
-        session.checkpointTimeline.currentFingerprint,
-        session.checkpointTimeline.savedFingerprint
-      ),
+      isDirty:
+        !timelineFingerprintsEqual(
+          session.checkpointTimeline.currentFingerprint,
+          session.checkpointTimeline.savedFingerprint
+        ) || !!session.restoredFromBackup,
     })
     this.fireEditorStateChanged(session)
   }
@@ -5794,6 +5795,9 @@ export class HexEditorProvider
             message,
           },
         }
+        // If manifest publication also fails, keep a fail-closed local
+        // boundary for this session. Reopening reloads the authoritative
+        // manifest instead of trusting this fallback.
         interval = storage
           ? await storage
               .recordUnavailable(
@@ -5824,7 +5828,19 @@ export class HexEditorProvider
     if (timeline.navigating || timeline.cursor >= timeline.entries.length) {
       return
     }
-    await timeline.storage?.truncateFuture(timeline.cursor)
+    try {
+      await timeline.storage?.truncateFuture(timeline.cursor)
+    } catch (error) {
+      // The content mutation has already succeeded on the native server.
+      // Detach storage so a lock or persistence failure cannot suppress edit
+      // history, while also preventing navigation through the stale manifest.
+      timeline.storage = undefined
+      console.warn(
+        `Checkpoint timeline branch truncation failed; disabling persisted history for this session: ${
+          error instanceof Error ? error.message : String(error)
+        }`
+      )
+    }
     timeline.entries.splice(timeline.cursor)
     timeline.lastArchivedChangeCount = timeline.entries.at(-1)?.changeCount ?? 0
     this.postCheckpointTimeline(session)

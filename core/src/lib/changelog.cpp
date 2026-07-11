@@ -244,8 +244,6 @@ namespace {
     public:
         int64_t added_length(int64_t start, int64_t end) const {
             if (start >= end) { return 0; }
-            auto merged_start = start;
-            auto merged_end = end;
             auto iterator = intervals_.lower_bound(start);
             if (iterator != intervals_.begin()) {
                 const auto previous = std::prev(iterator);
@@ -256,12 +254,8 @@ namespace {
                 const auto overlap_start = std::max(start, iterator->first);
                 const auto overlap_end = std::min(end, iterator->second);
                 if (overlap_end > overlap_start) { overlap += overlap_end - overlap_start; }
-                merged_start = std::min(merged_start, iterator->first);
-                merged_end = std::max(merged_end, iterator->second);
                 ++iterator;
             }
-            (void) merged_start;
-            (void) merged_end;
             return end - start - overlap;
         }
 
