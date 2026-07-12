@@ -4,22 +4,29 @@
 # Dependencies
 node_modules/
 
-# Source files
+# Source files (not needed at runtime)
 src/
+webview-ui/src/
 *.ts
+*.tsx
 *.map
 *.d.ts
 !images/
 !*.png
 !*.svg
 
-# VSCE packaging
-.vscodeignore
-.vscode/
-
-# Git
-.git/
-.gitignore
+# Config files (not needed in package)
+*.config.*
+tsconfig.json
+vite.config.*
+svelte.config.*
+*.mjs
+*.cjs
+eslint.config.*
+biome.json*
+.prettierrc*
+.eslintrc*
+.stylelintrc*
 
 # Tests
 tests/
@@ -28,9 +35,6 @@ tests/
 docs/
 *.md
 !README.md
-
-# Images (large files)
-images/
 
 # OS artifacts
 .DS_Store
@@ -45,8 +49,16 @@ yarn-error.log*
 # Package locks
 package-lock.json
 
-# Scripts
-scripts/
+# Package archives
+*.tgz
+
+# VSCE packaging
+.vscodeignore
+.vscode/
+
+# Git
+.git/
+.gitignore
 
 # Cache
 .vite/
@@ -55,8 +67,5 @@ scripts/
 # TypeScript
 *.tsbuildinfo
 
-# VSIX packages
-*.vsix
-
-# tgz packages
-*.tgz
+# Scripts
+scripts/
