@@ -445,38 +445,107 @@ button:focus-visible {
   border-color: var(--vscode-inputValidation-errorBorder);
 }
 
-.search-toggle {
+.search-query-field {
+  display: flex;
+  align-items: center;
+  flex: 1 1 auto;
+  min-width: 8ch;
+  height: 26px;
+  border: 1px solid var(--vscode-input-border, var(--vscode-editorGroup-border));
+  border-radius: 2px;
+  background: var(--vscode-input-background);
+}
+
+.search-query-field:focus-within {
+  outline: 1px solid var(--vscode-focusBorder);
+  outline-offset: -1px;
+}
+
+.search-query-field.invalid {
+  border-color: var(--vscode-inputValidation-errorBorder);
+}
+
+.search-query-input {
+  min-width: 0;
+  height: 24px;
+  border: 0;
+  border-radius: 0;
+  outline: 0;
+}
+
+.search-query-input:focus,
+.search-query-input[aria-invalid='true'] {
+  border: 0;
+  outline: 0;
+}
+
+.search-query-modifiers {
+  display: inline-flex;
+  align-items: center;
+  flex: 0 0 auto;
+  gap: 1px;
+  padding-right: 2px;
+}
+
+.search-input-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 22px;
+  height: 20px;
+  padding: 0 3px;
+  border: 0;
+  border-radius: 2px;
+  color: var(--vscode-descriptionForeground);
+  background: transparent;
+  font: inherit;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1;
+}
+
+.search-input-toggle:hover:not(:disabled) {
+  color: var(--vscode-foreground);
+  background: var(--vscode-toolbar-hoverBackground, var(--vscode-list-hoverBackground));
+}
+
+.search-input-toggle.active {
+  color: var(--vscode-inputOption-activeForeground, var(--vscode-foreground));
+  background: var(--vscode-inputOption-activeBackground, var(--vscode-button-background));
+  outline: 1px solid var(--vscode-inputOption-activeBorder, var(--vscode-focusBorder));
+  outline-offset: -1px;
+}
+
+.search-input-toggle:disabled,
+.search-input-toggle.disabled {
+  opacity: 0.4;
+}
+
+.search-disclosure {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   flex: 0 0 auto;
-  min-width: 28px;
-  height: 26px;
-  padding: 0 6px;
-  border: 1px solid var(--vscode-input-border, var(--vscode-editorGroup-border));
+  width: 20px;
+  min-width: 20px;
+  height: 24px;
+  padding: 0;
+  border: 0;
   border-radius: 2px;
   color: var(--vscode-descriptionForeground);
-  background: var(--vscode-input-background);
-  font: inherit;
-  font-size: 12px;
-  font-weight: 600;
-  white-space: nowrap;
+  background: transparent;
+  font-size: 10px;
+  line-height: 1;
 }
 
-.search-toggle:hover:not(:disabled) {
+.search-disclosure:hover {
+  color: var(--vscode-foreground);
   background: var(--vscode-toolbar-hoverBackground, var(--vscode-list-hoverBackground));
 }
 
-.search-toggle.active {
-  color: var(--vscode-button-foreground);
-  background: var(--vscode-button-background);
-  border-color: var(--vscode-focusBorder);
-}
-
-.search-toggle:disabled,
-.search-toggle.disabled {
-  opacity: 0.4;
-  cursor: default;
+.search-disclosure:focus-visible {
+  outline: 1px solid var(--vscode-focusBorder);
+  outline-offset: 1px;
 }
 
 .search-nav {
@@ -3213,7 +3282,8 @@ body.vscode-high-contrast-light .text-byte.selected:hover {
     width: 100%;
   }
 
-  .search-input {
+  .search-query-field,
+  .replace-input {
     flex-basis: 100%;
   }
 

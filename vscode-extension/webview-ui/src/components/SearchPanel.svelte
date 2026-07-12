@@ -102,38 +102,50 @@
 
 <section class="search-panel" role="search" aria-label={strings.search.label}>
   <div class="search-row">
-    <input
-      bind:this={queryInput}
-      class="search-input"
-      type="text"
-      value={query}
-      placeholder={strings.search.placeholder}
-      aria-invalid={invalid}
-      oninput={handleQueryInput}
-      onkeydown={handleInputKeydown}
-    />
     <button
       type="button"
-      class="search-toggle"
-      class:active={isHex}
-      aria-pressed={isHex}
-      title={strings.search.hexTitle}
-      onclick={() => onHexChange(!isHex)}
+      class="search-disclosure"
+      aria-expanded={replaceVisible}
+      aria-label={strings.search.toggleReplace}
+      title={strings.search.toggleReplace}
+      onclick={onToggleReplace}
     >
-      {strings.search.hex}
+      {#if replaceVisible}&#x25BC;{:else}&#x25B6;{/if}
     </button>
-    <button
-      type="button"
-      class="search-toggle"
-      class:active={caseSensitive}
-      class:disabled={isHex}
-      aria-pressed={caseSensitive}
-      disabled={isHex}
-      title={isHex ? strings.search.hexDisabledCase : strings.search.matchCaseTitle}
-      onclick={() => onCaseSensitiveChange(!caseSensitive)}
-    >
-      Aa
-    </button>
+    <div class="search-query-field" class:invalid>
+      <input
+        bind:this={queryInput}
+        class="search-input search-query-input"
+        type="text"
+        value={query}
+        placeholder={strings.search.placeholder}
+        aria-invalid={invalid}
+        oninput={handleQueryInput}
+        onkeydown={handleInputKeydown}
+      />
+      <div class="search-query-modifiers">
+        <button
+          type="button"
+          class="search-input-toggle"
+          class:active={isHex}
+          aria-pressed={isHex}
+          aria-label={strings.search.hexTitle}
+          title={strings.search.hexTitle}
+          onclick={() => onHexChange(!isHex)}
+        >0x</button>
+        <button
+          type="button"
+          class="search-input-toggle"
+          class:active={caseSensitive}
+          class:disabled={isHex}
+          aria-pressed={caseSensitive}
+          aria-label={strings.search.matchCaseTitle}
+          disabled={isHex}
+          title={isHex ? strings.search.hexDisabledCase : strings.search.matchCaseTitle}
+          onclick={() => onCaseSensitiveChange(!caseSensitive)}
+        >Aa</button>
+      </div>
+    </div>
     <span class="search-summary" aria-live="polite">{summary}</span>
     <div class="search-nav">
       <button
@@ -157,16 +169,6 @@
         &#x25BC;
       </button>
     </div>
-    <button
-      type="button"
-      class="search-toggle"
-      class:active={replaceVisible}
-      aria-pressed={replaceVisible}
-      title={strings.search.toggleReplace}
-      onclick={onToggleReplace}
-    >
-      &#x2015;
-    </button>
     <button
       type="button"
       class="panel-close"
