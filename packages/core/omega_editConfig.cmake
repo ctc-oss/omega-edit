@@ -11,6 +11,8 @@
 
 cmake_minimum_required(VERSION 3.13)
 
+include(CMakeFindDependencyMacro)
+
 set(omega_edit_known_comps static shared)
 set(omega_edit_comp_static NO)
 set(omega_edit_comp_shared NO)
@@ -31,6 +33,8 @@ if (omega_edit_comp_static AND omega_edit_comp_shared)
     set(${CMAKE_FIND_PACKAGE_NAME}_FOUND FALSE)
     return()
 endif ()
+
+find_dependency(zstd CONFIG QUIET)
 
 set(omega_edit_static_targets "${CMAKE_CURRENT_LIST_DIR}/omega_edit-static-targets.cmake")
 set(omega_edit_shared_targets "${CMAKE_CURRENT_LIST_DIR}/omega_edit-shared-targets.cmake")
