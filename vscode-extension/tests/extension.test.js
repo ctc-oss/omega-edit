@@ -1098,7 +1098,8 @@ test('compiled extension entrypoints exist after build', () => {
   assert.match(svelteBundleCss, /\.byte\.inspectorRange:after/)
   assert.match(svelteBundleCss, /\.byte\.selected/)
   assert.match(svelteBundleCss, /\.byte-inspector-panel/)
-  assert.match(svelteBundleCss, /\.inspector-toggle/)
+  assert.match(svelteBundleCss, /\.inspector-group/)
+  assert.match(svelteBundleCss, /\.inspector-group-toggle/)
   assert.match(svelteBundleCss, /\.inspector-byte-order/)
   assert.match(svelteBundleCss, /\.inspector-byte-order-toggle/)
   assert.match(svelteBundleCss, /\.inspector-edit-row/)
@@ -1993,6 +1994,14 @@ test('compiled extension entrypoints exist after build', () => {
   assert.match(byteInspectorSource, /fieldByteLength/)
   assert.match(byteInspectorSource, /expanded/)
   assert.match(byteInspectorSource, /onToggleExpanded/)
+  assert.match(byteInspectorSource, /panel-close/)
+  assert.match(byteInspectorSource, /inspector-group/)
+  assert.match(byteInspectorSource, /groupCommon/)
+  assert.match(byteInspectorSource, /groupIntegers/)
+  assert.match(byteInspectorSource, /groupFloats/)
+  assert.match(byteInspectorSource, /groupText/)
+  assert.match(byteInspectorSource, /toggleGroup/)
+  assert.match(byteInspectorSource, /collapsedGroups/)
   assert.match(
     byteInspectorSource,
     /class="segmented inspector-byte-order-toggle"/

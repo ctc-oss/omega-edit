@@ -1383,13 +1383,13 @@
     {:else}
       <button
         type="button"
-        class="profiler-toggle"
+        class="panel-close"
         aria-expanded={expanded}
         aria-label={strings.profiler.collapse}
         title={strings.profiler.collapse}
         onclick={onToggleExpanded}
       >
-        {strings.profiler.collapseSymbol}
+        {#if expanded}&#x25BC;{:else}&#x25B6;{/if}
       </button>
       <span class="analysis-title">{strings.profiler.title}</span>
       <span class="analysis-tabs" role="tablist" aria-label={strings.profiler.views}>

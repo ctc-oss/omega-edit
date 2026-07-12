@@ -24,6 +24,13 @@
     available: boolean
   }
 
+  interface InspectorGroup {
+    id: string
+    label: string
+    fields: InspectorField[]
+    defaultExpanded: boolean
+  }
+
   interface Props {
     selectedOffset?: number
     bytes?: number[]
@@ -62,6 +69,7 @@
   let editValue = $state('')
   let editError = $state('')
   let lastSelectedOffset = $state(-1)
+  let collapsedGroups = $state<Set<string>>(new Set())
 
   const hasSelection = $derived(
     selectionStart >= 0 && selectionEnd >= selectionStart
@@ -69,6 +77,7 @@
   const selectionLength = $derived(
     hasSelection ? selectionEnd - selectionStart + 1 : 0
   )
+
   function setEndian(useLittleEndian: boolean): void {
     if (littleEndian !== useLittleEndian) {
       onToggleEndian()
@@ -136,11 +145,7 @@
     } else {
       return undefined
     }
-
-    if (value.length < length) {
-      return undefined
-    }
-
+    if (value.length < length) return undefined
     try {
       const text = new TextDecoder('utf-8', { fatal: true }).decode(
         Uint8Array.from(value.slice(0, length))
@@ -155,20 +160,13 @@
     value: number[],
     useLittleEndian: boolean
   ): { text: string; length: number } | undefined {
-    if (value.length < 2) {
-      return undefined
-    }
-
+    if (value.length < 2) return undefined
     const view = makeDataView(value)
     const first = view.getUint16(0, useLittleEndian)
     if (first >= 0xd800 && first <= 0xdbff) {
-      if (value.length < 4) {
-        return undefined
-      }
+      if (value.length < 4) return undefined
       const second = view.getUint16(2, useLittleEndian)
-      if (second < 0xdc00 || second > 0xdfff) {
-        return undefined
-      }
+      if (second < 0xdc00 || second > 0xdfff) return undefined
       return {
         text: String.fromCodePoint(
           0x10000 + ((first - 0xd800) << 10) + (second - 0xdc00)
@@ -176,32 +174,21 @@
         length: 4,
       }
     }
-
-    if (first >= 0xdc00 && first <= 0xdfff) {
-      return undefined
-    }
+    if (first >= 0xdc00 && first <= 0xdfff) return undefined
     return { text: String.fromCharCode(first), length: 2 }
   }
 
   function utf8ToHex(value: string): string {
     const text = firstUnicodeCharacter(value)
-    if (!text) {
-      throw new Error(strings.inspector.emptyValue)
-    }
+    if (!text) throw new Error(strings.inspector.emptyValue)
     return bytesToHex(Array.from(new TextEncoder().encode(text)))
   }
 
   function encodeUtf16Character(value: string, useLittleEndian: boolean): string {
     const text = firstUnicodeCharacter(value)
-    if (!text) {
-      throw new Error(strings.inspector.emptyValue)
-    }
-
+    if (!text) throw new Error(strings.inspector.emptyValue)
     const codePoint = text.codePointAt(0)
-    if (codePoint === undefined) {
-      throw new Error(strings.inspector.emptyValue)
-    }
-
+    if (codePoint === undefined) throw new Error(strings.inspector.emptyValue)
     const units =
       codePoint <= 0xffff
         ? [codePoint]
@@ -219,10 +206,7 @@
 
   function parseBigIntInput(raw: string): bigint {
     const text = raw.trim().replaceAll('_', '')
-    if (!text) {
-      throw new Error(strings.inspector.emptyValue)
-    }
-
+    if (!text) throw new Error(strings.inspector.emptyValue)
     let sign = 1n
     let body = text
     if (body.startsWith('-')) {
@@ -231,7 +215,6 @@
     } else if (body.startsWith('+')) {
       body = body.slice(1)
     }
-
     if (
       /^0x[0-9a-f]+$/i.test(body) ||
       /^0b[01]+$/i.test(body) ||
@@ -240,15 +223,12 @@
     ) {
       return sign * BigInt(body)
     }
-
     throw new Error(strings.inspector.invalidInteger)
   }
 
   function parseIntegerInRange(raw: string, min: bigint, max: bigint): bigint {
     const value = parseBigIntInput(raw)
-    if (value < min || value > max) {
-      throw new Error(strings.inspector.outOfRange)
-    }
+    if (value < min || value > max) throw new Error(strings.inspector.outOfRange)
     return value
   }
 
@@ -351,7 +331,8 @@
     }
   }
 
-  const fields: InspectorField[] = [
+  // Field definitions grouped by category
+  const commonFields: InspectorField[] = [
     {
       key: 'hex8',
       label: strings.inspector.byteValue,
@@ -385,38 +366,6 @@
       },
     },
     {
-      key: 'utf8',
-      label: strings.inspector.utf8,
-      minBytes: 1,
-      editable: true,
-      byteLength: (value) => decodeFirstUtf8(value)?.length ?? 1,
-      read: (value) => {
-        const decoded = decodeFirstUtf8(value)
-        if (!decoded) {
-          throw new Error(strings.inspector.invalidValue)
-        }
-        return quoted(decoded.text)
-      },
-      write: (raw) => utf8ToHex(raw),
-    },
-    {
-      key: 'utf16',
-      label: strings.inspector.utf16,
-      minBytes: 2,
-      editable: true,
-      byteLength: (value, useLittleEndian) =>
-        decodeFirstUtf16(value, useLittleEndian)?.length ?? 2,
-      read: (value, useLittleEndian) => {
-        const decoded = decodeFirstUtf16(value, useLittleEndian)
-        if (!decoded) {
-          throw new Error(strings.inspector.invalidValue)
-        }
-        return quoted(decoded.text)
-      },
-      write: (raw, useLittleEndian) =>
-        encodeUtf16Character(raw, useLittleEndian),
-    },
-    {
       key: 'binary',
       label: strings.inspector.bin,
       minBytes: 1,
@@ -442,12 +391,13 @@
           throw new Error(strings.inspector.invalidOctalByte)
         }
         const value = parseInt(text, 8)
-        if (value > 0xff) {
-          throw new Error(strings.inspector.outOfRange)
-        }
+        if (value > 0xff) throw new Error(strings.inspector.outOfRange)
         return toHex2(value)
       },
     },
+  ]
+
+  const integerFields: InspectorField[] = [
     integerField('uint8', strings.inspector.uint8, 1, false),
     integerField('int8', strings.inspector.int8, 1, true),
     integerField('uint16', strings.inspector.uint16, 2, false),
@@ -456,6 +406,9 @@
     integerField('int32', strings.inspector.int32, 4, true),
     integerField('uint64', strings.inspector.uint64, 8, false),
     integerField('int64', strings.inspector.int64, 8, true),
+  ]
+
+  const floatFields: InspectorField[] = [
     {
       key: 'float32',
       label: strings.inspector.float32,
@@ -474,14 +427,75 @@
     },
   ]
 
+  const textFields: InspectorField[] = [
+    {
+      key: 'utf8',
+      label: strings.inspector.utf8,
+      minBytes: 1,
+      editable: true,
+      byteLength: (value) => decodeFirstUtf8(value)?.length ?? 1,
+      read: (value) => {
+        const decoded = decodeFirstUtf8(value)
+        if (!decoded) throw new Error(strings.inspector.invalidValue)
+        return quoted(decoded.text)
+      },
+      write: (raw) => utf8ToHex(raw),
+    },
+    {
+      key: 'utf16',
+      label: strings.inspector.utf16,
+      minBytes: 2,
+      editable: true,
+      byteLength: (value, useLittleEndian) =>
+        decodeFirstUtf16(value, useLittleEndian)?.length ?? 2,
+      read: (value, useLittleEndian) => {
+        const decoded = decodeFirstUtf16(value, useLittleEndian)
+        if (!decoded) throw new Error(strings.inspector.invalidValue)
+        return quoted(decoded.text)
+      },
+      write: (raw, useLittleEndian) =>
+        encodeUtf16Character(raw, useLittleEndian),
+    },
+  ]
+
+  const groups: InspectorGroup[] = [
+    { id: 'common', label: strings.inspector.groupCommon, fields: commonFields, defaultExpanded: true },
+    { id: 'integers', label: strings.inspector.groupIntegers, fields: integerFields, defaultExpanded: false },
+    { id: 'floats', label: strings.inspector.groupFloats, fields: floatFields, defaultExpanded: false },
+    { id: 'text', label: strings.inspector.groupText, fields: textFields, defaultExpanded: false },
+  ]
+
+  // Merge active text encoding into the text group
+  const allGroups = $derived(
+    groups.map((g) =>
+      g.id === 'text'
+        ? { ...g, fields: [activeTextEncodingField(), ...g.fields] }
+        : g.id === 'common'
+          ? { ...g, fields: [g.fields[0], g.fields[1], activeTextEncodingField(), ...g.fields.slice(2)] }
+          : g
+    )
+  )
+
+  function isGroupCollapsed(groupId: string): boolean {
+    return collapsedGroups.has(groupId)
+  }
+
+  function toggleGroup(groupId: string): void {
+    const next = new Set(collapsedGroups)
+    if (next.has(groupId)) {
+      next.delete(groupId)
+    } else {
+      next.add(groupId)
+    }
+    collapsedGroups = next
+  }
+
   function displayValue(
     field: InspectorField,
     valueBytes: number[],
     useLittleEndian: boolean
   ): string {
-    if (valueBytes.length < field.minBytes) {
-      return '--'
-    }
+    if (valueBytes.length < field.minBytes) return '--'
     try {
       return field.read(valueBytes, useLittleEndian)
     } catch {
@@ -494,9 +508,7 @@
     valueBytes: number[],
     useLittleEndian: boolean
   ): number {
-    if (valueBytes.length < field.minBytes) {
-      return field.minBytes
-    }
+    if (valueBytes.length < field.minBytes) return field.minBytes
     return Math.max(
       1,
       field.byteLength?.(valueBytes, useLittleEndian) ?? field.minBytes
@@ -520,9 +532,7 @@
 
   function beginEdit(item: InspectorFieldView): void {
     const { field } = item
-    if (disabled || !field.editable || !item.available || selectedOffset < 0) {
-      return
-    }
+    if (disabled || !field.editable || !item.available || selectedOffset < 0) return
     onInspectRange(selectedOffset, item.length)
     editingKey = field.key
     editValue = item.value.replace(/^'|'$/g, '')
@@ -543,10 +553,7 @@
 
   function commitEdit(item: InspectorFieldView): void {
     const { field } = item
-    if (disabled || !field.write || selectedOffset < 0) {
-      return
-    }
-
+    if (disabled || !field.write || selectedOffset < 0) return
     try {
       const data = field.write(editValue, littleEndian)
       onCommitValue(selectedOffset, item.length, data)
@@ -569,11 +576,6 @@
     }
   }
 
-  const renderedFields = $derived([
-    ...fields.slice(0, 2),
-    activeTextEncodingField(),
-    ...fields.slice(2),
-  ].map((field) => buildFieldView(field, bytes, littleEndian)))
   $effect(() => {
     if (selectedOffset !== lastSelectedOffset) {
       lastSelectedOffset = selectedOffset
@@ -588,23 +590,13 @@
   <div class="inspector-header">
     <button
       type="button"
-      class="inspector-toggle"
-      class:inspector-collapsed-toggle={!expanded}
+      class="panel-close inspector-toggle"
       aria-expanded={expanded}
-      aria-label={
-        expanded ? strings.inspector.collapse : strings.inspector.expand
-      }
+      aria-label={expanded ? strings.inspector.collapse : strings.inspector.expand}
       title={expanded ? strings.inspector.collapse : strings.inspector.expand}
       onclick={onToggleExpanded}
     >
-      {#if expanded}
-        {strings.inspector.collapseSymbol}
-      {:else}
-        <span>{strings.inspector.show}</span>
-        <span class="inspector-collapsed-label">
-          {strings.inspector.title}
-        </span>
-      {/if}
+      {#if expanded}&#x25BC;{:else}&#x25B6;{/if}
     </button>
     <div class="inspector-summary">
       <span class="inspector-label">{strings.inspector.label}</span>
@@ -619,31 +611,14 @@
         <strong>{strings.inspector.noSelection}</strong>
       {/if}
     </div>
-
     {#if expanded}
       <div class="inspector-byte-order">
-        <span class="inspector-byte-order-label">
-          {strings.inspector.byteOrder}
-        </span>
-        <div
-          class="segmented inspector-byte-order-toggle"
-          role="group"
-          aria-label={strings.inspector.byteOrder}
-        >
-          <button
-            type="button"
-            class:active={littleEndian}
-            aria-pressed={littleEndian}
-            onclick={() => setEndian(true)}
-          >
+        <span class="inspector-byte-order-label">{strings.inspector.byteOrder}</span>
+        <div class="segmented inspector-byte-order-toggle" role="group" aria-label={strings.inspector.byteOrder}>
+          <button type="button" class:active={littleEndian} aria-pressed={littleEndian} onclick={() => setEndian(true)}>
             {strings.inspector.littleEndian}
           </button>
-          <button
-            type="button"
-            class:active={!littleEndian}
-            aria-pressed={!littleEndian}
-            onclick={() => setEndian(false)}
-          >
+          <button type="button" class:active={!littleEndian} aria-pressed={!littleEndian} onclick={() => setEndian(false)}>
             {strings.inspector.bigEndian}
           </button>
         </div>
@@ -656,53 +631,62 @@
       {editError || clipboardMessage}
     </div>
 
-    <dl class="inspector-values">
-      {#each renderedFields as item (item.field.key)}
-        <div>
-          <dt>{item.field.label}</dt>
-          <dd>
-            {#if editingKey === item.field.key}
-              <span class="inspector-edit-row">
-                <input
-                  aria-label={strings.inspector.valueInput(item.field.label)}
-                  bind:value={editValue}
-                  spellcheck="false"
-                  disabled={disabled}
-                  onkeydown={(event) => handleEditKeydown(event, item)}
-                />
-                <button
-                  type="button"
-                  class="secondary"
-                  disabled={disabled}
-                  onclick={() => commitEdit(item)}
-                >
-                  {strings.inspector.apply}
-                </button>
-              </span>
-            {:else if item.field.editable && item.available && selectedOffset >= 0}
-              <button
-                type="button"
-                class="inspector-value-button"
-                disabled={disabled}
-                onclick={() => beginEdit(item)}
-              >
-                {item.value}
-              </button>
-            {:else}
-              <button
-                type="button"
-                class="inspector-value-button"
-                class:inspector-value-readonly={!item.field.editable}
-                disabled={!item.available || selectedOffset < 0 || (disabled && item.field.editable)}
-                onclick={() =>
-                  item.field.editable ? beginEdit(item) : inspectField(item)}
-              >
-                {item.value}
-              </button>
-            {/if}
-          </dd>
-        </div>
-      {/each}
-    </dl>
+    {#each allGroups as group (group.id)}
+      <div class="inspector-group" class:collapsed={isGroupCollapsed(group.id)}>
+        <button
+          type="button"
+          class="inspector-group-toggle"
+          aria-expanded={!isGroupCollapsed(group.id)}
+          aria-label={strings.inspector.groupToggle(group.label)}
+          title={group.label}
+          onclick={() => toggleGroup(group.id)}
+        >
+          <span class="inspector-group-chevron" aria-hidden="true">
+            {#if isGroupCollapsed(group.id)}&#x25B6;{:else}&#x25BC;{/if}
+          </span>
+          <span class="inspector-group-label">{group.label}</span>
+        </button>
+        {#if !isGroupCollapsed(group.id)}
+          <dl class="inspector-values">
+            {#each group.fields as field (field.key)}
+              {@const item = buildFieldView(field, bytes, littleEndian)}
+              <div>
+                <dt>{field.label}</dt>
+                <dd>
+                  {#if editingKey === field.key}
+                    <span class="inspector-edit-row">
+                      <input
+                        aria-label={strings.inspector.valueInput(field.label)}
+                        bind:value={editValue}
+                        spellcheck="false"
+                        disabled={disabled}
+                        onkeydown={(event) => handleEditKeydown(event, item)}
+                      />
+                      <button type="button" class="secondary" disabled={disabled} onclick={() => commitEdit(item)}>
+                        {strings.inspector.apply}
+                      </button>
+                    </span>
+                  {:else if field.editable && item.available && selectedOffset >= 0}
+                    <button type="button" class="inspector-value-button" disabled={disabled} onclick={() => beginEdit(item)}>
+                      {item.value}
+                    </button>
+                  {:else}
+                    <button
+                      type="button"
+                      class="inspector-value-button"
+                      class:inspector-value-readonly={!field.editable}
+                      disabled={!item.available || selectedOffset < 0 || (disabled && field.editable)}
+                      onclick={() => field.editable ? beginEdit(item) : inspectField(item)}
+                    >
+                      {item.value}
+                    </button>
+                  {/if}
+                </dd>
+              </div>
+            {/each}
+          </dl>
+        {/if}
+      </div>
+    {/each}
   {/if}
 </section>

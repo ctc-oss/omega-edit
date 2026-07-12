@@ -3019,13 +3019,62 @@ body.vscode-high-contrast-light .text-byte.selected:hover {
   white-space: nowrap;
 }
 
+.inspector-group {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.inspector-group + .inspector-group {
+  margin-top: 4px;
+  padding-top: 4px;
+  border-top: 1px solid var(--vscode-editorGroup-border);
+}
+
+.inspector-group-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 22px;
+  padding: 1px 0;
+  border: 0;
+  color: var(--vscode-descriptionForeground);
+  background: transparent;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.inspector-group-toggle:hover {
+  color: var(--vscode-foreground);
+  background: var(--vscode-list-hoverBackground);
+}
+
+.inspector-group-toggle:focus-visible {
+  outline: 1px solid var(--vscode-focusBorder);
+  outline-offset: 2px;
+}
+
+.inspector-group-chevron {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 12px;
+  font-size: 9px;
+}
+
+.inspector-group-label {
+  min-width: 0;
+}
+
 .inspector-values {
   display: grid;
-  grid-column: 1 / -1;
-  grid-template-columns: repeat(7, minmax(8ch, 1fr));
-  gap: 8px;
+  grid-template-columns: repeat(4, minmax(8ch, 1fr));
+  gap: 6px;
   min-width: 0;
   margin: 0;
+  padding: 2px 0;
 }
 
 .editor-status-strip {
@@ -3130,21 +3179,17 @@ body.vscode-high-contrast-light .text-byte.selected:hover {
     flex: 1 0 100%;
     justify-content: flex-start;
   }
-
-  .inspector-values {
-    grid-template-columns: repeat(4, minmax(8ch, 1fr));
-  }
 }
 
 @media (max-width: 800px) {
   .inspector-values {
-    grid-template-columns: repeat(5, minmax(8ch, 1fr));
+    grid-template-columns: repeat(3, minmax(8ch, 1fr));
   }
 }
 
 @media (max-width: 660px) {
   .inspector-values {
-    grid-template-columns: repeat(4, minmax(8ch, 1fr));
+    grid-template-columns: repeat(2, minmax(8ch, 1fr));
   }
 }
 

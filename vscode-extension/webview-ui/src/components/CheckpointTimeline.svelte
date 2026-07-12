@@ -211,8 +211,7 @@
     overflow: hidden;
   }
 
-  .timeline-step,
-  .timeline-close {
+  .timeline-step {
     border: 0;
     color: var(--vscode-foreground);
     background: transparent;
@@ -225,7 +224,6 @@
   }
 
   .timeline-step:focus-visible,
-  .timeline-close:focus-visible,
   .timeline-slider:focus-visible {
     outline: 1px solid var(--vscode-focusBorder);
     outline-offset: 2px;
@@ -262,7 +260,6 @@
     }
 
     .timeline-step:focus-visible,
-    .timeline-close:focus-visible,
     .timeline-slider:focus-visible {
       outline: 2px solid Highlight;
     }
