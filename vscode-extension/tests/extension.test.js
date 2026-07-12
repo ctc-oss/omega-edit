@@ -1978,6 +1978,7 @@ test('compiled extension entrypoints exist after build', () => {
   assert.match(searchPanelSource, /class="search-query-field"/)
   assert.match(searchPanelSource, /class="search-query-modifiers"/)
   assert.match(searchPanelSource, /class="search-disclosure"/)
+  assert.match(searchPanelSource, /class:expanded=\{replaceVisible\}/)
   assert.match(searchPanelSource, />0x<\/button>/)
   assert.match(searchPanelSource, />Aa<\/button>/)
   assert.match(searchPanelSource, /aria-expanded=\{replaceVisible\}/)
@@ -1986,6 +1987,15 @@ test('compiled extension entrypoints exist after build', () => {
   assert.doesNotMatch(searchPanelSource, /&#x2015;/)
   assert.match(svelteStylesSource, /\.search-query-field:focus-within/)
   assert.match(svelteStylesSource, /\.search-input-toggle\.active/)
+  assert.match(
+    svelteStylesSource,
+    /\.search-disclosure\.expanded\s*\{[^}]*grid-row:\s*1 \/ span 2/s
+  )
+  assert.match(svelteStylesSource, /\.search-row\s*\{[^}]*grid-column:\s*2/s)
+  assert.doesNotMatch(
+    svelteStylesSource,
+    /\.replace-row\s*\{[^}]*border-top/s
+  )
   assert.doesNotMatch(searchPanelSource, />Search Next</)
   assert.doesNotMatch(searchPanelSource, />Replace All</)
   assert.match(byteInspectorSource, /strings\.inspector\.label/)

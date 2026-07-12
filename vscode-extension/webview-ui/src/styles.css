@@ -407,8 +407,9 @@ button:focus-visible {
 }
 
 .search-panel {
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr);
+  grid-template-rows: auto auto;
   gap: 0;
   min-width: 0;
   border-bottom: 1px solid var(--vscode-editorGroup-border);
@@ -417,11 +418,12 @@ button:focus-visible {
 
 .search-row {
   display: flex;
+  grid-column: 2;
   align-items: center;
   gap: 4px;
   min-width: 0;
   min-height: 32px;
-  padding: 4px 8px;
+  padding: 4px 8px 4px 0;
 }
 
 .search-input {
@@ -536,6 +538,15 @@ button:focus-visible {
   background: transparent;
   font-size: 10px;
   line-height: 1;
+  grid-column: 1;
+  grid-row: 1;
+  align-self: start;
+  justify-self: center;
+  margin-top: 5px;
+}
+
+.search-disclosure.expanded {
+  grid-row: 1 / span 2;
 }
 
 .search-disclosure:hover {
@@ -653,7 +664,7 @@ button:focus-visible {
 }
 
 .replace-row {
-  border-top: 1px solid var(--vscode-editorGroup-border);
+  grid-row: 2;
 }
 
 .replace-input {
@@ -3269,12 +3280,7 @@ body.vscode-high-contrast-light .text-byte.selected:hover {
   }
 
   .search-panel {
-    align-items: stretch;
-    grid-template-areas:
-      "fields"
-      "actions"
-      "replace";
-    grid-template-columns: 1fr;
+    grid-template-columns: 28px minmax(0, 1fr);
   }
 
   .search-row {

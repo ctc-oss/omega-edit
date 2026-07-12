@@ -101,17 +101,18 @@
 </script>
 
 <section class="search-panel" role="search" aria-label={strings.search.label}>
+  <button
+    type="button"
+    class="search-disclosure"
+    class:expanded={replaceVisible}
+    aria-expanded={replaceVisible}
+    aria-label={strings.search.toggleReplace}
+    title={strings.search.toggleReplace}
+    onclick={onToggleReplace}
+  >
+    {#if replaceVisible}&#x25BC;{:else}&#x25B6;{/if}
+  </button>
   <div class="search-row">
-    <button
-      type="button"
-      class="search-disclosure"
-      aria-expanded={replaceVisible}
-      aria-label={strings.search.toggleReplace}
-      title={strings.search.toggleReplace}
-      onclick={onToggleReplace}
-    >
-      {#if replaceVisible}&#x25BC;{:else}&#x25B6;{/if}
-    </button>
     <div class="search-query-field" class:invalid>
       <input
         bind:this={queryInput}
