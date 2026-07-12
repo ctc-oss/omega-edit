@@ -65,19 +65,19 @@ void session_save_test_viewport_cbk(const omega_viewport_t *viewport_ptr, omega_
 
 #ifdef OMEGA_BUILD_WINDOWS
 TEST_CASE("Session save retries a transient Windows destination lock", "[SessionSaveTests]") {
-    const auto file_path = MAKE_PATH("session_save.transient-lock.dat");
-    if (omega_util_file_exists(file_path) != 0) { REQUIRE(0 == omega_util_remove_file(file_path)); }
-    {
-        auto *file_ptr = FOPEN(file_path, "wb");
-        REQUIRE(file_ptr);
-        REQUIRE(3 == fwrite("old", 1, 3, file_ptr));
-        REQUIRE(0 == FCLOSE(file_ptr));
-    }
+    char file_path_template[FILENAME_MAX]{};
+    REQUIRE(0 < std::snprintf(file_path_template, sizeof(file_path_template), "%s",
+                              MAKE_PATH("session_save.transient-lock.XXXXXX")));
+    const auto file_descriptor = omega_util_mkstemp(file_path_template, 0600);
+    REQUIRE(file_descriptor >= 0);
+    REQUIRE(3 == _write(file_descriptor, "old", 3));
+    REQUIRE(0 == _close(file_descriptor));
+    const std::string file_path(file_path_template);
 
     const auto session_ptr = omega_edit_create_session_from_bytes(reinterpret_cast<const omega_byte_t *>("new"), 3,
                                                                   nullptr, nullptr, NO_EVENTS, nullptr);
     REQUIRE(session_ptr);
-    const auto lock_handle = CreateFileA(file_path, GENERIC_READ, FILE_SHARE_READ | FILE_SHARE_WRITE, nullptr,
+    const auto lock_handle = CreateFileA(file_path.c_str(), GENERIC_READ, FILE_SHARE_READ | FILE_SHARE_WRITE, nullptr,
                                          OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, nullptr);
     REQUIRE(lock_handle != INVALID_HANDLE_VALUE);
     std::thread unlocker([lock_handle]() {
@@ -85,11 +85,12 @@ TEST_CASE("Session save retries a transient Windows destination lock", "[Session
         CloseHandle(lock_handle);
     });
 
-    const auto save_result = omega_edit_save(session_ptr, file_path, omega_io_flags_t::IO_FLG_OVERWRITE, nullptr);
+    const auto save_result =
+            omega_edit_save(session_ptr, file_path.c_str(), omega_io_flags_t::IO_FLG_OVERWRITE, nullptr);
     unlocker.join();
     REQUIRE(0 == save_result);
     omega_edit_destroy_session(session_ptr);
-    REQUIRE(0 == omega_util_remove_file(file_path));
+    REQUIRE(0 == omega_util_remove_file(file_path.c_str()));
 }
 #endif
 
