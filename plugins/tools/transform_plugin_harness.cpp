@@ -18,6 +18,7 @@
 #include <cctype>
 #include <cstdlib>
 #include <cstring>
+#include <filesystem>
 #include <iostream>
 #include <optional>
 #include <sstream>
@@ -28,6 +29,7 @@ namespace {
     struct options_t {
         std::vector<std::string> plugin_dirs;
         std::vector<std::string> plugin_paths;
+        bool allow_experimental = false;
         bool list = false;
         std::string run_id;
         std::optional<std::vector<omega_byte_t>> input;
@@ -39,11 +41,23 @@ namespace {
     };
 
     void print_usage(const char *argv0) {
-        std::cerr << "Usage:\n"
-                  << "  " << argv0 << " --plugin-dir DIR --list\n"
-                  << "  " << argv0 << " --plugin PATH --run ID --input TEXT [--expect-output TEXT]\n"
-                  << "  " << argv0 << " --plugin-dir DIR --run ID --input-hex HEX [--offset N] [--length N]\n"
-                  << "       [--options JSON] [--expect-output-hex HEX] [--expect-result TEXT]\n";
+        std::cerr
+                << "Usage:\n"
+                << "  " << argv0 << " [--plugin-dir DIR] --list\n"
+                << "  " << argv0 << " --plugin PATH --run ID --input TEXT [--expect-output TEXT]\n"
+                << "  " << argv0 << " --plugin-dir DIR --run ID --input-hex HEX [--offset N] [--length N]\n"
+                << "       [--allow-experimental] [--options JSON] [--expect-output-hex HEX] [--expect-result TEXT]\n";
+    }
+
+    auto installed_plugin_directory(const char *argv0) -> std::string {
+        if (!argv0 || !*argv0) { return {}; }
+        std::error_code error;
+        auto executable = std::filesystem::absolute(argv0, error);
+        if (error) { return {}; }
+        executable = std::filesystem::weakly_canonical(executable, error);
+        if (error) { return {}; }
+        const auto candidate = executable.parent_path().parent_path() / "lib" / "omega_edit" / "plugins";
+        return std::filesystem::is_directory(candidate, error) && !error ? candidate.string() : std::string{};
     }
 
     auto parse_i64(const char *value, int64_t &out) -> bool {
@@ -125,6 +139,8 @@ namespace {
                 options.plugin_paths.emplace_back(value);
             } else if (arg == "--list") {
                 options.list = true;
+            } else if (arg == "--allow-experimental") {
+                options.allow_experimental = true;
             } else if (arg == "--run") {
                 const auto value = require_value("--run");
                 if (!value) { return false; }
@@ -301,14 +317,29 @@ namespace {
 
 int main(int argc, char **argv) {
     options_t options;
-    if (!parse_options(argc, argv, options) || (options.plugin_dirs.empty() && options.plugin_paths.empty())) {
+    if (!parse_options(argc, argv, options)) {
         print_usage(argv[0]);
         return 2;
+    }
+    if (options.plugin_dirs.empty() && options.plugin_paths.empty()) {
+        const auto installed_directory = installed_plugin_directory(argv[0]);
+        if (installed_directory.empty()) {
+            std::cerr << "no plugin directory specified and no installed plugins found\n";
+            print_usage(argv[0]);
+            return 2;
+        }
+        options.plugin_dirs.push_back(installed_directory);
     }
 
     auto *registry_ptr = omega_transform_plugin_registry_create();
     if (!registry_ptr) {
         std::cerr << "failed to create plugin registry\n";
+        return 1;
+    }
+
+    if (options.allow_experimental && omega_transform_plugin_registry_set_allow_experimental(registry_ptr, 1) != 0) {
+        omega_transform_plugin_registry_destroy(registry_ptr);
+        std::cerr << "failed to enable experimental plugins\n";
         return 1;
     }
 

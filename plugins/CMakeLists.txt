@@ -350,17 +350,17 @@ if (BUILD_TESTS)
     endif()
 endif()
 
-if (CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
-    install(TARGETS ${OMEGA_EDIT_TRANSFORM_PLUGIN_TARGETS}
-            RUNTIME DESTINATION "${CMAKE_INSTALL_LIBDIR}/omega_edit/plugins"
-            LIBRARY DESTINATION "${CMAKE_INSTALL_LIBDIR}/omega_edit/plugins")
-    if (OMEGA_EDIT_HAS_LIBMAGIC AND OMEGA_EDIT_LIBMAGIC_DICTIONARY)
-        install(FILES "${OMEGA_EDIT_LIBMAGIC_DICTIONARY}"
-                DESTINATION "${CMAKE_INSTALL_LIBDIR}/omega_edit/plugins"
-                RENAME magic.mgc)
-    endif()
-    install(TARGETS omega-transform-plugin-harness RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}")
+install(TARGETS ${OMEGA_EDIT_TRANSFORM_PLUGIN_TARGETS}
+        RUNTIME DESTINATION "${CMAKE_INSTALL_LIBDIR}/omega_edit/plugins"
+        LIBRARY DESTINATION "${CMAKE_INSTALL_LIBDIR}/omega_edit/plugins")
+if (OMEGA_EDIT_HAS_LIBMAGIC AND OMEGA_EDIT_LIBMAGIC_DICTIONARY)
+    install(FILES "${OMEGA_EDIT_LIBMAGIC_DICTIONARY}"
+            DESTINATION "${CMAKE_INSTALL_LIBDIR}/omega_edit/plugins"
+            RENAME magic.mgc)
+endif()
+install(TARGETS omega-transform-plugin-harness RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}")
 
+if (CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
     set(_fmt "TGZ")
     if (WIN32)
         set(_fmt "ZIP")

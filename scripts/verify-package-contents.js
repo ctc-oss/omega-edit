@@ -84,10 +84,26 @@ function verifyCore(packageFiles, packageSize) {
     /\/lib\/cmake\/omega_edit\/omega_editConfig\.cmake$/
   )
   requireMatch(packageFiles, /\/omega-transform-plugin-host(?:\.exe)?$/)
+  requireMatch(packageFiles, /\/omega-transform-plugin-harness(?:\.exe)?$/)
   requireMatch(
     packageFiles,
     /\/(?:libomega_edit\.(?:a|dylib|so)|omega_edit\.(?:dll|lib))$/
   )
+  const plugins = packageFiles.filter((entry) =>
+    /\/lib\/omega_edit\/plugins\/omega_transform_[^/]+\.(?:dll|dylib|so)$/.test(
+      entry
+    )
+  )
+  if (plugins.length < 17)
+    fail(
+      `Core package contains ${plugins.length} transform plugins; expected at least 17`
+    )
+  if (
+    !plugins.some((entry) =>
+      /omega_transform_zstd\.(?:dll|dylib|so)$/.test(entry)
+    )
+  )
+    fail('Core package is missing the zstd transform plugin')
   rejectMatches(packageFiles, [
     /\/(?:src|tests|node_modules|\.venv[^/]*)\//,
     /\/(?:CMakeCache\.txt|cmake_install\.cmake)$/,
