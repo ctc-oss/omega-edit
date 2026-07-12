@@ -5257,17 +5257,11 @@ export class HexEditorProvider
     this.statusItems.selection.text = `$(selection) ${formatStatusByteCount(selectionLength)} B`
     this.statusItems.selection.tooltip =
       selectionLength > 0
-        ? vscode.l10n.t(
-            'Ωedit selection {start} to {end}; {length} bytes.',
-            {
-              start: formatStatusOffset(
-                state.selectionStart,
-                state.offsetRadix
-              ),
-              end: formatStatusOffset(state.selectionEnd, state.offsetRadix),
-              length: formatStatusByteCount(selectionLength),
-            }
-          )
+        ? vscode.l10n.t('Ωedit selection {start} to {end}; {length} bytes.', {
+            start: formatStatusOffset(state.selectionStart, state.offsetRadix),
+            end: formatStatusOffset(state.selectionEnd, state.offsetRadix),
+            length: formatStatusByteCount(selectionLength),
+          })
         : vscode.l10n.t('Ωedit has no active selection')
 
     this.statusItems.size.name = vscode.l10n.t('Ωedit File Size')

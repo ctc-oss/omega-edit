@@ -2012,10 +2012,7 @@ test('compiled extension entrypoints exist after build', () => {
     /\.search-disclosure\.expanded\s*\{[^}]*grid-row:\s*1 \/ span 2/s
   )
   assert.match(svelteStylesSource, /\.search-row\s*\{[^}]*grid-column:\s*2/s)
-  assert.doesNotMatch(
-    svelteStylesSource,
-    /\.replace-row\s*\{[^}]*border-top/s
-  )
+  assert.doesNotMatch(svelteStylesSource, /\.replace-row\s*\{[^}]*border-top/s)
   assert.doesNotMatch(searchPanelSource, />Search Next</)
   assert.doesNotMatch(searchPanelSource, />Replace All</)
   assert.match(svelteAppSource, /function openSearchPanel/)
