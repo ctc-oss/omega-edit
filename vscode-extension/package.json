@@ -386,7 +386,7 @@
     "@types/node": "^22.20.0",
     "@types/vscode": "^1.110.0",
     "@vscode/test-electron": "^2.5.2",
-    "@vscode/vsce": "^3.7.1",
+    "@vscode/vsce": "^3.9.2",
     "mocha": "^10.8.2",
     "svelte": "^5.56.3",
     "svelte-check": "^4.1.0",

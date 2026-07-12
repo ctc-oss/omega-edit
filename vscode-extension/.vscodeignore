@@ -1,5 +1,4 @@
-# Development dependencies and source trees
-node_modules/**
+# Source trees
 src/**
 scripts/**
 tests/**
