@@ -1,15 +1,99 @@
-\\.DS_Store
-\\.editorconfig
-\\.git*
-\\.git/
-\\.idea/
-\\.run/
-\\.venv/
-\\.vscode/
+# CPack ignore patterns for source packages
+# These patterns are regex, not glob
+\.DS_Store
+\.editorconfig
+\.git.*/
+\.idea/
+\.run/
+\.venv/
+\.vscode/
 _install/
-build-*
+build-*/
 build/
-cmake-build*
+cmake-build*/
 docker/
 plugins/
 venv/
+\.codex.*/
+\.codex-tmp.*/
+_\w+-Debug/
+_\w+-Release/
+_\w+-MinSizeRel/
+_\w+-RelWithDebInfo/
+_CPack_Packages/
+_install.*/
+_install/
+lib/
+bin/
+*.vsix
+*.tgz
+*.zip
+\.vsix$
+\.tgz$
+\.zip$
+# Build artifacts
+*.o
+*.obj
+*.lib
+*.dll
+*.so
+*.dylib
+*.a
+*.pdb
+*.ilk
+*.exp
+# IDE
+.vscode/
+.idea/
+*.sln
+*.vcxproj*
+*.vs/
+*.user
+# CMake
+CMakeFiles/
+CMakeCache.txt
+cmake_install.cmake
+CPackConfig.cmake
+CPackSourceConfig.cmake
+# Ninja
+*.ninja
+*.ninja_log
+# Logs
+*.log
+*.log.*
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+# Test coverage
+coverage/
+*.gcda
+*.gcno
+*.gcov
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+# Node
+node_modules/
+package-lock.json
+yarn.lock
+.pnp
+.pnp.js
+# Vite
+.vite/
+dist/
+build/
+# TypeScript
+*.tsbuildinfo
+# VSIX packages
+*.vsix
+# Test
+coverage/
+*.coverage
+# Docs
+docs/
+*.md
+!README.md
+!LICENSE.txt
+!CHANGELOG.md
