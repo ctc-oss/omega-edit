@@ -1308,7 +1308,7 @@ button.dialog-backdrop:focus-visible {
 
 .editor-workspace-shell {
   display: grid;
-  grid-template-rows: minmax(0, 1fr) auto;
+  grid-template-rows: minmax(0, 1fr);
   min-width: 0;
   min-height: 0;
   overflow: hidden;
@@ -3157,20 +3157,6 @@ body.vscode-high-contrast-light .text-byte.selected:hover {
   padding: 2px 0;
 }
 
-.editor-status-strip {
-  display: flex;
-  min-height: 24px;
-  align-items: center;
-  gap: 0.85rem;
-  padding: 2px 8px;
-  overflow-x: auto;
-  border-top: 1px solid var(--vscode-editorGroup-border);
-  color: var(--vscode-statusBar-foreground, var(--vscode-foreground));
-  background: var(--vscode-statusBar-background, var(--vscode-sideBar-background));
-  font-size: 11px;
-  white-space: nowrap;
-}
-
 .inspector-values div {
   min-width: 0;
 }
@@ -3366,9 +3352,7 @@ body.vscode-high-contrast-light .text-byte.selected:hover {
 
   .byte:focus-visible,
   .text-byte:focus-visible,
-  .toolbar button:focus-visible,
-  .editor-status-strip {
-    border-color: CanvasText;
+  .toolbar button:focus-visible {
     outline-color: Highlight;
   }
 }

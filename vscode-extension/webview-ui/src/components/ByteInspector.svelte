@@ -588,30 +588,40 @@
 
 <section class="byte-inspector-panel" aria-label={strings.inspector.label}>
   <div class="inspector-header">
-    <button
-      type="button"
-      class="panel-close inspector-toggle"
-      aria-expanded={expanded}
-      aria-label={expanded ? strings.inspector.collapse : strings.inspector.expand}
-      title={expanded ? strings.inspector.collapse : strings.inspector.expand}
-      onclick={onToggleExpanded}
-    >
-      {#if expanded}{strings.inspector.collapseSymbol}{:else}&#x25B6;{/if}
-    </button>
-    <div class="inspector-summary">
-      <span class="inspector-label">{strings.inspector.label}</span>
-      {#if hasSelection}
-        <strong>
-          {selectionLength === 1
-            ? formatOffset(selectionStart)
-            : `${formatOffset(selectionStart)}-${formatOffset(selectionEnd)}`}
-        </strong>
-        <span>{strings.inspector.byte(selectionLength)}</span>
-      {:else}
-        <strong>{strings.inspector.noSelection}</strong>
-      {/if}
-    </div>
-    {#if expanded}
+    {#if !expanded}
+      <button
+        type="button"
+        class="inspector-toggle inspector-collapsed-toggle"
+        aria-expanded={expanded}
+        aria-label={strings.inspector.expand}
+        title={strings.inspector.expand}
+        onclick={onToggleExpanded}
+      >
+        <span>{strings.inspector.show}</span>
+        <span class="inspector-collapsed-label">{strings.inspector.title}</span>
+      </button>
+    {:else}
+      <button
+        type="button"
+        class="panel-close inspector-toggle"
+        aria-expanded={expanded}
+        aria-label={strings.inspector.collapse}
+        title={strings.inspector.collapse}
+        onclick={onToggleExpanded}
+      >{strings.inspector.collapseSymbol}</button>
+      <div class="inspector-summary">
+        <span class="inspector-label">{strings.inspector.label}</span>
+        {#if hasSelection}
+          <strong>
+            {selectionLength === 1
+              ? formatOffset(selectionStart)
+              : `${formatOffset(selectionStart)}-${formatOffset(selectionEnd)}`}
+          </strong>
+          <span>{strings.inspector.byte(selectionLength)}</span>
+        {:else}
+          <strong>{strings.inspector.noSelection}</strong>
+        {/if}
+      </div>
       <div class="inspector-byte-order">
         <span class="inspector-byte-order-label">{strings.inspector.byteOrder}</span>
         <div class="segmented inspector-byte-order-toggle" role="group" aria-label={strings.inspector.byteOrder}>

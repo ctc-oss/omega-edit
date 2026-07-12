@@ -1960,9 +1960,25 @@ export class HexEditorProvider
   private readonly statusItems = {
     offset: vscode.window.createStatusBarItem(
       vscode.StatusBarAlignment.Right,
-      106
+      110
+    ),
+    selection: vscode.window.createStatusBarItem(
+      vscode.StatusBarAlignment.Right,
+      109
+    ),
+    size: vscode.window.createStatusBarItem(
+      vscode.StatusBarAlignment.Right,
+      108
     ),
     pane: vscode.window.createStatusBarItem(
+      vscode.StatusBarAlignment.Right,
+      107
+    ),
+    mode: vscode.window.createStatusBarItem(
+      vscode.StatusBarAlignment.Right,
+      106
+    ),
+    layout: vscode.window.createStatusBarItem(
       vscode.StatusBarAlignment.Right,
       105
     ),
@@ -1988,7 +2004,11 @@ export class HexEditorProvider
   ) {
     this.extensionContext?.subscriptions.push(
       this.statusItems.offset,
+      this.statusItems.selection,
+      this.statusItems.size,
       this.statusItems.pane,
+      this.statusItems.mode,
+      this.statusItems.layout,
       this.statusItems.transforms,
       this.statusItems.dirty,
       this.statusItems.server
@@ -5210,16 +5230,51 @@ export class HexEditorProvider
       session.fileSize,
       Math.max(0, state.visibleOffset) + Math.max(0, state.visibleByteCount)
     )
-    const offset = formatStatusOffset(state.visibleOffset, state.offsetRadix)
-    this.statusItems.offset.text = `$(arrow-right) ${offset} ${visibleProgress}`
+    const selectedOffset =
+      state.selectedOffset >= 0
+        ? formatStatusOffset(state.selectedOffset, state.offsetRadix)
+        : vscode.l10n.t('None')
+    const visibleOffset = formatStatusOffset(
+      state.visibleOffset,
+      state.offsetRadix
+    )
+    this.statusItems.offset.name = vscode.l10n.t('Ωedit Selected Offset')
+    this.statusItems.offset.text = `$(location) ${selectedOffset}`
     this.statusItems.offset.tooltip = vscode.l10n.t(
-      'Ωedit offset {offset}; visible bytes {start} to {end} of {size}.',
+      'Ωedit selected offset {selectedOffset}; viewport offset {visibleOffset} {progress}; visible bytes {start} to {end} of {size}.',
       {
-        offset,
+        selectedOffset,
+        visibleOffset,
+        progress: visibleProgress,
         start: formatStatusByteCount(state.visibleOffset),
         end: formatStatusByteCount(visibleEnd),
         size: formatStatusByteCount(session.fileSize),
       }
+    )
+
+    const selectionLength = Math.max(0, state.selectionLength)
+    this.statusItems.selection.name = vscode.l10n.t('Ωedit Selection')
+    this.statusItems.selection.text = `$(selection) ${formatStatusByteCount(selectionLength)} B`
+    this.statusItems.selection.tooltip =
+      selectionLength > 0
+        ? vscode.l10n.t(
+            'Ωedit selection {start} to {end}; {length} bytes.',
+            {
+              start: formatStatusOffset(
+                state.selectionStart,
+                state.offsetRadix
+              ),
+              end: formatStatusOffset(state.selectionEnd, state.offsetRadix),
+              length: formatStatusByteCount(selectionLength),
+            }
+          )
+        : vscode.l10n.t('Ωedit has no active selection')
+
+    this.statusItems.size.name = vscode.l10n.t('Ωedit File Size')
+    this.statusItems.size.text = `$(database) ${formatStatusByteCount(session.fileSize)} B`
+    this.statusItems.size.tooltip = vscode.l10n.t(
+      'Ωedit computed file size: {size} bytes',
+      { size: formatStatusByteCount(session.fileSize) }
     )
 
     this.statusItems.pane.text =
@@ -5229,6 +5284,33 @@ export class HexEditorProvider
           })
         : vscode.l10n.t('HEX')
     this.statusItems.pane.tooltip = vscode.l10n.t('Ωedit active edit pane')
+
+    const mode =
+      state.editMode === 'overwrite'
+        ? vscode.l10n.t('Overwrite')
+        : vscode.l10n.t('Insert')
+    const direction = state.insertDirection === 'forward' ? '→' : '←'
+    this.statusItems.mode.name = vscode.l10n.t('Ωedit Edit Mode')
+    this.statusItems.mode.text = `${mode} ${direction}`
+    this.statusItems.mode.tooltip = vscode.l10n.t(
+      'Ωedit {mode} mode; {direction} insertion direction',
+      {
+        mode,
+        direction:
+          state.insertDirection === 'forward'
+            ? vscode.l10n.t('forward')
+            : vscode.l10n.t('backward'),
+      }
+    )
+
+    this.statusItems.layout.name = vscode.l10n.t('Ωedit Bytes Per Row')
+    this.statusItems.layout.text = vscode.l10n.t('{count} B/row', {
+      count: formatStatusByteCount(state.bytesPerRow),
+    })
+    this.statusItems.layout.tooltip = vscode.l10n.t(
+      'Ωedit displays {count} bytes per row',
+      { count: formatStatusByteCount(state.bytesPerRow) }
+    )
 
     this.statusItems.transforms.text = session.transformInFlight
       ? vscode.l10n.t('$(sync~spin) Transforming')

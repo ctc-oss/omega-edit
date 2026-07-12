@@ -4,7 +4,6 @@
   import CheckpointTimeline from './components/CheckpointTimeline.svelte'
   import EditorWorkspace from './components/EditorWorkspace.svelte'
   import SearchPanel from './components/SearchPanel.svelte'
-  import StatusStrip from './components/StatusStrip.svelte'
   import Toolbar from './components/Toolbar.svelte'
   import TransformResultPanel from './components/TransformResultPanel.svelte'
   import { formatNumber, strings } from './i18n'
@@ -3070,18 +3069,6 @@
     onReorderAnalysisSection={reorderAnalysisSection}
     />
 
-    <StatusStrip
-      {selectedOffset}
-      {selectionStart}
-      {selectionEnd}
-      {selectionLength}
-      {fileSize}
-      {offsetRadix}
-      {textEncoding}
-      editMode={inspectorEditMode}
-      {insertDirection}
-      {bytesPerRow}
-    />
   </div>
 
   <ByteInspector
