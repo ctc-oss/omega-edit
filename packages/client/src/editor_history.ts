@@ -360,13 +360,10 @@ function validateHistorySnapshot(snapshot: EditorHistorySnapshot): void {
   }
   const totalDepth =
     snapshot.transactionLog.length + snapshot.undoneTransactionLog.length
-  for (const depth of snapshot.milestoneDepths) {
-    if (
-      !Number.isSafeInteger(depth) ||
-      depth < 0 ||
-      depth > totalDepth
-    ) {
-      throw new TypeError('Invalid editor history milestone')
-    }
-  }
+  // Milestone depths are advisory (used for undo/redo milestone crossing).
+  // Filter out any that are out of range rather than crashing — a stale
+  // snapshot after history truncation should not be fatal.
+  snapshot.milestoneDepths = snapshot.milestoneDepths.filter(
+    (depth) => Number.isSafeInteger(depth) && depth >= 0 && depth <= totalDepth
+  )
 }
