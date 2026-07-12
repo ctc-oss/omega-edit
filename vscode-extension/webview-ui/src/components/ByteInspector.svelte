@@ -596,7 +596,7 @@
       title={expanded ? strings.inspector.collapse : strings.inspector.expand}
       onclick={onToggleExpanded}
     >
-      {#if expanded}&#x25BC;{:else}&#x25B6;{/if}
+      {#if expanded}{strings.inspector.collapseSymbol}{:else}&#x25B6;{/if}
     </button>
     <div class="inspector-summary">
       <span class="inspector-label">{strings.inspector.label}</span>

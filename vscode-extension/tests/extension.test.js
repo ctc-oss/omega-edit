@@ -1821,6 +1821,10 @@ test('compiled extension entrypoints exist after build', () => {
   assert.match(transformPanelSource, /class="transform-action-picker"/)
   assert.match(transformPanelSource, /class="transform-action-input"/)
   assert.match(transformPanelSource, /class="transform-action-menu"/)
+  assert.match(
+    transformPanelSource,
+    /target instanceof Node && actionPicker\?\.contains\(target\)/
+  )
   assert.match(svelteStylesSource, /\.transform-support-badge/)
   const supportBadgeRule =
     svelteStylesSource.match(/\.transform-support-badge\s*\{[^}]+\}/)?.[0] ?? ''
@@ -1995,6 +1999,7 @@ test('compiled extension entrypoints exist after build', () => {
   assert.match(byteInspectorSource, /expanded/)
   assert.match(byteInspectorSource, /onToggleExpanded/)
   assert.match(byteInspectorSource, /panel-close/)
+  assert.match(byteInspectorSource, /strings\.inspector\.collapseSymbol/)
   assert.match(byteInspectorSource, /inspector-group/)
   assert.match(byteInspectorSource, /groupCommon/)
   assert.match(byteInspectorSource, /groupIntegers/)
@@ -2019,6 +2024,7 @@ test('compiled extension entrypoints exist after build', () => {
   assert.match(byteInspectorSource, /isPrintableAscii/)
   assert.doesNotMatch(byteInspectorSource, /onCopyByte/)
   assert.doesNotMatch(byteInspectorSource, /onCopyRange/)
+  assert.match(profilerPanelSource, /strings\.profiler\.collapseSymbol/)
   assert.match(profilerPanelSource, /strings\.profiler\.label/)
   assert.match(profilerPanelSource, /data-analysis-panel="profile"/)
   assert.match(profilerPanelSource, /data-analysis-panel="structure"/)

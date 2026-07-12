@@ -770,7 +770,13 @@
   }
 
   onMount(() => {
-    const dismissOnScroll = (): void => closeActionPicker()
+    const dismissOnScroll = (event: Event): void => {
+      const target = event.target
+      if (target instanceof Node && actionPicker?.contains(target)) {
+        return
+      }
+      closeActionPicker()
+    }
     window.addEventListener('scroll', dismissOnScroll, true)
     return () => window.removeEventListener('scroll', dismissOnScroll, true)
   })

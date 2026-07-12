@@ -1389,7 +1389,7 @@
         title={strings.profiler.collapse}
         onclick={onToggleExpanded}
       >
-        {#if expanded}&#x25BC;{:else}&#x25B6;{/if}
+        {strings.profiler.collapseSymbol}
       </button>
       <span class="analysis-title">{strings.profiler.title}</span>
       <span class="analysis-tabs" role="tablist" aria-label={strings.profiler.views}>
