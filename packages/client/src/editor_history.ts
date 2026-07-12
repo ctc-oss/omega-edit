@@ -358,16 +358,15 @@ function validateHistorySnapshot(snapshot: EditorHistorySnapshot): void {
   ) {
     throw new TypeError('Invalid editor history snapshot')
   }
-  let previousMilestone = 0
+  const totalDepth =
+    snapshot.transactionLog.length + snapshot.undoneTransactionLog.length
   for (const depth of snapshot.milestoneDepths) {
     if (
       !Number.isSafeInteger(depth) ||
-      depth <= previousMilestone ||
-      depth >
-        snapshot.transactionLog.length + snapshot.undoneTransactionLog.length
+      depth < 0 ||
+      depth > totalDepth
     ) {
       throw new TypeError('Invalid editor history milestone')
     }
-    previousMilestone = depth
   }
 }
