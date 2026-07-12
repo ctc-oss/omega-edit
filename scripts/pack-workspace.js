@@ -59,4 +59,21 @@ if (result.error) {
   process.exit(1)
 }
 
-process.exit(result.status ?? 0)
+if (result.status !== 0) process.exit(result.status ?? 1)
+
+const verification = spawnSync(
+  process.execPath,
+  [
+    path.join(__dirname, 'verify-package-contents.js'),
+    'npm',
+    path.join(packageRoot, outputFile),
+  ],
+  { stdio: 'inherit' }
+)
+if (verification.error) {
+  process.stderr.write(
+    `Failed to verify package: ${String(verification.error)}\n`
+  )
+  process.exit(1)
+}
+process.exit(verification.status ?? 0)

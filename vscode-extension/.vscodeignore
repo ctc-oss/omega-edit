@@ -1,71 +1,27 @@
-# Build artifacts
-*.vsix
+# Development dependencies and source trees
+node_modules/**
+src/**
+scripts/**
+tests/**
+webview-ui/**
 
-# Dependencies
-node_modules/
-
-# Source files (not needed at runtime)
-src/
-webview-ui/src/
-*.ts
-*.tsx
-*.map
-*.d.ts
-!images/
-!*.png
-!*.svg
-
-# Config files (not needed in package)
-*.config.*
+# Editor, test-runner, and build configuration
+.vscode/**
+.vscode-test/**
+.gitignore
+.npmrc
+docs/**
+package-lock.json
 tsconfig.json
 vite.config.*
 svelte.config.*
-*.mjs
-*.cjs
-eslint.config.*
 biome.json*
-.prettierrc*
-.eslintrc*
-.stylelintrc*
+*.config.*
 
-# Tests
-tests/
-
-# Documentation
-docs/
-*.md
-!README.md
-
-# OS artifacts
-.DS_Store
-Thumbs.db
-
-# Logs
-*.log
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-
-# Package locks
-package-lock.json
-
-# Package archives
+# Compiler metadata and generated archives
+**/*.map
+**/*.d.ts
+**/*.d.ts.map
+**/*.tsbuildinfo
 *.tgz
-
-# VSCE packaging
-.vscodeignore
-.vscode/
-
-# Git
-.git/
-.gitignore
-
-# Cache
-.vite/
-.eslintcache
-
-# TypeScript
-*.tsbuildinfo
-
-# Scripts
-scripts/
+*.vsix

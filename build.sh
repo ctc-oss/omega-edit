@@ -296,8 +296,21 @@ for objtype in shared static; do
     ctest -C "$type" --test-dir "build-${objtype}-${type}/plugins" --output-on-failure
   fi
   cmake --install "build-${objtype}-${type}/packages/core" --prefix "${install_dir}-${objtype}-$type" --config "$type"
-  cpack --config "build-${objtype}-${type}/CPackSourceConfig.cmake"
+  package_dir="build-${objtype}-${type}/package"
+  package_version="$(tr -d '\r\n' < VERSION)"
+  source_package="${package_dir}/omega_edit-${package_version}.tar.gz"
+  mkdir -p "$package_dir"
+  git archive --format=tar.gz --prefix="omega_edit-${package_version}/" --output="$source_package" HEAD
+  node scripts/verify-package-contents.js source "$source_package"
+
   cpack --config "build-${objtype}-${type}/CPackConfig.cmake" -C "$type"
+
+  binary_packages=("${package_dir}/omega_edit-"*)
+  for package_path in "${binary_packages[@]}"; do
+    if [[ -f "$package_path" && "$package_path" != "$source_package" ]]; then
+      node scripts/verify-package-contents.js core "$package_path"
+    fi
+  done
 done
 
 # OE_LIB_DIR is used by native code to bundle the proper library file

@@ -80,7 +80,20 @@ else ()
             GIT_TAG f8745da6ff1ad1e7bab384bd1f9d742439278e99 # v1.5.7
             SOURCE_SUBDIR build/cmake
     )
-    FetchContent_MakeAvailable(zstd)
+    FetchContent_GetProperties(zstd)
+    if (NOT zstd_POPULATED)
+        if (POLICY CMP0169)
+            cmake_policy(PUSH)
+            cmake_policy(SET CMP0169 OLD)
+        endif()
+        FetchContent_Populate(zstd)
+        if (POLICY CMP0169)
+            cmake_policy(POP)
+        endif()
+        # EXCLUDE_FROM_ALL also prevents zstd's install rules from leaking headers, libraries, and package metadata
+        # into Omega Edit's CPack archive. The linked target is still built when omega_edit needs it.
+        add_subdirectory("${zstd_SOURCE_DIR}/build/cmake" "${zstd_BINARY_DIR}" EXCLUDE_FROM_ALL)
+    endif()
     set(BUILD_SHARED_LIBS ${OMEGA_EDIT_ORIGINAL_BUILD_SHARED_LIBS} CACHE BOOL "" FORCE)
     set(OMEGA_EDIT_ZSTD_TARGET libzstd_static)
 endif ()
