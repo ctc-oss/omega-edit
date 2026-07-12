@@ -109,7 +109,7 @@ set_target_properties(omega_edit PROPERTIES VERSION ${PROJECT_VERSION} SOVERSION
 target_include_directories(omega_edit PUBLIC "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src/include>")
 target_compile_definitions(omega_edit PUBLIC "$<$<NOT:$<BOOL:${BUILD_SHARED_LIBS}>>:OMEGA_EDIT_STATIC_DEFINE>")
 target_compile_definitions(omega_edit PRIVATE "$<$<CONFIG:Debug>:DEBUG>")
-target_link_libraries(omega_edit PRIVATE ${FILESYSTEM_LIB} $<BUILD_INTERFACE:${OMEGA_EDIT_ZSTD_TARGET}>)
+target_link_libraries(omega_edit PRIVATE ${FILESYSTEM_LIB} ${OMEGA_EDIT_ZSTD_TARGET})
 
 # Version definitions
 string(TOUPPER "${PROJECT_NAME}" PREFIX)

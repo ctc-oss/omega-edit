@@ -36,6 +36,21 @@ endif ()
 
 find_dependency(zstd CONFIG QUIET)
 
+# The core library may have been built with FetchContent (target
+# libzstd_static) or a system/Conan zstd (target zstd::libzstd_shared,
+# zstd::libzstd_static, or zstd::libzstd).  Create an alias so the
+# exported targets always resolve regardless of which zstd provider
+# was used during the core build.
+if (NOT TARGET zstd::libzstd_static)
+  if (TARGET zstd::libzstd_shared)
+    add_library(zstd::libzstd_static ALIAS zstd::libzstd_shared)
+  elseif (TARGET zstd::libzstd)
+    add_library(zstd::libzstd_static ALIAS zstd::libzstd)
+  elseif (TARGET libzstd_static)
+    add_library(zstd::libzstd_static ALIAS libzstd_static)
+  endif ()
+endif ()
+
 set(omega_edit_static_targets "${CMAKE_CURRENT_LIST_DIR}/omega_edit-static-targets.cmake")
 set(omega_edit_shared_targets "${CMAKE_CURRENT_LIST_DIR}/omega_edit-shared-targets.cmake")
 
