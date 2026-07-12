@@ -37,17 +37,32 @@ endif ()
 find_dependency(zstd CONFIG QUIET)
 
 # The core library may have been built with FetchContent (target
-# libzstd_static) or a system/Conan zstd (target zstd::libzstd_shared,
-# zstd::libzstd_static, or zstd::libzstd).  Create an alias so the
-# exported targets always resolve regardless of which zstd provider
-# was used during the core build.
-if (NOT TARGET zstd::libzstd_static)
-  if (TARGET zstd::libzstd_shared)
-    add_library(zstd::libzstd_static ALIAS zstd::libzstd_shared)
-  elseif (TARGET zstd::libzstd)
+# libzstd_static), a system zstd (zstd::libzstd_shared or
+# zstd::libzstd_static), or Conan zstd (zstd::libzstd).  The exported
+# targets reference whichever target was used at build time.  Create
+# aliases for every name the export might reference so it resolves
+# regardless of which zstd provider the consumer has available.
+if (TARGET zstd::libzstd)
+  if (NOT TARGET zstd::libzstd_shared)
+    add_library(zstd::libzstd_shared ALIAS zstd::libzstd)
+  endif ()
+  if (NOT TARGET zstd::libzstd_static)
     add_library(zstd::libzstd_static ALIAS zstd::libzstd)
-  elseif (TARGET libzstd_static)
+  endif ()
+elseif (TARGET libzstd_static)
+  if (NOT TARGET zstd::libzstd_shared)
+    add_library(zstd::libzstd_shared ALIAS libzstd_static)
+  endif ()
+  if (NOT TARGET zstd::libzstd_static)
     add_library(zstd::libzstd_static ALIAS libzstd_static)
+  endif ()
+elseif (TARGET zstd::libzstd_shared)
+  if (NOT TARGET zstd::libzstd_static)
+    add_library(zstd::libzstd_static ALIAS zstd::libzstd_shared)
+  endif ()
+elseif (TARGET zstd::libzstd_static)
+  if (NOT TARGET zstd::libzstd_shared)
+    add_library(zstd::libzstd_shared ALIAS zstd::libzstd_static)
   endif ()
 endif ()
 
