@@ -281,29 +281,37 @@ fi
 
 ensure_plugin_deps
 
+shared_build_dir=""
 for objtype in shared static; do
   build_shared_libs="NO"
   if [[ $objtype == "shared" ]]; then
     build_shared_libs="YES"
   fi
 
-  rm -rf "build-${objtype}-$type" "${install_dir}-${objtype}-$type"
-  # shellcheck disable=SC2090
-  cmake -G "$generator" -S . -B "build-${objtype}-$type" $cmake_extra_args -DBUILD_SHARED_LIBS="$build_shared_libs" -DBUILD_DOCS="$build_docs" -DCMAKE_BUILD_TYPE="$type"
-  cmake --build "build-${objtype}-$type" --config "$type"
-  ctest -C "$type" --test-dir "build-${objtype}-${type}/core" --output-on-failure
-  if [[ -d "build-${objtype}-${type}/plugins" ]]; then
-    ctest -C "$type" --test-dir "build-${objtype}-${type}/plugins" --output-on-failure
+  preferred_build_dir="build-${objtype}-$type"
+  build_dir="$preferred_build_dir"
+  if ! rm -rf "$preferred_build_dir" 2>/dev/null; then
+    build_dir="${preferred_build_dir}-fresh-$(date +%s)-$$"
+    echo "WARNING: Unable to remove ${preferred_build_dir}; using ${build_dir} instead." >&2
   fi
-  cmake --install "build-${objtype}-${type}/packages/core" --prefix "${install_dir}-${objtype}-$type" --config "$type"
-  package_dir="build-${objtype}-${type}/package"
+  rm -rf "${install_dir}-${objtype}-$type"
+  if [[ $objtype == "shared" ]]; then shared_build_dir="$build_dir"; fi
+  # shellcheck disable=SC2090
+  cmake -G "$generator" -S . -B "$build_dir" $cmake_extra_args -DBUILD_SHARED_LIBS="$build_shared_libs" -DBUILD_DOCS="$build_docs" -DCMAKE_BUILD_TYPE="$type"
+  cmake --build "$build_dir" --config "$type"
+  ctest -C "$type" --test-dir "$build_dir/core" --output-on-failure
+  if [[ -d "$build_dir/plugins" ]]; then
+    ctest -C "$type" --test-dir "$build_dir/plugins" --output-on-failure
+  fi
+  cmake --install "$build_dir/packages/core" --prefix "${install_dir}-${objtype}-$type" --config "$type"
+  package_dir="$build_dir/package"
   package_version="$(tr -d '\r\n' < VERSION)"
   source_package="${package_dir}/omega_edit-${package_version}.tar.gz"
   mkdir -p "$package_dir"
   git archive --format=tar.gz --prefix="omega_edit-${package_version}/" --output="$source_package" HEAD
   node scripts/verify-package-contents.js source "$source_package"
 
-  cpack --config "build-${objtype}-${type}/CPackConfig.cmake" -C "$type"
+  cpack --config "$build_dir/CPackConfig.cmake" -C "$type"
 
   binary_packages=("${package_dir}/omega_edit-"*)
   for package_path in "${binary_packages[@]}"; do
@@ -375,7 +383,7 @@ trap cleanup_vsix_stage EXIT
 
 transform_plugin_platform="$(detect_vscode_transform_platform)"
 stage_vscode_transform_plugins \
-  "${root_dir}/build-shared-${type}/core/src/tests/plugins" \
+  "${root_dir}/${shared_build_dir}/core/src/tests/plugins" \
   "$transform_plugins_stage" \
   "$transform_plugin_platform"
 
