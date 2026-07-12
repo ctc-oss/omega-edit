@@ -30,6 +30,7 @@ const {
   OMEGA_EDIT_SEARCH_PREVIOUS_COMMAND,
   OMEGA_EDIT_SET_EXTERNAL_HIGHLIGHTS_COMMAND,
   OMEGA_EDIT_SET_TEXT_ENCODING_COMMAND,
+  OMEGA_EDIT_SHOW_CHECKPOINT_TIMELINE_COMMAND,
   OMEGA_EDIT_ROLLBACK_CHECKPOINT_COMMAND,
   OMEGA_EDIT_TOGGLE_EXPERIMENTAL_TRANSFORM_PLUGINS_COMMAND,
   OMEGA_EDIT_TOGGLE_INSERT_DIRECTION_COMMAND,
@@ -127,6 +128,25 @@ test('package.json matches shared extension constants', () => {
   assert.equal(bytesPerRowConfiguration.minimum, 8)
   assert.equal(bytesPerRowConfiguration.maximum, 64)
   assert.equal(bytesPerRowConfiguration.anyOf, undefined)
+  const historyConfiguration = packageJson.contributes.configuration.properties
+  assert.equal(
+    historyConfiguration['omegaEdit.checkpointHistory.maxBytesPerSession']
+      .default,
+    1073741824
+  )
+  assert.equal(
+    historyConfiguration['omegaEdit.checkpointHistory.maxBytesTotal'].default,
+    5368709120
+  )
+  assert.equal(
+    historyConfiguration['omegaEdit.checkpointHistory.maxCheckpoints'].default,
+    1000
+  )
+  assert.equal(
+    historyConfiguration['omegaEdit.checkpointHistory.staleRetentionDays']
+      .default,
+    7
+  )
   assert.equal(
     packageJson.scripts['package:vsix'],
     'vsce package --out omega-edit-data-editor.vsix'
@@ -262,8 +282,16 @@ test('package.json matches shared extension constants', () => {
     packageJson.contributes.commands[15].enablement,
     'omegaEdit.hexEditorActive && !omegaEdit.transformInFlight'
   )
+  assert.equal(
+    packageJson.contributes.commands[16].command,
+    OMEGA_EDIT_SHOW_CHECKPOINT_TIMELINE_COMMAND
+  )
+  assert.equal(
+    packageJson.contributes.commands[16].enablement,
+    'omegaEdit.hexEditorActive && !omegaEdit.transformInFlight'
+  )
   assert.deepEqual(
-    packageJson.contributes.commands.slice(16).map((entry) => entry.command),
+    packageJson.contributes.commands.slice(17).map((entry) => entry.command),
     [
       OMEGA_EDIT_GET_EDITOR_STATE_COMMAND,
       OMEGA_EDIT_GET_ASSISTANT_CONTEXT_COMMAND,
@@ -837,6 +865,12 @@ test('compiled extension entrypoints exist after build', () => {
   assert.match(providerJs, /parseRangeMapContent/)
   assert.match(providerJs, /createStatusBarItem/)
   assert.match(providerJs, /updateStatusBar/)
+  assert.match(providerJs, /Ωedit Selected Offset/)
+  assert.match(providerJs, /Ωedit Selection/)
+  assert.match(providerJs, /Ωedit File Size/)
+  assert.match(providerJs, /Ωedit Edit Mode/)
+  assert.match(providerJs, /Ωedit Bytes Per Row/)
+  assert.match(providerJs, /B\/row/)
   assert.match(providerJs, /Replacing matches\.\.\./)
   assert.match(providerJs, /Creating checkpoint\.\.\./)
   assert.match(providerJs, /buildServerHealthTooltip/)
@@ -871,8 +905,8 @@ test('compiled extension entrypoints exist after build', () => {
   assert.match(providerJs, /charts\.red/)
   assert.match(providerJs, /debug-disconnect/)
   assert.match(providerJs, /new vscode\.ThemeColor\(serverColorId\)/)
-  assert.doesNotMatch(providerJs, /statusItems\.mode/)
-  assert.doesNotMatch(providerJs, /Ωedit Edit Mode/)
+  assert.match(providerJs, /statusItems\.mode/)
+  assert.match(providerJs, /Ωedit Edit Mode/)
   assert.doesNotMatch(providerJs, /vscode\.l10n\.t\('INS'\)/)
   assert.doesNotMatch(providerJs, /vscode\.l10n\.t\('OVR'\)/)
   assert.doesNotMatch(providerJs, /editor\.action\.toggleOvertypeInsertMode/)
@@ -1070,7 +1104,8 @@ test('compiled extension entrypoints exist after build', () => {
   assert.match(svelteBundleCss, /\.byte\.inspectorRange:after/)
   assert.match(svelteBundleCss, /\.byte\.selected/)
   assert.match(svelteBundleCss, /\.byte-inspector-panel/)
-  assert.match(svelteBundleCss, /\.inspector-toggle/)
+  assert.match(svelteBundleCss, /\.inspector-group/)
+  assert.match(svelteBundleCss, /\.inspector-group-toggle/)
   assert.match(svelteBundleCss, /\.inspector-byte-order/)
   assert.match(svelteBundleCss, /\.inspector-byte-order-toggle/)
   assert.match(svelteBundleCss, /\.inspector-edit-row/)
@@ -1252,7 +1287,7 @@ test('compiled extension entrypoints exist after build', () => {
         /\.\.\.\(searchHex \? \{\} : \{ textEncoding \}\)/g
       ) || []
     ).length,
-    3
+    4
   )
   assert.match(
     svelteAppSource,
@@ -1341,8 +1376,18 @@ test('compiled extension entrypoints exist after build', () => {
   assert.match(svelteAppSource, /clearSearchResults\(\)/)
   assert.match(svelteAppSource, /type: 'findAdjacentMatch'/)
   assert.match(svelteAppSource, /type: 'goToMatch'/)
-  assert.match(svelteAppSource, /viewportMatches \?\? \[\]/)
-  assert.match(svelteAppSource, /message\.viewportOffset === visibleOffset/)
+  assert.match(svelteAppSource, /type: 'searchViewportMatches'/)
+  assert.match(svelteAppSource, /case 'searchViewportMatchesResult'/)
+  assert.match(svelteAppSource, /viewportSearchMatches/)
+  assert.match(svelteAppSource, /requestViewportSearchMatches/)
+  assert.match(svelteAppSource, /syncSearchIndexToSelection/)
+  assert.match(svelteAppSource, /findAdjacentBoundedMatchIndex/)
+  assert.match(
+    svelteAppSource,
+    /const anchor = selectedOffset >= 0 \? selectedOffset : getCurrentSearchOffset\(\)/
+  )
+  assert.match(svelteAppSource, /offset: Math\.max\(0, anchor\)/)
+  assert.match(svelteAppSource, /searchMatches\[i\] > anchorOffset/)
   assert.match(svelteAppSource, /case 'searchNavigationCommand'/)
   assert.match(svelteAppSource, /case 'replaceComplete'/)
   assert.match(svelteAppSource, /normalizeReplacementHex/)
@@ -1794,6 +1839,10 @@ test('compiled extension entrypoints exist after build', () => {
   assert.match(transformPanelSource, /class="transform-action-picker"/)
   assert.match(transformPanelSource, /class="transform-action-input"/)
   assert.match(transformPanelSource, /class="transform-action-menu"/)
+  assert.match(
+    transformPanelSource,
+    /target instanceof Node && actionPicker\?\.contains\(target\)/
+  )
   assert.match(svelteStylesSource, /\.transform-support-badge/)
   const supportBadgeRule =
     svelteStylesSource.match(/\.transform-support-badge\s*\{[^}]+\}/)?.[0] ?? ''
@@ -1932,7 +1981,6 @@ test('compiled extension entrypoints exist after build', () => {
   assert.match(fileScrollbarSource, /<svg/)
   assert.doesNotMatch(fileScrollbarSource, /dynamicThumbStyle/)
   assert.match(searchPanelSource, /strings\.search\.label/)
-  assert.match(searchPanelSource, /onSearch/)
   assert.match(searchPanelSource, /onNavigate/)
   assert.match(searchPanelSource, /strings\.search\.next/)
   assert.match(searchPanelSource, /strings\.search\.previous/)
@@ -1941,9 +1989,45 @@ test('compiled extension entrypoints exist after build', () => {
   assert.match(searchPanelSource, /canNavigate/)
   assert.match(searchPanelSource, /canReplace/)
   assert.match(searchPanelSource, /onReplaceAll/)
-  assert.match(searchPanelSource, /caseInsensitive/)
+  assert.match(searchPanelSource, /caseSensitive/)
+  assert.match(searchPanelSource, /onClose/)
+  assert.match(searchPanelSource, /onToggleReplace/)
+  assert.match(searchPanelSource, /replaceVisible/)
+  assert.match(searchPanelSource, /class="search-query-field"/)
+  assert.match(searchPanelSource, /id="searchQueryInput"/)
+  assert.match(searchPanelSource, /id="searchReplacementInput"/)
+  assert.match(searchPanelSource, /class="search-query-modifiers"/)
+  assert.match(searchPanelSource, /class="search-disclosure"/)
+  assert.match(searchPanelSource, /class:expanded=\{replaceVisible\}/)
+  assert.match(searchPanelSource, />0x<\/button>/)
+  assert.match(searchPanelSource, />Aa<\/button>/)
+  assert.match(searchPanelSource, /aria-expanded=\{replaceVisible\}/)
+  assert.match(searchPanelSource, /&#x25BC;/)
+  assert.match(searchPanelSource, /&#x25B6;/)
+  assert.doesNotMatch(searchPanelSource, /&#x2015;/)
+  assert.match(svelteStylesSource, /\.search-query-field:focus-within/)
+  assert.match(svelteStylesSource, /\.search-input-toggle\.active/)
+  assert.match(
+    svelteStylesSource,
+    /\.search-disclosure\.expanded\s*\{[^}]*grid-row:\s*1 \/ span 2/s
+  )
+  assert.match(svelteStylesSource, /\.search-row\s*\{[^}]*grid-column:\s*2/s)
+  assert.doesNotMatch(svelteStylesSource, /\.replace-row\s*\{[^}]*border-top/s)
   assert.doesNotMatch(searchPanelSource, />Search Next</)
   assert.doesNotMatch(searchPanelSource, />Replace All</)
+  assert.match(svelteAppSource, /function openSearchPanel/)
+  assert.match(
+    svelteAppSource,
+    /postToHost\(\{ type: 'hideCheckpointTimeline' \}\)/
+  )
+  assert.match(
+    svelteAppSource,
+    /searchPanelVisible && !checkpointTimeline\.visible/
+  )
+  assert.match(
+    svelteAppSource,
+    /message\.visible && searchPanelVisible[\s\S]+closeSearchPanel\(\)/
+  )
   assert.match(byteInspectorSource, /strings\.inspector\.label/)
   assert.match(byteInspectorSource, /strings\.inspector\.byteOrder/)
   assert.match(byteInspectorSource, /strings\.inspector\.littleEndian/)
@@ -1965,6 +2049,20 @@ test('compiled extension entrypoints exist after build', () => {
   assert.match(byteInspectorSource, /fieldByteLength/)
   assert.match(byteInspectorSource, /expanded/)
   assert.match(byteInspectorSource, /onToggleExpanded/)
+  assert.match(byteInspectorSource, /panel-close/)
+  assert.match(byteInspectorSource, /strings\.inspector\.collapseSymbol/)
+  assert.match(byteInspectorSource, /inspector-collapsed-toggle/)
+  assert.match(byteInspectorSource, /strings\.inspector\.show/)
+  assert.match(byteInspectorSource, /strings\.inspector\.title/)
+  assert.doesNotMatch(svelteAppSource, /StatusStrip/)
+  assert.doesNotMatch(svelteStylesSource, /editor-status-strip/)
+  assert.match(byteInspectorSource, /inspector-group/)
+  assert.match(byteInspectorSource, /groupCommon/)
+  assert.match(byteInspectorSource, /groupIntegers/)
+  assert.match(byteInspectorSource, /groupFloats/)
+  assert.match(byteInspectorSource, /groupText/)
+  assert.match(byteInspectorSource, /toggleGroup/)
+  assert.match(byteInspectorSource, /collapsedGroups/)
   assert.match(
     byteInspectorSource,
     /class="segmented inspector-byte-order-toggle"/
@@ -1982,6 +2080,7 @@ test('compiled extension entrypoints exist after build', () => {
   assert.match(byteInspectorSource, /isPrintableAscii/)
   assert.doesNotMatch(byteInspectorSource, /onCopyByte/)
   assert.doesNotMatch(byteInspectorSource, /onCopyRange/)
+  assert.match(profilerPanelSource, /strings\.profiler\.collapseSymbol/)
   assert.match(profilerPanelSource, /strings\.profiler\.label/)
   assert.match(profilerPanelSource, /data-analysis-panel="profile"/)
   assert.match(profilerPanelSource, /data-analysis-panel="structure"/)
@@ -2123,6 +2222,7 @@ test('compiled extension entrypoints exist after build', () => {
   assert.match(extensionJs, /OMEGA_EDIT_ROLLBACK_SESSION_COMMAND/)
   assert.match(extensionJs, /OMEGA_EDIT_ROLLBACK_CHECKPOINT_COMMAND/)
   assert.match(extensionJs, /OMEGA_EDIT_CREATE_CHECKPOINT_COMMAND/)
+  assert.match(extensionJs, /OMEGA_EDIT_SHOW_CHECKPOINT_TIMELINE_COMMAND/)
   assert.match(extensionJs, /OMEGA_EDIT_GET_EDITOR_STATE_COMMAND/)
   assert.match(extensionJs, /OMEGA_EDIT_GET_ASSISTANT_CONTEXT_COMMAND/)
   assert.match(extensionJs, /OMEGA_EDIT_SET_EXTERNAL_HIGHLIGHTS_COMMAND/)
@@ -2459,6 +2559,22 @@ test('webview protocol normalizes editor commands and rejects invalid ranges', (
       type: 'cancelTransform',
     }
   )
+  assert.deepEqual(
+    normalizeWebviewMessage(context, {
+      type: 'navigateCheckpointTimeline',
+      checkpoint: 3,
+    }),
+    { type: 'navigateCheckpointTimeline', checkpoint: 3 }
+  )
+  for (const checkpoint of [-1, 1.5, Number.NaN, '2']) {
+    assert.equal(
+      normalizeWebviewMessage(context, {
+        type: 'navigateCheckpointTimeline',
+        checkpoint,
+      }),
+      undefined
+    )
+  }
   assert.deepEqual(
     normalizeWebviewMessage(context, {
       type: 'setInsertDirection',

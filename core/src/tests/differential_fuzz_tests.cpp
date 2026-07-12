@@ -797,6 +797,106 @@ namespace {
         return result;
     }
 
+    struct exported_op_t {
+        omega_changelog_plan_kind_t kind{};
+        int64_t offset{};
+        int64_t length{};
+        std::vector<omega_byte_t> payload{};
+    };
+
+    int capture_exported_op(const omega_changelog_plan_entry_t *entry, void *user_data) {
+        auto &entries = *static_cast<std::vector<exported_op_t> *>(user_data);
+        exported_op_t captured{entry->kind, entry->offset, entry->length, {}};
+        captured.payload.resize(static_cast<size_t>(entry->payload_length));
+        int64_t offset = 0;
+        while (offset < entry->payload_length) {
+            const auto read = entry->read_payload(entry->payload_context, offset, captured.payload.data() + offset,
+                                                  entry->payload_length - offset);
+            if (read <= 0) { return -1; }
+            offset += read;
+        }
+        entries.push_back(std::move(captured));
+        return 0;
+    }
+
+    bool replay_exported_ops(omega_session_t *session, const std::vector<exported_op_t> &entries) {
+        for (const auto &entry : entries) {
+            const auto *payload = entry.payload.empty() ? nullptr : entry.payload.data();
+            int64_t result = -1;
+            switch (entry.kind) {
+                case OMEGA_CHANGELOG_PLAN_DELETE:
+                    result = omega_edit_delete(session, entry.offset, entry.length);
+                    break;
+                case OMEGA_CHANGELOG_PLAN_INSERT:
+                    result = omega_edit_insert_bytes(session, entry.offset, payload,
+                                                     static_cast<int64_t>(entry.payload.size()));
+                    break;
+                case OMEGA_CHANGELOG_PLAN_OVERWRITE:
+                    result = omega_edit_overwrite_bytes(session, entry.offset, payload,
+                                                        static_cast<int64_t>(entry.payload.size()));
+                    break;
+                case OMEGA_CHANGELOG_PLAN_REPLACE:
+                    result = omega_edit_replace_bytes(session, entry.offset, entry.length, payload,
+                                                      static_cast<int64_t>(entry.payload.size()));
+                    break;
+                case OMEGA_CHANGELOG_PLAN_TRANSFORM:
+                    return false;
+            }
+            if (result <= 0) { return false; }
+        }
+        return true;
+    }
+
+    fuzz_run_result_t verify_optimized_export(const fuzz_script_t &script, const omega_session_t *source) {
+        if (omega_session_get_num_changes(source) <= 0) { return {}; }
+        omega_changelog_export_options_t options{};
+        options.prefer_overwrite_form = 1;
+        std::vector<exported_op_t> raw;
+        std::vector<exported_op_t> optimized;
+        const auto raw_result = omega_edit_export_changelog(source, &options, 0, nullptr, capture_exported_op, &raw);
+        const auto optimized_result =
+                omega_edit_export_changelog(source, &options, 1, nullptr, capture_exported_op, &optimized);
+        if (raw_result != 0 || optimized_result != 0) {
+            std::ostringstream message;
+            message << "ranged change-log export failed: raw=" << raw_result << ", optimized=" << optimized_result;
+            message << ", callbacks raw=" << raw.size() << ", optimized=" << optimized.size();
+            for (int64_t last = 1; last <= omega_session_get_num_changes(source); ++last) {
+                omega_changelog_export_options_t prefix_options{};
+                prefix_options.last_change_serial = last;
+                std::vector<exported_op_t> prefix;
+                if (omega_edit_export_changelog(source, &prefix_options, 0, nullptr, capture_exported_op, &prefix) !=
+                    0) {
+                    message << ", first failing prefix=" << last;
+                    break;
+                }
+            }
+            return fail_at(script.ops.size(), message.str());
+        }
+        if (optimized.size() > raw.size()) {
+            return fail_at(script.ops.size(), "optimized export contains more operations than raw export");
+        }
+        if (std::any_of(optimized.begin(), optimized.end(),
+                        [](const exported_op_t &entry) { return entry.kind == OMEGA_CHANGELOG_PLAN_TRANSFORM; })) {
+            // Built-in transforms are preserved by metadata, but this core-only harness does not own the plugin
+            // registry needed to replay them. Dedicated planner tests pin the barrier and metadata contract.
+            return {};
+        }
+        const ScratchDir replay_scratch;
+        auto replay = TestSession::from_bytes(script.base.empty() ? nullptr : script.base.data(),
+                                              static_cast<int64_t>(script.base.size()), replay_scratch.c_str());
+        if (!replay || !replay_exported_ops(replay.get(), optimized)) {
+            return fail_at(script.ops.size(), "optimized export replay failed");
+        }
+        const auto comparison = compare_content(source, replay.get());
+        if (!comparison.equal) {
+            std::ostringstream message;
+            message << "optimized replay diverged at " << comparison.first_diff_offset;
+            return fail_at(script.ops.size(), message.str());
+        }
+        if (!model_valid(replay.get())) { return fail_at(script.ops.size(), "optimized replay model is invalid"); }
+        return {};
+    }
+
     fuzz_run_result_t run_script(const fuzz_script_t &script) {
         const ScratchDir scratch_a;
         const ScratchDir scratch_b;
@@ -851,6 +951,9 @@ namespace {
             omega_session_get_transaction_state(session_b.get()) != 0) {
             return fail_at(script.ops.size(), "script ended with an open transaction");
         }
+
+        const auto optimized_export = verify_optimized_export(script, session_a.get());
+        if (!optimized_export.ok) { return optimized_export; }
 
         if (safe_for_full_round_trip(script.ops)) {
             const auto round_trip_a = verify_undo_redo_round_trip(session_a.get());
@@ -946,8 +1049,11 @@ TEST_CASE("Differential fuzz driver replays generated scripts", "[DifferentialFu
             REQUIRE(loaded.seed == script.seed);
             REQUIRE(loaded.ops.size() == script.ops.size());
             const auto replay_result = run_script(loaded);
+            const auto replay_failure_path =
+                    replay_result.ok ? std::filesystem::path{} : dump_script(loaded, "replay-smoke-failure");
             INFO("serialized replay smoke " << replay_path << " seed " << loaded.seed << " step " << replay_result.step
-                                            << ": " << replay_result.message);
+                                            << ": " << replay_result.message << "; failure replay "
+                                            << replay_failure_path);
             REQUIRE(replay_result.ok);
         }
 

@@ -201,6 +201,110 @@ describe('Editor Patterns', () => {
     })
   })
 
+  it('should round-trip complete undo and redo state snapshots', async () => {
+    const history = new EditorHistoryController()
+    history.recordLocalChange({
+      serial: 1,
+      kind: 'DELETE',
+      offset: 2,
+      length: 2,
+      data: '4344',
+    })
+    history.recordLocalReplaceAll([5, 9], 1, '41')
+    history.markSaved()
+    await history.undo({
+      async undoLocal() {},
+      async redoLocal() {},
+      async undoCheckpoint() {},
+      async redoCheckpoint() {},
+    })
+
+    const restored = EditorHistoryController.fromSnapshot(history.snapshot())
+    expect(restored.snapshot()).to.deep.equal(history.snapshot())
+    expect(restored.getEditState()).to.deep.equal(history.getEditState())
+
+    restored.recordLocalReplaceAll([12], 1, '42')
+    expect(restored.getChangeLog().at(-1)?.groupId).to.equal('replace-all-2')
+  })
+
+  it('should cross milestone anchors without adding visible undo steps', async () => {
+    const history = new EditorHistoryController()
+    const calls: string[] = []
+    history.recordLocalChange({
+      serial: 1,
+      kind: 'INSERT',
+      offset: 0,
+      length: 0,
+      data: '41',
+    })
+    history.recordMilestone()
+    const executor = {
+      async undoLocal() {
+        calls.push('undoLocal')
+      },
+      async redoLocal() {
+        calls.push('redoLocal')
+      },
+      async undoCheckpoint() {},
+      async redoCheckpoint() {},
+      async undoMilestone() {
+        calls.push('undoMilestone')
+      },
+      async redoMilestone() {
+        calls.push('redoMilestone')
+      },
+    }
+
+    await history.undo(executor)
+    await history.redo(executor)
+    expect(calls).to.deep.equal([
+      'undoMilestone',
+      'undoLocal',
+      'redoLocal',
+      'redoMilestone',
+    ])
+    expect(history.getEditState()).to.deep.include({
+      undoCount: 1,
+      redoCount: 0,
+    })
+  })
+
+  it('should preserve the complete future when restored at the original depth', () => {
+    const history = new EditorHistoryController()
+    history.recordLocalChange({
+      serial: 1,
+      kind: 'DELETE',
+      offset: 2,
+      length: 2,
+      data: '4344',
+    })
+    history.recordMilestone()
+    history.recordLocalChange({
+      serial: 2,
+      kind: 'INSERT',
+      offset: 2,
+      length: 0,
+      data: '4546',
+    })
+    history.recordMilestone()
+
+    const original = EditorHistoryController.fromSnapshotAtDepth(
+      history.snapshot(),
+      0
+    )
+    expect(original.getEditState()).to.deep.include({
+      undoCount: 0,
+      redoCount: 2,
+    })
+    expect(original.snapshot().undoneTransactionLog).to.deep.equal([
+      { kind: 'LOCAL', changeCount: 1 },
+      { kind: 'LOCAL', changeCount: 1 },
+    ])
+    expect(
+      original.snapshot().undoneChangeLog.map((change) => change.data)
+    ).to.deep.equal(['4546', '4344'])
+  })
+
   it('should undo multi-record local transactions as a single unit', async () => {
     const history = new EditorHistoryController()
     const calls: string[] = []

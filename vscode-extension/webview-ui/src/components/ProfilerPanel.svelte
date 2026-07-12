@@ -1383,7 +1383,7 @@
     {:else}
       <button
         type="button"
-        class="profiler-toggle"
+        class="panel-close"
         aria-expanded={expanded}
         aria-label={strings.profiler.collapse}
         title={strings.profiler.collapse}

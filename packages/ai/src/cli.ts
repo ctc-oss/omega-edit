@@ -335,6 +335,7 @@ async function runCommand(
           session: { type: 'string' as const },
           output: { type: 'string' as const },
           overwrite: { type: 'boolean' as const },
+          optimize: { type: 'boolean' as const },
         },
         allowPositionals: false,
       })
@@ -344,7 +345,8 @@ async function runCommand(
           'session'
         ),
         parsed.values.output as string | undefined,
-        Boolean(parsed.values.overwrite)
+        Boolean(parsed.values.overwrite),
+        Boolean(parsed.values.optimize)
       )
     }
     case 'apply-change-log': {

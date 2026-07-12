@@ -27,9 +27,21 @@
 #include <string>
 #include <vector>
 
+struct omega_byte_payload_struct;
+
 namespace omega_edit::internal {
 
     enum class change_kind_t { CHANGE_DELETE = 0, CHANGE_INSERT = 1, CHANGE_OVERWRITE = 2, CHANGE_TRANSFORM = 3 };
+
+    struct compressed_payload_block_t {
+        int64_t file_offset{};
+        int64_t compressed_length{};
+        int64_t uncompressed_length{};
+    };
+
+    int omega_payload_compress_file_(omega_byte_payload_struct *payload);
+    int omega_payload_read_file_(const omega_byte_payload_struct *payload, int64_t offset, omega_byte_t *buffer,
+                                 int64_t byte_count);
 
 }// namespace omega_edit::internal
 
@@ -48,6 +60,7 @@ struct omega_byte_payload_struct {
         length = 0;
         storage = OMEGA_CHANGE_DATA_STORAGE_NONE;
         file_path.clear();
+        compressed_blocks.clear();
     }
 
     omega_byte_payload_struct() = default;
@@ -69,6 +82,7 @@ struct omega_byte_payload_struct {
     int64_t length{};
     omega_change_data_storage_t storage{OMEGA_CHANGE_DATA_STORAGE_NONE};
     std::string file_path{};
+    std::vector<omega_edit::internal::compressed_payload_block_t> compressed_blocks{};
 
 private:
     void move_from_(omega_byte_payload_struct &&other) noexcept {
@@ -77,6 +91,7 @@ private:
         length = other.length;
         storage = other.storage;
         file_path.swap(other.file_path);
+        compressed_blocks = std::move(other.compressed_blocks);
         other.length = 0;
         other.storage = OMEGA_CHANGE_DATA_STORAGE_NONE;
         other.file_path.clear();
@@ -160,10 +175,7 @@ namespace omega_edit::internal {
                 return 0;
             }
             case OMEGA_CHANGE_DATA_STORAGE_FILE_BACKED:
-                return omega_util_read_file_segment(payload->file_path.c_str(), offset, buffer, byte_count) ==
-                                       byte_count
-                               ? 0
-                               : -1;
+                return omega_payload_read_file_(payload, offset, buffer, byte_count);
             default:
                 return -1;
         }

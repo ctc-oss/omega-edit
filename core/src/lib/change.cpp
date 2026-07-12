@@ -58,8 +58,8 @@ static inline const omega_byte_t *payload_bytes_(const omega_byte_payload_struct
         omega_data_create_(&mutable_payload_ptr->cache, payload_ptr->length);
     } catch (const std::bad_alloc &) { return nullptr; }
     auto *const data_ptr = omega_data_get_data_(&mutable_payload_ptr->cache, payload_ptr->length);
-    if (!data_ptr || omega_util_read_file_segment(payload_ptr->file_path.c_str(), 0, data_ptr, payload_ptr->length) !=
-                             payload_ptr->length) {
+    if (!data_ptr ||
+        omega_edit::internal::omega_payload_read_file_(payload_ptr, 0, data_ptr, payload_ptr->length) != 0) {
         omega_data_destroy_(&mutable_payload_ptr->cache, payload_ptr->length);
         return nullptr;
     }

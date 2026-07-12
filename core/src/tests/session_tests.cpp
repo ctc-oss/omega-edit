@@ -23,6 +23,11 @@
 #include <catch2/matchers/catch_matchers_contains.hpp>
 #include <catch2/matchers/catch_matchers_string.hpp>
 #include <cstdio>
+#ifdef OMEGA_BUILD_WINDOWS
+#include <chrono>
+#include <thread>
+#include <windows.h>
+#endif
 #include <vector>
 
 using Catch::Matchers::Contains;
@@ -57,6 +62,36 @@ void session_save_test_viewport_cbk(const omega_viewport_t *viewport_ptr, omega_
     std::clog << "Viewport Event: " << viewport_event << std::endl;
     ++*count_ptr;
 }
+
+#ifdef OMEGA_BUILD_WINDOWS
+TEST_CASE("Session save retries a transient Windows destination lock", "[SessionSaveTests]") {
+    const auto file_path = MAKE_PATH("session_save.transient-lock.dat");
+    if (omega_util_file_exists(file_path) != 0) { REQUIRE(0 == omega_util_remove_file(file_path)); }
+    {
+        auto *file_ptr = FOPEN(file_path, "wb");
+        REQUIRE(file_ptr);
+        REQUIRE(3 == fwrite("old", 1, 3, file_ptr));
+        REQUIRE(0 == FCLOSE(file_ptr));
+    }
+
+    const auto session_ptr = omega_edit_create_session_from_bytes(reinterpret_cast<const omega_byte_t *>("new"), 3,
+                                                                  nullptr, nullptr, NO_EVENTS, nullptr);
+    REQUIRE(session_ptr);
+    const auto lock_handle = CreateFileA(file_path, GENERIC_READ, FILE_SHARE_READ | FILE_SHARE_WRITE, nullptr,
+                                         OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, nullptr);
+    REQUIRE(lock_handle != INVALID_HANDLE_VALUE);
+    std::thread unlocker([lock_handle]() {
+        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+        CloseHandle(lock_handle);
+    });
+
+    const auto save_result = omega_edit_save(session_ptr, file_path, omega_io_flags_t::IO_FLG_OVERWRITE, nullptr);
+    unlocker.join();
+    REQUIRE(0 == save_result);
+    omega_edit_destroy_session(session_ptr);
+    REQUIRE(0 == omega_util_remove_file(file_path));
+}
+#endif
 
 TEST_CASE("Session Checkpoint Tests", "[SessionCheckpointTests]") {
     file_info_t file_info;

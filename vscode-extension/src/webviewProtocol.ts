@@ -191,6 +191,8 @@ export type WebviewToHostMessage =
   | { type: 'createCheckpoint' }
   | { type: 'rollbackCheckpoint' }
   | { type: 'restoreCheckpoint' }
+  | { type: 'navigateCheckpointTimeline'; checkpoint: number }
+  | { type: 'hideCheckpointTimeline' }
   | { type: 'exportChangeLog' }
   | { type: 'applyChangeLog' }
   | { type: 'loadRangeMap' }
@@ -237,6 +239,15 @@ export type WebviewToHostMessage =
       textEncoding?: TextEncoding
       direction: 'forward' | 'backward'
       offset: number
+    }
+  | {
+      type: 'searchViewportMatches'
+      query: string
+      isHex: boolean
+      caseInsensitive?: boolean
+      textEncoding?: TextEncoding
+      viewportOffset: number
+      viewportLength: number
     }
 
 export type HostToWebviewMessage =
@@ -333,6 +344,25 @@ export type HostToWebviewMessage =
       message?: string
     }
   | {
+      type: 'checkpointTimeline'
+      visible: boolean
+      cursor: number
+      checkpointCount: number
+      savedChangeCount: number
+      savedCheckpoint?: number
+      savedOffBranch: boolean
+      canRewind: boolean
+      canFastForward: boolean
+      navigating: boolean
+      checkpoints: Array<{
+        checkpoint: number
+        changeCount: number
+        createdAt: number
+        available: boolean
+        error?: string
+      }>
+    }
+  | {
       type: 'clipboardComplete'
       action: 'copy' | 'cut'
       byteCount: number
@@ -378,6 +408,13 @@ export type HostToWebviewMessage =
       viewportLength?: number
       viewportMatches?: number[]
       viewportHasMoreMatches?: boolean
+    }
+  | {
+      type: 'searchViewportMatchesResult'
+      viewportOffset: number
+      viewportLength: number
+      matches: number[]
+      patternLength: number
     }
   | {
       type: 'searchNavigationCommand'
@@ -919,6 +956,16 @@ export function normalizeWebviewMessage(
     case 'revert':
       return { type: raw.type }
 
+    case 'hideCheckpointTimeline':
+      return { type: raw.type }
+
+    case 'navigateCheckpointTimeline': {
+      const checkpoint = safeNonNegativeInteger(raw.checkpoint)
+      return checkpoint !== undefined
+        ? { type: raw.type, checkpoint }
+        : undefined
+    }
+
     case 'copySelection':
     case 'cutSelection': {
       const range = safeFileLengthRange(
@@ -1104,6 +1151,34 @@ export function normalizeWebviewMessage(
         ...(textEncoding ? { textEncoding } : {}),
         direction: raw.direction,
         offset,
+      }
+    }
+
+    case 'searchViewportMatches': {
+      const query = safeSearchQuery(raw)
+      const textEncoding =
+        raw.textEncoding === undefined
+          ? undefined
+          : safeTextEncoding(raw.textEncoding)
+      const viewportOffset = safeFileOffset(context, raw.viewportOffset)
+      const viewportLength = safeIntegerAtLeast(raw.viewportLength, 1)
+      if (
+        !query ||
+        viewportOffset === undefined ||
+        viewportLength === undefined ||
+        viewportLength <= 0 ||
+        (raw.textEncoding !== undefined && !textEncoding)
+      ) {
+        return undefined
+      }
+      return {
+        type: 'searchViewportMatches',
+        query,
+        isHex: raw.isHex === true,
+        caseInsensitive: safeBoolean(raw.caseInsensitive),
+        ...(textEncoding ? { textEncoding } : {}),
+        viewportOffset,
+        viewportLength,
       }
     }
 

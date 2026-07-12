@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount, untrack } from 'svelte'
   import ByteInspector from './components/ByteInspector.svelte'
+  import CheckpointTimeline from './components/CheckpointTimeline.svelte'
   import EditorWorkspace from './components/EditorWorkspace.svelte'
   import SearchPanel from './components/SearchPanel.svelte'
   import Toolbar from './components/Toolbar.svelte'
@@ -79,6 +80,10 @@
   type SessionActionCompleteMessage = Extract<
     HostToWebviewMessage,
     { type: 'sessionActionComplete' }
+  >
+  type CheckpointTimelineMessage = Extract<
+    HostToWebviewMessage,
+    { type: 'checkpointTimeline' }
   >
   type ViewportDataMessage = Extract<
     HostToWebviewMessage,
@@ -221,6 +226,18 @@
   let canRedo = $state(false)
   let undoCount = $state(0)
   let redoCount = $state(0)
+  let checkpointTimeline = $state<CheckpointTimelineMessage>({
+    type: 'checkpointTimeline',
+    visible: false,
+    cursor: 0,
+    checkpointCount: 0,
+    savedChangeCount: 0,
+    savedOffBranch: false,
+    canRewind: false,
+    canFastForward: false,
+    navigating: false,
+    checkpoints: [],
+  })
   let latestDataProfile = $state<AnalysisProfileMessage | undefined>(undefined)
   let latestViewportProfile = $state<ProfilerViewportSnapshot | undefined>(
     undefined
@@ -242,7 +259,10 @@
   let searchPatternLength = $state(0)
   let searchWindowLimit = $state(1000)
   let searchMessage = $state(strings.search.noSearch)
+  let viewportSearchMatches = $state<Set<number>>(new Set())
   let replaceMessage = $state('')
+  let replaceVisible = $state(restoredState?.replaceVisible ?? false)
+  let searchDebounceTimer: ReturnType<typeof setTimeout> | undefined
   let clipboardMessage = $state('')
   let lastPostedEditorStateKey = $state('')
 
@@ -329,6 +349,11 @@
       : searchMatches.length > 0 && searchMatchIndex >= 0
         ? searchMatches[searchMatchIndex]
         : -1
+  )
+  const allSearchMatches = $derived(
+    searchMode === 'large'
+      ? [...viewportSearchMatches]
+      : searchMatches
   )
   const searchHighlightStart = $derived(
     currentSearchOffset >= 0 && searchPatternLength > 0 ? currentSearchOffset : -1
@@ -428,6 +453,7 @@
       textEncoding: TextEncoding
       insertDirection: InsertDirection
       searchPanelVisible: boolean
+      replaceVisible: boolean
       profilerExpanded: boolean
       analysisSectionOrder: AnalysisSectionOrder
       selectionAnchor: number
@@ -442,6 +468,7 @@
       textEncoding,
       insertDirection,
       searchPanelVisible,
+      replaceVisible,
       profilerExpanded,
       analysisSectionOrder,
       selectionAnchor,
@@ -1043,6 +1070,7 @@
     pendingHexNibble = undefined
     pendingHexLabel = ''
     clearInspectorHighlight()
+    syncSearchIndexToSelection(nextOffset)
     saveSelectionState()
 
     if (
@@ -1540,8 +1568,25 @@
   }
 
   function toggleSearchPanelVisible(): void {
-    searchPanelVisible = !searchPanelVisible
+    const visible = !searchPanelVisible
+    if (visible && checkpointTimeline.visible) {
+      checkpointTimeline = { ...checkpointTimeline, visible: false }
+      postToHost({ type: 'hideCheckpointTimeline' })
+    }
+    searchPanelVisible = visible
     savePreviewState({ searchPanelVisible })
+  }
+
+  function openSearchPanel(showReplace = false): void {
+    if (checkpointTimeline.visible) {
+      checkpointTimeline = { ...checkpointTimeline, visible: false }
+      postToHost({ type: 'hideCheckpointTimeline' })
+    }
+    searchPanelVisible = true
+    if (showReplace) {
+      replaceVisible = true
+    }
+    savePreviewState({ searchPanelVisible: true, replaceVisible })
   }
 
   function setOffsetRadix(radix: 'hex' | 'dec'): void {
@@ -2013,6 +2058,89 @@
       : encodeTextToHex(replacement, textEncoding)
   }
 
+  function requestViewportSearchMatches(): void {
+    if (searchMode !== 'large' && searchMode !== 'bounded') return
+    const normalized = normalizeSearchQuery(searchQuery, searchHex)
+    if (!normalized || searchPatternLength <= 0) return
+    const vpOffset = viewportOffset
+    const vpLength = Math.min(
+      viewportData.length,
+      Math.max(0, fileSize - vpOffset)
+    )
+    if (vpLength <= 0) return
+    postToHost({
+      type: 'searchViewportMatches',
+      query: normalized,
+      isHex: true,
+      caseInsensitive: !searchHex && searchCaseInsensitive,
+      ...(searchHex ? {} : { textEncoding }),
+      viewportOffset: vpOffset,
+      viewportLength: vpLength,
+    })
+  }
+
+  function syncSearchIndexToSelection(offset: number): void {
+    if (searchPatternLength <= 0) return
+    if (searchMode === 'large') {
+      const nearest = findNearestViewportMatch(offset)
+      if (nearest >= 0) {
+        searchCurrentOffset = nearest
+      }
+      return
+    }
+    if (searchMatches.length === 0) return
+    const nearest = findNearestBoundedMatch(offset)
+    if (nearest >= 0) {
+      searchMatchIndex = nearest
+    }
+  }
+
+  function findNearestBoundedMatch(offset: number): number {
+    if (searchMatches.length === 0) return -1
+    let best = -1
+    let bestDist = Infinity
+    for (let i = 0; i < searchMatches.length; i++) {
+      const matchOffset = searchMatches[i]
+      const dist = Math.abs(matchOffset - offset)
+      if (dist < bestDist) {
+        bestDist = dist
+        best = i
+      }
+    }
+    return best
+  }
+
+  function findAdjacentBoundedMatchIndex(
+    anchorOffset: number,
+    direction: 'forward' | 'backward'
+  ): number {
+    if (searchMatches.length === 0) return -1
+    if (direction === 'forward') {
+      for (let i = 0; i < searchMatches.length; i++) {
+        if (searchMatches[i] > anchorOffset) return i
+      }
+      return 0
+    }
+    for (let i = searchMatches.length - 1; i >= 0; i--) {
+      if (searchMatches[i] < anchorOffset) return i
+    }
+    return searchMatches.length - 1
+  }
+
+  function findNearestViewportMatch(offset: number): number {
+    if (viewportSearchMatches.size === 0) return -1
+    let best = -1
+    let bestDist = Infinity
+    for (const matchOffset of viewportSearchMatches) {
+      const dist = Math.abs(matchOffset - offset)
+      if (dist < bestDist) {
+        bestDist = dist
+        best = matchOffset
+      }
+    }
+    return best
+  }
+
   function getSearchPatternByteLength(query: string): number {
     return query.length / 2
   }
@@ -2024,6 +2152,7 @@
     searchMatchIndex = -1
     searchCurrentOffset = -1
     searchPatternLength = 0
+    viewportSearchMatches = new Set()
     searchMessage = message
   }
 
@@ -2075,6 +2204,15 @@
     } else {
       searchMessage = strings.search.ready
     }
+    if (searchDebounceTimer !== undefined) {
+      clearTimeout(searchDebounceTimer)
+    }
+    if (normalized) {
+      searchDebounceTimer = setTimeout(() => {
+        searchDebounceTimer = undefined
+        runSearch()
+      }, 250)
+    }
   }
 
   function setSearchHex(enabled: boolean): void {
@@ -2084,16 +2222,40 @@
     }
     replaceMessage = ''
     clearSearchResults()
+    if (searchDebounceTimer !== undefined) {
+      clearTimeout(searchDebounceTimer)
+      searchDebounceTimer = undefined
+    }
   }
 
-  function setSearchCaseInsensitive(enabled: boolean): void {
-    searchCaseInsensitive = enabled
+  function setSearchCaseSensitive(enabled: boolean): void {
+    searchCaseInsensitive = !enabled
     replaceMessage = ''
     clearSearchResults(
       searchQuery.trim().length > 0
         ? strings.search.ready
         : strings.search.noSearch
     )
+    if (searchDebounceTimer !== undefined) {
+      clearTimeout(searchDebounceTimer)
+      searchDebounceTimer = undefined
+    }
+  }
+
+  function toggleReplaceVisible(): void {
+    replaceVisible = !replaceVisible
+    savePreviewState({ replaceVisible })
+  }
+
+  function closeSearchPanel(): void {
+    searchPanelVisible = false
+    replaceVisible = false
+    savePreviewState({ searchPanelVisible: false, replaceVisible: false })
+    if (searchDebounceTimer !== undefined) {
+      clearTimeout(searchDebounceTimer)
+      searchDebounceTimer = undefined
+    }
+    clearSearchResults()
   }
 
   function setReplacementQuery(replacement: string): void {
@@ -2142,6 +2304,8 @@
       return
     }
 
+    const anchor = selectedOffset >= 0 ? selectedOffset : getCurrentSearchOffset()
+
     if (searchMode === 'large') {
       const normalized = normalizeSearchQuery(searchQuery, searchHex)
       if (!normalized) {
@@ -2157,15 +2321,16 @@
         caseInsensitive: !searchHex && searchCaseInsensitive,
         ...(searchHex ? {} : { textEncoding }),
         direction,
-        offset: Math.max(0, getCurrentSearchOffset()),
+        offset: Math.max(0, anchor),
       })
       return
     }
 
-    const nextIndex =
-      direction === 'forward'
-        ? (searchMatchIndex + 1) % searchMatches.length
-        : (searchMatchIndex - 1 + searchMatches.length) % searchMatches.length
+    const nextIndex = findAdjacentBoundedMatchIndex(anchor, direction)
+    if (nextIndex < 0) {
+      searchMessage = strings.search.noMatch
+      return
+    }
     const matchOffset = searchMatches[nextIndex]
     if (!isVisibleRange(matchOffset, searchPatternLength)) {
       pendingSearchReveal = { kind: 'bounded', index: nextIndex }
@@ -2284,6 +2449,7 @@
     if (message.mode === 'large') {
       searchMode = 'large'
       searchMatches = []
+      viewportSearchMatches = new Set()
       searchMatchIndex = -1
       searchCurrentOffset = message.currentOffset
       searchMessage =
@@ -2324,11 +2490,15 @@
     searchMode = 'large'
     searchCurrentOffset = message.offset
     searchPatternLength = message.patternLength || searchPatternLength
-    searchMatches =
-      message.viewportOffset === undefined || message.viewportOffset === visibleOffset
-        ? (message.viewportMatches ?? [])
-        : []
-    searchMatchIndex = searchMatches.indexOf(message.offset)
+    if (message.viewportMatches && message.viewportMatches.length > 0) {
+      const next = new Set(viewportSearchMatches)
+      for (const offset of message.viewportMatches) {
+        next.add(offset)
+      }
+      viewportSearchMatches = next
+    }
+    searchMatches = []
+    searchMatchIndex = -1
     selectSearchMatch(message.offset)
   }
 
@@ -2432,6 +2602,7 @@
         }
         savePreviewState()
         applyPendingSearchReveal()
+        requestViewportSearchMatches()
         break
       }
       case 'fileSizeChanged':
@@ -2502,6 +2673,17 @@
       case 'searchNavigationResult':
         handleSearchNavigationResult(message)
         break
+      case 'searchViewportMatchesResult': {
+        if (searchMode === 'large' && message.patternLength > 0) {
+          searchPatternLength = message.patternLength
+          const next = new Set(viewportSearchMatches)
+          for (const offset of message.matches) {
+            next.add(offset)
+          }
+          viewportSearchMatches = next
+        }
+        break
+      }
       case 'searchNavigationCommand':
         navigateSearch(message.direction)
         break
@@ -2602,6 +2784,12 @@
           requestAnalysisProfile(true)
         }
         break
+      case 'checkpointTimeline':
+        if (message.visible && searchPanelVisible) {
+          closeSearchPanel()
+        }
+        checkpointTimeline = message
+        break
       case 'analysisProfile':
         latestDataProfile = message
         break
@@ -2662,16 +2850,52 @@
       handleHostMessage(event.data)
     }
     const keyListener = (event: KeyboardEvent) => {
-      if (
-        event.defaultPrevented ||
-        event.key !== 'Insert' ||
-        transformInFlight ||
-        isEditableTarget(event.target)
-      ) {
+      if (event.defaultPrevented) {
         return
       }
-      event.preventDefault()
-      toggleInspectorEditMode()
+      if (event.key === 'Insert') {
+        if (transformInFlight || isEditableTarget(event.target)) {
+          return
+        }
+        event.preventDefault()
+        toggleInspectorEditMode()
+        return
+      }
+      if (event.key !== 'Insert') {
+        const modifier = event.ctrlKey || event.metaKey
+        const key = event.key.toLowerCase()
+        if (event.key === 'F3' && !isEditableTarget(event.target)) {
+          event.preventDefault()
+          if (searchCanNavigate) {
+            navigateSearch(event.shiftKey ? 'backward' : 'forward')
+          }
+          return
+        }
+        if (modifier && key === 'f') {
+          event.preventDefault()
+          openSearchPanel()
+          requestAnimationFrame(() =>
+            document
+              .querySelector<HTMLInputElement>('#searchQueryInput')
+              ?.focus()
+          )
+          return
+        }
+        if (modifier && key === 'h') {
+          event.preventDefault()
+          openSearchPanel(true)
+          requestAnimationFrame(() =>
+            document
+              .querySelector<HTMLInputElement>('#searchReplacementInput')
+              ?.focus()
+          )
+          return
+        }
+        if (modifier && (key === 'g' || key === 'l')) {
+          event.preventDefault()
+          document.querySelector<HTMLInputElement>('#offsetJumpInput')?.focus()
+        }
+      }
     }
     const copyListener = (event: ClipboardEvent) => {
       handleClipboardCopy(event, 'copy')
@@ -2744,26 +2968,43 @@
     onApplyChangeLog={applyChangeLog}
   />
 
+  {#if checkpointTimeline.visible}
+    <CheckpointTimeline
+      cursor={checkpointTimeline.cursor}
+      checkpointCount={checkpointTimeline.checkpointCount}
+      savedChangeCount={checkpointTimeline.savedChangeCount}
+      savedCheckpoint={checkpointTimeline.savedCheckpoint}
+      savedOffBranch={checkpointTimeline.savedOffBranch}
+      canRewind={checkpointTimeline.canRewind}
+      canFastForward={checkpointTimeline.canFastForward}
+      checkpoints={checkpointTimeline.checkpoints}
+      navigating={checkpointTimeline.navigating}
+      onNavigate={(checkpoint) =>
+        postToHost({ type: 'navigateCheckpointTimeline', checkpoint })}
+      onClose={() => postToHost({ type: 'hideCheckpointTimeline' })}
+    />
+  {/if}
+
   <div class="top-panels">
-    {#if searchPanelVisible}
+    {#if searchPanelVisible && !checkpointTimeline.visible}
       <SearchPanel
         query={searchQuery}
         replacement={replacementQuery}
         isHex={searchHex}
-        caseInsensitive={searchCaseInsensitive}
-        isReverse={searchReverse}
+        caseSensitive={!searchCaseInsensitive}
         invalid={searchInputInvalid}
         replacementInvalid={replacementInputInvalid}
         canNavigate={searchCanNavigate}
         canReplace={searchCanReplace}
+        replaceVisible={replaceVisible}
         summary={searchResultSummary}
         replaceSummary={replaceMessage}
         onQueryChange={setSearchQuery}
         onReplacementChange={setReplacementQuery}
         onHexChange={setSearchHex}
-        onCaseInsensitiveChange={setSearchCaseInsensitive}
-        onReverseChange={(enabled) => (searchReverse = enabled)}
-        onSearch={runSearch}
+        onCaseSensitiveChange={setSearchCaseSensitive}
+        onToggleReplace={toggleReplaceVisible}
+        onClose={closeSearchPanel}
         onNavigate={navigateSearch}
         onReplace={replaceCurrentMatch}
         onReplaceAll={replaceAllMatches}
@@ -2786,7 +3027,8 @@
     {/if}
   </div>
 
-  <EditorWorkspace
+  <div class="editor-workspace-shell">
+    <EditorWorkspace
     {data}
     {visibleOffset}
     scrollOffset={navigationOffset}
@@ -2800,8 +3042,9 @@
     {selectionEnd}
     searchStart={searchHighlightStart}
     searchEnd={searchHighlightEnd}
-    {searchMatches}
+    searchMatches={allSearchMatches}
     searchLength={searchPatternLength}
+    searchCurrentOffset={currentSearchOffset}
     inspectorStart={inspectorHighlightStart}
     inspectorEnd={inspectorHighlightEnd}
     {externalHighlights}
@@ -2844,13 +3087,16 @@
     editDisabled={transformInFlight}
     readOnlyLabel={strings.grid.readOnly}
     readOnlyTitle={transformFeedback || strings.transform.inFlight}
+    navigating={checkpointTimeline.navigating}
     onVisibleRowsChange={setVisibleRows}
     onAutoFitBytesPerRow={applyAutoFitBytesPerRow}
     onToggleProfilerExpanded={toggleProfilerExpanded}
     onProfilerModeChange={setProfilerMode}
     onMoveAnalysisSection={moveAnalysisSectionByDelta}
     onReorderAnalysisSection={reorderAnalysisSection}
-  />
+    />
+
+  </div>
 
   <ByteInspector
     {selectedOffset}

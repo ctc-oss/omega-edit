@@ -1,0 +1,152 @@
+# Copyright 2026 Concurrent Technologies Corporation
+# Licensed under the Apache License, Version 2.0.
+
+name: Checkpoint Timeline Hardening
+
+on:
+  pull_request:
+    paths:
+      - 'core/**'
+      - 'server/cpp/**'
+      - 'packages/client/**'
+      - 'vscode-extension/**'
+      - '.github/workflows/checkpoint-timeline-hardening.yml'
+  workflow_dispatch:
+    inputs:
+      soak_minutes:
+        description: Minutes per soak shard (five shards; max 330 on hosted runners)
+        default: '30'
+        required: false
+  schedule:
+    - cron: '17 3 * * 6'
+
+permissions:
+  contents: read
+
+jobs:
+  differential-fuzz:
+    name: Differential fuzz (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, macos-14, windows-2025]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: lukka/get-cmake@latest
+      - name: Configure core tests
+        run: cmake -S . -B build-fuzz -DBUILD_SHARED_LIBS=OFF -DBUILD_DOCS=OFF -DBUILD_EXAMPLES=OFF -DBUILD_TESTS=ON -DBUILD_TRANSFORM_PLUGINS=OFF -DCMAKE_BUILD_TYPE=Release
+      - name: Build differential fuzz driver
+        run: cmake --build build-fuzz --config Release --target differential_fuzz_tests
+      - name: Run deterministic PR fuzz tier
+        shell: bash
+        run: |
+          binary=build-fuzz/core/src/tests/differential_fuzz_tests
+          if [ "${{ runner.os }}" = "Windows" ]; then
+            binary=build-fuzz/core/src/tests/Release/differential_fuzz_tests.exe
+          fi
+          "$binary" '[DifferentialFuzz]'
+        env:
+          OMEGA_EDIT_FUZZ_ITERATIONS: '96'
+          OMEGA_EDIT_FUZZ_OPS: '512'
+      - name: Upload minimized replay corpus on failure
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: differential-fuzz-${{ matrix.os }}
+          path: ${{ runner.temp }}/omega-edit-differential-fuzz-failures/**
+          if-no-files-found: ignore
+
+  sanitizers:
+    name: ${{ matrix.name }} sanitizer
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: ASan-UBSan
+            flags: -fsanitize=address,undefined -fno-omit-frame-pointer
+            runtime: ASAN_OPTIONS=detect_leaks=1:strict_string_checks=1 UBSAN_OPTIONS=halt_on_error=1:print_stacktrace=1
+          - name: TSan
+            flags: -fsanitize=thread -fno-omit-frame-pointer
+            runtime: TSAN_OPTIONS=halt_on_error=1:second_deadlock_stack=1
+    steps:
+      - uses: actions/checkout@v7
+      - uses: lukka/get-cmake@latest
+      - name: Configure instrumented core
+        shell: bash
+        run: >-
+          cmake -S . -B build-sanitizer
+          -DBUILD_SHARED_LIBS=OFF -DBUILD_DOCS=OFF -DBUILD_EXAMPLES=OFF
+          -DBUILD_TESTS=ON -DBUILD_TRANSFORM_PLUGINS=OFF -DCMAKE_BUILD_TYPE=Debug
+          -DCMAKE_C_FLAGS='${{ matrix.flags }}'
+          -DCMAKE_CXX_FLAGS='${{ matrix.flags }}'
+          -DCMAKE_EXE_LINKER_FLAGS='${{ matrix.flags }}'
+      - name: Build instrumented planner and fuzz tests
+        run: cmake --build build-sanitizer --target changelog_tests differential_fuzz_tests --parallel 2
+      - name: Run instrumented planner and cancellation-sensitive fuzz paths
+        shell: bash
+        run: |
+          export ${{ matrix.runtime }}
+          build-sanitizer/core/src/tests/changelog_tests '[changelog]~[.benchmark]'
+          build-sanitizer/core/src/tests/differential_fuzz_tests '[DifferentialFuzz]'
+        env:
+          OMEGA_EDIT_FUZZ_ITERATIONS: '24'
+          OMEGA_EDIT_FUZZ_OPS: '256'
+
+  performance-attestation:
+    name: Planner and codec performance attestation
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+      - uses: lukka/get-cmake@latest
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: yarn
+      - run: yarn --frozen-lockfile
+      - name: Build release benchmark target
+        run: cmake -S . -B build-benchmark -GNinja -DBUILD_SHARED_LIBS=OFF -DBUILD_DOCS=OFF -DBUILD_EXAMPLES=OFF -DBUILD_TESTS=ON -DBUILD_TRANSFORM_PLUGINS=OFF -DCMAKE_BUILD_TYPE=Release && cmake --build build-benchmark --target changelog_tests
+      - name: Run 100k planner benchmark
+        run: mkdir -p artifacts/checkpoint-timeline && build-benchmark/core/src/tests/changelog_tests '[.benchmark]' | tee artifacts/checkpoint-timeline/planner-benchmark.txt
+      - name: Run 1M-entry streaming codec benchmark
+        run: yarn workspace @omega-edit/client benchmark:changelog
+        env:
+          OMEGA_EDIT_BENCHMARK_MAX_RSS_GROWTH_BYTES: '536870912'
+      - name: Upload attestation output
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: checkpoint-timeline-performance
+          path: artifacts/checkpoint-timeline/**
+          if-no-files-found: warn
+
+  optimizer-soak:
+    name: Optimizer soak shard ${{ matrix.shard }}
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 350
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [0, 1, 2, 3, 4]
+    steps:
+      - uses: actions/checkout@v7
+      - uses: lukka/get-cmake@latest
+      - name: Build release fuzz driver
+        run: cmake -S . -B build-soak -GNinja -DBUILD_SHARED_LIBS=OFF -DBUILD_DOCS=OFF -DBUILD_EXAMPLES=OFF -DBUILD_TESTS=ON -DBUILD_TRANSFORM_PLUGINS=OFF -DCMAKE_BUILD_TYPE=Release && cmake --build build-soak --target differential_fuzz_tests
+      - name: Run bounded soak shard
+        shell: bash
+        env:
+          SOAK_MINUTES: ${{ inputs.soak_minutes || '330' }}
+          SOAK_SHARD: ${{ matrix.shard }}
+        run: ./scripts/run-checkpoint-timeline-soak.sh
+      - name: Upload soak evidence and replay corpus
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: optimizer-soak-${{ matrix.shard }}
+          path: |
+            artifacts/checkpoint-timeline/**
+            ${{ runner.temp }}/omega-edit-differential-fuzz-failures/**
+          if-no-files-found: warn

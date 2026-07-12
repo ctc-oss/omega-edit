@@ -11,6 +11,8 @@
 
 cmake_minimum_required(VERSION 3.13)
 
+include(CMakeFindDependencyMacro)
+
 set(omega_edit_known_comps static shared)
 set(omega_edit_comp_static NO)
 set(omega_edit_comp_shared NO)
@@ -30,6 +32,38 @@ if (omega_edit_comp_static AND omega_edit_comp_shared)
             "omega_edit `static` and `shared` components are mutually exclusive.")
     set(${CMAKE_FIND_PACKAGE_NAME}_FOUND FALSE)
     return()
+endif ()
+
+find_dependency(zstd CONFIG QUIET)
+
+# The core library may have been built with FetchContent (target
+# libzstd_static), a system zstd (zstd::libzstd_shared or
+# zstd::libzstd_static), or Conan zstd (zstd::libzstd).  The exported
+# targets reference whichever target was used at build time.  Create
+# aliases for every name the export might reference so it resolves
+# regardless of which zstd provider the consumer has available.
+if (TARGET zstd::libzstd)
+  if (NOT TARGET zstd::libzstd_shared)
+    add_library(zstd::libzstd_shared ALIAS zstd::libzstd)
+  endif ()
+  if (NOT TARGET zstd::libzstd_static)
+    add_library(zstd::libzstd_static ALIAS zstd::libzstd)
+  endif ()
+elseif (TARGET libzstd_static)
+  if (NOT TARGET zstd::libzstd_shared)
+    add_library(zstd::libzstd_shared ALIAS libzstd_static)
+  endif ()
+  if (NOT TARGET zstd::libzstd_static)
+    add_library(zstd::libzstd_static ALIAS libzstd_static)
+  endif ()
+elseif (TARGET zstd::libzstd_shared)
+  if (NOT TARGET zstd::libzstd_static)
+    add_library(zstd::libzstd_static ALIAS zstd::libzstd_shared)
+  endif ()
+elseif (TARGET zstd::libzstd_static)
+  if (NOT TARGET zstd::libzstd_shared)
+    add_library(zstd::libzstd_shared ALIAS zstd::libzstd_static)
+  endif ()
 endif ()
 
 set(omega_edit_static_targets "${CMAKE_CURRENT_LIST_DIR}/omega_edit-static-targets.cmake")

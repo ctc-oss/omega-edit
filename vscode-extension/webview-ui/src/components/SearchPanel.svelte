@@ -4,21 +4,21 @@
   interface Props {
     query?: string
     isHex?: boolean
-    caseInsensitive?: boolean
-    isReverse?: boolean
+    caseSensitive?: boolean
     replacement?: string
     invalid?: boolean
     replacementInvalid?: boolean
     canNavigate?: boolean
     canReplace?: boolean
+    replaceVisible?: boolean
     summary?: string
     replaceSummary?: string
     onQueryChange: (query: string) => void
     onReplacementChange: (replacement: string) => void
     onHexChange: (enabled: boolean) => void
-    onCaseInsensitiveChange: (enabled: boolean) => void
-    onReverseChange: (enabled: boolean) => void
-    onSearch: () => void
+    onCaseSensitiveChange: (enabled: boolean) => void
+    onToggleReplace: () => void
+    onClose: () => void
     onNavigate: (direction: 'forward' | 'backward') => void
     onReplace: () => void
     onReplaceAll: () => void
@@ -27,25 +27,27 @@
   let {
     query = '',
     isHex = false,
-    caseInsensitive = false,
-    isReverse = false,
+    caseSensitive = false,
     replacement = '',
     invalid = false,
     replacementInvalid = false,
     canNavigate = false,
     canReplace = false,
+    replaceVisible = false,
     summary = strings.search.noSearch,
     replaceSummary = '',
     onQueryChange,
     onReplacementChange,
     onHexChange,
-    onCaseInsensitiveChange,
-    onReverseChange,
-    onSearch,
+    onCaseSensitiveChange,
+    onToggleReplace,
+    onClose,
     onNavigate,
     onReplace,
     onReplaceAll,
   }: Props = $props()
+
+  let queryInput = $state<HTMLInputElement | undefined>(undefined)
 
   function getInput(event: Event): HTMLInputElement {
     return event.currentTarget as HTMLInputElement
@@ -59,20 +61,12 @@
     onReplacementChange(getInput(event).value)
   }
 
-  function handleHexChange(event: Event): void {
-    onHexChange(getInput(event).checked)
-  }
-
-  function handleCaseInsensitiveChange(event: Event): void {
-    onCaseInsensitiveChange(getInput(event).checked)
-  }
-
-  function handleDirectionChange(event: Event): void {
-    const select = event.currentTarget as HTMLSelectElement
-    onReverseChange(select.value === 'reverse')
-  }
-
   function handleInputKeydown(event: KeyboardEvent): void {
+    if (event.key === 'Escape') {
+      event.preventDefault()
+      onClose()
+      return
+    }
     if (event.key !== 'Enter') {
       return
     }
@@ -85,109 +79,142 @@
   }
 
   function handleReplacementKeydown(event: KeyboardEvent): void {
+    if (event.key === 'Escape') {
+      event.preventDefault()
+      onClose()
+      return
+    }
     if (event.key !== 'Enter' || !canReplace || replacementInvalid) {
       return
     }
     event.preventDefault()
     onReplace()
   }
+
+  function handleReplaceAllClick(): void {
+    if (!canReplace || replacementInvalid) return
+    const confirmed = window.confirm(strings.search.replaceAllConfirm)
+    if (confirmed) {
+      onReplaceAll()
+    }
+  }
 </script>
 
 <section class="search-panel" role="search" aria-label={strings.search.label}>
-  <div class="search-fields">
-    <input
-      class="search-input"
-      type="text"
-      value={query}
-      placeholder={strings.search.placeholder}
-      aria-invalid={invalid}
-      oninput={handleQueryInput}
-      onkeydown={handleInputKeydown}
-    />
-    <label class="check-control">
-      <input type="checkbox" checked={isHex} onchange={handleHexChange} />
-      <span>{strings.search.hex}</span>
-    </label>
-    <label class="check-control" class:disabled={isHex}>
+  <button
+    type="button"
+    class="search-disclosure"
+    class:expanded={replaceVisible}
+    aria-expanded={replaceVisible}
+    aria-label={strings.search.toggleReplace}
+    title={strings.search.toggleReplace}
+    onclick={onToggleReplace}
+  >
+    {#if replaceVisible}&#x25BC;{:else}&#x25B6;{/if}
+  </button>
+  <div class="search-row">
+    <div class="search-query-field" class:invalid>
       <input
-        type="checkbox"
-        checked={caseInsensitive}
-        disabled={isHex}
-        onchange={handleCaseInsensitiveChange}
+        bind:this={queryInput}
+        id="searchQueryInput"
+        class="search-input search-query-input"
+        type="text"
+        value={query}
+        placeholder={strings.search.placeholder}
+        aria-invalid={invalid}
+        oninput={handleQueryInput}
+        onkeydown={handleInputKeydown}
       />
-      <span>{strings.search.ignoreCase}</span>
-    </label>
-    <select
-      class="direction-select"
-      title={strings.search.directionTitle}
-      value={isReverse ? 'reverse' : 'forward'}
-      onchange={handleDirectionChange}
-    >
-      <option value="forward">{strings.search.forward}</option>
-      <option value="reverse">{strings.search.reverse}</option>
-    </select>
-    <button
-      type="button"
-      disabled={query.trim().length === 0 || invalid}
-      onclick={onSearch}
-    >
-      {strings.search.find}
-    </button>
-  </div>
-
-  <div class="search-actions">
-    <button
-      type="button"
-      class="secondary"
-      disabled={!canNavigate}
-      title={strings.search.previousTitle}
-      onclick={() => onNavigate('backward')}
-    >
-      {strings.search.previous}
-    </button>
-    <button
-      type="button"
-      class="secondary"
-      disabled={!canNavigate}
-      title={strings.search.nextTitle}
-      onclick={() => onNavigate('forward')}
-    >
-      {strings.search.next}
-    </button>
+      <div class="search-query-modifiers">
+        <button
+          type="button"
+          class="search-input-toggle"
+          class:active={isHex}
+          aria-pressed={isHex}
+          aria-label={strings.search.hexTitle}
+          title={strings.search.hexTitle}
+          onclick={() => onHexChange(!isHex)}
+        >0x</button>
+        <button
+          type="button"
+          class="search-input-toggle"
+          class:active={caseSensitive}
+          class:disabled={isHex}
+          aria-pressed={caseSensitive}
+          aria-label={strings.search.matchCaseTitle}
+          disabled={isHex}
+          title={isHex ? strings.search.hexDisabledCase : strings.search.matchCaseTitle}
+          onclick={() => onCaseSensitiveChange(!caseSensitive)}
+        >Aa</button>
+      </div>
+    </div>
     <span class="search-summary" aria-live="polite">{summary}</span>
-  </div>
-
-  <div class="replace-fields">
-    <input
-      class="search-input replace-input"
-      type="text"
-      value={replacement}
-      placeholder={strings.search.replacePlaceholder}
-      aria-label={strings.search.replacePlaceholder}
-      aria-invalid={replacementInvalid}
-      oninput={handleReplacementInput}
-      onkeydown={handleReplacementKeydown}
-    />
+    <div class="search-nav">
+      <button
+        type="button"
+        class="search-nav-btn"
+        aria-label={strings.search.previous}
+        title={strings.search.previousTitle}
+        disabled={!canNavigate}
+        onclick={() => onNavigate('backward')}
+      >
+        &#x25B2;
+      </button>
+      <button
+        type="button"
+        class="search-nav-btn"
+        aria-label={strings.search.next}
+        title={strings.search.nextTitle}
+        disabled={!canNavigate}
+        onclick={() => onNavigate('forward')}
+      >
+        &#x25BC;
+      </button>
+    </div>
     <button
       type="button"
-      class="secondary"
-      disabled={!canReplace || replacementInvalid}
-      onclick={onReplace}
+      class="panel-close"
+      aria-label={strings.search.close}
+      title={strings.search.closeTitle}
+      onclick={onClose}
     >
-      {strings.search.replace}
+      &times;
     </button>
-    <button
-      type="button"
-      class="secondary"
-      disabled={!canReplace || replacementInvalid}
-      onclick={onReplaceAll}
-    >
-      {strings.search.replaceAll}
-    </button>
-    {#if replaceSummary}
-      <span class="search-summary replace-summary" aria-live="polite">
-        {replaceSummary}
-      </span>
-    {/if}
   </div>
+  {#if replaceVisible}
+    <div class="search-row replace-row">
+      <input
+        id="searchReplacementInput"
+        class="search-input replace-input"
+        type="text"
+        value={replacement}
+        placeholder={strings.search.replacePlaceholder}
+        aria-label={strings.search.replacePlaceholder}
+        aria-invalid={replacementInvalid}
+        oninput={handleReplacementInput}
+        onkeydown={handleReplacementKeydown}
+      />
+      <button
+        type="button"
+        class="search-action-btn"
+        disabled={!canReplace || replacementInvalid}
+        onclick={onReplace}
+      >
+        {strings.search.replace}
+      </button>
+      <button
+        type="button"
+        class="search-action-btn"
+        disabled={!canReplace || replacementInvalid}
+        onclick={handleReplaceAllClick}
+      >
+        {strings.search.replaceAll}
+      </button>
+      {#if replaceSummary}
+        <span class="search-summary replace-summary" aria-live="polite">
+          {replaceSummary}
+        </span>
+      {/if}
+    </div>
+  {/if}
 </section>

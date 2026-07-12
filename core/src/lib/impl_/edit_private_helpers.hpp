@@ -110,6 +110,7 @@ namespace omega_edit::internal {
             if (!deleted_bytes_file_path.empty()) { omega_util_remove_file(deleted_bytes_file_path.c_str()); }
             return nullptr;
         }
+        if (omega_payload_compress_file_(&change_ptr->data) != 0) { return nullptr; }
         return change_ptr;
     }
 
@@ -215,6 +216,7 @@ namespace omega_edit::internal {
             if (!replaced_bytes_file_path.empty()) { omega_util_remove_file(replaced_bytes_file_path.c_str()); }
             return nullptr;
         }
+        if (replaced_length > 0 && omega_payload_compress_file_(&change_ptr->inverse_data) != 0) { return nullptr; }
         return change_ptr;
     }
 

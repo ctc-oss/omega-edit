@@ -1,12 +1,21 @@
+import type {
+  ChangeLogDocument,
+  ChangeLogEntry,
+  ChangeLogFingerprint,
+  ChangeLogInt64,
+} from '@omega-edit/client'
+
+export type {
+  ChangeLogDigest,
+  ChangeLogDocument,
+  ChangeLogEntry,
+  ChangeLogEntryKind,
+  ChangeLogFingerprint,
+  ChangeLogInt64,
+} from '@omega-edit/client'
+
 export type InputEncoding = 'utf8' | 'hex' | 'base64'
 export type PatchKind = 'insert' | 'overwrite' | 'delete' | 'replace'
-export type ChangeLogEntryKind =
-  | 'INSERT'
-  | 'DELETE'
-  | 'OVERWRITE'
-  | 'REPLACE'
-  | 'TRANSFORM'
-export type ChangeLogInt64 = number | string | bigint
 
 export interface ToolkitOptions {
   host?: string
@@ -136,38 +145,6 @@ export interface AssistantSessionContext {
   commands: AssistantCommandSurfaceEntry[]
 }
 
-export interface ChangeLogEntry {
-  serial?: ChangeLogInt64
-  kind: ChangeLogEntryKind
-  offset: ChangeLogInt64
-  length: ChangeLogInt64
-  data: string
-  groupId?: string
-}
-
-export interface ChangeLogDigest {
-  algorithm: string
-  value: string
-}
-
-export interface ChangeLogFingerprint {
-  byteLength: ChangeLogInt64
-  digest: ChangeLogDigest
-}
-
-export interface ChangeLogDocument {
-  format: 'omega-edit.change-log'
-  version: 2
-  complete: boolean
-  before: ChangeLogFingerprint
-  after: ChangeLogFingerprint
-  changeCount: ChangeLogInt64
-  sourceChangeCount: ChangeLogInt64
-  unavailableChangeCount: ChangeLogInt64
-  unavailableChangeSerials: ChangeLogInt64[]
-  changes: ChangeLogEntry[]
-}
-
 export interface ChangeLogResult {
   sessionId: string
   format: 'omega-edit.change-log'
@@ -250,6 +227,7 @@ export interface PreviewChangeLogRequest {
   sessionId: string
   changes?: ChangeLogDocument
   inputPath?: string
+  signal?: CancellationSignal
 }
 
 export interface ApplyChangeLogRequest {
@@ -257,6 +235,7 @@ export interface ApplyChangeLogRequest {
   changes?: ChangeLogDocument
   inputPath?: string
   dryRun?: boolean
+  signal?: CancellationSignal
 }
 
 export interface ApplyChangeLogResult {

@@ -168,7 +168,21 @@ namespace {
     auto atomic_replace_file_(const char *from_path, const char *to_path) -> bool {
         if (!from_path || !*from_path || !to_path || !*to_path) { return false; }
 #ifdef OMEGA_BUILD_WINDOWS
-        return MoveFileExA(from_path, to_path, MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH) != 0;
+        constexpr DWORD retry_delay_ms = 25;
+        constexpr int max_attempts = 40;
+        DWORD last_error = ERROR_SUCCESS;
+        for (int attempt = 0; attempt < max_attempts; ++attempt) {
+            if (MoveFileExA(from_path, to_path, MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH) != 0) {
+                return true;
+            }
+            last_error = GetLastError();
+            const auto transient_error = last_error == ERROR_ACCESS_DENIED || last_error == ERROR_SHARING_VIOLATION ||
+                                         last_error == ERROR_LOCK_VIOLATION;
+            if (!transient_error || attempt + 1 == max_attempts) { break; }
+            Sleep(retry_delay_ms);
+        }
+        SetLastError(last_error);
+        return false;
 #else
         return rename(from_path, to_path) == 0;
 #endif

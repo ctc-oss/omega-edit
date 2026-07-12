@@ -806,6 +806,60 @@ suite('OmegaEdit VS Code extension', () => {
     assert.ok(activeTab, 'Expected the OmegaEdit custom editor tab to open')
   })
 
+  test('creates a checkpoint after real VS Code Auto Save', async () => {
+    const tmpDir = await fs.mkdtemp(
+      path.join(os.tmpdir(), 'omega-edit-vscode-auto-save-')
+    )
+    const filePath = path.join(tmpDir, 'auto-save.bin')
+    await fs.writeFile(filePath, Buffer.from('abc', 'utf8'))
+    const uri = vscode.Uri.file(filePath)
+    const files = vscode.workspace.getConfiguration('files')
+    const previousAutoSave = files.inspect('autoSave')?.globalValue
+    const previousDelay = files.inspect('autoSaveDelay')?.globalValue
+
+    try {
+      await files.update(
+        'autoSave',
+        'afterDelay',
+        vscode.ConfigurationTarget.Global
+      )
+      await files.update('autoSaveDelay', 50, vscode.ConfigurationTarget.Global)
+      await vscode.commands.executeCommand(
+        'vscode.openWith',
+        uri,
+        OMEGA_EDIT_VIEW_TYPE
+      )
+      const provider = getHexEditorProviderForTesting()
+      assert.ok(provider, 'Expected the activated provider for Auto Save')
+      const session = await waitForSession(provider, uri)
+      assert.ok(session, 'Expected the Auto Save session to be ready')
+
+      await provider.dispatchWebviewMessageForTesting(uri, {
+        type: 'overwrite',
+        offset: 0,
+        data: Buffer.from('X', 'utf8').toString('hex'),
+      })
+      await waitForFileText(filePath, 'Xbc')
+      const checkpoint = await provider.createCheckpoint({ uri })
+      assert.ok(checkpoint)
+      assert.equal(checkpoint.checkpointCount, 1)
+      assert.equal(session.checkpointTimeline.entries.length, 1)
+    } finally {
+      await vscode.commands.executeCommand('workbench.action.closeActiveEditor')
+      await files.update(
+        'autoSave',
+        previousAutoSave,
+        vscode.ConfigurationTarget.Global
+      )
+      await files.update(
+        'autoSaveDelay',
+        previousDelay,
+        vscode.ConfigurationTarget.Global
+      )
+      await fs.rm(tmpDir, { recursive: true, force: true })
+    }
+  })
+
   test('exports and applies a JSON change log that reproduces the saved file', async () => {
     const tmpDir = await fs.mkdtemp(
       path.join(os.tmpdir(), 'omega-edit-vscode-')
@@ -1166,6 +1220,293 @@ suite('OmegaEdit VS Code extension', () => {
     assert.equal(restored.checkpointCount, 1)
     assert.equal(restored.discardedChangeCount, 1)
     await assertSessionText(session.sessionId, 'aZcdef')
+
+    await panel.fireDidDispose()
+    await fs.rm(tmpDir, { recursive: true, force: true })
+  })
+
+  test('preserves saved checkpoint history across navigation and branching', async () => {
+    const tmpDir = await fs.mkdtemp(
+      path.join(os.tmpdir(), 'omega-edit-vscode-checkpoint-timeline-')
+    )
+    const samplePath = path.join(tmpDir, 'timeline.bin')
+    await fs.writeFile(samplePath, Buffer.from('abc', 'utf8'))
+
+    const provider = new HexEditorProvider({ subscriptions: [] }, testPort)
+    const panel = createMockWebviewPanel()
+    const document = await provider.openCustomDocument(
+      vscode.Uri.file(samplePath),
+      { backupId: undefined, untitledDocumentData: undefined },
+      new vscode.CancellationTokenSource().token
+    )
+    await provider.resolveCustomEditor(
+      document,
+      panel,
+      new vscode.CancellationTokenSource().token
+    )
+
+    const session = provider.getSessionForTesting(document.uri)
+    assert.ok(session, 'Expected a session for checkpoint timeline navigation')
+
+    await provider.dispatchWebviewMessageForTesting(document.uri, {
+      type: 'overwrite',
+      offset: 0,
+      data: Buffer.from('X', 'utf8').toString('hex'),
+    })
+    await provider.saveCustomDocument(
+      document,
+      new vscode.CancellationTokenSource().token
+    )
+    assert.equal(await fs.readFile(samplePath, 'utf8'), 'Xbc')
+    assert.equal(
+      (await provider.createCheckpoint({ uri: document.uri }))?.checkpointCount,
+      1
+    )
+    assert.equal(
+      lastMessageOfType(panel.messages, 'checkpointTimeline').savedCheckpoint,
+      1
+    )
+
+    await provider.dispatchWebviewMessageForTesting(document.uri, {
+      type: 'insert',
+      offset: 3,
+      data: Buffer.from('1', 'utf8').toString('hex'),
+    })
+    await provider.saveCustomDocument(
+      document,
+      new vscode.CancellationTokenSource().token
+    )
+    assert.equal(await fs.readFile(samplePath, 'utf8'), 'Xbc1')
+    assert.equal(
+      (await provider.createCheckpoint({ uri: document.uri }))?.checkpointCount,
+      2
+    )
+    assert.equal(
+      lastMessageOfType(panel.messages, 'checkpointTimeline').savedCheckpoint,
+      2
+    )
+    await assertSessionText(session.sessionId, 'Xbc1')
+
+    for (let cycle = 0; cycle < 3; cycle += 1) {
+      await provider.dispatchWebviewMessageForTesting(document.uri, {
+        type: 'navigateCheckpointTimeline',
+        checkpoint: 1,
+      })
+      await assertSessionText(session.sessionId, 'Xbc')
+
+      await provider.dispatchWebviewMessageForTesting(document.uri, {
+        type: 'undo',
+      })
+      await assertSessionText(session.sessionId, 'abc')
+      await provider.dispatchWebviewMessageForTesting(document.uri, {
+        type: 'redo',
+      })
+      await assertSessionText(session.sessionId, 'Xbc')
+
+      await provider.dispatchWebviewMessageForTesting(document.uri, {
+        type: 'navigateCheckpointTimeline',
+        checkpoint: 2,
+      })
+      await assertSessionText(session.sessionId, 'Xbc1')
+    }
+
+    await provider.dispatchWebviewMessageForTesting(document.uri, {
+      type: 'navigateCheckpointTimeline',
+      checkpoint: 0,
+    })
+    await assertSessionText(session.sessionId, 'abc')
+    await provider.dispatchWebviewMessageForTesting(document.uri, {
+      type: 'navigateCheckpointTimeline',
+      checkpoint: 2,
+    })
+    await assertSessionText(session.sessionId, 'Xbc1')
+
+    await provider.dispatchWebviewMessageForTesting(document.uri, {
+      type: 'insert',
+      offset: 4,
+      data: Buffer.from('!', 'utf8').toString('hex'),
+    })
+    await assertSessionText(session.sessionId, 'Xbc1!')
+    await provider.dispatchWebviewMessageForTesting(document.uri, {
+      type: 'navigateCheckpointTimeline',
+      checkpoint: 0,
+    })
+    await assertSessionText(session.sessionId, 'abc')
+    assert.equal(session.checkpointTimeline.entries.length, 3)
+    assert.equal(
+      lastMessageOfType(panel.messages, 'checkpointTimeline').checkpoints
+        .length,
+      2
+    )
+    await provider.dispatchWebviewMessageForTesting(document.uri, {
+      type: 'navigateCheckpointTimeline',
+      checkpoint: 3,
+    })
+    await assertSessionText(session.sessionId, 'Xbc1!')
+    await provider.dispatchWebviewMessageForTesting(document.uri, {
+      type: 'navigateCheckpointTimeline',
+      checkpoint: 2,
+    })
+    await assertSessionText(session.sessionId, 'Xbc1')
+    await provider.dispatchWebviewMessageForTesting(document.uri, {
+      type: 'overwrite',
+      offset: 3,
+      data: Buffer.from('2', 'utf8').toString('hex'),
+    })
+    await assertSessionText(session.sessionId, 'Xbc2')
+    assert.equal(session.checkpointTimeline.entries.length, 2)
+
+    await provider.dispatchWebviewMessageForTesting(document.uri, {
+      type: 'navigateCheckpointTimeline',
+      checkpoint: 1,
+    })
+    assert.equal(lastMessageOfType(panel.messages, 'editState').isDirty, true)
+    await provider.dispatchWebviewMessageForTesting(document.uri, {
+      type: 'replace',
+      offset: 0,
+      length: 1,
+      data: Buffer.from('X', 'utf8').toString('hex'),
+    })
+    await provider.dispatchWebviewMessageForTesting(document.uri, {
+      type: 'navigateCheckpointTimeline',
+      checkpoint: 2,
+    })
+    await assertSessionText(session.sessionId, 'Xbc1')
+    assert.equal(lastMessageOfType(panel.messages, 'editState').isDirty, false)
+    await provider.dispatchWebviewMessageForTesting(document.uri, {
+      type: 'navigateCheckpointTimeline',
+      checkpoint: 1,
+    })
+    const abandonedArchiveFile =
+      session.checkpointTimeline.entries[1].interval.archive.file
+    await provider.dispatchWebviewMessageForTesting(document.uri, {
+      type: 'overwrite',
+      offset: 1,
+      data: Buffer.from('Y', 'utf8').toString('hex'),
+    })
+    assert.equal(session.checkpointTimeline.entries.length, 1)
+    assert.equal(session.checkpointTimeline.storage.manifest.tip, 1)
+    await assert.rejects(
+      fs.stat(
+        path.join(
+          session.checkpointTimeline.storage.root,
+          'intervals',
+          abandonedArchiveFile
+        )
+      ),
+      { code: 'ENOENT' }
+    )
+    assert.equal(
+      (await provider.createCheckpoint({ uri: document.uri }))?.checkpointCount,
+      2
+    )
+    await assertSessionText(session.sessionId, 'XYc')
+
+    await provider.dispatchWebviewMessageForTesting(document.uri, {
+      type: 'navigateCheckpointTimeline',
+      checkpoint: 1,
+    })
+    await provider.dispatchWebviewMessageForTesting(document.uri, {
+      type: 'navigateCheckpointTimeline',
+      checkpoint: 2,
+    })
+    await assertSessionText(session.sessionId, 'XYc')
+
+    const secondInterval = session.checkpointTimeline.entries[1].interval
+    assert.ok(secondInterval.archive)
+    await fs.appendFile(
+      path.join(
+        session.checkpointTimeline.storage.root,
+        'intervals',
+        secondInterval.archive.file
+      ),
+      'corrupt'
+    )
+    await provider.navigateToCheckpoint(session, 1)
+    await assertSessionText(session.sessionId, 'Xbc')
+    await assert.rejects(
+      provider.navigateToCheckpoint(session, 2),
+      /archive length changed.*restored checkpoint 1/
+    )
+    await assertSessionText(session.sessionId, 'Xbc')
+    const unavailableTimeline = lastMessageOfType(
+      panel.messages,
+      'checkpointTimeline'
+    )
+    assert.equal(unavailableTimeline.cursor, 1)
+    assert.equal(unavailableTimeline.canRewind, true)
+    assert.equal(unavailableTimeline.canFastForward, false)
+    assert.equal(unavailableTimeline.checkpoints[1].available, false)
+
+    await provider.navigateToCheckpoint(session, 0)
+    await assertSessionText(session.sessionId, 'abc')
+
+    await panel.fireDidDispose()
+    await fs.rm(tmpDir, { recursive: true, force: true })
+  })
+
+  test('rewinds two delete checkpoints without replaying an archive', async () => {
+    const tmpDir = await fs.mkdtemp(
+      path.join(os.tmpdir(), 'omega-edit-vscode-delete-checkpoints-')
+    )
+    const samplePath = path.join(tmpDir, 'delete-checkpoints.bin')
+    await fs.writeFile(samplePath, Buffer.from('abcdefghij', 'utf8'))
+
+    const provider = new HexEditorProvider({ subscriptions: [] }, testPort)
+    const panel = createMockWebviewPanel()
+    const document = await provider.openCustomDocument(
+      vscode.Uri.file(samplePath),
+      { backupId: undefined, untitledDocumentData: undefined },
+      new vscode.CancellationTokenSource().token
+    )
+    await provider.resolveCustomEditor(
+      document,
+      panel,
+      new vscode.CancellationTokenSource().token
+    )
+    const session = provider.getSessionForTesting(document.uri)
+    assert.ok(session)
+
+    await provider.dispatchWebviewMessageForTesting(document.uri, {
+      type: 'delete',
+      offset: 2,
+      length: 2,
+    })
+    assert.equal(
+      (await provider.createCheckpoint({ uri: document.uri }))?.checkpointCount,
+      1
+    )
+    await assertSessionText(session.sessionId, 'abefghij')
+
+    await provider.dispatchWebviewMessageForTesting(document.uri, {
+      type: 'delete',
+      offset: 4,
+      length: 2,
+    })
+    assert.equal(
+      (await provider.createCheckpoint({ uri: document.uri }))?.checkpointCount,
+      2
+    )
+    await assertSessionText(session.sessionId, 'abefij')
+    assert.equal(session.checkpointTimeline.cursor, 2)
+
+    // Rewind is native-only and must remain available even if replay storage
+    // is unavailable or damaged.
+    const timelineStorage = session.checkpointTimeline.storage
+    session.checkpointTimeline.storage = undefined
+    await provider.navigateToCheckpoint(session, 1)
+    await assertSessionText(session.sessionId, 'abefghij')
+    assert.equal(session.checkpointTimeline.cursor, 1)
+    session.checkpointTimeline.storage = timelineStorage
+
+    for (let cycle = 0; cycle < 3; cycle += 1) {
+      await provider.navigateToCheckpoint(session, 0)
+      await assertSessionText(session.sessionId, 'abcdefghij')
+      await provider.navigateToCheckpoint(session, 1)
+      await assertSessionText(session.sessionId, 'abefghij')
+      await provider.navigateToCheckpoint(session, 2)
+      await assertSessionText(session.sessionId, 'abefij')
+    }
 
     await panel.fireDidDispose()
     await fs.rm(tmpDir, { recursive: true, force: true })
@@ -2309,6 +2650,10 @@ suite('OmegaEdit VS Code extension', () => {
       data: Buffer.from('PDF', 'utf8').toString('hex'),
     })
     await assertSessionText(session.sessionId, replaced)
+    assert.equal(
+      lastMessageOfType(panel.messages, 'checkpointTimeline').checkpointCount,
+      1
+    )
 
     let editState = lastMessageOfType(panel.messages, 'editState')
     assert.deepEqual(editState, {
@@ -2386,6 +2731,11 @@ suite('OmegaEdit VS Code extension', () => {
       isDirty: false,
       savedChangeDepth: 2,
     })
+
+    await provider.navigateToCheckpoint(session, 0)
+    await assertSessionText(session.sessionId, original)
+    await provider.navigateToCheckpoint(session, 1)
+    await assertSessionText(session.sessionId, replaced)
 
     await panel.fireDidDispose()
     await fs.rm(tmpDir, { recursive: true, force: true })
@@ -2555,6 +2905,21 @@ async function waitForSession(
   }
 
   return undefined
+}
+
+async function waitForFileText(filePath, expected, timeoutMs = 10000) {
+  const deadline = Date.now() + timeoutMs
+  while (Date.now() < deadline) {
+    if (
+      (await fs.readFile(filePath, 'utf8').catch(() => undefined)) === expected
+    ) {
+      return
+    }
+    await delay(25)
+  }
+  assert.fail(
+    `Timed out waiting for ${path.basename(filePath)} to contain Auto Save output`
+  )
 }
 
 async function assertSessionText(

@@ -11,6 +11,7 @@ class OmegaEditTransformPluginsConan(ConanFile):
         self.requires("openssl/3.3.2")
         self.requires("protobuf/5.27.0")
         self.requires("zlib/1.3.1")
+        self.requires("zstd/1.5.6")
         if self.settings.os != "Windows":
             self.requires("libmagic/5.45")
 

@@ -373,8 +373,8 @@ button:focus-visible {
 
 .direction-toggle {
   flex: 0 0 auto;
-  inline-size: 30px;
-  min-width: 30px;
+  inline-size: auto;
+  min-width: 54px;
   height: 26px;
   padding: 0;
   color: var(--vscode-descriptionForeground);
@@ -408,46 +408,27 @@ button:focus-visible {
 
 .search-panel {
   display: grid;
-  grid-template-areas:
-    "fields actions"
-    "replace replace";
-  grid-template-columns: minmax(0, 1fr) auto;
-  align-items: center;
-  justify-content: space-between;
-  gap: 6px 8px;
+  grid-template-columns: 28px minmax(0, 1fr);
+  grid-template-rows: auto auto;
+  gap: 0;
   min-width: 0;
-  min-height: 38px;
-  padding: 6px 8px;
   border-bottom: 1px solid var(--vscode-editorGroup-border);
   background: var(--vscode-editor-background);
 }
 
-.search-fields,
-.search-actions,
-.replace-fields {
+.search-row {
   display: flex;
+  grid-column: 2;
   align-items: center;
-  gap: 6px;
+  gap: 4px;
   min-width: 0;
-}
-
-.search-fields {
-  grid-area: fields;
-  flex: 1 1 auto;
-}
-
-.search-actions {
-  grid-area: actions;
-  flex: 0 0 auto;
-}
-
-.replace-fields {
-  grid-area: replace;
+  min-height: 32px;
+  padding: 4px 8px 4px 0;
 }
 
 .search-input {
-  flex: 1 1 22ch;
-  min-width: 12ch;
+  flex: 1 1 auto;
+  min-width: 8ch;
   height: 26px;
   padding: 3px 7px;
   border: 1px solid var(--vscode-input-border, var(--vscode-editorGroup-border));
@@ -466,50 +447,228 @@ button:focus-visible {
   border-color: var(--vscode-inputValidation-errorBorder);
 }
 
-.check-control {
+.search-query-field {
+  display: flex;
+  align-items: center;
+  flex: 1 1 auto;
+  min-width: 8ch;
+  height: 26px;
+  border: 1px solid var(--vscode-input-border, var(--vscode-editorGroup-border));
+  border-radius: 2px;
+  background: var(--vscode-input-background);
+}
+
+.search-query-field:focus-within {
+  outline: 1px solid var(--vscode-focusBorder);
+  outline-offset: -1px;
+}
+
+.search-query-field.invalid {
+  border-color: var(--vscode-inputValidation-errorBorder);
+}
+
+.search-query-input {
+  min-width: 0;
+  height: 24px;
+  border: 0;
+  border-radius: 0;
+  outline: 0;
+}
+
+.search-query-input:focus,
+.search-query-input[aria-invalid='true'] {
+  border: 0;
+  outline: 0;
+}
+
+.search-query-modifiers {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
-  min-height: 26px;
-  color: var(--vscode-foreground);
-  white-space: nowrap;
+  flex: 0 0 auto;
+  gap: 1px;
+  padding-right: 2px;
 }
 
-.check-control.disabled {
-  color: var(--vscode-disabledForeground);
-}
-
-.direction-select {
-  height: 26px;
-  min-width: 9ch;
-  border: 1px solid var(--vscode-dropdown-border, var(--vscode-editorGroup-border));
+.search-input-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 22px;
+  height: 20px;
+  padding: 0 3px;
+  border: 0;
   border-radius: 2px;
-  color: var(--vscode-dropdown-foreground);
-  background: var(--vscode-dropdown-background);
+  color: var(--vscode-descriptionForeground);
+  background: transparent;
   font: inherit;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1;
 }
 
-.secondary {
+.search-input-toggle:hover:not(:disabled) {
   color: var(--vscode-foreground);
-  background: var(--vscode-button-secondaryBackground);
-  border-color: var(--vscode-button-border, transparent);
+  background: var(--vscode-toolbar-hoverBackground, var(--vscode-list-hoverBackground));
 }
 
-.secondary:hover:not(:disabled) {
-  background: var(--vscode-button-secondaryHoverBackground);
+.search-input-toggle.active {
+  color: var(--vscode-inputOption-activeForeground, var(--vscode-foreground));
+  background: var(--vscode-inputOption-activeBackground, var(--vscode-button-background));
+  outline: 1px solid var(--vscode-inputOption-activeBorder, var(--vscode-focusBorder));
+  outline-offset: -1px;
+}
+
+.search-input-toggle:disabled,
+.search-input-toggle.disabled {
+  opacity: 0.4;
+}
+
+.search-disclosure {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  width: 20px;
+  min-width: 20px;
+  height: 24px;
+  padding: 0;
+  border: 0;
+  border-radius: 2px;
+  color: var(--vscode-descriptionForeground);
+  background: transparent;
+  font-size: 10px;
+  line-height: 1;
+  grid-column: 1;
+  grid-row: 1;
+  align-self: start;
+  justify-self: center;
+  margin-top: 5px;
+}
+
+.search-disclosure.expanded {
+  grid-row: 1 / span 2;
+}
+
+.search-disclosure:hover {
+  color: var(--vscode-foreground);
+  background: var(--vscode-toolbar-hoverBackground, var(--vscode-list-hoverBackground));
+}
+
+.search-disclosure:focus-visible {
+  outline: 1px solid var(--vscode-focusBorder);
+  outline-offset: 1px;
+}
+
+.search-nav {
+  display: inline-flex;
+  align-items: center;
+  gap: 0;
+  flex: 0 0 auto;
+}
+
+.search-nav-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  min-width: 24px;
+  height: 26px;
+  padding: 0;
+  border: 1px solid var(--vscode-input-border, var(--vscode-editorGroup-border));
+  border-radius: 0;
+  color: var(--vscode-descriptionForeground);
+  background: var(--vscode-input-background);
+  font-size: 10px;
+  line-height: 1;
+}
+
+.search-nav-btn:first-child {
+  border-radius: 2px 0 0 2px;
+}
+
+.search-nav-btn:last-child {
+  border-radius: 0 2px 2px 0;
+  border-left: 0;
+}
+
+.search-nav-btn:hover:not(:disabled) {
+  background: var(--vscode-toolbar-hoverBackground, var(--vscode-list-hoverBackground));
+}
+
+.search-nav-btn:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.panel-close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  width: 24px;
+  min-width: 24px;
+  height: 24px;
+  min-height: 24px;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: 2px;
+  color: var(--vscode-descriptionForeground);
+  background: transparent;
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.panel-close:hover:not(:disabled) {
+  color: var(--vscode-foreground);
+  background: var(--vscode-toolbar-hoverBackground, var(--vscode-list-hoverBackground));
+}
+
+.panel-close:focus-visible {
+  outline: 1px solid var(--vscode-focusBorder);
+  outline-offset: 2px;
 }
 
 .search-summary {
-  min-width: 11ch;
-  max-width: 30ch;
+  flex: 0 1 auto;
+  min-width: 6ch;
+  max-width: 28ch;
   overflow: hidden;
   color: var(--vscode-descriptionForeground);
+  font-size: 11px;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
+.search-action-btn {
+  display: inline-flex;
+  align-items: center;
+  flex: 0 0 auto;
+  height: 26px;
+  padding: 0 10px;
+  border: 1px solid var(--vscode-button-border, transparent);
+  border-radius: 2px;
+  color: var(--vscode-button-foreground);
+  background: var(--vscode-button-background);
+  font: inherit;
+  white-space: nowrap;
+}
+
+.search-action-btn:hover:not(:disabled) {
+  background: var(--vscode-button-hoverBackground);
+}
+
+.search-action-btn:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.replace-row {
+  grid-row: 2;
+}
+
 .replace-input {
-  flex: 1 1 28ch;
+  flex: 1 1 auto;
 }
 
 .replace-summary {
@@ -1091,11 +1250,6 @@ button.dialog-backdrop:focus-visible {
   gap: 6px;
 }
 
-.transform-result-close {
-  min-width: 0;
-  padding: 2px 8px;
-}
-
 .transform-result-meta {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, auto) minmax(0, 1fr));
@@ -1152,10 +1306,18 @@ button.dialog-backdrop:focus-visible {
   overflow: hidden;
 }
 
+.editor-workspace-shell {
+  display: grid;
+  grid-template-rows: minmax(0, 1fr);
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+
 .editor-grid-shell {
   position: relative;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 14px;
+  grid-template-columns: minmax(0, 1fr) 18px;
   min-width: 0;
   min-height: 0;
   overflow: hidden;
@@ -1261,8 +1423,8 @@ button.dialog-backdrop:focus-visible {
 }
 
 .file-scrollbar {
-  width: 14px;
-  min-width: 14px;
+  width: 18px;
+  min-width: 18px;
   min-height: 0;
   padding: 2px 2px 2px 0;
   border-left: 1px solid var(--vscode-editorGroup-border);
@@ -2442,6 +2604,14 @@ button.dialog-backdrop:focus-visible {
   background: var(--vscode-editor-findMatchHighlightBackground);
 }
 
+.byte.searchCurrentMatch,
+.text-byte.searchCurrentMatch {
+  border-color: var(--vscode-editor-findMatchBorder, var(--vscode-focusBorder));
+  background: var(--vscode-editor-findMatchBackground, var(--vscode-editor-findMatchHighlightBackground));
+  box-shadow: inset 0 0 0 1px var(--vscode-editor-findMatchBorder, var(--vscode-focusBorder));
+  z-index: 4;
+}
+
 .byte.inspectorRange,
 .text-byte.inspectorRange {
   border-color: var(--vscode-editorInfo-foreground, var(--vscode-focusBorder));
@@ -2767,16 +2937,13 @@ button.dialog-backdrop:focus-visible {
 
 .byte.selected:hover,
 .text-byte.selected:hover {
-  color: #111827;
-  background: var(--vscode-terminal-ansiYellow, #f59e0b);
-  border-color: var(--vscode-terminal-ansiYellow, #f59e0b);
-}
-
-body.vscode-light .byte.selected:hover,
-body.vscode-light .text-byte.selected:hover {
-  color: #ffffff;
-  background: var(--vscode-terminal-ansiRed, #a31515);
-  border-color: var(--vscode-terminal-ansiRed, #a31515);
+  color: var(--vscode-editor-selectionForeground, var(--vscode-editor-foreground));
+  background: color-mix(
+    in srgb,
+    var(--vscode-editor-selectionBackground) 78%,
+    var(--vscode-list-hoverBackground) 22%
+  );
+  border-color: var(--vscode-focusBorder);
 }
 
 body.vscode-high-contrast .byte.selected:hover,
@@ -2947,13 +3114,62 @@ body.vscode-high-contrast-light .text-byte.selected:hover {
   white-space: nowrap;
 }
 
+.inspector-group {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.inspector-group + .inspector-group {
+  margin-top: 4px;
+  padding-top: 4px;
+  border-top: 1px solid var(--vscode-editorGroup-border);
+}
+
+.inspector-group-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 22px;
+  padding: 1px 0;
+  border: 0;
+  color: var(--vscode-descriptionForeground);
+  background: transparent;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.inspector-group-toggle:hover {
+  color: var(--vscode-foreground);
+  background: var(--vscode-list-hoverBackground);
+}
+
+.inspector-group-toggle:focus-visible {
+  outline: 1px solid var(--vscode-focusBorder);
+  outline-offset: 2px;
+}
+
+.inspector-group-chevron {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 12px;
+  font-size: 9px;
+}
+
+.inspector-group-label {
+  min-width: 0;
+}
+
 .inspector-values {
   display: grid;
-  grid-column: 1 / -1;
-  grid-template-columns: repeat(7, minmax(8ch, 1fr));
-  gap: 8px;
+  grid-template-columns: repeat(4, minmax(8ch, 1fr));
+  gap: 6px;
   min-width: 0;
   margin: 0;
+  padding: 2px 0;
 }
 
 .inspector-values div {
@@ -3044,9 +3260,17 @@ body.vscode-high-contrast-light .text-byte.selected:hover {
     flex: 1 0 100%;
     justify-content: flex-start;
   }
+}
 
+@media (max-width: 800px) {
   .inspector-values {
-    grid-template-columns: repeat(4, minmax(8ch, 1fr));
+    grid-template-columns: repeat(3, minmax(8ch, 1fr));
+  }
+}
+
+@media (max-width: 660px) {
+  .inspector-values {
+    grid-template-columns: repeat(2, minmax(8ch, 1fr));
   }
 }
 
@@ -3057,22 +3281,16 @@ body.vscode-high-contrast-light .text-byte.selected:hover {
   }
 
   .search-panel {
-    align-items: stretch;
-    grid-template-areas:
-      "fields"
-      "actions"
-      "replace";
-    grid-template-columns: 1fr;
+    grid-template-columns: 28px minmax(0, 1fr);
   }
 
-  .search-fields,
-  .search-actions,
-  .replace-fields {
+  .search-row {
     flex-wrap: wrap;
     width: 100%;
   }
 
-  .search-input {
+  .search-query-field,
+  .replace-input {
     flex-basis: 100%;
   }
 
@@ -3133,5 +3351,23 @@ body.vscode-high-contrast-light .text-byte.selected:hover {
 @media (max-width: 320px) {
   .inspector-values {
     grid-template-columns: minmax(7ch, 1fr);
+  }
+}
+
+@media (forced-colors: active) {
+  .byte.selected,
+  .text-byte.selected,
+  .byte.selected:hover,
+  .text-byte.selected:hover {
+    border-color: Highlight;
+    color: HighlightText;
+    background: Highlight;
+    forced-color-adjust: none;
+  }
+
+  .byte:focus-visible,
+  .text-byte:focus-visible,
+  .toolbar button:focus-visible {
+    outline-color: Highlight;
   }
 }

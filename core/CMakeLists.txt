@@ -56,6 +56,35 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED True)
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 
+find_package(zstd CONFIG QUIET)
+if (TARGET zstd::libzstd_shared)
+    set(OMEGA_EDIT_ZSTD_TARGET zstd::libzstd_shared)
+elseif (TARGET zstd::libzstd_static)
+    set(OMEGA_EDIT_ZSTD_TARGET zstd::libzstd_static)
+elseif (TARGET zstd::libzstd)
+    set(OMEGA_EDIT_ZSTD_TARGET zstd::libzstd)
+else ()
+    include(FetchContent)
+    set(OMEGA_EDIT_ORIGINAL_BUILD_SHARED_LIBS ${BUILD_SHARED_LIBS})
+    set(BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
+    set(ZSTD_BUILD_PROGRAMS OFF CACHE BOOL "" FORCE)
+    set(ZSTD_BUILD_SHARED OFF CACHE BOOL "" FORCE)
+    set(ZSTD_BUILD_STATIC ON CACHE BOOL "" FORCE)
+    set(ZSTD_BUILD_TESTS OFF CACHE BOOL "" FORCE)
+    set(ZSTD_LEGACY_SUPPORT OFF CACHE BOOL "" FORCE)
+    set(ZSTD_MULTITHREAD_SUPPORT OFF CACHE BOOL "" FORCE)
+    FetchContent_Declare(
+            zstd
+            GIT_SHALLOW TRUE
+            GIT_REPOSITORY https://github.com/facebook/zstd.git
+            GIT_TAG f8745da6ff1ad1e7bab384bd1f9d742439278e99 # v1.5.7
+            SOURCE_SUBDIR build/cmake
+    )
+    FetchContent_MakeAvailable(zstd)
+    set(BUILD_SHARED_LIBS ${OMEGA_EDIT_ORIGINAL_BUILD_SHARED_LIBS} CACHE BOOL "" FORCE)
+    set(OMEGA_EDIT_ZSTD_TARGET libzstd_static)
+endif ()
+
 if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU" AND NOT MINGW)
     set(FILESYSTEM_LIB stdc++fs)
 endif ()
@@ -80,7 +109,7 @@ set_target_properties(omega_edit PROPERTIES VERSION ${PROJECT_VERSION} SOVERSION
 target_include_directories(omega_edit PUBLIC "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src/include>")
 target_compile_definitions(omega_edit PUBLIC "$<$<NOT:$<BOOL:${BUILD_SHARED_LIBS}>>:OMEGA_EDIT_STATIC_DEFINE>")
 target_compile_definitions(omega_edit PRIVATE "$<$<CONFIG:Debug>:DEBUG>")
-target_link_libraries(omega_edit PRIVATE ${FILESYSTEM_LIB})
+target_link_libraries(omega_edit PRIVATE ${FILESYSTEM_LIB} ${OMEGA_EDIT_ZSTD_TARGET})
 
 # Version definitions
 string(TOUPPER "${PROJECT_NAME}" PREFIX)

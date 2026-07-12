@@ -350,6 +350,7 @@ function buildTools(toolkit: OmegaEditToolkit): ToolDefinition[] {
           sessionId: { type: 'string' },
           outputPath: { type: 'string' },
           overwriteExisting: { type: 'boolean' },
+          optimize: { type: 'boolean' },
         },
         required: ['sessionId'],
       },
@@ -357,7 +358,8 @@ function buildTools(toolkit: OmegaEditToolkit): ToolDefinition[] {
         return await toolkit.exportChangeLog(
           getString(argumentsObject, 'sessionId', true)!,
           getString(argumentsObject, 'outputPath'),
-          getBoolean(argumentsObject, 'overwriteExisting') || false
+          getBoolean(argumentsObject, 'overwriteExisting') || false,
+          getBoolean(argumentsObject, 'optimize') || false
         )
       },
     },

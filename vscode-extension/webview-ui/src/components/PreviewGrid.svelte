@@ -33,6 +33,7 @@
     searchEnd?: number
     searchMatches?: number[]
     searchLength?: number
+    searchCurrentOffset?: number
     inspectorStart?: number
     inspectorEnd?: number
     externalHighlights?: WebviewExternalHighlight[]
@@ -40,6 +41,7 @@
     activePane?: 'hex' | 'ascii'
     editMode?: 'insert' | 'overwrite'
     readOnly?: boolean
+    busy?: boolean
     pendingHexLabel?: string
     onSelect: (offset: number, extend: boolean) => void
     onActivePaneChange: (pane: 'hex' | 'ascii') => void
@@ -70,6 +72,7 @@
     searchEnd = -1,
     searchMatches = [],
     searchLength = 0,
+    searchCurrentOffset = -1,
     inspectorStart = -1,
     inspectorEnd = -1,
     externalHighlights = [],
@@ -77,6 +80,7 @@
     activePane = 'hex',
     editMode = 'insert',
     readOnly = false,
+    busy = false,
     pendingHexLabel = '',
     onSelect,
     onActivePaneChange,
@@ -361,6 +365,11 @@
     )
   }
 
+  function isCurrentSearchMatch(byteOffset: number): boolean {
+    if (searchCurrentOffset < 0 || searchLength <= 0) return false
+    return byteOffset >= searchCurrentOffset && byteOffset < searchCurrentOffset + searchLength
+  }
+
   function isInspectorByte(byteOffset: number): boolean {
     return (
       inspectorStart >= 0 &&
@@ -470,6 +479,10 @@
     )
 
     switch (event.key) {
+      case 'Tab':
+        event.preventDefault()
+        onActivePaneChange(activePane === 'hex' ? 'ascii' : 'hex')
+        break
       case 'Insert':
         if (readOnly) {
           event.preventDefault()
@@ -635,13 +648,13 @@
       return
     }
 
+    const direction = event.deltaY < 0 ? 'up' : 'down'
+    const canScroll = direction === 'up' ? canScrollUp : canScrollDown
+    if (!canScroll) return
+
     event.preventDefault()
     event.stopPropagation()
-
-    const direction = event.deltaY < 0 ? 'up' : 'down'
-    if (direction === 'up' ? canScrollUp : canScrollDown) {
-      onScroll(direction)
-    }
+    onScroll(direction)
   }
 
   function reportVisibleRows(): void {
@@ -691,6 +704,7 @@
   class={`preview-grid bytes-${bytesPerRow}`}
   class:overwrite={editMode === 'overwrite'}
   role="grid"
+  aria-busy={busy}
   tabindex="0"
   aria-label={strings.grid.label}
   aria-colcount={1 + bytesPerRow * 2}
@@ -822,6 +836,7 @@
               class="byte"
               class:columnHover={isColumnHover(index)}
               class:searchHit={isSearchHit(byteOffset)}
+              class:searchCurrentMatch={isCurrentSearchMatch(byteOffset)}
               class:inspectorRange={isInspectorByte(byteOffset)}
               class:externalHighlight={!!externalHighlight}
               class:externalCurrent={externalKind === 'current'}
@@ -926,6 +941,7 @@
               class:high-bit={isHighBitByte(byte)}
               class:columnHover={isColumnHover(index)}
               class:searchHit={isSearchHit(byteOffset)}
+              class:searchCurrentMatch={isCurrentSearchMatch(byteOffset)}
               class:inspectorRange={isInspectorByte(byteOffset)}
               class:externalHighlight={!!externalHighlight}
               class:externalCurrent={externalKind === 'current'}

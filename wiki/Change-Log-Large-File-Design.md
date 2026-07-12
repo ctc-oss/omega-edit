@@ -3,6 +3,12 @@
 OmegaEdit change logs must not impose arbitrary caps that contradict the
 large-file editing model. The change-log boundary now follows these rules.
 
+This page covers persistence and transport boundaries. The semantic optimizer
+and its coordinate model are specified in
+[Change-Log Optimizer](Change-Log-Optimizer), while checkpoint replay and
+branching are specified in
+[Checkpoint Timeline Design](Checkpoint-Timeline-Design).
+
 ## Integer Fields
 
 Serialized `omega-edit.change-log` documents represent int64-sized fields as

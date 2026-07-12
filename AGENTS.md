@@ -220,3 +220,10 @@ Documentation is generated using:
 - C/C++ installation artifacts: `_install/` directory
 - TypeScript packages: `packages/*/dist/` directories
 - Documentation: `docs/` directory
+
+## Working Documents
+
+Keep development-only plans, backlogs, design drafts, and release evidence in
+`dev-notes/`, not at the repository root. Promote stable material to the
+appropriate user or maintainer documentation location when it becomes
+canonical.

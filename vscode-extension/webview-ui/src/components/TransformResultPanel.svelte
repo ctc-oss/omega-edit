@@ -51,12 +51,12 @@
       </button>
       <button
         type="button"
-        class="secondary transform-result-close"
+        class="panel-close"
         aria-label={strings.transform.dismissResult}
         title={strings.transform.dismissResult}
         onclick={onDismiss}
       >
-        {strings.transform.dismissResultSymbol}
+        &times;
       </button>
     </div>
   </div>

@@ -51,6 +51,7 @@
     searchEnd?: number
     searchMatches?: number[]
     searchLength?: number
+    searchCurrentOffset?: number
     inspectorStart?: number
     inspectorEnd?: number
     externalHighlights?: WebviewExternalHighlight[]
@@ -83,6 +84,7 @@
     editDisabled?: boolean
     readOnlyLabel?: string
     readOnlyTitle?: string
+    navigating?: boolean
     onSelect: (offset: number, extend: boolean) => void
     onSelectRangeMapNode: (node: WebviewRangeMapNode) => void
     onLoadRangeMap: () => void
@@ -126,6 +128,7 @@
     searchEnd = -1,
     searchMatches = [],
     searchLength = 0,
+    searchCurrentOffset = -1,
     inspectorStart = -1,
     inspectorEnd = -1,
     externalHighlights = [],
@@ -158,6 +161,7 @@
     editDisabled = false,
     readOnlyLabel = strings.grid.readOnly,
     readOnlyTitle = readOnlyLabel,
+    navigating = false,
     onSelect,
     onSelectRangeMapNode,
     onLoadRangeMap,
@@ -395,6 +399,7 @@
           searchEnd={searchEnd}
           {searchMatches}
           {searchLength}
+          {searchCurrentOffset}
           inspectorStart={inspectorStart}
           inspectorEnd={inspectorEnd}
           {externalHighlights}
@@ -411,6 +416,7 @@
           onTypeByte={onTypeByte}
           onDeleteByte={onDeleteByte}
           readOnly={editDisabled}
+          busy={navigating}
           onVisibleRowsChange={onVisibleRowsChange}
           onExternalHighlightHover={setHoveredExternalHighlightId}
           editMode={editMode}

@@ -48,6 +48,36 @@ before renaming the completed document into place. Exports include before/after
 content fingerprints, and OmegaEdit refuses to write or apply incomplete change
 logs when required change details are unavailable.
 
+## Checkpoint Timeline
+
+Run **OmegaEdit: Show Checkpoint Timeline** from the Command Palette or the
+editor title bar to reveal the checkpoint slider. The slider is keyboard
+accessible: focus it and use the arrow, Page Up/Page Down, Home, or End keys.
+The adjacent buttons move exactly one checkpoint at a time.
+
+- **Original** is the byte content from when the editor session opened. It is
+  checkpoint zero; it does not mean the file's current on-disk contents after
+  later saves.
+- **Last Saved** is tracked by a SHA-256 content fingerprint, so Save and Auto
+  Save do not erase checkpoint history. Creating a checkpoint immediately
+  after Auto Save is supported.
+- Moving away from the last-saved fingerprint makes the editor dirty. Returning
+  to the same fingerprint makes the timeline state clean again.
+- Rewinding and fast-forwarding do not create a branch. The first successful
+  byte-changing edit made while rewound removes the abandoned forward branch;
+  cancelled and no-op edits do not.
+- A red/unavailable marker means its durable replay archive failed validation
+  or requires a missing transform plugin. OmegaEdit disables unsafe movement
+  across that boundary and leaves the current bytes unchanged.
+
+Timeline archives are temporary and storage-backed; payloads are not retained
+in the extension host heap. The defaults are 1 GiB per editor session, 5 GiB
+across the history root, 1,000 checkpoints, and seven days for inaccessible
+crash diagnostics. Active history is never silently pruned to satisfy a quota:
+the checkpoint is marked unavailable and ordinary editing remains enabled.
+Cleanly closing an editor removes its ephemeral timeline storage because native
+checkpoint stacks do not survive the session.
+
 ## Client Helpers Used Here
 
 The example now leans on higher-level editor-facing helpers from `@omega-edit/client` instead of rolling its own integration glue:
@@ -140,7 +170,7 @@ This mode decision is made only when the user runs an explicit search. If a repl
 
 ## Testing
 
-The example is exercised in CI on Linux and Windows against both the declared VS Code floor and latest stable release.
+The example is exercised in CI on Linux, macOS, and Windows against both the declared VS Code floor and latest stable release.
 
 Useful local commands:
 

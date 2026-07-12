@@ -147,6 +147,10 @@ namespace omega_edit {
             grpc::Status GetLastUndo(grpc::ServerContext *context, const ::omega_edit::v1::GetLastUndoRequest *request,
                                      ::omega_edit::v1::GetLastUndoResponse *response) override;
 
+            grpc::Status
+            ExportChangeLog(grpc::ServerContext *context, const ::omega_edit::v1::ExportChangeLogRequest *request,
+                            grpc::ServerWriter<::omega_edit::v1::ExportChangeLogResponse> *writer) override;
+
             grpc::Status GetComputedFileSize(grpc::ServerContext *context,
                                              const ::omega_edit::v1::GetComputedFileSizeRequest *request,
                                              ::omega_edit::v1::GetComputedFileSizeResponse *response) override;

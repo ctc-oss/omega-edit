@@ -989,6 +989,223 @@ export interface TransformChangeDetails {
    */
   computedFileSizeAfter: number // Session size after the transform.
 }
+/**
+ * Inclusive active-serial range and resource limits for change-log export.
+ *
+ * @generated from protobuf message omega_edit.v1.ExportChangeLogRequest
+ */
+export interface ExportChangeLogRequest {
+  /**
+   * @generated from protobuf field: string session_id = 1
+   */
+  sessionId: string
+  /**
+   * @generated from protobuf field: bool optimize = 2
+   */
+  optimize: boolean
+  /**
+   * @generated from protobuf field: optional string first_change_serial_decimal = 3
+   */
+  firstChangeSerialDecimal?: string // Absent/"0" = serial 1.
+  /**
+   * @generated from protobuf field: optional string last_change_serial_decimal = 4
+   */
+  lastChangeSerialDecimal?: string // Absent/"0" = active tip.
+  /**
+   * @generated from protobuf field: optional string max_span_bytes_decimal = 5
+   */
+  maxSpanBytesDecimal?: string // Absent/"0" = 64 MiB.
+  /**
+   * @generated from protobuf field: optional string max_entries_decimal = 6
+   */
+  maxEntriesDecimal?: string // Absent/"0" = server cap.
+  /**
+   * @generated from protobuf field: optional string max_output_bytes_decimal = 7
+   */
+  maxOutputBytesDecimal?: string // Absent/"0" = server cap.
+}
+/**
+ * @generated from protobuf message omega_edit.v1.ChangeLogStreamFingerprint
+ */
+export interface ChangeLogStreamFingerprint {
+  /**
+   * @generated from protobuf field: string byte_length_decimal = 1
+   */
+  byteLengthDecimal: string
+  /**
+   * @generated from protobuf field: string digest_algorithm = 2
+   */
+  digestAlgorithm: string
+  /**
+   * @generated from protobuf field: string digest_value = 3
+   */
+  digestValue: string
+}
+/**
+ * @generated from protobuf message omega_edit.v1.ChangeLogStreamHeader
+ */
+export interface ChangeLogStreamHeader {
+  /**
+   * @generated from protobuf field: int32 format_version = 1
+   */
+  formatVersion: number
+  /**
+   * @generated from protobuf field: string resolved_first_serial_decimal = 2
+   */
+  resolvedFirstSerialDecimal: string
+  /**
+   * @generated from protobuf field: string resolved_last_serial_decimal = 3
+   */
+  resolvedLastSerialDecimal: string
+  /**
+   * @generated from protobuf field: string source_change_count_decimal = 4
+   */
+  sourceChangeCountDecimal: string
+  /**
+   * @generated from protobuf field: omega_edit.v1.ChangeLogStreamFingerprint before = 5
+   */
+  before?: ChangeLogStreamFingerprint
+  /**
+   * @generated from protobuf field: omega_edit.v1.ChangeLogStreamFingerprint after = 6
+   */
+  after?: ChangeLogStreamFingerprint
+  /**
+   * @generated from protobuf field: bool optimized = 7
+   */
+  optimized: boolean
+}
+/**
+ * @generated from protobuf message omega_edit.v1.ChangeLogStreamTransform
+ */
+export interface ChangeLogStreamTransform {
+  /**
+   * @generated from protobuf field: string transform_id = 1
+   */
+  transformId: string
+  /**
+   * @generated from protobuf field: string options_json = 2
+   */
+  optionsJson: string
+  /**
+   * @generated from protobuf field: string replacement_length_decimal = 3
+   */
+  replacementLengthDecimal: string
+  /**
+   * @generated from protobuf field: string computed_file_size_before_decimal = 4
+   */
+  computedFileSizeBeforeDecimal: string
+  /**
+   * @generated from protobuf field: string computed_file_size_after_decimal = 5
+   */
+  computedFileSizeAfterDecimal: string
+}
+/**
+ * @generated from protobuf message omega_edit.v1.ChangeLogEntryHeader
+ */
+export interface ChangeLogEntryHeader {
+  /**
+   * @generated from protobuf field: string entry_index_decimal = 1
+   */
+  entryIndexDecimal: string
+  /**
+   * @generated from protobuf field: omega_edit.v1.ChangeLogEntryKind kind = 2
+   */
+  kind: ChangeLogEntryKind
+  /**
+   * @generated from protobuf field: string offset_decimal = 3
+   */
+  offsetDecimal: string
+  /**
+   * @generated from protobuf field: string length_decimal = 4
+   */
+  lengthDecimal: string
+  /**
+   * @generated from protobuf field: string payload_length_decimal = 5
+   */
+  payloadLengthDecimal: string
+  /**
+   * @generated from protobuf field: optional omega_edit.v1.ChangeLogStreamTransform transform = 6
+   */
+  transform?: ChangeLogStreamTransform
+}
+/**
+ * @generated from protobuf message omega_edit.v1.ChangeLogPayloadChunk
+ */
+export interface ChangeLogPayloadChunk {
+  /**
+   * @generated from protobuf field: string entry_index_decimal = 1
+   */
+  entryIndexDecimal: string
+  /**
+   * @generated from protobuf field: string chunk_offset_decimal = 2
+   */
+  chunkOffsetDecimal: string
+  /**
+   * @generated from protobuf field: bytes data = 3
+   */
+  data: Uint8Array
+  /**
+   * @generated from protobuf field: bool final_chunk = 4
+   */
+  finalChunk: boolean
+}
+/**
+ * @generated from protobuf message omega_edit.v1.ChangeLogStreamComplete
+ */
+export interface ChangeLogStreamComplete {
+  /**
+   * @generated from protobuf field: string emitted_change_count_decimal = 1
+   */
+  emittedChangeCountDecimal: string
+  /**
+   * @generated from protobuf field: string payload_byte_count_decimal = 2
+   */
+  payloadByteCountDecimal: string
+  /**
+   * @generated from protobuf field: bytes payload_sha256 = 3
+   */
+  payloadSha256: Uint8Array
+}
+/**
+ * @generated from protobuf message omega_edit.v1.ExportChangeLogResponse
+ */
+export interface ExportChangeLogResponse {
+  /**
+   * @generated from protobuf oneof: frame
+   */
+  frame:
+    | {
+        oneofKind: 'header'
+        /**
+         * @generated from protobuf field: omega_edit.v1.ChangeLogStreamHeader header = 1
+         */
+        header: ChangeLogStreamHeader
+      }
+    | {
+        oneofKind: 'entry'
+        /**
+         * @generated from protobuf field: omega_edit.v1.ChangeLogEntryHeader entry = 2
+         */
+        entry: ChangeLogEntryHeader
+      }
+    | {
+        oneofKind: 'payload'
+        /**
+         * @generated from protobuf field: omega_edit.v1.ChangeLogPayloadChunk payload = 3
+         */
+        payload: ChangeLogPayloadChunk
+      }
+    | {
+        oneofKind: 'complete'
+        /**
+         * @generated from protobuf field: omega_edit.v1.ChangeLogStreamComplete complete = 4
+         */
+        complete: ChangeLogStreamComplete
+      }
+    | {
+        oneofKind: undefined
+      }
+}
 // ===========================================================================
 // Request / Response messages — Data inspection
 // ===========================================================================
@@ -2245,6 +2462,37 @@ export enum ChangeKind {
    * @generated from protobuf enum value: CHANGE_KIND_TRANSFORM = 4;
    */
   TRANSFORM = 4,
+}
+/**
+ * Replay operation emitted by ranged change-log export.
+ *
+ * @generated from protobuf enum omega_edit.v1.ChangeLogEntryKind
+ */
+export enum ChangeLogEntryKind {
+  /**
+   * @generated from protobuf enum value: CHANGE_LOG_ENTRY_KIND_UNSPECIFIED = 0;
+   */
+  UNSPECIFIED = 0,
+  /**
+   * @generated from protobuf enum value: CHANGE_LOG_ENTRY_KIND_DELETE = 1;
+   */
+  DELETE = 1,
+  /**
+   * @generated from protobuf enum value: CHANGE_LOG_ENTRY_KIND_INSERT = 2;
+   */
+  INSERT = 2,
+  /**
+   * @generated from protobuf enum value: CHANGE_LOG_ENTRY_KIND_OVERWRITE = 3;
+   */
+  OVERWRITE = 3,
+  /**
+   * @generated from protobuf enum value: CHANGE_LOG_ENTRY_KIND_REPLACE = 4;
+   */
+  REPLACE = 4,
+  /**
+   * @generated from protobuf enum value: CHANGE_LOG_ENTRY_KIND_TRANSFORM = 5;
+   */
+  TRANSFORM = 5,
 }
 /**
  * Session-level event kinds.  Values are powers of two so they can be OR'd
@@ -7615,6 +7863,1088 @@ class TransformChangeDetails$Type extends MessageType<TransformChangeDetails> {
  * @generated MessageType for protobuf message omega_edit.v1.TransformChangeDetails
  */
 export const TransformChangeDetails = new TransformChangeDetails$Type()
+// @generated message type with reflection information, may provide speed optimized methods
+class ExportChangeLogRequest$Type extends MessageType<ExportChangeLogRequest> {
+  constructor() {
+    super('omega_edit.v1.ExportChangeLogRequest', [
+      { no: 1, name: 'session_id', kind: 'scalar', T: 9 /*ScalarType.STRING*/ },
+      { no: 2, name: 'optimize', kind: 'scalar', T: 8 /*ScalarType.BOOL*/ },
+      {
+        no: 3,
+        name: 'first_change_serial_decimal',
+        kind: 'scalar',
+        opt: true,
+        T: 9 /*ScalarType.STRING*/,
+      },
+      {
+        no: 4,
+        name: 'last_change_serial_decimal',
+        kind: 'scalar',
+        opt: true,
+        T: 9 /*ScalarType.STRING*/,
+      },
+      {
+        no: 5,
+        name: 'max_span_bytes_decimal',
+        kind: 'scalar',
+        opt: true,
+        T: 9 /*ScalarType.STRING*/,
+      },
+      {
+        no: 6,
+        name: 'max_entries_decimal',
+        kind: 'scalar',
+        opt: true,
+        T: 9 /*ScalarType.STRING*/,
+      },
+      {
+        no: 7,
+        name: 'max_output_bytes_decimal',
+        kind: 'scalar',
+        opt: true,
+        T: 9 /*ScalarType.STRING*/,
+      },
+    ])
+  }
+  create(
+    value?: PartialMessage<ExportChangeLogRequest>
+  ): ExportChangeLogRequest {
+    const message = globalThis.Object.create(this.messagePrototype!)
+    message.sessionId = ''
+    message.optimize = false
+    if (value !== undefined)
+      reflectionMergePartial<ExportChangeLogRequest>(this, message, value)
+    return message
+  }
+  internalBinaryRead(
+    reader: IBinaryReader,
+    length: number,
+    options: BinaryReadOptions,
+    target?: ExportChangeLogRequest
+  ): ExportChangeLogRequest {
+    let message = target ?? this.create(),
+      end = reader.pos + length
+    while (reader.pos < end) {
+      let [fieldNo, wireType] = reader.tag()
+      switch (fieldNo) {
+        case /* string session_id */ 1:
+          message.sessionId = reader.string()
+          break
+        case /* bool optimize */ 2:
+          message.optimize = reader.bool()
+          break
+        case /* optional string first_change_serial_decimal */ 3:
+          message.firstChangeSerialDecimal = reader.string()
+          break
+        case /* optional string last_change_serial_decimal */ 4:
+          message.lastChangeSerialDecimal = reader.string()
+          break
+        case /* optional string max_span_bytes_decimal */ 5:
+          message.maxSpanBytesDecimal = reader.string()
+          break
+        case /* optional string max_entries_decimal */ 6:
+          message.maxEntriesDecimal = reader.string()
+          break
+        case /* optional string max_output_bytes_decimal */ 7:
+          message.maxOutputBytesDecimal = reader.string()
+          break
+        default:
+          let u = options.readUnknownField
+          if (u === 'throw')
+            throw new globalThis.Error(
+              `Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`
+            )
+          let d = reader.skip(wireType)
+          if (u !== false)
+            (u === true ? UnknownFieldHandler.onRead : u)(
+              this.typeName,
+              message,
+              fieldNo,
+              wireType,
+              d
+            )
+      }
+    }
+    return message
+  }
+  internalBinaryWrite(
+    message: ExportChangeLogRequest,
+    writer: IBinaryWriter,
+    options: BinaryWriteOptions
+  ): IBinaryWriter {
+    /* string session_id = 1; */
+    if (message.sessionId !== '')
+      writer.tag(1, WireType.LengthDelimited).string(message.sessionId)
+    /* bool optimize = 2; */
+    if (message.optimize !== false)
+      writer.tag(2, WireType.Varint).bool(message.optimize)
+    /* optional string first_change_serial_decimal = 3; */
+    if (message.firstChangeSerialDecimal !== undefined)
+      writer
+        .tag(3, WireType.LengthDelimited)
+        .string(message.firstChangeSerialDecimal)
+    /* optional string last_change_serial_decimal = 4; */
+    if (message.lastChangeSerialDecimal !== undefined)
+      writer
+        .tag(4, WireType.LengthDelimited)
+        .string(message.lastChangeSerialDecimal)
+    /* optional string max_span_bytes_decimal = 5; */
+    if (message.maxSpanBytesDecimal !== undefined)
+      writer
+        .tag(5, WireType.LengthDelimited)
+        .string(message.maxSpanBytesDecimal)
+    /* optional string max_entries_decimal = 6; */
+    if (message.maxEntriesDecimal !== undefined)
+      writer.tag(6, WireType.LengthDelimited).string(message.maxEntriesDecimal)
+    /* optional string max_output_bytes_decimal = 7; */
+    if (message.maxOutputBytesDecimal !== undefined)
+      writer
+        .tag(7, WireType.LengthDelimited)
+        .string(message.maxOutputBytesDecimal)
+    let u = options.writeUnknownFields
+    if (u !== false)
+      (u == true ? UnknownFieldHandler.onWrite : u)(
+        this.typeName,
+        message,
+        writer
+      )
+    return writer
+  }
+}
+/**
+ * @generated MessageType for protobuf message omega_edit.v1.ExportChangeLogRequest
+ */
+export const ExportChangeLogRequest = new ExportChangeLogRequest$Type()
+// @generated message type with reflection information, may provide speed optimized methods
+class ChangeLogStreamFingerprint$Type extends MessageType<ChangeLogStreamFingerprint> {
+  constructor() {
+    super('omega_edit.v1.ChangeLogStreamFingerprint', [
+      {
+        no: 1,
+        name: 'byte_length_decimal',
+        kind: 'scalar',
+        T: 9 /*ScalarType.STRING*/,
+      },
+      {
+        no: 2,
+        name: 'digest_algorithm',
+        kind: 'scalar',
+        T: 9 /*ScalarType.STRING*/,
+      },
+      {
+        no: 3,
+        name: 'digest_value',
+        kind: 'scalar',
+        T: 9 /*ScalarType.STRING*/,
+      },
+    ])
+  }
+  create(
+    value?: PartialMessage<ChangeLogStreamFingerprint>
+  ): ChangeLogStreamFingerprint {
+    const message = globalThis.Object.create(this.messagePrototype!)
+    message.byteLengthDecimal = ''
+    message.digestAlgorithm = ''
+    message.digestValue = ''
+    if (value !== undefined)
+      reflectionMergePartial<ChangeLogStreamFingerprint>(this, message, value)
+    return message
+  }
+  internalBinaryRead(
+    reader: IBinaryReader,
+    length: number,
+    options: BinaryReadOptions,
+    target?: ChangeLogStreamFingerprint
+  ): ChangeLogStreamFingerprint {
+    let message = target ?? this.create(),
+      end = reader.pos + length
+    while (reader.pos < end) {
+      let [fieldNo, wireType] = reader.tag()
+      switch (fieldNo) {
+        case /* string byte_length_decimal */ 1:
+          message.byteLengthDecimal = reader.string()
+          break
+        case /* string digest_algorithm */ 2:
+          message.digestAlgorithm = reader.string()
+          break
+        case /* string digest_value */ 3:
+          message.digestValue = reader.string()
+          break
+        default:
+          let u = options.readUnknownField
+          if (u === 'throw')
+            throw new globalThis.Error(
+              `Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`
+            )
+          let d = reader.skip(wireType)
+          if (u !== false)
+            (u === true ? UnknownFieldHandler.onRead : u)(
+              this.typeName,
+              message,
+              fieldNo,
+              wireType,
+              d
+            )
+      }
+    }
+    return message
+  }
+  internalBinaryWrite(
+    message: ChangeLogStreamFingerprint,
+    writer: IBinaryWriter,
+    options: BinaryWriteOptions
+  ): IBinaryWriter {
+    /* string byte_length_decimal = 1; */
+    if (message.byteLengthDecimal !== '')
+      writer.tag(1, WireType.LengthDelimited).string(message.byteLengthDecimal)
+    /* string digest_algorithm = 2; */
+    if (message.digestAlgorithm !== '')
+      writer.tag(2, WireType.LengthDelimited).string(message.digestAlgorithm)
+    /* string digest_value = 3; */
+    if (message.digestValue !== '')
+      writer.tag(3, WireType.LengthDelimited).string(message.digestValue)
+    let u = options.writeUnknownFields
+    if (u !== false)
+      (u == true ? UnknownFieldHandler.onWrite : u)(
+        this.typeName,
+        message,
+        writer
+      )
+    return writer
+  }
+}
+/**
+ * @generated MessageType for protobuf message omega_edit.v1.ChangeLogStreamFingerprint
+ */
+export const ChangeLogStreamFingerprint = new ChangeLogStreamFingerprint$Type()
+// @generated message type with reflection information, may provide speed optimized methods
+class ChangeLogStreamHeader$Type extends MessageType<ChangeLogStreamHeader> {
+  constructor() {
+    super('omega_edit.v1.ChangeLogStreamHeader', [
+      {
+        no: 1,
+        name: 'format_version',
+        kind: 'scalar',
+        T: 5 /*ScalarType.INT32*/,
+      },
+      {
+        no: 2,
+        name: 'resolved_first_serial_decimal',
+        kind: 'scalar',
+        T: 9 /*ScalarType.STRING*/,
+      },
+      {
+        no: 3,
+        name: 'resolved_last_serial_decimal',
+        kind: 'scalar',
+        T: 9 /*ScalarType.STRING*/,
+      },
+      {
+        no: 4,
+        name: 'source_change_count_decimal',
+        kind: 'scalar',
+        T: 9 /*ScalarType.STRING*/,
+      },
+      {
+        no: 5,
+        name: 'before',
+        kind: 'message',
+        T: () => ChangeLogStreamFingerprint,
+      },
+      {
+        no: 6,
+        name: 'after',
+        kind: 'message',
+        T: () => ChangeLogStreamFingerprint,
+      },
+      { no: 7, name: 'optimized', kind: 'scalar', T: 8 /*ScalarType.BOOL*/ },
+    ])
+  }
+  create(value?: PartialMessage<ChangeLogStreamHeader>): ChangeLogStreamHeader {
+    const message = globalThis.Object.create(this.messagePrototype!)
+    message.formatVersion = 0
+    message.resolvedFirstSerialDecimal = ''
+    message.resolvedLastSerialDecimal = ''
+    message.sourceChangeCountDecimal = ''
+    message.optimized = false
+    if (value !== undefined)
+      reflectionMergePartial<ChangeLogStreamHeader>(this, message, value)
+    return message
+  }
+  internalBinaryRead(
+    reader: IBinaryReader,
+    length: number,
+    options: BinaryReadOptions,
+    target?: ChangeLogStreamHeader
+  ): ChangeLogStreamHeader {
+    let message = target ?? this.create(),
+      end = reader.pos + length
+    while (reader.pos < end) {
+      let [fieldNo, wireType] = reader.tag()
+      switch (fieldNo) {
+        case /* int32 format_version */ 1:
+          message.formatVersion = reader.int32()
+          break
+        case /* string resolved_first_serial_decimal */ 2:
+          message.resolvedFirstSerialDecimal = reader.string()
+          break
+        case /* string resolved_last_serial_decimal */ 3:
+          message.resolvedLastSerialDecimal = reader.string()
+          break
+        case /* string source_change_count_decimal */ 4:
+          message.sourceChangeCountDecimal = reader.string()
+          break
+        case /* omega_edit.v1.ChangeLogStreamFingerprint before */ 5:
+          message.before = ChangeLogStreamFingerprint.internalBinaryRead(
+            reader,
+            reader.uint32(),
+            options,
+            message.before
+          )
+          break
+        case /* omega_edit.v1.ChangeLogStreamFingerprint after */ 6:
+          message.after = ChangeLogStreamFingerprint.internalBinaryRead(
+            reader,
+            reader.uint32(),
+            options,
+            message.after
+          )
+          break
+        case /* bool optimized */ 7:
+          message.optimized = reader.bool()
+          break
+        default:
+          let u = options.readUnknownField
+          if (u === 'throw')
+            throw new globalThis.Error(
+              `Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`
+            )
+          let d = reader.skip(wireType)
+          if (u !== false)
+            (u === true ? UnknownFieldHandler.onRead : u)(
+              this.typeName,
+              message,
+              fieldNo,
+              wireType,
+              d
+            )
+      }
+    }
+    return message
+  }
+  internalBinaryWrite(
+    message: ChangeLogStreamHeader,
+    writer: IBinaryWriter,
+    options: BinaryWriteOptions
+  ): IBinaryWriter {
+    /* int32 format_version = 1; */
+    if (message.formatVersion !== 0)
+      writer.tag(1, WireType.Varint).int32(message.formatVersion)
+    /* string resolved_first_serial_decimal = 2; */
+    if (message.resolvedFirstSerialDecimal !== '')
+      writer
+        .tag(2, WireType.LengthDelimited)
+        .string(message.resolvedFirstSerialDecimal)
+    /* string resolved_last_serial_decimal = 3; */
+    if (message.resolvedLastSerialDecimal !== '')
+      writer
+        .tag(3, WireType.LengthDelimited)
+        .string(message.resolvedLastSerialDecimal)
+    /* string source_change_count_decimal = 4; */
+    if (message.sourceChangeCountDecimal !== '')
+      writer
+        .tag(4, WireType.LengthDelimited)
+        .string(message.sourceChangeCountDecimal)
+    /* omega_edit.v1.ChangeLogStreamFingerprint before = 5; */
+    if (message.before)
+      ChangeLogStreamFingerprint.internalBinaryWrite(
+        message.before,
+        writer.tag(5, WireType.LengthDelimited).fork(),
+        options
+      ).join()
+    /* omega_edit.v1.ChangeLogStreamFingerprint after = 6; */
+    if (message.after)
+      ChangeLogStreamFingerprint.internalBinaryWrite(
+        message.after,
+        writer.tag(6, WireType.LengthDelimited).fork(),
+        options
+      ).join()
+    /* bool optimized = 7; */
+    if (message.optimized !== false)
+      writer.tag(7, WireType.Varint).bool(message.optimized)
+    let u = options.writeUnknownFields
+    if (u !== false)
+      (u == true ? UnknownFieldHandler.onWrite : u)(
+        this.typeName,
+        message,
+        writer
+      )
+    return writer
+  }
+}
+/**
+ * @generated MessageType for protobuf message omega_edit.v1.ChangeLogStreamHeader
+ */
+export const ChangeLogStreamHeader = new ChangeLogStreamHeader$Type()
+// @generated message type with reflection information, may provide speed optimized methods
+class ChangeLogStreamTransform$Type extends MessageType<ChangeLogStreamTransform> {
+  constructor() {
+    super('omega_edit.v1.ChangeLogStreamTransform', [
+      {
+        no: 1,
+        name: 'transform_id',
+        kind: 'scalar',
+        T: 9 /*ScalarType.STRING*/,
+      },
+      {
+        no: 2,
+        name: 'options_json',
+        kind: 'scalar',
+        T: 9 /*ScalarType.STRING*/,
+      },
+      {
+        no: 3,
+        name: 'replacement_length_decimal',
+        kind: 'scalar',
+        T: 9 /*ScalarType.STRING*/,
+      },
+      {
+        no: 4,
+        name: 'computed_file_size_before_decimal',
+        kind: 'scalar',
+        T: 9 /*ScalarType.STRING*/,
+      },
+      {
+        no: 5,
+        name: 'computed_file_size_after_decimal',
+        kind: 'scalar',
+        T: 9 /*ScalarType.STRING*/,
+      },
+    ])
+  }
+  create(
+    value?: PartialMessage<ChangeLogStreamTransform>
+  ): ChangeLogStreamTransform {
+    const message = globalThis.Object.create(this.messagePrototype!)
+    message.transformId = ''
+    message.optionsJson = ''
+    message.replacementLengthDecimal = ''
+    message.computedFileSizeBeforeDecimal = ''
+    message.computedFileSizeAfterDecimal = ''
+    if (value !== undefined)
+      reflectionMergePartial<ChangeLogStreamTransform>(this, message, value)
+    return message
+  }
+  internalBinaryRead(
+    reader: IBinaryReader,
+    length: number,
+    options: BinaryReadOptions,
+    target?: ChangeLogStreamTransform
+  ): ChangeLogStreamTransform {
+    let message = target ?? this.create(),
+      end = reader.pos + length
+    while (reader.pos < end) {
+      let [fieldNo, wireType] = reader.tag()
+      switch (fieldNo) {
+        case /* string transform_id */ 1:
+          message.transformId = reader.string()
+          break
+        case /* string options_json */ 2:
+          message.optionsJson = reader.string()
+          break
+        case /* string replacement_length_decimal */ 3:
+          message.replacementLengthDecimal = reader.string()
+          break
+        case /* string computed_file_size_before_decimal */ 4:
+          message.computedFileSizeBeforeDecimal = reader.string()
+          break
+        case /* string computed_file_size_after_decimal */ 5:
+          message.computedFileSizeAfterDecimal = reader.string()
+          break
+        default:
+          let u = options.readUnknownField
+          if (u === 'throw')
+            throw new globalThis.Error(
+              `Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`
+            )
+          let d = reader.skip(wireType)
+          if (u !== false)
+            (u === true ? UnknownFieldHandler.onRead : u)(
+              this.typeName,
+              message,
+              fieldNo,
+              wireType,
+              d
+            )
+      }
+    }
+    return message
+  }
+  internalBinaryWrite(
+    message: ChangeLogStreamTransform,
+    writer: IBinaryWriter,
+    options: BinaryWriteOptions
+  ): IBinaryWriter {
+    /* string transform_id = 1; */
+    if (message.transformId !== '')
+      writer.tag(1, WireType.LengthDelimited).string(message.transformId)
+    /* string options_json = 2; */
+    if (message.optionsJson !== '')
+      writer.tag(2, WireType.LengthDelimited).string(message.optionsJson)
+    /* string replacement_length_decimal = 3; */
+    if (message.replacementLengthDecimal !== '')
+      writer
+        .tag(3, WireType.LengthDelimited)
+        .string(message.replacementLengthDecimal)
+    /* string computed_file_size_before_decimal = 4; */
+    if (message.computedFileSizeBeforeDecimal !== '')
+      writer
+        .tag(4, WireType.LengthDelimited)
+        .string(message.computedFileSizeBeforeDecimal)
+    /* string computed_file_size_after_decimal = 5; */
+    if (message.computedFileSizeAfterDecimal !== '')
+      writer
+        .tag(5, WireType.LengthDelimited)
+        .string(message.computedFileSizeAfterDecimal)
+    let u = options.writeUnknownFields
+    if (u !== false)
+      (u == true ? UnknownFieldHandler.onWrite : u)(
+        this.typeName,
+        message,
+        writer
+      )
+    return writer
+  }
+}
+/**
+ * @generated MessageType for protobuf message omega_edit.v1.ChangeLogStreamTransform
+ */
+export const ChangeLogStreamTransform = new ChangeLogStreamTransform$Type()
+// @generated message type with reflection information, may provide speed optimized methods
+class ChangeLogEntryHeader$Type extends MessageType<ChangeLogEntryHeader> {
+  constructor() {
+    super('omega_edit.v1.ChangeLogEntryHeader', [
+      {
+        no: 1,
+        name: 'entry_index_decimal',
+        kind: 'scalar',
+        T: 9 /*ScalarType.STRING*/,
+      },
+      {
+        no: 2,
+        name: 'kind',
+        kind: 'enum',
+        T: () => [
+          'omega_edit.v1.ChangeLogEntryKind',
+          ChangeLogEntryKind,
+          'CHANGE_LOG_ENTRY_KIND_',
+        ],
+      },
+      {
+        no: 3,
+        name: 'offset_decimal',
+        kind: 'scalar',
+        T: 9 /*ScalarType.STRING*/,
+      },
+      {
+        no: 4,
+        name: 'length_decimal',
+        kind: 'scalar',
+        T: 9 /*ScalarType.STRING*/,
+      },
+      {
+        no: 5,
+        name: 'payload_length_decimal',
+        kind: 'scalar',
+        T: 9 /*ScalarType.STRING*/,
+      },
+      {
+        no: 6,
+        name: 'transform',
+        kind: 'message',
+        T: () => ChangeLogStreamTransform,
+      },
+    ])
+  }
+  create(value?: PartialMessage<ChangeLogEntryHeader>): ChangeLogEntryHeader {
+    const message = globalThis.Object.create(this.messagePrototype!)
+    message.entryIndexDecimal = ''
+    message.kind = 0
+    message.offsetDecimal = ''
+    message.lengthDecimal = ''
+    message.payloadLengthDecimal = ''
+    if (value !== undefined)
+      reflectionMergePartial<ChangeLogEntryHeader>(this, message, value)
+    return message
+  }
+  internalBinaryRead(
+    reader: IBinaryReader,
+    length: number,
+    options: BinaryReadOptions,
+    target?: ChangeLogEntryHeader
+  ): ChangeLogEntryHeader {
+    let message = target ?? this.create(),
+      end = reader.pos + length
+    while (reader.pos < end) {
+      let [fieldNo, wireType] = reader.tag()
+      switch (fieldNo) {
+        case /* string entry_index_decimal */ 1:
+          message.entryIndexDecimal = reader.string()
+          break
+        case /* omega_edit.v1.ChangeLogEntryKind kind */ 2:
+          message.kind = reader.int32()
+          break
+        case /* string offset_decimal */ 3:
+          message.offsetDecimal = reader.string()
+          break
+        case /* string length_decimal */ 4:
+          message.lengthDecimal = reader.string()
+          break
+        case /* string payload_length_decimal */ 5:
+          message.payloadLengthDecimal = reader.string()
+          break
+        case /* optional omega_edit.v1.ChangeLogStreamTransform transform */ 6:
+          message.transform = ChangeLogStreamTransform.internalBinaryRead(
+            reader,
+            reader.uint32(),
+            options,
+            message.transform
+          )
+          break
+        default:
+          let u = options.readUnknownField
+          if (u === 'throw')
+            throw new globalThis.Error(
+              `Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`
+            )
+          let d = reader.skip(wireType)
+          if (u !== false)
+            (u === true ? UnknownFieldHandler.onRead : u)(
+              this.typeName,
+              message,
+              fieldNo,
+              wireType,
+              d
+            )
+      }
+    }
+    return message
+  }
+  internalBinaryWrite(
+    message: ChangeLogEntryHeader,
+    writer: IBinaryWriter,
+    options: BinaryWriteOptions
+  ): IBinaryWriter {
+    /* string entry_index_decimal = 1; */
+    if (message.entryIndexDecimal !== '')
+      writer.tag(1, WireType.LengthDelimited).string(message.entryIndexDecimal)
+    /* omega_edit.v1.ChangeLogEntryKind kind = 2; */
+    if (message.kind !== 0) writer.tag(2, WireType.Varint).int32(message.kind)
+    /* string offset_decimal = 3; */
+    if (message.offsetDecimal !== '')
+      writer.tag(3, WireType.LengthDelimited).string(message.offsetDecimal)
+    /* string length_decimal = 4; */
+    if (message.lengthDecimal !== '')
+      writer.tag(4, WireType.LengthDelimited).string(message.lengthDecimal)
+    /* string payload_length_decimal = 5; */
+    if (message.payloadLengthDecimal !== '')
+      writer
+        .tag(5, WireType.LengthDelimited)
+        .string(message.payloadLengthDecimal)
+    /* optional omega_edit.v1.ChangeLogStreamTransform transform = 6; */
+    if (message.transform)
+      ChangeLogStreamTransform.internalBinaryWrite(
+        message.transform,
+        writer.tag(6, WireType.LengthDelimited).fork(),
+        options
+      ).join()
+    let u = options.writeUnknownFields
+    if (u !== false)
+      (u == true ? UnknownFieldHandler.onWrite : u)(
+        this.typeName,
+        message,
+        writer
+      )
+    return writer
+  }
+}
+/**
+ * @generated MessageType for protobuf message omega_edit.v1.ChangeLogEntryHeader
+ */
+export const ChangeLogEntryHeader = new ChangeLogEntryHeader$Type()
+// @generated message type with reflection information, may provide speed optimized methods
+class ChangeLogPayloadChunk$Type extends MessageType<ChangeLogPayloadChunk> {
+  constructor() {
+    super('omega_edit.v1.ChangeLogPayloadChunk', [
+      {
+        no: 1,
+        name: 'entry_index_decimal',
+        kind: 'scalar',
+        T: 9 /*ScalarType.STRING*/,
+      },
+      {
+        no: 2,
+        name: 'chunk_offset_decimal',
+        kind: 'scalar',
+        T: 9 /*ScalarType.STRING*/,
+      },
+      { no: 3, name: 'data', kind: 'scalar', T: 12 /*ScalarType.BYTES*/ },
+      { no: 4, name: 'final_chunk', kind: 'scalar', T: 8 /*ScalarType.BOOL*/ },
+    ])
+  }
+  create(value?: PartialMessage<ChangeLogPayloadChunk>): ChangeLogPayloadChunk {
+    const message = globalThis.Object.create(this.messagePrototype!)
+    message.entryIndexDecimal = ''
+    message.chunkOffsetDecimal = ''
+    message.data = new Uint8Array(0)
+    message.finalChunk = false
+    if (value !== undefined)
+      reflectionMergePartial<ChangeLogPayloadChunk>(this, message, value)
+    return message
+  }
+  internalBinaryRead(
+    reader: IBinaryReader,
+    length: number,
+    options: BinaryReadOptions,
+    target?: ChangeLogPayloadChunk
+  ): ChangeLogPayloadChunk {
+    let message = target ?? this.create(),
+      end = reader.pos + length
+    while (reader.pos < end) {
+      let [fieldNo, wireType] = reader.tag()
+      switch (fieldNo) {
+        case /* string entry_index_decimal */ 1:
+          message.entryIndexDecimal = reader.string()
+          break
+        case /* string chunk_offset_decimal */ 2:
+          message.chunkOffsetDecimal = reader.string()
+          break
+        case /* bytes data */ 3:
+          message.data = reader.bytes()
+          break
+        case /* bool final_chunk */ 4:
+          message.finalChunk = reader.bool()
+          break
+        default:
+          let u = options.readUnknownField
+          if (u === 'throw')
+            throw new globalThis.Error(
+              `Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`
+            )
+          let d = reader.skip(wireType)
+          if (u !== false)
+            (u === true ? UnknownFieldHandler.onRead : u)(
+              this.typeName,
+              message,
+              fieldNo,
+              wireType,
+              d
+            )
+      }
+    }
+    return message
+  }
+  internalBinaryWrite(
+    message: ChangeLogPayloadChunk,
+    writer: IBinaryWriter,
+    options: BinaryWriteOptions
+  ): IBinaryWriter {
+    /* string entry_index_decimal = 1; */
+    if (message.entryIndexDecimal !== '')
+      writer.tag(1, WireType.LengthDelimited).string(message.entryIndexDecimal)
+    /* string chunk_offset_decimal = 2; */
+    if (message.chunkOffsetDecimal !== '')
+      writer.tag(2, WireType.LengthDelimited).string(message.chunkOffsetDecimal)
+    /* bytes data = 3; */
+    if (message.data.length)
+      writer.tag(3, WireType.LengthDelimited).bytes(message.data)
+    /* bool final_chunk = 4; */
+    if (message.finalChunk !== false)
+      writer.tag(4, WireType.Varint).bool(message.finalChunk)
+    let u = options.writeUnknownFields
+    if (u !== false)
+      (u == true ? UnknownFieldHandler.onWrite : u)(
+        this.typeName,
+        message,
+        writer
+      )
+    return writer
+  }
+}
+/**
+ * @generated MessageType for protobuf message omega_edit.v1.ChangeLogPayloadChunk
+ */
+export const ChangeLogPayloadChunk = new ChangeLogPayloadChunk$Type()
+// @generated message type with reflection information, may provide speed optimized methods
+class ChangeLogStreamComplete$Type extends MessageType<ChangeLogStreamComplete> {
+  constructor() {
+    super('omega_edit.v1.ChangeLogStreamComplete', [
+      {
+        no: 1,
+        name: 'emitted_change_count_decimal',
+        kind: 'scalar',
+        T: 9 /*ScalarType.STRING*/,
+      },
+      {
+        no: 2,
+        name: 'payload_byte_count_decimal',
+        kind: 'scalar',
+        T: 9 /*ScalarType.STRING*/,
+      },
+      {
+        no: 3,
+        name: 'payload_sha256',
+        kind: 'scalar',
+        T: 12 /*ScalarType.BYTES*/,
+      },
+    ])
+  }
+  create(
+    value?: PartialMessage<ChangeLogStreamComplete>
+  ): ChangeLogStreamComplete {
+    const message = globalThis.Object.create(this.messagePrototype!)
+    message.emittedChangeCountDecimal = ''
+    message.payloadByteCountDecimal = ''
+    message.payloadSha256 = new Uint8Array(0)
+    if (value !== undefined)
+      reflectionMergePartial<ChangeLogStreamComplete>(this, message, value)
+    return message
+  }
+  internalBinaryRead(
+    reader: IBinaryReader,
+    length: number,
+    options: BinaryReadOptions,
+    target?: ChangeLogStreamComplete
+  ): ChangeLogStreamComplete {
+    let message = target ?? this.create(),
+      end = reader.pos + length
+    while (reader.pos < end) {
+      let [fieldNo, wireType] = reader.tag()
+      switch (fieldNo) {
+        case /* string emitted_change_count_decimal */ 1:
+          message.emittedChangeCountDecimal = reader.string()
+          break
+        case /* string payload_byte_count_decimal */ 2:
+          message.payloadByteCountDecimal = reader.string()
+          break
+        case /* bytes payload_sha256 */ 3:
+          message.payloadSha256 = reader.bytes()
+          break
+        default:
+          let u = options.readUnknownField
+          if (u === 'throw')
+            throw new globalThis.Error(
+              `Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`
+            )
+          let d = reader.skip(wireType)
+          if (u !== false)
+            (u === true ? UnknownFieldHandler.onRead : u)(
+              this.typeName,
+              message,
+              fieldNo,
+              wireType,
+              d
+            )
+      }
+    }
+    return message
+  }
+  internalBinaryWrite(
+    message: ChangeLogStreamComplete,
+    writer: IBinaryWriter,
+    options: BinaryWriteOptions
+  ): IBinaryWriter {
+    /* string emitted_change_count_decimal = 1; */
+    if (message.emittedChangeCountDecimal !== '')
+      writer
+        .tag(1, WireType.LengthDelimited)
+        .string(message.emittedChangeCountDecimal)
+    /* string payload_byte_count_decimal = 2; */
+    if (message.payloadByteCountDecimal !== '')
+      writer
+        .tag(2, WireType.LengthDelimited)
+        .string(message.payloadByteCountDecimal)
+    /* bytes payload_sha256 = 3; */
+    if (message.payloadSha256.length)
+      writer.tag(3, WireType.LengthDelimited).bytes(message.payloadSha256)
+    let u = options.writeUnknownFields
+    if (u !== false)
+      (u == true ? UnknownFieldHandler.onWrite : u)(
+        this.typeName,
+        message,
+        writer
+      )
+    return writer
+  }
+}
+/**
+ * @generated MessageType for protobuf message omega_edit.v1.ChangeLogStreamComplete
+ */
+export const ChangeLogStreamComplete = new ChangeLogStreamComplete$Type()
+// @generated message type with reflection information, may provide speed optimized methods
+class ExportChangeLogResponse$Type extends MessageType<ExportChangeLogResponse> {
+  constructor() {
+    super('omega_edit.v1.ExportChangeLogResponse', [
+      {
+        no: 1,
+        name: 'header',
+        kind: 'message',
+        oneof: 'frame',
+        T: () => ChangeLogStreamHeader,
+      },
+      {
+        no: 2,
+        name: 'entry',
+        kind: 'message',
+        oneof: 'frame',
+        T: () => ChangeLogEntryHeader,
+      },
+      {
+        no: 3,
+        name: 'payload',
+        kind: 'message',
+        oneof: 'frame',
+        T: () => ChangeLogPayloadChunk,
+      },
+      {
+        no: 4,
+        name: 'complete',
+        kind: 'message',
+        oneof: 'frame',
+        T: () => ChangeLogStreamComplete,
+      },
+    ])
+  }
+  create(
+    value?: PartialMessage<ExportChangeLogResponse>
+  ): ExportChangeLogResponse {
+    const message = globalThis.Object.create(this.messagePrototype!)
+    message.frame = { oneofKind: undefined }
+    if (value !== undefined)
+      reflectionMergePartial<ExportChangeLogResponse>(this, message, value)
+    return message
+  }
+  internalBinaryRead(
+    reader: IBinaryReader,
+    length: number,
+    options: BinaryReadOptions,
+    target?: ExportChangeLogResponse
+  ): ExportChangeLogResponse {
+    let message = target ?? this.create(),
+      end = reader.pos + length
+    while (reader.pos < end) {
+      let [fieldNo, wireType] = reader.tag()
+      switch (fieldNo) {
+        case /* omega_edit.v1.ChangeLogStreamHeader header */ 1:
+          message.frame = {
+            oneofKind: 'header',
+            header: ChangeLogStreamHeader.internalBinaryRead(
+              reader,
+              reader.uint32(),
+              options,
+              (message.frame as any).header
+            ),
+          }
+          break
+        case /* omega_edit.v1.ChangeLogEntryHeader entry */ 2:
+          message.frame = {
+            oneofKind: 'entry',
+            entry: ChangeLogEntryHeader.internalBinaryRead(
+              reader,
+              reader.uint32(),
+              options,
+              (message.frame as any).entry
+            ),
+          }
+          break
+        case /* omega_edit.v1.ChangeLogPayloadChunk payload */ 3:
+          message.frame = {
+            oneofKind: 'payload',
+            payload: ChangeLogPayloadChunk.internalBinaryRead(
+              reader,
+              reader.uint32(),
+              options,
+              (message.frame as any).payload
+            ),
+          }
+          break
+        case /* omega_edit.v1.ChangeLogStreamComplete complete */ 4:
+          message.frame = {
+            oneofKind: 'complete',
+            complete: ChangeLogStreamComplete.internalBinaryRead(
+              reader,
+              reader.uint32(),
+              options,
+              (message.frame as any).complete
+            ),
+          }
+          break
+        default:
+          let u = options.readUnknownField
+          if (u === 'throw')
+            throw new globalThis.Error(
+              `Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`
+            )
+          let d = reader.skip(wireType)
+          if (u !== false)
+            (u === true ? UnknownFieldHandler.onRead : u)(
+              this.typeName,
+              message,
+              fieldNo,
+              wireType,
+              d
+            )
+      }
+    }
+    return message
+  }
+  internalBinaryWrite(
+    message: ExportChangeLogResponse,
+    writer: IBinaryWriter,
+    options: BinaryWriteOptions
+  ): IBinaryWriter {
+    /* omega_edit.v1.ChangeLogStreamHeader header = 1; */
+    if (message.frame.oneofKind === 'header')
+      ChangeLogStreamHeader.internalBinaryWrite(
+        message.frame.header,
+        writer.tag(1, WireType.LengthDelimited).fork(),
+        options
+      ).join()
+    /* omega_edit.v1.ChangeLogEntryHeader entry = 2; */
+    if (message.frame.oneofKind === 'entry')
+      ChangeLogEntryHeader.internalBinaryWrite(
+        message.frame.entry,
+        writer.tag(2, WireType.LengthDelimited).fork(),
+        options
+      ).join()
+    /* omega_edit.v1.ChangeLogPayloadChunk payload = 3; */
+    if (message.frame.oneofKind === 'payload')
+      ChangeLogPayloadChunk.internalBinaryWrite(
+        message.frame.payload,
+        writer.tag(3, WireType.LengthDelimited).fork(),
+        options
+      ).join()
+    /* omega_edit.v1.ChangeLogStreamComplete complete = 4; */
+    if (message.frame.oneofKind === 'complete')
+      ChangeLogStreamComplete.internalBinaryWrite(
+        message.frame.complete,
+        writer.tag(4, WireType.LengthDelimited).fork(),
+        options
+      ).join()
+    let u = options.writeUnknownFields
+    if (u !== false)
+      (u == true ? UnknownFieldHandler.onWrite : u)(
+        this.typeName,
+        message,
+        writer
+      )
+    return writer
+  }
+}
+/**
+ * @generated MessageType for protobuf message omega_edit.v1.ExportChangeLogResponse
+ */
+export const ExportChangeLogResponse = new ExportChangeLogResponse$Type()
 // @generated message type with reflection information, may provide speed optimized methods
 class GetComputedFileSizeRequest$Type extends MessageType<GetComputedFileSizeRequest> {
   constructor() {
@@ -13610,6 +14940,13 @@ export const EditorService = new ServiceType('omega_edit.v1.EditorService', [
     options: {},
     I: GetLastUndoRequest,
     O: GetLastUndoResponse,
+  },
+  {
+    name: 'ExportChangeLog',
+    serverStreaming: true,
+    options: {},
+    I: ExportChangeLogRequest,
+    O: ExportChangeLogResponse,
   },
   {
     name: 'GetComputedFileSize',

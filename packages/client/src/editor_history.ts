@@ -57,6 +57,17 @@ export interface EditorEditState {
   savedChangeDepth: number
 }
 
+export interface EditorHistorySnapshot {
+  version: 1
+  savedChangeDepth: number
+  changeLog: EditorChangeRecord[]
+  undoneChangeLog: EditorChangeRecord[]
+  transactionLog: EditorTransactionRecord[]
+  undoneTransactionLog: EditorTransactionRecord[]
+  nextSyntheticGroupId: number
+  milestoneDepths: number[]
+}
+
 export interface EditorHistoryExecutor {
   undoLocal(): Promise<void>
   redoLocal(): Promise<void>
@@ -66,6 +77,8 @@ export interface EditorHistoryExecutor {
   redoCheckpoint(
     transaction: EditorCheckpointReplaceAllTransaction
   ): Promise<void>
+  undoMilestone?(): Promise<void>
+  redoMilestone?(): Promise<void>
 }
 
 function moveLastChanges(
@@ -88,6 +101,7 @@ export class EditorHistoryController {
   private readonly transactionLog: EditorTransactionRecord[] = []
   private readonly undoneTransactionLog: EditorTransactionRecord[] = []
   private nextSyntheticGroupId = 1
+  private readonly milestoneDepths: number[] = []
 
   public getEditState(): EditorEditState {
     const undoCount = this.transactionLog.length
@@ -107,8 +121,98 @@ export class EditorHistoryController {
     return [...this.changeLog]
   }
 
+  public snapshot(): EditorHistorySnapshot {
+    return {
+      version: 1,
+      savedChangeDepth: this.savedChangeDepth,
+      changeLog: this.changeLog.map((change) => ({ ...change })),
+      undoneChangeLog: this.undoneChangeLog.map((change) => ({ ...change })),
+      transactionLog: this.transactionLog.map((transaction) => ({
+        ...transaction,
+      })),
+      undoneTransactionLog: this.undoneTransactionLog.map((transaction) => ({
+        ...transaction,
+      })),
+      nextSyntheticGroupId: this.nextSyntheticGroupId,
+      milestoneDepths: [...this.milestoneDepths],
+    }
+  }
+
+  public static fromSnapshot(
+    snapshot: EditorHistorySnapshot
+  ): EditorHistoryController {
+    validateHistorySnapshot(snapshot)
+    const history = new EditorHistoryController()
+    history.savedChangeDepth = snapshot.savedChangeDepth
+    history.changeLog.push(
+      ...snapshot.changeLog.map((change) => ({ ...change }))
+    )
+    history.undoneChangeLog.push(
+      ...snapshot.undoneChangeLog.map((change) => ({ ...change }))
+    )
+    history.transactionLog.push(
+      ...snapshot.transactionLog.map((transaction) => ({ ...transaction }))
+    )
+    history.undoneTransactionLog.push(
+      ...snapshot.undoneTransactionLog.map((transaction) => ({
+        ...transaction,
+      }))
+    )
+    history.nextSyntheticGroupId = snapshot.nextSyntheticGroupId
+    history.milestoneDepths.push(...snapshot.milestoneDepths)
+    return history
+  }
+
+  public static fromSnapshotAtDepth(
+    snapshot: EditorHistorySnapshot,
+    transactionDepth: number
+  ): EditorHistoryController {
+    const history = EditorHistoryController.fromSnapshot(snapshot)
+    const totalDepth =
+      history.transactionLog.length + history.undoneTransactionLog.length
+    if (
+      !Number.isSafeInteger(transactionDepth) ||
+      transactionDepth < 0 ||
+      transactionDepth > totalDepth
+    ) {
+      throw new RangeError('Editor history depth is outside the timeline')
+    }
+    while (history.transactionLog.length > transactionDepth) {
+      const transaction = history.transactionLog.pop()
+      if (!transaction) break
+      if (transaction.kind === 'LOCAL') {
+        moveLastChanges(
+          history.changeLog,
+          history.undoneChangeLog,
+          transaction.changeCount
+        )
+      }
+      history.undoneTransactionLog.push(transaction)
+    }
+    while (history.transactionLog.length < transactionDepth) {
+      const transaction = history.undoneTransactionLog.pop()
+      if (!transaction) break
+      if (transaction.kind === 'LOCAL') {
+        moveLastChanges(
+          history.undoneChangeLog,
+          history.changeLog,
+          transaction.changeCount
+        )
+      }
+      history.transactionLog.push(transaction)
+    }
+    return history
+  }
+
   public recordLocalChange(change: EditorChangeRecord): void {
     this.recordLocalChanges([change])
+  }
+
+  public recordMilestone(): void {
+    const depth = this.transactionLog.length
+    if (depth > 0 && this.milestoneDepths.at(-1) !== depth) {
+      this.milestoneDepths.push(depth)
+    }
   }
 
   public recordLocalMutation(): void {
@@ -168,6 +272,16 @@ export class EditorHistoryController {
       return false
     }
 
+    const crossesMilestone = this.milestoneDepths.includes(
+      this.transactionLog.length
+    )
+    if (crossesMilestone) {
+      if (!executor.undoMilestone) {
+        throw new Error('History executor cannot cross a checkpoint milestone')
+      }
+      await executor.undoMilestone()
+    }
+
     const transaction = this.transactionLog[this.transactionLog.length - 1]
     if (transaction.kind === 'LOCAL') {
       await executor.undoLocal()
@@ -217,6 +331,39 @@ export class EditorHistoryController {
     }
 
     this.transactionLog.push(redoneTransaction)
+    if (this.milestoneDepths.includes(this.transactionLog.length)) {
+      if (!executor.redoMilestone) {
+        throw new Error('History executor cannot cross a checkpoint milestone')
+      }
+      await executor.redoMilestone()
+    }
     return true
   }
+}
+
+function validateHistorySnapshot(snapshot: EditorHistorySnapshot): void {
+  if (
+    snapshot?.version !== 1 ||
+    !Number.isSafeInteger(snapshot.savedChangeDepth) ||
+    snapshot.savedChangeDepth < 0 ||
+    !Number.isSafeInteger(snapshot.nextSyntheticGroupId) ||
+    snapshot.nextSyntheticGroupId < 1 ||
+    !Array.isArray(snapshot.changeLog) ||
+    !Array.isArray(snapshot.undoneChangeLog) ||
+    !Array.isArray(snapshot.transactionLog) ||
+    !Array.isArray(snapshot.undoneTransactionLog) ||
+    !Array.isArray(snapshot.milestoneDepths) ||
+    snapshot.savedChangeDepth >
+      snapshot.transactionLog.length + snapshot.undoneTransactionLog.length
+  ) {
+    throw new TypeError('Invalid editor history snapshot')
+  }
+  const totalDepth =
+    snapshot.transactionLog.length + snapshot.undoneTransactionLog.length
+  // Milestone depths are advisory (used for undo/redo milestone crossing).
+  // Filter out any that are out of range rather than crashing — a stale
+  // snapshot after history truncation should not be fatal.
+  snapshot.milestoneDepths = snapshot.milestoneDepths.filter(
+    (depth) => Number.isSafeInteger(depth) && depth >= 0 && depth <= totalDepth
+  )
 }

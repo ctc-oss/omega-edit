@@ -414,6 +414,10 @@ static void print_usage(const char *progname) {
               << "      --max-read-segment-bytes <bytes>\n"
               << "                                   Limit materialized read/classification segments (0 = unbounded)\n"
               << "      --max-search-matches <count> Limit unary search matches returned by one RPC (0 = unbounded)\n"
+              << "      --max-changelog-export-entries <count>\n"
+              << "                                   Cap entries in one ranged change-log export\n"
+              << "      --max-changelog-spool-bytes <bytes>\n"
+              << "                                   Cap the secure temporary export spool\n"
               << "\nTransform plugin options:\n"
               << "      --transform-plugin-dir <dir>\n"
               << "                                   Register transform plugins from a directory (repeatable)\n"
@@ -450,6 +454,8 @@ int main(int argc, char **argv) {
     size_t max_viewports_per_session = resource_limits.max_viewports_per_session;
     int64_t max_read_segment_bytes = resource_limits.max_read_segment_bytes;
     int64_t max_search_matches = resource_limits.max_search_matches;
+    int64_t max_changelog_export_entries = resource_limits.max_changelog_export_entries;
+    int64_t max_changelog_spool_bytes = resource_limits.max_changelog_spool_bytes;
     std::vector<std::string> transform_plugin_directories;
     std::string transform_plugin_host_path;
     bool allow_experimental_transform_plugins = false;
@@ -516,6 +522,16 @@ int main(int argc, char **argv) {
     if (const char *env = std::getenv("OMEGA_EDIT_MAX_SEARCH_MATCHES")) {
         if (!parse_int64(env, "OMEGA_EDIT_MAX_SEARCH_MATCHES", 0, std::numeric_limits<int64_t>::max(),
                          max_search_matches))
+            return 1;
+    }
+    if (const char *env = std::getenv("OMEGA_EDIT_MAX_CHANGELOG_EXPORT_ENTRIES")) {
+        if (!parse_int64(env, "OMEGA_EDIT_MAX_CHANGELOG_EXPORT_ENTRIES", 1, std::numeric_limits<int64_t>::max(),
+                         max_changelog_export_entries))
+            return 1;
+    }
+    if (const char *env = std::getenv("OMEGA_EDIT_MAX_CHANGELOG_SPOOL_BYTES")) {
+        if (!parse_int64(env, "OMEGA_EDIT_MAX_CHANGELOG_SPOOL_BYTES", 1, std::numeric_limits<int64_t>::max(),
+                         max_changelog_spool_bytes))
             return 1;
     }
     if (const char *env = std::getenv("OMEGA_EDIT_TRANSFORM_PLUGIN_DIRS")) {
@@ -638,6 +654,16 @@ int main(int argc, char **argv) {
                 if (!parse_int64(value, "--max-search-matches", 0, std::numeric_limits<int64_t>::max(),
                                  max_search_matches))
                     return 1;
+            } else if (key == "--max-changelog-export-entries") {
+                if (!require_option_value(key, value)) { return 1; }
+                if (!parse_int64(value, "--max-changelog-export-entries", 1, std::numeric_limits<int64_t>::max(),
+                                 max_changelog_export_entries))
+                    return 1;
+            } else if (key == "--max-changelog-spool-bytes") {
+                if (!require_option_value(key, value)) { return 1; }
+                if (!parse_int64(value, "--max-changelog-spool-bytes", 1, std::numeric_limits<int64_t>::max(),
+                                 max_changelog_spool_bytes))
+                    return 1;
             } else if (key == "--transform-plugin-dir") {
                 if (!require_option_value(key, value)) { return 1; }
                 transform_plugin_directories.push_back(value);
@@ -682,6 +708,8 @@ int main(int argc, char **argv) {
     resource_limits.max_viewports_per_session = max_viewports_per_session;
     resource_limits.max_read_segment_bytes = max_read_segment_bytes;
     resource_limits.max_search_matches = max_search_matches;
+    resource_limits.max_changelog_export_entries = max_changelog_export_entries;
+    resource_limits.max_changelog_spool_bytes = max_changelog_spool_bytes;
 
     // Create service with shutdown callback that requests shutdown via the monitor thread
     auto shutdown_callback = []() {

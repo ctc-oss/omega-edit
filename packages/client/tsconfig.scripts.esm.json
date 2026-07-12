@@ -29,6 +29,6 @@
     "inlineSources": false,
     "sourceMap": false
   },
-  "include": ["scripts/benchmark-undo.ts"],
+  "include": ["scripts/benchmark-undo.ts", "scripts/benchmark-changelog.ts"],
   "exclude": ["node_modules", "dist", "out", "tests"]
 }

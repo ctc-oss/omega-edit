@@ -18,6 +18,8 @@
  */
 
 export * from './change'
+export * from './changeLog/index'
+export * from './changeLog/node/index'
 export * from './client'
 export * from './constants'
 export * from './editor_history'
