@@ -1359,6 +1359,8 @@ test('compiled extension entrypoints exist after build', () => {
   assert.match(svelteAppSource, /type: 'delete'/)
   assert.match(svelteAppSource, /function handleGridType/)
   assert.match(svelteAppSource, /function commitByteEdit/)
+  assert.match(svelteAppSource, /if \(offset >= fileSize\)/)
+  assert.match(svelteAppSource, /const overwritingExistingByte/)
   assert.match(svelteAppSource, /function postDeleteRange/)
   assert.match(svelteAppSource, /function deleteFromKeyboard/)
   assert.match(svelteAppSource, /deletedBytes/)
@@ -1438,6 +1440,13 @@ test('compiled extension entrypoints exist after build', () => {
   assert.match(svelteAppSource, /visibleByteCount=\{visibleByteCount\(\)\}/)
   assert.match(svelteAppSource, /searchLength=\{searchPatternLength\}/)
   assert.match(editorWorkspaceSource, /PreviewGrid/)
+  assert.match(
+    editorWorkspaceSource,
+    /emptyFile=\{!preparing && fileSize === 0\}/
+  )
+  assert.match(previewGridSource, /emptyFile = false/)
+  assert.match(previewGridSource, /const emptyCellOffsets/)
+  assert.match(previewGridSource, /strings\.grid\.waitingForData/)
   assert.match(editorWorkspaceSource, /FileScrollbar/)
   assert.match(editorWorkspaceSource, /editor-grid-shell/)
   assert.match(editorWorkspaceSource, /editor-grid-scroller/)
@@ -1646,6 +1655,9 @@ test('compiled extension entrypoints exist after build', () => {
   assert.match(previewGridSource, /class:searchHit/)
   assert.match(previewGridSource, /class="text-byte"/)
   assert.match(previewGridSource, /formatAscii\(byte\)/)
+  assert.match(previewGridSource, /const viewportAtFileEnd/)
+  assert.match(previewGridSource, /const appendRowVisible/)
+  assert.match(previewGridSource, /data-offset=\{fileSize\}/)
   assert.match(i18nSource, /const englishStrings =/)
   assert.match(i18nSource, /const localeOverrides/)
   assert.match(i18nSource, /export function resolveLanguage/)

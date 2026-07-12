@@ -2826,6 +2826,21 @@ body.vscode-high-contrast-light .text-byte.selected:hover {
   color: var(--vscode-descriptionForeground);
 }
 
+.empty-byte {
+  color: transparent;
+  border-color: var(
+    --vscode-editorWidget-border,
+    var(--vscode-editorGroup-border)
+  );
+  border-style: dashed;
+}
+
+.empty-byte:hover,
+.empty-byte.activePane {
+  color: var(--vscode-editor-foreground);
+  border-style: solid;
+}
+
 .byte-inspector-panel {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
