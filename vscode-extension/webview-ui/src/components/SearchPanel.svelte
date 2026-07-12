@@ -116,6 +116,7 @@
     <div class="search-query-field" class:invalid>
       <input
         bind:this={queryInput}
+        id="searchQueryInput"
         class="search-input search-query-input"
         type="text"
         value={query}
@@ -183,6 +184,7 @@
   {#if replaceVisible}
     <div class="search-row replace-row">
       <input
+        id="searchReplacementInput"
         class="search-input replace-input"
         type="text"
         value={replacement}

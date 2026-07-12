@@ -1553,8 +1553,25 @@
   }
 
   function toggleSearchPanelVisible(): void {
-    searchPanelVisible = !searchPanelVisible
+    const visible = !searchPanelVisible
+    if (visible && checkpointTimeline.visible) {
+      checkpointTimeline = { ...checkpointTimeline, visible: false }
+      postToHost({ type: 'hideCheckpointTimeline' })
+    }
+    searchPanelVisible = visible
     savePreviewState({ searchPanelVisible })
+  }
+
+  function openSearchPanel(showReplace = false): void {
+    if (checkpointTimeline.visible) {
+      checkpointTimeline = { ...checkpointTimeline, visible: false }
+      postToHost({ type: 'hideCheckpointTimeline' })
+    }
+    searchPanelVisible = true
+    if (showReplace) {
+      replaceVisible = true
+    }
+    savePreviewState({ searchPanelVisible: true, replaceVisible })
   }
 
   function setOffsetRadix(radix: 'hex' | 'dec'): void {
@@ -2753,6 +2770,9 @@
         }
         break
       case 'checkpointTimeline':
+        if (message.visible && searchPanelVisible) {
+          closeSearchPanel()
+        }
         checkpointTimeline = message
         break
       case 'analysisProfile':
@@ -2838,10 +2858,7 @@
         }
         if (modifier && key === 'f') {
           event.preventDefault()
-          if (!searchPanelVisible) {
-            searchPanelVisible = true
-            savePreviewState({ searchPanelVisible: true })
-          }
+          openSearchPanel()
           requestAnimationFrame(() =>
             document
               .querySelector<HTMLInputElement>('#searchQueryInput')
@@ -2851,12 +2868,7 @@
         }
         if (modifier && key === 'h') {
           event.preventDefault()
-          if (!searchPanelVisible) {
-            searchPanelVisible = true
-            savePreviewState({ searchPanelVisible: true })
-          }
-          replaceVisible = true
-          savePreviewState({ replaceVisible: true })
+          openSearchPanel(true)
           requestAnimationFrame(() =>
             document
               .querySelector<HTMLInputElement>('#searchReplacementInput')
@@ -2959,7 +2971,7 @@
   {/if}
 
   <div class="top-panels">
-    {#if searchPanelVisible}
+    {#if searchPanelVisible && !checkpointTimeline.visible}
       <SearchPanel
         query={searchQuery}
         replacement={replacementQuery}

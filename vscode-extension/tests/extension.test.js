@@ -1982,6 +1982,8 @@ test('compiled extension entrypoints exist after build', () => {
   assert.match(searchPanelSource, /onToggleReplace/)
   assert.match(searchPanelSource, /replaceVisible/)
   assert.match(searchPanelSource, /class="search-query-field"/)
+  assert.match(searchPanelSource, /id="searchQueryInput"/)
+  assert.match(searchPanelSource, /id="searchReplacementInput"/)
   assert.match(searchPanelSource, /class="search-query-modifiers"/)
   assert.match(searchPanelSource, /class="search-disclosure"/)
   assert.match(searchPanelSource, /class:expanded=\{replaceVisible\}/)
@@ -2004,6 +2006,19 @@ test('compiled extension entrypoints exist after build', () => {
   )
   assert.doesNotMatch(searchPanelSource, />Search Next</)
   assert.doesNotMatch(searchPanelSource, />Replace All</)
+  assert.match(svelteAppSource, /function openSearchPanel/)
+  assert.match(
+    svelteAppSource,
+    /postToHost\(\{ type: 'hideCheckpointTimeline' \}\)/
+  )
+  assert.match(
+    svelteAppSource,
+    /searchPanelVisible && !checkpointTimeline\.visible/
+  )
+  assert.match(
+    svelteAppSource,
+    /message\.visible && searchPanelVisible[\s\S]+closeSearchPanel\(\)/
+  )
   assert.match(byteInspectorSource, /strings\.inspector\.label/)
   assert.match(byteInspectorSource, /strings\.inspector\.byteOrder/)
   assert.match(byteInspectorSource, /strings\.inspector\.littleEndian/)
