@@ -1037,6 +1037,22 @@
   }
 
   function selectOffset(offset: number, extend = false): void {
+    if (offset >= fileSize) {
+      if (fileSize === 0 || !extend) {
+        selectionAnchor = -1
+        selectedOffset = fileSize
+        clipboardMessage = ''
+        pendingHexNibble = undefined
+        pendingHexLabel = ''
+        clearInspectorHighlight()
+        saveSelectionState()
+        return
+      }
+
+      // When extending a selection, clamp to the last existing byte.
+      offset = fileSize - 1
+    }
+
     const nextOffset = clampOffset(offset)
     if (nextOffset < 0) {
       selectionAnchor = -1
@@ -1462,12 +1478,11 @@
     }
 
     const data = byte.toString(16).toUpperCase().padStart(2, '0')
-    if (inspectorEditMode === 'overwrite' && offset < fileSize) {
+    const overwritingExistingByte =
+      inspectorEditMode === 'overwrite' && offset < fileSize
+    if (overwritingExistingByte) {
       postToHost({ type: 'overwrite', offset, data })
       clipboardMessage = strings.inspector.overwroteByte
-    } else if (inspectorEditMode === 'overwrite') {
-      clipboardMessage = strings.inspector.cannotOverwrite
-      return
     } else if (offset <= fileSize) {
       postToHost({ type: 'insert', offset, data })
       fileSize += 1
@@ -1479,7 +1494,7 @@
 
     pendingHexNibble = undefined
     pendingHexLabel = ''
-    if (inspectorEditMode === 'overwrite') {
+    if (overwritingExistingByte) {
       selectionAnchor = offset
       selectedOffset = offset
     }
