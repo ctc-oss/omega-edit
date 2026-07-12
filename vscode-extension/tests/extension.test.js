@@ -149,7 +149,7 @@ test('package.json matches shared extension constants', () => {
   )
   assert.equal(
     packageJson.scripts['package:vsix'],
-    'vsce package --out omega-edit-data-editor.vsix'
+    'vsce package --out omega-edit-data-editor.vsix && node scripts/verify-vsix.cjs omega-edit-data-editor.vsix'
   )
   assert.equal(packageJson.displayName, '%omegaEdit.displayName%')
   assert.equal(packageNls['omegaEdit.displayName'], 'Ωedit™ Data Editor')
@@ -501,7 +501,7 @@ test('root build stages transform plugins before packaging the VSIX', () => {
   )
   assert.match(
     rootBuildScript,
-    /build-shared-\$\{type\}\/core\/src\/tests\/plugins/
+    /\$\{shared_build_dir\}\/core\/src\/tests\/plugins/
   )
   assert.match(rootBuildScript, /server_tgz="\$\(to_native_path/)
   assert.match(rootBuildScript, /client_tgz="\$\(to_native_path/)
@@ -2206,6 +2206,10 @@ test('compiled extension entrypoints exist after build', () => {
     path.resolve(__dirname, '../out/extension.js'),
     'utf8'
   )
+  const extensionSource = fs.readFileSync(
+    path.resolve(__dirname, '../src/extension.ts'),
+    'utf8'
+  )
   assert.match(extensionJs, /transformPluginDirectories/)
   assert.match(extensionJs, /omegaEdit\.language/)
   assert.match(extensionJs, /refreshLanguage/)
@@ -2252,7 +2256,7 @@ test('compiled extension entrypoints exist after build', () => {
   assert.match(extensionJs, /createCheckpoint/)
   assert.match(extensionJs, /getDefaultTransformPluginDirectories/)
   assert.match(extensionJs, /findRepositoryRoot/)
-  assert.match(extensionJs, /path\.resolve\(extensionPath,\s*['"]\.\.['"]\)/)
+  assert.match(extensionJs, /path\d*\.resolve\(extensionPath,\s*['"]\.\.['"]\)/)
   assert.match(extensionJs, /normalizeWindowsPath/)
   assert.match(extensionJs, /replace\(\/\\\/\/g,\s*['"]\\\\['"]\)/)
   assert.match(extensionJs, /splitPathList/)
@@ -2273,26 +2277,26 @@ test('compiled extension entrypoints exist after build', () => {
   assert.match(extensionJs, /\/tmp['"],\s*['"]omega-edit/)
   assert.match(extensionJs, /process\.platform === ['"]darwin['"]/)
   assert.match(extensionJs, /process\.platform === ['"]linux['"]/)
-  assert.doesNotMatch(extensionJs, /platformAllowsUnixSocketFallback/)
-  assert.doesNotMatch(extensionJs, /process\.platform === ['"]win32['"]/)
+  assert.doesNotMatch(extensionSource, /platformAllowsUnixSocketFallback/)
+  assert.doesNotMatch(extensionSource, /process\.platform === ['"]win32['"]/)
   assert.match(extensionJs, /startTcpServerConnection/)
-  assert.doesNotMatch(extensionJs, /fallbackReason/)
+  assert.doesNotMatch(extensionSource, /fallbackReason/)
   assert.match(extensionJs, /startServerUnixSocket/)
   assert.match(
-    extensionJs,
+    extensionSource,
     /const serverOptions = \{\s*transformPluginDirectories,\s*allowExperimentalTransformPlugins/
   )
   assert.match(
-    extensionJs,
+    extensionSource,
     /workspaceFolderValue[^}]+ConfigurationTarget\.WorkspaceFolder/s
   )
   assert.match(
-    extensionJs,
-    /startServer\)\(\s*tcpConnection\.port,\s*undefined,\s*undefined,\s*serverOptions/
+    extensionSource,
+    /startServer\(\s*tcpConnection\.port,\s*undefined,\s*undefined,\s*serverOptions/
   )
   assert.match(
-    extensionJs,
-    /getClient\)\(connection\.port,\s*undefined,\s*\{\s*socketPath:\s*connection\.socketPath/
+    extensionSource,
+    /getClient\(connection\.port,\s*undefined,\s*\{\s*socketPath:\s*connection\.socketPath/
   )
   assert.match(svelteStylesSource, /@media \(max-width: 1024px\)/)
   assert.match(

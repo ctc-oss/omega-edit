@@ -1,4 +1,6 @@
-# Source trees
+# Dependencies and source trees
+node_modules/**
+!node_modules/@omega-edit/server/**
 src/**
 scripts/**
 tests/**
@@ -22,5 +24,8 @@ biome.json*
 **/*.d.ts
 **/*.d.ts.map
 **/*.tsbuildinfo
+out/**
+!out/extension.js
+!out/svelte-webview/**
 *.tgz
 *.vsix

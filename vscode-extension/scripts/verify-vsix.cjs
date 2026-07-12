@@ -48,14 +48,20 @@ const forbidden = entries.filter(
     /\/node_modules\/(?:@biomejs|@vscode\/test-electron|@vscode\/vsce|mocha|svelte-check|typescript|vite)\//.test(
       entry
     ) ||
-    /\.(?:d\.ts|map|tsbuildinfo)$/.test(entry)
+    (/\.(?:d\.ts|map|tsbuildinfo)$/.test(entry) &&
+      !entry.startsWith('extension/node_modules/@omega-edit/server/'))
 )
 if (forbidden.length > 0) fail(`VSIX contains development files:\n${forbidden.slice(0, 20).join('\n')}`)
-if (!entries.some((entry) => entry.startsWith('extension/node_modules/@omega-edit/client/')))
-  fail('VSIX is missing the @omega-edit/client runtime dependency')
 if (!entries.some((entry) => entry.startsWith('extension/node_modules/@omega-edit/server/')))
   fail('VSIX is missing the @omega-edit/server runtime dependency')
-if (entries.length > 1500) fail(`VSIX contains ${entries.length} entries; limit is 1500`)
+const unexpectedDependencies = entries.filter(
+  (entry) =>
+    entry.startsWith('extension/node_modules/') &&
+    !entry.startsWith('extension/node_modules/@omega-edit/server')
+)
+if (unexpectedDependencies.length > 0)
+  fail(`VSIX contains unbundled dependencies:\n${unexpectedDependencies.slice(0, 20).join('\n')}`)
+if (entries.length > 200) fail(`VSIX contains ${entries.length} entries; limit is 200`)
 if (size > 50 * 1024 * 1024) fail(`VSIX is ${(size / (1024 * 1024)).toFixed(1)} MiB; limit is 50 MiB`)
 
 process.stdout.write(`Verified VSIX: ${entries.length} entries, ${(size / (1024 * 1024)).toFixed(1)} MiB\n`)

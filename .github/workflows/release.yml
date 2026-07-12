@@ -559,7 +559,7 @@ jobs:
           STAGE_DIR="$(mktemp -d)"
           cp -R vscode-extension/. "$STAGE_DIR"
           cd "$STAGE_DIR"
-          npm pkg set "dependencies.@omega-edit/client=${PKG_VERSION}"
+          npm pkg set "devDependencies.@omega-edit/client=${PKG_VERSION}"
           npm install --no-save \
             "${GITHUB_WORKSPACE}/packages/server/omega-edit-node-server-v${PKG_VERSION}.tgz" \
             "${GITHUB_WORKSPACE}/packages/client/omega-edit-node-client-v${PKG_VERSION}.tgz"

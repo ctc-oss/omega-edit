@@ -352,9 +352,10 @@
     }
   },
   "scripts": {
-    "vscode:prepublish": "npm run compile",
+    "vscode:prepublish": "npm run compile:extension:production && npm run check:webview && npm run compile:webview",
     "compile": "npm run compile:extension && npm run check:webview && npm run compile:webview",
-    "compile:extension": "tsc -p ./",
+    "compile:extension": "tsc -p ./ && node scripts/build-extension.cjs",
+    "compile:extension:production": "tsc -p ./ && node scripts/build-extension.cjs --production",
     "check:webview": "svelte-check --tsconfig ./webview-ui/tsconfig.json",
     "compile:webview": "vite build",
     "watch": "tsc -watch -p ./",
@@ -371,7 +372,6 @@
     "test": "npm run lint && npm run compile && npm run test:unit && npm run test:integration"
   },
   "dependencies": {
-    "@omega-edit/client": "file:../packages/client",
     "@omega-edit/server": "file:../packages/server"
   },
   "overrides": {
@@ -382,11 +382,13 @@
   },
   "devDependencies": {
     "@biomejs/biome": "^2.4.9",
+    "@omega-edit/client": "file:../packages/client",
     "@sveltejs/vite-plugin-svelte": "^7.1.2",
     "@types/node": "^22.20.0",
     "@types/vscode": "^1.110.0",
     "@vscode/test-electron": "^2.5.2",
     "@vscode/vsce": "^3.9.2",
+    "esbuild": "^0.28.1",
     "mocha": "^10.8.2",
     "svelte": "^5.56.3",
     "svelte-check": "^4.1.0",

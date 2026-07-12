@@ -394,7 +394,7 @@ client_tgz="$(to_native_path "${root_dir}/packages/client/omega-edit-node-client
 transform_plugins_stage_native="$(to_native_path "$transform_plugins_stage")"
 (
   cd "$vsix_stage"
-  npm pkg set "dependencies.@omega-edit/client=${pkg_version}"
+  npm pkg set "devDependencies.@omega-edit/client=${pkg_version}"
   npm install --no-save "$server_tgz" "$client_tgz"
   npm run stage:transform-plugins -- "$transform_plugins_stage_native" --platform "$transform_plugin_platform"
   npm run package:vsix
