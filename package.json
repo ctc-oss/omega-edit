@@ -48,7 +48,7 @@
     "@biomejs/biome": "^2.5.2",
     "@types/node": "^22.20.0",
     "run-script-os": "^1.1.6",
-    "typedoc": "^0.28.19",
+    "typedoc": "^0.28.20",
     "typescript": "^6.0.3",
     "vite": "^8.1.4",
     "vitest": "^4.1.9"
