@@ -517,6 +517,19 @@ test('VSIX packaging uses the server package as its native runtime', () => {
   )
 })
 
+test('integration suite connects its independent client instance', () => {
+  const integrationSource = fs.readFileSync(
+    path.resolve(__dirname, 'suite/extension.integration.test.js'),
+    'utf8'
+  )
+
+  assert.match(
+    integrationSource,
+    /extensionApi = await extension\.activate\(\)/
+  )
+  assert.match(integrationSource, /await getClient\(testPort\)/)
+})
+
 test('text encoding lookup tables cover supported single-byte code pages', () => {
   const source = fs.readFileSync(
     path.resolve(__dirname, '../src/textEncoding.ts'),
@@ -1950,6 +1963,8 @@ test('compiled extension entrypoints exist after build', () => {
   assert.match(fileScrollbarSource, /WebviewExternalHighlight/)
   assert.match(fileScrollbarSource, /rangeMarkers/)
   assert.match(fileScrollbarSource, /file-scrollbar-range-marker/)
+  assert.match(fileScrollbarSource, /file-scrollbar-thumb-glyph/)
+  assert.match(fileScrollbarSource, />\s*Ω\s*<\/text>/)
   assert.match(fileScrollbarSource, /scrollToRangeMarker/)
   assert.match(fileScrollbarSource, /activateRangeMarker/)
   assert.match(fileScrollbarSource, /onExternalHighlightHover/)
@@ -2138,6 +2153,15 @@ test('compiled extension entrypoints exist after build', () => {
   assert.match(svelteStylesSource, /\.analysis-section\.dragging::before/)
   assert.match(svelteStylesSource, /\.analysis-icon-button/)
   assert.match(svelteStylesSource, /\.file-scrollbar-range-marker/)
+  assert.match(svelteStylesSource, /\.file-scrollbar-thumb-glyph/)
+  assert.match(
+    svelteStylesSource,
+    /\.file-scrollbar-track:hover \.file-scrollbar-range-marker/
+  )
+  assert.match(
+    svelteStylesSource,
+    /\.file-scrollbar-track:focus-within \.file-scrollbar-thumb/
+  )
   assert.match(
     svelteStylesSource,
     /\.range-map-node\[data-external-color="0"\]/

@@ -1458,7 +1458,11 @@ button.dialog-backdrop:focus-visible {
 .file-scrollbar-thumb {
   fill: var(--vscode-scrollbarSlider-background, rgba(121, 121, 121, 0.4));
   cursor: pointer;
-  transition: fill 120ms ease;
+  stroke: transparent;
+  stroke-width: 1;
+  transition:
+    fill 120ms ease,
+    stroke 120ms ease;
 }
 
 .file-scrollbar-range-marker {
@@ -1506,6 +1510,43 @@ button.dialog-backdrop:focus-visible {
   overflow: visible;
 }
 
+.file-scrollbar-thumb-glyph {
+  fill: var(--vscode-editor-background);
+  font-family: var(--vscode-font-family);
+  font-size: 9px;
+  font-weight: 700;
+  text-anchor: middle;
+  dominant-baseline: central;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 120ms ease;
+}
+
+.file-scrollbar-track:hover .file-scrollbar-range-marker,
+.file-scrollbar-track:focus-within .file-scrollbar-range-marker,
+.file-scrollbar.dragging .file-scrollbar-range-marker {
+  opacity: 0.16;
+}
+
+.file-scrollbar-track:hover .file-scrollbar-thumb,
+.file-scrollbar-track:focus-within .file-scrollbar-thumb {
+  fill: var(--vscode-scrollbarSlider-hoverBackground, rgba(100, 100, 100, 0.7));
+  stroke: var(--vscode-focusBorder, var(--vscode-contrastActiveBorder, transparent));
+}
+
+.file-scrollbar-track:hover .file-scrollbar-thumb-glyph,
+.file-scrollbar-track:focus-within .file-scrollbar-thumb-glyph,
+.file-scrollbar.dragging .file-scrollbar-thumb-glyph {
+  opacity: 0.82;
+}
+
+.file-scrollbar-track:hover .file-scrollbar-range-marker:hover,
+.file-scrollbar-track:focus-within .file-scrollbar-range-marker:focus-visible,
+.file-scrollbar-track .file-scrollbar-range-marker.hovered,
+.file-scrollbar-track .file-scrollbar-range-marker.selected {
+  opacity: 1;
+}
+
 .file-scrollbar-track.disabled .file-scrollbar-thumb {
   opacity: 0;
 }
@@ -1520,6 +1561,7 @@ button.dialog-backdrop:focus-visible {
     --vscode-scrollbarSlider-activeBackground,
     rgba(191, 191, 191, 0.4)
   );
+  stroke: var(--vscode-focusBorder, var(--vscode-contrastActiveBorder, transparent));
 }
 
 .profiler-panel {

@@ -4,7 +4,11 @@ const fs = require('node:fs/promises')
 const os = require('node:os')
 const path = require('node:path')
 const vscode = require('vscode')
-const { getComputedFileSize, getSegment } = require('@omega-edit/client')
+const {
+  getClient,
+  getComputedFileSize,
+  getSegment,
+} = require('@omega-edit/client')
 
 const packageJson = require('../../package.json')
 const {
@@ -213,6 +217,10 @@ suite('OmegaEdit VS Code extension', () => {
     )
     extensionApi = await extension.activate()
     assert.equal(extension.isActive, true)
+    // Production builds bundle the extension's client, so the test suite's
+    // development dependency has independent module-level connection state.
+    // Connect that client explicitly before tests call its helper functions.
+    await getClient(testPort)
     assert.equal(extensionApi.extensionId, OMEGA_EDIT_EXTENSION_ID)
     assert.equal(extensionApi.version, OMEGA_EDIT_EXTENSION_API_VERSION)
     assert.equal(typeof extensionApi.open, 'function')
