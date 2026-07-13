@@ -727,9 +727,70 @@ function createOmegaEditExtensionApi(
   }
 }
 
+function registerEditorEntryPoints(
+  context: vscode.ExtensionContext
+): HexEditorProvider {
+  const provider = new HexEditorProvider(context)
+  activeProvider = provider
+
+  context.subscriptions.push(
+    vscode.window.registerCustomEditorProvider(
+      HexEditorProvider.viewType,
+      provider,
+      {
+        webviewOptions: { retainContextWhenHidden: true },
+        supportsMultipleEditorsPerDocument: false,
+      }
+    )
+  )
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand(
+      OMEGA_EDIT_OPEN_IN_HEX_EDITOR_COMMAND,
+      async (resource?: vscode.Uri) => {
+        let target = resource ?? vscode.window.activeTextEditor?.document.uri
+
+        if (!target) {
+          target = (
+            await vscode.window.showOpenDialog({
+              canSelectMany: false,
+              canSelectFiles: true,
+              canSelectFolders: false,
+              openLabel: vscode.l10n.t('Open in Ωedit™ Data Editor'),
+              title: vscode.l10n.t(
+                'Select a file to open in Ωedit™ Data Editor'
+              ),
+            })
+          )?.[0]
+        }
+
+        if (!target) {
+          return
+        }
+
+        if (!isFileUri(target)) {
+          void vscode.window.showWarningMessage(
+            vscode.l10n.t('OmegaEdit Data Editor can only open local files')
+          )
+          return
+        }
+
+        await vscode.commands.executeCommand(
+          'vscode.openWith',
+          target,
+          OMEGA_EDIT_VIEW_TYPE
+        )
+      }
+    )
+  )
+
+  return provider
+}
+
 export async function activate(
   context: vscode.ExtensionContext
 ): Promise<OmegaEditExtensionApi | undefined> {
+  const provider = registerEditorEntryPoints(context)
   const config = vscode.workspace.getConfiguration('omegaEdit')
 
   let connection: ServerConnection
@@ -814,60 +875,6 @@ export async function activate(
       )
     }
   }
-
-  const provider = new HexEditorProvider(context)
-  activeProvider = provider
-
-  context.subscriptions.push(
-    vscode.window.registerCustomEditorProvider(
-      HexEditorProvider.viewType,
-      provider,
-      {
-        webviewOptions: { retainContextWhenHidden: true },
-        supportsMultipleEditorsPerDocument: false,
-      }
-    )
-  )
-
-  context.subscriptions.push(
-    vscode.commands.registerCommand(
-      OMEGA_EDIT_OPEN_IN_HEX_EDITOR_COMMAND,
-      async (resource?: vscode.Uri) => {
-        let target = resource ?? vscode.window.activeTextEditor?.document.uri
-
-        if (!target) {
-          target = (
-            await vscode.window.showOpenDialog({
-              canSelectMany: false,
-              canSelectFiles: true,
-              canSelectFolders: false,
-              openLabel: vscode.l10n.t('Open in Ωedit™ Data Editor'),
-              title: vscode.l10n.t(
-                'Select a file to open in Ωedit™ Data Editor'
-              ),
-            })
-          )?.[0]
-        }
-
-        if (!target) {
-          return
-        }
-
-        if (!isFileUri(target)) {
-          void vscode.window.showWarningMessage(
-            vscode.l10n.t('OmegaEdit Data Editor can only open local files')
-          )
-          return
-        }
-
-        await vscode.commands.executeCommand(
-          'vscode.openWith',
-          target,
-          OMEGA_EDIT_VIEW_TYPE
-        )
-      }
-    )
-  )
 
   context.subscriptions.push(
     vscode.commands.registerCommand(

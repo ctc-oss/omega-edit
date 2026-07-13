@@ -2210,6 +2210,14 @@ test('compiled extension entrypoints exist after build', () => {
     path.resolve(__dirname, '../src/extension.ts'),
     'utf8'
   )
+  const editorRegistrationIndex = extensionSource.indexOf(
+    'const provider = registerEditorEntryPoints(context)'
+  )
+  const serverResolutionIndex = extensionSource.indexOf(
+    'connection = resolveServerConnection(config)'
+  )
+  assert.ok(editorRegistrationIndex >= 0)
+  assert.ok(serverResolutionIndex > editorRegistrationIndex)
   assert.match(extensionJs, /transformPluginDirectories/)
   assert.match(extensionJs, /omegaEdit\.language/)
   assert.match(extensionJs, /refreshLanguage/)
