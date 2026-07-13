@@ -360,7 +360,6 @@
     "compile:webview": "vite build",
     "watch": "tsc -watch -p ./",
     "watch:webview": "vite build --watch",
-    "stage:transform-plugins": "node scripts/stage-transform-plugins.cjs",
     "package:vsix": "vsce package --out omega-edit-data-editor.vsix && node scripts/verify-vsix.cjs omega-edit-data-editor.vsix",
     "format:check": "biome format .",
     "format:write": "biome format --write .",

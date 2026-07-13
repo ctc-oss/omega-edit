@@ -31,6 +31,13 @@ const serverBinaryName = isWin
 const transformPluginHostBinaryName = isWin
   ? 'omega-transform-plugin-host.exe'
   : 'omega-transform-plugin-host'
+const supportedTransformPluginPlatforms = [
+  { id: 'linux-x64', extensions: ['.so'] },
+  { id: 'linux-arm64', extensions: ['.so'] },
+  { id: 'macos-x64', extensions: ['.dylib', '.so'] },
+  { id: 'macos-arm64', extensions: ['.dylib', '.so'] },
+  { id: 'windows-x64', extensions: ['.dll'] },
+]
 
 function normalizeWindowsPath(filePath) {
   if (process.platform !== 'win32') return filePath
@@ -267,6 +274,56 @@ function copyTransformPlugins() {
   )
 }
 
+function copyUniversalTransformPlugins() {
+  const sourceRoots = [
+    ...splitPathList(process.env.OMEGA_EDIT_TRANSFORM_PLUGIN_DIRS),
+    ...splitPathList(process.env.OMEGA_EDIT_TRANSFORM_PLUGINS_DIR),
+  ].map(normalizeWindowsPath)
+
+  for (const platform of supportedTransformPluginPlatforms) {
+    const sourceDir = sourceRoots
+      .map((sourceRoot) => path.join(sourceRoot, platform.id))
+      .find((candidate) => tryStat(candidate)?.isDirectory())
+    if (!sourceDir) {
+      throw new Error(
+        `Transform plugin binaries for ${platform.id} not found. Set OMEGA_EDIT_TRANSFORM_PLUGINS_DIR to the universal plugin staging directory.`
+      )
+    }
+
+    const plugins = fs
+      .readdirSync(sourceDir)
+      .filter(
+        (file) =>
+          file.startsWith('omega_transform_') &&
+          platform.extensions.some((extension) => file.endsWith(extension))
+      )
+      .sort()
+    if (plugins.length === 0) {
+      throw new Error(`No transform plugins found for ${platform.id}`)
+    }
+
+    const destDir = path.join(outputPath, 'transform-plugins', platform.id)
+    fs.mkdirSync(destDir, { recursive: true })
+    for (const plugin of plugins) {
+      copyFileReplacing(
+        path.join(sourceDir, plugin),
+        path.join(destDir, plugin),
+        {
+          executable: !plugin.endsWith('.dll'),
+        }
+      )
+    }
+
+    const magicDb = path.join(sourceDir, 'magic.mgc')
+    if (tryStat(magicDb)?.isFile()) {
+      copyFileReplacing(magicDb, path.join(destDir, 'magic.mgc'))
+    }
+    console.log(
+      `Copied ${plugins.length} transform plugin(s) for ${platform.id}`
+    )
+  }
+}
+
 function findSharedLibrary() {
   const oeLibDir = process.env.OE_LIB_DIR || path.join(repoRoot, '_install')
   const libPatterns = isWin
@@ -403,7 +460,11 @@ function stagePackageFiles() {
   }
 
   emptyDirectory(path.join(outputPath, 'transform-plugins'))
-  copyTransformPlugins()
+  if (binariesDir) {
+    copyUniversalTransformPlugins()
+  } else {
+    copyTransformPlugins()
+  }
 }
 
 function emptyDirectory(directory) {

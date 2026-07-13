@@ -145,65 +145,6 @@ setup_msvc_env() {
   fi
 }
 
-detect_vscode_transform_platform() {
-  node - <<'NODE'
-const os = require('node:os')
-const platform = os.platform()
-const arch = os.arch()
-
-let id = ''
-if (platform === 'linux' && (arch === 'x64' || arch === 'arm64')) {
-  id = `linux-${arch}`
-} else if (platform === 'darwin' && (arch === 'x64' || arch === 'arm64')) {
-  id = `macos-${arch}`
-} else if (platform === 'win32' && arch === 'x64') {
-  id = 'windows-x64'
-}
-
-if (!id) {
-  process.exit(1)
-}
-
-console.log(id)
-NODE
-}
-
-stage_vscode_transform_plugins() {
-  local source_dir="$1"
-  local destination_root="$2"
-  local platform_id="$3"
-  local destination_dir="${destination_root}/${platform_id}"
-  local patterns=("-name" "omega_transform_*.so")
-
-  if [[ "$platform_id" == windows-* ]]; then
-    patterns=("-name" "omega_transform_*.dll")
-  elif [[ "$platform_id" == macos-* ]]; then
-    patterns=("(" "-name" "omega_transform_*.dylib" "-o" "-name" "omega_transform_*.so" ")")
-  fi
-
-  if [[ ! -d "$source_dir" ]]; then
-    echo "Transform plugin directory not found: $source_dir"
-    exit 1
-  fi
-
-  rm -rf "$destination_root"
-  mkdir -p "$destination_dir"
-  find "$source_dir" -maxdepth 1 -type f "${patterns[@]}" -exec cp {} "$destination_dir" \;
-
-  local plugin_count
-  plugin_count="$(find "$destination_dir" -maxdepth 1 -type f | wc -l | tr -d '[:space:]')"
-  if [[ "${plugin_count:-0}" -eq 0 ]]; then
-    echo "No transform plugins found in $source_dir for $platform_id"
-    exit 1
-  fi
-
-  if [[ "$platform_id" != windows-* ]]; then
-    chmod 755 "$destination_dir"/omega_transform_* || true
-  fi
-
-  echo "Staged ${plugin_count} transform plugins for ${platform_id}"
-}
-
 ensure_conan() {
   if command -v conan >/dev/null 2>&1; then
     conan --version
@@ -375,28 +316,19 @@ yarn workspace @omega-edit/client package
 yarn workspace @omega-edit/ai package
 
 vsix_stage="$(mktemp -d)"
-transform_plugins_stage="$(mktemp -d)"
 cleanup_vsix_stage() {
-  rm -rf "$vsix_stage" "$transform_plugins_stage"
+  rm -rf "$vsix_stage"
 }
 trap cleanup_vsix_stage EXIT
-
-transform_plugin_platform="$(detect_vscode_transform_platform)"
-stage_vscode_transform_plugins \
-  "${root_dir}/${shared_build_dir}/core/src/tests/plugins" \
-  "$transform_plugins_stage" \
-  "$transform_plugin_platform"
 
 cp -R vscode-extension/. "$vsix_stage"
 # These paths are consumed by native node/npm, so pass them in native form.
 server_tgz="$(to_native_path "${root_dir}/packages/server/omega-edit-node-server-v${pkg_version}.tgz")"
 client_tgz="$(to_native_path "${root_dir}/packages/client/omega-edit-node-client-v${pkg_version}.tgz")"
-transform_plugins_stage_native="$(to_native_path "$transform_plugins_stage")"
 (
   cd "$vsix_stage"
   npm pkg set "devDependencies.@omega-edit/client=${pkg_version}"
   npm install --no-save "$server_tgz" "$client_tgz"
-  npm run stage:transform-plugins -- "$transform_plugins_stage_native" --platform "$transform_plugin_platform"
   npm run package:vsix
 )
 cp "$vsix_stage/omega-edit-data-editor.vsix" "${root_dir}/vscode-extension/"

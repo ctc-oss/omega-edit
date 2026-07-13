@@ -61,8 +61,51 @@ const unexpectedDependencies = entries.filter(
 )
 if (unexpectedDependencies.length > 0)
   fail(`VSIX contains unbundled dependencies:\n${unexpectedDependencies.slice(0, 20).join('\n')}`)
+const duplicatePlugins = entries.filter((entry) =>
+  entry.startsWith('extension/bundled/transform-plugins/')
+)
+if (duplicatePlugins.length > 0)
+  fail(`VSIX contains a duplicate transform plugin tree:\n${duplicatePlugins.slice(0, 20).join('\n')}`)
+
+const supportedPlatforms = [
+  'linux-x64',
+  'linux-arm64',
+  'macos-x64',
+  'macos-arm64',
+  'windows-x64',
+]
+let packagedPlatforms = supportedPlatforms.filter((platform) =>
+  entries.some((entry) =>
+    entry.includes(`/out/bin/omega-edit-grpc-server-${platform}`)
+  )
+)
+if (packagedPlatforms.length === 0) {
+  const localPlatform =
+    process.platform === 'darwin'
+      ? `macos-${process.arch}`
+      : process.platform === 'win32'
+        ? `windows-${process.arch}`
+        : `${process.platform}-${process.arch}`
+  packagedPlatforms = supportedPlatforms.includes(localPlatform)
+    ? [localPlatform]
+    : []
+}
+if (packagedPlatforms.length === 0)
+  fail('VSIX does not contain a server binary for a supported platform')
+for (const platform of packagedPlatforms) {
+  const pluginPrefix = `extension/node_modules/@omega-edit/server/out/transform-plugins/${platform}/`
+  const plugins = entries.filter(
+    (entry) =>
+      entry.startsWith(pluginPrefix) &&
+      /omega_transform_[^/]+\.(?:dll|dylib|so)$/.test(entry)
+  )
+  if (plugins.length < 17)
+    fail(`VSIX contains ${plugins.length} transform plugins for ${platform}; expected at least 17`)
+  if (!plugins.some((entry) => /omega_transform_zstd\.(?:dll|dylib|so)$/.test(entry)))
+    fail(`VSIX is missing the zstd transform plugin for ${platform}`)
+}
 if (entries.length > 200) fail(`VSIX contains ${entries.length} entries; limit is 200`)
-if (size > 50 * 1024 * 1024) fail(`VSIX is ${(size / (1024 * 1024)).toFixed(1)} MiB; limit is 50 MiB`)
+if (size > 70 * 1024 * 1024) fail(`VSIX is ${(size / (1024 * 1024)).toFixed(1)} MiB; limit is 70 MiB`)
 
 process.stdout.write(`Verified VSIX: ${entries.length} entries, ${(size / (1024 * 1024)).toFixed(1)} MiB\n`)
 

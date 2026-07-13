@@ -350,7 +350,6 @@ jobs:
           npm install --no-save \
             "${GITHUB_WORKSPACE}/packages/server/omega-edit-node-server-v${PKG_VERSION}.tgz" \
             "${GITHUB_WORKSPACE}/packages/client/omega-edit-node-client-v${PKG_VERSION}.tgz"
-          npm run stage:transform-plugins -- "${GITHUB_WORKSPACE}/_transform_plugins"
           npm run package:vsix
           mkdir -p "${GITHUB_WORKSPACE}/_vsix"
           cp omega-edit-data-editor.vsix "${GITHUB_WORKSPACE}/_vsix/omega-edit-data-editor-v${PKG_VERSION}.vsix"

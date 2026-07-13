@@ -488,49 +488,32 @@ test('package.json matches shared extension constants', () => {
   )
 })
 
-test('root build stages transform plugins before packaging the VSIX', () => {
+test('VSIX packaging uses the server package as its native runtime', () => {
   const rootBuildScript = fs.readFileSync(
     path.resolve(__dirname, '../../build.sh'),
     'utf8'
   )
-  assert.match(rootBuildScript, /detect_vscode_transform_platform/)
-  assert.match(rootBuildScript, /stage_vscode_transform_plugins/)
   assert.match(
     rootBuildScript,
     /command -v cl[\s\S]*\[\[ -n "\$\{INCLUDE:-\}" && -n "\$\{LIB:-\}" \]\]/
-  )
-  assert.match(
-    rootBuildScript,
-    /\$\{shared_build_dir\}\/core\/src\/tests\/plugins/
   )
   assert.match(rootBuildScript, /server_tgz="\$\(to_native_path/)
   assert.match(rootBuildScript, /client_tgz="\$\(to_native_path/)
   assert.match(
     rootBuildScript,
-    /transform_plugins_stage_native="\$\(to_native_path "\$transform_plugins_stage"\)"/
-  )
-  assert.match(
-    rootBuildScript,
     /npm install --no-save "\$server_tgz" "\$client_tgz"/
   )
-  assert.match(
-    rootBuildScript,
-    /npm run stage:transform-plugins -- "\$transform_plugins_stage_native" --platform "\$transform_plugin_platform"/
-  )
-  assert.match(
-    rootBuildScript,
-    /npm run stage:transform-plugins[\s\S]*npm run package:vsix/
-  )
+  assert.doesNotMatch(rootBuildScript, /stage:transform-plugins/)
 
-  const stageTransformPluginsScript = fs.readFileSync(
-    path.resolve(__dirname, '../scripts/stage-transform-plugins.cjs'),
+  const serverPackageScript = fs.readFileSync(
+    path.resolve(__dirname, '../../packages/server/scripts/build-package.js'),
     'utf8'
   )
-  assert.match(stageTransformPluginsScript, /platformFilter/)
-  assert.match(stageTransformPluginsScript, /--platform=/)
+  assert.match(serverPackageScript, /supportedTransformPluginPlatforms/)
+  assert.match(serverPackageScript, /copyUniversalTransformPlugins/)
   assert.match(
-    stageTransformPluginsScript,
-    /platforms = platformFilter[\s\S]*: supportedPlatforms/
+    serverPackageScript,
+    /if \(binariesDir\)[\s\S]*copyUniversalTransformPlugins/
   )
 })
 

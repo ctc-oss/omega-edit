@@ -366,14 +366,6 @@ function getDefaultTransformPluginDirectories(
       'tests',
       'plugins'
     ),
-    bundledPlatform
-      ? path.join(
-          context.extensionPath,
-          'bundled',
-          'transform-plugins',
-          bundledPlatform
-        )
-      : '',
   ].filter(Boolean)
 
   return Array.from(new Set(candidates)).filter(directoryHasTransformPlugin)
