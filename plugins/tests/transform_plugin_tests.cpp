@@ -1207,9 +1207,9 @@ TEST_CASE("Packaged Transform Plugins", "[TransformPlugin]") {
     REQUIRE(0 < omega_edit_insert_bytes(zstd_session_ptr, 0,
                                         reinterpret_cast<const omega_byte_t *>(repeated_zstd_input.data()),
                                         static_cast<int64_t>(repeated_zstd_input.size())));
-    REQUIRE(0 == omega_transform_plugin_registry_apply_to_session(registry_ptr, "omega.example.zstd",
-                                                                  zstd_session_ptr, 0, 0,
-                                                                  "{\"action\":\"compress\",\"level\":19}", &response));
+    REQUIRE(0 == omega_transform_plugin_registry_apply_to_session(registry_ptr, "omega.example.zstd", zstd_session_ptr,
+                                                                  0, 0, "{\"action\":\"compress\",\"level\":19}",
+                                                                  &response));
     const auto compressed_zstd = omega_session_get_segment_string(
             zstd_session_ptr, 0, omega_session_get_computed_file_size(zstd_session_ptr));
     REQUIRE(compressed_zstd.size() < repeated_zstd_input.size());
@@ -1230,11 +1230,11 @@ TEST_CASE("Packaged Transform Plugins", "[TransformPlugin]") {
 
     const std::string zstd_cap_options =
             "{\"action\":\"decompress\",\"maxOutputBytes\":" + std::to_string(repeated_zstd_input.size()) + "}";
-    REQUIRE(0 == omega_transform_plugin_registry_apply_to_session(registry_ptr, "omega.example.zstd",
-                                                                  zstd_session_ptr, 0, 0, zstd_cap_options.c_str(),
-                                                                  &response));
-    REQUIRE(repeated_zstd_input == omega_session_get_segment_string(
-                                           zstd_session_ptr, 0, omega_session_get_computed_file_size(zstd_session_ptr)));
+    REQUIRE(0 == omega_transform_plugin_registry_apply_to_session(registry_ptr, "omega.example.zstd", zstd_session_ptr,
+                                                                  0, 0, zstd_cap_options.c_str(), &response));
+    REQUIRE(repeated_zstd_input ==
+            omega_session_get_segment_string(zstd_session_ptr, 0,
+                                             omega_session_get_computed_file_size(zstd_session_ptr)));
     omega_transform_plugin_response_clear(&response);
     omega_edit_destroy_session(zstd_session_ptr);
 
