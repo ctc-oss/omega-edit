@@ -25,6 +25,12 @@
 #include <string>
 #include <vector>
 
+#if defined(_WIN32)
+#include <windows.h>
+#elif defined(__APPLE__)
+#include <mach-o/dyld.h>
+#endif
+
 namespace {
     struct options_t {
         std::vector<std::string> plugin_dirs;
@@ -49,11 +55,65 @@ namespace {
                 << "       [--allow-experimental] [--options JSON] [--expect-output-hex HEX] [--expect-result TEXT]\n";
     }
 
-    auto installed_plugin_directory(const char *argv0) -> std::string {
+    auto executable_path_from_argv0(const char *argv0) -> std::filesystem::path {
         if (!argv0 || !*argv0) { return {}; }
+        const std::filesystem::path argv0_path(argv0);
         std::error_code error;
-        auto executable = std::filesystem::absolute(argv0, error);
-        if (error) { return {}; }
+        if (argv0_path.has_parent_path()) { return std::filesystem::absolute(argv0_path, error); }
+
+#if defined(_WIN32)
+        char *path_env = nullptr;
+        size_t path_env_size = 0;
+        if (_dupenv_s(&path_env, &path_env_size, "PATH") != 0 || !path_env) { return {}; }
+        const std::string path_value(path_env);
+        std::free(path_env);
+        constexpr char path_separator = ';';
+#else
+        const auto *path_env = std::getenv("PATH");
+        if (!path_env) { return {}; }
+        const std::string path_value(path_env);
+        constexpr char path_separator = ':';
+#endif
+        std::stringstream paths(path_value);
+        std::string directory;
+        while (std::getline(paths, directory, path_separator)) {
+            const auto candidate =
+                    (directory.empty() ? std::filesystem::path(".") : std::filesystem::path(directory)) / argv0_path;
+            if (std::filesystem::is_regular_file(candidate, error) && !error) {
+                return std::filesystem::absolute(candidate, error);
+            }
+            error.clear();
+        }
+        return {};
+    }
+
+    auto running_executable_path(const char *argv0) -> std::filesystem::path {
+#if defined(_WIN32)
+        std::vector<wchar_t> buffer(1024);
+        while (buffer.size() <= 32768) {
+            const auto length = GetModuleFileNameW(nullptr, buffer.data(), static_cast<DWORD>(buffer.size()));
+            if (length == 0) { break; }
+            if (length < buffer.size()) { return {buffer.data(), buffer.data() + length}; }
+            buffer.resize(buffer.size() * 2);
+        }
+#elif defined(__APPLE__)
+        uint32_t size = 0;
+        if (_NSGetExecutablePath(nullptr, &size) != 0 && size > 0) {
+            std::vector<char> buffer(size);
+            if (_NSGetExecutablePath(buffer.data(), &size) == 0) { return buffer.data(); }
+        }
+#elif defined(__linux__)
+        std::error_code error;
+        auto executable = std::filesystem::read_symlink("/proc/self/exe", error);
+        if (!error && !executable.empty()) { return executable; }
+#endif
+        return executable_path_from_argv0(argv0);
+    }
+
+    auto installed_plugin_directory(const char *argv0) -> std::string {
+        auto executable = running_executable_path(argv0);
+        if (executable.empty()) { return {}; }
+        std::error_code error;
         executable = std::filesystem::weakly_canonical(executable, error);
         if (error) { return {}; }
         const auto candidate = executable.parent_path().parent_path() / "lib" / "omega_edit" / "plugins";
