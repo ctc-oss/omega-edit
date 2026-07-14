@@ -109,6 +109,7 @@
 </ul>
 </li>
 <li><a class="reference internal" href="#edit-h">edit.h</a><ul>
+<li><a class="reference internal" href="#_CPPv432omega_edit_overwrite_guard_cbk_t"><code class="docutils literal notranslate"><span class="pre">omega_edit_overwrite_guard_cbk_t</span></code></a></li>
 <li><a class="reference internal" href="#_CPPv427omega_edit_script_op_kind_t"><code class="docutils literal notranslate"><span class="pre">omega_edit_script_op_kind_t</span></code></a><ul>
 <li><a class="reference internal" href="#_CPPv4N27omega_edit_script_op_kind_t24OMEGA_EDIT_SCRIPT_DELETEE"><code class="docutils literal notranslate"><span class="pre">OMEGA_EDIT_SCRIPT_DELETE</span></code></a></li>
 <li><a class="reference internal" href="#_CPPv4N27omega_edit_script_op_kind_t24OMEGA_EDIT_SCRIPT_INSERTE"><code class="docutils literal notranslate"><span class="pre">OMEGA_EDIT_SCRIPT_INSERT</span></code></a></li>
@@ -136,8 +137,10 @@
 <li><a class="reference internal" href="#_CPPv425omega_edit_redo_last_undoP15omega_session_t"><code class="docutils literal notranslate"><span class="pre">omega_edit_redo_last_undo()</span></code></a></li>
 <li><a class="reference internal" href="#_CPPv435omega_edit_serial_result_is_success7int64_t"><code class="docutils literal notranslate"><span class="pre">omega_edit_serial_result_is_success()</span></code></a></li>
 <li><a class="reference internal" href="#_CPPv435omega_edit_status_result_is_successi"><code class="docutils literal notranslate"><span class="pre">omega_edit_status_result_is_success()</span></code></a></li>
+<li><a class="reference internal" href="#_CPPv436omega_edit_save_segment_with_optionsP15omega_session_tPKciPc7int64_t7int64_tPK25omega_edit_save_options_t"><code class="docutils literal notranslate"><span class="pre">omega_edit_save_segment_with_options()</span></code></a></li>
 <li><a class="reference internal" href="#_CPPv423omega_edit_save_segmentP15omega_session_tPKciPc7int64_t7int64_t"><code class="docutils literal notranslate"><span class="pre">omega_edit_save_segment()</span></code></a></li>
 <li><a class="reference internal" href="#_CPPv415omega_edit_saveP15omega_session_tPKciPc"><code class="docutils literal notranslate"><span class="pre">omega_edit_save()</span></code></a></li>
+<li><a class="reference internal" href="#_CPPv428omega_edit_save_with_optionsP15omega_session_tPKciPcPK25omega_edit_save_options_t"><code class="docutils literal notranslate"><span class="pre">omega_edit_save_with_options()</span></code></a></li>
 <li><a class="reference internal" href="#_CPPv431omega_edit_save_segment_to_filePK15omega_session_tP4FILE7int64_t7int64_t"><code class="docutils literal notranslate"><span class="pre">omega_edit_save_segment_to_file()</span></code></a></li>
 <li><a class="reference internal" href="#_CPPv444omega_edit_save_segment_to_file_with_optionsPK15omega_session_tP4FILE7int64_t7int64_tPK41omega_edit_save_segment_to_file_options_t"><code class="docutils literal notranslate"><span class="pre">omega_edit_save_segment_to_file_with_options()</span></code></a></li>
 <li><a class="reference internal" href="#_CPPv432omega_edit_save_segment_to_bytesPK15omega_session_tPP12omega_byte_tP7int64_t7int64_t7int64_t"><code class="docutils literal notranslate"><span class="pre">omega_edit_save_segment_to_bytes()</span></code></a></li>
@@ -177,6 +180,11 @@
 <li><a class="reference internal" href="#_CPPv4N29omega_edit_viewport_options_t3cbkE"><code class="docutils literal notranslate"><span class="pre">cbk</span></code></a></li>
 <li><a class="reference internal" href="#_CPPv4N29omega_edit_viewport_options_t13user_data_ptrE"><code class="docutils literal notranslate"><span class="pre">user_data_ptr</span></code></a></li>
 <li><a class="reference internal" href="#_CPPv4N29omega_edit_viewport_options_t14event_interestE"><code class="docutils literal notranslate"><span class="pre">event_interest</span></code></a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#_CPPv425omega_edit_save_options_t"><code class="docutils literal notranslate"><span class="pre">omega_edit_save_options_t</span></code></a><ul>
+<li><a class="reference internal" href="#_CPPv4N25omega_edit_save_options_t15overwrite_guardE"><code class="docutils literal notranslate"><span class="pre">overwrite_guard</span></code></a></li>
+<li><a class="reference internal" href="#_CPPv4N25omega_edit_save_options_t25overwrite_guard_user_dataE"><code class="docutils literal notranslate"><span class="pre">overwrite_guard_user_data</span></code></a></li>
 </ul>
 </li>
 <li><a class="reference internal" href="#_CPPv441omega_edit_save_segment_to_file_options_t"><code class="docutils literal notranslate"><span class="pre">omega_edit_save_segment_to_file_options_t</span></code></a><ul>
@@ -963,6 +971,16 @@
 <h2>edit.h<a class="headerlink" href="#edit-h" title="Link to this heading"></a></h2>
 <p>Main editing functions. </p>
 <div class="breathe-sectiondef docutils container">
+<p class="breathe-sectiondef-title rubric" id="breathe-section-title-typedefs">Typedefs</p>
+<dl class="cpp type">
+<dt class="sig sig-object cpp" id="_CPPv432omega_edit_overwrite_guard_cbk_t">
+<span id="_CPPv332omega_edit_overwrite_guard_cbk_t"></span><span id="_CPPv232omega_edit_overwrite_guard_cbk_t"></span><span id="omega_edit_overwrite_guard_cbk_t"></span><span class="target" id="edit_8h_1a97ea3262dbb76fd20ae83389729bff3e"></span><span class="k"><span class="pre">typedef</span></span><span class="w"> </span><span class="kt"><span class="pre">int</span></span><span class="w"> </span><span class="p"><span class="pre">(</span></span><span class="p"><span class="pre">*</span></span><span class="sig-name descname"><span class="n"><span class="pre">omega_edit_overwrite_guard_cbk_t</span></span></span><span class="p"><span class="pre">)</span></span><span class="p"><span class="pre">(</span></span><span class="k"><span class="pre">const</span></span><span class="w"> </span><span class="kt"><span class="pre">char</span></span><span class="w"> </span><span class="p"><span class="pre">*</span></span><span class="n"><span class="pre">file_path</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="kt"><span class="pre">void</span></span><span class="w"> </span><span class="p"><span class="pre">*</span></span><span class="n"><span class="pre">user_data_ptr</span></span><span class="p"><span class="pre">)</span></span><a class="headerlink" href="#_CPPv432omega_edit_overwrite_guard_cbk_t" title="Link to this definition"></a><br /></dt>
+<dd><p>Callback used to verify an overwrite target immediately before core publishes a saved file.</p>
+<p>The callback is invoked only when the target is the session’s original file and core detects that it changed since the last synchronization. Return zero to allow the overwrite or non-zero to preserve the target and report ORIGINAL_MODIFIED. Core does not lock the target across this callback and the following atomic replacement, so the callback detects conflicts but cannot provide transactional compare-and-swap semantics against concurrent writers. </p>
+</dd></dl>
+
+</div>
+<div class="breathe-sectiondef docutils container">
 <p class="breathe-sectiondef-title rubric" id="breathe-section-title-enums">Enums</p>
 <dl class="cpp enum">
 <dt class="sig sig-object cpp" id="_CPPv427omega_edit_script_op_kind_t">
@@ -1216,6 +1234,13 @@
 </dd></dl>
 
 <dl class="cpp function">
+<dt class="sig sig-object cpp" id="_CPPv436omega_edit_save_segment_with_optionsP15omega_session_tPKciPc7int64_t7int64_tPK25omega_edit_save_options_t">
+<span id="_CPPv336omega_edit_save_segment_with_optionsP15omega_session_tPKciPc7int64_t7int64_tPK25omega_edit_save_options_t"></span><span id="_CPPv236omega_edit_save_segment_with_optionsP15omega_session_tPKciPc7int64_t7int64_tPK25omega_edit_save_options_t"></span><span id="omega_edit_save_segment_with_options__omega_session_tP.cCP.i.cP.int64_t.int64_t.omega_edit_save_options_tCP"></span><span class="target" id="edit_8h_1aacd5af91b3872f2cd973b6fb9eaca93b"></span><span class="kt"><span class="pre">int</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">omega_edit_save_segment_with_options</span></span></span><span class="sig-paren">(</span><a class="reference internal" href="#_CPPv415omega_session_t" title="omega_session_t"><span class="n"><span class="pre">omega_session_t</span></span></a><span class="w"> </span><span class="p"><span class="pre">*</span></span><span class="n sig-param"><span class="pre">session_ptr</span></span>, <span class="k"><span class="pre">const</span></span><span class="w"> </span><span class="kt"><span class="pre">char</span></span><span class="w"> </span><span class="p"><span class="pre">*</span></span><span class="n sig-param"><span class="pre">file_path</span></span>, <span class="kt"><span class="pre">int</span></span><span class="w"> </span><span class="n sig-param"><span class="pre">io_flags</span></span>, <span class="kt"><span class="pre">char</span></span><span class="w"> </span><span class="p"><span class="pre">*</span></span><span class="n sig-param"><span class="pre">saved_file_path</span></span>, <span class="n"><span class="pre">int64_t</span></span><span class="w"> </span><span class="n sig-param"><span class="pre">offset</span></span>, <span class="n"><span class="pre">int64_t</span></span><span class="w"> </span><span class="n sig-param"><span class="pre">length</span></span>, <span class="k"><span class="pre">const</span></span><span class="w"> </span><a class="reference internal" href="#_CPPv425omega_edit_save_options_t" title="omega_edit_save_options_t"><span class="n"><span class="pre">omega_edit_save_options_t</span></span></a><span class="w"> </span><span class="p"><span class="pre">*</span></span><span class="n sig-param"><span class="pre">options_ptr</span></span><span class="sig-paren">)</span><a class="headerlink" href="#_CPPv436omega_edit_save_segment_with_optionsP15omega_session_tPKciPc7int64_t7int64_tPK25omega_edit_save_options_t" title="Link to this definition"></a><br /></dt>
+<dd><p>Save a segment with an optional native overwrite guard.</p>
+<p>This is equivalent to omega_edit_save_segment when options_ptr is null. A configured overwrite guard is evaluated at the final publish boundary only when core’s normal original-file modification check detects a conflict. </p>
+</dd></dl>
+
+<dl class="cpp function">
 <dt class="sig sig-object cpp" id="_CPPv423omega_edit_save_segmentP15omega_session_tPKciPc7int64_t7int64_t">
 <span id="_CPPv323omega_edit_save_segmentP15omega_session_tPKciPc7int64_t7int64_t"></span><span id="_CPPv223omega_edit_save_segmentP15omega_session_tPKciPc7int64_t7int64_t"></span><span id="omega_edit_save_segment__omega_session_tP.cCP.i.cP.int64_t.int64_t"></span><span class="target" id="edit_8h_1a7edf720c19ec2bcee1238adadc4449f2"></span><span class="kt"><span class="pre">int</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">omega_edit_save_segment</span></span></span><span class="sig-paren">(</span><a class="reference internal" href="#_CPPv415omega_session_t" title="omega_session_t"><span class="n"><span class="pre">omega_session_t</span></span></a><span class="w"> </span><span class="p"><span class="pre">*</span></span><span class="n sig-param"><span class="pre">session_ptr</span></span>, <span class="k"><span class="pre">const</span></span><span class="w"> </span><span class="kt"><span class="pre">char</span></span><span class="w"> </span><span class="p"><span class="pre">*</span></span><span class="n sig-param"><span class="pre">file_path</span></span>, <span class="kt"><span class="pre">int</span></span><span class="w"> </span><span class="n sig-param"><span class="pre">io_flags</span></span>, <span class="kt"><span class="pre">char</span></span><span class="w"> </span><span class="p"><span class="pre">*</span></span><span class="n sig-param"><span class="pre">saved_file_path</span></span>, <span class="n"><span class="pre">int64_t</span></span><span class="w"> </span><span class="n sig-param"><span class="pre">offset</span></span>, <span class="n"><span class="pre">int64_t</span></span><span class="w"> </span><span class="n sig-param"><span class="pre">length</span></span><span class="sig-paren">)</span><a class="headerlink" href="#_CPPv423omega_edit_save_segmentP15omega_session_tPKciPc7int64_t7int64_t" title="Link to this definition"></a><br /></dt>
 <dd><p>Save a segment of the the given session (the edited file) to the given file path. If the save file already exists, it can be overwritten if overwrite is non zero. If the file exists and overwrite is zero, a new unique file name will be used as determined by omega_util_available_filename. If the file being edited is overwritten, the affected editing session will be reset. </p>
@@ -1253,6 +1278,12 @@
 <dd class="field-even"><p>0 on success, non-zero otherwise </p>
 </dd>
 </dl>
+</dd></dl>
+
+<dl class="cpp function">
+<dt class="sig sig-object cpp" id="_CPPv428omega_edit_save_with_optionsP15omega_session_tPKciPcPK25omega_edit_save_options_t">
+<span id="_CPPv328omega_edit_save_with_optionsP15omega_session_tPKciPcPK25omega_edit_save_options_t"></span><span id="_CPPv228omega_edit_save_with_optionsP15omega_session_tPKciPcPK25omega_edit_save_options_t"></span><span id="omega_edit_save_with_options__omega_session_tP.cCP.i.cP.omega_edit_save_options_tCP"></span><span class="target" id="edit_8h_1a8f6fd5519f0c6e13b7396d827c77ac4d"></span><span class="kt"><span class="pre">int</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">omega_edit_save_with_options</span></span></span><span class="sig-paren">(</span><a class="reference internal" href="#_CPPv415omega_session_t" title="omega_session_t"><span class="n"><span class="pre">omega_session_t</span></span></a><span class="w"> </span><span class="p"><span class="pre">*</span></span><span class="n sig-param"><span class="pre">session_ptr</span></span>, <span class="k"><span class="pre">const</span></span><span class="w"> </span><span class="kt"><span class="pre">char</span></span><span class="w"> </span><span class="p"><span class="pre">*</span></span><span class="n sig-param"><span class="pre">file_path</span></span>, <span class="kt"><span class="pre">int</span></span><span class="w"> </span><span class="n sig-param"><span class="pre">io_flags</span></span>, <span class="kt"><span class="pre">char</span></span><span class="w"> </span><span class="p"><span class="pre">*</span></span><span class="n sig-param"><span class="pre">saved_file_path</span></span>, <span class="k"><span class="pre">const</span></span><span class="w"> </span><a class="reference internal" href="#_CPPv425omega_edit_save_options_t" title="omega_edit_save_options_t"><span class="n"><span class="pre">omega_edit_save_options_t</span></span></a><span class="w"> </span><span class="p"><span class="pre">*</span></span><span class="n sig-param"><span class="pre">options_ptr</span></span><span class="sig-paren">)</span><a class="headerlink" href="#_CPPv428omega_edit_save_with_optionsP15omega_session_tPKciPcPK25omega_edit_save_options_t" title="Link to this definition"></a><br /></dt>
+<dd><p>Save a complete session with an optional native overwrite guard. </p>
 </dd></dl>
 
 <dl class="cpp function">
@@ -1887,6 +1918,27 @@
 <dl class="cpp var">
 <dt class="sig sig-object cpp" id="_CPPv4N29omega_edit_viewport_options_t14event_interestE">
 <span id="_CPPv3N29omega_edit_viewport_options_t14event_interestE"></span><span id="_CPPv2N29omega_edit_viewport_options_t14event_interestE"></span><span id="omega_edit_viewport_options_t::event_interest__int32_t"></span><span class="target" id="structomega__edit__viewport__options__t_1af3ce0f5f6aa221497559f64eaf36165d"></span><span class="n"><span class="pre">int32_t</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">event_interest</span></span></span><a class="headerlink" href="#_CPPv4N29omega_edit_viewport_options_t14event_interestE" title="Link to this definition"></a><br /></dt>
+<dd></dd></dl>
+
+</div>
+</dd></dl>
+
+<dl class="cpp struct">
+<dt class="sig sig-object cpp" id="_CPPv425omega_edit_save_options_t">
+<span id="_CPPv325omega_edit_save_options_t"></span><span id="_CPPv225omega_edit_save_options_t"></span><span id="omega_edit_save_options_t"></span><span class="target" id="structomega__edit__save__options__t"></span><span class="k"><span class="pre">struct</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">omega_edit_save_options_t</span></span></span><a class="headerlink" href="#_CPPv425omega_edit_save_options_t" title="Link to this definition"></a><br /></dt>
+<dd><div class="docutils container">
+<em>#include &lt;edit.h&gt;</em></div>
+<p>Optional behavior for publishing a session save. </p>
+<div class="breathe-sectiondef docutils container">
+<p class="breathe-sectiondef-title rubric" id="breathe-section-title-public-members">Public Members</p>
+<dl class="cpp var">
+<dt class="sig sig-object cpp" id="_CPPv4N25omega_edit_save_options_t15overwrite_guardE">
+<span id="_CPPv3N25omega_edit_save_options_t15overwrite_guardE"></span><span id="_CPPv2N25omega_edit_save_options_t15overwrite_guardE"></span><span id="omega_edit_save_options_t::overwrite_guard__omega_edit_overwrite_guard_cbk_t"></span><span class="target" id="structomega__edit__save__options__t_1a989983a7bbc4d90232d890e56ae7d3b7"></span><a class="reference internal" href="#_CPPv432omega_edit_overwrite_guard_cbk_t" title="omega_edit_overwrite_guard_cbk_t"><span class="n"><span class="pre">omega_edit_overwrite_guard_cbk_t</span></span></a><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">overwrite_guard</span></span></span><a class="headerlink" href="#_CPPv4N25omega_edit_save_options_t15overwrite_guardE" title="Link to this definition"></a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp var">
+<dt class="sig sig-object cpp" id="_CPPv4N25omega_edit_save_options_t25overwrite_guard_user_dataE">
+<span id="_CPPv3N25omega_edit_save_options_t25overwrite_guard_user_dataE"></span><span id="_CPPv2N25omega_edit_save_options_t25overwrite_guard_user_dataE"></span><span id="omega_edit_save_options_t::overwrite_guard_user_data__voidP"></span><span class="target" id="structomega__edit__save__options__t_1a8e32914b79133127d5d64e4982e2caa9"></span><span class="kt"><span class="pre">void</span></span><span class="w"> </span><span class="p"><span class="pre">*</span></span><span class="sig-name descname"><span class="n"><span class="pre">overwrite_guard_user_data</span></span></span><a class="headerlink" href="#_CPPv4N25omega_edit_save_options_t25overwrite_guard_user_dataE" title="Link to this definition"></a><br /></dt>
 <dd></dd></dl>
 
 </div>
