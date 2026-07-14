@@ -181,6 +181,40 @@ describe('shared change-log codec', () => {
     ).toThrow(/transformId exceeds 3 UTF-8 bytes/)
   })
 
+  it('decodes mixed-case transform descriptor hex without per-byte parsing', async () => {
+    const descriptor = Buffer.from(
+      JSON.stringify({
+        transformId: 'ωmega.transform',
+        args: { mode: 'ω' },
+      })
+    )
+      .toString('hex')
+      .replace(/[a-f]/g, (digit, index) =>
+        index % 2 === 0 ? digit.toUpperCase() : digit
+      )
+    const document = documentWithEntries(1)
+    document.changes = [
+      {
+        serial: '1',
+        kind: 'TRANSFORM',
+        offset: '0',
+        length: '1',
+        data: descriptor,
+      },
+    ]
+
+    const prepared = normalizeChangeLogDocument(document)
+    const entries: NormalizedChangeLogEntry[] = []
+    for await (const entry of prepared.entries()) {
+      entries.push(entry)
+    }
+
+    expect(entries[0].transformDescriptor).toEqual({
+      transformId: 'ωmega.transform',
+      optionsJson: '{"mode":"ω"}',
+    })
+  })
+
   it('rejects duplicate headers, trailing data, malformed UTF-8, and unsafe integers', async () => {
     const valid = documentWithEntries(0)
     const duplicate = JSON.stringify(valid).replace(
