@@ -62,6 +62,23 @@ endif()
 set(OPENSSL_USE_STATIC_LIBS TRUE)
 find_package(OpenSSL 3 REQUIRED COMPONENTS Crypto)
 find_package(ZLIB REQUIRED)
+if (NOT TARGET zstd::libzstd AND NOT TARGET zstd::libzstd_shared AND NOT TARGET zstd::libzstd_static
+        AND NOT TARGET libzstd_shared AND NOT TARGET libzstd_static)
+    find_package(zstd CONFIG REQUIRED)
+endif()
+if (TARGET zstd::libzstd)
+    set(ZSTD_TARGET zstd::libzstd)
+elseif (TARGET zstd::libzstd_shared)
+    set(ZSTD_TARGET zstd::libzstd_shared)
+elseif (TARGET zstd::libzstd_static)
+    set(ZSTD_TARGET zstd::libzstd_static)
+elseif (TARGET libzstd_shared)
+    set(ZSTD_TARGET libzstd_shared)
+elseif (TARGET libzstd_static)
+    set(ZSTD_TARGET libzstd_static)
+else()
+    message(FATAL_ERROR "A supported zstd CMake target was not found")
+endif()
 
 find_package(unofficial-libmagic CONFIG QUIET)
 if (unofficial-libmagic_FOUND)
@@ -183,7 +200,9 @@ foreach (stale_plugin_name
         sha512
         xor
         zlib_compress
-        zlib_decompress)
+        zlib_decompress
+        zstd_compress
+        zstd_decompress)
     file(REMOVE "${OMEGA_EDIT_TRANSFORM_PLUGIN_OUTPUT_DIR}/omega_transform_${stale_plugin_name}${CMAKE_SHARED_MODULE_SUFFIX}")
 endforeach()
 
@@ -204,6 +223,7 @@ foreach (plugin_src
         src/record_text_helpers.cpp
         src/text_codecs.cpp
         src/zlib.c
+        src/zstd.c
         src/repeat.c
 )
     get_filename_component(plugin_name ${plugin_src} NAME_WE)
@@ -212,6 +232,9 @@ foreach (plugin_src
     target_include_directories(${plugin_target} PRIVATE ${OMEGA_EDIT_INCLUDE_DIRS})
     if (plugin_name STREQUAL "zlib")
         target_link_libraries(${plugin_target} PRIVATE ZLIB::ZLIB)
+    endif()
+    if (plugin_name STREQUAL "zstd")
+        target_link_libraries(${plugin_target} PRIVATE ${ZSTD_TARGET})
     endif()
     if (plugin_name STREQUAL "content_type")
         if (OMEGA_EDIT_HAS_LIBMAGIC)
@@ -334,17 +357,17 @@ if (BUILD_TESTS)
     endif()
 endif()
 
-if (CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
-    install(TARGETS ${OMEGA_EDIT_TRANSFORM_PLUGIN_TARGETS}
-            RUNTIME DESTINATION "${CMAKE_INSTALL_LIBDIR}/omega_edit/plugins"
-            LIBRARY DESTINATION "${CMAKE_INSTALL_LIBDIR}/omega_edit/plugins")
-    if (OMEGA_EDIT_HAS_LIBMAGIC AND OMEGA_EDIT_LIBMAGIC_DICTIONARY)
-        install(FILES "${OMEGA_EDIT_LIBMAGIC_DICTIONARY}"
-                DESTINATION "${CMAKE_INSTALL_LIBDIR}/omega_edit/plugins"
-                RENAME magic.mgc)
-    endif()
-    install(TARGETS omega-transform-plugin-harness RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}")
+install(TARGETS ${OMEGA_EDIT_TRANSFORM_PLUGIN_TARGETS}
+        RUNTIME DESTINATION "${CMAKE_INSTALL_LIBDIR}/omega_edit/plugins"
+        LIBRARY DESTINATION "${CMAKE_INSTALL_LIBDIR}/omega_edit/plugins")
+if (OMEGA_EDIT_HAS_LIBMAGIC AND OMEGA_EDIT_LIBMAGIC_DICTIONARY)
+    install(FILES "${OMEGA_EDIT_LIBMAGIC_DICTIONARY}"
+            DESTINATION "${CMAKE_INSTALL_LIBDIR}/omega_edit/plugins"
+            RENAME magic.mgc)
+endif()
+install(TARGETS omega-transform-plugin-harness RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}")
 
+if (CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
     set(_fmt "TGZ")
     if (WIN32)
         set(_fmt "ZIP")

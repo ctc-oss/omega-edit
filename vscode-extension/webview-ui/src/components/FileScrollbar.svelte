@@ -434,6 +434,16 @@
         height={safeThumbHeight}
         rx="3"
       ></rect>
+      {#if !disabled && safeThumbHeight >= 16}
+        <text
+          class="file-scrollbar-thumb-glyph"
+          x="7"
+          y={safeThumbTop + safeThumbHeight / 2}
+          aria-hidden="true"
+        >
+          Ω
+        </text>
+      {/if}
     </svg>
   </div>
 </div>
