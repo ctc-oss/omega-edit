@@ -49,6 +49,11 @@ const {
   assertRangeMapFitsFile,
   parseRangeMapContent,
 } = require('../out/rangeMap.js')
+const {
+  byteToHex2,
+  bytesToHex,
+  isPrintableAscii,
+} = require('../out/textEncoding.js')
 
 function encodeRangeMap(rangeMap) {
   return Buffer.from(
@@ -602,6 +607,17 @@ test('text encoding lookup tables cover supported single-byte code pages', () =>
   assert.equal(ebcdic037[0x81], 0x0061)
   assert.equal(ebcdic037[0xad], 0x00dd)
   assert.equal(ebcdic037[0xc1], 0x0041)
+})
+
+test('shared byte formatting helpers cover inspector presentation', () => {
+  assert.equal(byteToHex2(0), '00')
+  assert.equal(byteToHex2(0xaf), 'AF')
+  assert.equal(byteToHex2(0xff), 'FF')
+  assert.equal(bytesToHex(Uint8Array.from([0, 0x12, 0xab, 0xff])), '0012ABFF')
+  assert.equal(isPrintableAscii(0x1f), false)
+  assert.equal(isPrintableAscii(0x20), true)
+  assert.equal(isPrintableAscii(0x7e), true)
+  assert.equal(isPrintableAscii(0x7f), false)
 })
 
 test('compiled extension entrypoints exist after build', () => {
