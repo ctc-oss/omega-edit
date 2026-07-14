@@ -87,6 +87,21 @@
           "default": false,
           "description": "%omegaEdit.configuration.allowExperimentalTransformPlugins.description%"
         },
+        "omegaEdit.saveConflictFingerprintAlgorithm": {
+          "type": "string",
+          "default": "sha256",
+          "enum": [
+            "sha224",
+            "sha256",
+            "sha384",
+            "sha512",
+            "sha3-256",
+            "sha3-512",
+            "blake2b-512",
+            "blake2s-256"
+          ],
+          "description": "%omegaEdit.configuration.saveConflictFingerprintAlgorithm.description%"
+        },
         "omegaEdit.checkpointHistory.maxBytesPerSession": {
           "type": "number",
           "default": 1073741824,

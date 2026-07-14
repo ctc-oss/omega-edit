@@ -497,6 +497,10 @@ message SaveSessionRequest {
     int32 io_flags = 3;       // Bitmask of IOFlags values.
     optional int64 offset = 4;// Start of the byte range to save (default: 0).
     optional int64 length = 5;// Length of the byte range to save (default: entire file).
+    // Fingerprint of the last content OmegaEdit successfully wrote to the original file. When core detects an
+    // original-file modification conflict, the native server may permit the overwrite only if the target still
+    // matches this fingerprint at core's final publish boundary.
+    optional SessionContentFingerprint expected_original_fingerprint = 6;
 }
 
 // Response after a save operation.

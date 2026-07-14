@@ -369,16 +369,23 @@ export async function saveSession(
   file_path: string,
   flags: number = IOFlags.UNSPECIFIED,
   offset: number = 0,
-  length: number = 0
+  length: number = 0,
+  expected_original_fingerprint?: SessionContentFingerprint,
+  options: CancellableCallOptions = {}
 ): Promise<SaveSessionResponse> {
   return await enqueueSessionMutation(session_id, async () => {
+    if (options.signal?.aborted) {
+      throw makeCancellationError('saveSession')
+    }
     return wrapSaveSessionResponse(
       await rawSaveSession(
         session_id,
         file_path,
         flags,
         requireSafeIntegerInput('saveSession offset', offset),
-        requireSafeIntegerInput('saveSession length', length)
+        requireSafeIntegerInput('saveSession length', length),
+        expected_original_fingerprint,
+        options
       )
     )
   })

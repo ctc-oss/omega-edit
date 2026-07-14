@@ -783,6 +783,63 @@ namespace omega_edit {
             return grpc::Status::OK;
         }
 
+        struct overwrite_fingerprint_guard_context {
+            grpc::ServerContext *grpc_context{};
+            omega_transform_plugin_registry_t *registry{};
+            std::mutex *registry_mutex{};
+            std::string checkpoint_directory;
+            std::string algorithm;
+            std::string expected_digest;
+            int64_t expected_length{};
+            grpc::Status failure_status{};
+        };
+
+        static int verify_overwrite_fingerprint(const char *file_path, void *user_data_ptr) {
+            auto *context = static_cast<overwrite_fingerprint_guard_context *>(user_data_ptr);
+            if (!context || !file_path || !*file_path || !context->registry || !context->registry_mutex ||
+                context->expected_length < 0) {
+                return -1;
+            }
+            if (omega_util_file_size(file_path) != context->expected_length) { return 1; }
+
+            int64_t modification_time_before = 0;
+            if (omega_util_get_modification_time(file_path, &modification_time_before) != 0) { return 1; }
+
+            session_content_file_reader reader{file_path, 0, context->expected_length};
+            transform_plugin_response_guard plugin_response;
+            const auto options_json = make_digest_options_json(context->algorithm);
+            const auto status = inspect_with_streaming_plugin(
+                    context->grpc_context, context->registry, *context->registry_mutex,
+                    SESSION_FINGERPRINT_DIGEST_PLUGIN_ID, options_json.c_str(), context->checkpoint_directory.c_str(),
+                    0, context->expected_length, read_session_content_file_chunk, &reader,
+                    grpc::StatusCode::FAILED_PRECONDITION,
+                    "save conflict digest plugin is not registered: " +
+                            std::string(SESSION_FINGERPRINT_DIGEST_PLUGIN_ID),
+                    "save conflict digest plugin must be a streaming inspect plugin",
+                    "unsupported save conflict digest algorithm: " + context->algorithm,
+                    "save conflict digest cancelled: " + std::string(SESSION_FINGERPRINT_DIGEST_PLUGIN_ID),
+                    grpc::StatusCode::ABORTED,
+                    "save conflict digest failed: " + std::string(SESSION_FINGERPRINT_DIGEST_PLUGIN_ID),
+                    &plugin_response.response);
+            if (!status.ok()) {
+                context->failure_status = status;
+                return -1;
+            }
+
+            int64_t modification_time_after = 0;
+            if (omega_util_get_modification_time(file_path, &modification_time_after) != 0 ||
+                modification_time_before != modification_time_after ||
+                omega_util_file_size(file_path) != context->expected_length ||
+                plugin_response.response.result_length <= 0 || plugin_response.response.result_bytes == nullptr) {
+                return 1;
+            }
+            const std::string actual_digest(reinterpret_cast<const char *>(plugin_response.response.result_bytes),
+                                            static_cast<size_t>(plugin_response.response.result_length));
+            const auto actual_algorithm = normalize_digest_algorithm(
+                    plugin_response.response.result_label ? plugin_response.response.result_label : context->algorithm);
+            return actual_algorithm == context->algorithm && actual_digest == context->expected_digest ? 0 : 1;
+        }
+
         struct transform_progress_context {
             SessionManager *session_manager{};
             grpc::ServerContext *grpc_context{};
@@ -1566,7 +1623,7 @@ namespace omega_edit {
             return grpc::Status::OK;
         }
 
-        grpc::Status EditorServiceImpl::SaveSession(grpc::ServerContext * /*context*/,
+        grpc::Status EditorServiceImpl::SaveSession(grpc::ServerContext *context,
                                                     const ::omega_edit::v1::SaveSessionRequest *request,
                                                     ::omega_edit::v1::SaveSessionResponse *response) {
             if (request->file_path().empty()) {
@@ -1585,13 +1642,43 @@ namespace omega_edit {
             int64_t offset = request->has_offset() ? request->offset() : 0;
             int64_t length = request->has_length() ? request->length() : 0;
 
+            omega_edit_save_options_t save_options{};
+            overwrite_fingerprint_guard_context guard_context;
+            const omega_edit_save_options_t *save_options_ptr = nullptr;
+            if (request->has_expected_original_fingerprint()) {
+                const auto &expected = request->expected_original_fingerprint();
+                if (!expected.has_digest() || expected.byte_length() < 0) {
+                    return grpc::Status(grpc::StatusCode::INVALID_ARGUMENT,
+                                        "expected_original_fingerprint must include a non-negative size and digest");
+                }
+                const auto algorithm = normalize_digest_algorithm(expected.digest().algorithm());
+                if (!digest_algorithm_is_json_safe(algorithm) || expected.digest().value().empty()) {
+                    return grpc::Status(grpc::StatusCode::INVALID_ARGUMENT,
+                                        "expected_original_fingerprint contains invalid digest metadata");
+                }
+                const auto *checkpoint_directory = omega_session_get_checkpoint_directory(session);
+                guard_context.grpc_context = context;
+                guard_context.registry = transform_plugin_registry_;
+                guard_context.registry_mutex = &transform_plugin_registry_mutex_;
+                guard_context.checkpoint_directory = checkpoint_directory ? checkpoint_directory : "";
+                guard_context.algorithm = algorithm;
+                guard_context.expected_digest = expected.digest().value();
+                guard_context.expected_length = expected.byte_length();
+                save_options.overwrite_guard = verify_overwrite_fingerprint;
+                save_options.overwrite_guard_user_data = &guard_context;
+                save_options_ptr = &save_options;
+            }
+
             int result;
             if (offset != 0 || length != 0) {
-                result = omega_edit_save_segment(session, request->file_path().c_str(), request->io_flags(),
-                                                 saved_file_path, offset, length);
+                result =
+                        omega_edit_save_segment_with_options(session, request->file_path().c_str(), request->io_flags(),
+                                                             saved_file_path, offset, length, save_options_ptr);
             } else {
-                result = omega_edit_save(session, request->file_path().c_str(), request->io_flags(), saved_file_path);
+                result = omega_edit_save_with_options(session, request->file_path().c_str(), request->io_flags(),
+                                                      saved_file_path, save_options_ptr);
             }
+            if (!guard_context.failure_status.ok()) { return guard_context.failure_status; }
 
             response->set_session_id(request->session_id());
             response->set_save_status(result);
