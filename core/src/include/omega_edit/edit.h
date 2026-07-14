@@ -164,6 +164,32 @@ int omega_edit_serial_result_is_success(int64_t result);
 int omega_edit_status_result_is_success(int result);
 
 /**
+ * Callback used to verify an overwrite target immediately before core publishes a saved file.
+ *
+ * The callback is invoked only when the target is the session's original file and core detects that it changed since
+ * the last synchronization. Return zero to allow the overwrite or non-zero to preserve the target and report
+ * ORIGINAL_MODIFIED. Core does not lock the target across this callback and the following atomic replacement, so the
+ * callback detects conflicts but cannot provide transactional compare-and-swap semantics against concurrent writers.
+ */
+typedef int (*omega_edit_overwrite_guard_cbk_t)(const char *file_path, void *user_data_ptr);
+
+/** Optional behavior for publishing a session save. */
+typedef struct {
+    omega_edit_overwrite_guard_cbk_t overwrite_guard;
+    void *overwrite_guard_user_data;
+} omega_edit_save_options_t;
+
+/**
+ * Save a segment with an optional native overwrite guard.
+ *
+ * This is equivalent to omega_edit_save_segment when options_ptr is null. A configured overwrite guard is evaluated
+ * at the final publish boundary only when core's normal original-file modification check detects a conflict.
+ */
+int omega_edit_save_segment_with_options(omega_session_t *session_ptr, const char *file_path, int io_flags,
+                                         char *saved_file_path, int64_t offset, int64_t length,
+                                         const omega_edit_save_options_t *options_ptr);
+
+/**
  * Save a segment of the the given session (the edited file) to the given file path.  If the save file already exists,
  * it can be overwritten if overwrite is non zero.  If the file exists and overwrite is zero, a new unique file name
  * will be used as determined by omega_util_available_filename.  If the file being edited is overwritten, the affected
@@ -192,6 +218,10 @@ int omega_edit_save_segment(omega_session_t *session_ptr, const char *file_path,
  * @return 0 on success, non-zero otherwise
  */
 int omega_edit_save(omega_session_t *session_ptr, const char *file_path, int io_flags, char *saved_file_path);
+
+/** Save a complete session with an optional native overwrite guard. */
+int omega_edit_save_with_options(omega_session_t *session_ptr, const char *file_path, int io_flags,
+                                 char *saved_file_path, const omega_edit_save_options_t *options_ptr);
 
 /**
  * Write a session byte range to an already-open file without publishing a save event.

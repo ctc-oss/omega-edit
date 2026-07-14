@@ -373,6 +373,33 @@ test('package.json matches shared extension constants', () => {
     ],
     'Load experimental OmegaEdit transform plugins from configured or bundled plugin directories.'
   )
+  assert.deepEqual(
+    packageJson.contributes.configuration.properties[
+      'omegaEdit.saveConflictFingerprintAlgorithm'
+    ].enum,
+    [
+      'sha224',
+      'sha256',
+      'sha384',
+      'sha512',
+      'sha3-256',
+      'sha3-512',
+      'blake2b-512',
+      'blake2s-256',
+    ]
+  )
+  assert.equal(
+    packageJson.contributes.configuration.properties[
+      'omegaEdit.saveConflictFingerprintAlgorithm'
+    ].default,
+    'sha256'
+  )
+  assert.equal(
+    packageNls[
+      'omegaEdit.configuration.saveConflictFingerprintAlgorithm.description'
+    ],
+    "Digest algorithm used by the native guarded save path to verify that a conflict was caused by OmegaEdit's own Auto Save. SHA-256 is the recommended default."
+  )
   assert.equal(
     Object.hasOwn(
       packageJson.contributes.configuration.properties,
@@ -486,6 +513,27 @@ test('package.json matches shared extension constants', () => {
       { command: OMEGA_EDIT_CLEAR_EXTERNAL_HIGHLIGHTS_COMMAND, when: 'false' },
     ]
   )
+})
+
+test('routes save-conflict fingerprinting through the native guarded save path', () => {
+  const extensionSource = fs.readFileSync(
+    path.resolve(__dirname, '../src/hexEditorProvider.ts'),
+    'utf8'
+  )
+  const coreSource = fs.readFileSync(
+    path.resolve(__dirname, '../../core/src/lib/edit.cpp'),
+    'utf8'
+  )
+  const serverSource = fs.readFileSync(
+    path.resolve(__dirname, '../../server/cpp/src/editor_service.cpp'),
+    'utf8'
+  )
+
+  assert.doesNotMatch(extensionSource, /createReadStream|createHash/)
+  assert.match(extensionSource, /expected\.digest/)
+  assert.match(coreSource, /overwrite_guard/)
+  assert.match(serverSource, /SESSION_FINGERPRINT_DIGEST_PLUGIN_ID/)
+  assert.match(serverSource, /verify_overwrite_fingerprint/)
 })
 
 test('VSIX packaging uses the server package as its native runtime', () => {

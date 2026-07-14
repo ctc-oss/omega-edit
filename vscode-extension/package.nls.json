@@ -9,6 +9,7 @@
   "omegaEdit.configuration.language.description": "Language for the Svelte data editor UI. Use auto to follow VS Code's display language.",
   "omegaEdit.configuration.transformPluginDirectories.description": "Directories containing OmegaEdit transform plugin shared libraries",
   "omegaEdit.configuration.allowExperimentalTransformPlugins.description": "Load experimental OmegaEdit transform plugins from configured or bundled plugin directories.",
+  "omegaEdit.configuration.saveConflictFingerprintAlgorithm.description": "Digest algorithm used by the native guarded save path to verify that a conflict was caused by OmegaEdit's own Auto Save. SHA-256 is the recommended default.",
   "omegaEdit.configuration.checkpointHistory.maxBytesPerSession.description": "Maximum temporary checkpoint-history storage for one open editor session, in bytes.",
   "omegaEdit.configuration.checkpointHistory.maxBytesTotal.description": "Maximum temporary checkpoint-history storage across all editor sessions, in bytes.",
   "omegaEdit.configuration.checkpointHistory.maxCheckpoints.description": "Maximum number of archived checkpoints retained for one open editor session.",

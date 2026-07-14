@@ -2585,8 +2585,9 @@ int omega_edit_apply_transform(omega_session_t *session_ptr, omega_util_byte_tra
                    : -1;
 }
 
-int omega_edit_save_segment(omega_session_t *session_ptr, const char *file_path, int io_flags, char *saved_file_path,
-                            int64_t offset, int64_t length) {
+int omega_edit_save_segment_with_options(omega_session_t *session_ptr, const char *file_path, int io_flags,
+                                         char *saved_file_path, int64_t offset, int64_t length,
+                                         const omega_edit_save_options_t *options_ptr) {
     if (!session_ptr || !file_path || !*file_path || offset < 0) { return -1; }
     const auto computed_file_size = omega_session_get_computed_file_size(session_ptr);
     if (computed_file_size < 0) { return -1; }
@@ -2613,7 +2614,8 @@ int omega_edit_save_segment(omega_session_t *session_ptr, const char *file_path,
             (overwrite && (session_file_path != nullptr) && (omega_util_file_exists(file_path) != 0) &&
              (omega_util_paths_equivalent(file_path, session_file_path) != 0));
 
-    if (overwrite_original && (force_overwrite == 0) &&
+    const auto has_overwrite_guard = options_ptr != nullptr && options_ptr->overwrite_guard != nullptr;
+    if (overwrite_original && (force_overwrite == 0) && !has_overwrite_guard &&
         original_file_modified_since_last_sync_(session_ptr, session_file_path)) {
         LOG_ERROR("original file '" << session_file_path
                                     << "' has been modified since the session was created, save failed (use "
@@ -2761,6 +2763,13 @@ int omega_edit_save_segment(omega_session_t *session_ptr, const char *file_path,
         return -9;
     }
     if (overwrite) {
+        if (overwrite_original && (force_overwrite == 0) &&
+            original_file_modified_since_last_sync_(session_ptr, session_file_path) &&
+            (!has_overwrite_guard ||
+             options_ptr->overwrite_guard(file_path, options_ptr->overwrite_guard_user_data) != 0)) {
+            omega_util_remove_file(temp_filename);
+            return ORIGINAL_MODIFIED;
+        }
         if (!atomic_replace_file_(temp_filename, file_path)) {
             LOG_ERRNO();
             omega_util_remove_file(temp_filename);
@@ -2793,8 +2802,19 @@ int omega_edit_save_segment(omega_session_t *session_ptr, const char *file_path,
     return 0;
 }
 
+int omega_edit_save_segment(omega_session_t *session_ptr, const char *file_path, int io_flags, char *saved_file_path,
+                            int64_t offset, int64_t length) {
+    return omega_edit_save_segment_with_options(session_ptr, file_path, io_flags, saved_file_path, offset, length,
+                                                nullptr);
+}
+
 int omega_edit_save(omega_session_t *session_ptr, const char *file_path, int io_flags, char *saved_file_path) {
-    return omega_edit_save_segment(session_ptr, file_path, io_flags, saved_file_path, 0, 0);
+    return omega_edit_save_with_options(session_ptr, file_path, io_flags, saved_file_path, nullptr);
+}
+
+int omega_edit_save_with_options(omega_session_t *session_ptr, const char *file_path, int io_flags,
+                                 char *saved_file_path, const omega_edit_save_options_t *options_ptr) {
+    return omega_edit_save_segment_with_options(session_ptr, file_path, io_flags, saved_file_path, 0, 0, options_ptr);
 }
 
 int omega_edit_save_segment_to_file_with_options(const omega_session_t *session_ptr, FILE *file_ptr, int64_t offset,

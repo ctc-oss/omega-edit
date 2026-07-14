@@ -178,6 +178,8 @@ interface EditorSession {
   pendingHistoryOperation?: 'undo' | 'redo'
   pendingHistoryCount?: number
   historyCommandTask?: Promise<void>
+  saveTask?: Promise<void>
+  savedDiskFingerprint?: ChangeLogFingerprint
   checkpointTimeline: CheckpointTimelineState
 }
 
@@ -403,6 +405,19 @@ const MAX_FILE_SPLICE_BYTES = 32 * 1024 * 1024
 const MAX_NON_FILE_CHANGE_LOG_BYTES = 64 * 1024 * 1024
 const MAX_NON_FILE_CHANGE_LOG_ENTRIES = 10_000
 const DEFAULT_CHANGE_LOG_DIGEST_ALGORITHM = 'sha256'
+const DEFAULT_SAVE_CONFLICT_FINGERPRINT_ALGORITHM = 'sha256'
+const SAVE_CONFLICT_FINGERPRINT_ALGORITHMS = [
+  'sha224',
+  'sha256',
+  'sha384',
+  'sha512',
+  'sha3-256',
+  'sha3-512',
+  'blake2b-512',
+  'blake2s-256',
+] as const
+type SaveConflictFingerprintAlgorithm =
+  (typeof SAVE_CONFLICT_FINGERPRINT_ALGORITHMS)[number]
 const INTERNAL_REPLACE_ALL_REPLAY_ID = 'omega.internal.replace-all'
 const GRPC_NOT_FOUND = 5
 const MAX_INT64 = 9_223_372_036_854_775_807n
@@ -429,6 +444,23 @@ function describeSaveStatus(status: number): string {
   return vscode.l10n.t('status {status}', { status })
 }
 
+function resolveSaveConflictFingerprintAlgorithm(
+  resource?: vscode.Uri
+): SaveConflictFingerprintAlgorithm {
+  const configured = vscode.workspace
+    .getConfiguration('omegaEdit', resource)
+    .get<string>(
+      'saveConflictFingerprintAlgorithm',
+      DEFAULT_SAVE_CONFLICT_FINGERPRINT_ALGORITHM
+    )
+    .toLowerCase()
+  return (
+    SAVE_CONFLICT_FINGERPRINT_ALGORITHMS.find(
+      (algorithm) => algorithm === configured
+    ) ?? DEFAULT_SAVE_CONFLICT_FINGERPRINT_ALGORITHM
+  )
+}
+
 async function saveSessionOrThrow(
   sessionId: string,
   filePath: string,
@@ -444,6 +476,43 @@ async function saveSessionOrThrow(
       })
     )
   }
+}
+
+async function saveSessionWithKnownDiskVersion(
+  session: EditorSession,
+  cancellation: vscode.CancellationToken
+): Promise<void> {
+  if (cancellation.isCancellationRequested) {
+    throw new vscode.CancellationError()
+  }
+  const expected =
+    session.savedDiskFingerprint ?? session.checkpointTimeline.savedFingerprint
+  const expectedByteLength = Number(expected.byteLength)
+  if (!Number.isSafeInteger(expectedByteLength) || expectedByteLength < 0) {
+    throw new Error('Saved file fingerprint has an invalid byte length')
+  }
+  const response = await saveSession(
+    session.sessionId,
+    session.filePath,
+    IOFlags.OVERWRITE,
+    0,
+    0,
+    {
+      byteLength: expectedByteLength,
+      digest: expected.digest,
+    }
+  )
+  const status = response.getSaveStatus()
+  if (status === SaveStatus.SUCCESS) {
+    return
+  }
+
+  throw new Error(
+    vscode.l10n.t('OmegaEdit save failed for {path}: {reason}', {
+      path: session.filePath,
+      reason: describeSaveStatus(status),
+    })
+  )
 }
 
 function transformMutationBlockedMessage(): string {
@@ -2148,7 +2217,8 @@ export class HexEditorProvider
 
   public async dispatchWebviewMessageForTesting(
     uri: vscode.Uri,
-    msg: WebviewToHostMessage
+    msg: WebviewToHostMessage,
+    options?: { propagateErrors?: boolean }
   ): Promise<void> {
     if (process.env.NODE_ENV !== 'test') {
       throw new Error('Test-only message dispatch is unavailable outside tests')
@@ -2199,7 +2269,11 @@ export class HexEditorProvider
       }
     }
 
-    await this.handleWebviewMessage(session, msg)
+    await this.handleWebviewMessage(
+      session,
+      msg,
+      options?.propagateErrors === true
+    )
   }
 
   public async undoActive(): Promise<WebviewEditorState | undefined> {
@@ -2388,6 +2462,17 @@ export class HexEditorProvider
         digest: { algorithm: 'sha256', value: '0'.repeat(64) },
       }
     })
+    const saveConflictFingerprintAlgorithm =
+      resolveSaveConflictFingerprintAlgorithm(uri)
+    const savedDiskFingerprint =
+      !fingerprintFailure &&
+      originalFingerprint.digest.algorithm === saveConflictFingerprintAlgorithm
+        ? originalFingerprint
+        : await getChangeLogFingerprint(
+            scope.sessionId,
+            SessionFingerprintContent.COMPUTED,
+            saveConflictFingerprintAlgorithm
+          ).catch(() => undefined)
     const timelineStorage = fingerprintFailure
       ? undefined
       : await this.timelineStorage
@@ -2451,6 +2536,7 @@ export class HexEditorProvider
       transformPlugins: [],
       transformInFlight: false,
       restoredFromBackup: wasRestoredFromBackup,
+      savedDiskFingerprint,
       checkpointTimeline: {
         entries: [],
         storage: timelineStorage,
@@ -2532,19 +2618,34 @@ export class HexEditorProvider
 
   // --- CustomEditorProvider required methods ---
 
-  async saveCustomDocument(
-    document: HexDocument,
-    _cancellation: vscode.CancellationToken
+  private async runSerializedSave(
+    session: EditorSession,
+    cancellation: vscode.CancellationToken,
+    operation: () => Promise<void>
   ): Promise<void> {
-    const session = this.sessions.get(document.uri.toString())
-    if (!session) {
-      return
+    const previous = session.saveTask ?? Promise.resolve()
+    const task = previous
+      .catch(() => undefined)
+      .then(async () => {
+        if (cancellation.isCancellationRequested) {
+          throw new vscode.CancellationError()
+        }
+        await operation()
+      })
+    session.saveTask = task
+    try {
+      await task
+    } finally {
+      if (session.saveTask === task) {
+        session.saveTask = undefined
+      }
     }
-    await saveSessionOrThrow(
-      session.sessionId,
-      session.filePath,
-      IOFlags.OVERWRITE
-    )
+  }
+
+  private async recordSuccessfulSave(
+    session: EditorSession,
+    updateOriginalDiskFingerprint: boolean
+  ): Promise<void> {
     session.restoredFromBackup = false
     session.history.markSaved()
     session.checkpointTimeline.savedChangeCount = await getChangeCount(
@@ -2553,19 +2654,46 @@ export class HexEditorProvider
     const fingerprint = await getChangeLogFingerprint(
       session.sessionId,
       SessionFingerprintContent.COMPUTED,
-      'sha256'
+      DEFAULT_CHANGE_LOG_DIGEST_ALGORITHM
     )
     session.checkpointTimeline.savedFingerprint = fingerprint
     session.checkpointTimeline.currentFingerprint = fingerprint
+    if (updateOriginalDiskFingerprint) {
+      const algorithm = resolveSaveConflictFingerprintAlgorithm(
+        session.document.uri
+      )
+      session.savedDiskFingerprint =
+        fingerprint.digest.algorithm === algorithm
+          ? fingerprint
+          : await getChangeLogFingerprint(
+              session.sessionId,
+              SessionFingerprintContent.COMPUTED,
+              algorithm
+            ).catch(() => undefined)
+    }
     await session.checkpointTimeline.storage?.setSavedFingerprint(fingerprint)
     this.postCheckpointTimeline(session)
     this.postEditState(session)
   }
 
+  async saveCustomDocument(
+    document: HexDocument,
+    cancellation: vscode.CancellationToken
+  ): Promise<void> {
+    const session = this.sessions.get(document.uri.toString())
+    if (!session) {
+      return
+    }
+    await this.runSerializedSave(session, cancellation, async () => {
+      await saveSessionWithKnownDiskVersion(session, cancellation)
+      await this.recordSuccessfulSave(session, true)
+    })
+  }
+
   async saveCustomDocumentAs(
     document: HexDocument,
     destination: vscode.Uri,
-    _cancellation: vscode.CancellationToken
+    cancellation: vscode.CancellationToken
   ): Promise<void> {
     const session = this.sessions.get(document.uri.toString())
     if (!session) {
@@ -2576,26 +2704,14 @@ export class HexEditorProvider
         vscode.l10n.t('OmegaEdit Data Editor can only save to local files')
       )
     }
-    await saveSessionOrThrow(
-      session.sessionId,
-      destination.fsPath,
-      IOFlags.OVERWRITE
-    )
-    session.restoredFromBackup = false
-    session.history.markSaved()
-    session.checkpointTimeline.savedChangeCount = await getChangeCount(
-      session.sessionId
-    )
-    const fingerprint = await getChangeLogFingerprint(
-      session.sessionId,
-      SessionFingerprintContent.COMPUTED,
-      'sha256'
-    )
-    session.checkpointTimeline.savedFingerprint = fingerprint
-    session.checkpointTimeline.currentFingerprint = fingerprint
-    await session.checkpointTimeline.storage?.setSavedFingerprint(fingerprint)
-    this.postCheckpointTimeline(session)
-    this.postEditState(session)
+    await this.runSerializedSave(session, cancellation, async () => {
+      await saveSessionOrThrow(
+        session.sessionId,
+        destination.fsPath,
+        IOFlags.OVERWRITE
+      )
+      await this.recordSuccessfulSave(session, false)
+    })
   }
 
   async revertCustomDocument(
@@ -6268,6 +6384,11 @@ export class HexEditorProvider
       return
     }
 
+    // A rollback changes the session baseline. Let any Auto Save that already
+    // captured the pre-rollback state finish publishing its disk fingerprint
+    // before the rollback makes the original content dirty again.
+    await session.saveTask?.catch(() => undefined)
+
     let resolveTimelineOperation: () => void = () => undefined
     session.checkpointTimeline.operation = new Promise<void>((resolve) => {
       resolveTimelineOperation = resolve
@@ -7213,7 +7334,8 @@ export class HexEditorProvider
 
   private async handleWebviewMessage(
     session: EditorSession,
-    rawMessage: unknown
+    rawMessage: unknown,
+    propagateErrors = false
   ): Promise<void> {
     const msg = normalizeWebviewMessage(
       { fileSize: session.fileSize, contentSources: session.contentSources },
@@ -7800,6 +7922,9 @@ export class HexEditorProvider
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err)
       void vscode.window.showErrorMessage(omegaEditErrorMessage(message))
+      if (propagateErrors) {
+        throw err
+      }
     }
   }
 }
