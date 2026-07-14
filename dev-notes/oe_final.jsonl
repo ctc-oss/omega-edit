@@ -1,0 +1,6 @@
+{"tool":"omega_edit_create_session","arguments":{"filePath":"D:\\GitHub\\omega-edit\\dev-notes\\sample2.bin"}}
+{"tool":"omega_edit_server_info","arguments":{}}
+{"tool":"omega_edit_read_range","arguments":{"sessionId":"{{.sessionId}}","offset":0,"length":8}}
+{"tool":"omega_edit_search","arguments":{"sessionId":"{{.sessionId}}","text":"omega"}}
+{"tool":"omega_edit_profile_range","arguments":{"sessionId":"{{.sessionId}}","offset":0,"length":52}}
+{"tool":"omega_edit_destroy_session","arguments":{"sessionId":"{{.sessionId}}"}}
