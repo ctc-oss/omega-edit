@@ -424,6 +424,12 @@ namespace omega_edit {
             return algorithm;
         }
 
+        static std::string normalize_digest_value(std::string digest) {
+            std::transform(digest.begin(), digest.end(), digest.begin(),
+                           [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+            return digest;
+        }
+
         static bool digest_algorithm_is_json_safe(const std::string &algorithm) {
             return !algorithm.empty() && std::all_of(algorithm.begin(), algorithm.end(),
                                                      [](unsigned char c) { return std::isalnum(c) != 0 || c == '-'; });
@@ -833,8 +839,9 @@ namespace omega_edit {
                 plugin_response.response.result_length <= 0 || plugin_response.response.result_bytes == nullptr) {
                 return 1;
             }
-            const std::string actual_digest(reinterpret_cast<const char *>(plugin_response.response.result_bytes),
-                                            static_cast<size_t>(plugin_response.response.result_length));
+            const auto actual_digest = normalize_digest_value(
+                    std::string(reinterpret_cast<const char *>(plugin_response.response.result_bytes),
+                                static_cast<size_t>(plugin_response.response.result_length)));
             const auto actual_algorithm = normalize_digest_algorithm(
                     plugin_response.response.result_label ? plugin_response.response.result_label : context->algorithm);
             return actual_algorithm == context->algorithm && actual_digest == context->expected_digest ? 0 : 1;
@@ -1662,7 +1669,7 @@ namespace omega_edit {
                 guard_context.registry_mutex = &transform_plugin_registry_mutex_;
                 guard_context.checkpoint_directory = checkpoint_directory ? checkpoint_directory : "";
                 guard_context.algorithm = algorithm;
-                guard_context.expected_digest = expected.digest().value();
+                guard_context.expected_digest = normalize_digest_value(expected.digest().value());
                 guard_context.expected_length = expected.byte_length();
                 save_options.overwrite_guard = verify_overwrite_fingerprint;
                 save_options.overwrite_guard_user_data = &guard_context;

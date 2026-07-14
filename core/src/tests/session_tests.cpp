@@ -75,6 +75,19 @@ void write_test_file(const char *path, const char *bytes) {
     output.close();
     REQUIRE(output.good());
 }
+
+void write_test_file_after_modification_time(const char *path, const char *bytes, int64_t previous_modification_time) {
+    const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(5);
+    int64_t modification_time = previous_modification_time;
+    do {
+        write_test_file(path, bytes);
+        REQUIRE(0 == omega_util_get_modification_time(path, &modification_time));
+        if (modification_time > previous_modification_time) { return; }
+        std::this_thread::sleep_for(std::chrono::milliseconds(50));
+    } while (std::chrono::steady_clock::now() < deadline);
+    REQUIRE(modification_time > previous_modification_time);
+}
+
 void session_save_test_session_cbk(const omega_session_t *session_ptr, omega_session_event_t session_event,
                                    const void *) {
     auto count_ptr = reinterpret_cast<int *>(omega_session_get_user_data_ptr(session_ptr));
@@ -554,8 +567,9 @@ TEST_CASE("Guarded session save fails closed at the publish boundary", "[Session
     REQUIRE(session);
     REQUIRE(0 < omega_edit_overwrite_string(session, 0, "OMEGA"));
 
-    std::this_thread::sleep_for(std::chrono::milliseconds(20));
-    write_test_file(path.c_str(), "external");
+    int64_t original_modification_time = 0;
+    REQUIRE(0 == omega_util_get_modification_time(path.c_str(), &original_modification_time));
+    write_test_file_after_modification_time(path.c_str(), "external", original_modification_time);
     write_test_file(external_path.c_str(), "external");
 
     overwrite_guard_test_state guard_state{};
@@ -603,6 +617,11 @@ TEST_CASE("Guarded session save fails closed at the publish boundary", "[Session
 
     // Once the successful save refreshes core's synchronized file version, the guard is not called on the fast path.
     REQUIRE(0 == omega_edit_save_with_options(session, path.c_str(), IO_FLG_OVERWRITE, saved_filename, &options));
+    REQUIRE(4 == guard_state.calls);
+
+    // A non-null options struct without a callback is equivalent to the legacy save API.
+    omega_edit_save_options_t empty_options{};
+    REQUIRE(0 == omega_edit_save_with_options(session, path.c_str(), IO_FLG_OVERWRITE, saved_filename, &empty_options));
     REQUIRE(4 == guard_state.calls);
 
     // Explicit force-overwrite remains an intentional bypass and never consults the guard.

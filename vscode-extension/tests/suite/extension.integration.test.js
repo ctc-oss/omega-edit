@@ -205,17 +205,23 @@ function assertAssistantContextPayloadBudget(context) {
 suite('OmegaEdit VS Code extension', () => {
   let testPort
   let extensionApi
+  let previousAllowExperimentalTransformPlugins
+  let updatedAllowExperimentalTransformPlugins = false
 
   suiteSetup(async () => {
     await vscode.commands.executeCommand('workbench.action.closeAllEditors')
 
-    await vscode.workspace
-      .getConfiguration('omegaEdit')
-      .update(
-        'allowExperimentalTransformPlugins',
-        true,
-        vscode.ConfigurationTarget.Global
-      )
+    const omegaEditConfiguration =
+      vscode.workspace.getConfiguration('omegaEdit')
+    previousAllowExperimentalTransformPlugins = omegaEditConfiguration.inspect(
+      'allowExperimentalTransformPlugins'
+    )?.globalValue
+    await omegaEditConfiguration.update(
+      'allowExperimentalTransformPlugins',
+      true,
+      vscode.ConfigurationTarget.Global
+    )
+    updatedAllowExperimentalTransformPlugins = true
 
     testPort = getConfiguredTestPort()
 
@@ -256,6 +262,19 @@ suite('OmegaEdit VS Code extension', () => {
 
   teardown(async () => {
     await vscode.commands.executeCommand('workbench.action.closeAllEditors')
+  })
+
+  suiteTeardown(async () => {
+    if (!updatedAllowExperimentalTransformPlugins) {
+      return
+    }
+    await vscode.workspace
+      .getConfiguration('omegaEdit')
+      .update(
+        'allowExperimentalTransformPlugins',
+        previousAllowExperimentalTransformPlugins,
+        vscode.ConfigurationTarget.Global
+      )
   })
 
   test('registers the go to offset command', async () => {
@@ -2542,6 +2561,10 @@ suite('OmegaEdit VS Code extension', () => {
       await waitForFileBytes(samplePath, transformedBytes)
       await waitForOmegaEditTab(uri, { dirty: false })
 
+      // The regression requires rollback to leave the Auto Save bytes on disk
+      // until the explicit save below. Disable Auto Save after its transformed
+      // write completes so it cannot race the rollback assertions.
+      await files.update('autoSave', 'off', vscode.ConfigurationTarget.Global)
       await vscode.commands.executeCommand(OMEGA_EDIT_ROLLBACK_SESSION_COMMAND)
       assert.deepEqual(await readSessionBytes(session.sessionId), originalBytes)
       assert.equal(sha256(await fs.readFile(samplePath)), transformedHash)
@@ -2693,6 +2716,26 @@ suite('OmegaEdit VS Code extension', () => {
         /unsupported save conflict digest algorithm/
       )
       assert.deepEqual(await fs.readFile(samplePath), externalBytes)
+
+      const uppercaseDigest = await saveSession(
+        session.sessionId,
+        samplePath,
+        IOFlags.OVERWRITE,
+        0,
+        0,
+        {
+          byteLength: externalBytes.byteLength,
+          digest: {
+            algorithm: 'sha256',
+            value: sha256(externalBytes).toUpperCase(),
+          },
+        }
+      )
+      assert.equal(uppercaseDigest.getSaveStatus(), 0)
+      assert.deepEqual(
+        await fs.readFile(samplePath),
+        Buffer.from('Original', 'utf8')
+      )
     } finally {
       await panel.fireDidDispose()
       await fs.rm(tmpDir, { recursive: true, force: true })
@@ -3317,7 +3360,7 @@ async function waitForCompletedSaveStage(directory, expectedSize) {
         return
       }
     }
-    await delay(1)
+    await delay(10)
   }
   assert.fail('Timed out waiting for the guarded save staging file')
 }
