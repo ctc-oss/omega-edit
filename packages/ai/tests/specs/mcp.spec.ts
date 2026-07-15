@@ -292,6 +292,10 @@ describe('@omega-edit/ai mcp server', () => {
               tool: 'omega_edit_read_range',
               arguments: { offset: 0, length: 17 },
             },
+            {
+              tool: 'omega_edit_session_context',
+              arguments: {},
+            },
           ],
         },
       })
@@ -302,6 +306,16 @@ describe('@omega-edit/ai mcp server', () => {
       assert.equal(oneShotStructured.mutated, true)
       assert.equal(oneShotStructured.persisted, true)
       assert.doesNotMatch(JSON.stringify(oneShotStructured), /sessionId/)
+      const contextOperation = (
+        oneShotStructured.operations as Array<Record<string, unknown>>
+      ).find((operation) => operation.tool === 'omega_edit_session_context')
+      assert.equal(
+        ((
+          (contextOperation?.result as Record<string, unknown>)
+            .session as Record<string, unknown>
+        ).filePath as string) || '',
+        path.resolve(relativeInputPath)
+      )
       assert.equal(fs.readFileSync(inputPath, 'utf8'), 'hello world hello')
       assert.equal(
         fs.readFileSync(oneShotOutputPath, 'utf8'),

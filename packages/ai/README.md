@@ -143,8 +143,9 @@ args = ["./packages/ai/dist/cjs/mcp.js"]
 The source checkout must also have a native server staged in
 `node_modules/@omega-edit/server/out/bin`, or set `CPP_SERVER_BINARY` in the
 MCP server's `env` table to a native server you built locally. Relative file
-and output paths are resolved from the MCP process working directory before
-they are sent to the native server.
+and output paths are resolved from the MCP process working directory when the
+toolkit auto-starts its local server. With `--no-autostart`, paths are passed
+through unchanged so the already-running server remains authoritative.
 
 The equivalent installed-package configuration is:
 

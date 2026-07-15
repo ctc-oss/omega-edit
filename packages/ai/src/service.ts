@@ -1085,10 +1085,12 @@ export class OmegaEditToolkit {
     checkpointDirectory: string = ''
   ): Promise<{ sessionId: string; filePath: string }> {
     await this.ensureServerRunning()
-    const resolvedFilePath = filePath ? resolve(filePath) : ''
-    const resolvedCheckpointDirectory = checkpointDirectory
-      ? resolve(checkpointDirectory)
-      : ''
+    const resolvedFilePath =
+      filePath && this.autoStart ? resolve(filePath) : filePath
+    const resolvedCheckpointDirectory =
+      checkpointDirectory && this.autoStart
+        ? resolve(checkpointDirectory)
+        : checkpointDirectory
     const response = await createSession(
       resolvedFilePath,
       sessionId,
@@ -2237,7 +2239,7 @@ export class OmegaEditToolkit {
     overwriteExisting: boolean = false
   ): Promise<{ filePath: string; status: number }> {
     await this.ensureServerRunning()
-    const resolvedOutputPath = resolve(outputPath)
+    const resolvedOutputPath = this.autoStart ? resolve(outputPath) : outputPath
     const response = await saveSession(
       sessionId,
       resolvedOutputPath,
@@ -2270,7 +2272,7 @@ export class OmegaEditToolkit {
     }
 
     await this.ensureServerRunning()
-    const resolvedOutputPath = resolve(outputPath)
+    const resolvedOutputPath = this.autoStart ? resolve(outputPath) : outputPath
     const response = await saveSession(
       sessionId,
       resolvedOutputPath,

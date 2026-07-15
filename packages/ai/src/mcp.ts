@@ -948,7 +948,7 @@ function buildTools(toolkit: OmegaEditToolkit): ToolDefinition[] {
             sessionId: created.sessionId,
           }
           if (operation.tool === 'omega_edit_session_context') {
-            nestedArguments.filePath = filePath
+            nestedArguments.filePath = created.filePath
           }
 
           const result = await operation.definition.run(nestedArguments, signal)
