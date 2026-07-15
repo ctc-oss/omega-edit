@@ -872,7 +872,7 @@ function buildTools(toolkit: OmegaEditToolkit): ToolDefinition[] {
   tools.push({
     name: 'omega_edit_run_file',
     description:
-      'Run up to 16 OmegaEdit operations against a file in an ephemeral session. The session is always destroyed. Read-only pipelines need only filePath; mutating pipelines require outputPath for save-on-success or discardChanges for explicit temporary work.',
+      'Run OmegaEdit operations in an always-destroyed ephemeral session. For one operation pass {filePath, tool, arguments}. For a pipeline pass {filePath, operations: [{tool, arguments}]}; the limit is 16. Read-only work needs only filePath. Mutating work also requires outputPath for save-on-success or discardChanges for explicit temporary work.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -893,6 +893,7 @@ function buildTools(toolkit: OmegaEditToolkit): ToolDefinition[] {
               arguments: { type: 'object' },
             },
             required: ['tool'],
+            additionalProperties: false,
           },
         },
       },
@@ -1101,7 +1102,7 @@ async function main(): Promise<void> {
                 'Bounded CLI and MCP tooling for large-file-safe OmegaEdit sessions.',
             },
             instructions:
-              'Use omega_edit_run_file for self-cleaning one-shot file work. Create a session for longer workflows, keep reads bounded, preview patches before applying them when possible, and use undo/redo for reversible changes.',
+              'Use omega_edit_run_file for self-cleaning one-shot file work. For one operation pass {filePath, tool, arguments}; for pipelines pass {filePath, operations: [{tool, arguments}]}. Create a session only for longer workflows. Keep reads bounded, preview patches before applying them when possible, and use undo/redo for reversible changes.',
           })
         )
         return

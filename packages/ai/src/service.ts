@@ -58,6 +58,7 @@ import {
   writeChangeLogFileAtomic,
   writeChangeLogRpcExportAtomic,
 } from '@omega-edit/client/change-log/node'
+import { resolve } from 'node:path'
 import {
   DEFAULT_HOST,
   DEFAULT_MAX_EDIT_BYTES,
@@ -1084,14 +1085,18 @@ export class OmegaEditToolkit {
     checkpointDirectory: string = ''
   ): Promise<{ sessionId: string; filePath: string }> {
     await this.ensureServerRunning()
+    const resolvedFilePath = filePath ? resolve(filePath) : ''
+    const resolvedCheckpointDirectory = checkpointDirectory
+      ? resolve(checkpointDirectory)
+      : ''
     const response = await createSession(
-      filePath,
+      resolvedFilePath,
       sessionId,
-      checkpointDirectory
+      resolvedCheckpointDirectory
     )
     return {
       sessionId: response.getSessionId(),
-      filePath,
+      filePath: resolvedFilePath,
     }
   }
 
@@ -2232,9 +2237,10 @@ export class OmegaEditToolkit {
     overwriteExisting: boolean = false
   ): Promise<{ filePath: string; status: number }> {
     await this.ensureServerRunning()
+    const resolvedOutputPath = resolve(outputPath)
     const response = await saveSession(
       sessionId,
-      outputPath,
+      resolvedOutputPath,
       overwriteExisting ? IOFlags.OVERWRITE : IOFlags.UNSPECIFIED
     )
     return {
@@ -2264,9 +2270,10 @@ export class OmegaEditToolkit {
     }
 
     await this.ensureServerRunning()
+    const resolvedOutputPath = resolve(outputPath)
     const response = await saveSession(
       sessionId,
-      outputPath,
+      resolvedOutputPath,
       overwriteExisting ? IOFlags.OVERWRITE : IOFlags.UNSPECIFIED,
       offset,
       length

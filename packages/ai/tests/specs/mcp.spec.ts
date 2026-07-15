@@ -92,6 +92,7 @@ describe('@omega-edit/ai mcp server', () => {
 
     const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'omega-edit-mcp-'))
     const inputPath = path.join(tempDir, 'input.bin')
+    const relativeInputPath = path.relative(process.cwd(), inputPath)
     fs.writeFileSync(inputPath, Buffer.from('hello world hello', 'utf8'))
 
     const toolkit = new OmegaEditToolkit({ port: port!, autoStart: true })
@@ -241,7 +242,7 @@ describe('@omega-edit/ai mcp server', () => {
       const shorthandResponse = await sendRequest('tools/call', {
         name: 'omega_edit_run_file',
         arguments: {
-          filePath: inputPath,
+          filePath: relativeInputPath,
           tool: 'omega_edit_read_range',
           arguments: { offset: 0, length: 5 },
         },
@@ -265,11 +266,15 @@ describe('@omega-edit/ai mcp server', () => {
       assert.equal(await getSessionCount(), sessionCountBeforeOneShot)
 
       const oneShotOutputPath = path.join(tempDir, 'one-shot-output.bin')
+      const relativeOneShotOutputPath = path.relative(
+        process.cwd(),
+        oneShotOutputPath
+      )
       const oneShotResponse = await sendRequest('tools/call', {
         name: 'omega_edit_run_file',
         arguments: {
-          filePath: inputPath,
-          outputPath: oneShotOutputPath,
+          filePath: relativeInputPath,
+          outputPath: relativeOneShotOutputPath,
           operations: [
             {
               tool: 'omega_edit_read_range',
