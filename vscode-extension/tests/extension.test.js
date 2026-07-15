@@ -3132,14 +3132,21 @@ test('webview protocol normalizes analysis, search, and transform messages', () 
       optionsJson: '{ "operator": "xor", "mask": [255] }',
     }
   )
-  assert.equal(
+  assert.deepEqual(
     normalizeWebviewMessage(context, {
       type: 'applyTransform',
       pluginId: 'omega.example.bitwise',
-      offset: 1,
+      offset: 0,
       length: 0,
     }),
-    undefined
+    {
+      type: 'applyTransform',
+      pluginId: 'omega.example.bitwise',
+      contentSource: 'computed',
+      offset: 0,
+      length: 0,
+      optionsJson: undefined,
+    }
   )
   assert.equal(
     normalizeWebviewMessage(context, {

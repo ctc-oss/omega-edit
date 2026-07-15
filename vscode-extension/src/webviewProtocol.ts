@@ -1138,8 +1138,15 @@ export function normalizeWebviewMessage(
         raw.contentSource === undefined
           ? 'computed'
           : safeSessionContentSource(raw.contentSource)
+      // Transform APIs use zero length as the sentinel for offset through EOF.
       const range = contentSource
-        ? safeContentLengthRange(context, contentSource, raw.offset, raw.length)
+        ? safeContentLengthRange(
+            context,
+            contentSource,
+            raw.offset,
+            raw.length,
+            true
+          )
         : undefined
       const optionsJson =
         raw.optionsJson === undefined
