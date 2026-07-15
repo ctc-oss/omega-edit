@@ -48,6 +48,7 @@ import {
   type RestoreToChangeCountResponse,
   type SaveSessionRequest,
   type SaveSessionResponse,
+  type SessionContentFingerprint,
   type SearchSessionRequest,
   type SearchSessionResponse,
   type SingleCount,
@@ -394,7 +395,9 @@ export async function saveSession(
   filePath: string,
   flags: number,
   offset: number = 0,
-  length: number = 0
+  length: number = 0,
+  expectedOriginalFingerprint?: SessionContentFingerprint,
+  options: CancellableCallOptions = {}
 ): Promise<SaveSessionResponse> {
   const log = getLogger()
   const request: SaveSessionRequest = {
@@ -404,34 +407,54 @@ export async function saveSession(
   }
   if (offset > 0) request.offset = offset
   if (length > 0) request.length = length
+  if (expectedOriginalFingerprint) {
+    request.expectedOriginalFingerprint = expectedOriginalFingerprint
+  }
 
   debugLog(log, () => ({ fn: 'protobufTs.saveSession', rqst: request }))
+  if (options.signal?.aborted) {
+    throw makeCancellationError('saveSession')
+  }
   const client = await getClient()
+  if (options.signal?.aborted) {
+    throw makeCancellationError('saveSession')
+  }
 
   return new Promise<SaveSessionResponse>((resolve, reject) => {
-    callUnary(client, client.saveSession, request, (err, response) => {
-      if (err) {
-        log.error({
-          fn: 'protobufTs.saveSession',
-          rqst: request,
-          err: {
-            msg: err.message,
-            details: err.details,
-            code: err.code,
-            stack: err.stack,
-          },
-        })
-        return reject(makeWrappedError('saveSession', err))
-      }
+    let removeCancellationListener: () => void = () => undefined
+    const call = callUnary(
+      client,
+      client.saveSession,
+      request,
+      (err, response) => {
+        removeCancellationListener()
+        if (err) {
+          log.error({
+            fn: 'protobufTs.saveSession',
+            rqst: request,
+            err: {
+              msg: err.message,
+              details: err.details,
+              code: err.code,
+              stack: err.stack,
+            },
+          })
+          return reject(makeWrappedError('saveSession', err))
+        }
 
-      try {
-        const required = requireResponse(response, 'saveSession')
-        debugLog(log, () => ({ fn: 'protobufTs.saveSession', resp: required }))
-        return resolve(required)
-      } catch (error) {
-        return reject(makeWrappedError('saveSession', error))
+        try {
+          const required = requireResponse(response, 'saveSession')
+          debugLog(log, () => ({
+            fn: 'protobufTs.saveSession',
+            resp: required,
+          }))
+          return resolve(required)
+        } catch (error) {
+          return reject(makeWrappedError('saveSession', error))
+        }
       }
-    })
+    )
+    removeCancellationListener = cancelUnaryOnSignal(call, options.signal)
   })
 }
 

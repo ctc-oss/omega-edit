@@ -234,7 +234,10 @@ function normalizeHex(value: unknown, name: string): string {
 function decodeHexUtf8(value: string, name: string): string {
   const bytes = new Uint8Array(value.length / 2)
   for (let index = 0; index < bytes.length; index += 1) {
-    bytes[index] = Number.parseInt(value.slice(index * 2, index * 2 + 2), 16)
+    const offset = index * 2
+    bytes[index] =
+      (hexCodeUnitToNibble(value.charCodeAt(offset)) << 4) |
+      hexCodeUnitToNibble(value.charCodeAt(offset + 1))
   }
   try {
     return new TextDecoder('utf-8', { fatal: true }).decode(bytes)
@@ -245,6 +248,10 @@ function decodeHexUtf8(value: string, name: string): string {
       error
     )
   }
+}
+
+function hexCodeUnitToNibble(codeUnit: number): number {
+  return codeUnit <= 57 ? codeUnit - 48 : (codeUnit & 0xdf) - 55
 }
 
 function parseTransformDescriptor(
