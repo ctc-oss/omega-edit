@@ -6643,11 +6643,21 @@ export class HexEditorProvider
 
   private makeHistoryExecutor(session: EditorSession): EditorHistoryExecutor {
     const provider = this
+    const history = session.history.snapshot()
+    const hasTimeline = session.checkpointTimeline.entries.length > 0
+    const undoCrossesTimelineMilestone =
+      hasTimeline &&
+      history.milestoneDepths.includes(history.transactionLog.length)
+    const redoCrossesTimelineMilestone =
+      hasTimeline &&
+      history.milestoneDepths.includes(history.transactionLog.length + 1)
     return {
       async undoLocal() {
+        if (undoCrossesTimelineMilestone) return
         await undo(session.sessionId)
       },
       async redoLocal() {
+        if (redoCrossesTimelineMilestone) return
         await redo(session.sessionId)
       },
       async undoMilestone() {
