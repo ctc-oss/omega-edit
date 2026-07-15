@@ -6642,6 +6642,7 @@ export class HexEditorProvider
   }
 
   private makeHistoryExecutor(session: EditorSession): EditorHistoryExecutor {
+    const provider = this
     return {
       async undoLocal() {
         await undo(session.sessionId)
@@ -6650,9 +6651,22 @@ export class HexEditorProvider
         await redo(session.sessionId)
       },
       async undoMilestone() {
+        const checkpointCount = await provider.getCheckpointCount(session)
+        if (
+          checkpointCount > 0 &&
+          session.checkpointTimeline.entries.length > 0
+        ) {
+          await checkoutCheckpoint(session.sessionId, checkpointCount - 1)
+          return
+        }
         await destroyLastCheckpoint(session.sessionId)
       },
       async redoMilestone() {
+        const checkpointCount = await provider.getCheckpointCount(session)
+        if (checkpointCount < session.checkpointTimeline.entries.length) {
+          await checkoutCheckpoint(session.sessionId, checkpointCount + 1)
+          return
+        }
         await createCheckpoint(session.sessionId)
       },
       async undoCheckpoint() {
