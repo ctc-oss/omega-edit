@@ -27,8 +27,17 @@ interface ToolDefinition {
   description: string
   inputSchema: JsonObject
   outputSchema?: JsonObject
+  oneShotMutation?: 'never' | 'always' | 'result'
+  oneShotDidMutate?: (result: object, argumentsObject: JsonObject) => boolean
   run: (argumentsObject: JsonObject, signal?: AbortSignal) => Promise<object>
 }
+
+interface OneShotOperation {
+  tool: string
+  arguments: JsonObject
+}
+
+const MAX_ONE_SHOT_OPERATIONS = 16
 
 function sendMessage(message: JsonObject): void {
   process.stdout.write(`${JSON.stringify(message)}\n`)
@@ -215,8 +224,72 @@ function toolResult(data: object, isError: boolean = false): JsonObject {
   }
 }
 
+function getOneShotOperations(argumentsObject: JsonObject): OneShotOperation[] {
+  const shorthandTool = getString(argumentsObject, 'tool')
+  if (shorthandTool && argumentsObject.operations !== undefined) {
+    throw new Error('Provide tool or operations, not both')
+  }
+  const value = shorthandTool
+    ? [
+        {
+          tool: shorthandTool,
+          arguments: argumentsObject.arguments,
+        },
+      ]
+    : argumentsObject.operations
+  if (!Array.isArray(value) || value.length === 0) {
+    throw new Error('operations must be a non-empty array')
+  }
+  if (value.length > MAX_ONE_SHOT_OPERATIONS) {
+    throw new Error(
+      `operations exceeds the maximum of ${MAX_ONE_SHOT_OPERATIONS}`
+    )
+  }
+
+  return value.map((operation, index) => {
+    if (
+      !operation ||
+      typeof operation !== 'object' ||
+      Array.isArray(operation)
+    ) {
+      throw new Error(`operations[${index}] must be an object`)
+    }
+    const operationObject = operation as JsonObject
+    const tool = getString(operationObject, 'tool', true)!
+    const rawArguments = operationObject.arguments
+    if (
+      rawArguments !== undefined &&
+      (!rawArguments ||
+        typeof rawArguments !== 'object' ||
+        Array.isArray(rawArguments))
+    ) {
+      throw new Error(`operations[${index}].arguments must be an object`)
+    }
+    const nestedArguments = {
+      ...((rawArguments as JsonObject | undefined) || {}),
+    }
+    if (nestedArguments.sessionId !== undefined) {
+      throw new Error(
+        `operations[${index}].arguments must not provide sessionId`
+      )
+    }
+    return { tool, arguments: nestedArguments }
+  })
+}
+
+function omitSessionIds(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(omitSessionIds)
+  if (!value || typeof value !== 'object') return value
+
+  return Object.fromEntries(
+    Object.entries(value as JsonObject)
+      .filter(([key]) => key !== 'sessionId')
+      .map(([key, entry]) => [key, omitSessionIds(entry)])
+  )
+}
+
 function buildTools(toolkit: OmegaEditToolkit): ToolDefinition[] {
-  return [
+  const tools: ToolDefinition[] = [
     {
       name: 'omega_edit_create_session',
       description:
@@ -264,6 +337,7 @@ function buildTools(toolkit: OmegaEditToolkit): ToolDefinition[] {
         },
         required: ['sessionId'],
       },
+      oneShotMutation: 'never',
       run: async (argumentsObject) => {
         return await toolkit.sessionStatus(
           getString(argumentsObject, 'sessionId', true)!
@@ -282,6 +356,7 @@ function buildTools(toolkit: OmegaEditToolkit): ToolDefinition[] {
         },
         required: ['sessionId'],
       },
+      oneShotMutation: 'never',
       run: async (argumentsObject) => {
         return await toolkit.assistantContext(
           getString(argumentsObject, 'sessionId', true)!,
@@ -354,6 +429,7 @@ function buildTools(toolkit: OmegaEditToolkit): ToolDefinition[] {
         },
         required: ['sessionId'],
       },
+      oneShotMutation: 'never',
       run: async (argumentsObject) => {
         return await toolkit.exportChangeLog(
           getString(argumentsObject, 'sessionId', true)!,
@@ -376,6 +452,7 @@ function buildTools(toolkit: OmegaEditToolkit): ToolDefinition[] {
         },
         required: ['sessionId'],
       },
+      oneShotMutation: 'never',
       run: async (argumentsObject) => {
         return await toolkit.previewChangeLog({
           sessionId: getString(argumentsObject, 'sessionId', true)!,
@@ -398,6 +475,9 @@ function buildTools(toolkit: OmegaEditToolkit): ToolDefinition[] {
         },
         required: ['sessionId'],
       },
+      oneShotMutation: 'result',
+      oneShotDidMutate: (result) =>
+        (result as { applied?: unknown }).applied === true,
       run: async (argumentsObject) => {
         return await toolkit.applyChangeLog({
           sessionId: getString(argumentsObject, 'sessionId', true)!,
@@ -420,6 +500,7 @@ function buildTools(toolkit: OmegaEditToolkit): ToolDefinition[] {
         },
         required: ['sessionId', 'offset', 'length'],
       },
+      oneShotMutation: 'never',
       run: async (argumentsObject) => {
         return await toolkit.readRange(
           getString(argumentsObject, 'sessionId', true)!,
@@ -441,6 +522,7 @@ function buildTools(toolkit: OmegaEditToolkit): ToolDefinition[] {
         },
         required: ['sessionId', 'offset', 'length'],
       },
+      oneShotMutation: 'never',
       run: async (argumentsObject) => {
         return await toolkit.profileRange(
           getString(argumentsObject, 'sessionId', true)!,
@@ -468,6 +550,7 @@ function buildTools(toolkit: OmegaEditToolkit): ToolDefinition[] {
         },
         required: ['sessionId'],
       },
+      oneShotMutation: 'never',
       run: async (argumentsObject) => {
         const { data, inputEncoding } = getInputValue(argumentsObject)
         if (!data) {
@@ -511,6 +594,9 @@ function buildTools(toolkit: OmegaEditToolkit): ToolDefinition[] {
         },
         required: ['sessionId'],
       },
+      oneShotMutation: 'result',
+      oneShotDidMutate: (result) =>
+        ((result as { replacedCount?: unknown }).replacedCount as number) > 0,
       run: async (argumentsObject) => {
         const pattern = getNamedInputValue(argumentsObject, {
           text: 'patternText',
@@ -578,6 +664,9 @@ function buildTools(toolkit: OmegaEditToolkit): ToolDefinition[] {
         },
         required: ['sessionId', 'pluginId'],
       },
+      oneShotMutation: 'result',
+      oneShotDidMutate: (result) =>
+        (result as { contentChanged?: unknown }).contentChanged === true,
       run: async (argumentsObject, signal) => {
         return await toolkit.applyTransformPlugin({
           sessionId: getString(argumentsObject, 'sessionId', true)!,
@@ -607,6 +696,7 @@ function buildTools(toolkit: OmegaEditToolkit): ToolDefinition[] {
         },
         required: ['sessionId', 'offset'],
       },
+      oneShotMutation: 'never',
       run: async (argumentsObject) => {
         const { data } = getInputValue(argumentsObject)
         const deleteLength = getNumber(
@@ -652,6 +742,7 @@ function buildTools(toolkit: OmegaEditToolkit): ToolDefinition[] {
         },
         required: ['sessionId', 'offset'],
       },
+      oneShotMutation: 'always',
       run: async (argumentsObject) => {
         const { data } = getInputValue(argumentsObject)
         const deleteLength = getNumber(
@@ -689,6 +780,7 @@ function buildTools(toolkit: OmegaEditToolkit): ToolDefinition[] {
         },
         required: ['sessionId'],
       },
+      oneShotMutation: 'always',
       run: async (argumentsObject) => {
         return await toolkit.undo(
           getString(argumentsObject, 'sessionId', true)!
@@ -705,6 +797,7 @@ function buildTools(toolkit: OmegaEditToolkit): ToolDefinition[] {
         },
         required: ['sessionId'],
       },
+      oneShotMutation: 'always',
       run: async (argumentsObject) => {
         return await toolkit.redo(
           getString(argumentsObject, 'sessionId', true)!
@@ -745,6 +838,7 @@ function buildTools(toolkit: OmegaEditToolkit): ToolDefinition[] {
         },
         required: ['sessionId', 'offset', 'length', 'outputPath'],
       },
+      oneShotMutation: 'never',
       run: async (argumentsObject) => {
         return await toolkit.exportRange(
           getString(argumentsObject, 'sessionId', true)!,
@@ -767,6 +861,162 @@ function buildTools(toolkit: OmegaEditToolkit): ToolDefinition[] {
       },
     },
   ]
+
+  const oneShotTools = new Map(
+    tools
+      .filter((tool) => tool.oneShotMutation !== undefined)
+      .map((tool) => [tool.name, tool])
+  )
+  const oneShotToolNames = [...oneShotTools.keys()]
+
+  tools.push({
+    name: 'omega_edit_run_file',
+    description:
+      'Run up to 16 OmegaEdit operations against a file in an ephemeral session. The session is always destroyed. Read-only pipelines need only filePath; mutating pipelines require outputPath for save-on-success or discardChanges for explicit temporary work.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        filePath: { type: 'string' },
+        outputPath: { type: 'string' },
+        overwriteExisting: { type: 'boolean' },
+        discardChanges: { type: 'boolean' },
+        tool: { type: 'string', enum: oneShotToolNames },
+        arguments: { type: 'object' },
+        operations: {
+          type: 'array',
+          minItems: 1,
+          maxItems: MAX_ONE_SHOT_OPERATIONS,
+          items: {
+            type: 'object',
+            properties: {
+              tool: { type: 'string', enum: oneShotToolNames },
+              arguments: { type: 'object' },
+            },
+            required: ['tool'],
+          },
+        },
+      },
+      required: ['filePath'],
+      oneOf: [{ required: ['tool'] }, { required: ['operations'] }],
+    },
+    run: async (argumentsObject, signal) => {
+      const filePath = getString(argumentsObject, 'filePath', true)!
+      if (filePath.length === 0) throw new Error('filePath must not be empty')
+
+      const outputPath = getString(argumentsObject, 'outputPath')
+      const overwriteExisting =
+        getBoolean(argumentsObject, 'overwriteExisting') || false
+      const discardChanges =
+        getBoolean(argumentsObject, 'discardChanges') || false
+      if (outputPath && discardChanges) {
+        throw new Error('Provide outputPath or discardChanges, not both')
+      }
+      const operations = getOneShotOperations(argumentsObject)
+      const resolvedOperations = operations.map((operation, index) => {
+        const tool = oneShotTools.get(operation.tool)
+        if (!tool) {
+          throw new Error(
+            `operations[${index}].tool is not available for one-shot use: ${operation.tool}`
+          )
+        }
+        return { ...operation, definition: tool }
+      })
+
+      if (
+        !outputPath &&
+        !discardChanges &&
+        resolvedOperations.some(
+          ({ definition }) => definition.oneShotMutation === 'always'
+        )
+      ) {
+        throw new Error(
+          'outputPath is required when a one-shot pipeline contains mutating operations'
+        )
+      }
+
+      const created = await toolkit.createSession(filePath)
+      let operationError: unknown
+      try {
+        let mutated = false
+        const results: Array<{ tool: string; result: unknown }> = []
+
+        for (const operation of resolvedOperations) {
+          if (signal?.aborted) throw new Error('One-shot operation cancelled')
+          const nestedArguments: JsonObject = {
+            ...operation.arguments,
+            sessionId: created.sessionId,
+          }
+          if (operation.tool === 'omega_edit_session_context') {
+            nestedArguments.filePath = filePath
+          }
+
+          const result = await operation.definition.run(nestedArguments, signal)
+          const didMutate =
+            operation.definition.oneShotMutation === 'always' ||
+            (operation.definition.oneShotMutation === 'result' &&
+              (operation.definition.oneShotDidMutate?.(
+                result,
+                nestedArguments
+              ) ??
+                false))
+          mutated ||= didMutate
+          results.push({
+            tool: operation.tool,
+            result: omitSessionIds(result),
+          })
+        }
+
+        if (mutated && !outputPath && !discardChanges) {
+          throw new Error(
+            'outputPath is required because a one-shot operation changed file content'
+          )
+        }
+
+        const saved =
+          mutated && outputPath
+            ? await toolkit.saveSession(
+                created.sessionId,
+                outputPath,
+                overwriteExisting
+              )
+            : undefined
+
+        return {
+          ephemeral: true,
+          filePath,
+          mutated,
+          persisted: saved !== undefined,
+          discarded: mutated && saved === undefined,
+          ...(saved ? { output: saved } : {}),
+          operations: results,
+        }
+      } catch (error) {
+        operationError = error
+        throw error
+      } finally {
+        try {
+          await toolkit.destroySession(created.sessionId)
+        } catch (cleanupError) {
+          if (operationError !== undefined) {
+            const operationMessage =
+              operationError instanceof Error
+                ? operationError.message
+                : String(operationError)
+            const cleanupMessage =
+              cleanupError instanceof Error
+                ? cleanupError.message
+                : String(cleanupError)
+            throw new Error(
+              `One-shot operation failed (${operationMessage}) and its ephemeral session could not be destroyed (${cleanupMessage})`
+            )
+          }
+          throw cleanupError
+        }
+      }
+    },
+  })
+
+  return tools
 }
 
 async function main(): Promise<void> {
@@ -851,7 +1101,7 @@ async function main(): Promise<void> {
                 'Bounded CLI and MCP tooling for large-file-safe OmegaEdit sessions.',
             },
             instructions:
-              'Create a session first, keep reads bounded, preview patches before applying them when possible, and use undo/redo for reversible changes.',
+              'Use omega_edit_run_file for self-cleaning one-shot file work. Create a session for longer workflows, keep reads bounded, preview patches before applying them when possible, and use undo/redo for reversible changes.',
           })
         )
         return

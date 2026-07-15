@@ -107,7 +107,30 @@ rollback protection before replay.
 omega-edit-mcp
 ```
 
-## Codex Quick Start
+The MCP process starts the packaged native Ωedit™ server on loopback when it is
+needed. No custom stdio bridge is required. To use an already-running server
+instead, pass `--no-autostart --host <host> --port <port>`.
+
+## MCP Client Configuration
+
+Most MCP clients accept a command plus an argument array. For an installed
+package, configure the equivalent of:
+
+```json
+{
+  "mcpServers": {
+    "omega-edit": {
+      "command": "npx",
+      "args": ["-y", "-p", "@omega-edit/ai", "omega-edit-mcp"]
+    }
+  }
+}
+```
+
+Client configuration keys vary, but the command and arguments are portable.
+The server uses stdout only for MCP messages and writes diagnostics to stderr.
+
+### Source Checkout
 
 If you are working from this repository, Codex can use the checked-out MCP server with the project-scoped config in `.codex/config.toml`:
 
@@ -117,13 +140,78 @@ command = "node"
 args = ["./packages/ai/dist/cjs/mcp.js"]
 ```
 
-If you want a machine-wide Codex config instead, use:
+The equivalent installed-package configuration is:
 
 ```toml
 [mcp_servers.omega-edit]
 command = "npx"
 args = ["-y", "-p", "@omega-edit/ai", "omega-edit-mcp"]
 ```
+
+## One-Shot File Operations
+
+Use `omega_edit_run_file` when an MCP client needs to inspect or modify a file
+without managing a visible session. It creates one ephemeral session, runs up
+to 16 existing MCP operations in order, and destroys the session in `finally`
+whether the pipeline succeeds or fails.
+
+Read-only pipelines need only `filePath`:
+
+```json
+{
+  "filePath": "./sample.bin",
+  "tool": "omega_edit_read_range",
+  "arguments": { "offset": 0, "length": 64 }
+}
+```
+
+Use `operations` when several actions should share the same ephemeral session:
+
+```json
+{
+  "filePath": "./sample.bin",
+  "operations": [
+    {
+      "tool": "omega_edit_read_range",
+      "arguments": { "offset": 0, "length": 64 }
+    },
+    {
+      "tool": "omega_edit_search",
+      "arguments": { "hex": "89504E47", "limit": 10 }
+    }
+  ]
+}
+```
+
+If any operation changes content, the request must provide `outputPath`.
+Ωedit™ saves once, after every operation succeeds; otherwise the ephemeral
+changes are not silently discarded. Set `overwriteExisting` explicitly when
+replacing an existing destination, including guarded write-back to the original
+file. For an intentionally temporary transform/edit-and-inspect pipeline, set
+`discardChanges: true` instead of `outputPath`.
+
+```json
+{
+  "filePath": "./sample.bin",
+  "outputPath": "./patched.bin",
+  "operations": [
+    {
+      "tool": "omega_edit_apply_patch",
+      "arguments": {
+        "offset": 8,
+        "operation": "overwrite",
+        "hex": "0000000D"
+      }
+    },
+    {
+      "tool": "omega_edit_read_range",
+      "arguments": { "offset": 0, "length": 16 }
+    }
+  ]
+}
+```
+
+Results are marked `ephemeral: true` and omit the destroyed session id.
 
 The server speaks newline-delimited JSON-RPC over stdio, following the MCP lifecycle documented by the Model Context Protocol:
 
@@ -138,9 +226,12 @@ Available tools:
 - `omega_edit_create_session`
 - `omega_edit_destroy_session`
 - `omega_edit_session_status`
+- `omega_edit_session_context`
 - `omega_edit_create_checkpoint`
 - `omega_edit_rollback_checkpoint`
+- `omega_edit_restore_checkpoint`
 - `omega_edit_export_change_log`
+- `omega_edit_preview_change_log`
 - `omega_edit_apply_change_log`
 - `omega_edit_read_range`
 - `omega_edit_profile_range`
@@ -155,6 +246,7 @@ Available tools:
 - `omega_edit_save_session`
 - `omega_edit_export_range`
 - `omega_edit_server_info`
+- `omega_edit_run_file`
 
 ## Safety Defaults
 

@@ -91,6 +91,21 @@ npx oe create-session --file ./sample.bin
 npx oe view --session <session-id> --offset 0 --length 64
 ```
 
+MCP clients can also use `omega_edit_run_file` for a bounded read, search,
+profile, transform, or edit pipeline without managing a persistent session.
+Ephemeral sessions are destroyed on success and failure; mutating pipelines
+require an explicit output path or explicit discard, and save only after every
+operation succeeds.
+
+For an installed package, the portable MCP command is:
+
+```json
+{
+  "command": "npx",
+  "args": ["-y", "-p", "@omega-edit/ai", "omega-edit-mcp"]
+}
+```
+
 To use the MCP server from Codex in this checkout, the repo now includes a project-scoped `.codex/config.toml`:
 
 ```toml
