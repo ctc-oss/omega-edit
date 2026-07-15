@@ -40,6 +40,16 @@ typedef struct mask_info_struct {
     omega_mask_kind_t mask_kind;
 } mask_info_t;
 
+struct counting_upper_transform_state {
+    int64_t calls{};
+};
+
+static omega_byte_t counting_to_upper(omega_byte_t byte, void *user_data_ptr) {
+    auto *state = static_cast<counting_upper_transform_state *>(user_data_ptr);
+    if (state) { ++state->calls; }
+    return to_upper(byte, nullptr);
+}
+
 static inline omega_byte_t byte_mask_transform(omega_byte_t byte, void *user_data_ptr) {
     const auto mask_info_ptr = reinterpret_cast<mask_info_t *>(user_data_ptr);
     return omega_util_mask_byte(byte, mask_info_ptr->mask, mask_info_ptr->mask_kind);
@@ -294,6 +304,53 @@ TEST_CASE("Restore Last Transform Checkpoint Preserves Transform Change",
     REQUIRE(1 == omega_change_get_serial(transform_change));
     REQUIRE("abcxyz" ==
             omega_session_get_segment_string(session_ptr, 0, omega_session_get_computed_file_size(session_ptr)));
+
+    omega_edit_destroy_session(session_ptr);
+}
+
+TEST_CASE("Checkpoint checkout preserves redo models until a branch edit",
+          "[SessionCheckpointTests][CheckpointTimeline][BrutalCoverage]") {
+    const auto input = reinterpret_cast<const omega_byte_t *>("abc");
+    const auto session_ptr = omega_edit_create_session_from_bytes(input, 3, nullptr, nullptr, NO_EVENTS, nullptr);
+    REQUIRE(session_ptr);
+
+    counting_upper_transform_state transform_state;
+    REQUIRE(0 == omega_edit_apply_transform(session_ptr, counting_to_upper, &transform_state, 0, 0));
+    REQUIRE(3 == transform_state.calls);
+    REQUIRE(2 == omega_edit_insert_string(session_ptr, 3, "!"));
+    REQUIRE(0 == omega_edit_create_checkpoint(session_ptr));
+    REQUIRE(3 == omega_edit_overwrite_string(session_ptr, 0, "X"));
+    REQUIRE(0 == omega_edit_create_checkpoint(session_ptr));
+    REQUIRE(3 == omega_session_get_num_checkpoints(session_ptr));
+    REQUIRE(0 == omega_session_get_num_future_checkpoints(session_ptr));
+    REQUIRE("XBC!" == omega_session_get_segment_string(session_ptr, 0, 4));
+
+    const auto require_checkpoint = [&](int64_t checkpoint, const char *expected, int64_t active, int64_t future) {
+        REQUIRE(0 == omega_edit_checkout_checkpoint(session_ptr, checkpoint));
+        REQUIRE(active == omega_session_get_num_checkpoints(session_ptr));
+        REQUIRE(future == omega_session_get_num_future_checkpoints(session_ptr));
+        REQUIRE(expected ==
+                omega_session_get_segment_string(session_ptr, 0, omega_session_get_computed_file_size(session_ptr)));
+        REQUIRE(3 == transform_state.calls);
+    };
+
+    require_checkpoint(0, "abc", 0, 3);
+    require_checkpoint(1, "ABC", 1, 2);
+    require_checkpoint(2, "ABC!", 2, 1);
+    require_checkpoint(3, "XBC!", 3, 0);
+
+    for (auto iteration = 0; iteration < 1000; ++iteration) {
+        require_checkpoint(0, "abc", 0, 3);
+        require_checkpoint(3, "XBC!", 3, 0);
+    }
+
+    require_checkpoint(1, "ABC", 1, 2);
+    REQUIRE(2 == omega_edit_insert_string(session_ptr, 3, "?"));
+    REQUIRE("ABC?" == omega_session_get_segment_string(session_ptr, 0, 4));
+    REQUIRE(1 == omega_session_get_num_checkpoints(session_ptr));
+    REQUIRE(0 == omega_session_get_num_future_checkpoints(session_ptr));
+    REQUIRE(-1 == omega_edit_checkout_checkpoint(session_ptr, 2));
+    REQUIRE(3 == transform_state.calls);
 
     omega_edit_destroy_session(session_ptr);
 }

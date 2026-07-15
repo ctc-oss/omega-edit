@@ -212,6 +212,12 @@ service EditorService {
     // checkpoint model and exposing the previous model again.
     rpc DestroyLastCheckpoint(DestroyLastCheckpointRequest) returns (DestroyLastCheckpointResponse);
 
+    // Move to a checkpoint boundary while preserving later checkpoints for fast-forward.
+    rpc CheckoutCheckpoint(CheckoutCheckpointRequest) returns (CheckoutCheckpointResponse);
+
+    // Permanently discard checkpoints after the active checkpoint boundary.
+    rpc DiscardCheckpointFuture(DiscardCheckpointFutureRequest) returns (DiscardCheckpointFutureResponse);
+
     // Restore session content to the most recent checkpoint snapshot while
     // keeping that checkpoint available.
     rpc RestoreLastCheckpoint(RestoreLastCheckpointRequest) returns (RestoreLastCheckpointResponse);
@@ -1136,6 +1142,32 @@ message DestroyLastCheckpointRequest {
 message DestroyLastCheckpointResponse {
     string session_id = 1;          // Session that was reverted.
     int64 remaining_checkpoints = 2;// Remaining checkpoint count after revert.
+}
+
+// Request to navigate to a materialized checkpoint boundary.
+message CheckoutCheckpointRequest {
+    string session_id = 1;      // Session to navigate.
+    int64 checkpoint_count = 2; // Checkpoint boundary to make active; zero is the original snapshot.
+}
+
+// Result of non-destructive checkpoint navigation.
+message CheckoutCheckpointResponse {
+    string session_id = 1;              // Session that was navigated.
+    int64 checkpoint_count = 2;          // Active checkpoint count after navigation.
+    int64 future_checkpoint_count = 3;   // Preserved checkpoint count available for fast-forward.
+    int64 change_count = 4;              // Active session change count after navigation.
+}
+
+// Request to destroy the preserved checkpoint branch after the active boundary.
+message DiscardCheckpointFutureRequest {
+    string session_id = 1; // Session whose checkpoint future should be discarded.
+}
+
+// Result of destroying a preserved checkpoint branch.
+message DiscardCheckpointFutureResponse {
+    string session_id = 1;              // Session whose future was discarded.
+    int64 discarded_checkpoint_count = 2;// Number of checkpoint models destroyed.
+    int64 checkpoint_count = 3;          // Active checkpoint count, which is unchanged.
 }
 
 // Request to restore the most recent checkpoint snapshot without discarding it.

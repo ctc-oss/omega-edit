@@ -1377,7 +1377,7 @@ suite('OmegaEdit VS Code extension', () => {
     assert.equal(
       lastMessageOfType(panel.messages, 'checkpointTimeline').checkpoints
         .length,
-      2
+      3
     )
     await provider.dispatchWebviewMessageForTesting(document.uri, {
       type: 'navigateCheckpointTimeline',
@@ -1465,22 +1465,86 @@ suite('OmegaEdit VS Code extension', () => {
     )
     await provider.navigateToCheckpoint(session, 1)
     await assertSessionText(session.sessionId, 'Xbc')
-    await assert.rejects(
-      provider.navigateToCheckpoint(session, 2),
-      /archive length changed.*restored checkpoint 1/
-    )
-    await assertSessionText(session.sessionId, 'Xbc')
-    const unavailableTimeline = lastMessageOfType(
+    await provider.navigateToCheckpoint(session, 2)
+    await assertSessionText(session.sessionId, 'XYc')
+    const materializedTimeline = lastMessageOfType(
       panel.messages,
       'checkpointTimeline'
     )
-    assert.equal(unavailableTimeline.cursor, 1)
-    assert.equal(unavailableTimeline.canRewind, true)
-    assert.equal(unavailableTimeline.canFastForward, false)
-    assert.equal(unavailableTimeline.checkpoints[1].available, false)
+    assert.equal(materializedTimeline.cursor, 2)
+    assert.equal(materializedTimeline.canRewind, true)
+    assert.equal(materializedTimeline.canFastForward, false)
 
     await provider.navigateToCheckpoint(session, 0)
     await assertSessionText(session.sessionId, 'abc')
+
+    await panel.fireDidDispose()
+    await fs.rm(tmpDir, { recursive: true, force: true })
+  })
+
+  test('checks out a full-range Zstandard transform across the checkpoint timeline', async () => {
+    const tmpDir = await fs.mkdtemp(
+      path.join(os.tmpdir(), 'omega-edit-vscode-transform-timeline-')
+    )
+    const samplePath = path.join(tmpDir, 'transform-timeline.bin')
+    await fs.writeFile(samplePath, Buffer.from('abc', 'utf8'))
+
+    const provider = new HexEditorProvider({ subscriptions: [] }, testPort)
+    const panel = createMockWebviewPanel()
+    const document = await provider.openCustomDocument(
+      vscode.Uri.file(samplePath),
+      { backupId: undefined, untitledDocumentData: undefined },
+      new vscode.CancellationTokenSource().token
+    )
+    await provider.resolveCustomEditor(
+      document,
+      panel,
+      new vscode.CancellationTokenSource().token
+    )
+
+    const session = provider.getSessionForTesting(document.uri)
+    assert.ok(session, 'Expected a session for transform timeline navigation')
+
+    await provider.dispatchWebviewMessageForTesting(
+      document.uri,
+      {
+        type: 'applyTransform',
+        pluginId: 'omega.example.zstd',
+        offset: 0,
+        length: 0,
+        optionsJson: JSON.stringify({ action: 'compress', level: 3 }),
+      },
+      { propagateErrors: true }
+    )
+    const transformedBytes = await readSessionBytes(session.sessionId)
+    assert.notDeepEqual(transformedBytes, Buffer.from('abc', 'utf8'))
+    assert.equal(session.checkpointTimeline.entries.length, 1)
+    const transformedTimeline = lastMessageOfType(
+      panel.messages,
+      'checkpointTimeline'
+    )
+    assert.equal(transformedTimeline.originalByteLength, '3')
+    assert.equal(transformedTimeline.checkpoints[0].boundaryKind, 'transform')
+    assert.equal(transformedTimeline.checkpoints[0].sourceChangeCount, '1')
+    assert.equal(transformedTimeline.checkpoints[0].replayChangeCount, '1')
+    assert.equal(transformedTimeline.checkpoints[0].byteLengthBefore, '3')
+    assert.equal(
+      transformedTimeline.checkpoints[0].byteLengthAfter,
+      String(transformedBytes.length)
+    )
+    assert.deepEqual(transformedTimeline.checkpoints[0].transformPluginIds, [
+      'omega.example.zstd',
+    ])
+
+    await provider.navigateToCheckpoint(session, 0)
+    await assertSessionText(session.sessionId, 'abc')
+
+    await provider.navigateToCheckpoint(session, 1)
+    assert.deepEqual(
+      await readSessionBytes(session.sessionId),
+      transformedBytes
+    )
+    assert.equal(session.checkpointTimeline.cursor, 1)
 
     await panel.fireDidDispose()
     await fs.rm(tmpDir, { recursive: true, force: true })
@@ -1531,13 +1595,16 @@ suite('OmegaEdit VS Code extension', () => {
     await assertSessionText(session.sessionId, 'abefij')
     assert.equal(session.checkpointTimeline.cursor, 2)
 
-    // Rewind is native-only and must remain available even if replay storage
-    // is unavailable or damaged.
+    // Both directions use materialized native checkpoints and remain available
+    // even if the durable audit archive is unavailable or damaged.
     const timelineStorage = session.checkpointTimeline.storage
     session.checkpointTimeline.storage = undefined
     await provider.navigateToCheckpoint(session, 1)
     await assertSessionText(session.sessionId, 'abefghij')
     assert.equal(session.checkpointTimeline.cursor, 1)
+    await provider.navigateToCheckpoint(session, 2)
+    await assertSessionText(session.sessionId, 'abefij')
+    await provider.navigateToCheckpoint(session, 1)
     session.checkpointTimeline.storage = timelineStorage
 
     for (let cycle = 0; cycle < 3; cycle += 1) {

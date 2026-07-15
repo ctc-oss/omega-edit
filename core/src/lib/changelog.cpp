@@ -565,6 +565,7 @@ namespace {
                 break;
             case change_kind_t::CHANGE_TRANSFORM:
                 result.public_entry.kind = OMEGA_CHANGELOG_PLAN_TRANSFORM;
+                result.public_entry.length = change->length;
                 result.transform_owner = change;
                 result.public_entry.transform_id =
                         change->transform_data ? change->transform_data->transform_id.c_str() : nullptr;

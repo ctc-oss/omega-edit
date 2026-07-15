@@ -41,6 +41,7 @@ const {
 const {
   MAX_ANALYSIS_PROFILE_BYTES,
   MAX_TRANSFORM_OPTIONS_LENGTH,
+  checkpointTimelineMetadataWindow,
   normalizeExternalHighlights,
   normalizeBytesPerRow,
   normalizeWebviewMessage,
@@ -2541,6 +2542,29 @@ test('range map file-fit validation names the offending node', () => {
     () => assertRangeMapFitsFile(parsed, 6),
     /Range map node \/too-far \[6, 7\) is outside file bounds \(6 bytes\)/
   )
+})
+
+test('checkpoint timeline metadata stays bounded around important positions', () => {
+  const checkpoints = checkpointTimelineMetadataWindow(
+    1_000_000,
+    500_000,
+    750_000
+  )
+
+  assert.ok(checkpoints.length <= 75)
+  assert.deepEqual(
+    checkpoints,
+    checkpoints.toSorted((left, right) => left - right)
+  )
+  assert.equal(new Set(checkpoints).size, checkpoints.length)
+  for (const checkpoint of [
+    1, 8, 499_988, 500_000, 500_012, 750_000, 999_993, 1_000_000,
+  ]) {
+    assert.ok(
+      checkpoints.includes(checkpoint),
+      `expected checkpoint ${checkpoint}`
+    )
+  }
 })
 
 test('webview protocol normalizes editor commands and rejects invalid ranges', () => {

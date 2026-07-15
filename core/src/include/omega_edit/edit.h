@@ -770,6 +770,24 @@ int omega_edit_create_checkpoint(omega_session_t *session_ptr);
 int omega_edit_destroy_last_checkpoint(omega_session_t *session_ptr);
 
 /**
+ * Moves the session to a checkpoint boundary without destroying later checkpoint models.
+ *
+ * Checkpoint zero is the original session snapshot. Later checkpoints remain available for a subsequent checkout
+ * until a successful edit creates a new branch or omega_edit_discard_checkpoint_future is called.
+ * @param session_ptr session to navigate
+ * @param checkpoint_count checkpoint boundary to make active, from zero through the active plus future checkpoint count
+ * @return zero on success, non-zero otherwise
+ */
+int omega_edit_checkout_checkpoint(omega_session_t *session_ptr, int64_t checkpoint_count);
+
+/**
+ * Permanently destroys all checkpoint models after the active checkpoint boundary.
+ * @param session_ptr session whose future checkpoint branch should be discarded
+ * @return number of discarded future checkpoints, or a negative value on error
+ */
+int64_t omega_edit_discard_checkpoint_future(omega_session_t *session_ptr);
+
+/**
  * Restores the current session content to the most recent checkpoint snapshot.
  *
  * Unlike omega_edit_destroy_last_checkpoint, this keeps the checkpoint model in

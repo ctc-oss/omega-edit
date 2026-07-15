@@ -305,6 +305,11 @@ int64_t omega_session_get_num_checkpoints(const omega_session_t *session_ptr) {
     return static_cast<int64_t>(session_ptr->models_.size()) - 1;
 }
 
+int64_t omega_session_get_num_future_checkpoints(const omega_session_t *session_ptr) {
+    if (!session_ptr) { return 0; }
+    return static_cast<int64_t>(session_ptr->checkpoint_future_models_.size());
+}
+
 void omega_edit::internal::omega_session_begin_event_batch_(omega_session_t *session_ptr,
                                                             omega_session_event_t session_event) {
     if (!session_ptr) { return; }

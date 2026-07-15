@@ -893,6 +893,26 @@ namespace {
         for (auto &&model_ptr : session_ptr->models_) { free_model_changes_undone_(model_ptr.get()); }
     }
 
+    void discard_model_(omega_model_ptr_t &model_ptr) {
+        if (model_ptr->file_ptr) {
+            FCLOSE(model_ptr->file_ptr);
+            model_ptr->file_ptr = nullptr;
+        }
+        if (!model_ptr->file_path.empty() && 0 != omega_util_remove_file(model_ptr->file_path.c_str())) { LOG_ERRNO(); }
+        free_model_changes_(model_ptr.get());
+        free_model_changes_undone_(model_ptr.get());
+    }
+
+    int64_t discard_checkpoint_future_(omega_session_t *session_ptr) {
+        if (!session_ptr) { return -1; }
+        const auto discarded = static_cast<int64_t>(session_ptr->checkpoint_future_models_.size());
+        while (!session_ptr->checkpoint_future_models_.empty()) {
+            discard_model_(session_ptr->checkpoint_future_models_.back());
+            session_ptr->checkpoint_future_models_.pop_back();
+        }
+        return discarded;
+    }
+
     auto update_model_helper_(omega_model_t *model_ptr, const const_omega_change_ptr_t &change_ptr) -> int {
         if (!change_ptr) { return -1; }
         assert(change_ptr->length > 0);
@@ -1176,6 +1196,7 @@ namespace {
                 if (serial_was_negative) { change_ptr->serial *= -1; }
                 return -1;
             }
+            discard_checkpoint_future_(session_ptr);
             if (session_ptr->undo_snapshot_interval_ > 0) {
                 const auto count = static_cast<int64_t>(model_ptr->changes.size());
                 if (count % session_ptr->undo_snapshot_interval_ == 0) {
@@ -1324,6 +1345,8 @@ namespace {
             omega_util_remove_file(checkpoint_filename);
             return -1;
         }
+
+        discard_checkpoint_future_(session_ptr);
 
         session_ptr->num_changes_adjustment_ = change_serial_base;
         omega_session_notify(session_ptr, SESSION_EVT_CREATE_CHECKPOINT, nullptr);
@@ -1841,14 +1864,7 @@ namespace {
     }
 
     void discard_top_model_(omega_session_t *session_ptr) {
-        auto *const model_ptr = session_ptr->models_.back().get();
-        if (model_ptr->file_ptr) {
-            FCLOSE(model_ptr->file_ptr);
-            model_ptr->file_ptr = nullptr;
-        }
-        if (!model_ptr->file_path.empty() && 0 != omega_util_remove_file(model_ptr->file_path.c_str())) { LOG_ERRNO(); }
-        free_model_changes_(model_ptr);
-        free_model_changes_undone_(model_ptr);
+        discard_model_(session_ptr->models_.back());
         session_ptr->models_.pop_back();
         session_ptr->num_changes_adjustment_ = session_ptr->models_.back()->change_serial_base;
     }
@@ -1958,6 +1974,9 @@ void omega_edit_destroy_session(omega_session_t *session_ptr) {
     for (const auto &model_ptr : session_ptr->models_) {
         if (model_ptr->file_ptr) { FCLOSE(model_ptr->file_ptr); }
     }
+    for (const auto &model_ptr : session_ptr->checkpoint_future_models_) {
+        if (model_ptr->file_ptr) { FCLOSE(model_ptr->file_ptr); }
+    }
     while (!session_ptr->search_contexts_.empty()) {
         omega_search_destroy_context(session_ptr->search_contexts_.back().get());
     }
@@ -1967,6 +1986,13 @@ void omega_edit_destroy_session(omega_session_t *session_ptr) {
     while (omega_session_get_num_checkpoints(session_ptr) != 0) {
         if (0 != omega_util_remove_file(session_ptr->models_.back()->file_path.c_str())) { LOG_ERRNO(); }
         session_ptr->models_.pop_back();
+    }
+    while (!session_ptr->checkpoint_future_models_.empty()) {
+        auto &model_ptr = session_ptr->checkpoint_future_models_.back();
+        free_model_changes_(model_ptr.get());
+        free_model_changes_undone_(model_ptr.get());
+        if (!model_ptr->file_path.empty() && 0 != omega_util_remove_file(model_ptr->file_path.c_str())) { LOG_ERRNO(); }
+        session_ptr->checkpoint_future_models_.pop_back();
     }
     if (!session_ptr->checkpoint_file_name_.empty() &&
         0 != omega_util_remove_file(session_ptr->checkpoint_file_name_.c_str())) {
@@ -2930,6 +2956,7 @@ int omega_edit_clear_changes(omega_session_t *session_ptr) {
 
     omega_model_segments_t reset_segments;
     if (!initialize_model_segments_(reset_segments, length)) { return -1; }
+    discard_checkpoint_future_(session_ptr);
     while (session_ptr->models_.size() > 1) { discard_top_model_(session_ptr); }
     session_ptr->models_.front()->model_segments = std::move(reset_segments);
     free_session_changes_(session_ptr);
@@ -3080,6 +3107,7 @@ int omega_edit_create_checkpoint(omega_session_t *session_ptr) {
 
 int omega_edit_destroy_last_checkpoint(omega_session_t *session_ptr) {
     if (omega_session_get_num_checkpoints(session_ptr) > 0) {
+        discard_checkpoint_future_(session_ptr);
         auto *const last_checkpoint_ptr = session_ptr->models_.back().get();
         FCLOSE(last_checkpoint_ptr->file_ptr);
         if (0 != omega_util_remove_file(last_checkpoint_ptr->file_path.c_str())) { LOG_ERRNO(); }
@@ -3097,6 +3125,62 @@ int omega_edit_destroy_last_checkpoint(omega_session_t *session_ptr) {
         return 0;
     }
     return -1;
+}
+
+int omega_edit_checkout_checkpoint(omega_session_t *session_ptr, int64_t checkpoint_count) {
+    if (!session_ptr || checkpoint_count < 0) { return -1; }
+    const auto active_count = omega_session_get_num_checkpoints(session_ptr);
+    const auto future_count = omega_session_get_num_future_checkpoints(session_ptr);
+    if (checkpoint_count > active_count + future_count) { return -1; }
+
+    omega_model_segments_t original_segments;
+    if (checkpoint_count == 0) {
+        const auto original_length = omega_session_get_original_file_size(session_ptr);
+        if (original_length < 0 || !initialize_model_segments_(original_segments, original_length)) { return -1; }
+    }
+
+    try {
+        if (checkpoint_count < active_count) {
+            session_ptr->checkpoint_future_models_.reserve(session_ptr->checkpoint_future_models_.size() +
+                                                           static_cast<size_t>(active_count - checkpoint_count));
+        } else if (checkpoint_count > active_count) {
+            session_ptr->models_.reserve(static_cast<size_t>(checkpoint_count + 1));
+        }
+    } catch (const std::bad_alloc &) { return -1; }
+
+    while (omega_session_get_num_checkpoints(session_ptr) > checkpoint_count) {
+        session_ptr->checkpoint_future_models_.push_back(std::move(session_ptr->models_.back()));
+        session_ptr->models_.pop_back();
+    }
+    while (omega_session_get_num_checkpoints(session_ptr) < checkpoint_count) {
+        session_ptr->models_.push_back(std::move(session_ptr->checkpoint_future_models_.back()));
+        session_ptr->checkpoint_future_models_.pop_back();
+    }
+
+    if (checkpoint_count == 0) {
+        auto *const root_model_ptr = session_ptr->models_.front().get();
+        root_model_ptr->model_segments = std::move(original_segments);
+        free_model_changes_(root_model_ptr);
+        free_model_changes_undone_(root_model_ptr);
+        session_ptr->num_changes_adjustment_ = 0;
+    } else {
+        auto *const model_ptr = session_ptr->models_.back().get();
+        const auto keep_count = checkpoint_snapshot_change_count_(model_ptr);
+        if (model_ptr->changes.size() > keep_count) {
+            model_ptr->changes.erase(model_ptr->changes.begin() + static_cast<std::ptrdiff_t>(keep_count),
+                                     model_ptr->changes.end());
+        }
+        free_model_changes_undone_(model_ptr);
+        if (0 != rebuild_model_to_change_count_(session_ptr, static_cast<int64_t>(keep_count))) { return -1; }
+        session_ptr->num_changes_adjustment_ = model_ptr->change_serial_base;
+    }
+
+    notify_checkpoint_restore_(session_ptr);
+    return 0;
+}
+
+int64_t omega_edit_discard_checkpoint_future(omega_session_t *session_ptr) {
+    return discard_checkpoint_future_(session_ptr);
 }
 
 int omega_edit_restore_last_checkpoint(omega_session_t *session_ptr) {

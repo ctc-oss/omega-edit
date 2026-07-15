@@ -3012,6 +3012,59 @@ namespace omega_edit {
             return grpc::Status::OK;
         }
 
+        grpc::Status EditorServiceImpl::CheckoutCheckpoint(grpc::ServerContext * /*context*/,
+                                                           const ::omega_edit::v1::CheckoutCheckpointRequest *request,
+                                                           ::omega_edit::v1::CheckoutCheckpointResponse *response) {
+            auto mutation_guard = session_manager_.try_begin_mutation(request->session_id());
+            if (!mutation_guard) {
+                return status_for_session_operation_start(mutation_guard.result(), "checkout checkpoint",
+                                                          request->session_id());
+            }
+
+            auto locked_session = session_manager_.lock_session(request->session_id());
+            if (!locked_session) {
+                return grpc::Status(grpc::StatusCode::NOT_FOUND, "session not found: " + request->session_id());
+            }
+            auto *session = locked_session.session();
+
+            if (0 != omega_edit_checkout_checkpoint(session, request->checkpoint_count())) {
+                return grpc::Status(grpc::StatusCode::OUT_OF_RANGE,
+                                    "checkpoint boundary is outside the materialized timeline");
+            }
+
+            response->set_session_id(request->session_id());
+            response->set_checkpoint_count(omega_session_get_num_checkpoints(session));
+            response->set_future_checkpoint_count(omega_session_get_num_future_checkpoints(session));
+            response->set_change_count(omega_session_get_num_changes(session));
+            return grpc::Status::OK;
+        }
+
+        grpc::Status
+        EditorServiceImpl::DiscardCheckpointFuture(grpc::ServerContext * /*context*/,
+                                                   const ::omega_edit::v1::DiscardCheckpointFutureRequest *request,
+                                                   ::omega_edit::v1::DiscardCheckpointFutureResponse *response) {
+            auto mutation_guard = session_manager_.try_begin_mutation(request->session_id());
+            if (!mutation_guard) {
+                return status_for_session_operation_start(mutation_guard.result(), "discard checkpoint future",
+                                                          request->session_id());
+            }
+
+            auto locked_session = session_manager_.lock_session(request->session_id());
+            if (!locked_session) {
+                return grpc::Status(grpc::StatusCode::NOT_FOUND, "session not found: " + request->session_id());
+            }
+            auto *session = locked_session.session();
+            const auto discarded = omega_edit_discard_checkpoint_future(session);
+            if (discarded < 0) {
+                return grpc::Status(grpc::StatusCode::INTERNAL, "failed to discard checkpoint future");
+            }
+
+            response->set_session_id(request->session_id());
+            response->set_discarded_checkpoint_count(discarded);
+            response->set_checkpoint_count(omega_session_get_num_checkpoints(session));
+            return grpc::Status::OK;
+        }
+
         grpc::Status
         EditorServiceImpl::RestoreLastCheckpoint(grpc::ServerContext * /*context*/,
                                                  const ::omega_edit::v1::RestoreLastCheckpointRequest *request,
