@@ -49,6 +49,11 @@ const {
   assertRangeMapFitsFile,
   parseRangeMapContent,
 } = require('../out/rangeMap.js')
+const {
+  byteToHex2,
+  bytesToHex,
+  isPrintableAscii,
+} = require('../out/textEncoding.js')
 
 function encodeRangeMap(rangeMap) {
   return Buffer.from(
@@ -149,7 +154,7 @@ test('package.json matches shared extension constants', () => {
   )
   assert.equal(
     packageJson.scripts['package:vsix'],
-    'vsce package --out omega-edit-data-editor.vsix'
+    'vsce package --out omega-edit-data-editor.vsix && node scripts/verify-vsix.cjs omega-edit-data-editor.vsix'
   )
   assert.equal(packageJson.displayName, '%omegaEdit.displayName%')
   assert.equal(packageNls['omegaEdit.displayName'], 'Ωedit™ Data Editor')
@@ -373,6 +378,33 @@ test('package.json matches shared extension constants', () => {
     ],
     'Load experimental OmegaEdit transform plugins from configured or bundled plugin directories.'
   )
+  assert.deepEqual(
+    packageJson.contributes.configuration.properties[
+      'omegaEdit.saveConflictFingerprintAlgorithm'
+    ].enum,
+    [
+      'sha224',
+      'sha256',
+      'sha384',
+      'sha512',
+      'sha3-256',
+      'sha3-512',
+      'blake2b-512',
+      'blake2s-256',
+    ]
+  )
+  assert.equal(
+    packageJson.contributes.configuration.properties[
+      'omegaEdit.saveConflictFingerprintAlgorithm'
+    ].default,
+    'sha256'
+  )
+  assert.equal(
+    packageNls[
+      'omegaEdit.configuration.saveConflictFingerprintAlgorithm.description'
+    ],
+    "Digest algorithm used by the native guarded save path to verify that a conflict was caused by OmegaEdit's own Auto Save. SHA-256 is the recommended default."
+  )
   assert.equal(
     Object.hasOwn(
       packageJson.contributes.configuration.properties,
@@ -488,50 +520,67 @@ test('package.json matches shared extension constants', () => {
   )
 })
 
-test('root build stages transform plugins before packaging the VSIX', () => {
+test('routes save-conflict fingerprinting through the native guarded save path', () => {
+  const extensionSource = fs.readFileSync(
+    path.resolve(__dirname, '../src/hexEditorProvider.ts'),
+    'utf8'
+  )
+  const coreSource = fs.readFileSync(
+    path.resolve(__dirname, '../../core/src/lib/edit.cpp'),
+    'utf8'
+  )
+  const serverSource = fs.readFileSync(
+    path.resolve(__dirname, '../../server/cpp/src/editor_service.cpp'),
+    'utf8'
+  )
+
+  assert.doesNotMatch(extensionSource, /createReadStream|createHash/)
+  assert.match(extensionSource, /expected\.digest/)
+  assert.match(coreSource, /overwrite_guard/)
+  assert.match(serverSource, /SESSION_FINGERPRINT_DIGEST_PLUGIN_ID/)
+  assert.match(serverSource, /verify_overwrite_fingerprint/)
+})
+
+test('VSIX packaging uses the server package as its native runtime', () => {
   const rootBuildScript = fs.readFileSync(
     path.resolve(__dirname, '../../build.sh'),
     'utf8'
   )
-  assert.match(rootBuildScript, /detect_vscode_transform_platform/)
-  assert.match(rootBuildScript, /stage_vscode_transform_plugins/)
   assert.match(
     rootBuildScript,
     /command -v cl[\s\S]*\[\[ -n "\$\{INCLUDE:-\}" && -n "\$\{LIB:-\}" \]\]/
-  )
-  assert.match(
-    rootBuildScript,
-    /build-shared-\$\{type\}\/core\/src\/tests\/plugins/
   )
   assert.match(rootBuildScript, /server_tgz="\$\(to_native_path/)
   assert.match(rootBuildScript, /client_tgz="\$\(to_native_path/)
   assert.match(
     rootBuildScript,
-    /transform_plugins_stage_native="\$\(to_native_path "\$transform_plugins_stage"\)"/
-  )
-  assert.match(
-    rootBuildScript,
     /npm install --no-save "\$server_tgz" "\$client_tgz"/
   )
-  assert.match(
-    rootBuildScript,
-    /npm run stage:transform-plugins -- "\$transform_plugins_stage_native" --platform "\$transform_plugin_platform"/
-  )
-  assert.match(
-    rootBuildScript,
-    /npm run stage:transform-plugins[\s\S]*npm run package:vsix/
-  )
+  assert.doesNotMatch(rootBuildScript, /stage:transform-plugins/)
 
-  const stageTransformPluginsScript = fs.readFileSync(
-    path.resolve(__dirname, '../scripts/stage-transform-plugins.cjs'),
+  const serverPackageScript = fs.readFileSync(
+    path.resolve(__dirname, '../../packages/server/scripts/build-package.js'),
     'utf8'
   )
-  assert.match(stageTransformPluginsScript, /platformFilter/)
-  assert.match(stageTransformPluginsScript, /--platform=/)
+  assert.match(serverPackageScript, /supportedTransformPluginPlatforms/)
+  assert.match(serverPackageScript, /copyUniversalTransformPlugins/)
   assert.match(
-    stageTransformPluginsScript,
-    /platforms = platformFilter[\s\S]*: supportedPlatforms/
+    serverPackageScript,
+    /if \(binariesDir\)[\s\S]*copyUniversalTransformPlugins/
   )
+})
+
+test('integration suite connects its independent client instance', () => {
+  const integrationSource = fs.readFileSync(
+    path.resolve(__dirname, 'suite/extension.integration.test.js'),
+    'utf8'
+  )
+
+  assert.match(
+    integrationSource,
+    /extensionApi = await extension\.activate\(\)/
+  )
+  assert.match(integrationSource, /await getClient\(testPort\)/)
 })
 
 test('text encoding lookup tables cover supported single-byte code pages', () => {
@@ -558,6 +607,17 @@ test('text encoding lookup tables cover supported single-byte code pages', () =>
   assert.equal(ebcdic037[0x81], 0x0061)
   assert.equal(ebcdic037[0xad], 0x00dd)
   assert.equal(ebcdic037[0xc1], 0x0041)
+})
+
+test('shared byte formatting helpers cover inspector presentation', () => {
+  assert.equal(byteToHex2(0), '00')
+  assert.equal(byteToHex2(0xaf), 'AF')
+  assert.equal(byteToHex2(0xff), 'FF')
+  assert.equal(bytesToHex(Uint8Array.from([0, 0x12, 0xab, 0xff])), '0012ABFF')
+  assert.equal(isPrintableAscii(0x1f), false)
+  assert.equal(isPrintableAscii(0x20), true)
+  assert.equal(isPrintableAscii(0x7e), true)
+  assert.equal(isPrintableAscii(0x7f), false)
 })
 
 test('compiled extension entrypoints exist after build', () => {
@@ -1967,6 +2027,8 @@ test('compiled extension entrypoints exist after build', () => {
   assert.match(fileScrollbarSource, /WebviewExternalHighlight/)
   assert.match(fileScrollbarSource, /rangeMarkers/)
   assert.match(fileScrollbarSource, /file-scrollbar-range-marker/)
+  assert.match(fileScrollbarSource, /file-scrollbar-thumb-glyph/)
+  assert.match(fileScrollbarSource, />\s*Ω\s*<\/text>/)
   assert.match(fileScrollbarSource, /scrollToRangeMarker/)
   assert.match(fileScrollbarSource, /activateRangeMarker/)
   assert.match(fileScrollbarSource, /onExternalHighlightHover/)
@@ -2155,6 +2217,15 @@ test('compiled extension entrypoints exist after build', () => {
   assert.match(svelteStylesSource, /\.analysis-section\.dragging::before/)
   assert.match(svelteStylesSource, /\.analysis-icon-button/)
   assert.match(svelteStylesSource, /\.file-scrollbar-range-marker/)
+  assert.match(svelteStylesSource, /\.file-scrollbar-thumb-glyph/)
+  assert.match(
+    svelteStylesSource,
+    /\.file-scrollbar-track:hover \.file-scrollbar-range-marker/
+  )
+  assert.match(
+    svelteStylesSource,
+    /\.file-scrollbar-track:focus-within \.file-scrollbar-thumb/
+  )
   assert.match(
     svelteStylesSource,
     /\.range-map-node\[data-external-color="0"\]/
@@ -2206,6 +2277,18 @@ test('compiled extension entrypoints exist after build', () => {
     path.resolve(__dirname, '../out/extension.js'),
     'utf8'
   )
+  const extensionSource = fs.readFileSync(
+    path.resolve(__dirname, '../src/extension.ts'),
+    'utf8'
+  )
+  const editorRegistrationIndex = extensionSource.indexOf(
+    'const provider = registerEditorEntryPoints(context)'
+  )
+  const serverResolutionIndex = extensionSource.indexOf(
+    'connection = resolveServerConnection(config)'
+  )
+  assert.ok(editorRegistrationIndex >= 0)
+  assert.ok(serverResolutionIndex > editorRegistrationIndex)
   assert.match(extensionJs, /transformPluginDirectories/)
   assert.match(extensionJs, /omegaEdit\.language/)
   assert.match(extensionJs, /refreshLanguage/)
@@ -2252,7 +2335,7 @@ test('compiled extension entrypoints exist after build', () => {
   assert.match(extensionJs, /createCheckpoint/)
   assert.match(extensionJs, /getDefaultTransformPluginDirectories/)
   assert.match(extensionJs, /findRepositoryRoot/)
-  assert.match(extensionJs, /path\.resolve\(extensionPath,\s*['"]\.\.['"]\)/)
+  assert.match(extensionJs, /path\d*\.resolve\(extensionPath,\s*['"]\.\.['"]\)/)
   assert.match(extensionJs, /normalizeWindowsPath/)
   assert.match(extensionJs, /replace\(\/\\\/\/g,\s*['"]\\\\['"]\)/)
   assert.match(extensionJs, /splitPathList/)
@@ -2273,26 +2356,26 @@ test('compiled extension entrypoints exist after build', () => {
   assert.match(extensionJs, /\/tmp['"],\s*['"]omega-edit/)
   assert.match(extensionJs, /process\.platform === ['"]darwin['"]/)
   assert.match(extensionJs, /process\.platform === ['"]linux['"]/)
-  assert.doesNotMatch(extensionJs, /platformAllowsUnixSocketFallback/)
-  assert.doesNotMatch(extensionJs, /process\.platform === ['"]win32['"]/)
+  assert.doesNotMatch(extensionSource, /platformAllowsUnixSocketFallback/)
+  assert.doesNotMatch(extensionSource, /process\.platform === ['"]win32['"]/)
   assert.match(extensionJs, /startTcpServerConnection/)
-  assert.doesNotMatch(extensionJs, /fallbackReason/)
+  assert.doesNotMatch(extensionSource, /fallbackReason/)
   assert.match(extensionJs, /startServerUnixSocket/)
   assert.match(
-    extensionJs,
+    extensionSource,
     /const serverOptions = \{\s*transformPluginDirectories,\s*allowExperimentalTransformPlugins/
   )
   assert.match(
-    extensionJs,
+    extensionSource,
     /workspaceFolderValue[^}]+ConfigurationTarget\.WorkspaceFolder/s
   )
   assert.match(
-    extensionJs,
-    /startServer\)\(\s*tcpConnection\.port,\s*undefined,\s*undefined,\s*serverOptions/
+    extensionSource,
+    /startServer\(\s*tcpConnection\.port,\s*undefined,\s*undefined,\s*serverOptions/
   )
   assert.match(
-    extensionJs,
-    /getClient\)\(connection\.port,\s*undefined,\s*\{\s*socketPath:\s*connection\.socketPath/
+    extensionSource,
+    /getClient\(connection\.port,\s*undefined,\s*\{\s*socketPath:\s*connection\.socketPath/
   )
   assert.match(svelteStylesSource, /@media \(max-width: 1024px\)/)
   assert.match(

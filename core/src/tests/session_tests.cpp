@@ -22,10 +22,11 @@
 #include <catch2/catch_test_macros.hpp>
 #include <catch2/matchers/catch_matchers_contains.hpp>
 #include <catch2/matchers/catch_matchers_string.hpp>
-#include <cstdio>
-#ifdef OMEGA_BUILD_WINDOWS
 #include <chrono>
+#include <cstdio>
+#include <fstream>
 #include <thread>
+#ifdef OMEGA_BUILD_WINDOWS
 #include <windows.h>
 #endif
 #include <vector>
@@ -43,6 +44,50 @@ static inline omega_byte_t byte_mask_transform(omega_byte_t byte, void *user_dat
     const auto mask_info_ptr = reinterpret_cast<mask_info_t *>(user_data_ptr);
     return omega_util_mask_byte(byte, mask_info_ptr->mask, mask_info_ptr->mask_kind);
 }
+
+struct overwrite_guard_test_state {
+    int calls{};
+    int result{};
+    const char *replacement_bytes{};
+};
+
+int overwrite_guard_test_cbk(const char *, void *user_data_ptr) {
+    auto *state = static_cast<overwrite_guard_test_state *>(user_data_ptr);
+    if (!state) { return -1; }
+    ++state->calls;
+    return state->result;
+}
+
+int mutating_overwrite_guard_test_cbk(const char *path, void *user_data_ptr) {
+    auto *state = static_cast<overwrite_guard_test_state *>(user_data_ptr);
+    if (!state || !path || !state->replacement_bytes) { return -1; }
+    ++state->calls;
+    std::ofstream output(path, std::ios::binary | std::ios::trunc);
+    output << state->replacement_bytes;
+    output.close();
+    return output.good() ? state->result : -1;
+}
+
+void write_test_file(const char *path, const char *bytes) {
+    std::ofstream output(path, std::ios::binary | std::ios::trunc);
+    REQUIRE(output.good());
+    output << bytes;
+    output.close();
+    REQUIRE(output.good());
+}
+
+void write_test_file_after_modification_time(const char *path, const char *bytes, int64_t previous_modification_time) {
+    const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(5);
+    int64_t modification_time = previous_modification_time;
+    do {
+        write_test_file(path, bytes);
+        REQUIRE(0 == omega_util_get_modification_time(path, &modification_time));
+        if (modification_time > previous_modification_time) { return; }
+        std::this_thread::sleep_for(std::chrono::milliseconds(50));
+    } while (std::chrono::steady_clock::now() < deadline);
+    REQUIRE(modification_time > previous_modification_time);
+}
+
 void session_save_test_session_cbk(const omega_session_t *session_ptr, omega_session_event_t session_event,
                                    const void *) {
     auto count_ptr = reinterpret_cast<int *>(omega_session_get_user_data_ptr(session_ptr));
@@ -65,19 +110,19 @@ void session_save_test_viewport_cbk(const omega_viewport_t *viewport_ptr, omega_
 
 #ifdef OMEGA_BUILD_WINDOWS
 TEST_CASE("Session save retries a transient Windows destination lock", "[SessionSaveTests]") {
-    const auto file_path = MAKE_PATH("session_save.transient-lock.dat");
-    if (omega_util_file_exists(file_path) != 0) { REQUIRE(0 == omega_util_remove_file(file_path)); }
-    {
-        auto *file_ptr = FOPEN(file_path, "wb");
-        REQUIRE(file_ptr);
-        REQUIRE(3 == fwrite("old", 1, 3, file_ptr));
-        REQUIRE(0 == FCLOSE(file_ptr));
-    }
+    char file_path_template[FILENAME_MAX]{};
+    REQUIRE(0 < std::snprintf(file_path_template, sizeof(file_path_template), "%s",
+                              MAKE_PATH("session_save.transient-lock.XXXXXX")));
+    const auto file_descriptor = omega_util_mkstemp(file_path_template, 0600);
+    REQUIRE(file_descriptor >= 0);
+    REQUIRE(3 == _write(file_descriptor, "old", 3));
+    REQUIRE(0 == _close(file_descriptor));
+    const std::string file_path(file_path_template);
 
     const auto session_ptr = omega_edit_create_session_from_bytes(reinterpret_cast<const omega_byte_t *>("new"), 3,
                                                                   nullptr, nullptr, NO_EVENTS, nullptr);
     REQUIRE(session_ptr);
-    const auto lock_handle = CreateFileA(file_path, GENERIC_READ, FILE_SHARE_READ | FILE_SHARE_WRITE, nullptr,
+    const auto lock_handle = CreateFileA(file_path.c_str(), GENERIC_READ, FILE_SHARE_READ | FILE_SHARE_WRITE, nullptr,
                                          OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, nullptr);
     REQUIRE(lock_handle != INVALID_HANDLE_VALUE);
     std::thread unlocker([lock_handle]() {
@@ -85,11 +130,12 @@ TEST_CASE("Session save retries a transient Windows destination lock", "[Session
         CloseHandle(lock_handle);
     });
 
-    const auto save_result = omega_edit_save(session_ptr, file_path, omega_io_flags_t::IO_FLG_OVERWRITE, nullptr);
+    const auto save_result =
+            omega_edit_save(session_ptr, file_path.c_str(), omega_io_flags_t::IO_FLG_OVERWRITE, nullptr);
     unlocker.join();
     REQUIRE(0 == save_result);
     omega_edit_destroy_session(session_ptr);
-    REQUIRE(0 == omega_util_remove_file(file_path));
+    REQUIRE(0 == omega_util_remove_file(file_path.c_str()));
 }
 #endif
 
@@ -506,6 +552,89 @@ TEST_CASE("Session Save", "[SessionSaveTests]") {
     REQUIRE(omega_util_paths_equivalent(MAKE_PATH("session_save.empty.dat"), saved_filename));
     REQUIRE(0 == omega_util_compare_files(MAKE_PATH("empty_file.dat"), MAKE_PATH("session_save.empty.dat")));
     omega_edit_destroy_session(session_ptr);
+}
+
+TEST_CASE("Guarded session save fails closed at the publish boundary", "[SessionSaveTests]") {
+    const auto path = std::string(MAKE_PATH("session_save.guard.dat"));
+    const auto external_path = std::string(MAKE_PATH("session_save.guard.external.dat"));
+    const auto saved_path = std::string(MAKE_PATH("session_save.guard.saved.dat"));
+    omega_util_remove_file(path.c_str());
+    omega_util_remove_file(external_path.c_str());
+    omega_util_remove_file(saved_path.c_str());
+    write_test_file(path.c_str(), "original");
+
+    auto *session = omega_edit_create_session(path.c_str(), nullptr, nullptr, NO_EVENTS, nullptr);
+    REQUIRE(session);
+    REQUIRE(0 < omega_edit_overwrite_string(session, 0, "OMEGA"));
+
+    int64_t original_modification_time = 0;
+    REQUIRE(0 == omega_util_get_modification_time(path.c_str(), &original_modification_time));
+    write_test_file_after_modification_time(path.c_str(), "external", original_modification_time);
+    write_test_file(external_path.c_str(), "external");
+
+    overwrite_guard_test_state guard_state{};
+    guard_state.result = 1;
+    omega_edit_save_options_t options{};
+    options.overwrite_guard = overwrite_guard_test_cbk;
+    options.overwrite_guard_user_data = &guard_state;
+    char saved_filename[FILENAME_MAX] = {};
+
+    REQUIRE(ORIGINAL_MODIFIED ==
+            omega_edit_save_with_options(session, path.c_str(), IO_FLG_OVERWRITE, saved_filename, &options));
+    REQUIRE(1 == guard_state.calls);
+    REQUIRE(saved_filename[0] == '\0');
+    REQUIRE(0 == omega_util_compare_files(path.c_str(), external_path.c_str()));
+
+    // A verifier failure is also a denial; staged session bytes must never escape.
+    guard_state.result = -1;
+    write_test_file(path.c_str(), "external-error");
+    write_test_file(external_path.c_str(), "external-error");
+    REQUIRE(ORIGINAL_MODIFIED ==
+            omega_edit_save_with_options(session, path.c_str(), IO_FLG_OVERWRITE, saved_filename, &options));
+    REQUIRE(2 == guard_state.calls);
+    REQUIRE(saved_filename[0] == '\0');
+    REQUIRE(0 == omega_util_compare_files(path.c_str(), external_path.c_str()));
+
+    // Simulate a concurrent writer detected by the verifier itself. Its bytes win when verification denies publish.
+    guard_state.result = 1;
+    guard_state.replacement_bytes = "raced-write";
+    options.overwrite_guard = mutating_overwrite_guard_test_cbk;
+    REQUIRE(ORIGINAL_MODIFIED ==
+            omega_edit_save_with_options(session, path.c_str(), IO_FLG_OVERWRITE, saved_filename, &options));
+    REQUIRE(3 == guard_state.calls);
+    write_test_file(external_path.c_str(), "raced-write");
+    REQUIRE(0 == omega_util_compare_files(path.c_str(), external_path.c_str()));
+
+    options.overwrite_guard = overwrite_guard_test_cbk;
+    guard_state.replacement_bytes = nullptr;
+    guard_state.result = 0;
+    REQUIRE(0 == omega_edit_save_with_options(session, path.c_str(), IO_FLG_OVERWRITE, saved_filename, &options));
+    REQUIRE(4 == guard_state.calls);
+    REQUIRE(omega_util_paths_equivalent(path.c_str(), saved_filename));
+
+    REQUIRE(0 == omega_edit_save(session, saved_path.c_str(), IO_FLG_OVERWRITE, nullptr));
+    REQUIRE(0 == omega_util_compare_files(path.c_str(), saved_path.c_str()));
+
+    // Once the successful save refreshes core's synchronized file version, the guard is not called on the fast path.
+    REQUIRE(0 == omega_edit_save_with_options(session, path.c_str(), IO_FLG_OVERWRITE, saved_filename, &options));
+    REQUIRE(4 == guard_state.calls);
+
+    // A non-null options struct without a callback is equivalent to the legacy save API.
+    omega_edit_save_options_t empty_options{};
+    REQUIRE(0 == omega_edit_save_with_options(session, path.c_str(), IO_FLG_OVERWRITE, saved_filename, &empty_options));
+    REQUIRE(4 == guard_state.calls);
+
+    // Explicit force-overwrite remains an intentional bypass and never consults the guard.
+    std::this_thread::sleep_for(std::chrono::milliseconds(20));
+    write_test_file(path.c_str(), "external-again");
+    guard_state.result = 1;
+    REQUIRE(0 == omega_edit_save_with_options(session, path.c_str(), IO_FLG_FORCE_OVERWRITE, saved_filename, &options));
+    REQUIRE(4 == guard_state.calls);
+
+    omega_edit_destroy_session(session);
+    omega_util_remove_file(path.c_str());
+    omega_util_remove_file(external_path.c_str());
+    omega_util_remove_file(saved_path.c_str());
 }
 
 TEST_CASE("Named options and explicit C-string helpers", "[SessionApiTests]") {

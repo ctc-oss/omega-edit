@@ -486,8 +486,8 @@ function usePackagedVSCodeDependencySpecs() {
   const original = fs.readFileSync(packageJsonPath, 'utf8')
   const packageJson = JSON.parse(original)
 
-  packageJson.dependencies = {
-    ...packageJson.dependencies,
+  packageJson.devDependencies = {
+    ...packageJson.devDependencies,
     '@omega-edit/client': version,
   }
 

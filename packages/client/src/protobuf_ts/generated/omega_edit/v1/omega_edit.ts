@@ -245,6 +245,14 @@ export interface SaveSessionRequest {
    * @generated from protobuf field: optional int64 length = 5
    */
   length?: number // Length of the byte range to save (default: entire file).
+  /**
+   * Fingerprint of the last content OmegaEdit successfully wrote to the original file. When core detects an
+   * original-file modification conflict, the native server may permit the overwrite only if the target still
+   * matches this fingerprint at core's final publish boundary.
+   *
+   * @generated from protobuf field: optional omega_edit.v1.SessionContentFingerprint expected_original_fingerprint = 6
+   */
+  expectedOriginalFingerprint?: SessionContentFingerprint
 }
 /**
  * Response after a save operation.
@@ -3802,6 +3810,12 @@ class SaveSessionRequest$Type extends MessageType<SaveSessionRequest> {
         T: 3 /*ScalarType.INT64*/,
         L: 2 /*LongType.NUMBER*/,
       },
+      {
+        no: 6,
+        name: 'expected_original_fingerprint',
+        kind: 'message',
+        T: () => SessionContentFingerprint,
+      },
     ])
   }
   create(value?: PartialMessage<SaveSessionRequest>): SaveSessionRequest {
@@ -3838,6 +3852,15 @@ class SaveSessionRequest$Type extends MessageType<SaveSessionRequest> {
           break
         case /* optional int64 length */ 5:
           message.length = reader.int64().toNumber()
+          break
+        case /* optional omega_edit.v1.SessionContentFingerprint expected_original_fingerprint */ 6:
+          message.expectedOriginalFingerprint =
+            SessionContentFingerprint.internalBinaryRead(
+              reader,
+              reader.uint32(),
+              options,
+              message.expectedOriginalFingerprint
+            )
           break
         default:
           let u = options.readUnknownField
@@ -3878,6 +3901,13 @@ class SaveSessionRequest$Type extends MessageType<SaveSessionRequest> {
     /* optional int64 length = 5; */
     if (message.length !== undefined)
       writer.tag(5, WireType.Varint).int64(message.length)
+    /* optional omega_edit.v1.SessionContentFingerprint expected_original_fingerprint = 6; */
+    if (message.expectedOriginalFingerprint)
+      SessionContentFingerprint.internalBinaryWrite(
+        message.expectedOriginalFingerprint,
+        writer.tag(6, WireType.LengthDelimited).fork(),
+        options
+      ).join()
     let u = options.writeUnknownFields
     if (u !== false)
       (u == true ? UnknownFieldHandler.onWrite : u)(

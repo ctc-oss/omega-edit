@@ -5,6 +5,9 @@
     decodeTextByte,
     encodeTextToHex,
     isPrintableTextByte,
+    byteToHex2,
+    bytesToHex,
+    isPrintableAscii,
   } from '../../../src/textEncoding'
 
   interface InspectorField {
@@ -90,20 +93,8 @@
       : `0x${offset.toString(16).toUpperCase()}`
   }
 
-  function toHex2(byte: number): string {
-    return byte.toString(16).toUpperCase().padStart(2, '0')
-  }
-
-  function bytesToHex(value: number[]): string {
-    return value.map(toHex2).join('')
-  }
-
   function makeDataView(value: number[]): DataView {
     return new DataView(Uint8Array.from(value).buffer)
-  }
-
-  function isPrintableAscii(byte: number): boolean {
-    return byte >= 0x20 && byte <= 0x7e
   }
 
   function textEncodingLabel(): string {
@@ -338,13 +329,13 @@
       label: strings.inspector.byteValue,
       minBytes: 1,
       editable: true,
-      read: (value) => `0x${toHex2(value[0])}`,
+      read: (value) => `0x${byteToHex2(value[0])}`,
       write: (raw) => {
         const text = raw.trim().replace(/^0x/i, '')
         if (!/^[0-9a-f]{1,2}$/i.test(text)) {
           throw new Error(strings.inspector.invalidHexByte)
         }
-        return toHex2(parseInt(text, 16))
+        return byteToHex2(parseInt(text, 16))
       },
     },
     {
@@ -362,7 +353,7 @@
         if (raw.length !== 1 || !isPrintableAscii(raw.charCodeAt(0))) {
           throw new Error(strings.inspector.invalidAsciiByte)
         }
-        return toHex2(raw.charCodeAt(0))
+        return byteToHex2(raw.charCodeAt(0))
       },
     },
     {
@@ -376,7 +367,7 @@
         if (!/^[01]{1,8}$/.test(text)) {
           throw new Error(strings.inspector.invalidBinaryByte)
         }
-        return toHex2(parseInt(text, 2))
+        return byteToHex2(parseInt(text, 2))
       },
     },
     {
@@ -392,7 +383,7 @@
         }
         const value = parseInt(text, 8)
         if (value > 0xff) throw new Error(strings.inspector.outOfRange)
-        return toHex2(value)
+        return byteToHex2(value)
       },
     },
   ]

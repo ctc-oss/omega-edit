@@ -4,7 +4,13 @@ const fs = require('node:fs/promises')
 const os = require('node:os')
 const path = require('node:path')
 const vscode = require('vscode')
-const { getComputedFileSize, getSegment } = require('@omega-edit/client')
+const {
+  getClient,
+  getComputedFileSize,
+  getSegment,
+  IOFlags,
+  saveSession,
+} = require('@omega-edit/client')
 
 const packageJson = require('../../package.json')
 const {
@@ -56,6 +62,10 @@ function makeUtf8Fingerprint(text) {
       value: createHash('sha256').update(data).digest('hex'),
     },
   }
+}
+
+function sha256(data) {
+  return createHash('sha256').update(data).digest('hex')
 }
 
 function canonicalizeTransformDescriptorValue(value) {
@@ -195,9 +205,23 @@ function assertAssistantContextPayloadBudget(context) {
 suite('OmegaEdit VS Code extension', () => {
   let testPort
   let extensionApi
+  let previousAllowExperimentalTransformPlugins
+  let updatedAllowExperimentalTransformPlugins = false
 
   suiteSetup(async () => {
     await vscode.commands.executeCommand('workbench.action.closeAllEditors')
+
+    const omegaEditConfiguration =
+      vscode.workspace.getConfiguration('omegaEdit')
+    previousAllowExperimentalTransformPlugins = omegaEditConfiguration.inspect(
+      'allowExperimentalTransformPlugins'
+    )?.globalValue
+    await omegaEditConfiguration.update(
+      'allowExperimentalTransformPlugins',
+      true,
+      vscode.ConfigurationTarget.Global
+    )
+    updatedAllowExperimentalTransformPlugins = true
 
     testPort = getConfiguredTestPort()
 
@@ -213,6 +237,10 @@ suite('OmegaEdit VS Code extension', () => {
     )
     extensionApi = await extension.activate()
     assert.equal(extension.isActive, true)
+    // Production builds bundle the extension's client, so the test suite's
+    // development dependency has independent module-level connection state.
+    // Connect that client explicitly before tests call its helper functions.
+    await getClient(testPort)
     assert.equal(extensionApi.extensionId, OMEGA_EDIT_EXTENSION_ID)
     assert.equal(extensionApi.version, OMEGA_EDIT_EXTENSION_API_VERSION)
     assert.equal(typeof extensionApi.open, 'function')
@@ -234,6 +262,19 @@ suite('OmegaEdit VS Code extension', () => {
 
   teardown(async () => {
     await vscode.commands.executeCommand('workbench.action.closeAllEditors')
+  })
+
+  suiteTeardown(async () => {
+    if (!updatedAllowExperimentalTransformPlugins) {
+      return
+    }
+    await vscode.workspace
+      .getConfiguration('omegaEdit')
+      .update(
+        'allowExperimentalTransformPlugins',
+        previousAllowExperimentalTransformPlugins,
+        vscode.ConfigurationTarget.Global
+      )
   })
 
   test('registers the go to offset command', async () => {
@@ -2437,6 +2478,377 @@ suite('OmegaEdit VS Code extension', () => {
     }
   })
 
+  test('restores an auto-saved OmegaEdit PNG after Zstandard transform rollback and save', async () => {
+    const provider = getHexEditorProviderForTesting()
+    assert.ok(
+      provider,
+      'Expected the activated extension to expose its provider'
+    )
+
+    const fixturePath = path.resolve(
+      __dirname,
+      '..',
+      '..',
+      '..',
+      'images',
+      'OmegaEditLogo.png'
+    )
+    const originalBytes = await fs.readFile(fixturePath)
+    const originalHash = sha256(originalBytes)
+    assert.equal(
+      originalHash,
+      '3eae0f11aabb39a5c64663d7c4a2ff076f570a7e41b12b770cb6456ecd8da792',
+      'The regression fixture must match the canonical OmegaEdit logo'
+    )
+
+    const tmpDir = await fs.mkdtemp(
+      path.join(os.tmpdir(), 'omega-edit-vscode-zstd-rollback-')
+    )
+    const samplePath = path.join(tmpDir, 'OmegaEditLogo.png')
+    await fs.writeFile(samplePath, originalBytes)
+    const uri = vscode.Uri.file(samplePath)
+    const files = vscode.workspace.getConfiguration('files')
+    const previousAutoSave = files.inspect('autoSave')?.globalValue
+    const previousDelay = files.inspect('autoSaveDelay')?.globalValue
+    const omegaEdit = vscode.workspace.getConfiguration('omegaEdit')
+    const previousFingerprintAlgorithm = omegaEdit.inspect(
+      'saveConflictFingerprintAlgorithm'
+    )?.globalValue
+
+    try {
+      await omegaEdit.update(
+        'saveConflictFingerprintAlgorithm',
+        'sha512',
+        vscode.ConfigurationTarget.Global
+      )
+      await files.update(
+        'autoSave',
+        'afterDelay',
+        vscode.ConfigurationTarget.Global
+      )
+      await files.update('autoSaveDelay', 50, vscode.ConfigurationTarget.Global)
+      await vscode.commands.executeCommand(
+        'vscode.openWith',
+        uri,
+        OMEGA_EDIT_VIEW_TYPE
+      )
+      await waitForOmegaEditTab(uri, { dirty: false })
+      const session = await waitForSession(provider, uri)
+      assert.ok(session, 'Expected a live session for the Zstandard test')
+      await provider.refreshActiveTransformPlugins()
+      assert.ok(
+        session.transformPlugins.some(
+          (plugin) => plugin.id === 'omega.example.zstd'
+        ),
+        'Expected the Zstandard action to be available'
+      )
+
+      await provider.dispatchWebviewMessageForTesting(
+        uri,
+        {
+          type: 'applyTransform',
+          pluginId: 'omega.example.zstd',
+          contentSource: 'computed',
+          offset: 0,
+          length: originalBytes.length,
+          optionsJson: JSON.stringify({ action: 'compress', level: 3 }),
+        },
+        { propagateErrors: true }
+      )
+      const transformedBytes = await readSessionBytes(session.sessionId)
+      const transformedHash = sha256(transformedBytes)
+      assert.notEqual(transformedHash, originalHash)
+      await waitForFileBytes(samplePath, transformedBytes)
+      await waitForOmegaEditTab(uri, { dirty: false })
+
+      // The regression requires rollback to leave the Auto Save bytes on disk
+      // until the explicit save below. Disable Auto Save after its transformed
+      // write completes so it cannot race the rollback assertions.
+      await files.update('autoSave', 'off', vscode.ConfigurationTarget.Global)
+      await vscode.commands.executeCommand(OMEGA_EDIT_ROLLBACK_SESSION_COMMAND)
+      assert.deepEqual(await readSessionBytes(session.sessionId), originalBytes)
+      assert.equal(sha256(await fs.readFile(samplePath)), transformedHash)
+
+      await waitForOmegaEditTab(uri, { dirty: true })
+
+      await vscode.commands.executeCommand('workbench.action.files.save')
+      assert.equal(
+        sha256(await fs.readFile(samplePath)),
+        originalHash,
+        'Save after rollback must restore the original PNG bytes'
+      )
+      await waitForOmegaEditTab(uri, { dirty: false })
+    } finally {
+      await files.update(
+        'autoSave',
+        previousAutoSave,
+        vscode.ConfigurationTarget.Global
+      )
+      await files.update(
+        'autoSaveDelay',
+        previousDelay,
+        vscode.ConfigurationTarget.Global
+      )
+      await omegaEdit.update(
+        'saveConflictFingerprintAlgorithm',
+        previousFingerprintAlgorithm,
+        vscode.ConfigurationTarget.Global
+      )
+      await vscode.commands
+        .executeCommand('workbench.action.files.revert')
+        .then(undefined, () => undefined)
+      await vscode.commands.executeCommand('workbench.action.closeActiveEditor')
+      await fs.rm(tmpDir, { recursive: true, force: true })
+    }
+  })
+
+  test('does not force-overwrite genuinely different external file content', async () => {
+    const tmpDir = await fs.mkdtemp(
+      path.join(os.tmpdir(), 'omega-edit-vscode-save-conflict-')
+    )
+    const samplePath = path.join(tmpDir, 'save-conflict.bin')
+    await fs.writeFile(samplePath, Buffer.from('original', 'utf8'))
+
+    const provider = new HexEditorProvider({ subscriptions: [] }, testPort)
+    const panel = createMockWebviewPanel()
+    const document = await provider.openCustomDocument(
+      vscode.Uri.file(samplePath),
+      { backupId: undefined, untitledDocumentData: undefined },
+      new vscode.CancellationTokenSource().token
+    )
+
+    try {
+      await provider.resolveCustomEditor(
+        document,
+        panel,
+        new vscode.CancellationTokenSource().token
+      )
+      await provider.dispatchWebviewMessageForTesting(document.uri, {
+        type: 'overwrite',
+        offset: 0,
+        data: Buffer.from('O', 'utf8').toString('hex'),
+      })
+
+      const externalBytes = Buffer.from('external', 'utf8')
+      await fs.writeFile(samplePath, externalBytes)
+      const future = new Date(Date.now() + 5000)
+      await fs.utimes(samplePath, future, future)
+
+      await assert.rejects(
+        provider.saveCustomDocument(
+          document,
+          new vscode.CancellationTokenSource().token
+        ),
+        /original file was modified outside OmegaEdit/
+      )
+      assert.deepEqual(await fs.readFile(samplePath), externalBytes)
+    } finally {
+      await panel.fireDidDispose()
+      await fs.rm(tmpDir, { recursive: true, force: true })
+    }
+  })
+
+  test('fails closed for invalid and mismatched save fingerprints', async () => {
+    const tmpDir = await fs.mkdtemp(
+      path.join(os.tmpdir(), 'omega-edit-vscode-hostile-fingerprint-')
+    )
+    const samplePath = path.join(tmpDir, 'hostile-fingerprint.bin')
+    const externalBytes = Buffer.from('external', 'utf8')
+    await fs.writeFile(samplePath, Buffer.from('original', 'utf8'))
+
+    const provider = new HexEditorProvider({ subscriptions: [] }, testPort)
+    const panel = createMockWebviewPanel()
+    const document = await provider.openCustomDocument(
+      vscode.Uri.file(samplePath),
+      { backupId: undefined, untitledDocumentData: undefined },
+      new vscode.CancellationTokenSource().token
+    )
+
+    try {
+      await provider.resolveCustomEditor(
+        document,
+        panel,
+        new vscode.CancellationTokenSource().token
+      )
+      const session = provider.getSessionForTesting(document.uri)
+      assert.ok(session, 'Expected a live session for fingerprint validation')
+      await provider.dispatchWebviewMessageForTesting(document.uri, {
+        type: 'overwrite',
+        offset: 0,
+        data: Buffer.from('O', 'utf8').toString('hex'),
+      })
+
+      await fs.writeFile(samplePath, externalBytes)
+      const future = new Date(Date.now() + 5000)
+      await fs.utimes(samplePath, future, future)
+
+      const sizeMismatch = await saveSession(
+        session.sessionId,
+        samplePath,
+        IOFlags.OVERWRITE,
+        0,
+        0,
+        {
+          byteLength: externalBytes.byteLength + 1,
+          digest: { algorithm: 'sha256', value: sha256(externalBytes) },
+        }
+      )
+      assert.notEqual(sizeMismatch.getSaveStatus(), 0)
+      assert.deepEqual(await fs.readFile(samplePath), externalBytes)
+
+      await assert.rejects(
+        saveSession(session.sessionId, samplePath, IOFlags.OVERWRITE, 0, 0, {
+          byteLength: externalBytes.byteLength,
+          digest: { algorithm: 'sha256', value: '' },
+        }),
+        /invalid digest metadata/
+      )
+      assert.deepEqual(await fs.readFile(samplePath), externalBytes)
+
+      await assert.rejects(
+        saveSession(session.sessionId, samplePath, IOFlags.OVERWRITE, 0, 0, {
+          byteLength: externalBytes.byteLength,
+          digest: {
+            algorithm: 'definitely-not-a-digest',
+            value: sha256(externalBytes),
+          },
+        }),
+        /unsupported save conflict digest algorithm/
+      )
+      assert.deepEqual(await fs.readFile(samplePath), externalBytes)
+
+      const uppercaseDigest = await saveSession(
+        session.sessionId,
+        samplePath,
+        IOFlags.OVERWRITE,
+        0,
+        0,
+        {
+          byteLength: externalBytes.byteLength,
+          digest: {
+            algorithm: 'sha256',
+            value: sha256(externalBytes).toUpperCase(),
+          },
+        }
+      )
+      assert.equal(uppercaseDigest.getSaveStatus(), 0)
+      assert.deepEqual(
+        await fs.readFile(samplePath),
+        Buffer.from('Original', 'utf8')
+      )
+    } finally {
+      await panel.fireDidDispose()
+      await fs.rm(tmpDir, { recursive: true, force: true })
+    }
+  })
+
+  test('cancels guarded hashing without publishing staged bytes', async () => {
+    const tmpDir = await fs.mkdtemp(
+      path.join(os.tmpdir(), 'omega-edit-vscode-cancelled-save-')
+    )
+    const samplePath = path.join(tmpDir, 'cancelled-save.bin')
+    const originalBytes = Buffer.alloc(32 * 1024 * 1024, 0x5a)
+    await fs.writeFile(samplePath, originalBytes)
+
+    const provider = new HexEditorProvider({ subscriptions: [] }, testPort)
+    const panel = createMockWebviewPanel()
+    const document = await provider.openCustomDocument(
+      vscode.Uri.file(samplePath),
+      { backupId: undefined, untitledDocumentData: undefined },
+      new vscode.CancellationTokenSource().token
+    )
+
+    try {
+      await provider.resolveCustomEditor(
+        document,
+        panel,
+        new vscode.CancellationTokenSource().token
+      )
+      const session = provider.getSessionForTesting(document.uri)
+      assert.ok(session, 'Expected a live session for cancelled save')
+      await provider.dispatchWebviewMessageForTesting(document.uri, {
+        type: 'overwrite',
+        offset: 0,
+        data: '00',
+      })
+
+      await fs.writeFile(samplePath, originalBytes)
+      const future = new Date(Date.now() + 5000)
+      await fs.utimes(samplePath, future, future)
+
+      const abortController = new AbortController()
+      const savePromise = saveSession(
+        session.sessionId,
+        samplePath,
+        IOFlags.OVERWRITE,
+        0,
+        0,
+        {
+          byteLength: originalBytes.byteLength,
+          digest: { algorithm: 'sha256', value: sha256(originalBytes) },
+        },
+        { signal: abortController.signal }
+      )
+      await waitForCompletedSaveStage(tmpDir, originalBytes.byteLength)
+      abortController.abort()
+
+      await assert.rejects(savePromise, /cancel/i)
+      await waitForNoSaveStages(tmpDir)
+      assert.deepEqual(await fs.readFile(samplePath), originalBytes)
+    } finally {
+      await panel.fireDidDispose()
+      await fs.rm(tmpDir, { recursive: true, force: true })
+    }
+  })
+
+  test('waits for an in-flight save before rolling back the session', async () => {
+    const tmpDir = await fs.mkdtemp(
+      path.join(os.tmpdir(), 'omega-edit-vscode-save-rollback-order-')
+    )
+    const samplePath = path.join(tmpDir, 'save-rollback-order.bin')
+    await fs.writeFile(samplePath, Buffer.from('abc', 'utf8'))
+
+    const provider = new HexEditorProvider({ subscriptions: [] }, testPort)
+    const panel = createMockWebviewPanel()
+    const document = await provider.openCustomDocument(
+      vscode.Uri.file(samplePath),
+      { backupId: undefined, untitledDocumentData: undefined },
+      new vscode.CancellationTokenSource().token
+    )
+
+    try {
+      await provider.resolveCustomEditor(
+        document,
+        panel,
+        new vscode.CancellationTokenSource().token
+      )
+      const session = provider.getSessionForTesting(document.uri)
+      assert.ok(session, 'Expected a live session for save ordering')
+      await provider.dispatchWebviewMessageForTesting(document.uri, {
+        type: 'applyTransform',
+        pluginId: 'omega.example.base64',
+        offset: 0,
+        length: 3,
+      })
+      await assertSessionText(session.sessionId, 'YWJj')
+
+      let releaseSave
+      session.saveTask = new Promise((resolve) => {
+        releaseSave = resolve
+      })
+      const rollback = provider.rollbackActiveSession()
+      await delay(50)
+      await assertSessionText(session.sessionId, 'YWJj')
+
+      releaseSave()
+      await rollback
+      await assertSessionText(session.sessionId, 'abc')
+    } finally {
+      await panel.fireDidDispose()
+      await fs.rm(tmpDir, { recursive: true, force: true })
+    }
+  })
+
   test('refreshes viewport data when webview metrics arrive after initial load', async () => {
     const tmpDir = await fs.mkdtemp(
       path.join(os.tmpdir(), 'omega-edit-vscode-ready-')
@@ -2922,6 +3334,48 @@ async function waitForFileText(filePath, expected, timeoutMs = 10000) {
   )
 }
 
+async function waitForFileBytes(filePath, expected, timeoutMs = 10000) {
+  const deadline = Date.now() + timeoutMs
+  while (Date.now() < deadline) {
+    const actual = await fs.readFile(filePath).catch(() => undefined)
+    if (actual?.equals(expected)) {
+      return
+    }
+    await delay(25)
+  }
+  assert.deepEqual(await fs.readFile(filePath), expected)
+}
+
+async function listSaveStages(directory) {
+  const names = await fs.readdir(directory).catch(() => [])
+  return names.filter((name) => name.startsWith('.OmegaEdit_'))
+}
+
+async function waitForCompletedSaveStage(directory, expectedSize) {
+  const deadline = Date.now() + 30000
+  while (Date.now() < deadline) {
+    for (const name of await listSaveStages(directory)) {
+      const stat = await fs.stat(path.join(directory, name)).catch(() => null)
+      if (stat?.size === expectedSize) {
+        return
+      }
+    }
+    await delay(10)
+  }
+  assert.fail('Timed out waiting for the guarded save staging file')
+}
+
+async function waitForNoSaveStages(directory) {
+  const deadline = Date.now() + 10000
+  while (Date.now() < deadline) {
+    if ((await listSaveStages(directory)).length === 0) {
+      return
+    }
+    await delay(10)
+  }
+  assert.deepEqual(await listSaveStages(directory), [])
+}
+
 async function assertSessionText(
   sessionId,
   expected,
@@ -2944,6 +3398,26 @@ async function assertSessionText(
   }
 
   assert.equal(lastValue, expectedBuffer.toString('utf8'))
+}
+
+async function readSessionBytes(sessionId) {
+  const size = await getComputedFileSize(sessionId)
+  const chunks = []
+  const maxSegmentLength = 1024 * 1024
+
+  for (let offset = 0; offset < size; offset += maxSegmentLength) {
+    chunks.push(
+      Buffer.from(
+        await getSegment(
+          sessionId,
+          offset,
+          Math.min(maxSegmentLength, size - offset)
+        )
+      )
+    )
+  }
+
+  return Buffer.concat(chunks)
 }
 
 async function assertEditState(

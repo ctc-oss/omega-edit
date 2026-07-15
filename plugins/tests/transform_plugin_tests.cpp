@@ -118,7 +118,7 @@ TEST_CASE("Packaged Transform Plugins", "[TransformPlugin]") {
     REQUIRE(registry_ptr);
     REQUIRE(0 == omega_transform_plugin_registry_set_allow_experimental(registry_ptr, 1));
     REQUIRE(0 < omega_transform_plugin_registry_register_directory(registry_ptr, PLUGIN_DIR.string().c_str()));
-    REQUIRE(16 <= omega_transform_plugin_registry_get_count(registry_ptr));
+    REQUIRE(17 <= omega_transform_plugin_registry_get_count(registry_ptr));
     REQUIRE(nullptr != omega_transform_plugin_registry_find_info(registry_ptr, "omega.example.base64"));
     REQUIRE(nullptr != omega_transform_plugin_registry_find_info(registry_ptr, "omega.example.bitwise"));
     REQUIRE(nullptr != omega_transform_plugin_registry_find_info(registry_ptr, "omega.example.case_change"));
@@ -134,6 +134,7 @@ TEST_CASE("Packaged Transform Plugins", "[TransformPlugin]") {
     REQUIRE(nullptr != omega_transform_plugin_registry_find_info(registry_ptr, "omega.example.record_text_helpers"));
     REQUIRE(nullptr != omega_transform_plugin_registry_find_info(registry_ptr, "omega.example.text_codecs"));
     REQUIRE(nullptr != omega_transform_plugin_registry_find_info(registry_ptr, "omega.example.zlib"));
+    REQUIRE(nullptr != omega_transform_plugin_registry_find_info(registry_ptr, "omega.example.zstd"));
     REQUIRE(nullptr != omega_transform_plugin_registry_find_info(registry_ptr, "omega.example.repeat"));
     REQUIRE(-1 == omega_transform_plugin_options_match_args_schema("{}", nullptr));
     REQUIRE(-1 == omega_transform_plugin_options_match_args_schema("{}", ""));
@@ -329,6 +330,15 @@ TEST_CASE("Packaged Transform Plugins", "[TransformPlugin]") {
                                                                    zlib_info->args_schema));
     REQUIRE(-1 == omega_transform_plugin_options_match_args_schema("{\"action\":\"decompress\",\"maxOutputBytes\":0}",
                                                                    zlib_info->args_schema));
+    const auto zstd_info = omega_transform_plugin_registry_find_info(registry_ptr, "omega.example.zstd");
+    REQUIRE("Zstandard" == std::string(zstd_info->name));
+    REQUIRE("{\"action\":\"compress\",\"level\":3}" == std::string(zstd_info->default_args));
+    REQUIRE(0 == omega_transform_plugin_options_match_args_schema("{\"action\":\"compress\",\"level\":22}",
+                                                                  zstd_info->args_schema));
+    REQUIRE(0 == omega_transform_plugin_options_match_args_schema("{\"action\":\"decompress\",\"maxOutputBytes\":1}",
+                                                                  zstd_info->args_schema));
+    REQUIRE(-1 == omega_transform_plugin_options_match_args_schema("{\"action\":\"compress\",\"level\":23}",
+                                                                   zstd_info->args_schema));
     const auto cipher_info = omega_transform_plugin_registry_find_info(registry_ptr, "omega.example.openssl_ciphers");
     REQUIRE("OpenSSL Ciphers" == std::string(cipher_info->name));
     REQUIRE(std::string(cipher_info->description).find("Encrypt") != std::string::npos);
@@ -1190,6 +1200,43 @@ TEST_CASE("Packaged Transform Plugins", "[TransformPlugin]") {
                                              omega_session_get_computed_file_size(zlib_bomb_session_ptr)));
     omega_transform_plugin_response_clear(&response);
     omega_edit_destroy_session(zlib_bomb_session_ptr);
+
+    const auto zstd_session_ptr = omega_edit_create_session(nullptr, nullptr, nullptr, NO_EVENTS, nullptr);
+    REQUIRE(zstd_session_ptr);
+    const std::string repeated_zstd_input(4096, 'Z');
+    REQUIRE(0 < omega_edit_insert_bytes(zstd_session_ptr, 0,
+                                        reinterpret_cast<const omega_byte_t *>(repeated_zstd_input.data()),
+                                        static_cast<int64_t>(repeated_zstd_input.size())));
+    REQUIRE(0 == omega_transform_plugin_registry_apply_to_session(registry_ptr, "omega.example.zstd", zstd_session_ptr,
+                                                                  0, 0, "{\"action\":\"compress\",\"level\":19}",
+                                                                  &response));
+    const auto compressed_zstd = omega_session_get_segment_string(
+            zstd_session_ptr, 0, omega_session_get_computed_file_size(zstd_session_ptr));
+    REQUIRE(compressed_zstd.size() < repeated_zstd_input.size());
+    REQUIRE(static_cast<unsigned char>(compressed_zstd[0]) == 0x28);
+    REQUIRE(static_cast<unsigned char>(compressed_zstd[1]) == 0xB5);
+    REQUIRE(static_cast<unsigned char>(compressed_zstd[2]) == 0x2F);
+    REQUIRE(static_cast<unsigned char>(compressed_zstd[3]) == 0xFD);
+    omega_transform_plugin_response_clear(&response);
+
+    const auto zstd_cap_change_count = omega_session_get_num_changes(zstd_session_ptr);
+    REQUIRE(-1 == omega_transform_plugin_registry_apply_to_session(
+                          registry_ptr, "omega.example.zstd", zstd_session_ptr, 0, 0,
+                          "{\"action\":\"decompress\",\"maxOutputBytes\":1024}", &response));
+    REQUIRE(zstd_cap_change_count == omega_session_get_num_changes(zstd_session_ptr));
+    REQUIRE(compressed_zstd == omega_session_get_segment_string(
+                                       zstd_session_ptr, 0, omega_session_get_computed_file_size(zstd_session_ptr)));
+    omega_transform_plugin_response_clear(&response);
+
+    const std::string zstd_cap_options =
+            "{\"action\":\"decompress\",\"maxOutputBytes\":" + std::to_string(repeated_zstd_input.size()) + "}";
+    REQUIRE(0 == omega_transform_plugin_registry_apply_to_session(registry_ptr, "omega.example.zstd", zstd_session_ptr,
+                                                                  0, 0, zstd_cap_options.c_str(), &response));
+    REQUIRE(repeated_zstd_input ==
+            omega_session_get_segment_string(zstd_session_ptr, 0,
+                                             omega_session_get_computed_file_size(zstd_session_ptr)));
+    omega_transform_plugin_response_clear(&response);
+    omega_edit_destroy_session(zstd_session_ptr);
 
     REQUIRE(0 <
             omega_edit_insert_string(codec_session_ptr, omega_session_get_computed_file_size(codec_session_ptr), "!"));

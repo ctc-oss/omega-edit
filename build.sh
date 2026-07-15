@@ -145,65 +145,6 @@ setup_msvc_env() {
   fi
 }
 
-detect_vscode_transform_platform() {
-  node - <<'NODE'
-const os = require('node:os')
-const platform = os.platform()
-const arch = os.arch()
-
-let id = ''
-if (platform === 'linux' && (arch === 'x64' || arch === 'arm64')) {
-  id = `linux-${arch}`
-} else if (platform === 'darwin' && (arch === 'x64' || arch === 'arm64')) {
-  id = `macos-${arch}`
-} else if (platform === 'win32' && arch === 'x64') {
-  id = 'windows-x64'
-}
-
-if (!id) {
-  process.exit(1)
-}
-
-console.log(id)
-NODE
-}
-
-stage_vscode_transform_plugins() {
-  local source_dir="$1"
-  local destination_root="$2"
-  local platform_id="$3"
-  local destination_dir="${destination_root}/${platform_id}"
-  local patterns=("-name" "omega_transform_*.so")
-
-  if [[ "$platform_id" == windows-* ]]; then
-    patterns=("-name" "omega_transform_*.dll")
-  elif [[ "$platform_id" == macos-* ]]; then
-    patterns=("(" "-name" "omega_transform_*.dylib" "-o" "-name" "omega_transform_*.so" ")")
-  fi
-
-  if [[ ! -d "$source_dir" ]]; then
-    echo "Transform plugin directory not found: $source_dir"
-    exit 1
-  fi
-
-  rm -rf "$destination_root"
-  mkdir -p "$destination_dir"
-  find "$source_dir" -maxdepth 1 -type f "${patterns[@]}" -exec cp {} "$destination_dir" \;
-
-  local plugin_count
-  plugin_count="$(find "$destination_dir" -maxdepth 1 -type f | wc -l | tr -d '[:space:]')"
-  if [[ "${plugin_count:-0}" -eq 0 ]]; then
-    echo "No transform plugins found in $source_dir for $platform_id"
-    exit 1
-  fi
-
-  if [[ "$platform_id" != windows-* ]]; then
-    chmod 755 "$destination_dir"/omega_transform_* || true
-  fi
-
-  echo "Staged ${plugin_count} transform plugins for ${platform_id}"
-}
-
 ensure_conan() {
   if command -v conan >/dev/null 2>&1; then
     conan --version
@@ -281,23 +222,44 @@ fi
 
 ensure_plugin_deps
 
+shared_build_dir=""
 for objtype in shared static; do
   build_shared_libs="NO"
   if [[ $objtype == "shared" ]]; then
     build_shared_libs="YES"
   fi
 
-  rm -rf "build-${objtype}-$type" "${install_dir}-${objtype}-$type"
-  # shellcheck disable=SC2090
-  cmake -G "$generator" -S . -B "build-${objtype}-$type" $cmake_extra_args -DBUILD_SHARED_LIBS="$build_shared_libs" -DBUILD_DOCS="$build_docs" -DCMAKE_BUILD_TYPE="$type"
-  cmake --build "build-${objtype}-$type" --config "$type"
-  ctest -C "$type" --test-dir "build-${objtype}-${type}/core" --output-on-failure
-  if [[ -d "build-${objtype}-${type}/plugins" ]]; then
-    ctest -C "$type" --test-dir "build-${objtype}-${type}/plugins" --output-on-failure
+  preferred_build_dir="build-${objtype}-$type"
+  build_dir="$preferred_build_dir"
+  if ! rm -rf "$preferred_build_dir" 2>/dev/null; then
+    build_dir="${preferred_build_dir}-fresh-$(date +%s)-$$"
+    echo "WARNING: Unable to remove ${preferred_build_dir}; using ${build_dir} instead." >&2
   fi
-  cmake --install "build-${objtype}-${type}/packages/core" --prefix "${install_dir}-${objtype}-$type" --config "$type"
-  cpack --config "build-${objtype}-${type}/CPackSourceConfig.cmake"
-  cpack --config "build-${objtype}-${type}/CPackConfig.cmake" -C "$type"
+  rm -rf "${install_dir}-${objtype}-$type"
+  if [[ $objtype == "shared" ]]; then shared_build_dir="$build_dir"; fi
+  # shellcheck disable=SC2090
+  cmake -G "$generator" -S . -B "$build_dir" $cmake_extra_args -DBUILD_SHARED_LIBS="$build_shared_libs" -DBUILD_DOCS="$build_docs" -DCMAKE_BUILD_TYPE="$type"
+  cmake --build "$build_dir" --config "$type"
+  ctest -C "$type" --test-dir "$build_dir/core" --output-on-failure
+  if [[ -d "$build_dir/plugins" ]]; then
+    ctest -C "$type" --test-dir "$build_dir/plugins" --output-on-failure
+  fi
+  cmake --install "$build_dir/packages/core" --prefix "${install_dir}-${objtype}-$type" --config "$type"
+  package_dir="$build_dir/package"
+  package_version="$(tr -d '\r\n' < VERSION)"
+  source_package="${package_dir}/omega_edit-${package_version}.tar.gz"
+  mkdir -p "$package_dir"
+  git archive --format=tar.gz --prefix="omega_edit-${package_version}/" --output="$source_package" HEAD
+  node scripts/verify-package-contents.js source "$source_package"
+
+  cpack --config "$build_dir/CPackConfig.cmake" -C "$type"
+
+  binary_packages=("${package_dir}/omega_edit-"*)
+  for package_path in "${binary_packages[@]}"; do
+    if [[ -f "$package_path" && "$package_path" != "$source_package" ]]; then
+      node scripts/verify-package-contents.js core "$package_path"
+    fi
+  done
 done
 
 # OE_LIB_DIR is used by native code to bundle the proper library file
@@ -354,28 +316,19 @@ yarn workspace @omega-edit/client package
 yarn workspace @omega-edit/ai package
 
 vsix_stage="$(mktemp -d)"
-transform_plugins_stage="$(mktemp -d)"
 cleanup_vsix_stage() {
-  rm -rf "$vsix_stage" "$transform_plugins_stage"
+  rm -rf "$vsix_stage"
 }
 trap cleanup_vsix_stage EXIT
-
-transform_plugin_platform="$(detect_vscode_transform_platform)"
-stage_vscode_transform_plugins \
-  "${root_dir}/build-shared-${type}/core/src/tests/plugins" \
-  "$transform_plugins_stage" \
-  "$transform_plugin_platform"
 
 cp -R vscode-extension/. "$vsix_stage"
 # These paths are consumed by native node/npm, so pass them in native form.
 server_tgz="$(to_native_path "${root_dir}/packages/server/omega-edit-node-server-v${pkg_version}.tgz")"
 client_tgz="$(to_native_path "${root_dir}/packages/client/omega-edit-node-client-v${pkg_version}.tgz")"
-transform_plugins_stage_native="$(to_native_path "$transform_plugins_stage")"
 (
   cd "$vsix_stage"
-  npm pkg set "dependencies.@omega-edit/client=${pkg_version}"
+  npm pkg set "devDependencies.@omega-edit/client=${pkg_version}"
   npm install --no-save "$server_tgz" "$client_tgz"
-  npm run stage:transform-plugins -- "$transform_plugins_stage_native" --platform "$transform_plugin_platform"
   npm run package:vsix
 )
 cp "$vsix_stage/omega-edit-data-editor.vsix" "${root_dir}/vscode-extension/"

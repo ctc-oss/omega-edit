@@ -1,10 +1,31 @@
-.vscode/**
-.vscode-test/**
+# Dependencies and source trees
+node_modules/**
+!node_modules/@omega-edit/server/**
 src/**
 scripts/**
 tests/**
 webview-ui/**
+
+# Editor, test-runner, and build configuration
+.vscode/**
+.vscode-test/**
 .gitignore
+.npmrc
+docs/**
 package-lock.json
 tsconfig.json
-vite.config.mts
+vite.config.*
+svelte.config.*
+biome.json*
+*.config.*
+
+# Compiler metadata and generated archives
+**/*.map
+**/*.d.ts
+**/*.d.ts.map
+**/*.tsbuildinfo
+out/**
+!out/extension.js
+!out/svelte-webview/**
+*.tgz
+*.vsix
