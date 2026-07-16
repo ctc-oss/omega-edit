@@ -18,6 +18,7 @@
  */
 
 import { expect, expectOpaqueId, opaqueIdPattern, testPort } from './common.js'
+import { status as GrpcStatus } from '@grpc/grpc-js'
 import {
   applyTransformPlugin,
   del,
@@ -26,9 +27,11 @@ import {
   createSessionFromBytes,
   createViewport,
   createCheckpoint,
+  checkoutCheckpoint,
   CountKind,
   destroySession,
   destroyLastCheckpoint,
+  discardCheckpointFuture,
   getByteOrderMark,
   getClient,
   getChangeCount,
@@ -917,6 +920,65 @@ describe('Sessions', () => {
       expect(await destroyLastCheckpoint(session_id)).to.equal(0)
       expect(await getSessionBytes(session_id)).to.deep.equal(seed)
       expect(await getChangeCount(session_id)).to.equal(0)
+    } finally {
+      if (session_id) {
+        await destroySession(session_id)
+      }
+    }
+  })
+
+  it('Should preserve checkpoint redo until a branch edit', async () => {
+    const seed = Buffer.from('timeline')
+    let session_id = ''
+
+    try {
+      const session = await createSessionFromBytes(
+        seed,
+        'checkpoint_checkout_test'
+      )
+      session_id = session.getSessionId()
+
+      await insert(session_id, seed.length, Buffer.from('1'))
+      expect(await createCheckpoint(session_id)).to.equal(1)
+      await insert(session_id, seed.length + 1, Buffer.from('2'))
+      expect(await createCheckpoint(session_id)).to.equal(2)
+
+      let checkout = await checkoutCheckpoint(session_id, 0)
+      expect(checkout.checkpointCount).to.equal(0)
+      expect(checkout.futureCheckpointCount).to.equal(2)
+      expect(await getSessionBytes(session_id)).to.deep.equal(seed)
+
+      checkout = await checkoutCheckpoint(session_id, 2)
+      expect(checkout.checkpointCount).to.equal(2)
+      expect(checkout.futureCheckpointCount).to.equal(0)
+      expect(await getSessionBytes(session_id)).to.deep.equal(
+        Buffer.from('timeline12')
+      )
+
+      checkout = await checkoutCheckpoint(session_id, 1)
+      expect(checkout.futureCheckpointCount).to.equal(1)
+      expect(await getSessionBytes(session_id)).to.deep.equal(
+        Buffer.from('timeline1')
+      )
+      await insert(session_id, seed.length + 1, Buffer.from('X'))
+      const discarded = await discardCheckpointFuture(session_id)
+      expect(discarded.discardedCheckpointCount).to.equal(0)
+      expect(discarded.checkpointCount).to.equal(1)
+      let checkoutRejected = false
+      try {
+        await checkoutCheckpoint(session_id, 2)
+      } catch (err) {
+        const wrapped = err as Error & { cause?: { code?: number } }
+        expect(wrapped.cause?.code).to.equal(GrpcStatus.OUT_OF_RANGE)
+        expect(wrapped.message).to.include(
+          'checkpoint boundary is outside the materialized timeline'
+        )
+        checkoutRejected = true
+      }
+      expect(checkoutRejected).to.be.true
+      expect(await getSessionBytes(session_id)).to.deep.equal(
+        Buffer.from('timeline1X')
+      )
     } finally {
       if (session_id) {
         await destroySession(session_id)

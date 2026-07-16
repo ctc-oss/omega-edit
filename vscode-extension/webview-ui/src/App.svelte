@@ -231,6 +231,7 @@
     visible: false,
     cursor: 0,
     checkpointCount: 0,
+    originalByteLength: String(initialFileSize),
     savedChangeCount: 0,
     savedOffBranch: false,
     canRewind: false,
@@ -2972,6 +2973,7 @@
     <CheckpointTimeline
       cursor={checkpointTimeline.cursor}
       checkpointCount={checkpointTimeline.checkpointCount}
+      originalByteLength={checkpointTimeline.originalByteLength}
       savedChangeCount={checkpointTimeline.savedChangeCount}
       savedCheckpoint={checkpointTimeline.savedCheckpoint}
       savedOffBranch={checkpointTimeline.savedOffBranch}
