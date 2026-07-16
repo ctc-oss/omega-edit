@@ -172,6 +172,8 @@
 <li><a class="reference internal" href="#_CPPv426omega_edit_apply_transformP15omega_session_t27omega_util_byte_transform_tPv7int64_t7int64_t"><code class="docutils literal notranslate"><span class="pre">omega_edit_apply_transform()</span></code></a></li>
 <li><a class="reference internal" href="#_CPPv428omega_edit_create_checkpointP15omega_session_t"><code class="docutils literal notranslate"><span class="pre">omega_edit_create_checkpoint()</span></code></a></li>
 <li><a class="reference internal" href="#_CPPv434omega_edit_destroy_last_checkpointP15omega_session_t"><code class="docutils literal notranslate"><span class="pre">omega_edit_destroy_last_checkpoint()</span></code></a></li>
+<li><a class="reference internal" href="#_CPPv430omega_edit_checkout_checkpointP15omega_session_t7int64_t"><code class="docutils literal notranslate"><span class="pre">omega_edit_checkout_checkpoint()</span></code></a></li>
+<li><a class="reference internal" href="#_CPPv436omega_edit_discard_checkpoint_futureP15omega_session_t"><code class="docutils literal notranslate"><span class="pre">omega_edit_discard_checkpoint_future()</span></code></a></li>
 <li><a class="reference internal" href="#_CPPv434omega_edit_restore_last_checkpointP15omega_session_t"><code class="docutils literal notranslate"><span class="pre">omega_edit_restore_last_checkpoint()</span></code></a></li>
 <li><a class="reference internal" href="#_CPPv429omega_edit_viewport_options_t"><code class="docutils literal notranslate"><span class="pre">omega_edit_viewport_options_t</span></code></a><ul>
 <li><a class="reference internal" href="#_CPPv4N29omega_edit_viewport_options_t6offsetE"><code class="docutils literal notranslate"><span class="pre">offset</span></code></a></li>
@@ -402,6 +404,7 @@
 <li><a class="reference internal" href="#_CPPv441omega_session_get_num_change_transactionsPK15omega_session_t"><code class="docutils literal notranslate"><span class="pre">omega_session_get_num_change_transactions()</span></code></a></li>
 <li><a class="reference internal" href="#_CPPv448omega_session_get_num_undone_change_transactionsPK15omega_session_t"><code class="docutils literal notranslate"><span class="pre">omega_session_get_num_undone_change_transactions()</span></code></a></li>
 <li><a class="reference internal" href="#_CPPv433omega_session_get_num_checkpointsPK15omega_session_t"><code class="docutils literal notranslate"><span class="pre">omega_session_get_num_checkpoints()</span></code></a></li>
+<li><a class="reference internal" href="#_CPPv440omega_session_get_num_future_checkpointsPK15omega_session_t"><code class="docutils literal notranslate"><span class="pre">omega_session_get_num_future_checkpoints()</span></code></a></li>
 <li><a class="reference internal" href="#_CPPv420omega_session_notifyPK15omega_session_t21omega_session_event_tPKv"><code class="docutils literal notranslate"><span class="pre">omega_session_notify()</span></code></a></li>
 <li><a class="reference internal" href="#_CPPv424omega_session_detect_BOMPK15omega_session_t7int64_t"><code class="docutils literal notranslate"><span class="pre">omega_session_detect_BOM()</span></code></a></li>
 <li><a class="reference internal" href="#_CPPv436omega_session_byte_frequency_profilePK15omega_session_tP30omega_byte_frequency_profile_t7int64_t7int64_t"><code class="docutils literal notranslate"><span class="pre">omega_session_byte_frequency_profile()</span></code></a></li>
@@ -1862,6 +1865,38 @@
 </dd>
 <dt class="field-even">Returns<span class="colon">:</span></dt>
 <dd class="field-even"><p>zero on success, non-zero otherwise </p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="cpp function">
+<dt class="sig sig-object cpp" id="_CPPv430omega_edit_checkout_checkpointP15omega_session_t7int64_t">
+<span id="_CPPv330omega_edit_checkout_checkpointP15omega_session_t7int64_t"></span><span id="_CPPv230omega_edit_checkout_checkpointP15omega_session_t7int64_t"></span><span id="omega_edit_checkout_checkpoint__omega_session_tP.int64_t"></span><span class="target" id="edit_8h_1a6b3c8c3f506ad4fb063fabb27f39d6e3"></span><span class="kt"><span class="pre">int</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">omega_edit_checkout_checkpoint</span></span></span><span class="sig-paren">(</span><a class="reference internal" href="#_CPPv415omega_session_t" title="omega_session_t"><span class="n"><span class="pre">omega_session_t</span></span></a><span class="w"> </span><span class="p"><span class="pre">*</span></span><span class="n sig-param"><span class="pre">session_ptr</span></span>, <span class="n"><span class="pre">int64_t</span></span><span class="w"> </span><span class="n sig-param"><span class="pre">checkpoint_count</span></span><span class="sig-paren">)</span><a class="headerlink" href="#_CPPv430omega_edit_checkout_checkpointP15omega_session_t7int64_t" title="Link to this definition"></a><br /></dt>
+<dd><p>Moves the session to a checkpoint boundary without destroying later checkpoint models.</p>
+<p>Checkpoint zero is the original session snapshot. Later checkpoints remain available for a subsequent checkout until a successful edit creates a new branch or omega_edit_discard_checkpoint_future is called. </p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>session_ptr</strong> – session to navigate </p></li>
+<li><p><strong>checkpoint_count</strong> – checkpoint boundary to make active, from zero through the active plus future checkpoint count </p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>zero on success, non-zero otherwise </p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="cpp function">
+<dt class="sig sig-object cpp" id="_CPPv436omega_edit_discard_checkpoint_futureP15omega_session_t">
+<span id="_CPPv336omega_edit_discard_checkpoint_futureP15omega_session_t"></span><span id="_CPPv236omega_edit_discard_checkpoint_futureP15omega_session_t"></span><span id="omega_edit_discard_checkpoint_future__omega_session_tP"></span><span class="target" id="edit_8h_1ae21e0f77dd98a575412fba00fbc07b37"></span><span class="n"><span class="pre">int64_t</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">omega_edit_discard_checkpoint_future</span></span></span><span class="sig-paren">(</span><a class="reference internal" href="#_CPPv415omega_session_t" title="omega_session_t"><span class="n"><span class="pre">omega_session_t</span></span></a><span class="w"> </span><span class="p"><span class="pre">*</span></span><span class="n sig-param"><span class="pre">session_ptr</span></span><span class="sig-paren">)</span><a class="headerlink" href="#_CPPv436omega_edit_discard_checkpoint_futureP15omega_session_t" title="Link to this definition"></a><br /></dt>
+<dd><p>Permanently destroys all checkpoint models after the active checkpoint boundary. </p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>session_ptr</strong> – session whose future checkpoint branch should be discarded </p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>number of discarded future checkpoints, or a negative value on error </p>
 </dd>
 </dl>
 </dd></dl>
@@ -3623,6 +3658,20 @@
 </dd>
 <dt class="field-even">Returns<span class="colon">:</span></dt>
 <dd class="field-even"><p>number of session checkpoints </p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="cpp function">
+<dt class="sig sig-object cpp" id="_CPPv440omega_session_get_num_future_checkpointsPK15omega_session_t">
+<span id="_CPPv340omega_session_get_num_future_checkpointsPK15omega_session_t"></span><span id="_CPPv240omega_session_get_num_future_checkpointsPK15omega_session_t"></span><span id="omega_session_get_num_future_checkpoints__omega_session_tCP"></span><span class="target" id="session_8h_1a71f2c896cb1a215836fdf93256c90c0b"></span><span class="n"><span class="pre">int64_t</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">omega_session_get_num_future_checkpoints</span></span></span><span class="sig-paren">(</span><span class="k"><span class="pre">const</span></span><span class="w"> </span><a class="reference internal" href="#_CPPv415omega_session_t" title="omega_session_t"><span class="n"><span class="pre">omega_session_t</span></span></a><span class="w"> </span><span class="p"><span class="pre">*</span></span><span class="n sig-param"><span class="pre">session_ptr</span></span><span class="sig-paren">)</span><a class="headerlink" href="#_CPPv440omega_session_get_num_future_checkpointsPK15omega_session_t" title="Link to this definition"></a><br /></dt>
+<dd><p>Given a session, return the number of preserved checkpoints after the active checkpoint boundary. </p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>session_ptr</strong> – session to get the number of future checkpoints for </p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>number of future checkpoints </p>
 </dd>
 </dl>
 </dd></dl>

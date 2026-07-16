@@ -43,7 +43,7 @@ state changes, delivered via gRPC server-streaming RPCs.</p>
 <div class="tsd-tag-generated">
 <h4 class="tsd-anchor-link" id="generated">Generated<a href="#generated" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h4><p>from protobuf service omega_edit.v1.EditorService</p>
 </div></div></section>
-<section class="tsd-panel tsd-hierarchy" data-refl="3832">
+<section class="tsd-panel tsd-hierarchy" data-refl="3938">
 <h4>Hierarchy (<a href="../hierarchy.html#protobuf_ts/generated/omega_edit/v1/omega_edit.grpc-client.EditorServiceClient">View Summary</a>)</h4>
 <ul class="tsd-hierarchy">
 <li class="tsd-hierarchy-item"><span class="tsd-signature-type">Client</span>
@@ -56,7 +56,7 @@ state changes, delivered via gRPC server-streaming RPCs.</p>
 <ul class="tsd-hierarchy">
 <li><a href="../interfaces/protobuf_ts_generated_omega_edit_v1_omega_edit.grpc-client.IEditorServiceClient.html" class="tsd-signature-type tsd-kind-interface">IEditorServiceClient</a></li></ul></section><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/ctc-oss/omega-edit/blob/6518f54378bc64aa0d57506e55741f5fc6cbc6bb/packages/client/src/protobuf_ts/generated/omega_edit/v1/omega_edit.grpc-client.ts#L2019">protobuf_ts/generated/omega_edit/v1/omega_edit.grpc-client.ts:2019</a></li></ul></aside>
+<li>Defined in <a href="https://github.com/ctc-oss/omega-edit/blob/929563373970bd3eb12533c4d67bf35c248842b9/packages/client/src/protobuf_ts/generated/omega_edit/v1/omega_edit.grpc-client.ts#L2097">protobuf_ts/generated/omega_edit/v1/omega_edit.grpc-client.ts:2097</a></li></ul></aside>
 <section class="tsd-panel-group tsd-index-group">
 <section class="tsd-panel tsd-index-panel">
 <details class="tsd-index-content tsd-accordion" open><summary class="tsd-accordion-summary tsd-index-summary"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true"><use href="../assets/icons.svg#icon-chevronDown"></use></svg>
@@ -69,6 +69,7 @@ state changes, delivered via gRPC server-streaming RPCs.</p>
 <section class="tsd-index-section">
 <h3 class="tsd-index-heading tsd-anchor-link" id="methods">Methods<a href="#methods" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <div class="tsd-index-list"><a href="#applytransformplugin" class="tsd-index-link"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>apply<wbr/>Transform<wbr/>Plugin</span></a>
+<a href="#checkoutcheckpoint" class="tsd-index-link"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>checkout<wbr/>Checkpoint</span></a>
 <a href="#checksessionmodel" class="tsd-index-link"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>check<wbr/>Session<wbr/>Model</span></a>
 <a href="#clearchanges" class="tsd-index-link"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>clear<wbr/>Changes</span></a>
 <a href="#createcheckpoint" class="tsd-index-link"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>create<wbr/>Checkpoint</span></a>
@@ -77,6 +78,7 @@ state changes, delivered via gRPC server-streaming RPCs.</p>
 <a href="#destroylastcheckpoint" class="tsd-index-link"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>destroy<wbr/>Last<wbr/>Checkpoint</span></a>
 <a href="#destroysession" class="tsd-index-link"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>destroy<wbr/>Session</span></a>
 <a href="#destroyviewport" class="tsd-index-link"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>destroy<wbr/>Viewport</span></a>
+<a href="#discardcheckpointfuture" class="tsd-index-link"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>discard<wbr/>Checkpoint<wbr/>Future</span></a>
 <a href="#exportchangelog" class="tsd-index-link"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>export<wbr/>Change<wbr/>Log</span></a>
 <a href="#getbytefrequencyprofile" class="tsd-index-link"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>get<wbr/>Byte<wbr/>Frequency<wbr/>Profile</span></a>
 <a href="#getbyteordermark" class="tsd-index-link"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>get<wbr/>Byte<wbr/>Order<wbr/>Mark</span></a>
@@ -138,7 +140,7 @@ state changes, delivered via gRPC server-streaming RPCs.</p>
 <h4 class="tsd-returns-title">Returns <a href="" class="tsd-signature-type tsd-kind-class">EditorServiceClient</a></h4><aside class="tsd-sources">
 <p>Overrides grpc.Client.constructor</p>
 <ul>
-<li>Defined in <a href="https://github.com/ctc-oss/omega-edit/blob/6518f54378bc64aa0d57506e55741f5fc6cbc6bb/packages/client/src/protobuf_ts/generated/omega_edit/v1/omega_edit.grpc-client.ts#L2026">protobuf_ts/generated/omega_edit/v1/omega_edit.grpc-client.ts:2026</a></li></ul></aside></div></li></ul></section></section></details>
+<li>Defined in <a href="https://github.com/ctc-oss/omega-edit/blob/929563373970bd3eb12533c4d67bf35c248842b9/packages/client/src/protobuf_ts/generated/omega_edit/v1/omega_edit.grpc-client.ts#L2104">protobuf_ts/generated/omega_edit/v1/omega_edit.grpc-client.ts:2104</a></li></ul></aside></div></li></ul></section></section></details>
 <details class="tsd-panel-group tsd-member-group tsd-accordion" open><summary class="tsd-accordion-summary" data-key="section-Methods"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true"><use href="../assets/icons.svg#icon-chevronDown"></use></svg>
 <h2 class="tsd-anchor-link" id="methods-1">Methods<a href="#methods-1" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h2></summary>
 <section>
@@ -165,7 +167,30 @@ inspect content and return derived bytes, or do both.</p>
 </div></div><aside class="tsd-sources">
 <p>Implementation of <a href="../interfaces/protobuf_ts_generated_omega_edit_v1_omega_edit.grpc-client.IEditorServiceClient.html">IEditorServiceClient</a>.<a href="../interfaces/protobuf_ts_generated_omega_edit_v1_omega_edit.grpc-client.IEditorServiceClient.html#applytransformplugin">applyTransformPlugin</a></p>
 <ul>
-<li>Defined in <a href="https://github.com/ctc-oss/omega-edit/blob/6518f54378bc64aa0d57506e55741f5fc6cbc6bb/packages/client/src/protobuf_ts/generated/omega_edit/v1/omega_edit.grpc-client.ts#L3665">protobuf_ts/generated/omega_edit/v1/omega_edit.grpc-client.ts:3665</a></li></ul></aside></div></li></ul></section>
+<li>Defined in <a href="https://github.com/ctc-oss/omega-edit/blob/929563373970bd3eb12533c4d67bf35c248842b9/packages/client/src/protobuf_ts/generated/omega_edit/v1/omega_edit.grpc-client.ts#L3825">protobuf_ts/generated/omega_edit/v1/omega_edit.grpc-client.ts:3825</a></li></ul></aside></div></li></ul></section>
+<section class="tsd-panel tsd-member">
+<h3 class="tsd-anchor-link" id="checkoutcheckpoint"><span>checkout<wbr/>Checkpoint</span><a href="#checkoutcheckpoint" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
+<ul class="tsd-signatures">
+<li class="">
+<div class="tsd-signature tsd-anchor-link" id="checkoutcheckpoint-1"><span class="tsd-kind-call-signature">checkoutCheckpoint</span><span class="tsd-signature-symbol">(</span><br/>    <span class="tsd-kind-parameter">input</span><span class="tsd-signature-symbol">:</span> <a href="../interfaces/protobuf_ts_generated_omega_edit_v1_omega_edit.CheckoutCheckpointRequest.html" class="tsd-signature-type tsd-kind-interface">CheckoutCheckpointRequest</a><span class="tsd-signature-symbol">,</span><br/>    <span class="tsd-kind-parameter">metadata</span><span class="tsd-signature-symbol">:</span><br/>        <span class="tsd-signature-symbol">|</span> <span class="tsd-signature-type">Metadata</span><br/>        <span class="tsd-signature-symbol">|</span> <span class="tsd-signature-type">CallOptions</span><br/>        <span class="tsd-signature-symbol">|</span> (<span class="tsd-signature-symbol">(</span><span class="tsd-kind-parameter">err</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">ServiceError</span> <span class="tsd-signature-symbol">|</span> <span class="tsd-signature-type">null</span><span class="tsd-signature-symbol">,</span> <span class="tsd-kind-parameter">value</span><span class="tsd-signature-symbol">?:</span> <a href="../interfaces/protobuf_ts_generated_omega_edit_v1_omega_edit.CheckoutCheckpointResponse.html" class="tsd-signature-type tsd-kind-interface">CheckoutCheckpointResponse</a><span class="tsd-signature-symbol">)</span> <span class="tsd-signature-symbol">=&gt;</span> <span class="tsd-signature-type">void</span>)<span class="tsd-signature-symbol">,</span><br/>    <span class="tsd-kind-parameter">options</span><span class="tsd-signature-symbol">?:</span><br/>        <span class="tsd-signature-symbol">|</span> <span class="tsd-signature-type">CallOptions</span><br/>        <span class="tsd-signature-symbol">|</span> (<span class="tsd-signature-symbol">(</span><span class="tsd-kind-parameter">err</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">ServiceError</span> <span class="tsd-signature-symbol">|</span> <span class="tsd-signature-type">null</span><span class="tsd-signature-symbol">,</span> <span class="tsd-kind-parameter">value</span><span class="tsd-signature-symbol">?:</span> <a href="../interfaces/protobuf_ts_generated_omega_edit_v1_omega_edit.CheckoutCheckpointResponse.html" class="tsd-signature-type tsd-kind-interface">CheckoutCheckpointResponse</a><span class="tsd-signature-symbol">)</span> <span class="tsd-signature-symbol">=&gt;</span> <span class="tsd-signature-type">void</span>)<span class="tsd-signature-symbol">,</span><br/>    <span class="tsd-kind-parameter">callback</span><span class="tsd-signature-symbol">?:</span> <span class="tsd-signature-symbol">(</span><br/>        <span class="tsd-kind-parameter">err</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">ServiceError</span> <span class="tsd-signature-symbol">|</span> <span class="tsd-signature-type">null</span><span class="tsd-signature-symbol">,</span><br/>        <span class="tsd-kind-parameter">value</span><span class="tsd-signature-symbol">?:</span> <a href="../interfaces/protobuf_ts_generated_omega_edit_v1_omega_edit.CheckoutCheckpointResponse.html" class="tsd-signature-type tsd-kind-interface">CheckoutCheckpointResponse</a><span class="tsd-signature-symbol">,</span><br/>    <span class="tsd-signature-symbol">)</span> <span class="tsd-signature-symbol">=&gt;</span> <span class="tsd-signature-type">void</span><span class="tsd-signature-symbol">,</span><br/><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">SurfaceCall</span><a href="#checkoutcheckpoint-1" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></div>
+<div class="tsd-description">
+<div class="tsd-comment tsd-typography"><p>Move to a checkpoint boundary while preserving later checkpoints for fast-forward.</p>
+</div>
+<div class="tsd-parameters">
+<h4 class="tsd-parameters-title">Parameters</h4>
+<ul class="tsd-parameter-list">
+<li><span><span class="tsd-kind-parameter">input</span>: <a href="../interfaces/protobuf_ts_generated_omega_edit_v1_omega_edit.CheckoutCheckpointRequest.html" class="tsd-signature-type tsd-kind-interface">CheckoutCheckpointRequest</a></span></li>
+<li><span><span class="tsd-kind-parameter">metadata</span>: <br/>    <span class="tsd-signature-symbol">|</span> <span class="tsd-signature-type">Metadata</span><br/>    <span class="tsd-signature-symbol">|</span> <span class="tsd-signature-type">CallOptions</span><br/>    <span class="tsd-signature-symbol">|</span> (<span class="tsd-signature-symbol">(</span><span class="tsd-kind-parameter">err</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">ServiceError</span> <span class="tsd-signature-symbol">|</span> <span class="tsd-signature-type">null</span><span class="tsd-signature-symbol">,</span> <span class="tsd-kind-parameter">value</span><span class="tsd-signature-symbol">?:</span> <a href="../interfaces/protobuf_ts_generated_omega_edit_v1_omega_edit.CheckoutCheckpointResponse.html" class="tsd-signature-type tsd-kind-interface">CheckoutCheckpointResponse</a><span class="tsd-signature-symbol">)</span> <span class="tsd-signature-symbol">=&gt;</span> <span class="tsd-signature-type">void</span>)</span></li>
+<li><span><code class="tsd-tag">Optional</code><span class="tsd-kind-parameter">options</span>: <br/>    <span class="tsd-signature-symbol">|</span> <span class="tsd-signature-type">CallOptions</span><br/>    <span class="tsd-signature-symbol">|</span> (<span class="tsd-signature-symbol">(</span><span class="tsd-kind-parameter">err</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">ServiceError</span> <span class="tsd-signature-symbol">|</span> <span class="tsd-signature-type">null</span><span class="tsd-signature-symbol">,</span> <span class="tsd-kind-parameter">value</span><span class="tsd-signature-symbol">?:</span> <a href="../interfaces/protobuf_ts_generated_omega_edit_v1_omega_edit.CheckoutCheckpointResponse.html" class="tsd-signature-type tsd-kind-interface">CheckoutCheckpointResponse</a><span class="tsd-signature-symbol">)</span> <span class="tsd-signature-symbol">=&gt;</span> <span class="tsd-signature-type">void</span>)</span></li>
+<li><span><code class="tsd-tag">Optional</code><span class="tsd-kind-parameter">callback</span>: <span class="tsd-signature-symbol">(</span><span class="tsd-kind-parameter">err</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">ServiceError</span> <span class="tsd-signature-symbol">|</span> <span class="tsd-signature-type">null</span><span class="tsd-signature-symbol">,</span> <span class="tsd-kind-parameter">value</span><span class="tsd-signature-symbol">?:</span> <a href="../interfaces/protobuf_ts_generated_omega_edit_v1_omega_edit.CheckoutCheckpointResponse.html" class="tsd-signature-type tsd-kind-interface">CheckoutCheckpointResponse</a><span class="tsd-signature-symbol">)</span> <span class="tsd-signature-symbol">=&gt;</span> <span class="tsd-signature-type">void</span></span></li></ul></div>
+<h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">SurfaceCall</span></h4>
+<div class="tsd-comment tsd-typography">
+<div class="tsd-tag-generated">
+<h4 class="tsd-anchor-link" id="generated-2">Generated<a href="#generated-2" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h4><p>from protobuf rpc: CheckoutCheckpoint</p>
+</div></div><aside class="tsd-sources">
+<p>Implementation of <a href="../interfaces/protobuf_ts_generated_omega_edit_v1_omega_edit.grpc-client.IEditorServiceClient.html">IEditorServiceClient</a>.<a href="../interfaces/protobuf_ts_generated_omega_edit_v1_omega_edit.grpc-client.IEditorServiceClient.html#checkoutcheckpoint">checkoutCheckpoint</a></p>
+<ul>
+<li>Defined in <a href="https://github.com/ctc-oss/omega-edit/blob/929563373970bd3eb12533c4d67bf35c248842b9/packages/client/src/protobuf_ts/generated/omega_edit/v1/omega_edit.grpc-client.ts#L3659">protobuf_ts/generated/omega_edit/v1/omega_edit.grpc-client.ts:3659</a></li></ul></aside></div></li></ul></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="checksessionmodel"><span>check<wbr/>Session<wbr/>Model</span><a href="#checksessionmodel" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <ul class="tsd-signatures">
@@ -184,11 +209,11 @@ inspect content and return derived bytes, or do both.</p>
 <h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">SurfaceCall</span></h4>
 <div class="tsd-comment tsd-typography">
 <div class="tsd-tag-generated">
-<h4 class="tsd-anchor-link" id="generated-2">Generated<a href="#generated-2" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h4><p>from protobuf rpc: CheckSessionModel</p>
+<h4 class="tsd-anchor-link" id="generated-3">Generated<a href="#generated-3" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h4><p>from protobuf rpc: CheckSessionModel</p>
 </div></div><aside class="tsd-sources">
 <p>Implementation of <a href="../interfaces/protobuf_ts_generated_omega_edit_v1_omega_edit.grpc-client.IEditorServiceClient.html">IEditorServiceClient</a>.<a href="../interfaces/protobuf_ts_generated_omega_edit_v1_omega_edit.grpc-client.IEditorServiceClient.html#checksessionmodel">checkSessionModel</a></p>
 <ul>
-<li>Defined in <a href="https://github.com/ctc-oss/omega-edit/blob/6518f54378bc64aa0d57506e55741f5fc6cbc6bb/packages/client/src/protobuf_ts/generated/omega_edit/v1/omega_edit.grpc-client.ts#L3135">protobuf_ts/generated/omega_edit/v1/omega_edit.grpc-client.ts:3135</a></li></ul></aside></div></li></ul></section>
+<li>Defined in <a href="https://github.com/ctc-oss/omega-edit/blob/929563373970bd3eb12533c4d67bf35c248842b9/packages/client/src/protobuf_ts/generated/omega_edit/v1/omega_edit.grpc-client.ts#L3213">protobuf_ts/generated/omega_edit/v1/omega_edit.grpc-client.ts:3213</a></li></ul></aside></div></li></ul></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="clearchanges"><span>clear<wbr/>Changes</span><a href="#clearchanges" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <ul class="tsd-signatures">
@@ -207,11 +232,11 @@ inspect content and return derived bytes, or do both.</p>
 <h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">SurfaceCall</span></h4>
 <div class="tsd-comment tsd-typography">
 <div class="tsd-tag-generated">
-<h4 class="tsd-anchor-link" id="generated-3">Generated<a href="#generated-3" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h4><p>from protobuf rpc: ClearChanges</p>
+<h4 class="tsd-anchor-link" id="generated-4">Generated<a href="#generated-4" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h4><p>from protobuf rpc: ClearChanges</p>
 </div></div><aside class="tsd-sources">
 <p>Implementation of <a href="../interfaces/protobuf_ts_generated_omega_edit_v1_omega_edit.grpc-client.IEditorServiceClient.html">IEditorServiceClient</a>.<a href="../interfaces/protobuf_ts_generated_omega_edit_v1_omega_edit.grpc-client.IEditorServiceClient.html#clearchanges">clearChanges</a></p>
 <ul>
-<li>Defined in <a href="https://github.com/ctc-oss/omega-edit/blob/6518f54378bc64aa0d57506e55741f5fc6cbc6bb/packages/client/src/protobuf_ts/generated/omega_edit/v1/omega_edit.grpc-client.ts#L2305">protobuf_ts/generated/omega_edit/v1/omega_edit.grpc-client.ts:2305</a></li></ul></aside></div></li></ul></section>
+<li>Defined in <a href="https://github.com/ctc-oss/omega-edit/blob/929563373970bd3eb12533c4d67bf35c248842b9/packages/client/src/protobuf_ts/generated/omega_edit/v1/omega_edit.grpc-client.ts#L2383">protobuf_ts/generated/omega_edit/v1/omega_edit.grpc-client.ts:2383</a></li></ul></aside></div></li></ul></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="createcheckpoint"><span>create<wbr/>Checkpoint</span><a href="#createcheckpoint" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <ul class="tsd-signatures">
@@ -230,11 +255,11 @@ inspect content and return derived bytes, or do both.</p>
 <h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">SurfaceCall</span></h4>
 <div class="tsd-comment tsd-typography">
 <div class="tsd-tag-generated">
-<h4 class="tsd-anchor-link" id="generated-4">Generated<a href="#generated-4" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h4><p>from protobuf rpc: CreateCheckpoint</p>
+<h4 class="tsd-anchor-link" id="generated-5">Generated<a href="#generated-5" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h4><p>from protobuf rpc: CreateCheckpoint</p>
 </div></div><aside class="tsd-sources">
 <p>Implementation of <a href="../interfaces/protobuf_ts_generated_omega_edit_v1_omega_edit.grpc-client.IEditorServiceClient.html">IEditorServiceClient</a>.<a href="../interfaces/protobuf_ts_generated_omega_edit_v1_omega_edit.grpc-client.IEditorServiceClient.html#createcheckpoint">createCheckpoint</a></p>
 <ul>
-<li>Defined in <a href="https://github.com/ctc-oss/omega-edit/blob/6518f54378bc64aa0d57506e55741f5fc6cbc6bb/packages/client/src/protobuf_ts/generated/omega_edit/v1/omega_edit.grpc-client.ts#L3498">protobuf_ts/generated/omega_edit/v1/omega_edit.grpc-client.ts:3498</a></li></ul></aside></div></li></ul></section>
+<li>Defined in <a href="https://github.com/ctc-oss/omega-edit/blob/929563373970bd3eb12533c4d67bf35c248842b9/packages/client/src/protobuf_ts/generated/omega_edit/v1/omega_edit.grpc-client.ts#L3576">protobuf_ts/generated/omega_edit/v1/omega_edit.grpc-client.ts:3576</a></li></ul></aside></div></li></ul></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="createsession"><span>create<wbr/>Session</span><a href="#createsession" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <ul class="tsd-signatures">
@@ -256,11 +281,11 @@ draining existing sessions, this RPC fails with UNAVAILABLE.</p>
 <h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">SurfaceCall</span></h4>
 <div class="tsd-comment tsd-typography">
 <div class="tsd-tag-generated">
-<h4 class="tsd-anchor-link" id="generated-5">Generated<a href="#generated-5" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h4><p>from protobuf rpc: CreateSession</p>
+<h4 class="tsd-anchor-link" id="generated-6">Generated<a href="#generated-6" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h4><p>from protobuf rpc: CreateSession</p>
 </div></div><aside class="tsd-sources">
 <p>Implementation of <a href="../interfaces/protobuf_ts_generated_omega_edit_v1_omega_edit.grpc-client.IEditorServiceClient.html">IEditorServiceClient</a>.<a href="../interfaces/protobuf_ts_generated_omega_edit_v1_omega_edit.grpc-client.IEditorServiceClient.html#createsession">createSession</a></p>
 <ul>
-<li>Defined in <a href="https://github.com/ctc-oss/omega-edit/blob/6518f54378bc64aa0d57506e55741f5fc6cbc6bb/packages/client/src/protobuf_ts/generated/omega_edit/v1/omega_edit.grpc-client.ts#L2085">protobuf_ts/generated/omega_edit/v1/omega_edit.grpc-client.ts:2085</a></li></ul></aside></div></li></ul></section>
+<li>Defined in <a href="https://github.com/ctc-oss/omega-edit/blob/929563373970bd3eb12533c4d67bf35c248842b9/packages/client/src/protobuf_ts/generated/omega_edit/v1/omega_edit.grpc-client.ts#L2163">protobuf_ts/generated/omega_edit/v1/omega_edit.grpc-client.ts:2163</a></li></ul></aside></div></li></ul></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="createviewport"><span>create<wbr/>Viewport</span><a href="#createviewport" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <ul class="tsd-signatures">
@@ -280,11 +305,11 @@ into the session's computed content.  Returns the initial data.</p>
 <h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">SurfaceCall</span></h4>
 <div class="tsd-comment tsd-typography">
 <div class="tsd-tag-generated">
-<h4 class="tsd-anchor-link" id="generated-6">Generated<a href="#generated-6" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h4><p>from protobuf rpc: CreateViewport</p>
+<h4 class="tsd-anchor-link" id="generated-7">Generated<a href="#generated-7" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h4><p>from protobuf rpc: CreateViewport</p>
 </div></div><aside class="tsd-sources">
 <p>Implementation of <a href="../interfaces/protobuf_ts_generated_omega_edit_v1_omega_edit.grpc-client.IEditorServiceClient.html">IEditorServiceClient</a>.<a href="../interfaces/protobuf_ts_generated_omega_edit_v1_omega_edit.grpc-client.IEditorServiceClient.html#createviewport">createViewport</a></p>
 <ul>
-<li>Defined in <a href="https://github.com/ctc-oss/omega-edit/blob/6518f54378bc64aa0d57506e55741f5fc6cbc6bb/packages/client/src/protobuf_ts/generated/omega_edit/v1/omega_edit.grpc-client.ts#L2554">protobuf_ts/generated/omega_edit/v1/omega_edit.grpc-client.ts:2554</a></li></ul></aside></div></li></ul></section>
+<li>Defined in <a href="https://github.com/ctc-oss/omega-edit/blob/929563373970bd3eb12533c4d67bf35c248842b9/packages/client/src/protobuf_ts/generated/omega_edit/v1/omega_edit.grpc-client.ts#L2632">protobuf_ts/generated/omega_edit/v1/omega_edit.grpc-client.ts:2632</a></li></ul></aside></div></li></ul></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="destroylastcheckpoint"><span>destroy<wbr/>Last<wbr/>Checkpoint</span><a href="#destroylastcheckpoint" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <ul class="tsd-signatures">
@@ -304,11 +329,11 @@ checkpoint model and exposing the previous model again.</p>
 <h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">SurfaceCall</span></h4>
 <div class="tsd-comment tsd-typography">
 <div class="tsd-tag-generated">
-<h4 class="tsd-anchor-link" id="generated-7">Generated<a href="#generated-7" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h4><p>from protobuf rpc: DestroyLastCheckpoint</p>
+<h4 class="tsd-anchor-link" id="generated-8">Generated<a href="#generated-8" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h4><p>from protobuf rpc: DestroyLastCheckpoint</p>
 </div></div><aside class="tsd-sources">
 <p>Implementation of <a href="../interfaces/protobuf_ts_generated_omega_edit_v1_omega_edit.grpc-client.IEditorServiceClient.html">IEditorServiceClient</a>.<a href="../interfaces/protobuf_ts_generated_omega_edit_v1_omega_edit.grpc-client.IEditorServiceClient.html#destroylastcheckpoint">destroyLastCheckpoint</a></p>
 <ul>
-<li>Defined in <a href="https://github.com/ctc-oss/omega-edit/blob/6518f54378bc64aa0d57506e55741f5fc6cbc6bb/packages/client/src/protobuf_ts/generated/omega_edit/v1/omega_edit.grpc-client.ts#L3540">protobuf_ts/generated/omega_edit/v1/omega_edit.grpc-client.ts:3540</a></li></ul></aside></div></li></ul></section>
+<li>Defined in <a href="https://github.com/ctc-oss/omega-edit/blob/929563373970bd3eb12533c4d67bf35c248842b9/packages/client/src/protobuf_ts/generated/omega_edit/v1/omega_edit.grpc-client.ts#L3618">protobuf_ts/generated/omega_edit/v1/omega_edit.grpc-client.ts:3618</a></li></ul></aside></div></li></ul></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="destroysession"><span>destroy<wbr/>Session</span><a href="#destroysession" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <ul class="tsd-signatures">
@@ -328,11 +353,11 @@ are released when the last attachment is destroyed or reaped.</p>
 <h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">SurfaceCall</span></h4>
 <div class="tsd-comment tsd-typography">
 <div class="tsd-tag-generated">
-<h4 class="tsd-anchor-link" id="generated-8">Generated<a href="#generated-8" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h4><p>from protobuf rpc: DestroySession</p>
+<h4 class="tsd-anchor-link" id="generated-9">Generated<a href="#generated-9" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h4><p>from protobuf rpc: DestroySession</p>
 </div></div><aside class="tsd-sources">
 <p>Implementation of <a href="../interfaces/protobuf_ts_generated_omega_edit_v1_omega_edit.grpc-client.IEditorServiceClient.html">IEditorServiceClient</a>.<a href="../interfaces/protobuf_ts_generated_omega_edit_v1_omega_edit.grpc-client.IEditorServiceClient.html#destroysession">destroySession</a></p>
 <ul>
-<li>Defined in <a href="https://github.com/ctc-oss/omega-edit/blob/6518f54378bc64aa0d57506e55741f5fc6cbc6bb/packages/client/src/protobuf_ts/generated/omega_edit/v1/omega_edit.grpc-client.ts#L2158">protobuf_ts/generated/omega_edit/v1/omega_edit.grpc-client.ts:2158</a></li></ul></aside></div></li></ul></section>
+<li>Defined in <a href="https://github.com/ctc-oss/omega-edit/blob/929563373970bd3eb12533c4d67bf35c248842b9/packages/client/src/protobuf_ts/generated/omega_edit/v1/omega_edit.grpc-client.ts#L2236">protobuf_ts/generated/omega_edit/v1/omega_edit.grpc-client.ts:2236</a></li></ul></aside></div></li></ul></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="destroyviewport"><span>destroy<wbr/>Viewport</span><a href="#destroyviewport" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <ul class="tsd-signatures">
@@ -351,11 +376,34 @@ are released when the last attachment is destroyed or reaped.</p>
 <h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">SurfaceCall</span></h4>
 <div class="tsd-comment tsd-typography">
 <div class="tsd-tag-generated">
-<h4 class="tsd-anchor-link" id="generated-9">Generated<a href="#generated-9" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h4><p>from protobuf rpc: DestroyViewport</p>
+<h4 class="tsd-anchor-link" id="generated-10">Generated<a href="#generated-10" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h4><p>from protobuf rpc: DestroyViewport</p>
 </div></div><aside class="tsd-sources">
 <p>Implementation of <a href="../interfaces/protobuf_ts_generated_omega_edit_v1_omega_edit.grpc-client.IEditorServiceClient.html">IEditorServiceClient</a>.<a href="../interfaces/protobuf_ts_generated_omega_edit_v1_omega_edit.grpc-client.IEditorServiceClient.html#destroyviewport">destroyViewport</a></p>
 <ul>
-<li>Defined in <a href="https://github.com/ctc-oss/omega-edit/blob/6518f54378bc64aa0d57506e55741f5fc6cbc6bb/packages/client/src/protobuf_ts/generated/omega_edit/v1/omega_edit.grpc-client.ts#L2713">protobuf_ts/generated/omega_edit/v1/omega_edit.grpc-client.ts:2713</a></li></ul></aside></div></li></ul></section>
+<li>Defined in <a href="https://github.com/ctc-oss/omega-edit/blob/929563373970bd3eb12533c4d67bf35c248842b9/packages/client/src/protobuf_ts/generated/omega_edit/v1/omega_edit.grpc-client.ts#L2791">protobuf_ts/generated/omega_edit/v1/omega_edit.grpc-client.ts:2791</a></li></ul></aside></div></li></ul></section>
+<section class="tsd-panel tsd-member">
+<h3 class="tsd-anchor-link" id="discardcheckpointfuture"><span>discard<wbr/>Checkpoint<wbr/>Future</span><a href="#discardcheckpointfuture" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
+<ul class="tsd-signatures">
+<li class="">
+<div class="tsd-signature tsd-anchor-link" id="discardcheckpointfuture-1"><span class="tsd-kind-call-signature">discardCheckpointFuture</span><span class="tsd-signature-symbol">(</span><br/>    <span class="tsd-kind-parameter">input</span><span class="tsd-signature-symbol">:</span> <a href="../interfaces/protobuf_ts_generated_omega_edit_v1_omega_edit.DiscardCheckpointFutureRequest.html" class="tsd-signature-type tsd-kind-interface">DiscardCheckpointFutureRequest</a><span class="tsd-signature-symbol">,</span><br/>    <span class="tsd-kind-parameter">metadata</span><span class="tsd-signature-symbol">:</span><br/>        <span class="tsd-signature-symbol">|</span> <span class="tsd-signature-type">Metadata</span><br/>        <span class="tsd-signature-symbol">|</span> <span class="tsd-signature-type">CallOptions</span><br/>        <span class="tsd-signature-symbol">|</span> (<br/>            <span class="tsd-signature-symbol">(</span><br/>                <span class="tsd-kind-parameter">err</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">ServiceError</span> <span class="tsd-signature-symbol">|</span> <span class="tsd-signature-type">null</span><span class="tsd-signature-symbol">,</span><br/>                <span class="tsd-kind-parameter">value</span><span class="tsd-signature-symbol">?:</span> <a href="../interfaces/protobuf_ts_generated_omega_edit_v1_omega_edit.DiscardCheckpointFutureResponse.html" class="tsd-signature-type tsd-kind-interface">DiscardCheckpointFutureResponse</a><span class="tsd-signature-symbol">,</span><br/>            <span class="tsd-signature-symbol">)</span> <span class="tsd-signature-symbol">=&gt;</span> <span class="tsd-signature-type">void</span><br/>        )<span class="tsd-signature-symbol">,</span><br/>    <span class="tsd-kind-parameter">options</span><span class="tsd-signature-symbol">?:</span><br/>        <span class="tsd-signature-symbol">|</span> <span class="tsd-signature-type">CallOptions</span><br/>        <span class="tsd-signature-symbol">|</span> (<br/>            <span class="tsd-signature-symbol">(</span><br/>                <span class="tsd-kind-parameter">err</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">ServiceError</span> <span class="tsd-signature-symbol">|</span> <span class="tsd-signature-type">null</span><span class="tsd-signature-symbol">,</span><br/>                <span class="tsd-kind-parameter">value</span><span class="tsd-signature-symbol">?:</span> <a href="../interfaces/protobuf_ts_generated_omega_edit_v1_omega_edit.DiscardCheckpointFutureResponse.html" class="tsd-signature-type tsd-kind-interface">DiscardCheckpointFutureResponse</a><span class="tsd-signature-symbol">,</span><br/>            <span class="tsd-signature-symbol">)</span> <span class="tsd-signature-symbol">=&gt;</span> <span class="tsd-signature-type">void</span><br/>        )<span class="tsd-signature-symbol">,</span><br/>    <span class="tsd-kind-parameter">callback</span><span class="tsd-signature-symbol">?:</span> <span class="tsd-signature-symbol">(</span><br/>        <span class="tsd-kind-parameter">err</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">ServiceError</span> <span class="tsd-signature-symbol">|</span> <span class="tsd-signature-type">null</span><span class="tsd-signature-symbol">,</span><br/>        <span class="tsd-kind-parameter">value</span><span class="tsd-signature-symbol">?:</span> <a href="../interfaces/protobuf_ts_generated_omega_edit_v1_omega_edit.DiscardCheckpointFutureResponse.html" class="tsd-signature-type tsd-kind-interface">DiscardCheckpointFutureResponse</a><span class="tsd-signature-symbol">,</span><br/>    <span class="tsd-signature-symbol">)</span> <span class="tsd-signature-symbol">=&gt;</span> <span class="tsd-signature-type">void</span><span class="tsd-signature-symbol">,</span><br/><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">SurfaceCall</span><a href="#discardcheckpointfuture-1" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></div>
+<div class="tsd-description">
+<div class="tsd-comment tsd-typography"><p>Permanently discard checkpoints after the active checkpoint boundary.</p>
+</div>
+<div class="tsd-parameters">
+<h4 class="tsd-parameters-title">Parameters</h4>
+<ul class="tsd-parameter-list">
+<li><span><span class="tsd-kind-parameter">input</span>: <a href="../interfaces/protobuf_ts_generated_omega_edit_v1_omega_edit.DiscardCheckpointFutureRequest.html" class="tsd-signature-type tsd-kind-interface">DiscardCheckpointFutureRequest</a></span></li>
+<li><span><span class="tsd-kind-parameter">metadata</span>: <br/>    <span class="tsd-signature-symbol">|</span> <span class="tsd-signature-type">Metadata</span><br/>    <span class="tsd-signature-symbol">|</span> <span class="tsd-signature-type">CallOptions</span><br/>    <span class="tsd-signature-symbol">|</span> (<br/>        <span class="tsd-signature-symbol">(</span><br/>            <span class="tsd-kind-parameter">err</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">ServiceError</span> <span class="tsd-signature-symbol">|</span> <span class="tsd-signature-type">null</span><span class="tsd-signature-symbol">,</span><br/>            <span class="tsd-kind-parameter">value</span><span class="tsd-signature-symbol">?:</span> <a href="../interfaces/protobuf_ts_generated_omega_edit_v1_omega_edit.DiscardCheckpointFutureResponse.html" class="tsd-signature-type tsd-kind-interface">DiscardCheckpointFutureResponse</a><span class="tsd-signature-symbol">,</span><br/>        <span class="tsd-signature-symbol">)</span> <span class="tsd-signature-symbol">=&gt;</span> <span class="tsd-signature-type">void</span><br/>    )</span></li>
+<li><span><code class="tsd-tag">Optional</code><span class="tsd-kind-parameter">options</span>: <br/>    <span class="tsd-signature-symbol">|</span> <span class="tsd-signature-type">CallOptions</span><br/>    <span class="tsd-signature-symbol">|</span> (<br/>        <span class="tsd-signature-symbol">(</span><br/>            <span class="tsd-kind-parameter">err</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">ServiceError</span> <span class="tsd-signature-symbol">|</span> <span class="tsd-signature-type">null</span><span class="tsd-signature-symbol">,</span><br/>            <span class="tsd-kind-parameter">value</span><span class="tsd-signature-symbol">?:</span> <a href="../interfaces/protobuf_ts_generated_omega_edit_v1_omega_edit.DiscardCheckpointFutureResponse.html" class="tsd-signature-type tsd-kind-interface">DiscardCheckpointFutureResponse</a><span class="tsd-signature-symbol">,</span><br/>        <span class="tsd-signature-symbol">)</span> <span class="tsd-signature-symbol">=&gt;</span> <span class="tsd-signature-type">void</span><br/>    )</span></li>
+<li><span><code class="tsd-tag">Optional</code><span class="tsd-kind-parameter">callback</span>: <span class="tsd-signature-symbol">(</span><span class="tsd-kind-parameter">err</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">ServiceError</span> <span class="tsd-signature-symbol">|</span> <span class="tsd-signature-type">null</span><span class="tsd-signature-symbol">,</span> <span class="tsd-kind-parameter">value</span><span class="tsd-signature-symbol">?:</span> <a href="../interfaces/protobuf_ts_generated_omega_edit_v1_omega_edit.DiscardCheckpointFutureResponse.html" class="tsd-signature-type tsd-kind-interface">DiscardCheckpointFutureResponse</a><span class="tsd-signature-symbol">)</span> <span class="tsd-signature-symbol">=&gt;</span> <span class="tsd-signature-type">void</span></span></li></ul></div>
+<h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">SurfaceCall</span></h4>
+<div class="tsd-comment tsd-typography">
+<div class="tsd-tag-generated">
+<h4 class="tsd-anchor-link" id="generated-11">Generated<a href="#generated-11" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h4><p>from protobuf rpc: DiscardCheckpointFuture</p>
+</div></div><aside class="tsd-sources">
+<p>Implementation of <a href="../interfaces/protobuf_ts_generated_omega_edit_v1_omega_edit.grpc-client.IEditorServiceClient.html">IEditorServiceClient</a>.<a href="../interfaces/protobuf_ts_generated_omega_edit_v1_omega_edit.grpc-client.IEditorServiceClient.html#discardcheckpointfuture">discardCheckpointFuture</a></p>
+<ul>
+<li>Defined in <a href="https://github.com/ctc-oss/omega-edit/blob/929563373970bd3eb12533c4d67bf35c248842b9/packages/client/src/protobuf_ts/generated/omega_edit/v1/omega_edit.grpc-client.ts#L3700">protobuf_ts/generated/omega_edit/v1/omega_edit.grpc-client.ts:3700</a></li></ul></aside></div></li></ul></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="exportchangelog"><span>export<wbr/>Change<wbr/>Log</span><a href="#exportchangelog" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <ul class="tsd-signatures">
@@ -373,11 +421,11 @@ are released when the last attachment is destroyed or reaped.</p>
 <h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">ClientReadableStream</span><span class="tsd-signature-symbol">&lt;</span><a href="../interfaces/protobuf_ts_generated_omega_edit_v1_omega_edit.ExportChangeLogResponse.html" class="tsd-signature-type tsd-kind-interface">ExportChangeLogResponse</a><span class="tsd-signature-symbol">&gt;</span></h4>
 <div class="tsd-comment tsd-typography">
 <div class="tsd-tag-generated">
-<h4 class="tsd-anchor-link" id="generated-10">Generated<a href="#generated-10" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h4><p>from protobuf rpc: ExportChangeLog</p>
+<h4 class="tsd-anchor-link" id="generated-12">Generated<a href="#generated-12" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h4><p>from protobuf rpc: ExportChangeLog</p>
 </div></div><aside class="tsd-sources">
 <p>Implementation of <a href="../interfaces/protobuf_ts_generated_omega_edit_v1_omega_edit.grpc-client.IEditorServiceClient.html">IEditorServiceClient</a>.<a href="../interfaces/protobuf_ts_generated_omega_edit_v1_omega_edit.grpc-client.IEditorServiceClient.html#exportchangelog">exportChangeLog</a></p>
 <ul>
-<li>Defined in <a href="https://github.com/ctc-oss/omega-edit/blob/6518f54378bc64aa0d57506e55741f5fc6cbc6bb/packages/client/src/protobuf_ts/generated/omega_edit/v1/omega_edit.grpc-client.ts#L2994">protobuf_ts/generated/omega_edit/v1/omega_edit.grpc-client.ts:2994</a></li></ul></aside></div></li></ul></section>
+<li>Defined in <a href="https://github.com/ctc-oss/omega-edit/blob/929563373970bd3eb12533c4d67bf35c248842b9/packages/client/src/protobuf_ts/generated/omega_edit/v1/omega_edit.grpc-client.ts#L3072">protobuf_ts/generated/omega_edit/v1/omega_edit.grpc-client.ts:3072</a></li></ul></aside></div></li></ul></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="getbytefrequencyprofile"><span>get<wbr/>Byte<wbr/>Frequency<wbr/>Profile</span><a href="#getbytefrequencyprofile" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <ul class="tsd-signatures">
@@ -397,11 +445,11 @@ a range of session data.  Bucket 256 counts DOS-style CR+LF line endings.</p>
 <h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">SurfaceCall</span></h4>
 <div class="tsd-comment tsd-typography">
 <div class="tsd-tag-generated">
-<h4 class="tsd-anchor-link" id="generated-11">Generated<a href="#generated-11" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h4><p>from protobuf rpc: GetByteFrequencyProfile</p>
+<h4 class="tsd-anchor-link" id="generated-13">Generated<a href="#generated-13" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h4><p>from protobuf rpc: GetByteFrequencyProfile</p>
 </div></div><aside class="tsd-sources">
 <p>Implementation of <a href="../interfaces/protobuf_ts_generated_omega_edit_v1_omega_edit.grpc-client.IEditorServiceClient.html">IEditorServiceClient</a>.<a href="../interfaces/protobuf_ts_generated_omega_edit_v1_omega_edit.grpc-client.IEditorServiceClient.html#getbytefrequencyprofile">getByteFrequencyProfile</a></p>
 <ul>
-<li>Defined in <a href="https://github.com/ctc-oss/omega-edit/blob/6518f54378bc64aa0d57506e55741f5fc6cbc6bb/packages/client/src/protobuf_ts/generated/omega_edit/v1/omega_edit.grpc-client.ts#L3707">protobuf_ts/generated/omega_edit/v1/omega_edit.grpc-client.ts:3707</a></li></ul></aside></div></li></ul></section>
+<li>Defined in <a href="https://github.com/ctc-oss/omega-edit/blob/929563373970bd3eb12533c4d67bf35c248842b9/packages/client/src/protobuf_ts/generated/omega_edit/v1/omega_edit.grpc-client.ts#L3867">protobuf_ts/generated/omega_edit/v1/omega_edit.grpc-client.ts:3867</a></li></ul></aside></div></li></ul></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="getbyteordermark"><span>get<wbr/>Byte<wbr/>Order<wbr/>Mark</span><a href="#getbyteordermark" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <ul class="tsd-signatures">
@@ -420,11 +468,11 @@ a range of session data.  Bucket 256 counts DOS-style CR+LF line endings.</p>
 <h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">SurfaceCall</span></h4>
 <div class="tsd-comment tsd-typography">
 <div class="tsd-tag-generated">
-<h4 class="tsd-anchor-link" id="generated-12">Generated<a href="#generated-12" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h4><p>from protobuf rpc: GetByteOrderMark</p>
+<h4 class="tsd-anchor-link" id="generated-14">Generated<a href="#generated-14" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h4><p>from protobuf rpc: GetByteOrderMark</p>
 </div></div><aside class="tsd-sources">
 <p>Implementation of <a href="../interfaces/protobuf_ts_generated_omega_edit_v1_omega_edit.grpc-client.IEditorServiceClient.html">IEditorServiceClient</a>.<a href="../interfaces/protobuf_ts_generated_omega_edit_v1_omega_edit.grpc-client.IEditorServiceClient.html#getbyteordermark">getByteOrderMark</a></p>
 <ul>
-<li>Defined in <a href="https://github.com/ctc-oss/omega-edit/blob/6518f54378bc64aa0d57506e55741f5fc6cbc6bb/packages/client/src/protobuf_ts/generated/omega_edit/v1/omega_edit.grpc-client.ts#L3064">protobuf_ts/generated/omega_edit/v1/omega_edit.grpc-client.ts:3064</a></li></ul></aside></div></li></ul></section>
+<li>Defined in <a href="https://github.com/ctc-oss/omega-edit/blob/929563373970bd3eb12533c4d67bf35c248842b9/packages/client/src/protobuf_ts/generated/omega_edit/v1/omega_edit.grpc-client.ts#L3142">protobuf_ts/generated/omega_edit/v1/omega_edit.grpc-client.ts:3142</a></li></ul></aside></div></li></ul></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="getchangedetails"><span>get<wbr/>Change<wbr/>Details</span><a href="#getchangedetails" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <ul class="tsd-signatures">
@@ -444,11 +492,11 @@ number (carried inside the SessionEvent).</p>
 <h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">SurfaceCall</span></h4>
 <div class="tsd-comment tsd-typography">
 <div class="tsd-tag-generated">
-<h4 class="tsd-anchor-link" id="generated-13">Generated<a href="#generated-13" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h4><p>from protobuf rpc: GetChangeDetails</p>
+<h4 class="tsd-anchor-link" id="generated-15">Generated<a href="#generated-15" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h4><p>from protobuf rpc: GetChangeDetails</p>
 </div></div><aside class="tsd-sources">
 <p>Implementation of <a href="../interfaces/protobuf_ts_generated_omega_edit_v1_omega_edit.grpc-client.IEditorServiceClient.html">IEditorServiceClient</a>.<a href="../interfaces/protobuf_ts_generated_omega_edit_v1_omega_edit.grpc-client.IEditorServiceClient.html#getchangedetails">getChangeDetails</a></p>
 <ul>
-<li>Defined in <a href="https://github.com/ctc-oss/omega-edit/blob/6518f54378bc64aa0d57506e55741f5fc6cbc6bb/packages/client/src/protobuf_ts/generated/omega_edit/v1/omega_edit.grpc-client.ts#L2883">protobuf_ts/generated/omega_edit/v1/omega_edit.grpc-client.ts:2883</a></li></ul></aside></div></li></ul></section>
+<li>Defined in <a href="https://github.com/ctc-oss/omega-edit/blob/929563373970bd3eb12533c4d67bf35c248842b9/packages/client/src/protobuf_ts/generated/omega_edit/v1/omega_edit.grpc-client.ts#L2961">protobuf_ts/generated/omega_edit/v1/omega_edit.grpc-client.ts:2961</a></li></ul></aside></div></li></ul></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="getcharactercounts"><span>get<wbr/>Character<wbr/>Counts</span><a href="#getcharactercounts" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <ul class="tsd-signatures">
@@ -468,11 +516,11 @@ UTF-encoded text segment.  Also reports invalid bytes.</p>
 <h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">SurfaceCall</span></h4>
 <div class="tsd-comment tsd-typography">
 <div class="tsd-tag-generated">
-<h4 class="tsd-anchor-link" id="generated-14">Generated<a href="#generated-14" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h4><p>from protobuf rpc: GetCharacterCounts</p>
+<h4 class="tsd-anchor-link" id="generated-16">Generated<a href="#generated-16" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h4><p>from protobuf rpc: GetCharacterCounts</p>
 </div></div><aside class="tsd-sources">
 <p>Implementation of <a href="../interfaces/protobuf_ts_generated_omega_edit_v1_omega_edit.grpc-client.IEditorServiceClient.html">IEditorServiceClient</a>.<a href="../interfaces/protobuf_ts_generated_omega_edit_v1_omega_edit.grpc-client.IEditorServiceClient.html#getcharactercounts">getCharacterCounts</a></p>
 <ul>
-<li>Defined in <a href="https://github.com/ctc-oss/omega-edit/blob/6518f54378bc64aa0d57506e55741f5fc6cbc6bb/packages/client/src/protobuf_ts/generated/omega_edit/v1/omega_edit.grpc-client.ts#L3749">protobuf_ts/generated/omega_edit/v1/omega_edit.grpc-client.ts:3749</a></li></ul></aside></div></li></ul></section>
+<li>Defined in <a href="https://github.com/ctc-oss/omega-edit/blob/929563373970bd3eb12533c4d67bf35c248842b9/packages/client/src/protobuf_ts/generated/omega_edit/v1/omega_edit.grpc-client.ts#L3909">protobuf_ts/generated/omega_edit/v1/omega_edit.grpc-client.ts:3909</a></li></ul></aside></div></li></ul></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="getcomputedfilesize"><span>get<wbr/>Computed<wbr/>File<wbr/>Size</span><a href="#getcomputedfilesize" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <ul class="tsd-signatures">
@@ -491,11 +539,11 @@ UTF-encoded text segment.  Also reports invalid bytes.</p>
 <h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">SurfaceCall</span></h4>
 <div class="tsd-comment tsd-typography">
 <div class="tsd-tag-generated">
-<h4 class="tsd-anchor-link" id="generated-15">Generated<a href="#generated-15" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h4><p>from protobuf rpc: GetComputedFileSize</p>
+<h4 class="tsd-anchor-link" id="generated-17">Generated<a href="#generated-17" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h4><p>from protobuf rpc: GetComputedFileSize</p>
 </div></div><aside class="tsd-sources">
 <p>Implementation of <a href="../interfaces/protobuf_ts_generated_omega_edit_v1_omega_edit.grpc-client.IEditorServiceClient.html">IEditorServiceClient</a>.<a href="../interfaces/protobuf_ts_generated_omega_edit_v1_omega_edit.grpc-client.IEditorServiceClient.html#getcomputedfilesize">getComputedFileSize</a></p>
 <ul>
-<li>Defined in <a href="https://github.com/ctc-oss/omega-edit/blob/6518f54378bc64aa0d57506e55741f5fc6cbc6bb/packages/client/src/protobuf_ts/generated/omega_edit/v1/omega_edit.grpc-client.ts#L3023">protobuf_ts/generated/omega_edit/v1/omega_edit.grpc-client.ts:3023</a></li></ul></aside></div></li></ul></section>
+<li>Defined in <a href="https://github.com/ctc-oss/omega-edit/blob/929563373970bd3eb12533c4d67bf35c248842b9/packages/client/src/protobuf_ts/generated/omega_edit/v1/omega_edit.grpc-client.ts#L3101">protobuf_ts/generated/omega_edit/v1/omega_edit.grpc-client.ts:3101</a></li></ul></aside></div></li></ul></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="getcount"><span>get<wbr/>Count</span><a href="#getcount" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <ul class="tsd-signatures">
@@ -515,11 +563,11 @@ viewports, checkpoints, etc.) in a single round-trip.</p>
 <h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">SurfaceCall</span></h4>
 <div class="tsd-comment tsd-typography">
 <div class="tsd-tag-generated">
-<h4 class="tsd-anchor-link" id="generated-16">Generated<a href="#generated-16" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h4><p>from protobuf rpc: GetCount</p>
+<h4 class="tsd-anchor-link" id="generated-18">Generated<a href="#generated-18" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h4><p>from protobuf rpc: GetCount</p>
 </div></div><aside class="tsd-sources">
 <p>Implementation of <a href="../interfaces/protobuf_ts_generated_omega_edit_v1_omega_edit.grpc-client.IEditorServiceClient.html">IEditorServiceClient</a>.<a href="../interfaces/protobuf_ts_generated_omega_edit_v1_omega_edit.grpc-client.IEditorServiceClient.html#getcount">getCount</a></p>
 <ul>
-<li>Defined in <a href="https://github.com/ctc-oss/omega-edit/blob/6518f54378bc64aa0d57506e55741f5fc6cbc6bb/packages/client/src/protobuf_ts/generated/omega_edit/v1/omega_edit.grpc-client.ts#L3106">protobuf_ts/generated/omega_edit/v1/omega_edit.grpc-client.ts:3106</a></li></ul></aside></div></li></ul></section>
+<li>Defined in <a href="https://github.com/ctc-oss/omega-edit/blob/929563373970bd3eb12533c4d67bf35c248842b9/packages/client/src/protobuf_ts/generated/omega_edit/v1/omega_edit.grpc-client.ts#L3184">protobuf_ts/generated/omega_edit/v1/omega_edit.grpc-client.ts:3184</a></li></ul></aside></div></li></ul></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="getheartbeat"><span>get<wbr/>Heartbeat</span><a href="#getheartbeat" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <ul class="tsd-signatures">
@@ -539,11 +587,11 @@ still holds so the server can keep them alive and return resource metrics.</p>
 <h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">SurfaceCall</span></h4>
 <div class="tsd-comment tsd-typography">
 <div class="tsd-tag-generated">
-<h4 class="tsd-anchor-link" id="generated-17">Generated<a href="#generated-17" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h4><p>from protobuf rpc: GetHeartbeat</p>
+<h4 class="tsd-anchor-link" id="generated-19">Generated<a href="#generated-19" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h4><p>from protobuf rpc: GetHeartbeat</p>
 </div></div><aside class="tsd-sources">
 <p>Implementation of <a href="../interfaces/protobuf_ts_generated_omega_edit_v1_omega_edit.grpc-client.IEditorServiceClient.html">IEditorServiceClient</a>.<a href="../interfaces/protobuf_ts_generated_omega_edit_v1_omega_edit.grpc-client.IEditorServiceClient.html#getheartbeat">getHeartbeat</a></p>
 <ul>
-<li>Defined in <a href="https://github.com/ctc-oss/omega-edit/blob/6518f54378bc64aa0d57506e55741f5fc6cbc6bb/packages/client/src/protobuf_ts/generated/omega_edit/v1/omega_edit.grpc-client.ts#L3833">protobuf_ts/generated/omega_edit/v1/omega_edit.grpc-client.ts:3833</a></li></ul></aside></div></li></ul></section>
+<li>Defined in <a href="https://github.com/ctc-oss/omega-edit/blob/929563373970bd3eb12533c4d67bf35c248842b9/packages/client/src/protobuf_ts/generated/omega_edit/v1/omega_edit.grpc-client.ts#L3993">protobuf_ts/generated/omega_edit/v1/omega_edit.grpc-client.ts:3993</a></li></ul></aside></div></li></ul></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="getlastchange"><span>get<wbr/>Last<wbr/>Change</span><a href="#getlastchange" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <ul class="tsd-signatures">
@@ -562,11 +610,11 @@ still holds so the server can keep them alive and return resource metrics.</p>
 <h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">SurfaceCall</span></h4>
 <div class="tsd-comment tsd-typography">
 <div class="tsd-tag-generated">
-<h4 class="tsd-anchor-link" id="generated-18">Generated<a href="#generated-18" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h4><p>from protobuf rpc: GetLastChange</p>
+<h4 class="tsd-anchor-link" id="generated-20">Generated<a href="#generated-20" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h4><p>from protobuf rpc: GetLastChange</p>
 </div></div><aside class="tsd-sources">
 <p>Implementation of <a href="../interfaces/protobuf_ts_generated_omega_edit_v1_omega_edit.grpc-client.IEditorServiceClient.html">IEditorServiceClient</a>.<a href="../interfaces/protobuf_ts_generated_omega_edit_v1_omega_edit.grpc-client.IEditorServiceClient.html#getlastchange">getLastChange</a></p>
 <ul>
-<li>Defined in <a href="https://github.com/ctc-oss/omega-edit/blob/6518f54378bc64aa0d57506e55741f5fc6cbc6bb/packages/client/src/protobuf_ts/generated/omega_edit/v1/omega_edit.grpc-client.ts#L2924">protobuf_ts/generated/omega_edit/v1/omega_edit.grpc-client.ts:2924</a></li></ul></aside></div></li></ul></section>
+<li>Defined in <a href="https://github.com/ctc-oss/omega-edit/blob/929563373970bd3eb12533c4d67bf35c248842b9/packages/client/src/protobuf_ts/generated/omega_edit/v1/omega_edit.grpc-client.ts#L3002">protobuf_ts/generated/omega_edit/v1/omega_edit.grpc-client.ts:3002</a></li></ul></aside></div></li></ul></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="getlastundo"><span>get<wbr/>Last<wbr/>Undo</span><a href="#getlastundo" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <ul class="tsd-signatures">
@@ -585,11 +633,11 @@ still holds so the server can keep them alive and return resource metrics.</p>
 <h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">SurfaceCall</span></h4>
 <div class="tsd-comment tsd-typography">
 <div class="tsd-tag-generated">
-<h4 class="tsd-anchor-link" id="generated-19">Generated<a href="#generated-19" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h4><p>from protobuf rpc: GetLastUndo</p>
+<h4 class="tsd-anchor-link" id="generated-21">Generated<a href="#generated-21" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h4><p>from protobuf rpc: GetLastUndo</p>
 </div></div><aside class="tsd-sources">
 <p>Implementation of <a href="../interfaces/protobuf_ts_generated_omega_edit_v1_omega_edit.grpc-client.IEditorServiceClient.html">IEditorServiceClient</a>.<a href="../interfaces/protobuf_ts_generated_omega_edit_v1_omega_edit.grpc-client.IEditorServiceClient.html#getlastundo">getLastUndo</a></p>
 <ul>
-<li>Defined in <a href="https://github.com/ctc-oss/omega-edit/blob/6518f54378bc64aa0d57506e55741f5fc6cbc6bb/packages/client/src/protobuf_ts/generated/omega_edit/v1/omega_edit.grpc-client.ts#L2962">protobuf_ts/generated/omega_edit/v1/omega_edit.grpc-client.ts:2962</a></li></ul></aside></div></li></ul></section>
+<li>Defined in <a href="https://github.com/ctc-oss/omega-edit/blob/929563373970bd3eb12533c4d67bf35c248842b9/packages/client/src/protobuf_ts/generated/omega_edit/v1/omega_edit.grpc-client.ts#L3040">protobuf_ts/generated/omega_edit/v1/omega_edit.grpc-client.ts:3040</a></li></ul></aside></div></li></ul></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="getsegment"><span>get<wbr/>Segment</span><a href="#getsegment" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <ul class="tsd-signatures">
@@ -608,11 +656,11 @@ still holds so the server can keep them alive and return resource metrics.</p>
 <h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">SurfaceCall</span></h4>
 <div class="tsd-comment tsd-typography">
 <div class="tsd-tag-generated">
-<h4 class="tsd-anchor-link" id="generated-20">Generated<a href="#generated-20" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h4><p>from protobuf rpc: GetSegment</p>
+<h4 class="tsd-anchor-link" id="generated-22">Generated<a href="#generated-22" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h4><p>from protobuf rpc: GetSegment</p>
 </div></div><aside class="tsd-sources">
 <p>Implementation of <a href="../interfaces/protobuf_ts_generated_omega_edit_v1_omega_edit.grpc-client.IEditorServiceClient.html">IEditorServiceClient</a>.<a href="../interfaces/protobuf_ts_generated_omega_edit_v1_omega_edit.grpc-client.IEditorServiceClient.html#getsegment">getSegment</a></p>
 <ul>
-<li>Defined in <a href="https://github.com/ctc-oss/omega-edit/blob/6518f54378bc64aa0d57506e55741f5fc6cbc6bb/packages/client/src/protobuf_ts/generated/omega_edit/v1/omega_edit.grpc-client.ts#L3340">protobuf_ts/generated/omega_edit/v1/omega_edit.grpc-client.ts:3340</a></li></ul></aside></div></li></ul></section>
+<li>Defined in <a href="https://github.com/ctc-oss/omega-edit/blob/929563373970bd3eb12533c4d67bf35c248842b9/packages/client/src/protobuf_ts/generated/omega_edit/v1/omega_edit.grpc-client.ts#L3418">protobuf_ts/generated/omega_edit/v1/omega_edit.grpc-client.ts:3418</a></li></ul></aside></div></li></ul></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="getserverinfo"><span>get<wbr/>Server<wbr/>Info</span><a href="#getserverinfo" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <ul class="tsd-signatures">
@@ -631,11 +679,11 @@ still holds so the server can keep them alive and return resource metrics.</p>
 <h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">SurfaceCall</span></h4>
 <div class="tsd-comment tsd-typography">
 <div class="tsd-tag-generated">
-<h4 class="tsd-anchor-link" id="generated-21">Generated<a href="#generated-21" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h4><p>from protobuf rpc: GetServerInfo</p>
+<h4 class="tsd-anchor-link" id="generated-23">Generated<a href="#generated-23" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h4><p>from protobuf rpc: GetServerInfo</p>
 </div></div><aside class="tsd-sources">
 <p>Implementation of <a href="../interfaces/protobuf_ts_generated_omega_edit_v1_omega_edit.grpc-client.IEditorServiceClient.html">IEditorServiceClient</a>.<a href="../interfaces/protobuf_ts_generated_omega_edit_v1_omega_edit.grpc-client.IEditorServiceClient.html#getserverinfo">getServerInfo</a></p>
 <ul>
-<li>Defined in <a href="https://github.com/ctc-oss/omega-edit/blob/6518f54378bc64aa0d57506e55741f5fc6cbc6bb/packages/client/src/protobuf_ts/generated/omega_edit/v1/omega_edit.grpc-client.ts#L2040">protobuf_ts/generated/omega_edit/v1/omega_edit.grpc-client.ts:2040</a></li></ul></aside></div></li></ul></section>
+<li>Defined in <a href="https://github.com/ctc-oss/omega-edit/blob/929563373970bd3eb12533c4d67bf35c248842b9/packages/client/src/protobuf_ts/generated/omega_edit/v1/omega_edit.grpc-client.ts#L2118">protobuf_ts/generated/omega_edit/v1/omega_edit.grpc-client.ts:2118</a></li></ul></aside></div></li></ul></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="getsessioncontentinfo"><span>get<wbr/>Session<wbr/>Content<wbr/>Info</span><a href="#getsessioncontentinfo" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <ul class="tsd-signatures">
@@ -654,11 +702,11 @@ still holds so the server can keep them alive and return resource metrics.</p>
 <h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">SurfaceCall</span></h4>
 <div class="tsd-comment tsd-typography">
 <div class="tsd-tag-generated">
-<h4 class="tsd-anchor-link" id="generated-22">Generated<a href="#generated-22" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h4><p>from protobuf rpc: GetSessionContentInfo</p>
+<h4 class="tsd-anchor-link" id="generated-24">Generated<a href="#generated-24" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h4><p>from protobuf rpc: GetSessionContentInfo</p>
 </div></div><aside class="tsd-sources">
 <p>Implementation of <a href="../interfaces/protobuf_ts_generated_omega_edit_v1_omega_edit.grpc-client.IEditorServiceClient.html">IEditorServiceClient</a>.<a href="../interfaces/protobuf_ts_generated_omega_edit_v1_omega_edit.grpc-client.IEditorServiceClient.html#getsessioncontentinfo">getSessionContentInfo</a></p>
 <ul>
-<li>Defined in <a href="https://github.com/ctc-oss/omega-edit/blob/6518f54378bc64aa0d57506e55741f5fc6cbc6bb/packages/client/src/protobuf_ts/generated/omega_edit/v1/omega_edit.grpc-client.ts#L3217">protobuf_ts/generated/omega_edit/v1/omega_edit.grpc-client.ts:3217</a></li></ul></aside></div></li></ul></section>
+<li>Defined in <a href="https://github.com/ctc-oss/omega-edit/blob/929563373970bd3eb12533c4d67bf35c248842b9/packages/client/src/protobuf_ts/generated/omega_edit/v1/omega_edit.grpc-client.ts#L3295">protobuf_ts/generated/omega_edit/v1/omega_edit.grpc-client.ts:3295</a></li></ul></aside></div></li></ul></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="getsessioncount"><span>get<wbr/>Session<wbr/>Count</span><a href="#getsessioncount" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <ul class="tsd-signatures">
@@ -677,11 +725,11 @@ still holds so the server can keep them alive and return resource metrics.</p>
 <h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">SurfaceCall</span></h4>
 <div class="tsd-comment tsd-typography">
 <div class="tsd-tag-generated">
-<h4 class="tsd-anchor-link" id="generated-23">Generated<a href="#generated-23" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h4><p>from protobuf rpc: GetSessionCount</p>
+<h4 class="tsd-anchor-link" id="generated-25">Generated<a href="#generated-25" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h4><p>from protobuf rpc: GetSessionCount</p>
 </div></div><aside class="tsd-sources">
 <p>Implementation of <a href="../interfaces/protobuf_ts_generated_omega_edit_v1_omega_edit.grpc-client.IEditorServiceClient.html">IEditorServiceClient</a>.<a href="../interfaces/protobuf_ts_generated_omega_edit_v1_omega_edit.grpc-client.IEditorServiceClient.html#getsessioncount">getSessionCount</a></p>
 <ul>
-<li>Defined in <a href="https://github.com/ctc-oss/omega-edit/blob/6518f54378bc64aa0d57506e55741f5fc6cbc6bb/packages/client/src/protobuf_ts/generated/omega_edit/v1/omega_edit.grpc-client.ts#L3299">protobuf_ts/generated/omega_edit/v1/omega_edit.grpc-client.ts:3299</a></li></ul></aside></div></li></ul></section>
+<li>Defined in <a href="https://github.com/ctc-oss/omega-edit/blob/929563373970bd3eb12533c4d67bf35c248842b9/packages/client/src/protobuf_ts/generated/omega_edit/v1/omega_edit.grpc-client.ts#L3377">protobuf_ts/generated/omega_edit/v1/omega_edit.grpc-client.ts:3377</a></li></ul></aside></div></li></ul></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="getsessionfingerprint"><span>get<wbr/>Session<wbr/>Fingerprint</span><a href="#getsessionfingerprint" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <ul class="tsd-signatures">
@@ -700,11 +748,11 @@ still holds so the server can keep them alive and return resource metrics.</p>
 <h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">SurfaceCall</span></h4>
 <div class="tsd-comment tsd-typography">
 <div class="tsd-tag-generated">
-<h4 class="tsd-anchor-link" id="generated-24">Generated<a href="#generated-24" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h4><p>from protobuf rpc: GetSessionFingerprint</p>
+<h4 class="tsd-anchor-link" id="generated-26">Generated<a href="#generated-26" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h4><p>from protobuf rpc: GetSessionFingerprint</p>
 </div></div><aside class="tsd-sources">
 <p>Implementation of <a href="../interfaces/protobuf_ts_generated_omega_edit_v1_omega_edit.grpc-client.IEditorServiceClient.html">IEditorServiceClient</a>.<a href="../interfaces/protobuf_ts_generated_omega_edit_v1_omega_edit.grpc-client.IEditorServiceClient.html#getsessionfingerprint">getSessionFingerprint</a></p>
 <ul>
-<li>Defined in <a href="https://github.com/ctc-oss/omega-edit/blob/6518f54378bc64aa0d57506e55741f5fc6cbc6bb/packages/client/src/protobuf_ts/generated/omega_edit/v1/omega_edit.grpc-client.ts#L3176">protobuf_ts/generated/omega_edit/v1/omega_edit.grpc-client.ts:3176</a></li></ul></aside></div></li></ul></section>
+<li>Defined in <a href="https://github.com/ctc-oss/omega-edit/blob/929563373970bd3eb12533c4d67bf35c248842b9/packages/client/src/protobuf_ts/generated/omega_edit/v1/omega_edit.grpc-client.ts#L3254">protobuf_ts/generated/omega_edit/v1/omega_edit.grpc-client.ts:3254</a></li></ul></aside></div></li></ul></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="getviewportdata"><span>get<wbr/>Viewport<wbr/>Data</span><a href="#getviewportdata" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <ul class="tsd-signatures">
@@ -723,11 +771,11 @@ still holds so the server can keep them alive and return resource metrics.</p>
 <h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">SurfaceCall</span></h4>
 <div class="tsd-comment tsd-typography">
 <div class="tsd-tag-generated">
-<h4 class="tsd-anchor-link" id="generated-25">Generated<a href="#generated-25" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h4><p>from protobuf rpc: GetViewportData</p>
+<h4 class="tsd-anchor-link" id="generated-27">Generated<a href="#generated-27" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h4><p>from protobuf rpc: GetViewportData</p>
 </div></div><aside class="tsd-sources">
 <p>Implementation of <a href="../interfaces/protobuf_ts_generated_omega_edit_v1_omega_edit.grpc-client.IEditorServiceClient.html">IEditorServiceClient</a>.<a href="../interfaces/protobuf_ts_generated_omega_edit_v1_omega_edit.grpc-client.IEditorServiceClient.html#getviewportdata">getViewportData</a></p>
 <ul>
-<li>Defined in <a href="https://github.com/ctc-oss/omega-edit/blob/6518f54378bc64aa0d57506e55741f5fc6cbc6bb/packages/client/src/protobuf_ts/generated/omega_edit/v1/omega_edit.grpc-client.ts#L2672">protobuf_ts/generated/omega_edit/v1/omega_edit.grpc-client.ts:2672</a></li></ul></aside></div></li></ul></section>
+<li>Defined in <a href="https://github.com/ctc-oss/omega-edit/blob/929563373970bd3eb12533c4d67bf35c248842b9/packages/client/src/protobuf_ts/generated/omega_edit/v1/omega_edit.grpc-client.ts#L2750">protobuf_ts/generated/omega_edit/v1/omega_edit.grpc-client.ts:2750</a></li></ul></aside></div></li></ul></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="inspectsessioncontent"><span>inspect<wbr/>Session<wbr/>Content</span><a href="#inspectsessioncontent" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <ul class="tsd-signatures">
@@ -746,11 +794,11 @@ still holds so the server can keep them alive and return resource metrics.</p>
 <h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">SurfaceCall</span></h4>
 <div class="tsd-comment tsd-typography">
 <div class="tsd-tag-generated">
-<h4 class="tsd-anchor-link" id="generated-26">Generated<a href="#generated-26" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h4><p>from protobuf rpc: InspectSessionContent</p>
+<h4 class="tsd-anchor-link" id="generated-28">Generated<a href="#generated-28" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h4><p>from protobuf rpc: InspectSessionContent</p>
 </div></div><aside class="tsd-sources">
 <p>Implementation of <a href="../interfaces/protobuf_ts_generated_omega_edit_v1_omega_edit.grpc-client.IEditorServiceClient.html">IEditorServiceClient</a>.<a href="../interfaces/protobuf_ts_generated_omega_edit_v1_omega_edit.grpc-client.IEditorServiceClient.html#inspectsessioncontent">inspectSessionContent</a></p>
 <ul>
-<li>Defined in <a href="https://github.com/ctc-oss/omega-edit/blob/6518f54378bc64aa0d57506e55741f5fc6cbc6bb/packages/client/src/protobuf_ts/generated/omega_edit/v1/omega_edit.grpc-client.ts#L3258">protobuf_ts/generated/omega_edit/v1/omega_edit.grpc-client.ts:3258</a></li></ul></aside></div></li></ul></section>
+<li>Defined in <a href="https://github.com/ctc-oss/omega-edit/blob/929563373970bd3eb12533c4d67bf35c248842b9/packages/client/src/protobuf_ts/generated/omega_edit/v1/omega_edit.grpc-client.ts#L3336">protobuf_ts/generated/omega_edit/v1/omega_edit.grpc-client.ts:3336</a></li></ul></aside></div></li></ul></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="listtransformplugins"><span>list<wbr/>Transform<wbr/>Plugins</span><a href="#listtransformplugins" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <ul class="tsd-signatures">
@@ -769,11 +817,11 @@ still holds so the server can keep them alive and return resource metrics.</p>
 <h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">SurfaceCall</span></h4>
 <div class="tsd-comment tsd-typography">
 <div class="tsd-tag-generated">
-<h4 class="tsd-anchor-link" id="generated-27">Generated<a href="#generated-27" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h4><p>from protobuf rpc: ListTransformPlugins</p>
+<h4 class="tsd-anchor-link" id="generated-29">Generated<a href="#generated-29" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h4><p>from protobuf rpc: ListTransformPlugins</p>
 </div></div><aside class="tsd-sources">
 <p>Implementation of <a href="../interfaces/protobuf_ts_generated_omega_edit_v1_omega_edit.grpc-client.IEditorServiceClient.html">IEditorServiceClient</a>.<a href="../interfaces/protobuf_ts_generated_omega_edit_v1_omega_edit.grpc-client.IEditorServiceClient.html#listtransformplugins">listTransformPlugins</a></p>
 <ul>
-<li>Defined in <a href="https://github.com/ctc-oss/omega-edit/blob/6518f54378bc64aa0d57506e55741f5fc6cbc6bb/packages/client/src/protobuf_ts/generated/omega_edit/v1/omega_edit.grpc-client.ts#L3623">protobuf_ts/generated/omega_edit/v1/omega_edit.grpc-client.ts:3623</a></li></ul></aside></div></li></ul></section>
+<li>Defined in <a href="https://github.com/ctc-oss/omega-edit/blob/929563373970bd3eb12533c4d67bf35c248842b9/packages/client/src/protobuf_ts/generated/omega_edit/v1/omega_edit.grpc-client.ts#L3783">protobuf_ts/generated/omega_edit/v1/omega_edit.grpc-client.ts:3783</a></li></ul></aside></div></li></ul></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="modifyviewport"><span>modify<wbr/>Viewport</span><a href="#modifyviewport" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <ul class="tsd-signatures">
@@ -792,11 +840,11 @@ still holds so the server can keep them alive and return resource metrics.</p>
 <h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">SurfaceCall</span></h4>
 <div class="tsd-comment tsd-typography">
 <div class="tsd-tag-generated">
-<h4 class="tsd-anchor-link" id="generated-28">Generated<a href="#generated-28" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h4><p>from protobuf rpc: ModifyViewport</p>
+<h4 class="tsd-anchor-link" id="generated-30">Generated<a href="#generated-30" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h4><p>from protobuf rpc: ModifyViewport</p>
 </div></div><aside class="tsd-sources">
 <p>Implementation of <a href="../interfaces/protobuf_ts_generated_omega_edit_v1_omega_edit.grpc-client.IEditorServiceClient.html">IEditorServiceClient</a>.<a href="../interfaces/protobuf_ts_generated_omega_edit_v1_omega_edit.grpc-client.IEditorServiceClient.html#modifyviewport">modifyViewport</a></p>
 <ul>
-<li>Defined in <a href="https://github.com/ctc-oss/omega-edit/blob/6518f54378bc64aa0d57506e55741f5fc6cbc6bb/packages/client/src/protobuf_ts/generated/omega_edit/v1/omega_edit.grpc-client.ts#L2592">protobuf_ts/generated/omega_edit/v1/omega_edit.grpc-client.ts:2592</a></li></ul></aside></div></li></ul></section>
+<li>Defined in <a href="https://github.com/ctc-oss/omega-edit/blob/929563373970bd3eb12533c4d67bf35c248842b9/packages/client/src/protobuf_ts/generated/omega_edit/v1/omega_edit.grpc-client.ts#L2670">protobuf_ts/generated/omega_edit/v1/omega_edit.grpc-client.ts:2670</a></li></ul></aside></div></li></ul></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="notifychangedviewports"><span>notify<wbr/>Changed<wbr/>Viewports</span><a href="#notifychangedviewports" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <ul class="tsd-signatures">
@@ -816,11 +864,11 @@ changed.  Returns the number of viewports notified.</p>
 <h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">SurfaceCall</span></h4>
 <div class="tsd-comment tsd-typography">
 <div class="tsd-tag-generated">
-<h4 class="tsd-anchor-link" id="generated-29">Generated<a href="#generated-29" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h4><p>from protobuf rpc: NotifyChangedViewports</p>
+<h4 class="tsd-anchor-link" id="generated-31">Generated<a href="#generated-31" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h4><p>from protobuf rpc: NotifyChangedViewports</p>
 </div></div><aside class="tsd-sources">
 <p>Implementation of <a href="../interfaces/protobuf_ts_generated_omega_edit_v1_omega_edit.grpc-client.IEditorServiceClient.html">IEditorServiceClient</a>.<a href="../interfaces/protobuf_ts_generated_omega_edit_v1_omega_edit.grpc-client.IEditorServiceClient.html#notifychangedviewports">notifyChangedViewports</a></p>
 <ul>
-<li>Defined in <a href="https://github.com/ctc-oss/omega-edit/blob/6518f54378bc64aa0d57506e55741f5fc6cbc6bb/packages/client/src/protobuf_ts/generated/omega_edit/v1/omega_edit.grpc-client.ts#L2837">protobuf_ts/generated/omega_edit/v1/omega_edit.grpc-client.ts:2837</a></li></ul></aside></div></li></ul></section>
+<li>Defined in <a href="https://github.com/ctc-oss/omega-edit/blob/929563373970bd3eb12533c4d67bf35c248842b9/packages/client/src/protobuf_ts/generated/omega_edit/v1/omega_edit.grpc-client.ts#L2915">protobuf_ts/generated/omega_edit/v1/omega_edit.grpc-client.ts:2915</a></li></ul></aside></div></li></ul></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="pausesessionchanges"><span>pause<wbr/>Session<wbr/>Changes</span><a href="#pausesessionchanges" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <ul class="tsd-signatures">
@@ -840,11 +888,11 @@ while paused will be rejected.</p>
 <h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">SurfaceCall</span></h4>
 <div class="tsd-comment tsd-typography">
 <div class="tsd-tag-generated">
-<h4 class="tsd-anchor-link" id="generated-30">Generated<a href="#generated-30" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h4><p>from protobuf rpc: PauseSessionChanges</p>
+<h4 class="tsd-anchor-link" id="generated-32">Generated<a href="#generated-32" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h4><p>from protobuf rpc: PauseSessionChanges</p>
 </div></div><aside class="tsd-sources">
 <p>Implementation of <a href="../interfaces/protobuf_ts_generated_omega_edit_v1_omega_edit.grpc-client.IEditorServiceClient.html">IEditorServiceClient</a>.<a href="../interfaces/protobuf_ts_generated_omega_edit_v1_omega_edit.grpc-client.IEditorServiceClient.html#pausesessionchanges">pauseSessionChanges</a></p>
 <ul>
-<li>Defined in <a href="https://github.com/ctc-oss/omega-edit/blob/6518f54378bc64aa0d57506e55741f5fc6cbc6bb/packages/client/src/protobuf_ts/generated/omega_edit/v1/omega_edit.grpc-client.ts#L2379">protobuf_ts/generated/omega_edit/v1/omega_edit.grpc-client.ts:2379</a></li></ul></aside></div></li></ul></section>
+<li>Defined in <a href="https://github.com/ctc-oss/omega-edit/blob/929563373970bd3eb12533c4d67bf35c248842b9/packages/client/src/protobuf_ts/generated/omega_edit/v1/omega_edit.grpc-client.ts#L2457">protobuf_ts/generated/omega_edit/v1/omega_edit.grpc-client.ts:2457</a></li></ul></aside></div></li></ul></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="pauseviewportevents"><span>pause<wbr/>Viewport<wbr/>Events</span><a href="#pauseviewportevents" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <ul class="tsd-signatures">
@@ -863,11 +911,11 @@ while paused will be rejected.</p>
 <h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">SurfaceCall</span></h4>
 <div class="tsd-comment tsd-typography">
 <div class="tsd-tag-generated">
-<h4 class="tsd-anchor-link" id="generated-31">Generated<a href="#generated-31" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h4><p>from protobuf rpc: PauseViewportEvents</p>
+<h4 class="tsd-anchor-link" id="generated-33">Generated<a href="#generated-33" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h4><p>from protobuf rpc: PauseViewportEvents</p>
 </div></div><aside class="tsd-sources">
 <p>Implementation of <a href="../interfaces/protobuf_ts_generated_omega_edit_v1_omega_edit.grpc-client.IEditorServiceClient.html">IEditorServiceClient</a>.<a href="../interfaces/protobuf_ts_generated_omega_edit_v1_omega_edit.grpc-client.IEditorServiceClient.html#pauseviewportevents">pauseViewportEvents</a></p>
 <ul>
-<li>Defined in <a href="https://github.com/ctc-oss/omega-edit/blob/6518f54378bc64aa0d57506e55741f5fc6cbc6bb/packages/client/src/protobuf_ts/generated/omega_edit/v1/omega_edit.grpc-client.ts#L2754">protobuf_ts/generated/omega_edit/v1/omega_edit.grpc-client.ts:2754</a></li></ul></aside></div></li></ul></section>
+<li>Defined in <a href="https://github.com/ctc-oss/omega-edit/blob/929563373970bd3eb12533c4d67bf35c248842b9/packages/client/src/protobuf_ts/generated/omega_edit/v1/omega_edit.grpc-client.ts#L2832">protobuf_ts/generated/omega_edit/v1/omega_edit.grpc-client.ts:2832</a></li></ul></aside></div></li></ul></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="redolastundo"><span>redo<wbr/>Last<wbr/>Undo</span><a href="#redolastundo" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <ul class="tsd-signatures">
@@ -887,11 +935,11 @@ change that was re-applied.</p>
 <h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">SurfaceCall</span></h4>
 <div class="tsd-comment tsd-typography">
 <div class="tsd-tag-generated">
-<h4 class="tsd-anchor-link" id="generated-32">Generated<a href="#generated-32" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h4><p>from protobuf rpc: RedoLastUndo</p>
+<h4 class="tsd-anchor-link" id="generated-34">Generated<a href="#generated-34" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h4><p>from protobuf rpc: RedoLastUndo</p>
 </div></div><aside class="tsd-sources">
 <p>Implementation of <a href="../interfaces/protobuf_ts_generated_omega_edit_v1_omega_edit.grpc-client.IEditorServiceClient.html">IEditorServiceClient</a>.<a href="../interfaces/protobuf_ts_generated_omega_edit_v1_omega_edit.grpc-client.IEditorServiceClient.html#redolastundo">redoLastUndo</a></p>
 <ul>
-<li>Defined in <a href="https://github.com/ctc-oss/omega-edit/blob/6518f54378bc64aa0d57506e55741f5fc6cbc6bb/packages/client/src/protobuf_ts/generated/omega_edit/v1/omega_edit.grpc-client.ts#L2273">protobuf_ts/generated/omega_edit/v1/omega_edit.grpc-client.ts:2273</a></li></ul></aside></div></li></ul></section>
+<li>Defined in <a href="https://github.com/ctc-oss/omega-edit/blob/929563373970bd3eb12533c4d67bf35c248842b9/packages/client/src/protobuf_ts/generated/omega_edit/v1/omega_edit.grpc-client.ts#L2351">protobuf_ts/generated/omega_edit/v1/omega_edit.grpc-client.ts:2351</a></li></ul></aside></div></li></ul></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="replacesession"><span>replace<wbr/>Session</span><a href="#replacesession" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <ul class="tsd-signatures">
@@ -912,11 +960,11 @@ lowered edit-operation counts.</p>
 <h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">SurfaceCall</span></h4>
 <div class="tsd-comment tsd-typography">
 <div class="tsd-tag-generated">
-<h4 class="tsd-anchor-link" id="generated-33">Generated<a href="#generated-33" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h4><p>from protobuf rpc: ReplaceSession</p>
+<h4 class="tsd-anchor-link" id="generated-35">Generated<a href="#generated-35" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h4><p>from protobuf rpc: ReplaceSession</p>
 </div></div><aside class="tsd-sources">
 <p>Implementation of <a href="../interfaces/protobuf_ts_generated_omega_edit_v1_omega_edit.grpc-client.IEditorServiceClient.html">IEditorServiceClient</a>.<a href="../interfaces/protobuf_ts_generated_omega_edit_v1_omega_edit.grpc-client.IEditorServiceClient.html#replacesession">replaceSession</a></p>
 <ul>
-<li>Defined in <a href="https://github.com/ctc-oss/omega-edit/blob/6518f54378bc64aa0d57506e55741f5fc6cbc6bb/packages/client/src/protobuf_ts/generated/omega_edit/v1/omega_edit.grpc-client.ts#L3417">protobuf_ts/generated/omega_edit/v1/omega_edit.grpc-client.ts:3417</a></li></ul></aside></div></li></ul></section>
+<li>Defined in <a href="https://github.com/ctc-oss/omega-edit/blob/929563373970bd3eb12533c4d67bf35c248842b9/packages/client/src/protobuf_ts/generated/omega_edit/v1/omega_edit.grpc-client.ts#L3495">protobuf_ts/generated/omega_edit/v1/omega_edit.grpc-client.ts:3495</a></li></ul></aside></div></li></ul></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="replacesessioncheckpointed"><span>replace<wbr/>Session<wbr/>Checkpointed</span><a href="#replacesessioncheckpointed" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <ul class="tsd-signatures">
@@ -937,11 +985,11 @@ replacements performed.</p>
 <h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">SurfaceCall</span></h4>
 <div class="tsd-comment tsd-typography">
 <div class="tsd-tag-generated">
-<h4 class="tsd-anchor-link" id="generated-34">Generated<a href="#generated-34" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h4><p>from protobuf rpc: ReplaceSessionCheckpointed</p>
+<h4 class="tsd-anchor-link" id="generated-36">Generated<a href="#generated-36" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h4><p>from protobuf rpc: ReplaceSessionCheckpointed</p>
 </div></div><aside class="tsd-sources">
 <p>Implementation of <a href="../interfaces/protobuf_ts_generated_omega_edit_v1_omega_edit.grpc-client.IEditorServiceClient.html">IEditorServiceClient</a>.<a href="../interfaces/protobuf_ts_generated_omega_edit_v1_omega_edit.grpc-client.IEditorServiceClient.html#replacesessioncheckpointed">replaceSessionCheckpointed</a></p>
 <ul>
-<li>Defined in <a href="https://github.com/ctc-oss/omega-edit/blob/6518f54378bc64aa0d57506e55741f5fc6cbc6bb/packages/client/src/protobuf_ts/generated/omega_edit/v1/omega_edit.grpc-client.ts#L3457">protobuf_ts/generated/omega_edit/v1/omega_edit.grpc-client.ts:3457</a></li></ul></aside></div></li></ul></section>
+<li>Defined in <a href="https://github.com/ctc-oss/omega-edit/blob/929563373970bd3eb12533c4d67bf35c248842b9/packages/client/src/protobuf_ts/generated/omega_edit/v1/omega_edit.grpc-client.ts#L3535">protobuf_ts/generated/omega_edit/v1/omega_edit.grpc-client.ts:3535</a></li></ul></aside></div></li></ul></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="restorelastcheckpoint"><span>restore<wbr/>Last<wbr/>Checkpoint</span><a href="#restorelastcheckpoint" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <ul class="tsd-signatures">
@@ -961,11 +1009,11 @@ keeping that checkpoint available.</p>
 <h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">SurfaceCall</span></h4>
 <div class="tsd-comment tsd-typography">
 <div class="tsd-tag-generated">
-<h4 class="tsd-anchor-link" id="generated-35">Generated<a href="#generated-35" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h4><p>from protobuf rpc: RestoreLastCheckpoint</p>
+<h4 class="tsd-anchor-link" id="generated-37">Generated<a href="#generated-37" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h4><p>from protobuf rpc: RestoreLastCheckpoint</p>
 </div></div><aside class="tsd-sources">
 <p>Implementation of <a href="../interfaces/protobuf_ts_generated_omega_edit_v1_omega_edit.grpc-client.IEditorServiceClient.html">IEditorServiceClient</a>.<a href="../interfaces/protobuf_ts_generated_omega_edit_v1_omega_edit.grpc-client.IEditorServiceClient.html#restorelastcheckpoint">restoreLastCheckpoint</a></p>
 <ul>
-<li>Defined in <a href="https://github.com/ctc-oss/omega-edit/blob/6518f54378bc64aa0d57506e55741f5fc6cbc6bb/packages/client/src/protobuf_ts/generated/omega_edit/v1/omega_edit.grpc-client.ts#L3582">protobuf_ts/generated/omega_edit/v1/omega_edit.grpc-client.ts:3582</a></li></ul></aside></div></li></ul></section>
+<li>Defined in <a href="https://github.com/ctc-oss/omega-edit/blob/929563373970bd3eb12533c4d67bf35c248842b9/packages/client/src/protobuf_ts/generated/omega_edit/v1/omega_edit.grpc-client.ts#L3742">protobuf_ts/generated/omega_edit/v1/omega_edit.grpc-client.ts:3742</a></li></ul></aside></div></li></ul></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="restoretochangecount"><span>restore<wbr/>To<wbr/>Change<wbr/>Count</span><a href="#restoretochangecount" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <ul class="tsd-signatures">
@@ -984,11 +1032,11 @@ keeping that checkpoint available.</p>
 <h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">SurfaceCall</span></h4>
 <div class="tsd-comment tsd-typography">
 <div class="tsd-tag-generated">
-<h4 class="tsd-anchor-link" id="generated-36">Generated<a href="#generated-36" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h4><p>from protobuf rpc: RestoreToChangeCount</p>
+<h4 class="tsd-anchor-link" id="generated-38">Generated<a href="#generated-38" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h4><p>from protobuf rpc: RestoreToChangeCount</p>
 </div></div><aside class="tsd-sources">
 <p>Implementation of <a href="../interfaces/protobuf_ts_generated_omega_edit_v1_omega_edit.grpc-client.IEditorServiceClient.html">IEditorServiceClient</a>.<a href="../interfaces/protobuf_ts_generated_omega_edit_v1_omega_edit.grpc-client.IEditorServiceClient.html#restoretochangecount">restoreToChangeCount</a></p>
 <ul>
-<li>Defined in <a href="https://github.com/ctc-oss/omega-edit/blob/6518f54378bc64aa0d57506e55741f5fc6cbc6bb/packages/client/src/protobuf_ts/generated/omega_edit/v1/omega_edit.grpc-client.ts#L2337">protobuf_ts/generated/omega_edit/v1/omega_edit.grpc-client.ts:2337</a></li></ul></aside></div></li></ul></section>
+<li>Defined in <a href="https://github.com/ctc-oss/omega-edit/blob/929563373970bd3eb12533c4d67bf35c248842b9/packages/client/src/protobuf_ts/generated/omega_edit/v1/omega_edit.grpc-client.ts#L2415">protobuf_ts/generated/omega_edit/v1/omega_edit.grpc-client.ts:2415</a></li></ul></aside></div></li></ul></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="resumesessionchanges"><span>resume<wbr/>Session<wbr/>Changes</span><a href="#resumesessionchanges" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <ul class="tsd-signatures">
@@ -1007,11 +1055,11 @@ keeping that checkpoint available.</p>
 <h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">SurfaceCall</span></h4>
 <div class="tsd-comment tsd-typography">
 <div class="tsd-tag-generated">
-<h4 class="tsd-anchor-link" id="generated-37">Generated<a href="#generated-37" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h4><p>from protobuf rpc: ResumeSessionChanges</p>
+<h4 class="tsd-anchor-link" id="generated-39">Generated<a href="#generated-39" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h4><p>from protobuf rpc: ResumeSessionChanges</p>
 </div></div><aside class="tsd-sources">
 <p>Implementation of <a href="../interfaces/protobuf_ts_generated_omega_edit_v1_omega_edit.grpc-client.IEditorServiceClient.html">IEditorServiceClient</a>.<a href="../interfaces/protobuf_ts_generated_omega_edit_v1_omega_edit.grpc-client.IEditorServiceClient.html#resumesessionchanges">resumeSessionChanges</a></p>
 <ul>
-<li>Defined in <a href="https://github.com/ctc-oss/omega-edit/blob/6518f54378bc64aa0d57506e55741f5fc6cbc6bb/packages/client/src/protobuf_ts/generated/omega_edit/v1/omega_edit.grpc-client.ts#L2420">protobuf_ts/generated/omega_edit/v1/omega_edit.grpc-client.ts:2420</a></li></ul></aside></div></li></ul></section>
+<li>Defined in <a href="https://github.com/ctc-oss/omega-edit/blob/929563373970bd3eb12533c4d67bf35c248842b9/packages/client/src/protobuf_ts/generated/omega_edit/v1/omega_edit.grpc-client.ts#L2498">protobuf_ts/generated/omega_edit/v1/omega_edit.grpc-client.ts:2498</a></li></ul></aside></div></li></ul></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="resumeviewportevents"><span>resume<wbr/>Viewport<wbr/>Events</span><a href="#resumeviewportevents" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <ul class="tsd-signatures">
@@ -1030,11 +1078,11 @@ keeping that checkpoint available.</p>
 <h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">SurfaceCall</span></h4>
 <div class="tsd-comment tsd-typography">
 <div class="tsd-tag-generated">
-<h4 class="tsd-anchor-link" id="generated-38">Generated<a href="#generated-38" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h4><p>from protobuf rpc: ResumeViewportEvents</p>
+<h4 class="tsd-anchor-link" id="generated-40">Generated<a href="#generated-40" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h4><p>from protobuf rpc: ResumeViewportEvents</p>
 </div></div><aside class="tsd-sources">
 <p>Implementation of <a href="../interfaces/protobuf_ts_generated_omega_edit_v1_omega_edit.grpc-client.IEditorServiceClient.html">IEditorServiceClient</a>.<a href="../interfaces/protobuf_ts_generated_omega_edit_v1_omega_edit.grpc-client.IEditorServiceClient.html#resumeviewportevents">resumeViewportEvents</a></p>
 <ul>
-<li>Defined in <a href="https://github.com/ctc-oss/omega-edit/blob/6518f54378bc64aa0d57506e55741f5fc6cbc6bb/packages/client/src/protobuf_ts/generated/omega_edit/v1/omega_edit.grpc-client.ts#L2795">protobuf_ts/generated/omega_edit/v1/omega_edit.grpc-client.ts:2795</a></li></ul></aside></div></li></ul></section>
+<li>Defined in <a href="https://github.com/ctc-oss/omega-edit/blob/929563373970bd3eb12533c4d67bf35c248842b9/packages/client/src/protobuf_ts/generated/omega_edit/v1/omega_edit.grpc-client.ts#L2873">protobuf_ts/generated/omega_edit/v1/omega_edit.grpc-client.ts:2873</a></li></ul></aside></div></li></ul></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="savesession"><span>save<wbr/>Session</span><a href="#savesession" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <ul class="tsd-signatures">
@@ -1055,11 +1103,11 @@ can limit the save to a sub-section of the data.</p>
 <h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">SurfaceCall</span></h4>
 <div class="tsd-comment tsd-typography">
 <div class="tsd-tag-generated">
-<h4 class="tsd-anchor-link" id="generated-39">Generated<a href="#generated-39" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h4><p>from protobuf rpc: SaveSession</p>
+<h4 class="tsd-anchor-link" id="generated-41">Generated<a href="#generated-41" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h4><p>from protobuf rpc: SaveSession</p>
 </div></div><aside class="tsd-sources">
 <p>Implementation of <a href="../interfaces/protobuf_ts_generated_omega_edit_v1_omega_edit.grpc-client.IEditorServiceClient.html">IEditorServiceClient</a>.<a href="../interfaces/protobuf_ts_generated_omega_edit_v1_omega_edit.grpc-client.IEditorServiceClient.html#savesession">saveSession</a></p>
 <ul>
-<li>Defined in <a href="https://github.com/ctc-oss/omega-edit/blob/6518f54378bc64aa0d57506e55741f5fc6cbc6bb/packages/client/src/protobuf_ts/generated/omega_edit/v1/omega_edit.grpc-client.ts#L2125">protobuf_ts/generated/omega_edit/v1/omega_edit.grpc-client.ts:2125</a></li></ul></aside></div></li></ul></section>
+<li>Defined in <a href="https://github.com/ctc-oss/omega-edit/blob/929563373970bd3eb12533c4d67bf35c248842b9/packages/client/src/protobuf_ts/generated/omega_edit/v1/omega_edit.grpc-client.ts#L2203">protobuf_ts/generated/omega_edit/v1/omega_edit.grpc-client.ts:2203</a></li></ul></aside></div></li></ul></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="searchsession"><span>search<wbr/>Session</span><a href="#searchsession" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <ul class="tsd-signatures">
@@ -1079,11 +1127,11 @@ reverse search, with optional offset/length bounds and a match limit.</p>
 <h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">SurfaceCall</span></h4>
 <div class="tsd-comment tsd-typography">
 <div class="tsd-tag-generated">
-<h4 class="tsd-anchor-link" id="generated-40">Generated<a href="#generated-40" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h4><p>from protobuf rpc: SearchSession</p>
+<h4 class="tsd-anchor-link" id="generated-42">Generated<a href="#generated-42" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h4><p>from protobuf rpc: SearchSession</p>
 </div></div><aside class="tsd-sources">
 <p>Implementation of <a href="../interfaces/protobuf_ts_generated_omega_edit_v1_omega_edit.grpc-client.IEditorServiceClient.html">IEditorServiceClient</a>.<a href="../interfaces/protobuf_ts_generated_omega_edit_v1_omega_edit.grpc-client.IEditorServiceClient.html#searchsession">searchSession</a></p>
 <ul>
-<li>Defined in <a href="https://github.com/ctc-oss/omega-edit/blob/6518f54378bc64aa0d57506e55741f5fc6cbc6bb/packages/client/src/protobuf_ts/generated/omega_edit/v1/omega_edit.grpc-client.ts#L3377">protobuf_ts/generated/omega_edit/v1/omega_edit.grpc-client.ts:3377</a></li></ul></aside></div></li></ul></section>
+<li>Defined in <a href="https://github.com/ctc-oss/omega-edit/blob/929563373970bd3eb12533c4d67bf35c248842b9/packages/client/src/protobuf_ts/generated/omega_edit/v1/omega_edit.grpc-client.ts#L3455">protobuf_ts/generated/omega_edit/v1/omega_edit.grpc-client.ts:3455</a></li></ul></aside></div></li></ul></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="servercontrol"><span>server<wbr/>Control</span><a href="#servercontrol" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <ul class="tsd-signatures">
@@ -1102,11 +1150,11 @@ reverse search, with optional offset/length bounds and a match limit.</p>
 <h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">SurfaceCall</span></h4>
 <div class="tsd-comment tsd-typography">
 <div class="tsd-tag-generated">
-<h4 class="tsd-anchor-link" id="generated-41">Generated<a href="#generated-41" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h4><p>from protobuf rpc: ServerControl</p>
+<h4 class="tsd-anchor-link" id="generated-43">Generated<a href="#generated-43" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h4><p>from protobuf rpc: ServerControl</p>
 </div></div><aside class="tsd-sources">
 <p>Implementation of <a href="../interfaces/protobuf_ts_generated_omega_edit_v1_omega_edit.grpc-client.IEditorServiceClient.html">IEditorServiceClient</a>.<a href="../interfaces/protobuf_ts_generated_omega_edit_v1_omega_edit.grpc-client.IEditorServiceClient.html#servercontrol">serverControl</a></p>
 <ul>
-<li>Defined in <a href="https://github.com/ctc-oss/omega-edit/blob/6518f54378bc64aa0d57506e55741f5fc6cbc6bb/packages/client/src/protobuf_ts/generated/omega_edit/v1/omega_edit.grpc-client.ts#L3794">protobuf_ts/generated/omega_edit/v1/omega_edit.grpc-client.ts:3794</a></li></ul></aside></div></li></ul></section>
+<li>Defined in <a href="https://github.com/ctc-oss/omega-edit/blob/929563373970bd3eb12533c4d67bf35c248842b9/packages/client/src/protobuf_ts/generated/omega_edit/v1/omega_edit.grpc-client.ts#L3954">protobuf_ts/generated/omega_edit/v1/omega_edit.grpc-client.ts:3954</a></li></ul></aside></div></li></ul></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="sessionbegintransaction"><span>session<wbr/>Begin<wbr/>Transaction</span><a href="#sessionbegintransaction" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <ul class="tsd-signatures">
@@ -1127,11 +1175,11 @@ undoable unit.</p>
 <h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">SurfaceCall</span></h4>
 <div class="tsd-comment tsd-typography">
 <div class="tsd-tag-generated">
-<h4 class="tsd-anchor-link" id="generated-42">Generated<a href="#generated-42" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h4><p>from protobuf rpc: SessionBeginTransaction</p>
+<h4 class="tsd-anchor-link" id="generated-44">Generated<a href="#generated-44" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h4><p>from protobuf rpc: SessionBeginTransaction</p>
 </div></div><aside class="tsd-sources">
 <p>Implementation of <a href="../interfaces/protobuf_ts_generated_omega_edit_v1_omega_edit.grpc-client.IEditorServiceClient.html">IEditorServiceClient</a>.<a href="../interfaces/protobuf_ts_generated_omega_edit_v1_omega_edit.grpc-client.IEditorServiceClient.html#sessionbegintransaction">sessionBeginTransaction</a></p>
 <ul>
-<li>Defined in <a href="https://github.com/ctc-oss/omega-edit/blob/6518f54378bc64aa0d57506e55741f5fc6cbc6bb/packages/client/src/protobuf_ts/generated/omega_edit/v1/omega_edit.grpc-client.ts#L2467">protobuf_ts/generated/omega_edit/v1/omega_edit.grpc-client.ts:2467</a></li></ul></aside></div></li></ul></section>
+<li>Defined in <a href="https://github.com/ctc-oss/omega-edit/blob/929563373970bd3eb12533c4d67bf35c248842b9/packages/client/src/protobuf_ts/generated/omega_edit/v1/omega_edit.grpc-client.ts#L2545">protobuf_ts/generated/omega_edit/v1/omega_edit.grpc-client.ts:2545</a></li></ul></aside></div></li></ul></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="sessionendtransaction"><span>session<wbr/>End<wbr/>Transaction</span><a href="#sessionendtransaction" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <ul class="tsd-signatures">
@@ -1150,11 +1198,11 @@ undoable unit.</p>
 <h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">SurfaceCall</span></h4>
 <div class="tsd-comment tsd-typography">
 <div class="tsd-tag-generated">
-<h4 class="tsd-anchor-link" id="generated-43">Generated<a href="#generated-43" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h4><p>from protobuf rpc: SessionEndTransaction</p>
+<h4 class="tsd-anchor-link" id="generated-45">Generated<a href="#generated-45" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h4><p>from protobuf rpc: SessionEndTransaction</p>
 </div></div><aside class="tsd-sources">
 <p>Implementation of <a href="../interfaces/protobuf_ts_generated_omega_edit_v1_omega_edit.grpc-client.IEditorServiceClient.html">IEditorServiceClient</a>.<a href="../interfaces/protobuf_ts_generated_omega_edit_v1_omega_edit.grpc-client.IEditorServiceClient.html#sessionendtransaction">sessionEndTransaction</a></p>
 <ul>
-<li>Defined in <a href="https://github.com/ctc-oss/omega-edit/blob/6518f54378bc64aa0d57506e55741f5fc6cbc6bb/packages/client/src/protobuf_ts/generated/omega_edit/v1/omega_edit.grpc-client.ts#L2508">protobuf_ts/generated/omega_edit/v1/omega_edit.grpc-client.ts:2508</a></li></ul></aside></div></li></ul></section>
+<li>Defined in <a href="https://github.com/ctc-oss/omega-edit/blob/929563373970bd3eb12533c4d67bf35c248842b9/packages/client/src/protobuf_ts/generated/omega_edit/v1/omega_edit.grpc-client.ts#L2586">protobuf_ts/generated/omega_edit/v1/omega_edit.grpc-client.ts:2586</a></li></ul></aside></div></li></ul></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="submitchange"><span>submit<wbr/>Change</span><a href="#submitchange" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <ul class="tsd-signatures">
@@ -1174,11 +1222,11 @@ Returns the serial number assigned to the new change.</p>
 <h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">SurfaceCall</span></h4>
 <div class="tsd-comment tsd-typography">
 <div class="tsd-tag-generated">
-<h4 class="tsd-anchor-link" id="generated-44">Generated<a href="#generated-44" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h4><p>from protobuf rpc: SubmitChange</p>
+<h4 class="tsd-anchor-link" id="generated-46">Generated<a href="#generated-46" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h4><p>from protobuf rpc: SubmitChange</p>
 </div></div><aside class="tsd-sources">
 <p>Implementation of <a href="../interfaces/protobuf_ts_generated_omega_edit_v1_omega_edit.grpc-client.IEditorServiceClient.html">IEditorServiceClient</a>.<a href="../interfaces/protobuf_ts_generated_omega_edit_v1_omega_edit.grpc-client.IEditorServiceClient.html#submitchange">submitChange</a></p>
 <ul>
-<li>Defined in <a href="https://github.com/ctc-oss/omega-edit/blob/6518f54378bc64aa0d57506e55741f5fc6cbc6bb/packages/client/src/protobuf_ts/generated/omega_edit/v1/omega_edit.grpc-client.ts#L2201">protobuf_ts/generated/omega_edit/v1/omega_edit.grpc-client.ts:2201</a></li></ul></aside></div></li></ul></section>
+<li>Defined in <a href="https://github.com/ctc-oss/omega-edit/blob/929563373970bd3eb12533c4d67bf35c248842b9/packages/client/src/protobuf_ts/generated/omega_edit/v1/omega_edit.grpc-client.ts#L2279">protobuf_ts/generated/omega_edit/v1/omega_edit.grpc-client.ts:2279</a></li></ul></aside></div></li></ul></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="subscribetosessionevents"><span>subscribe<wbr/>To<wbr/>Session<wbr/>Events</span><a href="#subscribetosessionevents" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <ul class="tsd-signatures">
@@ -1198,11 +1246,11 @@ controls which event kinds are delivered.</p>
 <h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">ClientReadableStream</span><span class="tsd-signature-symbol">&lt;</span><a href="../interfaces/protobuf_ts_generated_omega_edit_v1_omega_edit.SubscribeToSessionEventsResponse.html" class="tsd-signature-type tsd-kind-interface">SubscribeToSessionEventsResponse</a><span class="tsd-signature-symbol">&gt;</span></h4>
 <div class="tsd-comment tsd-typography">
 <div class="tsd-tag-generated">
-<h4 class="tsd-anchor-link" id="generated-45">Generated<a href="#generated-45" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h4><p>from protobuf rpc: SubscribeToSessionEvents</p>
+<h4 class="tsd-anchor-link" id="generated-47">Generated<a href="#generated-47" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h4><p>from protobuf rpc: SubscribeToSessionEvents</p>
 </div></div><aside class="tsd-sources">
 <p>Implementation of <a href="../interfaces/protobuf_ts_generated_omega_edit_v1_omega_edit.grpc-client.IEditorServiceClient.html">IEditorServiceClient</a>.<a href="../interfaces/protobuf_ts_generated_omega_edit_v1_omega_edit.grpc-client.IEditorServiceClient.html#subscribetosessionevents">subscribeToSessionEvents</a></p>
 <ul>
-<li>Defined in <a href="https://github.com/ctc-oss/omega-edit/blob/6518f54378bc64aa0d57506e55741f5fc6cbc6bb/packages/client/src/protobuf_ts/generated/omega_edit/v1/omega_edit.grpc-client.ts#L3871">protobuf_ts/generated/omega_edit/v1/omega_edit.grpc-client.ts:3871</a></li></ul></aside></div></li></ul></section>
+<li>Defined in <a href="https://github.com/ctc-oss/omega-edit/blob/929563373970bd3eb12533c4d67bf35c248842b9/packages/client/src/protobuf_ts/generated/omega_edit/v1/omega_edit.grpc-client.ts#L4031">protobuf_ts/generated/omega_edit/v1/omega_edit.grpc-client.ts:4031</a></li></ul></aside></div></li></ul></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="subscribetoviewportevents"><span>subscribe<wbr/>To<wbr/>Viewport<wbr/>Events</span><a href="#subscribetoviewportevents" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <ul class="tsd-signatures">
@@ -1221,11 +1269,11 @@ changes, modifications, etc.).</p>
 <h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">ClientReadableStream</span><span class="tsd-signature-symbol">&lt;</span><a href="../interfaces/protobuf_ts_generated_omega_edit_v1_omega_edit.SubscribeToViewportEventsResponse.html" class="tsd-signature-type tsd-kind-interface">SubscribeToViewportEventsResponse</a><span class="tsd-signature-symbol">&gt;</span></h4>
 <div class="tsd-comment tsd-typography">
 <div class="tsd-tag-generated">
-<h4 class="tsd-anchor-link" id="generated-46">Generated<a href="#generated-46" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h4><p>from protobuf rpc: SubscribeToViewportEvents</p>
+<h4 class="tsd-anchor-link" id="generated-48">Generated<a href="#generated-48" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h4><p>from protobuf rpc: SubscribeToViewportEvents</p>
 </div></div><aside class="tsd-sources">
 <p>Implementation of <a href="../interfaces/protobuf_ts_generated_omega_edit_v1_omega_edit.grpc-client.IEditorServiceClient.html">IEditorServiceClient</a>.<a href="../interfaces/protobuf_ts_generated_omega_edit_v1_omega_edit.grpc-client.IEditorServiceClient.html#subscribetoviewportevents">subscribeToViewportEvents</a></p>
 <ul>
-<li>Defined in <a href="https://github.com/ctc-oss/omega-edit/blob/6518f54378bc64aa0d57506e55741f5fc6cbc6bb/packages/client/src/protobuf_ts/generated/omega_edit/v1/omega_edit.grpc-client.ts#L3897">protobuf_ts/generated/omega_edit/v1/omega_edit.grpc-client.ts:3897</a></li></ul></aside></div></li></ul></section>
+<li>Defined in <a href="https://github.com/ctc-oss/omega-edit/blob/929563373970bd3eb12533c4d67bf35c248842b9/packages/client/src/protobuf_ts/generated/omega_edit/v1/omega_edit.grpc-client.ts#L4057">protobuf_ts/generated/omega_edit/v1/omega_edit.grpc-client.ts:4057</a></li></ul></aside></div></li></ul></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="undolastchange"><span>undo<wbr/>Last<wbr/>Change</span><a href="#undolastchange" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <ul class="tsd-signatures">
@@ -1245,11 +1293,11 @@ the change that was undone.</p>
 <h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">SurfaceCall</span></h4>
 <div class="tsd-comment tsd-typography">
 <div class="tsd-tag-generated">
-<h4 class="tsd-anchor-link" id="generated-47">Generated<a href="#generated-47" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h4><p>from protobuf rpc: UndoLastChange</p>
+<h4 class="tsd-anchor-link" id="generated-49">Generated<a href="#generated-49" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h4><p>from protobuf rpc: UndoLastChange</p>
 </div></div><aside class="tsd-sources">
 <p>Implementation of <a href="../interfaces/protobuf_ts_generated_omega_edit_v1_omega_edit.grpc-client.IEditorServiceClient.html">IEditorServiceClient</a>.<a href="../interfaces/protobuf_ts_generated_omega_edit_v1_omega_edit.grpc-client.IEditorServiceClient.html#undolastchange">undoLastChange</a></p>
 <ul>
-<li>Defined in <a href="https://github.com/ctc-oss/omega-edit/blob/6518f54378bc64aa0d57506e55741f5fc6cbc6bb/packages/client/src/protobuf_ts/generated/omega_edit/v1/omega_edit.grpc-client.ts#L2234">protobuf_ts/generated/omega_edit/v1/omega_edit.grpc-client.ts:2234</a></li></ul></aside></div></li></ul></section>
+<li>Defined in <a href="https://github.com/ctc-oss/omega-edit/blob/929563373970bd3eb12533c4d67bf35c248842b9/packages/client/src/protobuf_ts/generated/omega_edit/v1/omega_edit.grpc-client.ts#L2312">protobuf_ts/generated/omega_edit/v1/omega_edit.grpc-client.ts:2312</a></li></ul></aside></div></li></ul></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="unsubscribetosessionevents"><span>unsubscribe<wbr/>To<wbr/>Session<wbr/>Events</span><a href="#unsubscribetosessionevents" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <ul class="tsd-signatures">
@@ -1268,11 +1316,11 @@ the change that was undone.</p>
 <h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">SurfaceCall</span></h4>
 <div class="tsd-comment tsd-typography">
 <div class="tsd-tag-generated">
-<h4 class="tsd-anchor-link" id="generated-48">Generated<a href="#generated-48" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h4><p>from protobuf rpc: UnsubscribeToSessionEvents</p>
+<h4 class="tsd-anchor-link" id="generated-50">Generated<a href="#generated-50" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h4><p>from protobuf rpc: UnsubscribeToSessionEvents</p>
 </div></div><aside class="tsd-sources">
 <p>Implementation of <a href="../interfaces/protobuf_ts_generated_omega_edit_v1_omega_edit.grpc-client.IEditorServiceClient.html">IEditorServiceClient</a>.<a href="../interfaces/protobuf_ts_generated_omega_edit_v1_omega_edit.grpc-client.IEditorServiceClient.html#unsubscribetosessionevents">unsubscribeToSessionEvents</a></p>
 <ul>
-<li>Defined in <a href="https://github.com/ctc-oss/omega-edit/blob/6518f54378bc64aa0d57506e55741f5fc6cbc6bb/packages/client/src/protobuf_ts/generated/omega_edit/v1/omega_edit.grpc-client.ts#L3922">protobuf_ts/generated/omega_edit/v1/omega_edit.grpc-client.ts:3922</a></li></ul></aside></div></li></ul></section>
+<li>Defined in <a href="https://github.com/ctc-oss/omega-edit/blob/929563373970bd3eb12533c4d67bf35c248842b9/packages/client/src/protobuf_ts/generated/omega_edit/v1/omega_edit.grpc-client.ts#L4082">protobuf_ts/generated/omega_edit/v1/omega_edit.grpc-client.ts:4082</a></li></ul></aside></div></li></ul></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="unsubscribetoviewportevents"><span>unsubscribe<wbr/>To<wbr/>Viewport<wbr/>Events</span><a href="#unsubscribetoviewportevents" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <ul class="tsd-signatures">
@@ -1291,11 +1339,11 @@ the change that was undone.</p>
 <h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">SurfaceCall</span></h4>
 <div class="tsd-comment tsd-typography">
 <div class="tsd-tag-generated">
-<h4 class="tsd-anchor-link" id="generated-49">Generated<a href="#generated-49" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h4><p>from protobuf rpc: UnsubscribeToViewportEvents</p>
+<h4 class="tsd-anchor-link" id="generated-51">Generated<a href="#generated-51" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h4><p>from protobuf rpc: UnsubscribeToViewportEvents</p>
 </div></div><aside class="tsd-sources">
 <p>Implementation of <a href="../interfaces/protobuf_ts_generated_omega_edit_v1_omega_edit.grpc-client.IEditorServiceClient.html">IEditorServiceClient</a>.<a href="../interfaces/protobuf_ts_generated_omega_edit_v1_omega_edit.grpc-client.IEditorServiceClient.html#unsubscribetoviewportevents">unsubscribeToViewportEvents</a></p>
 <ul>
-<li>Defined in <a href="https://github.com/ctc-oss/omega-edit/blob/6518f54378bc64aa0d57506e55741f5fc6cbc6bb/packages/client/src/protobuf_ts/generated/omega_edit/v1/omega_edit.grpc-client.ts#L3963">protobuf_ts/generated/omega_edit/v1/omega_edit.grpc-client.ts:3963</a></li></ul></aside></div></li></ul></section>
+<li>Defined in <a href="https://github.com/ctc-oss/omega-edit/blob/929563373970bd3eb12533c4d67bf35c248842b9/packages/client/src/protobuf_ts/generated/omega_edit/v1/omega_edit.grpc-client.ts#L4123">protobuf_ts/generated/omega_edit/v1/omega_edit.grpc-client.ts:4123</a></li></ul></aside></div></li></ul></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="viewporthaschanges"><span>viewport<wbr/>Has<wbr/>Changes</span><a href="#viewporthaschanges" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <ul class="tsd-signatures">
@@ -1315,11 +1363,11 @@ was last read.</p>
 <h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">SurfaceCall</span></h4>
 <div class="tsd-comment tsd-typography">
 <div class="tsd-tag-generated">
-<h4 class="tsd-anchor-link" id="generated-50">Generated<a href="#generated-50" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h4><p>from protobuf rpc: ViewportHasChanges</p>
+<h4 class="tsd-anchor-link" id="generated-52">Generated<a href="#generated-52" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h4><p>from protobuf rpc: ViewportHasChanges</p>
 </div></div><aside class="tsd-sources">
 <p>Implementation of <a href="../interfaces/protobuf_ts_generated_omega_edit_v1_omega_edit.grpc-client.IEditorServiceClient.html">IEditorServiceClient</a>.<a href="../interfaces/protobuf_ts_generated_omega_edit_v1_omega_edit.grpc-client.IEditorServiceClient.html#viewporthaschanges">viewportHasChanges</a></p>
 <ul>
-<li>Defined in <a href="https://github.com/ctc-oss/omega-edit/blob/6518f54378bc64aa0d57506e55741f5fc6cbc6bb/packages/client/src/protobuf_ts/generated/omega_edit/v1/omega_edit.grpc-client.ts#L2631">protobuf_ts/generated/omega_edit/v1/omega_edit.grpc-client.ts:2631</a></li></ul></aside></div></li></ul></section></section></details></div>
+<li>Defined in <a href="https://github.com/ctc-oss/omega-edit/blob/929563373970bd3eb12533c4d67bf35c248842b9/packages/client/src/protobuf_ts/generated/omega_edit/v1/omega_edit.grpc-client.ts#L2709">protobuf_ts/generated/omega_edit/v1/omega_edit.grpc-client.ts:2709</a></li></ul></aside></div></li></ul></section></section></details></div>
 <div class="col-sidebar">
 <div class="page-menu">
 <div class="tsd-navigation settings">
@@ -1337,7 +1385,7 @@ was last read.</p>
 <details open class="tsd-accordion tsd-page-navigation-section"><summary class="tsd-accordion-summary" data-key="section-Constructors"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true"><use href="../assets/icons.svg#icon-chevronDown"></use></svg>Constructors</summary>
 <div><a href="#constructor"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Constructor"><use href="../assets/icons.svg#icon-512"></use></svg><span>constructor</span></a></div></details>
 <details open class="tsd-accordion tsd-page-navigation-section"><summary class="tsd-accordion-summary" data-key="section-Methods"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true"><use href="../assets/icons.svg#icon-chevronDown"></use></svg>Methods</summary>
-<div><a href="#applytransformplugin"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>apply<wbr/>Transform<wbr/>Plugin</span></a><a href="#checksessionmodel"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>check<wbr/>Session<wbr/>Model</span></a><a href="#clearchanges"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>clear<wbr/>Changes</span></a><a href="#createcheckpoint"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>create<wbr/>Checkpoint</span></a><a href="#createsession"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>create<wbr/>Session</span></a><a href="#createviewport"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>create<wbr/>Viewport</span></a><a href="#destroylastcheckpoint"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>destroy<wbr/>Last<wbr/>Checkpoint</span></a><a href="#destroysession"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>destroy<wbr/>Session</span></a><a href="#destroyviewport"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>destroy<wbr/>Viewport</span></a><a href="#exportchangelog"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>export<wbr/>Change<wbr/>Log</span></a><a href="#getbytefrequencyprofile"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>get<wbr/>Byte<wbr/>Frequency<wbr/>Profile</span></a><a href="#getbyteordermark"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>get<wbr/>Byte<wbr/>Order<wbr/>Mark</span></a><a href="#getchangedetails"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>get<wbr/>Change<wbr/>Details</span></a><a href="#getcharactercounts"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>get<wbr/>Character<wbr/>Counts</span></a><a href="#getcomputedfilesize"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>get<wbr/>Computed<wbr/>File<wbr/>Size</span></a><a href="#getcount"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>get<wbr/>Count</span></a><a href="#getheartbeat"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>get<wbr/>Heartbeat</span></a><a href="#getlastchange"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>get<wbr/>Last<wbr/>Change</span></a><a href="#getlastundo"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>get<wbr/>Last<wbr/>Undo</span></a><a href="#getsegment"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>get<wbr/>Segment</span></a><a href="#getserverinfo"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>get<wbr/>Server<wbr/>Info</span></a><a href="#getsessioncontentinfo"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>get<wbr/>Session<wbr/>Content<wbr/>Info</span></a><a href="#getsessioncount"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>get<wbr/>Session<wbr/>Count</span></a><a href="#getsessionfingerprint"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>get<wbr/>Session<wbr/>Fingerprint</span></a><a href="#getviewportdata"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>get<wbr/>Viewport<wbr/>Data</span></a><a href="#inspectsessioncontent"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>inspect<wbr/>Session<wbr/>Content</span></a><a href="#listtransformplugins"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>list<wbr/>Transform<wbr/>Plugins</span></a><a href="#modifyviewport"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>modify<wbr/>Viewport</span></a><a href="#notifychangedviewports"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>notify<wbr/>Changed<wbr/>Viewports</span></a><a href="#pausesessionchanges"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>pause<wbr/>Session<wbr/>Changes</span></a><a href="#pauseviewportevents"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>pause<wbr/>Viewport<wbr/>Events</span></a><a href="#redolastundo"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>redo<wbr/>Last<wbr/>Undo</span></a><a href="#replacesession"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>replace<wbr/>Session</span></a><a href="#replacesessioncheckpointed"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>replace<wbr/>Session<wbr/>Checkpointed</span></a><a href="#restorelastcheckpoint"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>restore<wbr/>Last<wbr/>Checkpoint</span></a><a href="#restoretochangecount"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>restore<wbr/>To<wbr/>Change<wbr/>Count</span></a><a href="#resumesessionchanges"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>resume<wbr/>Session<wbr/>Changes</span></a><a href="#resumeviewportevents"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>resume<wbr/>Viewport<wbr/>Events</span></a><a href="#savesession"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>save<wbr/>Session</span></a><a href="#searchsession"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>search<wbr/>Session</span></a><a href="#servercontrol"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>server<wbr/>Control</span></a><a href="#sessionbegintransaction"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>session<wbr/>Begin<wbr/>Transaction</span></a><a href="#sessionendtransaction"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>session<wbr/>End<wbr/>Transaction</span></a><a href="#submitchange"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>submit<wbr/>Change</span></a><a href="#subscribetosessionevents"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>subscribe<wbr/>To<wbr/>Session<wbr/>Events</span></a><a href="#subscribetoviewportevents"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>subscribe<wbr/>To<wbr/>Viewport<wbr/>Events</span></a><a href="#undolastchange"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>undo<wbr/>Last<wbr/>Change</span></a><a href="#unsubscribetosessionevents"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>unsubscribe<wbr/>To<wbr/>Session<wbr/>Events</span></a><a href="#unsubscribetoviewportevents"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>unsubscribe<wbr/>To<wbr/>Viewport<wbr/>Events</span></a><a href="#viewporthaschanges"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>viewport<wbr/>Has<wbr/>Changes</span></a></div></details></div></details></div>
+<div><a href="#applytransformplugin"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>apply<wbr/>Transform<wbr/>Plugin</span></a><a href="#checkoutcheckpoint"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>checkout<wbr/>Checkpoint</span></a><a href="#checksessionmodel"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>check<wbr/>Session<wbr/>Model</span></a><a href="#clearchanges"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>clear<wbr/>Changes</span></a><a href="#createcheckpoint"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>create<wbr/>Checkpoint</span></a><a href="#createsession"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>create<wbr/>Session</span></a><a href="#createviewport"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>create<wbr/>Viewport</span></a><a href="#destroylastcheckpoint"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>destroy<wbr/>Last<wbr/>Checkpoint</span></a><a href="#destroysession"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>destroy<wbr/>Session</span></a><a href="#destroyviewport"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>destroy<wbr/>Viewport</span></a><a href="#discardcheckpointfuture"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>discard<wbr/>Checkpoint<wbr/>Future</span></a><a href="#exportchangelog"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>export<wbr/>Change<wbr/>Log</span></a><a href="#getbytefrequencyprofile"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>get<wbr/>Byte<wbr/>Frequency<wbr/>Profile</span></a><a href="#getbyteordermark"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>get<wbr/>Byte<wbr/>Order<wbr/>Mark</span></a><a href="#getchangedetails"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>get<wbr/>Change<wbr/>Details</span></a><a href="#getcharactercounts"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>get<wbr/>Character<wbr/>Counts</span></a><a href="#getcomputedfilesize"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>get<wbr/>Computed<wbr/>File<wbr/>Size</span></a><a href="#getcount"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>get<wbr/>Count</span></a><a href="#getheartbeat"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>get<wbr/>Heartbeat</span></a><a href="#getlastchange"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>get<wbr/>Last<wbr/>Change</span></a><a href="#getlastundo"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>get<wbr/>Last<wbr/>Undo</span></a><a href="#getsegment"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>get<wbr/>Segment</span></a><a href="#getserverinfo"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>get<wbr/>Server<wbr/>Info</span></a><a href="#getsessioncontentinfo"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>get<wbr/>Session<wbr/>Content<wbr/>Info</span></a><a href="#getsessioncount"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>get<wbr/>Session<wbr/>Count</span></a><a href="#getsessionfingerprint"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>get<wbr/>Session<wbr/>Fingerprint</span></a><a href="#getviewportdata"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>get<wbr/>Viewport<wbr/>Data</span></a><a href="#inspectsessioncontent"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>inspect<wbr/>Session<wbr/>Content</span></a><a href="#listtransformplugins"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>list<wbr/>Transform<wbr/>Plugins</span></a><a href="#modifyviewport"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>modify<wbr/>Viewport</span></a><a href="#notifychangedviewports"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>notify<wbr/>Changed<wbr/>Viewports</span></a><a href="#pausesessionchanges"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>pause<wbr/>Session<wbr/>Changes</span></a><a href="#pauseviewportevents"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>pause<wbr/>Viewport<wbr/>Events</span></a><a href="#redolastundo"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>redo<wbr/>Last<wbr/>Undo</span></a><a href="#replacesession"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>replace<wbr/>Session</span></a><a href="#replacesessioncheckpointed"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>replace<wbr/>Session<wbr/>Checkpointed</span></a><a href="#restorelastcheckpoint"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>restore<wbr/>Last<wbr/>Checkpoint</span></a><a href="#restoretochangecount"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>restore<wbr/>To<wbr/>Change<wbr/>Count</span></a><a href="#resumesessionchanges"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>resume<wbr/>Session<wbr/>Changes</span></a><a href="#resumeviewportevents"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>resume<wbr/>Viewport<wbr/>Events</span></a><a href="#savesession"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>save<wbr/>Session</span></a><a href="#searchsession"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>search<wbr/>Session</span></a><a href="#servercontrol"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>server<wbr/>Control</span></a><a href="#sessionbegintransaction"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>session<wbr/>Begin<wbr/>Transaction</span></a><a href="#sessionendtransaction"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>session<wbr/>End<wbr/>Transaction</span></a><a href="#submitchange"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>submit<wbr/>Change</span></a><a href="#subscribetosessionevents"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>subscribe<wbr/>To<wbr/>Session<wbr/>Events</span></a><a href="#subscribetoviewportevents"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>subscribe<wbr/>To<wbr/>Viewport<wbr/>Events</span></a><a href="#undolastchange"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>undo<wbr/>Last<wbr/>Change</span></a><a href="#unsubscribetosessionevents"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>unsubscribe<wbr/>To<wbr/>Session<wbr/>Events</span></a><a href="#unsubscribetoviewportevents"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>unsubscribe<wbr/>To<wbr/>Viewport<wbr/>Events</span></a><a href="#viewporthaschanges"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>viewport<wbr/>Has<wbr/>Changes</span></a></div></details></div></details></div>
 <div class="site-menu">
 <nav class="tsd-navigation"><a href="../modules.html">Ωedit TypeScript Client Documentation</a>
 <ul class="tsd-small-nested-navigation" id="tsd-nav-container">
