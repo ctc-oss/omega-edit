@@ -255,8 +255,14 @@ describe('Editor Patterns', () => {
       },
     }
 
+    expect(history.willUndoCrossMilestone()).to.be.true
+    expect(history.willRedoCrossMilestone()).to.be.false
     await history.undo(executor)
+    expect(history.willUndoCrossMilestone()).to.be.false
+    expect(history.willRedoCrossMilestone()).to.be.true
     await history.redo(executor)
+    expect(history.willUndoCrossMilestone()).to.be.true
+    expect(history.willRedoCrossMilestone()).to.be.false
     expect(calls).to.deep.equal([
       'undoMilestone',
       'undoLocal',

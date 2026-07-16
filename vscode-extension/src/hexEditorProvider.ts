@@ -36,12 +36,14 @@ import {
   changeLogHeaderForExport,
   ChangeKind,
   checkSessionModel,
+  checkoutCheckpoint,
   clear,
   countCharacters,
   CountKind,
   createCheckpoint,
   del,
   destroyLastCheckpoint,
+  discardCheckpointFuture,
   editSimple,
   type EditorChangeRecord as ChangeRecord,
   type EditorHistoryExecutor,
@@ -127,6 +129,7 @@ import {
   type ServerHealthMessage,
   type WebviewToHostMessage,
   bytesPerRowFromSetting,
+  checkpointTimelineMetadataWindow,
   normalizeExternalHighlights,
   normalizeBytesPerRow,
   normalizeBytesPerRowSetting,
@@ -4310,11 +4313,10 @@ export class HexEditorProvider
     }
 
     await this.captureCheckpointTimelineTip(session)
-    const nativeCheckpointCount =
-      await this.assertCheckpointTimelineNativeAlignment(
-        session,
-        'before navigation'
-      )
+    await this.assertCheckpointTimelineNativeAlignment(
+      session,
+      'before navigation'
+    )
 
     timeline.navigating = true
     this.postCheckpointTimeline(session)
@@ -4328,45 +4330,30 @@ export class HexEditorProvider
     const originalCursor = timeline.cursor
     try {
       const sessionSyncVersion = session.sessionSyncVersion
-      if (targetCheckpointCount < timeline.cursor) {
-        // Rewind relies only on native checkpoints. Durable archives are
-        // validated when fast-forward crosses them, so an unavailable future
-        // interval never prevents returning to the original content.
-        let remaining = nativeCheckpointCount
-        while (remaining > targetCheckpointCount) {
-          remaining = await destroyLastCheckpoint(session.sessionId)
-        }
-        if (targetCheckpointCount > 0) {
-          await restoreLastCheckpoint(session.sessionId)
-        } else {
-          await clear(session.sessionId)
-        }
-        const expected =
-          targetCheckpointCount === 0
-            ? timeline.originalFingerprint
-            : timeline.entries[targetCheckpointCount - 1].interval.after
-        await assertCurrentSessionFingerprint(
-          session.sessionId,
-          expected,
-          'after'
+      const response = await checkoutCheckpoint(
+        session.sessionId,
+        targetCheckpointCount
+      )
+      if (
+        response.checkpointCount !== targetCheckpointCount ||
+        response.futureCheckpointCount !==
+          timeline.entries.length - targetCheckpointCount
+      ) {
+        throw new Error(
+          `Native checkpoint checkout reached ${response.checkpointCount} with ${response.futureCheckpointCount} future checkpoints; expected ${targetCheckpointCount} with ${timeline.entries.length - targetCheckpointCount} future checkpoints`
         )
-        timeline.cursor = targetCheckpointCount
-        await timeline.storage?.setCursor(targetCheckpointCount)
-      } else {
-        for (
-          let next = timeline.cursor + 1;
-          next <= targetCheckpointCount;
-          next += 1
-        ) {
-          const entry = timeline.entries[next - 1]
-          if (!entry || entry.interval.checkpoint !== next) {
-            throw new Error(`Checkpoint ${next} is missing from the timeline`)
-          }
-          await this.replayCheckpointTimelineInterval(session, next)
-          timeline.cursor = next
-          await timeline.storage?.setCursor(next)
-        }
       }
+      const expected =
+        targetCheckpointCount === 0
+          ? timeline.originalFingerprint
+          : timeline.entries[targetCheckpointCount - 1].interval.after
+      await assertCurrentSessionFingerprint(
+        session.sessionId,
+        expected,
+        'after'
+      )
+      timeline.cursor = targetCheckpointCount
+      await timeline.storage?.setCursor(targetCheckpointCount)
 
       await this.waitForSessionSync(session, sessionSyncVersion)
       const currentFingerprint = await getChangeLogFingerprint(
@@ -4409,14 +4396,7 @@ export class HexEditorProvider
       console.warn(`Checkpoint timeline navigation failed: ${failureMessage}`)
       let rollbackFailure: string | undefined
       try {
-        let nativeCursor = await this.getCheckpointCount(session)
-        while (nativeCursor > originalCursor) {
-          nativeCursor = await destroyLastCheckpoint(session.sessionId)
-        }
-        while (nativeCursor < originalCursor) {
-          await this.replayCheckpointTimelineInterval(session, nativeCursor + 1)
-          nativeCursor += 1
-        }
+        await checkoutCheckpoint(session.sessionId, originalCursor)
         const originalFingerprint =
           originalCursor === 0
             ? timeline.originalFingerprint
@@ -4457,108 +4437,6 @@ export class HexEditorProvider
       if (failureMessage) {
         this.postTransformStatus(session, false, undefined, failureMessage)
       }
-    }
-  }
-
-  private async preflightCheckpointTimelineInterval(
-    session: EditorSession,
-    checkpoint: number
-  ): Promise<void> {
-    const entry = session.checkpointTimeline.entries[checkpoint - 1]
-    if (!entry || entry.interval.checkpoint !== checkpoint) {
-      throw new TimelineStorageError(
-        'TIMELINE_INTERVAL_UNAVAILABLE',
-        `Checkpoint ${checkpoint} is missing from the timeline`
-      )
-    }
-    const availablePlugins = new Set(
-      session.transformPlugins.map((plugin) => plugin.id)
-    )
-    const missingPlugins = entry.interval.transformPluginIds.filter(
-      (id) => !availablePlugins.has(id)
-    )
-    if (missingPlugins.length > 0) {
-      throw new TimelineStorageError(
-        'TIMELINE_PLUGIN_UNAVAILABLE',
-        `Checkpoint ${checkpoint} requires unavailable transform plugin(s): ${missingPlugins.join(', ')}`
-      )
-    }
-    const storage = session.checkpointTimeline.storage
-    if (!storage) {
-      throw new TimelineStorageError(
-        'TIMELINE_INTERVAL_UNAVAILABLE',
-        `Checkpoint ${checkpoint} has no durable replay archive`
-      )
-    }
-    try {
-      await storage.openInterval(checkpoint)
-    } catch (error) {
-      const code =
-        error instanceof TimelineStorageError
-          ? error.code
-          : 'TIMELINE_PREFLIGHT_FAILED'
-      const message = error instanceof Error ? error.message : String(error)
-      entry.interval = {
-        ...entry.interval,
-        state: 'unavailable',
-        archive: undefined,
-        error: { code, message },
-      }
-      entry.interval = await storage
-        .markIntervalUnavailable(checkpoint, code, message)
-        .catch(() => entry.interval)
-      this.postCheckpointTimeline(session)
-      throw error
-    }
-  }
-
-  private async replayCheckpointTimelineInterval(
-    session: EditorSession,
-    checkpoint: number
-  ): Promise<void> {
-    await this.preflightCheckpointTimelineInterval(session, checkpoint)
-    const entry = session.checkpointTimeline.entries[checkpoint - 1]
-    const startChangeCount = await getChangeCount(session.sessionId)
-    const startCheckpointCount = await this.getCheckpointCount(session)
-    await assertCurrentSessionFingerprint(
-      session.sessionId,
-      entry.interval.before,
-      'before'
-    )
-    try {
-      const archive =
-        await session.checkpointTimeline.storage?.openInterval(checkpoint)
-      if (!archive) throw new Error(`Checkpoint ${checkpoint} is unavailable`)
-      await this.applyChangeLogEntries(
-        session,
-        preparedChangeLogToParsed(archive).entries(),
-        entry.interval.after
-      )
-      const replayCheckpointCount = await this.getCheckpointCount(session)
-      if (replayCheckpointCount < checkpoint) {
-        await createCheckpoint(session.sessionId)
-      } else if (replayCheckpointCount > checkpoint) {
-        throw new Error(
-          `Checkpoint replay reached ${replayCheckpointCount}, expected ${checkpoint}`
-        )
-      }
-      await assertCurrentSessionFingerprint(
-        session.sessionId,
-        entry.interval.after,
-        'after'
-      )
-    } catch (error) {
-      let nativeCheckpointCount = await this.getCheckpointCount(session)
-      while (nativeCheckpointCount > startCheckpointCount) {
-        nativeCheckpointCount = await destroyLastCheckpoint(session.sessionId)
-      }
-      await restoreToChangeCount(session.sessionId, startChangeCount)
-      await assertCurrentSessionFingerprint(
-        session.sessionId,
-        entry.interval.before,
-        'before'
-      )
-      throw error
     }
   }
 
@@ -4735,23 +4613,41 @@ export class HexEditorProvider
     const availablePlugins = new Set(
       session.transformPlugins.map((plugin) => plugin.id)
     )
-    const intervalAvailable = (checkpoint: number): boolean => {
+    const intervalAvailability = (checkpoint: number) => {
       const interval = timeline.entries[checkpoint - 1]?.interval
-      return (
+      const missingPluginIds =
+        interval?.transformPluginIds.filter(
+          (id) => !availablePlugins.has(id)
+        ) ?? []
+      const available =
         !!timeline.storage &&
         interval?.state === 'ready' &&
-        interval.transformPluginIds.every((id) => availablePlugins.has(id))
-      )
+        missingPluginIds.length === 0
+      return {
+        available,
+        missingPluginIds,
+        error:
+          interval?.error?.message ??
+          (!timeline.storage
+            ? 'Checkpoint history storage is unavailable'
+            : missingPluginIds.length > 0
+              ? `Missing transform plugin(s): ${missingPluginIds.join(', ')}`
+              : undefined),
+      }
     }
     const canRewind = timeline.cursor > 0
-    const canFastForward =
-      timeline.cursor < timeline.entries.length &&
-      intervalAvailable(timeline.cursor + 1)
+    const canFastForward = timeline.cursor < timeline.entries.length
+    const metadataCheckpoints = checkpointTimelineMetadataWindow(
+      timeline.entries.length,
+      timeline.cursor,
+      savedCheckpoint
+    )
     this.postWebviewMessage(session, {
       type: 'checkpointTimeline',
       visible: timeline.visible,
       cursor: timeline.cursor,
       checkpointCount: timeline.entries.length,
+      originalByteLength: String(timeline.originalFingerprint.byteLength),
       savedChangeCount: timeline.savedChangeCount,
       savedCheckpoint,
       savedOffBranch:
@@ -4764,15 +4660,30 @@ export class HexEditorProvider
       canRewind,
       canFastForward,
       navigating: timeline.navigating,
-      checkpoints: timeline.entries
-        .filter((entry) => entry.interval.boundaryKind !== 'tip')
-        .map((entry) => ({
-          checkpoint: entry.interval.checkpoint,
+      checkpoints: metadataCheckpoints.map((checkpoint) => {
+        const entry = timeline.entries[checkpoint - 1]
+        const availability = intervalAvailability(checkpoint)
+        return {
+          checkpoint,
           changeCount: entry.changeCount,
+          sourceChangeCount: entry.interval.sourceChangeCount,
+          ...(entry.interval.archive
+            ? {
+                replayChangeCount: entry.interval.archive.emittedChangeCount,
+                archiveByteLength: entry.interval.archive.byteLength,
+              }
+            : {}),
+          byteLengthBefore: entry.interval.before.byteLength,
+          byteLengthAfter: entry.interval.after.byteLength,
+          boundaryKind: entry.interval.boundaryKind,
+          transformPluginIds: entry.interval.transformPluginIds,
+          missingPluginIds: availability.missingPluginIds,
+          optimized: entry.interval.archive?.optimized ?? false,
           createdAt: Date.parse(entry.interval.createdAt),
-          available: intervalAvailable(entry.interval.checkpoint),
-          error: entry.interval.error?.message,
-        })),
+          available: availability.available,
+          error: availability.error,
+        }
+      }),
     })
   }
 
@@ -6108,6 +6019,12 @@ export class HexEditorProvider
     ) {
       return
     }
+    const discarded = await discardCheckpointFuture(session.sessionId)
+    if (discarded.checkpointCount < cursor) {
+      throw new Error(
+        `Native checkpoint branch is at ${discarded.checkpointCount}, before timeline cursor ${cursor}`
+      )
+    }
     try {
       await timeline.storage?.truncateFuture(cursor)
     } catch (error) {
@@ -6725,23 +6642,58 @@ export class HexEditorProvider
   }
 
   private makeHistoryExecutor(session: EditorSession): EditorHistoryExecutor {
+    const hasTimeline = session.checkpointTimeline.entries.length > 0
+    const undoCrossesTimelineMilestone =
+      hasTimeline && session.history.willUndoCrossMilestone()
+    const redoCrossesTimelineMilestone =
+      hasTimeline && session.history.willRedoCrossMilestone()
+    const checkoutTimelineMilestone = async (direction: -1 | 1) => {
+      const targetCheckpoint = session.checkpointTimeline.cursor + direction
+      if (
+        targetCheckpoint < 0 ||
+        targetCheckpoint > session.checkpointTimeline.entries.length
+      ) {
+        throw new Error(
+          `Checkpoint milestone target ${targetCheckpoint} is outside the materialized timeline`
+        )
+      }
+      await checkoutCheckpoint(session.sessionId, targetCheckpoint)
+    }
     return {
       async undoLocal() {
+        if (undoCrossesTimelineMilestone) {
+          await checkoutTimelineMilestone(-1)
+          return
+        }
         await undo(session.sessionId)
       },
       async redoLocal() {
+        if (redoCrossesTimelineMilestone) {
+          await checkoutTimelineMilestone(1)
+          return
+        }
         await redo(session.sessionId)
       },
       async undoMilestone() {
+        if (undoCrossesTimelineMilestone) return
         await destroyLastCheckpoint(session.sessionId)
       },
       async redoMilestone() {
+        if (redoCrossesTimelineMilestone) return
         await createCheckpoint(session.sessionId)
       },
       async undoCheckpoint() {
+        if (hasTimeline) {
+          await checkoutTimelineMilestone(-1)
+          return
+        }
         await destroyLastCheckpoint(session.sessionId)
       },
       async redoCheckpoint(transaction) {
+        if (hasTimeline) {
+          await checkoutTimelineMilestone(1)
+          return
+        }
         const pattern = transaction.isHex
           ? Buffer.from(transaction.query, 'hex')
           : Buffer.from(transaction.query, 'utf8')

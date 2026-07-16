@@ -114,6 +114,60 @@ describe('@omega-edit/ai toolkit', () => {
     vi.restoreAllMocks()
   })
 
+  it('resolves paths for auto-started servers and preserves remote paths', async function () {
+    const createSession = vi
+      .spyOn(omegaEditClient, 'createSession')
+      .mockResolvedValue({
+        getSessionId: () => 'session-id',
+      } as Awaited<ReturnType<typeof omegaEditClient.createSession>>)
+    const saveSession = vi
+      .spyOn(omegaEditClient, 'saveSession')
+      .mockImplementation(async (_sessionId, filePath) => {
+        return {
+          getFilePath: () => filePath,
+          getSaveStatus: () => 0,
+        } as Awaited<ReturnType<typeof omegaEditClient.saveSession>>
+      })
+    const localToolkit = new OmegaEditToolkit({ autoStart: true })
+    const remoteToolkit = new OmegaEditToolkit({ autoStart: false })
+    for (const toolkit of [localToolkit, remoteToolkit]) {
+      ;(
+        toolkit as unknown as { ensureServerRunning: () => Promise<void> }
+      ).ensureServerRunning = async () => undefined
+    }
+
+    await localToolkit.createSession(
+      'relative/input.bin',
+      '',
+      'relative/checkpoints'
+    )
+    await localToolkit.saveSession('session-id', 'relative/output.bin')
+    await localToolkit.exportRange('session-id', 0, 1, 'relative/export.bin')
+
+    await remoteToolkit.createSession(
+      'relative/input.bin',
+      '',
+      'relative/checkpoints'
+    )
+    await remoteToolkit.saveSession('session-id', 'relative/output.bin')
+    await remoteToolkit.exportRange('session-id', 0, 1, 'relative/export.bin')
+
+    assert.deepEqual(createSession.mock.calls, [
+      [
+        path.resolve('relative/input.bin'),
+        '',
+        path.resolve('relative/checkpoints'),
+      ],
+      ['relative/input.bin', '', 'relative/checkpoints'],
+    ])
+    assert.deepEqual(saveSession.mock.calls, [
+      ['session-id', path.resolve('relative/output.bin'), 0],
+      ['session-id', path.resolve('relative/export.bin'), 0, 0, 1],
+      ['session-id', 'relative/output.bin', 0],
+      ['session-id', 'relative/export.bin', 0, 0, 1],
+    ])
+  })
+
   it('preserves the original connection failure as the cause', async function () {
     const port = await omegaEditClient.findFirstAvailablePort(19000, 19999)
     assert.ok(port, 'expected an available port for OmegaEdit')

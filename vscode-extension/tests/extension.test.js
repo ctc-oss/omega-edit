@@ -41,6 +41,7 @@ const {
 const {
   MAX_ANALYSIS_PROFILE_BYTES,
   MAX_TRANSFORM_OPTIONS_LENGTH,
+  checkpointTimelineMetadataWindow,
   normalizeExternalHighlights,
   normalizeBytesPerRow,
   normalizeWebviewMessage,
@@ -2543,6 +2544,29 @@ test('range map file-fit validation names the offending node', () => {
   )
 })
 
+test('checkpoint timeline metadata stays bounded around important positions', () => {
+  const checkpoints = checkpointTimelineMetadataWindow(
+    1_000_000,
+    500_000,
+    750_000
+  )
+
+  assert.ok(checkpoints.length <= 75)
+  assert.deepEqual(
+    checkpoints,
+    checkpoints.toSorted((left, right) => left - right)
+  )
+  assert.equal(new Set(checkpoints).size, checkpoints.length)
+  for (const checkpoint of [
+    1, 8, 499_988, 500_000, 500_012, 750_000, 999_993, 1_000_000,
+  ]) {
+    assert.ok(
+      checkpoints.includes(checkpoint),
+      `expected checkpoint ${checkpoint}`
+    )
+  }
+})
+
 test('webview protocol normalizes editor commands and rejects invalid ranges', () => {
   const context = { fileSize: 10 }
 
@@ -3108,14 +3132,21 @@ test('webview protocol normalizes analysis, search, and transform messages', () 
       optionsJson: '{ "operator": "xor", "mask": [255] }',
     }
   )
-  assert.equal(
+  assert.deepEqual(
     normalizeWebviewMessage(context, {
       type: 'applyTransform',
       pluginId: 'omega.example.bitwise',
-      offset: 1,
+      offset: 0,
       length: 0,
     }),
-    undefined
+    {
+      type: 'applyTransform',
+      pluginId: 'omega.example.bitwise',
+      contentSource: 'computed',
+      offset: 0,
+      length: 0,
+      optionsJson: undefined,
+    }
   )
   assert.equal(
     normalizeWebviewMessage(context, {

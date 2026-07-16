@@ -30,6 +30,54 @@ export const TEXT_ENCODING_OPTIONS = [
   'macroman',
 ] as const
 export const DEFAULT_TEXT_ENCODING = 'ascii'
+const TIMELINE_METADATA_EDGE_COUNT = 8
+const TIMELINE_METADATA_CONTEXT_RADIUS = 12
+const TIMELINE_METADATA_SAVED_RADIUS = 4
+const TIMELINE_METADATA_SAMPLE_COUNT = 24
+
+export function checkpointTimelineMetadataWindow(
+  checkpointCount: number,
+  cursor: number,
+  savedCheckpoint?: number
+): number[] {
+  const checkpoints = new Set<number>()
+  const add = (checkpoint: number) => {
+    if (checkpoint >= 1 && checkpoint <= checkpointCount) {
+      checkpoints.add(checkpoint)
+    }
+  }
+  const addRange = (first: number, last: number) => {
+    for (let checkpoint = first; checkpoint <= last; checkpoint += 1) {
+      add(checkpoint)
+    }
+  }
+
+  addRange(1, TIMELINE_METADATA_EDGE_COUNT)
+  addRange(checkpointCount - TIMELINE_METADATA_EDGE_COUNT + 1, checkpointCount)
+  addRange(
+    cursor - TIMELINE_METADATA_CONTEXT_RADIUS,
+    cursor + TIMELINE_METADATA_CONTEXT_RADIUS
+  )
+  if (savedCheckpoint !== undefined) {
+    addRange(
+      savedCheckpoint - TIMELINE_METADATA_SAVED_RADIUS,
+      savedCheckpoint + TIMELINE_METADATA_SAVED_RADIUS
+    )
+  }
+  if (checkpointCount > 1) {
+    for (let index = 0; index < TIMELINE_METADATA_SAMPLE_COUNT; index += 1) {
+      add(
+        1 +
+          Math.round(
+            ((checkpointCount - 1) * index) /
+              (TIMELINE_METADATA_SAMPLE_COUNT - 1)
+          )
+      )
+    }
+  }
+
+  return [...checkpoints].sort((left, right) => left - right)
+}
 
 export type BytesPerRow = number
 export type BytesPerRowMode = 'fixed' | 'auto'
@@ -348,6 +396,7 @@ export type HostToWebviewMessage =
       visible: boolean
       cursor: number
       checkpointCount: number
+      originalByteLength: string
       savedChangeCount: number
       savedCheckpoint?: number
       savedOffBranch: boolean
@@ -357,6 +406,15 @@ export type HostToWebviewMessage =
       checkpoints: Array<{
         checkpoint: number
         changeCount: number
+        sourceChangeCount: string
+        replayChangeCount?: string
+        byteLengthBefore: string
+        byteLengthAfter: string
+        archiveByteLength?: string
+        boundaryKind: 'plain' | 'transform' | 'tip'
+        transformPluginIds: string[]
+        missingPluginIds: string[]
+        optimized: boolean
         createdAt: number
         available: boolean
         error?: string
@@ -1080,8 +1138,15 @@ export function normalizeWebviewMessage(
         raw.contentSource === undefined
           ? 'computed'
           : safeSessionContentSource(raw.contentSource)
+      // Transform APIs use zero length as the sentinel for offset through EOF.
       const range = contentSource
-        ? safeContentLengthRange(context, contentSource, raw.offset, raw.length)
+        ? safeContentLengthRange(
+            context,
+            contentSource,
+            raw.offset,
+            raw.length,
+            true
+          )
         : undefined
       const optionsJson =
         raw.optionsJson === undefined

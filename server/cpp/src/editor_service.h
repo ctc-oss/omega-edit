@@ -206,6 +206,14 @@ namespace omega_edit {
                                                const ::omega_edit::v1::DestroyLastCheckpointRequest *request,
                                                ::omega_edit::v1::DestroyLastCheckpointResponse *response) override;
 
+            grpc::Status CheckoutCheckpoint(grpc::ServerContext *context,
+                                            const ::omega_edit::v1::CheckoutCheckpointRequest *request,
+                                            ::omega_edit::v1::CheckoutCheckpointResponse *response) override;
+
+            grpc::Status DiscardCheckpointFuture(grpc::ServerContext *context,
+                                                 const ::omega_edit::v1::DiscardCheckpointFutureRequest *request,
+                                                 ::omega_edit::v1::DiscardCheckpointFutureResponse *response) override;
+
             grpc::Status RestoreLastCheckpoint(grpc::ServerContext *context,
                                                const ::omega_edit::v1::RestoreLastCheckpointRequest *request,
                                                ::omega_edit::v1::RestoreLastCheckpointResponse *response) override;

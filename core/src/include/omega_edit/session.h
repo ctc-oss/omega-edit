@@ -287,6 +287,13 @@ int64_t omega_session_get_num_undone_change_transactions(const omega_session_t *
 int64_t omega_session_get_num_checkpoints(const omega_session_t *session_ptr);
 
 /**
+ * Given a session, return the number of preserved checkpoints after the active checkpoint boundary.
+ * @param session_ptr session to get the number of future checkpoints for
+ * @return number of future checkpoints
+ */
+int64_t omega_session_get_num_future_checkpoints(const omega_session_t *session_ptr);
+
+/**
  * Call the registered session event handler
  * @param session_ptr session whose event handler to call
  * @param session_event session event

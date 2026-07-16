@@ -24,6 +24,7 @@ import {
   SessionFingerprintContent,
   type ApplyTransformPluginResponse,
   type CheckSessionModelResponse,
+  type CheckoutCheckpointResponse,
   type CreateCheckpointResponse,
   type CreateSessionRequest,
   type CreateSessionResponse,
@@ -40,6 +41,7 @@ import {
   type ListTransformPluginsResponse,
   type NotifyChangedViewportsResponse,
   type DestroyLastCheckpointResponse,
+  type DiscardCheckpointFutureResponse,
   type ReplaceSessionRequest,
   type ReplaceSessionResponse,
   type ReplaceSessionCheckpointedRequest,
@@ -1438,6 +1440,100 @@ export async function restoreLastCheckpoint(
           return resolve(required)
         } catch (error) {
           return reject(makeWrappedError('restoreLastCheckpoint', error))
+        }
+      }
+    )
+  })
+}
+
+export async function checkoutCheckpoint(
+  sessionId: string,
+  checkpointCount: number
+): Promise<CheckoutCheckpointResponse> {
+  const log = getLogger()
+  const request = { sessionId, checkpointCount }
+  debugLog(log, () => ({
+    fn: 'protobufTs.checkoutCheckpoint',
+    rqst: request,
+  }))
+  const client = await getClient()
+
+  return new Promise<CheckoutCheckpointResponse>((resolve, reject) => {
+    callUnary(client, client.checkoutCheckpoint, request, (err, response) => {
+      if (err) {
+        log.error({
+          fn: 'protobufTs.checkoutCheckpoint',
+          rqst: request,
+          err: {
+            msg: err.message,
+            details: err.details,
+            code: err.code,
+            stack: err.stack,
+          },
+        })
+        return reject(makeWrappedError('checkoutCheckpoint', err))
+      }
+
+      try {
+        const required = requireResponse(
+          response as CheckoutCheckpointResponse | undefined,
+          'checkoutCheckpoint'
+        )
+        debugLog(log, () => ({
+          fn: 'protobufTs.checkoutCheckpoint',
+          resp: required,
+        }))
+        return resolve(required)
+      } catch (error) {
+        return reject(makeWrappedError('checkoutCheckpoint', error))
+      }
+    })
+  })
+}
+
+export async function discardCheckpointFuture(
+  sessionId: string
+): Promise<DiscardCheckpointFutureResponse> {
+  const log = getLogger()
+  const request = { sessionId }
+  debugLog(log, () => ({
+    fn: 'protobufTs.discardCheckpointFuture',
+    rqst: request,
+  }))
+  const client = await getClient()
+
+  return new Promise<DiscardCheckpointFutureResponse>((resolve, reject) => {
+    callUnary(
+      client,
+      client.discardCheckpointFuture,
+      request,
+      (err, response) => {
+        if (err) {
+          log.error({
+            fn: 'protobufTs.discardCheckpointFuture',
+            rqst: request,
+            err: {
+              msg: err.message,
+              details: err.details,
+              code: err.code,
+              stack: err.stack,
+            },
+          })
+          return reject(makeWrappedError('discardCheckpointFuture', err))
+        }
+
+        try {
+          const required = requireResponse(
+            response as DiscardCheckpointFutureResponse | undefined,
+            'discardCheckpointFuture'
+          )
+          debugLog(log, () => ({
+            fn: 'protobufTs.discardCheckpointFuture',
+            resp: required,
+          }))
+          return resolve(required)
+        } catch (error) {
+          return reject(makeWrappedError('discardCheckpointFuture', error))
         }
       }
     )

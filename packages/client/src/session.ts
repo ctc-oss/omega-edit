@@ -28,6 +28,8 @@ import {
   ViewportEventKind as RawProtoViewportEventKind,
   type ApplyTransformPluginResponse as RawApplyTransformPluginResponse,
   type CheckSessionModelResponse as RawCheckSessionModelResponse,
+  type CheckoutCheckpointResponse as RawCheckoutCheckpointResponse,
+  type DiscardCheckpointFutureResponse as RawDiscardCheckpointFutureResponse,
   type GetSessionContentInfoResponse as RawGetSessionContentInfoResponse,
   type GetSessionFingerprintResponse as RawGetSessionFingerprintResponse,
   type InspectSessionContentResponse as RawInspectSessionContentResponse,
@@ -42,10 +44,12 @@ import {
   applyTransformPlugin as rawApplyTransformPlugin,
   beginSessionTransaction as rawBeginSessionTransaction,
   checkSessionModel as rawCheckSessionModel,
+  checkoutCheckpoint as rawCheckoutCheckpoint,
   countCharacters as rawCountCharacters,
   createCheckpoint as rawCreateCheckpoint,
   createSession as rawCreateSession,
   destroyLastCheckpoint as rawDestroyLastCheckpoint,
+  discardCheckpointFuture as rawDiscardCheckpointFuture,
   destroySession as rawDestroySession,
   getByteOrderMark as rawGetByteOrderMark,
   getComputedFileSize as rawGetComputedFileSize,
@@ -198,6 +202,8 @@ export type TransformPluginSupport =
 export type TransformPluginInfo = RawTransformPluginInfo
 export type ApplyTransformPluginResponse = RawApplyTransformPluginResponse
 export type RestoreLastCheckpointResponse = RawRestoreLastCheckpointResponse
+export type CheckoutCheckpointResponse = RawCheckoutCheckpointResponse
+export type DiscardCheckpointFutureResponse = RawDiscardCheckpointFutureResponse
 export type RestoreToChangeCountResponse = RawRestoreToChangeCountResponse
 export type CheckSessionModelResponse = RawCheckSessionModelResponse
 export type SessionContentInfo = RawSessionContentInfo
@@ -334,6 +340,39 @@ export async function restoreLastCheckpoint(
       'discarded change count',
       response.discardedChangeCount
     )
+    return response
+  })
+}
+
+export async function checkoutCheckpoint(
+  session_id: string,
+  checkpoint_count: number
+): Promise<CheckoutCheckpointResponse> {
+  return await enqueueSessionMutation(session_id, async () => {
+    const response = await rawCheckoutCheckpoint(
+      session_id,
+      requireSafeIntegerInput('checkpoint count', checkpoint_count)
+    )
+    requireSafeIntegerOutput('checkpoint count', response.checkpointCount)
+    requireSafeIntegerOutput(
+      'future checkpoint count',
+      response.futureCheckpointCount
+    )
+    requireSafeIntegerOutput('change count', response.changeCount)
+    return response
+  })
+}
+
+export async function discardCheckpointFuture(
+  session_id: string
+): Promise<DiscardCheckpointFutureResponse> {
+  return await enqueueSessionMutation(session_id, async () => {
+    const response = await rawDiscardCheckpointFuture(session_id)
+    requireSafeIntegerOutput(
+      'discarded checkpoint count',
+      response.discardedCheckpointCount
+    )
+    requireSafeIntegerOutput('checkpoint count', response.checkpointCount)
     return response
   })
 }

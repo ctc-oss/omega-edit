@@ -202,6 +202,11 @@ Start the stdio MCP server for an agent host:
 npx omega-edit-mcp
 ```
 
+MCP clients can call `omega_edit_run_file` to run a bounded pipeline directly
+against a file. Ωedit™ creates and destroys the internal session automatically;
+mutating pipelines require an explicit output path or explicit discard and are
+persisted only after all operations succeed.
+
 Or use the JSON-first CLI directly:
 
 ```bash

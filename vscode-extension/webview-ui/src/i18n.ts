@@ -4,10 +4,10 @@ const RTL_LANGUAGES = new Set(['ar', 'fa', 'he', 'ps', 'ur'])
 let activeLanguage = DEFAULT_LANGUAGE
 
 export function formatNumber(
-  value: number,
+  value: number | bigint,
   options?: Intl.NumberFormatOptions
 ): string {
-  return value.toLocaleString(activeLanguage, options)
+  return new Intl.NumberFormat(activeLanguage, options).format(value)
 }
 
 export function textDirectionForLanguage(language: string): 'ltr' | 'rtl' {
@@ -562,6 +562,24 @@ const englishStrings = {
     originalMarker: 'Original',
     marker: (checkpoint: number, changes: number, saved: boolean) =>
       `Checkpoint ${formatNumber(checkpoint)}, ${formatNumber(changes)} changes${saved ? ', last saved' : ''}`,
+    boundaryPlain: 'Manual checkpoint',
+    boundaryTransform: 'Transform checkpoint',
+    boundaryTip: 'Captured working tip',
+    originalDescription: 'Starting content before checkpointed changes',
+    changesInInterval: (count: number | bigint) =>
+      `${formatNumber(count)} source change${count === 1 || count === 1n ? '' : 's'}`,
+    replayOperations: (count: number | bigint) =>
+      `${formatNumber(count)} replay operation${count === 1 || count === 1n ? '' : 's'}`,
+    size: 'Size',
+    archive: 'Archive',
+    optimizedArchive: 'optimized',
+    rawArchive: 'raw',
+    plugins: 'Actions',
+    created: 'Created',
+    ready: 'Replay ready',
+    metadataUnavailable: 'Checkpoint metadata is not loaded',
+    displayedUnavailableCount: (count: number) =>
+      `${formatNumber(count)} displayed checkpoint${count === 1 ? '' : 's'} unavailable`,
     unavailable: 'Replay unavailable',
     unavailableCount: (count: number) =>
       `${formatNumber(count)} checkpoint${count === 1 ? '' : 's'} unavailable`,
@@ -830,6 +848,24 @@ const localeOverrides: Record<string, LocaleStringOverrides> = {
       unavailable: 'Reproduccion no disponible',
       unavailableCount: (count: number) =>
         `${formatNumber(count)} punto${count === 1 ? '' : 's'} de control no disponible${count === 1 ? '' : 's'}`,
+      boundaryPlain: 'Punto de control manual',
+      boundaryTransform: 'Punto de control de transformacion',
+      boundaryTip: 'Punta de trabajo capturada',
+      originalDescription: 'Contenido inicial antes de los cambios con puntos de control',
+      changesInInterval: (count: number | bigint) =>
+        `${formatNumber(count)} cambio${count === 1 || count === 1n ? '' : 's'} de origen`,
+      replayOperations: (count: number | bigint) =>
+        `${formatNumber(count)} operacion${count === 1 || count === 1n ? '' : 'es'} de reproduccion`,
+      size: 'Tamano',
+      archive: 'Archivo',
+      optimizedArchive: 'optimizado',
+      rawArchive: 'sin optimizar',
+      plugins: 'Acciones',
+      created: 'Creado',
+      ready: 'Reproduccion lista',
+      metadataUnavailable: 'Los metadatos del punto de control no estan cargados',
+      displayedUnavailableCount: (count: number) =>
+        `${formatNumber(count)} punto${count === 1 ? '' : 's'} de control mostrado${count === 1 ? '' : 's'} no disponible${count === 1 ? '' : 's'}`,
       navigating: 'Moviendo por el historial de puntos de control',
       close: 'Cerrar la linea de tiempo de puntos de control',
       hiddenMarkers: (count: number) =>

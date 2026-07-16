@@ -1912,6 +1912,74 @@ export interface DestroyLastCheckpointResponse {
   remainingCheckpoints: number // Remaining checkpoint count after revert.
 }
 /**
+ * Request to navigate to a materialized checkpoint boundary.
+ *
+ * @generated from protobuf message omega_edit.v1.CheckoutCheckpointRequest
+ */
+export interface CheckoutCheckpointRequest {
+  /**
+   * @generated from protobuf field: string session_id = 1
+   */
+  sessionId: string // Session to navigate.
+  /**
+   * @generated from protobuf field: int64 checkpoint_count = 2
+   */
+  checkpointCount: number // Checkpoint boundary to make active; zero is the original snapshot.
+}
+/**
+ * Result of non-destructive checkpoint navigation.
+ *
+ * @generated from protobuf message omega_edit.v1.CheckoutCheckpointResponse
+ */
+export interface CheckoutCheckpointResponse {
+  /**
+   * @generated from protobuf field: string session_id = 1
+   */
+  sessionId: string // Session that was navigated.
+  /**
+   * @generated from protobuf field: int64 checkpoint_count = 2
+   */
+  checkpointCount: number // Active checkpoint count after navigation.
+  /**
+   * @generated from protobuf field: int64 future_checkpoint_count = 3
+   */
+  futureCheckpointCount: number // Preserved checkpoint count available for fast-forward.
+  /**
+   * @generated from protobuf field: int64 change_count = 4
+   */
+  changeCount: number // Active session change count after navigation.
+}
+/**
+ * Request to destroy the preserved checkpoint branch after the active boundary.
+ *
+ * @generated from protobuf message omega_edit.v1.DiscardCheckpointFutureRequest
+ */
+export interface DiscardCheckpointFutureRequest {
+  /**
+   * @generated from protobuf field: string session_id = 1
+   */
+  sessionId: string // Session whose checkpoint future should be discarded.
+}
+/**
+ * Result of destroying a preserved checkpoint branch.
+ *
+ * @generated from protobuf message omega_edit.v1.DiscardCheckpointFutureResponse
+ */
+export interface DiscardCheckpointFutureResponse {
+  /**
+   * @generated from protobuf field: string session_id = 1
+   */
+  sessionId: string // Session whose future was discarded.
+  /**
+   * @generated from protobuf field: int64 discarded_checkpoint_count = 2
+   */
+  discardedCheckpointCount: number // Number of checkpoint models destroyed.
+  /**
+   * @generated from protobuf field: int64 checkpoint_count = 3
+   */
+  checkpointCount: number // Active checkpoint count, which is unchanged.
+}
+/**
  * Request to restore the most recent checkpoint snapshot without discarding it.
  *
  * @generated from protobuf message omega_edit.v1.RestoreLastCheckpointRequest
@@ -12444,6 +12512,384 @@ class DestroyLastCheckpointResponse$Type extends MessageType<DestroyLastCheckpoi
 export const DestroyLastCheckpointResponse =
   new DestroyLastCheckpointResponse$Type()
 // @generated message type with reflection information, may provide speed optimized methods
+class CheckoutCheckpointRequest$Type extends MessageType<CheckoutCheckpointRequest> {
+  constructor() {
+    super('omega_edit.v1.CheckoutCheckpointRequest', [
+      { no: 1, name: 'session_id', kind: 'scalar', T: 9 /*ScalarType.STRING*/ },
+      {
+        no: 2,
+        name: 'checkpoint_count',
+        kind: 'scalar',
+        T: 3 /*ScalarType.INT64*/,
+        L: 2 /*LongType.NUMBER*/,
+      },
+    ])
+  }
+  create(
+    value?: PartialMessage<CheckoutCheckpointRequest>
+  ): CheckoutCheckpointRequest {
+    const message = globalThis.Object.create(this.messagePrototype!)
+    message.sessionId = ''
+    message.checkpointCount = 0
+    if (value !== undefined)
+      reflectionMergePartial<CheckoutCheckpointRequest>(this, message, value)
+    return message
+  }
+  internalBinaryRead(
+    reader: IBinaryReader,
+    length: number,
+    options: BinaryReadOptions,
+    target?: CheckoutCheckpointRequest
+  ): CheckoutCheckpointRequest {
+    let message = target ?? this.create(),
+      end = reader.pos + length
+    while (reader.pos < end) {
+      let [fieldNo, wireType] = reader.tag()
+      switch (fieldNo) {
+        case /* string session_id */ 1:
+          message.sessionId = reader.string()
+          break
+        case /* int64 checkpoint_count */ 2:
+          message.checkpointCount = reader.int64().toNumber()
+          break
+        default:
+          let u = options.readUnknownField
+          if (u === 'throw')
+            throw new globalThis.Error(
+              `Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`
+            )
+          let d = reader.skip(wireType)
+          if (u !== false)
+            (u === true ? UnknownFieldHandler.onRead : u)(
+              this.typeName,
+              message,
+              fieldNo,
+              wireType,
+              d
+            )
+      }
+    }
+    return message
+  }
+  internalBinaryWrite(
+    message: CheckoutCheckpointRequest,
+    writer: IBinaryWriter,
+    options: BinaryWriteOptions
+  ): IBinaryWriter {
+    /* string session_id = 1; */
+    if (message.sessionId !== '')
+      writer.tag(1, WireType.LengthDelimited).string(message.sessionId)
+    /* int64 checkpoint_count = 2; */
+    if (message.checkpointCount !== 0)
+      writer.tag(2, WireType.Varint).int64(message.checkpointCount)
+    let u = options.writeUnknownFields
+    if (u !== false)
+      (u == true ? UnknownFieldHandler.onWrite : u)(
+        this.typeName,
+        message,
+        writer
+      )
+    return writer
+  }
+}
+/**
+ * @generated MessageType for protobuf message omega_edit.v1.CheckoutCheckpointRequest
+ */
+export const CheckoutCheckpointRequest = new CheckoutCheckpointRequest$Type()
+// @generated message type with reflection information, may provide speed optimized methods
+class CheckoutCheckpointResponse$Type extends MessageType<CheckoutCheckpointResponse> {
+  constructor() {
+    super('omega_edit.v1.CheckoutCheckpointResponse', [
+      { no: 1, name: 'session_id', kind: 'scalar', T: 9 /*ScalarType.STRING*/ },
+      {
+        no: 2,
+        name: 'checkpoint_count',
+        kind: 'scalar',
+        T: 3 /*ScalarType.INT64*/,
+        L: 2 /*LongType.NUMBER*/,
+      },
+      {
+        no: 3,
+        name: 'future_checkpoint_count',
+        kind: 'scalar',
+        T: 3 /*ScalarType.INT64*/,
+        L: 2 /*LongType.NUMBER*/,
+      },
+      {
+        no: 4,
+        name: 'change_count',
+        kind: 'scalar',
+        T: 3 /*ScalarType.INT64*/,
+        L: 2 /*LongType.NUMBER*/,
+      },
+    ])
+  }
+  create(
+    value?: PartialMessage<CheckoutCheckpointResponse>
+  ): CheckoutCheckpointResponse {
+    const message = globalThis.Object.create(this.messagePrototype!)
+    message.sessionId = ''
+    message.checkpointCount = 0
+    message.futureCheckpointCount = 0
+    message.changeCount = 0
+    if (value !== undefined)
+      reflectionMergePartial<CheckoutCheckpointResponse>(this, message, value)
+    return message
+  }
+  internalBinaryRead(
+    reader: IBinaryReader,
+    length: number,
+    options: BinaryReadOptions,
+    target?: CheckoutCheckpointResponse
+  ): CheckoutCheckpointResponse {
+    let message = target ?? this.create(),
+      end = reader.pos + length
+    while (reader.pos < end) {
+      let [fieldNo, wireType] = reader.tag()
+      switch (fieldNo) {
+        case /* string session_id */ 1:
+          message.sessionId = reader.string()
+          break
+        case /* int64 checkpoint_count */ 2:
+          message.checkpointCount = reader.int64().toNumber()
+          break
+        case /* int64 future_checkpoint_count */ 3:
+          message.futureCheckpointCount = reader.int64().toNumber()
+          break
+        case /* int64 change_count */ 4:
+          message.changeCount = reader.int64().toNumber()
+          break
+        default:
+          let u = options.readUnknownField
+          if (u === 'throw')
+            throw new globalThis.Error(
+              `Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`
+            )
+          let d = reader.skip(wireType)
+          if (u !== false)
+            (u === true ? UnknownFieldHandler.onRead : u)(
+              this.typeName,
+              message,
+              fieldNo,
+              wireType,
+              d
+            )
+      }
+    }
+    return message
+  }
+  internalBinaryWrite(
+    message: CheckoutCheckpointResponse,
+    writer: IBinaryWriter,
+    options: BinaryWriteOptions
+  ): IBinaryWriter {
+    /* string session_id = 1; */
+    if (message.sessionId !== '')
+      writer.tag(1, WireType.LengthDelimited).string(message.sessionId)
+    /* int64 checkpoint_count = 2; */
+    if (message.checkpointCount !== 0)
+      writer.tag(2, WireType.Varint).int64(message.checkpointCount)
+    /* int64 future_checkpoint_count = 3; */
+    if (message.futureCheckpointCount !== 0)
+      writer.tag(3, WireType.Varint).int64(message.futureCheckpointCount)
+    /* int64 change_count = 4; */
+    if (message.changeCount !== 0)
+      writer.tag(4, WireType.Varint).int64(message.changeCount)
+    let u = options.writeUnknownFields
+    if (u !== false)
+      (u == true ? UnknownFieldHandler.onWrite : u)(
+        this.typeName,
+        message,
+        writer
+      )
+    return writer
+  }
+}
+/**
+ * @generated MessageType for protobuf message omega_edit.v1.CheckoutCheckpointResponse
+ */
+export const CheckoutCheckpointResponse = new CheckoutCheckpointResponse$Type()
+// @generated message type with reflection information, may provide speed optimized methods
+class DiscardCheckpointFutureRequest$Type extends MessageType<DiscardCheckpointFutureRequest> {
+  constructor() {
+    super('omega_edit.v1.DiscardCheckpointFutureRequest', [
+      { no: 1, name: 'session_id', kind: 'scalar', T: 9 /*ScalarType.STRING*/ },
+    ])
+  }
+  create(
+    value?: PartialMessage<DiscardCheckpointFutureRequest>
+  ): DiscardCheckpointFutureRequest {
+    const message = globalThis.Object.create(this.messagePrototype!)
+    message.sessionId = ''
+    if (value !== undefined)
+      reflectionMergePartial<DiscardCheckpointFutureRequest>(
+        this,
+        message,
+        value
+      )
+    return message
+  }
+  internalBinaryRead(
+    reader: IBinaryReader,
+    length: number,
+    options: BinaryReadOptions,
+    target?: DiscardCheckpointFutureRequest
+  ): DiscardCheckpointFutureRequest {
+    let message = target ?? this.create(),
+      end = reader.pos + length
+    while (reader.pos < end) {
+      let [fieldNo, wireType] = reader.tag()
+      switch (fieldNo) {
+        case /* string session_id */ 1:
+          message.sessionId = reader.string()
+          break
+        default:
+          let u = options.readUnknownField
+          if (u === 'throw')
+            throw new globalThis.Error(
+              `Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`
+            )
+          let d = reader.skip(wireType)
+          if (u !== false)
+            (u === true ? UnknownFieldHandler.onRead : u)(
+              this.typeName,
+              message,
+              fieldNo,
+              wireType,
+              d
+            )
+      }
+    }
+    return message
+  }
+  internalBinaryWrite(
+    message: DiscardCheckpointFutureRequest,
+    writer: IBinaryWriter,
+    options: BinaryWriteOptions
+  ): IBinaryWriter {
+    /* string session_id = 1; */
+    if (message.sessionId !== '')
+      writer.tag(1, WireType.LengthDelimited).string(message.sessionId)
+    let u = options.writeUnknownFields
+    if (u !== false)
+      (u == true ? UnknownFieldHandler.onWrite : u)(
+        this.typeName,
+        message,
+        writer
+      )
+    return writer
+  }
+}
+/**
+ * @generated MessageType for protobuf message omega_edit.v1.DiscardCheckpointFutureRequest
+ */
+export const DiscardCheckpointFutureRequest =
+  new DiscardCheckpointFutureRequest$Type()
+// @generated message type with reflection information, may provide speed optimized methods
+class DiscardCheckpointFutureResponse$Type extends MessageType<DiscardCheckpointFutureResponse> {
+  constructor() {
+    super('omega_edit.v1.DiscardCheckpointFutureResponse', [
+      { no: 1, name: 'session_id', kind: 'scalar', T: 9 /*ScalarType.STRING*/ },
+      {
+        no: 2,
+        name: 'discarded_checkpoint_count',
+        kind: 'scalar',
+        T: 3 /*ScalarType.INT64*/,
+        L: 2 /*LongType.NUMBER*/,
+      },
+      {
+        no: 3,
+        name: 'checkpoint_count',
+        kind: 'scalar',
+        T: 3 /*ScalarType.INT64*/,
+        L: 2 /*LongType.NUMBER*/,
+      },
+    ])
+  }
+  create(
+    value?: PartialMessage<DiscardCheckpointFutureResponse>
+  ): DiscardCheckpointFutureResponse {
+    const message = globalThis.Object.create(this.messagePrototype!)
+    message.sessionId = ''
+    message.discardedCheckpointCount = 0
+    message.checkpointCount = 0
+    if (value !== undefined)
+      reflectionMergePartial<DiscardCheckpointFutureResponse>(
+        this,
+        message,
+        value
+      )
+    return message
+  }
+  internalBinaryRead(
+    reader: IBinaryReader,
+    length: number,
+    options: BinaryReadOptions,
+    target?: DiscardCheckpointFutureResponse
+  ): DiscardCheckpointFutureResponse {
+    let message = target ?? this.create(),
+      end = reader.pos + length
+    while (reader.pos < end) {
+      let [fieldNo, wireType] = reader.tag()
+      switch (fieldNo) {
+        case /* string session_id */ 1:
+          message.sessionId = reader.string()
+          break
+        case /* int64 discarded_checkpoint_count */ 2:
+          message.discardedCheckpointCount = reader.int64().toNumber()
+          break
+        case /* int64 checkpoint_count */ 3:
+          message.checkpointCount = reader.int64().toNumber()
+          break
+        default:
+          let u = options.readUnknownField
+          if (u === 'throw')
+            throw new globalThis.Error(
+              `Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`
+            )
+          let d = reader.skip(wireType)
+          if (u !== false)
+            (u === true ? UnknownFieldHandler.onRead : u)(
+              this.typeName,
+              message,
+              fieldNo,
+              wireType,
+              d
+            )
+      }
+    }
+    return message
+  }
+  internalBinaryWrite(
+    message: DiscardCheckpointFutureResponse,
+    writer: IBinaryWriter,
+    options: BinaryWriteOptions
+  ): IBinaryWriter {
+    /* string session_id = 1; */
+    if (message.sessionId !== '')
+      writer.tag(1, WireType.LengthDelimited).string(message.sessionId)
+    /* int64 discarded_checkpoint_count = 2; */
+    if (message.discardedCheckpointCount !== 0)
+      writer.tag(2, WireType.Varint).int64(message.discardedCheckpointCount)
+    /* int64 checkpoint_count = 3; */
+    if (message.checkpointCount !== 0)
+      writer.tag(3, WireType.Varint).int64(message.checkpointCount)
+    let u = options.writeUnknownFields
+    if (u !== false)
+      (u == true ? UnknownFieldHandler.onWrite : u)(
+        this.typeName,
+        message,
+        writer
+      )
+    return writer
+  }
+}
+/**
+ * @generated MessageType for protobuf message omega_edit.v1.DiscardCheckpointFutureResponse
+ */
+export const DiscardCheckpointFutureResponse =
+  new DiscardCheckpointFutureResponse$Type()
+// @generated message type with reflection information, may provide speed optimized methods
 class RestoreLastCheckpointRequest$Type extends MessageType<RestoreLastCheckpointRequest> {
   constructor() {
     super('omega_edit.v1.RestoreLastCheckpointRequest', [
@@ -15056,6 +15502,18 @@ export const EditorService = new ServiceType('omega_edit.v1.EditorService', [
     options: {},
     I: DestroyLastCheckpointRequest,
     O: DestroyLastCheckpointResponse,
+  },
+  {
+    name: 'CheckoutCheckpoint',
+    options: {},
+    I: CheckoutCheckpointRequest,
+    O: CheckoutCheckpointResponse,
+  },
+  {
+    name: 'DiscardCheckpointFuture',
+    options: {},
+    I: DiscardCheckpointFutureRequest,
+    O: DiscardCheckpointFutureResponse,
   },
   {
     name: 'RestoreLastCheckpoint',

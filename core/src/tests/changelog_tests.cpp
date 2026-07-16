@@ -278,16 +278,41 @@ TEST_CASE("transform boundaries are emitted exactly once", "[changelog][range][t
     REQUIRE(2 == omega_edit_replace_bytes_as_transform(session.get(), 1, 2, transformed, 2, "omega.test", "{\"x\":1}"));
     REQUIRE(3 == omega_edit_insert(session.get(), 4, "Z", 1));
 
-    const auto crossing = export_range_(session.get(), 2, 3);
-    REQUIRE(crossing.size() == 2);
-    CHECK(crossing[0].kind == OMEGA_CHANGELOG_PLAN_TRANSFORM);
-    CHECK(crossing[0].transform_id == "omega.test");
-    CHECK(crossing[0].options_json == "{\"x\":1}");
-    CHECK(crossing[1].kind == OMEGA_CHANGELOG_PLAN_INSERT);
+    for (const auto optimize : {false, true}) {
+        const auto crossing = export_mode_(session.get(), optimize, 2, 3);
+        REQUIRE(crossing.size() == 2);
+        CHECK(crossing[0].kind == OMEGA_CHANGELOG_PLAN_TRANSFORM);
+        CHECK(crossing[0].offset == 1);
+        CHECK(crossing[0].length == 2);
+        CHECK(crossing[0].transform_id == "omega.test");
+        CHECK(crossing[0].options_json == "{\"x\":1}");
+        CHECK(crossing[0].replacement_length == 2);
+        CHECK(crossing[0].computed_file_size_before == 4);
+        CHECK(crossing[0].computed_file_size_after == 4);
+        CHECK(crossing[1].kind == OMEGA_CHANGELOG_PLAN_INSERT);
+    }
 
     const auto after = export_range_(session.get(), 3, 3);
     REQUIRE(after.size() == 1);
     CHECK(after[0].kind == OMEGA_CHANGELOG_PLAN_INSERT);
+}
+
+TEST_CASE("whole-range transform exports its effective replay range",
+          "[BrutalCoverage][changelog][transform][replay]") {
+    auto session = from_text_("abc");
+    const omega_edit_transform_t upper_transform{OMEGA_EDIT_TRANSFORM_ASCII_TO_UPPER, 0};
+    REQUIRE(0 == omega_edit_apply_builtin_transform(session.get(), upper_transform, 0, 0));
+
+    for (const auto optimize : {false, true}) {
+        const auto entries = export_mode_(session.get(), optimize);
+        REQUIRE(entries.size() == 1);
+        CHECK(entries[0].kind == OMEGA_CHANGELOG_PLAN_TRANSFORM);
+        CHECK(entries[0].offset == 0);
+        CHECK(entries[0].length == 3);
+        CHECK(entries[0].replacement_length == 3);
+        CHECK(entries[0].computed_file_size_before == 3);
+        CHECK(entries[0].computed_file_size_after == 3);
+    }
 }
 
 TEST_CASE("limits fail before callbacks and tiny spans stay correct", "[changelog][limits]") {
