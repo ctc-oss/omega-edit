@@ -224,9 +224,8 @@ export class EditorHistoryController {
   }
 
   public recordLocalMutation(): void {
-    this.undoneChangeLog.length = 0
+    this.discardRedoBranch()
     this.transactionLog.push({ kind: 'LOCAL_UNTRACKED' })
-    this.undoneTransactionLog.length = 0
   }
 
   public recordLocalChanges(changes: EditorChangeRecord[]): void {
@@ -234,10 +233,9 @@ export class EditorHistoryController {
       return
     }
 
+    this.discardRedoBranch()
     this.changeLog.push(...changes)
-    this.undoneChangeLog.length = 0
     this.transactionLog.push({ kind: 'LOCAL', changeCount: changes.length })
-    this.undoneTransactionLog.length = 0
   }
 
   public recordLocalReplaceAll(
@@ -266,9 +264,8 @@ export class EditorHistoryController {
   public recordCheckpointReplaceAll(
     transaction: EditorCheckpointReplaceAllTransaction
   ): void {
-    this.undoneChangeLog.length = 0
+    this.discardRedoBranch()
     this.transactionLog.push(transaction)
-    this.undoneTransactionLog.length = 0
   }
 
   public markSaved(): void {
@@ -346,6 +343,18 @@ export class EditorHistoryController {
       await executor.redoMilestone()
     }
     return true
+  }
+
+  private discardRedoBranch(): void {
+    this.undoneChangeLog.length = 0
+    this.undoneTransactionLog.length = 0
+
+    const branchDepth = this.transactionLog.length
+    for (let index = this.milestoneDepths.length - 1; index >= 0; index -= 1) {
+      if (this.milestoneDepths[index] > branchDepth) {
+        this.milestoneDepths.splice(index, 1)
+      }
+    }
   }
 }
 
