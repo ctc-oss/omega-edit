@@ -121,6 +121,14 @@ export class EditorHistoryController {
     return [...this.changeLog]
   }
 
+  public willUndoCrossMilestone(): boolean {
+    return this.milestoneDepths.includes(this.transactionLog.length)
+  }
+
+  public willRedoCrossMilestone(): boolean {
+    return this.milestoneDepths.includes(this.transactionLog.length + 1)
+  }
+
   public snapshot(): EditorHistorySnapshot {
     return {
       version: 1,

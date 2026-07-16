@@ -23,7 +23,14 @@ namespace omega_edit::internal {
     namespace {
         constexpr int64_t PAYLOAD_BLOCK_SIZE = 1024 * 1024;
 
-        bool seek_(FILE *file, int64_t offset) { return FSEEK(file, offset, SEEK_SET) == 0; }
+        bool seek_(FILE *file, int64_t offset) {
+#if !defined(OMEGA_BUILD_WINDOWS) && !defined(HAVE_FSEEKO)
+            return offset <= (std::numeric_limits<long>::max)() &&
+                   FSEEK(file, static_cast<long>(offset), SEEK_SET) == 0;
+#else
+            return FSEEK(file, offset, SEEK_SET) == 0;
+#endif
+        }
     }// namespace
 
     int omega_payload_compress_file_(omega_byte_payload_struct *payload) {

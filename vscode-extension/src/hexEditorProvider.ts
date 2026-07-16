@@ -6642,47 +6642,58 @@ export class HexEditorProvider
   }
 
   private makeHistoryExecutor(session: EditorSession): EditorHistoryExecutor {
-    const provider = this
-    const history = session.history.snapshot()
     const hasTimeline = session.checkpointTimeline.entries.length > 0
     const undoCrossesTimelineMilestone =
-      hasTimeline &&
-      history.milestoneDepths.includes(history.transactionLog.length)
+      hasTimeline && session.history.willUndoCrossMilestone()
     const redoCrossesTimelineMilestone =
-      hasTimeline &&
-      history.milestoneDepths.includes(history.transactionLog.length + 1)
+      hasTimeline && session.history.willRedoCrossMilestone()
+    const checkoutTimelineMilestone = async (direction: -1 | 1) => {
+      const targetCheckpoint = session.checkpointTimeline.cursor + direction
+      if (
+        targetCheckpoint < 0 ||
+        targetCheckpoint > session.checkpointTimeline.entries.length
+      ) {
+        throw new Error(
+          `Checkpoint milestone target ${targetCheckpoint} is outside the materialized timeline`
+        )
+      }
+      await checkoutCheckpoint(session.sessionId, targetCheckpoint)
+    }
     return {
       async undoLocal() {
-        if (undoCrossesTimelineMilestone) return
+        if (undoCrossesTimelineMilestone) {
+          await checkoutTimelineMilestone(-1)
+          return
+        }
         await undo(session.sessionId)
       },
       async redoLocal() {
-        if (redoCrossesTimelineMilestone) return
+        if (redoCrossesTimelineMilestone) {
+          await checkoutTimelineMilestone(1)
+          return
+        }
         await redo(session.sessionId)
       },
       async undoMilestone() {
-        const checkpointCount = await provider.getCheckpointCount(session)
-        if (
-          checkpointCount > 0 &&
-          session.checkpointTimeline.entries.length > 0
-        ) {
-          await checkoutCheckpoint(session.sessionId, checkpointCount - 1)
-          return
-        }
+        if (undoCrossesTimelineMilestone) return
         await destroyLastCheckpoint(session.sessionId)
       },
       async redoMilestone() {
-        const checkpointCount = await provider.getCheckpointCount(session)
-        if (checkpointCount < session.checkpointTimeline.entries.length) {
-          await checkoutCheckpoint(session.sessionId, checkpointCount + 1)
-          return
-        }
+        if (redoCrossesTimelineMilestone) return
         await createCheckpoint(session.sessionId)
       },
       async undoCheckpoint() {
+        if (hasTimeline) {
+          await checkoutTimelineMilestone(-1)
+          return
+        }
         await destroyLastCheckpoint(session.sessionId)
       },
       async redoCheckpoint(transaction) {
+        if (hasTimeline) {
+          await checkoutTimelineMilestone(1)
+          return
+        }
         const pattern = transaction.isHex
           ? Buffer.from(transaction.query, 'hex')
           : Buffer.from(transaction.query, 'utf8')

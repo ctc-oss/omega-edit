@@ -3146,6 +3146,24 @@ suite('OmegaEdit VS Code extension', () => {
     })
 
     await provider.dispatchWebviewMessageForTesting(document.uri, {
+      type: 'undo',
+    })
+    await assertSessionText(session.sessionId, original)
+    let timeline = lastMessageOfType(panel.messages, 'checkpointTimeline')
+    assert.equal(timeline.checkpointCount, 1)
+    assert.equal(timeline.cursor, 0)
+    assert.equal(timeline.canFastForward, true)
+
+    await provider.dispatchWebviewMessageForTesting(document.uri, {
+      type: 'redo',
+    })
+    await assertSessionText(session.sessionId, replaced)
+    timeline = lastMessageOfType(panel.messages, 'checkpointTimeline')
+    assert.equal(timeline.checkpointCount, 1)
+    assert.equal(timeline.cursor, 1)
+    assert.equal(timeline.canRewind, true)
+
+    await provider.dispatchWebviewMessageForTesting(document.uri, {
       type: 'insert',
       offset: 0,
       data: Buffer.from('!', 'utf8').toString('hex'),
@@ -3215,6 +3233,24 @@ suite('OmegaEdit VS Code extension', () => {
     await assertSessionText(session.sessionId, original)
     await provider.navigateToCheckpoint(session, 1)
     await assertSessionText(session.sessionId, replaced)
+
+    await provider.dispatchWebviewMessageForTesting(document.uri, {
+      type: 'undo',
+    })
+    await assertSessionText(session.sessionId, original)
+    timeline = lastMessageOfType(panel.messages, 'checkpointTimeline')
+    assert.equal(timeline.checkpointCount, 2)
+    assert.equal(timeline.cursor, 0)
+    assert.equal(timeline.canFastForward, true)
+
+    await provider.dispatchWebviewMessageForTesting(document.uri, {
+      type: 'redo',
+    })
+    await assertSessionText(session.sessionId, replaced)
+    timeline = lastMessageOfType(panel.messages, 'checkpointTimeline')
+    assert.equal(timeline.checkpointCount, 2)
+    assert.equal(timeline.cursor, 1)
+    assert.equal(timeline.canRewind, true)
 
     await panel.fireDidDispose()
     await fs.rm(tmpDir, { recursive: true, force: true })

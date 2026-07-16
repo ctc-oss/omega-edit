@@ -3027,9 +3027,17 @@ namespace omega_edit {
             }
             auto *session = locked_session.session();
 
-            if (0 != omega_edit_checkout_checkpoint(session, request->checkpoint_count())) {
+            const auto requested_checkpoint_count = request->checkpoint_count();
+            const auto active_checkpoint_count = omega_session_get_num_checkpoints(session);
+            const auto future_checkpoint_count = omega_session_get_num_future_checkpoints(session);
+            if (requested_checkpoint_count < 0 ||
+                requested_checkpoint_count > active_checkpoint_count + future_checkpoint_count) {
                 return grpc::Status(grpc::StatusCode::OUT_OF_RANGE,
                                     "checkpoint boundary is outside the materialized timeline");
+            }
+
+            if (0 != omega_edit_checkout_checkpoint(session, requested_checkpoint_count)) {
+                return grpc::Status(grpc::StatusCode::INTERNAL, "failed to checkout checkpoint");
             }
 
             response->set_session_id(request->session_id());

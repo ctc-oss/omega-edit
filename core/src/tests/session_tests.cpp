@@ -349,6 +349,7 @@ TEST_CASE("Checkpoint checkout preserves redo models until a branch edit",
     REQUIRE("ABC?" == omega_session_get_segment_string(session_ptr, 0, 4));
     REQUIRE(1 == omega_session_get_num_checkpoints(session_ptr));
     REQUIRE(0 == omega_session_get_num_future_checkpoints(session_ptr));
+    require_checkpoint(1, "ABC?", 1, 0);
     REQUIRE(-1 == omega_edit_checkout_checkpoint(session_ptr, 2));
     REQUIRE(3 == transform_state.calls);
 

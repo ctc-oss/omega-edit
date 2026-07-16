@@ -18,6 +18,7 @@
  */
 
 import { expect, expectOpaqueId, opaqueIdPattern, testPort } from './common.js'
+import { status as GrpcStatus } from '@grpc/grpc-js'
 import {
   applyTransformPlugin,
   del,
@@ -966,7 +967,12 @@ describe('Sessions', () => {
       let checkoutRejected = false
       try {
         await checkoutCheckpoint(session_id, 2)
-      } catch {
+      } catch (err) {
+        const wrapped = err as Error & { cause?: { code?: number } }
+        expect(wrapped.cause?.code).to.equal(GrpcStatus.OUT_OF_RANGE)
+        expect(wrapped.message).to.include(
+          'checkpoint boundary is outside the materialized timeline'
+        )
         checkoutRejected = true
       }
       expect(checkoutRejected).to.be.true

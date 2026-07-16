@@ -7,9 +7,7 @@ export function formatNumber(
   value: number | bigint,
   options?: Intl.NumberFormatOptions
 ): string {
-  return typeof value === 'bigint'
-    ? value.toLocaleString(activeLanguage)
-    : value.toLocaleString(activeLanguage, options)
+  return new Intl.NumberFormat(activeLanguage, options).format(value)
 }
 
 export function textDirectionForLanguage(language: string): 'ltr' | 'rtl' {

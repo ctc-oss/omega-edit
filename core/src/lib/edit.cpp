@@ -1974,9 +1974,6 @@ void omega_edit_destroy_session(omega_session_t *session_ptr) {
     for (const auto &model_ptr : session_ptr->models_) {
         if (model_ptr->file_ptr) { FCLOSE(model_ptr->file_ptr); }
     }
-    for (const auto &model_ptr : session_ptr->checkpoint_future_models_) {
-        if (model_ptr->file_ptr) { FCLOSE(model_ptr->file_ptr); }
-    }
     while (!session_ptr->search_contexts_.empty()) {
         omega_search_destroy_context(session_ptr->search_contexts_.back().get());
     }
@@ -1987,13 +1984,7 @@ void omega_edit_destroy_session(omega_session_t *session_ptr) {
         if (0 != omega_util_remove_file(session_ptr->models_.back()->file_path.c_str())) { LOG_ERRNO(); }
         session_ptr->models_.pop_back();
     }
-    while (!session_ptr->checkpoint_future_models_.empty()) {
-        auto &model_ptr = session_ptr->checkpoint_future_models_.back();
-        free_model_changes_(model_ptr.get());
-        free_model_changes_undone_(model_ptr.get());
-        if (!model_ptr->file_path.empty() && 0 != omega_util_remove_file(model_ptr->file_path.c_str())) { LOG_ERRNO(); }
-        session_ptr->checkpoint_future_models_.pop_back();
-    }
+    discard_checkpoint_future_(session_ptr);
     if (!session_ptr->checkpoint_file_name_.empty() &&
         0 != omega_util_remove_file(session_ptr->checkpoint_file_name_.c_str())) {
         LOG_ERRNO();
@@ -3132,6 +3123,7 @@ int omega_edit_checkout_checkpoint(omega_session_t *session_ptr, int64_t checkpo
     const auto active_count = omega_session_get_num_checkpoints(session_ptr);
     const auto future_count = omega_session_get_num_future_checkpoints(session_ptr);
     if (checkpoint_count > active_count + future_count) { return -1; }
+    if (checkpoint_count == active_count) { return 0; }
 
     omega_model_segments_t original_segments;
     if (checkpoint_count == 0) {
