@@ -862,6 +862,21 @@ namespace {
         return result;
     }
 
+    template<typename UpdateFn>
+    auto update_model_transactionally_(omega_model_t *model_ptr, const UpdateFn &update_fn) -> int {
+        if (!model_ptr) { return -1; }
+
+        omega_model_t candidate_model;
+        try {
+            candidate_model.model_segments = clone_model_segments_(model_ptr->model_segments);
+            const auto rc = update_fn(&candidate_model);
+            if (rc != 0) { return rc; }
+        } catch (const std::bad_alloc &) { return -1; }
+
+        model_ptr->model_segments.swap(candidate_model.model_segments);
+        return 0;
+    }
+
     inline void free_model_changes_(omega_model_struct *model_ptr) {
         model_ptr->model_snapshots.clear();
         model_ptr->changes.clear();
@@ -913,7 +928,7 @@ namespace {
         return discarded;
     }
 
-    auto update_model_helper_(omega_model_t *model_ptr, const const_omega_change_ptr_t &change_ptr) -> int {
+    auto update_model_helper_in_place_(omega_model_t *model_ptr, const const_omega_change_ptr_t &change_ptr) -> int {
         if (!change_ptr) { return -1; }
         assert(change_ptr->length > 0);
         try {
@@ -1009,6 +1024,13 @@ namespace {
             if (!safe_add_int64_(read_offset, (*iter)->computed_length, read_offset)) { return -1; }
         }
         return -1;
+    }
+
+    auto update_model_helper_(omega_model_t *model_ptr, const const_omega_change_ptr_t &change_ptr) -> int {
+        if (!change_ptr) { return -1; }
+        return update_model_transactionally_(model_ptr, [&](omega_model_t *candidate_model_ptr) {
+            return update_model_helper_in_place_(candidate_model_ptr, change_ptr);
+        });
     }
 
     auto insert_payload_segment_(omega_model_t *model_ptr, const const_omega_change_ptr_t &change_ptr,
@@ -1122,14 +1144,16 @@ namespace {
     auto update_model_(omega_session_t *session_ptr, const const_omega_change_ptr_t &change_ptr) -> int {
         if (omega_change_get_kind_(change_ptr.get()) == change_kind_t::CHANGE_TRANSFORM) { return 0; }
         const auto model_ptr = session_ptr->models_.back().get();
-        if (omega_change_get_kind_(change_ptr.get()) == change_kind_t::CHANGE_OVERWRITE) {
-            const_omega_change_ptr_t const_change_ptr =
-                    del_(0, change_ptr->offset, change_ptr->length, !omega_session_get_transaction_bit_(session_ptr));
-            if (!const_change_ptr) { return -1; }
-            const auto rc = update_model_helper_(model_ptr, const_change_ptr);
-            if (0 != rc) { return rc; }
-        }
-        return update_model_helper_(model_ptr, change_ptr);
+        return update_model_transactionally_(model_ptr, [&](omega_model_t *candidate_model_ptr) {
+            if (omega_change_get_kind_(change_ptr.get()) == change_kind_t::CHANGE_OVERWRITE) {
+                const_omega_change_ptr_t const_change_ptr = del_(0, change_ptr->offset, change_ptr->length,
+                                                                 !omega_session_get_transaction_bit_(session_ptr));
+                if (!const_change_ptr) { return -1; }
+                const auto rc = update_model_helper_in_place_(candidate_model_ptr, const_change_ptr);
+                if (0 != rc) { return rc; }
+            }
+            return update_model_helper_in_place_(candidate_model_ptr, change_ptr);
+        });
     }
 
     auto rebuild_model_to_change_count_(omega_session_t *session_ptr, int64_t remaining_count) -> int {

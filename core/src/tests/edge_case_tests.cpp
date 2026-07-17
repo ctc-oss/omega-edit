@@ -859,6 +859,42 @@ TEST_CASE("Computed File Size Returns -1 On Segment Overflow", "[EdgeCase][Overf
     omega_edit_destroy_session(session_ptr);
 }
 
+TEST_CASE("Failed Model Update Preserves Segment Metadata", "[EdgeCase][Overflow][ModelUpdate]") {
+    const auto session_ptr = omega_edit_create_session(nullptr, nullptr, nullptr, 0, nullptr);
+    REQUIRE(session_ptr);
+    REQUIRE(0 < omega_edit_insert_string(session_ptr, 0, "abcd"));
+    REQUIRE(0 < omega_edit_insert_string(session_ptr, 2, "X"));
+
+    auto &segments = session_ptr->models_.back()->model_segments;
+    REQUIRE(3 == segments.size());
+
+    auto *const overflow_segment_ptr = segments[1].get();
+    overflow_segment_ptr->computed_offset = (std::numeric_limits<int64_t>::max)();
+
+    std::vector<omega_model_segment_t> segment_snapshots;
+    std::vector<omega_model_segment_t *> segment_ptrs;
+    for (const auto &segment_ptr : segments) {
+        segment_snapshots.push_back(*segment_ptr);
+        segment_ptrs.push_back(segment_ptr.get());
+    }
+    const auto change_count = omega_session_get_num_changes(session_ptr);
+
+    REQUIRE(-1 == omega_edit_insert_string(session_ptr, 0, "Y"));
+
+    REQUIRE(segment_snapshots.size() == segments.size());
+    for (size_t i = 0; i < segments.size(); ++i) {
+        CHECK(segment_ptrs[i] == segments[i].get());
+        CHECK(segment_snapshots[i].computed_offset == segments[i]->computed_offset);
+        CHECK(segment_snapshots[i].computed_length == segments[i]->computed_length);
+        CHECK(segment_snapshots[i].change_offset == segments[i]->change_offset);
+        CHECK(segment_snapshots[i].change_ptr == segments[i]->change_ptr);
+        CHECK(segment_snapshots[i].payload_role == segments[i]->payload_role);
+    }
+    CHECK(change_count == omega_session_get_num_changes(session_ptr));
+
+    omega_edit_destroy_session(session_ptr);
+}
+
 TEST_CASE("Viewport Offset Overflow Returns Safe Sentinels", "[EdgeCase][Overflow]") {
     const auto session_ptr = omega_edit_create_session(nullptr, nullptr, nullptr, 0, nullptr);
     REQUIRE(session_ptr);
