@@ -88,6 +88,14 @@ char omega_change_get_kind_as_char(const omega_change_t *change_ptr);
 int omega_change_get_transaction_bit(const omega_change_t *change_ptr);
 
 /**
+ * Return the first serial of the explicit transaction containing this change.
+ *
+ * @param change_ptr change to inspect
+ * @return positive transaction-start serial, or 0 when the change is not part of an explicit transaction
+ */
+int64_t omega_change_get_transaction_start_serial(const omega_change_t *change_ptr);
+
+/**
  * Given a change, return a pointer to the primitive byte payload.
  *
  * This is the first-class primitive view of the change data field:

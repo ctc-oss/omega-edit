@@ -616,6 +616,8 @@ const englishStrings = {
     payloadInline: 'inline',
     payloadFileBacked: 'file-backed',
     payloadCheckpointBacked: 'checkpoint-backed',
+    copyUnavailable:
+      'Copy details are unavailable after the JavaScript safe-integer history range',
     loading: 'Loading…',
     loadOlderChanges: 'Load older changes',
   },
@@ -930,6 +932,8 @@ const localeOverrides: Record<string, LocaleStringOverrides> = {
       payloadInline: 'integrado',
       payloadFileBacked: 'respaldado por archivo',
       payloadCheckpointBacked: 'respaldado por punto de control',
+      copyUnavailable:
+        'Los detalles de copia no estan disponibles fuera del rango de enteros seguros de JavaScript',
       loading: 'Cargando…',
       loadOlderChanges: 'Cargar cambios anteriores',
     },

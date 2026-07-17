@@ -2432,41 +2432,9 @@ namespace omega_edit {
                 }
                 return ::omega_edit::v1::ACTION_JOURNAL_PAYLOAD_STORAGE_UNSPECIFIED;
             };
-            bool cancelled = false;
-            const auto transaction_bounds = [&](int64_t serial, int bit) {
-                int64_t first_serial = serial;
-                int64_t last_serial = serial;
-                while (first_serial > 1) {
-                    if (context->IsCancelled()) {
-                        cancelled = true;
-                        break;
-                    }
-                    const auto *previous = omega_session_get_change(locked_session.session(), first_serial - 1);
-                    if (!previous || omega_change_get_transaction_bit(previous) != bit) { break; }
-                    --first_serial;
-                }
-                while (last_serial < active_tip) {
-                    if (context->IsCancelled()) {
-                        cancelled = true;
-                        break;
-                    }
-                    const auto *next = omega_session_get_change(locked_session.session(), last_serial + 1);
-                    if (!next || omega_change_get_transaction_bit(next) != bit) { break; }
-                    ++last_serial;
-                }
-                return std::pair<int64_t, int64_t>{first_serial, last_serial};
-            };
-            int cached_transaction_bit = -1;
-            std::pair<int64_t, int64_t> cached_transaction_bounds{0, -1};
-            const auto transaction_id_for = [&](int64_t serial, int bit) {
-                if (cached_transaction_bit != bit || serial < cached_transaction_bounds.first ||
-                    serial > cached_transaction_bounds.second) {
-                    cached_transaction_bit = bit;
-                    cached_transaction_bounds = transaction_bounds(serial, bit);
-                }
-                return cached_transaction_bounds.first == cached_transaction_bounds.second
-                               ? std::string{}
-                               : "transaction:" + std::to_string(cached_transaction_bounds.first);
+            const auto transaction_id_for = [](const omega_change_t *change) {
+                const auto transaction_start = omega_change_get_transaction_start_serial(change);
+                return transaction_start > 0 ? "transaction:" + std::to_string(transaction_start) : std::string{};
             };
             const auto append_entry = [&](const journal_canonical_entry &canonical, const std::string &transaction_id,
                                           int64_t continuation_anchor) -> bool {
@@ -2577,10 +2545,7 @@ namespace omega_edit {
                         step = 2;
                     }
                 }
-                const auto transaction_id = transaction_id_for(canonical.source.serial, transaction_bit);
-                if (cancelled) {
-                    return grpc::Status(grpc::StatusCode::CANCELLED, "action journal request was cancelled");
-                }
+                const auto transaction_id = transaction_id_for(canonical.source.change);
                 if (!append_entry(canonical, transaction_id, continuation_anchor)) { break; }
                 serial += older ? -step : step;
             }

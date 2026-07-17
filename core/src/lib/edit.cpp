@@ -1198,6 +1198,21 @@ namespace {
         return 0;
     }
 
+    void assign_transaction_start_serial_(omega_session_t *session_ptr, const const_omega_change_ptr_t &change_ptr) {
+        if (!session_ptr || !change_ptr || change_ptr->transaction_start_serial > 0 ||
+            omega_session_get_transaction_state(session_ptr) == 0) {
+            return;
+        }
+        const auto *previous = omega_session_get_last_change(session_ptr);
+        change_ptr->transaction_start_serial =
+                previous &&
+                                omega_change_get_transaction_bit_(previous) ==
+                                        omega_change_get_transaction_bit_(change_ptr.get()) &&
+                                previous->transaction_start_serial > 0
+                        ? previous->transaction_start_serial
+                        : omega_change_get_serial(change_ptr.get());
+    }
+
     auto update_(omega_session_t *session_ptr, const const_omega_change_ptr_t &change_ptr) -> int64_t {
         if (!change_ptr) { return -1; }
         if (change_ptr->offset <= omega_session_get_computed_file_size(session_ptr)) {
@@ -1210,6 +1225,7 @@ namespace {
             } else if (!session_ptr->models_.back()->changes_undone.empty()) {
                 free_session_changes_undone_(session_ptr);
             }
+            assign_transaction_start_serial_(session_ptr, change_ptr);
             auto *const model_ptr = session_ptr->models_.back().get();
             try {
                 model_ptr->changes.push_back(change_ptr);
@@ -1340,6 +1356,7 @@ namespace {
             omega_util_remove_file(checkpoint_filename);
             return -1;
         }
+        assign_transaction_start_serial_(session_ptr, transform_change_ptr);
 
         std::unique_ptr<omega_model_t> checkpoint_model_ptr;
         try {

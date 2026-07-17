@@ -112,15 +112,22 @@ function fail(message: string): never {
   throw new ChangeLogCodecError('ACTION_JOURNAL_FRAMING', message)
 }
 
+const MIN_INT64 = BigInt('-9223372036854775808')
+const MAX_INT64 = BigInt('9223372036854775807')
+
 function nonNegativeDecimal(value: string, name: string): string {
   return parseChangeLogNonNegativeInt64(value, name).toString()
 }
 
 function signedDecimal(value: string, name: string): string {
-  if (!/^-?(0|[1-9]\d*)$/.test(value) || value === '-0') {
+  if (value.length > 20 || !/^-?(0|[1-9]\d*)$/.test(value) || value === '-0') {
     fail(`${name} must be a canonical signed decimal integer`)
   }
-  return BigInt(value).toString()
+  const parsed = BigInt(value)
+  if (parsed < MIN_INT64 || parsed > MAX_INT64) {
+    fail(`${name} must be in the signed int64 range`)
+  }
+  return parsed.toString()
 }
 
 function requestDecimal(value: ChangeLogInt64 | undefined): string | undefined {

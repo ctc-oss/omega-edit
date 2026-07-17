@@ -816,6 +816,7 @@ TEST_CASE("Transactions", "[TransactionTests]") {
     auto change_ptr = omega_session_get_change(session_ptr, change_id);
     auto transaction_bit = omega_change_get_transaction_bit(change_ptr);
     REQUIRE(0 == transaction_bit);
+    REQUIRE(0 == omega_change_get_transaction_start_serial(change_ptr));
     REQUIRE(0 == omega_session_get_transaction_state(session_ptr));
     REQUIRE(3 == session_events_count); // SESSION_EVT_EDIT
     REQUIRE(2 == viewport_events_count);// VIEWPORT_EVT_EDIT
@@ -830,12 +831,15 @@ TEST_CASE("Transactions", "[TransactionTests]") {
     REQUIRE(3 == viewport_events_count);// VIEWPORT_EVT_EDIT
     change_ptr = omega_session_get_change(session_ptr, change_id);
     REQUIRE(transaction_bit != omega_change_get_transaction_bit(change_ptr));
+    REQUIRE(2 == omega_change_get_transaction_start_serial(change_ptr));
     transaction_bit = omega_change_get_transaction_bit(change_ptr);
-    omega_edit_insert_string(session_ptr, 0, "ABCDEFGHIJKLMNOPQRSTUVWXYZ");
+    const auto second_transaction_change_id = omega_edit_insert_string(session_ptr, 0, "ABCDEFGHIJKLMNOPQRSTUVWXYZ");
     REQUIRE(2 == omega_session_get_transaction_state(session_ptr));
     REQUIRE(4 == session_events_count); // transactional SESSION_EVT_EDIT deferred until end
     REQUIRE(4 == viewport_events_count);// VIEWPORT_EVT_EDIT
     REQUIRE(transaction_bit == omega_change_get_transaction_bit(change_ptr));
+    REQUIRE(2 == omega_change_get_transaction_start_serial(
+                         omega_session_get_change(session_ptr, second_transaction_change_id)));
     REQUIRE(0 == omega_session_end_transaction(session_ptr));
     REQUIRE(3 == omega_session_get_num_changes(session_ptr));
     REQUIRE(2 == omega_session_get_num_change_transactions(session_ptr));
@@ -871,6 +875,7 @@ TEST_CASE("Transactions", "[TransactionTests]") {
     REQUIRE(7 == omega_session_get_num_changes(session_ptr));
     REQUIRE(0 == omega_session_get_num_undone_changes(session_ptr));
     REQUIRE(4 == omega_session_get_num_change_transactions(session_ptr));
+    REQUIRE(5 == omega_change_get_transaction_start_serial(omega_session_get_change(session_ptr, 7)));
     REQUIRE(12 == session_events_count);// SESSION_EVT_EDIT
 
     // Negative testing
@@ -1044,6 +1049,7 @@ TEST_CASE("Null Pointer Safety", "[NullSafety]") {
     REQUIRE(OMEGA_CHANGE_DATA_STORAGE_NONE == omega_change_get_data_storage(nullptr));
     REQUIRE('\0' == omega_change_get_kind_as_char(nullptr));
     REQUIRE(0 == omega_change_get_transaction_bit(nullptr));
+    REQUIRE(0 == omega_change_get_transaction_start_serial(nullptr));
     REQUIRE(0 == omega_change_is_undone(nullptr));
 
     // Search API null safety

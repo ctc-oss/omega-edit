@@ -110,6 +110,7 @@ struct omega_transform_change_data_struct {
 
 struct omega_change_struct {
     int64_t serial{};                        ///< Serial number of the change (increasing)
+    int64_t transaction_start_serial{};      ///< First serial in the explicit transaction, or zero
     int64_t offset{};                        ///< Offset at the time of the change
     int64_t length{};                        ///< Number of bytes at the time of the change
     omega_byte_payload_struct data{};        ///< First-class primitive data payload

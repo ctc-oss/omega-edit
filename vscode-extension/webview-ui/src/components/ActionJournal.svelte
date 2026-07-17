@@ -13,6 +13,7 @@
     'REPLACE',
     'TRANSFORM',
   ]
+  const maxSafeSerial = BigInt(Number.MAX_SAFE_INTEGER)
 
   interface Props {
     viewport?: WebviewActionJournalViewport
@@ -90,6 +91,10 @@
         return strings.actionJournal.payloadCheckpointBacked
     }
   }
+
+  function canCopy(entry: WebviewActionJournalEntry): boolean {
+    return decimal(entry.firstSerial) <= maxSafeSerial && decimal(entry.lastSerial) <= maxSafeSerial
+  }
 </script>
 
 <section class="action-journal" aria-label={strings.actionJournal.label} aria-busy={loading}>
@@ -140,9 +145,9 @@
             {#if entry.transform}<code>{entry.transform.transformId}</code>{/if}
           </button>
           <div class="entry-actions">
-            <button type="button" onclick={() => onCopy(entry.firstSerial, entry.lastSerial, 'json')}>JSON</button>
-            <button type="button" onclick={() => onCopy(entry.firstSerial, entry.lastSerial, 'cli')}>CLI</button>
-            <button type="button" onclick={() => onCopy(entry.firstSerial, entry.lastSerial, 'mcp')}>MCP</button>
+            <button type="button" disabled={!canCopy(entry)} title={canCopy(entry) ? undefined : strings.actionJournal.copyUnavailable} onclick={() => onCopy(entry.firstSerial, entry.lastSerial, 'json')}>JSON</button>
+            <button type="button" disabled={!canCopy(entry)} title={canCopy(entry) ? undefined : strings.actionJournal.copyUnavailable} onclick={() => onCopy(entry.firstSerial, entry.lastSerial, 'cli')}>CLI</button>
+            <button type="button" disabled={!canCopy(entry)} title={canCopy(entry) ? undefined : strings.actionJournal.copyUnavailable} onclick={() => onCopy(entry.firstSerial, entry.lastSerial, 'mcp')}>MCP</button>
           </div>
         </li>
       {/each}
@@ -163,6 +168,7 @@
   button, input { color: var(--vscode-foreground); border: 1px solid var(--vscode-button-border, var(--vscode-panel-border)); background: var(--vscode-button-secondaryBackground); }
   button { cursor: pointer; padding: .18rem .42rem; }
   button:hover, button.active { background: var(--vscode-button-secondaryHoverBackground); }
+  button:disabled { cursor: not-allowed; opacity: .55; }
   .close { border: 0; background: transparent; font-size: 1.15rem; }
   .filters { flex-wrap: wrap; font-size: .72rem; }
   .filters form { margin-left: auto; }

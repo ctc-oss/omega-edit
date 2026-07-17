@@ -245,4 +245,50 @@ describe('action journal viewport', () => {
       })
     ).rejects.toThrow('continuation metadata')
   })
+
+  it('rejects out-of-range and oversized signed decimal metadata', async () => {
+    const fetchWithDelta = async (
+      request: import('../../src/protobuf_ts/generated/omega_edit/v1/omega_edit').GetActionJournalViewportRequest,
+      sizeDeltaDecimal: string
+    ) => ({
+      formatVersion: 1,
+      sessionId: request.sessionId,
+      activeTipSerialDecimal: '1',
+      changeCountDecimal: '1',
+      undoCountDecimal: '0',
+      checkpointCountDecimal: '0',
+      resolvedAnchorSerialDecimal: '1',
+      direction: request.direction,
+      capacity: request.capacity,
+      entries: [
+        {
+          entryIndexDecimal: '0',
+          firstSerialDecimal: '1',
+          lastSerialDecimal: '1',
+          kind: proto.ChangeLogEntryKind.INSERT,
+          offsetDecimal: '0',
+          lengthDecimal: '1',
+          dataLengthDecimal: '1',
+          sizeDeltaDecimal,
+          changeCountBeforeDecimal: '0',
+          changeCountAfterDecimal: '1',
+          payloadStorage: proto.ActionJournalPayloadStorage.INLINE,
+        },
+      ],
+      hasMore: false,
+    })
+
+    for (const sizeDeltaDecimal of [
+      '9223372036854775808',
+      '-9223372036854775809',
+      '9'.repeat(10_000),
+    ]) {
+      await expect(
+        client.getActionJournalViewport({
+          sessionId: 'session-signed-int64',
+          fetch: async (request) => fetchWithDelta(request, sizeDeltaDecimal),
+        })
+      ).rejects.toThrow(/signed (?:decimal integer|int64 range)/)
+    }
+  })
 })
