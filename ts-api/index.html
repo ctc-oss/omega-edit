@@ -250,6 +250,20 @@ The client-facing TypeScript API now uses the native-health fields listed below.
 <li>exposing a simple <code>cancel()</code> handle for teardown</li>
 </ul>
 <p>Use them instead of wiring raw gRPC streams by hand in application code.</p>
+<h3 id="action-journal-viewport" class="tsd-anchor-link">Action journal viewport<a href="#action-journal-viewport" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h3>
+<p><code>getActionJournalViewport(...)</code> reads primitive edit history in bounded windows
+without materializing payload bytes. Windows can move toward older or newer
+changes and can be filtered by primitive kind or transaction id. All history
+coordinates are canonical decimal strings, so large native <code>int64</code> values are
+not rounded by JavaScript.</p>
+<pre><code class="typescript"><span class="hl-6">const</span><span class="hl-1"> </span><span class="hl-7">page</span><span class="hl-1"> = </span><span class="hl-4">await</span><span class="hl-1"> </span><span class="hl-0">getActionJournalViewport</span><span class="hl-1">({</span><br/><span class="hl-1">  </span><span class="hl-5">sessionId</span><span class="hl-1">,</span><br/><span class="hl-1">  </span><span class="hl-5">capacity:</span><span class="hl-1"> </span><span class="hl-8">256</span><span class="hl-1">,</span><br/><span class="hl-1">  </span><span class="hl-5">direction:</span><span class="hl-1"> </span><span class="hl-2">&#39;older&#39;</span><span class="hl-1">,</span><br/><span class="hl-1">  </span><span class="hl-5">kinds:</span><span class="hl-1"> [</span><span class="hl-2">&#39;REPLACE&#39;</span><span class="hl-1">, </span><span class="hl-2">&#39;TRANSFORM&#39;</span><span class="hl-1">],</span><br/><span class="hl-1">})</span><br/><br/><span class="hl-4">if</span><span class="hl-1"> (</span><span class="hl-5">page</span><span class="hl-1">.</span><span class="hl-5">hasMore</span><span class="hl-1"> &amp;&amp; </span><span class="hl-5">page</span><span class="hl-1">.</span><span class="hl-5">nextAnchorSerial</span><span class="hl-1">) {</span><br/><span class="hl-1">  </span><span class="hl-6">const</span><span class="hl-1"> </span><span class="hl-7">older</span><span class="hl-1"> = </span><span class="hl-4">await</span><span class="hl-1"> </span><span class="hl-0">getActionJournalViewport</span><span class="hl-1">({</span><br/><span class="hl-1">    </span><span class="hl-5">sessionId</span><span class="hl-1">,</span><br/><span class="hl-1">    </span><span class="hl-5">anchorSerial:</span><span class="hl-1"> </span><span class="hl-5">page</span><span class="hl-1">.</span><span class="hl-5">nextAnchorSerial</span><span class="hl-1">,</span><br/><span class="hl-1">    </span><span class="hl-5">capacity:</span><span class="hl-1"> </span><span class="hl-5">page</span><span class="hl-1">.</span><span class="hl-5">capacity</span><span class="hl-1">,</span><br/><span class="hl-1">    </span><span class="hl-5">direction:</span><span class="hl-1"> </span><span class="hl-2">&#39;older&#39;</span><span class="hl-1">,</span><br/><span class="hl-1">  })</span><br/><span class="hl-1">}</span>
+</code><button type="button">Copy</button></pre>
+
+<p>Entries expose serial and change-count coordinates, byte ranges, data length,
+size delta, transaction identity, payload-storage hints, transform descriptors,
+and checkpoint boundaries. Use <code>subscribeActionJournalUpdates(...)</code> to
+invalidate or refresh a visible window after live session changes; the journal
+RPC itself stays unary and bounded so clients control prefetch and scrolling.</p>
 <h3 id="editor-integration-helpers" class="tsd-anchor-link">Editor Integration Helpers<a href="#editor-integration-helpers" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <p>These higher-level helpers sit on top of the session, viewport, and subscription primitives for editor-style applications:</p>
 <table>
@@ -485,6 +499,7 @@ record/message helpers, and inspect-only digest/checksum examples.</p>
 <li><a href="#client-connection"><span>Client <wbr/>Connection</span></a></li>
 <li><a href="#sessions"><span>Sessions</span></a></li>
 <li><a href="#subscriptions"><span>Subscriptions</span></a></li>
+<li><a href="#action-journal-viewport"><span>Action journal viewport</span></a></li>
 <li><a href="#editor-integration-helpers"><span>Editor <wbr/>Integration <wbr/>Helpers</span></a></li>
 <li><a href="#editing"><span>Editing</span></a></li>
 <li><a href="#viewports"><span>Viewports</span></a></li>

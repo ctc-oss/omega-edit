@@ -70,6 +70,7 @@
 <li><a class="reference internal" href="#_CPPv423omega_change_get_serialPK14omega_change_t"><code class="docutils literal notranslate"><span class="pre">omega_change_get_serial()</span></code></a></li>
 <li><a class="reference internal" href="#_CPPv429omega_change_get_kind_as_charPK14omega_change_t"><code class="docutils literal notranslate"><span class="pre">omega_change_get_kind_as_char()</span></code></a></li>
 <li><a class="reference internal" href="#_CPPv432omega_change_get_transaction_bitPK14omega_change_t"><code class="docutils literal notranslate"><span class="pre">omega_change_get_transaction_bit()</span></code></a></li>
+<li><a class="reference internal" href="#_CPPv441omega_change_get_transaction_start_serialPK14omega_change_t"><code class="docutils literal notranslate"><span class="pre">omega_change_get_transaction_start_serial()</span></code></a></li>
 <li><a class="reference internal" href="#_CPPv422omega_change_get_bytesPK14omega_change_t"><code class="docutils literal notranslate"><span class="pre">omega_change_get_bytes()</span></code></a></li>
 <li><a class="reference internal" href="#_CPPv421omega_change_get_dataPK14omega_change_t"><code class="docutils literal notranslate"><span class="pre">omega_change_get_data()</span></code></a></li>
 <li><a class="reference internal" href="#_CPPv428omega_change_get_data_lengthPK14omega_change_t"><code class="docutils literal notranslate"><span class="pre">omega_change_get_data_length()</span></code></a></li>
@@ -404,6 +405,8 @@
 <li><a class="reference internal" href="#_CPPv441omega_session_get_num_change_transactionsPK15omega_session_t"><code class="docutils literal notranslate"><span class="pre">omega_session_get_num_change_transactions()</span></code></a></li>
 <li><a class="reference internal" href="#_CPPv448omega_session_get_num_undone_change_transactionsPK15omega_session_t"><code class="docutils literal notranslate"><span class="pre">omega_session_get_num_undone_change_transactions()</span></code></a></li>
 <li><a class="reference internal" href="#_CPPv433omega_session_get_num_checkpointsPK15omega_session_t"><code class="docutils literal notranslate"><span class="pre">omega_session_get_num_checkpoints()</span></code></a></li>
+<li><a class="reference internal" href="#_CPPv441omega_session_get_checkpoint_change_countPK15omega_session_t7int64_t"><code class="docutils literal notranslate"><span class="pre">omega_session_get_checkpoint_change_count()</span></code></a></li>
+<li><a class="reference internal" href="#_CPPv444omega_session_get_checkpoint_at_change_countPK15omega_session_t7int64_t"><code class="docutils literal notranslate"><span class="pre">omega_session_get_checkpoint_at_change_count()</span></code></a></li>
 <li><a class="reference internal" href="#_CPPv440omega_session_get_num_future_checkpointsPK15omega_session_t"><code class="docutils literal notranslate"><span class="pre">omega_session_get_num_future_checkpoints()</span></code></a></li>
 <li><a class="reference internal" href="#_CPPv420omega_session_notifyPK15omega_session_t21omega_session_event_tPKv"><code class="docutils literal notranslate"><span class="pre">omega_session_notify()</span></code></a></li>
 <li><a class="reference internal" href="#_CPPv424omega_session_detect_BOMPK15omega_session_t7int64_t"><code class="docutils literal notranslate"><span class="pre">omega_session_detect_BOM()</span></code></a></li>
@@ -656,6 +659,20 @@
 </dd>
 <dt class="field-even">Returns<span class="colon">:</span></dt>
 <dd class="field-even"><p>transaction bit (0 or 1) </p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="cpp function">
+<dt class="sig sig-object cpp" id="_CPPv441omega_change_get_transaction_start_serialPK14omega_change_t">
+<span id="_CPPv341omega_change_get_transaction_start_serialPK14omega_change_t"></span><span id="_CPPv241omega_change_get_transaction_start_serialPK14omega_change_t"></span><span id="omega_change_get_transaction_start_serial__omega_change_tCP"></span><span class="target" id="change_8h_1a86e6225ac77b54925e9784f022c5ace6"></span><span class="n"><span class="pre">int64_t</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">omega_change_get_transaction_start_serial</span></span></span><span class="sig-paren">(</span><span class="k"><span class="pre">const</span></span><span class="w"> </span><a class="reference internal" href="#_CPPv414omega_change_t" title="omega_change_t"><span class="n"><span class="pre">omega_change_t</span></span></a><span class="w"> </span><span class="p"><span class="pre">*</span></span><span class="n sig-param"><span class="pre">change_ptr</span></span><span class="sig-paren">)</span><a class="headerlink" href="#_CPPv441omega_change_get_transaction_start_serialPK14omega_change_t" title="Link to this definition"></a><br /></dt>
+<dd><p>Return the first serial of the explicit transaction containing this change.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>change_ptr</strong> – change to inspect </p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>positive transaction-start serial, or 0 when the change is not part of an explicit transaction </p>
 </dd>
 </dl>
 </dd></dl>
@@ -3658,6 +3675,28 @@
 </dd>
 <dt class="field-even">Returns<span class="colon">:</span></dt>
 <dd class="field-even"><p>number of session checkpoints </p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="cpp function">
+<dt class="sig sig-object cpp" id="_CPPv441omega_session_get_checkpoint_change_countPK15omega_session_t7int64_t">
+<span id="_CPPv341omega_session_get_checkpoint_change_countPK15omega_session_t7int64_t"></span><span id="_CPPv241omega_session_get_checkpoint_change_countPK15omega_session_t7int64_t"></span><span id="omega_session_get_checkpoint_change_count__omega_session_tCP.int64_t"></span><span class="target" id="session_8h_1ac73d0d0477fdfee65f777d9d5de499f8"></span><span class="n"><span class="pre">int64_t</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">omega_session_get_checkpoint_change_count</span></span></span><span class="sig-paren">(</span><span class="k"><span class="pre">const</span></span><span class="w"> </span><a class="reference internal" href="#_CPPv415omega_session_t" title="omega_session_t"><span class="n"><span class="pre">omega_session_t</span></span></a><span class="w"> </span><span class="p"><span class="pre">*</span></span><span class="n sig-param"><span class="pre">session_ptr</span></span>, <span class="n"><span class="pre">int64_t</span></span><span class="w"> </span><span class="n sig-param"><span class="pre">checkpoint_count</span></span><span class="sig-paren">)</span><a class="headerlink" href="#_CPPv441omega_session_get_checkpoint_change_countPK15omega_session_t7int64_t" title="Link to this definition"></a><br /></dt>
+<dd><p>Return the active change count represented by a checkpoint boundary. Checkpoint zero is the original session state; positive indices are active checkpoints through <a class="reference internal" href="#session_8h_1a09f3aaaf2459d6cd1962c94de6fcf1e9"><span class="std std-ref">omega_session_get_num_checkpoints()</span></a>. </p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>active change count at the boundary, or -1 for invalid input </p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="cpp function">
+<dt class="sig sig-object cpp" id="_CPPv444omega_session_get_checkpoint_at_change_countPK15omega_session_t7int64_t">
+<span id="_CPPv344omega_session_get_checkpoint_at_change_countPK15omega_session_t7int64_t"></span><span id="_CPPv244omega_session_get_checkpoint_at_change_countPK15omega_session_t7int64_t"></span><span id="omega_session_get_checkpoint_at_change_count__omega_session_tCP.int64_t"></span><span class="target" id="session_8h_1afdef337c71e992675e78d78aa8740dfb"></span><span class="n"><span class="pre">int64_t</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">omega_session_get_checkpoint_at_change_count</span></span></span><span class="sig-paren">(</span><span class="k"><span class="pre">const</span></span><span class="w"> </span><a class="reference internal" href="#_CPPv415omega_session_t" title="omega_session_t"><span class="n"><span class="pre">omega_session_t</span></span></a><span class="w"> </span><span class="p"><span class="pre">*</span></span><span class="n sig-param"><span class="pre">session_ptr</span></span>, <span class="n"><span class="pre">int64_t</span></span><span class="w"> </span><span class="n sig-param"><span class="pre">change_count</span></span><span class="sig-paren">)</span><a class="headerlink" href="#_CPPv444omega_session_get_checkpoint_at_change_countPK15omega_session_t7int64_t" title="Link to this definition"></a><br /></dt>
+<dd><p>Return the newest checkpoint index whose boundary exactly matches an active change count. </p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>newest matching checkpoint index (including zero for the original state), or -1 when no boundary matches </p>
 </dd>
 </dl>
 </dd></dl>
