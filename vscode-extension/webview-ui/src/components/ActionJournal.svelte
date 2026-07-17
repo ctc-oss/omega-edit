@@ -201,7 +201,7 @@
 </section>
 
 <style>
-  .action-journal { display: flex; flex-direction: column; gap: .5rem; width: clamp(20rem, 32vw, 30rem); height: 100%; min-width: 0; min-height: 0; padding: .55rem .75rem; border-left: 1px solid var(--vscode-panel-border); background: var(--vscode-sideBar-background); }
+  .action-journal { display: flex; flex-direction: column; gap: .5rem; width: clamp(20rem, 32vw, 30rem); height: 100%; min-height: 0; padding: .55rem .75rem; border-left: 1px solid var(--vscode-panel-border); background: var(--vscode-sideBar-background); }
   header, header > div, .filters, form, li, .entry-actions { display: flex; align-items: center; gap: .5rem; }
   header { justify-content: space-between; }
   header span, .empty { color: var(--vscode-descriptionForeground); font-size: .75rem; }
