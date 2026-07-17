@@ -18,6 +18,38 @@ describe('action journal viewport', () => {
     await initExpect()
   })
 
+  it('returns a bounded empty viewport for a session with no changes', async () => {
+    const viewport = await client.getActionJournalViewport({
+      sessionId: 'empty-session',
+      async fetch(request) {
+        return {
+          formatVersion: 1,
+          sessionId: request.sessionId,
+          activeTipSerialDecimal: '0',
+          changeCountDecimal: '0',
+          undoCountDecimal: '0',
+          checkpointCountDecimal: '0',
+          resolvedAnchorSerialDecimal: '0',
+          direction: request.direction,
+          capacity: request.capacity,
+          entries: [],
+          hasMore: false,
+        }
+      },
+    })
+
+    expect(viewport).toMatchObject({
+      activeTipSerial: '0',
+      changeCount: '0',
+      undoCount: '0',
+      checkpointCount: '0',
+      anchorSerial: '0',
+      direction: 'older',
+      entries: [],
+      hasMore: false,
+    })
+  })
+
   it('requests a bounded newest-first viewport and preserves int64 metadata', async () => {
     let captured:
       | import('../../src/protobuf_ts/generated/omega_edit/v1/omega_edit').GetActionJournalViewportRequest

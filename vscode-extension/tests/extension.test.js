@@ -762,6 +762,13 @@ test('compiled extension entrypoints exist after build', () => {
     path.resolve(__dirname, '../webview-ui/src/components/SearchPanel.svelte'),
     'utf8'
   )
+  const actionJournalSource = fs.readFileSync(
+    path.resolve(
+      __dirname,
+      '../webview-ui/src/components/ActionJournal.svelte'
+    ),
+    'utf8'
+  )
   const byteInspectorSource = fs.readFileSync(
     path.resolve(
       __dirname,
@@ -810,6 +817,21 @@ test('compiled extension entrypoints exist after build', () => {
       `${name} should avoid runtime inline style mutation`
     )
   }
+
+  assert.match(
+    svelteAppSource,
+    /actionJournalKinds = \$state<WebviewActionJournalKind\[]>\(\[\s*\.\.\.WEBVIEW_ACTION_JOURNAL_KINDS/
+  )
+  assert.match(svelteAppSource, /case 'actionJournalError':/)
+  assert.match(providerSource, /ACTION_JOURNAL_REQUEST_TIMEOUT_MS = 15_000/)
+  assert.match(
+    actionJournalSource,
+    /aria-pressed=\{selectedKinds\.includes\(kind\)\}/
+  )
+  assert.match(actionJournalSource, /onscroll=\{loadOlderNearEnd\}/)
+  assert.match(actionJournalSource, /maxlength=\{MAX_LABEL_LENGTH\}/)
+  assert.match(actionJournalSource, /strings\.actionJournal\.noChanges/)
+  assert.match(actionJournalSource, /role="alert"/)
 
   const externalHighlightColorCountSources = [
     ['PreviewGrid.svelte', previewGridSource],

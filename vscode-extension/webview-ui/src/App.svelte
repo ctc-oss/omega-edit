@@ -11,6 +11,7 @@
   import {
     MAX_BYTES_PER_ROW,
     MAX_ANALYSIS_PROFILE_BYTES,
+    WEBVIEW_ACTION_JOURNAL_KINDS,
     normalizeBytesPerRow,
     normalizeTextEncoding,
     type BytesPerRow,
@@ -244,10 +245,13 @@
   })
   let actionJournalVisible = $state(false)
   let actionJournalLoading = $state(false)
+  let actionJournalError = $state('')
   let actionJournalViewport = $state<
     WebviewActionJournalViewport | undefined
   >(undefined)
-  let actionJournalKinds = $state<WebviewActionJournalKind[]>([])
+  let actionJournalKinds = $state<WebviewActionJournalKind[]>([
+    ...WEBVIEW_ACTION_JOURNAL_KINDS,
+  ])
   let actionJournalTransactionId = $state('')
   let latestDataProfile = $state<AnalysisProfileMessage | undefined>(undefined)
   let latestViewportProfile = $state<ProfilerViewportSnapshot | undefined>(
@@ -1615,6 +1619,7 @@
     append = false
   ): void {
     actionJournalLoading = true
+    actionJournalError = ''
     actionJournalKinds = kinds
     actionJournalTransactionId = transactionId
     postToHost({
@@ -2856,6 +2861,7 @@
         }
         actionJournalVisible = message.visible
         actionJournalLoading = false
+        actionJournalError = ''
         if (message.append && actionJournalViewport) {
           const seen = new Set(
             actionJournalViewport.entries.map(
@@ -2876,9 +2882,15 @@
         }
         break
       }
+      case 'actionJournalError':
+        actionJournalVisible = message.visible
+        actionJournalLoading = false
+        actionJournalError = message.message
+        break
       case 'actionJournalHidden':
         actionJournalVisible = false
         actionJournalLoading = false
+        actionJournalError = ''
         actionJournalViewport = undefined
         break
       case 'analysisProfile':
@@ -3061,53 +3073,25 @@
     onApplyChangeLog={applyChangeLog}
   />
 
-  {#if actionJournalVisible}
-    <ActionJournal
-      viewport={actionJournalViewport}
-      selectedKinds={actionJournalKinds}
-      transactionId={actionJournalTransactionId}
-      loading={actionJournalLoading}
-      onFilter={(kinds, transactionId) =>
-        requestActionJournal(kinds, transactionId)}
-      onLoadOlder={(anchorSerial) =>
-        requestActionJournal(
-          actionJournalKinds,
-          actionJournalTransactionId,
-          anchorSerial,
-          true
-        )}
-      onReveal={(offset) =>
-        postToHost({ type: 'revealActionJournalEntry', offset })}
-      onCopy={(firstSerial, lastSerial, format) =>
-        postToHost({
-          type: 'copyActionJournalEntry',
-          firstSerial,
-          lastSerial,
-          format,
-        })}
-      onClose={toggleActionJournal}
-    />
-  {/if}
-
-  {#if checkpointTimeline.visible}
-    <CheckpointTimeline
-      cursor={checkpointTimeline.cursor}
-      checkpointCount={checkpointTimeline.checkpointCount}
-      originalByteLength={checkpointTimeline.originalByteLength}
-      savedChangeCount={checkpointTimeline.savedChangeCount}
-      savedCheckpoint={checkpointTimeline.savedCheckpoint}
-      savedOffBranch={checkpointTimeline.savedOffBranch}
-      canRewind={checkpointTimeline.canRewind}
-      canFastForward={checkpointTimeline.canFastForward}
-      checkpoints={checkpointTimeline.checkpoints}
-      navigating={checkpointTimeline.navigating}
-      onNavigate={(checkpoint) =>
-        postToHost({ type: 'navigateCheckpointTimeline', checkpoint })}
-      onClose={() => postToHost({ type: 'hideCheckpointTimeline' })}
-    />
-  {/if}
-
   <div class="top-panels">
+    {#if checkpointTimeline.visible}
+      <CheckpointTimeline
+        cursor={checkpointTimeline.cursor}
+        checkpointCount={checkpointTimeline.checkpointCount}
+        originalByteLength={checkpointTimeline.originalByteLength}
+        savedChangeCount={checkpointTimeline.savedChangeCount}
+        savedCheckpoint={checkpointTimeline.savedCheckpoint}
+        savedOffBranch={checkpointTimeline.savedOffBranch}
+        canRewind={checkpointTimeline.canRewind}
+        canFastForward={checkpointTimeline.canFastForward}
+        checkpoints={checkpointTimeline.checkpoints}
+        navigating={checkpointTimeline.navigating}
+        onNavigate={(checkpoint) =>
+          postToHost({ type: 'navigateCheckpointTimeline', checkpoint })}
+        onClose={() => postToHost({ type: 'hideCheckpointTimeline' })}
+      />
+    {/if}
+
     {#if searchPanelVisible && !checkpointTimeline.visible}
       <SearchPanel
         query={searchQuery}
@@ -3149,8 +3133,9 @@
     {/if}
   </div>
 
-  <div class="editor-workspace-shell">
-    <EditorWorkspace
+  <div class="editor-content-shell">
+    <div class="editor-workspace-shell">
+      <EditorWorkspace
     {data}
     {visibleOffset}
     scrollOffset={navigationOffset}
@@ -3216,8 +3201,38 @@
     onProfilerModeChange={setProfilerMode}
     onMoveAnalysisSection={moveAnalysisSectionByDelta}
     onReorderAnalysisSection={reorderAnalysisSection}
-    />
+      />
+    </div>
 
+    {#if actionJournalVisible}
+      <ActionJournal
+        viewport={actionJournalViewport}
+        selectedKinds={actionJournalKinds}
+        transactionId={actionJournalTransactionId}
+        loading={actionJournalLoading}
+        error={actionJournalError}
+        onFilter={(kinds, transactionId) =>
+          requestActionJournal(kinds, transactionId)}
+        onLoadOlder={(anchorSerial) =>
+          requestActionJournal(
+            actionJournalKinds,
+            actionJournalTransactionId,
+            anchorSerial,
+            true
+          )}
+        onReveal={(offset) =>
+          postToHost({ type: 'revealActionJournalEntry', offset })}
+        onCopy={(firstSerial, lastSerial, format) =>
+          postToHost({
+            type: 'copyActionJournalEntry',
+            firstSerial,
+            lastSerial,
+            format,
+          })}
+        onClose={toggleActionJournal}
+        onRetry={() => requestActionJournal()}
+      />
+    {/if}
   </div>
 
   <ByteInspector

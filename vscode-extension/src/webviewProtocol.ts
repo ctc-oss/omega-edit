@@ -134,12 +134,16 @@ export interface WebviewSessionContentInfo {
   label: string
 }
 
+export const WEBVIEW_ACTION_JOURNAL_KINDS = [
+  'INSERT',
+  'DELETE',
+  'OVERWRITE',
+  'REPLACE',
+  'TRANSFORM',
+] as const
+
 export type WebviewActionJournalKind =
-  | 'INSERT'
-  | 'DELETE'
-  | 'OVERWRITE'
-  | 'REPLACE'
-  | 'TRANSFORM'
+  (typeof WEBVIEW_ACTION_JOURNAL_KINDS)[number]
 
 export interface WebviewActionJournalEntry {
   index: string
@@ -487,6 +491,11 @@ export type HostToWebviewMessage =
       visible: boolean
       append: boolean
       viewport: WebviewActionJournalViewport
+    }
+  | {
+      type: 'actionJournalError'
+      visible: boolean
+      message: string
     }
   | { type: 'actionJournalHidden' }
   | {

@@ -247,6 +247,7 @@ suite('OmegaEdit VS Code extension', () => {
     assert.equal(typeof extensionApi.reveal, 'function')
     assert.equal(typeof extensionApi.getEditorState, 'function')
     assert.equal(typeof extensionApi.getAssistantContext, 'function')
+    assert.equal(typeof extensionApi.getActionJournalViewport, 'function')
     assert.equal(typeof extensionApi.setExternalHighlights, 'function')
     assert.equal(typeof extensionApi.clearExternalHighlights, 'function')
     assert.equal(typeof extensionApi.loadRangeMap, 'function')
@@ -317,6 +318,25 @@ suite('OmegaEdit VS Code extension', () => {
       assert.ok(session, 'Expected a live session for the typed API test')
       assert.equal(openedState.uri, uri.toString())
       assert.equal(openedState.fileSize, 6)
+
+      const emptyJournal = await extensionApi.getActionJournalViewport({
+        uri,
+        capacity: 256,
+        direction: 'older',
+        kinds: ['INSERT', 'DELETE', 'OVERWRITE', 'REPLACE', 'TRANSFORM'],
+      })
+      assert.equal(emptyJournal.version, 1)
+      assert.equal(emptyJournal.sessionId, session.sessionId)
+      assert.equal(emptyJournal.activeTipSerial, '0')
+      assert.equal(emptyJournal.changeCount, '0')
+      assert.equal(emptyJournal.undoCount, '0')
+      assert.equal(emptyJournal.checkpointCount, '0')
+      assert.equal(emptyJournal.anchorSerial, '0')
+      assert.equal(emptyJournal.capacity, 256)
+      assert.equal(emptyJournal.direction, 'older')
+      assert.deepEqual(emptyJournal.entries, [])
+      assert.equal(emptyJournal.hasMore, false)
+      assert.equal(emptyJournal.nextAnchorSerial, undefined)
 
       await provider.dispatchWebviewMessageForTesting(uri, {
         type: 'editorStateChanged',
