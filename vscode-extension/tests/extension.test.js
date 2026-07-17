@@ -31,6 +31,7 @@ const {
   OMEGA_EDIT_SET_EXTERNAL_HIGHLIGHTS_COMMAND,
   OMEGA_EDIT_SET_TEXT_ENCODING_COMMAND,
   OMEGA_EDIT_SHOW_CHECKPOINT_TIMELINE_COMMAND,
+  OMEGA_EDIT_SHOW_ACTION_JOURNAL_COMMAND,
   OMEGA_EDIT_ROLLBACK_CHECKPOINT_COMMAND,
   OMEGA_EDIT_TOGGLE_EXPERIMENTAL_TRANSFORM_PLUGINS_COMMAND,
   OMEGA_EDIT_TOGGLE_INSERT_DIRECTION_COMMAND,
@@ -299,6 +300,7 @@ test('package.json matches shared extension constants', () => {
   assert.deepEqual(
     packageJson.contributes.commands.slice(17).map((entry) => entry.command),
     [
+      OMEGA_EDIT_SHOW_ACTION_JOURNAL_COMMAND,
       OMEGA_EDIT_GET_EDITOR_STATE_COMMAND,
       OMEGA_EDIT_GET_ASSISTANT_CONTEXT_COMMAND,
       OMEGA_EDIT_SET_EXTERNAL_HIGHLIGHTS_COMMAND,
@@ -2941,6 +2943,59 @@ test('webview protocol normalizes editor commands and rejects invalid ranges', (
     }),
     undefined
   )
+})
+
+test('webview protocol bounds and validates action journal requests', () => {
+  const context = { fileSize: 10 }
+  assert.deepEqual(
+    normalizeWebviewMessage(context, {
+      type: 'requestActionJournalViewport',
+      anchorSerial: '9007199254740993',
+      capacity: 256,
+      direction: 'older',
+      kinds: ['REPLACE', 'TRANSFORM'],
+      transactionId: ' transaction:7 ',
+      append: true,
+    }),
+    {
+      type: 'requestActionJournalViewport',
+      anchorSerial: '9007199254740993',
+      capacity: 256,
+      direction: 'older',
+      kinds: ['REPLACE', 'TRANSFORM'],
+      transactionId: 'transaction:7',
+      append: true,
+    }
+  )
+  assert.deepEqual(
+    normalizeWebviewMessage(context, {
+      type: 'copyActionJournalEntry',
+      firstSerial: '7',
+      lastSerial: '8',
+      format: 'mcp',
+    }),
+    {
+      type: 'copyActionJournalEntry',
+      firstSerial: '7',
+      lastSerial: '8',
+      format: 'mcp',
+    }
+  )
+  for (const message of [
+    { type: 'requestActionJournalViewport', capacity: 0 },
+    { type: 'requestActionJournalViewport', capacity: 1001 },
+    { type: 'requestActionJournalViewport', anchorSerial: '01' },
+    { type: 'requestActionJournalViewport', kinds: ['UNKNOWN'] },
+    { type: 'revealActionJournalEntry', offset: '-1' },
+    {
+      type: 'copyActionJournalEntry',
+      firstSerial: '1',
+      lastSerial: '2',
+      format: 'shell',
+    },
+  ]) {
+    assert.equal(normalizeWebviewMessage(context, message), undefined)
+  }
 })
 
 test('webview protocol normalizes analysis, search, and transform messages', () => {

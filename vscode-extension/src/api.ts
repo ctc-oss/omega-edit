@@ -6,6 +6,8 @@ import type {
   TextEncoding,
   WebviewEditorState,
   WebviewExternalHighlight,
+  WebviewActionJournalKind,
+  WebviewActionJournalViewport,
 } from './webviewProtocol'
 
 export const OMEGA_EDIT_EXTENSION_PUBLISHER = 'ctc-oss'
@@ -20,6 +22,10 @@ export type OmegaEditEditorState = WebviewEditorState
 export type OmegaEditInsertDirection = InsertDirection
 export type OmegaEditTextEncoding = TextEncoding
 export type OmegaEditAssistantContext = AssistantSessionContext
+export type OmegaEditActionJournalKind = WebviewActionJournalKind
+export type OmegaEditActionJournalViewport = WebviewActionJournalViewport & {
+  sessionId: string
+}
 
 export interface OmegaEditEditorSelector {
   uri?: vscode.Uri | string
@@ -56,6 +62,15 @@ export interface OmegaEditRangeMapUnloadOptions
 }
 
 export interface OmegaEditCheckpointOptions extends OmegaEditEditorSelector {}
+
+export interface OmegaEditActionJournalViewportOptions
+  extends OmegaEditEditorSelector {
+  anchorSerial?: string | number | bigint
+  capacity?: number
+  direction?: 'older' | 'newer'
+  kinds?: OmegaEditActionJournalKind[]
+  transactionId?: string
+}
 
 export interface OmegaEditChangeLogExportOptions
   extends OmegaEditEditorSelector {
@@ -222,6 +237,9 @@ export interface OmegaEditExtensionApi {
   getAssistantContext(
     options?: vscode.Uri | string | OmegaEditEditorSelector
   ): OmegaEditAssistantContext | undefined
+  getActionJournalViewport(
+    options?: OmegaEditActionJournalViewportOptions
+  ): Promise<OmegaEditActionJournalViewport | undefined>
   setExternalHighlights(
     request: OmegaEditExternalHighlightRequest
   ): Promise<OmegaEditEditorState | undefined>

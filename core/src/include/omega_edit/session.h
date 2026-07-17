@@ -287,6 +287,20 @@ int64_t omega_session_get_num_undone_change_transactions(const omega_session_t *
 int64_t omega_session_get_num_checkpoints(const omega_session_t *session_ptr);
 
 /**
+ * Return the active change count represented by a checkpoint boundary.
+ * Checkpoint zero is the original session state; positive indices are active
+ * checkpoints through omega_session_get_num_checkpoints().
+ * @return active change count at the boundary, or -1 for invalid input
+ */
+int64_t omega_session_get_checkpoint_change_count(const omega_session_t *session_ptr, int64_t checkpoint_count);
+
+/**
+ * Return the newest checkpoint index whose boundary exactly matches an active change count.
+ * @return newest matching checkpoint index (including zero for the original state), or -1 when no boundary matches
+ */
+int64_t omega_session_get_checkpoint_at_change_count(const omega_session_t *session_ptr, int64_t change_count);
+
+/**
  * Given a session, return the number of preserved checkpoints after the active checkpoint boundary.
  * @param session_ptr session to get the number of future checkpoints for
  * @return number of future checkpoints

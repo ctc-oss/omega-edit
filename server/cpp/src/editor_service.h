@@ -151,6 +151,11 @@ namespace omega_edit {
             ExportChangeLog(grpc::ServerContext *context, const ::omega_edit::v1::ExportChangeLogRequest *request,
                             grpc::ServerWriter<::omega_edit::v1::ExportChangeLogResponse> *writer) override;
 
+            grpc::Status
+            GetActionJournalViewport(grpc::ServerContext *context,
+                                     const ::omega_edit::v1::GetActionJournalViewportRequest *request,
+                                     ::omega_edit::v1::GetActionJournalViewportResponse *response) override;
+
             grpc::Status GetComputedFileSize(grpc::ServerContext *context,
                                              const ::omega_edit::v1::GetComputedFileSizeRequest *request,
                                              ::omega_edit::v1::GetComputedFileSizeResponse *response) override;

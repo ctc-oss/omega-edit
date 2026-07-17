@@ -225,6 +225,12 @@
         "enablement": "omegaEdit.hexEditorActive && !omegaEdit.transformInFlight"
       },
       {
+        "command": "omegaEdit.showActionJournal",
+        "title": "%omegaEdit.command.showActionJournal.title%",
+        "icon": "$(list-ordered)",
+        "enablement": "omegaEdit.hexEditorActive"
+      },
+      {
         "command": "omegaEdit.getEditorState",
         "title": "%omegaEdit.command.getEditorState.title%"
       },

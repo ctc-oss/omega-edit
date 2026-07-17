@@ -40,6 +40,7 @@
     transformResults?: TransformResultHistoryItem[]
     activeTransformResultId?: string
     searchPanelVisible?: boolean
+    actionJournalVisible?: boolean
     selectedOffset?: number
     selectionStart?: number
     selectionEnd?: number
@@ -63,6 +64,7 @@
     onReplaceRangeWithFile: (offset: number, length: number) => void
     onOpenTransformResult: (resultId: string) => void
     onToggleSearchPanel: () => void
+    onToggleActionJournal: () => void
     onCreateCheckpoint: () => void
     onRollbackCheckpoint: () => void
     onRestoreCheckpoint: () => void
@@ -87,6 +89,7 @@
     transformResults = [],
     activeTransformResultId = '',
     searchPanelVisible = false,
+    actionJournalVisible = false,
     selectedOffset = -1,
     selectionStart = -1,
     selectionEnd = -1,
@@ -104,6 +107,7 @@
     onReplaceRangeWithFile,
     onOpenTransformResult,
     onToggleSearchPanel,
+    onToggleActionJournal,
     onCreateCheckpoint,
     onRollbackCheckpoint,
     onRestoreCheckpoint,
@@ -214,6 +218,19 @@
     onclick={onToggleSearchPanel}
   >
     {strings.toolbar.searchPanel}
+  </button>
+
+  <button
+    type="button"
+    class="toolbar-toggle"
+    class:active={actionJournalVisible}
+    aria-pressed={actionJournalVisible}
+    title={actionJournalVisible
+      ? strings.toolbar.hideActionJournalTitle
+      : strings.toolbar.showActionJournalTitle}
+    onclick={onToggleActionJournal}
+  >
+    {strings.toolbar.actionJournal}
   </button>
 
   <OffsetJump {fileSize} {offsetRadix} {onGoToOffset} />

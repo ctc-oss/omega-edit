@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount, untrack } from 'svelte'
   import ByteInspector from './components/ByteInspector.svelte'
+  import ActionJournal from './components/ActionJournal.svelte'
   import CheckpointTimeline from './components/CheckpointTimeline.svelte'
   import EditorWorkspace from './components/EditorWorkspace.svelte'
   import SearchPanel from './components/SearchPanel.svelte'
@@ -20,6 +21,8 @@
     type ServerHealthMessage,
     type TextEncoding,
     type WebviewEditorUiState,
+    type WebviewActionJournalKind,
+    type WebviewActionJournalViewport,
     type WebviewExternalHighlight,
     type WebviewRangeMapNode,
     type WebviewSessionContentInfo,
@@ -239,6 +242,13 @@
     navigating: false,
     checkpoints: [],
   })
+  let actionJournalVisible = $state(false)
+  let actionJournalLoading = $state(false)
+  let actionJournalViewport = $state<
+    WebviewActionJournalViewport | undefined
+  >(undefined)
+  let actionJournalKinds = $state<WebviewActionJournalKind[]>([])
+  let actionJournalTransactionId = $state('')
   let latestDataProfile = $state<AnalysisProfileMessage | undefined>(undefined)
   let latestViewportProfile = $state<ProfilerViewportSnapshot | undefined>(
     undefined
@@ -1574,6 +1584,10 @@
       checkpointTimeline = { ...checkpointTimeline, visible: false }
       postToHost({ type: 'hideCheckpointTimeline' })
     }
+    if (visible && actionJournalVisible) {
+      actionJournalVisible = false
+      postToHost({ type: 'hideActionJournal' })
+    }
     searchPanelVisible = visible
     savePreviewState({ searchPanelVisible })
   }
@@ -1583,11 +1597,52 @@
       checkpointTimeline = { ...checkpointTimeline, visible: false }
       postToHost({ type: 'hideCheckpointTimeline' })
     }
+    if (actionJournalVisible) {
+      actionJournalVisible = false
+      postToHost({ type: 'hideActionJournal' })
+    }
     searchPanelVisible = true
     if (showReplace) {
       replaceVisible = true
     }
     savePreviewState({ searchPanelVisible: true, replaceVisible })
+  }
+
+  function requestActionJournal(
+    kinds = actionJournalKinds,
+    transactionId = actionJournalTransactionId,
+    anchorSerial?: string,
+    append = false
+  ): void {
+    actionJournalLoading = true
+    actionJournalKinds = kinds
+    actionJournalTransactionId = transactionId
+    postToHost({
+      type: 'requestActionJournalViewport',
+      capacity: 256,
+      direction: 'older',
+      kinds,
+      transactionId,
+      anchorSerial,
+      append,
+    })
+  }
+
+  function toggleActionJournal(): void {
+    if (actionJournalVisible) {
+      actionJournalVisible = false
+      postToHost({ type: 'hideActionJournal' })
+      return
+    }
+    if (checkpointTimeline.visible) {
+      checkpointTimeline = { ...checkpointTimeline, visible: false }
+      postToHost({ type: 'hideCheckpointTimeline' })
+    }
+    if (searchPanelVisible) {
+      closeSearchPanel()
+    }
+    actionJournalVisible = true
+    requestActionJournal()
   }
 
   function setOffsetRadix(radix: 'hex' | 'dec'): void {
@@ -2789,7 +2844,42 @@
         if (message.visible && searchPanelVisible) {
           closeSearchPanel()
         }
+        if (message.visible && actionJournalVisible) {
+          actionJournalVisible = false
+          postToHost({ type: 'hideActionJournal' })
+        }
         checkpointTimeline = message
+        break
+      case 'actionJournalViewport': {
+        if (message.visible && searchPanelVisible) {
+          closeSearchPanel()
+        }
+        actionJournalVisible = message.visible
+        actionJournalLoading = false
+        if (message.append && actionJournalViewport) {
+          const seen = new Set(
+            actionJournalViewport.entries.map(
+              (entry) => `${entry.firstSerial}:${entry.lastSerial}`
+            )
+          )
+          actionJournalViewport = {
+            ...message.viewport,
+            entries: [
+              ...actionJournalViewport.entries,
+              ...message.viewport.entries.filter(
+                (entry) => !seen.has(`${entry.firstSerial}:${entry.lastSerial}`)
+              ),
+            ],
+          }
+        } else {
+          actionJournalViewport = message.viewport
+        }
+        break
+      }
+      case 'actionJournalHidden':
+        actionJournalVisible = false
+        actionJournalLoading = false
+        actionJournalViewport = undefined
         break
       case 'analysisProfile':
         latestDataProfile = message
@@ -2945,6 +3035,7 @@
     transformResults={displayTransformResultHistory}
     activeTransformResultId={displayTransformResult?.id}
     {searchPanelVisible}
+    {actionJournalVisible}
     {selectedOffset}
     {selectionStart}
     {selectionEnd}
@@ -2962,12 +3053,41 @@
     onReplaceRangeWithFile={replaceRangeWithFile}
     onOpenTransformResult={openTransformResult}
     onToggleSearchPanel={toggleSearchPanelVisible}
+    onToggleActionJournal={toggleActionJournal}
     onCreateCheckpoint={createCheckpoint}
     onRollbackCheckpoint={rollbackCheckpoint}
     onRestoreCheckpoint={restoreCheckpoint}
     onExportChangeLog={exportChangeLog}
     onApplyChangeLog={applyChangeLog}
   />
+
+  {#if actionJournalVisible}
+    <ActionJournal
+      viewport={actionJournalViewport}
+      selectedKinds={actionJournalKinds}
+      transactionId={actionJournalTransactionId}
+      loading={actionJournalLoading}
+      onFilter={(kinds, transactionId) =>
+        requestActionJournal(kinds, transactionId)}
+      onLoadOlder={(anchorSerial) =>
+        requestActionJournal(
+          actionJournalKinds,
+          actionJournalTransactionId,
+          anchorSerial,
+          true
+        )}
+      onReveal={(offset) =>
+        postToHost({ type: 'revealActionJournalEntry', offset })}
+      onCopy={(firstSerial, lastSerial, format) =>
+        postToHost({
+          type: 'copyActionJournalEntry',
+          firstSerial,
+          lastSerial,
+          format,
+        })}
+      onClose={toggleActionJournal}
+    />
+  {/if}
 
   {#if checkpointTimeline.visible}
     <CheckpointTimeline
