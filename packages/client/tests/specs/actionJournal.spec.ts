@@ -188,4 +188,61 @@ describe('action journal viewport', () => {
       })
     ).rejects.toThrow('action journal kind')
   })
+
+  it('rejects a response whose direction does not match the request', async () => {
+    await expect(
+      client.getActionJournalViewport({
+        sessionId: 'session-5',
+        direction: 'older',
+        async fetch(request) {
+          return {
+            formatVersion: 1,
+            sessionId: request.sessionId,
+            activeTipSerialDecimal: '0',
+            changeCountDecimal: '0',
+            undoCountDecimal: '0',
+            checkpointCountDecimal: '0',
+            resolvedAnchorSerialDecimal: '0',
+            direction: proto.ActionJournalDirection.NEWER,
+            capacity: request.capacity,
+            entries: [],
+            hasMore: false,
+          }
+        },
+      })
+    ).rejects.toThrow('direction does not match')
+  })
+
+  it('rejects inconsistent continuation metadata', async () => {
+    const fetch = async (
+      request: import('../../src/protobuf_ts/generated/omega_edit/v1/omega_edit').GetActionJournalViewportRequest
+    ) => ({
+      formatVersion: 1,
+      sessionId: request.sessionId,
+      activeTipSerialDecimal: '1',
+      changeCountDecimal: '1',
+      undoCountDecimal: '0',
+      checkpointCountDecimal: '0',
+      resolvedAnchorSerialDecimal: '1',
+      direction: request.direction,
+      capacity: request.capacity,
+      entries: [],
+      hasMore: true,
+    })
+    await expect(
+      client.getActionJournalViewport({ sessionId: 'session-6', fetch })
+    ).rejects.toThrow('continuation metadata')
+    await expect(
+      client.getActionJournalViewport({
+        sessionId: 'session-7',
+        async fetch(request) {
+          return {
+            ...(await fetch(request)),
+            hasMore: false,
+            nextAnchorSerialDecimal: '0',
+          }
+        },
+      })
+    ).rejects.toThrow('continuation metadata')
+  })
 })

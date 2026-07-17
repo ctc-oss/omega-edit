@@ -96,11 +96,9 @@ export interface ActionJournalViewport {
 }
 
 export interface ActionJournalLiveUpdate {
+  /** Live updates invalidate cached journal windows; fetch a new viewport for exact int64 metadata. */
   sessionId: string
   eventKind: number
-  serial?: number
-  changeCount: number
-  undoCount: number
 }
 
 export interface SubscribeActionJournalOptions {
@@ -312,6 +310,13 @@ export async function getActionJournalViewport(
       : response.direction === ActionJournalDirection.NEWER
         ? 'newer'
         : fail('response direction is invalid')
+  if (responseDirection !== direction) {
+    fail('journal response direction does not match the request')
+  }
+  const hasNextAnchor = response.nextAnchorSerialDecimal !== undefined
+  if (response.hasMore !== hasNextAnchor) {
+    fail('journal response continuation metadata is inconsistent')
+  }
   return {
     version: 1,
     sessionId: response.sessionId,
@@ -339,7 +344,7 @@ export async function getActionJournalViewport(
     direction: responseDirection,
     entries: response.entries.map(normalizeEntry),
     hasMore: response.hasMore,
-    ...(response.nextAnchorSerialDecimal
+    ...(response.nextAnchorSerialDecimal !== undefined
       ? {
           nextAnchorSerial: nonNegativeDecimal(
             response.nextAnchorSerialDecimal,
@@ -371,13 +376,9 @@ export async function subscribeActionJournalUpdates(
     subscribe: options.subscribe,
     onError: options.onError,
     async onEvent(event) {
-      const serial = event.getSerial()
       await options.onUpdate({
         sessionId: event.getSessionId(),
         eventKind: event.getSessionEventKind(),
-        ...(serial > 0 ? { serial } : {}),
-        changeCount: event.getChangeCount(),
-        undoCount: event.getUndoCount(),
       })
     },
   })

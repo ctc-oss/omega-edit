@@ -882,9 +882,9 @@ enum ActionJournalDirection {
 message GetActionJournalViewportRequest {
     string session_id = 1;
     optional string anchor_serial_decimal = 2;// Absent/"0" = newest for OLDER, oldest for NEWER.
-    uint32 capacity = 3;                     // Required bounded result capacity.
+    uint32 capacity = 3;                      // Required bounded result capacity.
     ActionJournalDirection direction = 4;
-    repeated ChangeLogEntryKind kinds = 5;   // Empty = every primitive kind.
+    repeated ChangeLogEntryKind kinds = 5;// Empty = every primitive kind.
     optional string transaction_id = 6;
 }
 

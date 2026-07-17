@@ -199,6 +199,7 @@ interface ActionJournalState {
   kinds: WebviewActionJournalKind[]
   transactionId?: string
   entries: Map<string, ActionJournalEntry>
+  requestGeneration: number
   refreshTask?: Promise<void>
   refreshPending: boolean
 }
@@ -2579,6 +2580,7 @@ export class HexEditorProvider
         direction: 'older',
         kinds: [],
         entries: new Map(),
+        requestGeneration: 0,
         refreshPending: false,
       },
     }
@@ -4585,6 +4587,7 @@ export class HexEditorProvider
     } = {}
   ): Promise<void> {
     const state = session.actionJournal
+    const requestGeneration = ++state.requestGeneration
     const capacity = options.capacity ?? state.capacity
     const direction = options.direction ?? state.direction
     const kinds = options.kinds ?? state.kinds
@@ -4592,6 +4595,11 @@ export class HexEditorProvider
       options.transactionId === undefined
         ? state.transactionId
         : options.transactionId.trim() || undefined
+    state.visible = true
+    state.capacity = capacity
+    state.direction = direction
+    state.kinds = kinds
+    state.transactionId = transactionId
     const viewport = await requestActionJournalViewport({
       sessionId: session.sessionId,
       anchorSerial: options.anchorSerial,
@@ -4600,11 +4608,13 @@ export class HexEditorProvider
       kinds,
       transactionId,
     })
-    state.visible = true
-    state.capacity = capacity
-    state.direction = direction
-    state.kinds = kinds
-    state.transactionId = transactionId
+    if (
+      requestGeneration !== state.requestGeneration ||
+      session.disposed ||
+      session.scope.isDisposed
+    ) {
+      return
+    }
     if (!options.append) {
       state.entries.clear()
     }
@@ -7889,6 +7899,7 @@ export class HexEditorProvider
 
         case 'hideActionJournal': {
           session.actionJournal.visible = false
+          session.actionJournal.requestGeneration += 1
           session.actionJournal.entries.clear()
           this.postWebviewMessage(session, { type: 'actionJournalHidden' })
           break

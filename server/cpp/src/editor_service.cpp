@@ -2332,7 +2332,7 @@ namespace omega_edit {
         }
 
         grpc::Status
-        EditorServiceImpl::GetActionJournalViewport(grpc::ServerContext *,
+        EditorServiceImpl::GetActionJournalViewport(grpc::ServerContext *context,
                                                     const ::omega_edit::v1::GetActionJournalViewportRequest *request,
                                                     ::omega_edit::v1::GetActionJournalViewportResponse *response) {
             grpc::Status parse_status;
@@ -2366,6 +2366,9 @@ namespace omega_edit {
             auto locked_session = session_manager_.lock_session(request->session_id());
             if (!locked_session) {
                 return grpc::Status(grpc::StatusCode::NOT_FOUND, "session not found: " + request->session_id());
+            }
+            if (context->IsCancelled()) {
+                return grpc::Status(grpc::StatusCode::CANCELLED, "action journal request was cancelled");
             }
             const auto active_tip = omega_session_get_num_changes(locked_session.session());
             const auto undo_count = omega_session_get_num_undone_changes(locked_session.session());
@@ -2429,15 +2432,24 @@ namespace omega_edit {
                 }
                 return ::omega_edit::v1::ACTION_JOURNAL_PAYLOAD_STORAGE_UNSPECIFIED;
             };
+            bool cancelled = false;
             const auto transaction_bounds = [&](int64_t serial, int bit) {
                 int64_t first_serial = serial;
                 int64_t last_serial = serial;
                 while (first_serial > 1) {
+                    if (context->IsCancelled()) {
+                        cancelled = true;
+                        break;
+                    }
                     const auto *previous = omega_session_get_change(locked_session.session(), first_serial - 1);
                     if (!previous || omega_change_get_transaction_bit(previous) != bit) { break; }
                     --first_serial;
                 }
                 while (last_serial < active_tip) {
+                    if (context->IsCancelled()) {
+                        cancelled = true;
+                        break;
+                    }
                     const auto *next = omega_session_get_change(locked_session.session(), last_serial + 1);
                     if (!next || omega_change_get_transaction_bit(next) != bit) { break; }
                     ++last_serial;
@@ -2536,6 +2548,9 @@ namespace omega_edit {
             };
 
             for (int64_t serial = anchor; older ? serial >= 1 : serial <= active_tip;) {
+                if (context->IsCancelled()) {
+                    return grpc::Status(grpc::StatusCode::CANCELLED, "action journal request was cancelled");
+                }
                 const auto *change = omega_session_get_change(locked_session.session(), serial);
                 if (!change) {
                     return grpc::Status(grpc::StatusCode::ABORTED,
@@ -2563,6 +2578,9 @@ namespace omega_edit {
                     }
                 }
                 const auto transaction_id = transaction_id_for(canonical.source.serial, transaction_bit);
+                if (cancelled) {
+                    return grpc::Status(grpc::StatusCode::CANCELLED, "action journal request was cancelled");
+                }
                 if (!append_entry(canonical, transaction_id, continuation_anchor)) { break; }
                 serial += older ? -step : step;
             }
