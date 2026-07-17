@@ -871,11 +871,18 @@ TEST_CASE("Failed Model Update Preserves Segment Metadata", "[EdgeCase][Overflow
     auto *const overflow_segment_ptr = segments[1].get();
     overflow_segment_ptr->computed_offset = (std::numeric_limits<int64_t>::max)();
 
-    std::vector<omega_model_segment_t> segment_snapshots;
-    std::vector<omega_model_segment_t *> segment_ptrs;
+    struct segment_snapshot_t {
+        omega_model_segment_t *segment_ptr;
+        int64_t computed_offset;
+        int64_t computed_length;
+        int64_t change_offset;
+        const_omega_change_ptr_t change_ptr;
+        omega_change_payload_role_t payload_role;
+    };
+    std::vector<segment_snapshot_t> segment_snapshots;
     for (const auto &segment_ptr : segments) {
-        segment_snapshots.push_back(*segment_ptr);
-        segment_ptrs.push_back(segment_ptr.get());
+        segment_snapshots.push_back({segment_ptr.get(), segment_ptr->computed_offset, segment_ptr->computed_length,
+                                     segment_ptr->change_offset, segment_ptr->change_ptr, segment_ptr->payload_role});
     }
     const auto change_count = omega_session_get_num_changes(session_ptr);
 
@@ -883,7 +890,7 @@ TEST_CASE("Failed Model Update Preserves Segment Metadata", "[EdgeCase][Overflow
 
     REQUIRE(segment_snapshots.size() == segments.size());
     for (size_t i = 0; i < segments.size(); ++i) {
-        CHECK(segment_ptrs[i] == segments[i].get());
+        CHECK(segment_snapshots[i].segment_ptr == segments[i].get());
         CHECK(segment_snapshots[i].computed_offset == segments[i]->computed_offset);
         CHECK(segment_snapshots[i].computed_length == segments[i]->computed_length);
         CHECK(segment_snapshots[i].change_offset == segments[i]->change_offset);

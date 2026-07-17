@@ -866,12 +866,14 @@ namespace {
     auto update_model_transactionally_(omega_model_t *model_ptr, const UpdateFn &update_fn) -> int {
         if (!model_ptr) { return -1; }
 
-        omega_model_t candidate_model;
+        omega_model_t candidate_model{};
         try {
             candidate_model.model_segments = clone_model_segments_(model_ptr->model_segments);
             const auto rc = update_fn(&candidate_model);
             if (rc != 0) { return rc; }
-        } catch (const std::bad_alloc &) { return -1; }
+        } catch (const std::bad_alloc &) { return -1; } catch (...) {
+            return -1;
+        }
 
         model_ptr->model_segments.swap(candidate_model.model_segments);
         return 0;
