@@ -111,10 +111,15 @@ npm install
 npm test
 ```
 
-Then open this folder in VS Code and press `F5`. A new Extension Development Host window will open.
+Then open either the repository root or this folder in VS Code and press `F5`.
+An Extension Development Host window will open the included `sample.txt`
+fixture in the data editor, ready for interactive previewing. On Windows, the
+preview server uses port `19000` so it does not replace a server on the default
+port used by an installed copy of the extension.
 
 In the new window:
 
+- Use the included sample immediately, including the Action Journal after making an edit
 - Run `OmegaEdit: Open in Data Editor` from the Command Palette to pick any file directly
 - Or right-click a file in the Explorer and choose `OmegaEdit: Open in Data Editor`
 

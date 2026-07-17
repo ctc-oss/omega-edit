@@ -5,14 +5,8 @@
     WebviewActionJournalKind,
     WebviewActionJournalViewport,
   } from '../protocol'
+  import { MAX_LABEL_LENGTH, WEBVIEW_ACTION_JOURNAL_KINDS } from '../protocol'
 
-  const kinds: WebviewActionJournalKind[] = [
-    'INSERT',
-    'DELETE',
-    'OVERWRITE',
-    'REPLACE',
-    'TRANSFORM',
-  ]
   const maxSafeSerial = BigInt(Number.MAX_SAFE_INTEGER)
 
   interface Props {
@@ -20,6 +14,7 @@
     selectedKinds: WebviewActionJournalKind[]
     transactionId: string
     loading?: boolean
+    error?: string
     onFilter: (kinds: WebviewActionJournalKind[], transactionId: string) => void
     onLoadOlder: (anchorSerial: string) => void
     onReveal: (offset: string) => void
@@ -29,6 +24,7 @@
       format: 'json' | 'cli' | 'mcp'
     ) => void
     onClose: () => void
+    onRetry: () => void
   }
 
   let {
@@ -36,14 +32,17 @@
     selectedKinds,
     transactionId,
     loading = false,
+    error = '',
     onFilter,
     onLoadOlder,
     onReveal,
     onCopy,
     onClose,
+    onRetry,
   }: Props = $props()
 
   let draftTransaction = $state('')
+  let requestedAnchor = $state('')
   $effect(() => {
     draftTransaction = transactionId
   })
@@ -66,10 +65,44 @@
   }
 
   function toggleKind(kind: WebviewActionJournalKind): void {
-    const next = selectedKinds.includes(kind)
+    const selected = selectedKinds.includes(kind)
+    if (selected && selectedKinds.length === 1) {
+      return
+    }
+    const next = selected
       ? selectedKinds.filter((candidate) => candidate !== kind)
       : [...selectedKinds, kind]
+    requestedAnchor = ''
     onFilter(next, draftTransaction)
+  }
+
+  function applyFilters(): void {
+    requestedAnchor = ''
+    onFilter(selectedKinds, draftTransaction)
+  }
+
+  function loadOlder(anchorSerial: string): void {
+    if (loading || requestedAnchor === anchorSerial) {
+      return
+    }
+    requestedAnchor = anchorSerial
+    onLoadOlder(anchorSerial)
+  }
+
+  function loadOlderNearEnd(event: Event): void {
+    const scroller = event.currentTarget as HTMLOListElement
+    if (
+      viewport?.hasMore &&
+      viewport.nextAnchorSerial &&
+      scroller.scrollTop + scroller.clientHeight >= scroller.scrollHeight - 96
+    ) {
+      loadOlder(viewport.nextAnchorSerial)
+    }
+  }
+
+  function retry(): void {
+    requestedAnchor = ''
+    onRetry()
   }
 
   function range(entry: WebviewActionJournalEntry): string {
@@ -110,26 +143,33 @@
 
   <div class="filters">
     <span>{strings.actionJournal.kind}</span>
-    {#each kinds as kind}
+    {#each WEBVIEW_ACTION_JOURNAL_KINDS as kind}
       <button
         type="button"
-        class:active={selectedKinds.length === 0 || selectedKinds.includes(kind)}
-        aria-pressed={selectedKinds.length === 0 || selectedKinds.includes(kind)}
+        class:active={selectedKinds.includes(kind)}
+        aria-pressed={selectedKinds.includes(kind)}
         onclick={() => toggleKind(kind)}
-      >{kind}</button>
+      ><span class="filter-indicator" aria-hidden="true">{selectedKinds.includes(kind) ? '✓' : ''}</span>{kind}</button>
     {/each}
-    <form onsubmit={(event) => { event.preventDefault(); onFilter(selectedKinds, draftTransaction) }}>
-      <input bind:value={draftTransaction} placeholder={strings.actionJournal.transactionPlaceholder} aria-label={strings.actionJournal.transactionFilter} />
+    <form onsubmit={(event) => { event.preventDefault(); applyFilters() }}>
+      <input bind:value={draftTransaction} maxlength={MAX_LABEL_LENGTH} placeholder={strings.actionJournal.transactionPlaceholder} aria-label={strings.actionJournal.transactionFilter} />
       <button type="submit">{strings.actionJournal.filter}</button>
     </form>
   </div>
 
-  {#if !viewport && loading}
+  {#if error}
+    <div class="empty error" role="alert">
+      <span>{error}</span>
+      <button type="button" onclick={retry}>{strings.actionJournal.retry}</button>
+    </div>
+  {:else if !viewport && loading}
     <div class="empty">{strings.actionJournal.loadingHistory}</div>
+  {:else if viewport && viewport.entries.length === 0 && decimal(viewport.changeCount) === 0n && decimal(viewport.undoCount) === 0n}
+    <div class="empty">{strings.actionJournal.noChanges}</div>
   {:else if !viewport || viewport.entries.length === 0}
     <div class="empty">{strings.actionJournal.noMatchingChanges}</div>
   {:else}
-    <ol>
+    <ol onscroll={loadOlderNearEnd}>
       {#each viewport.entries as entry (`${entry.firstSerial}:${entry.lastSerial}`)}
         <li>
           <button class="entry-main" type="button" title={strings.actionJournal.jumpToChangedBytes} onclick={() => onReveal(entry.offset)}>
@@ -153,7 +193,7 @@
       {/each}
     </ol>
     {#if viewport.hasMore && viewport.nextAnchorSerial}
-      <button class="load-more" type="button" disabled={loading} onclick={() => onLoadOlder(viewport.nextAnchorSerial!)}>
+      <button class="load-more" type="button" disabled={loading} onclick={() => loadOlder(viewport.nextAnchorSerial!)}>
         {loading ? strings.actionJournal.loading : strings.actionJournal.loadOlderChanges}
       </button>
     {/if}
@@ -161,19 +201,22 @@
 </section>
 
 <style>
-  .action-journal { display: flex; flex-direction: column; gap: .5rem; max-height: min(48vh, 32rem); padding: .55rem .75rem; border-bottom: 1px solid var(--vscode-panel-border); background: var(--vscode-sideBar-background); }
+  .action-journal { display: flex; flex-direction: column; gap: .5rem; width: clamp(20rem, 32vw, 30rem); height: 100%; min-height: 0; padding: .55rem .75rem; border-left: 1px solid var(--vscode-panel-border); background: var(--vscode-sideBar-background); }
   header, header > div, .filters, form, li, .entry-actions { display: flex; align-items: center; gap: .5rem; }
   header { justify-content: space-between; }
   header span, .empty { color: var(--vscode-descriptionForeground); font-size: .75rem; }
   button, input { color: var(--vscode-foreground); border: 1px solid var(--vscode-button-border, var(--vscode-panel-border)); background: var(--vscode-button-secondaryBackground); }
   button { cursor: pointer; padding: .18rem .42rem; }
-  button:hover, button.active { background: var(--vscode-button-secondaryHoverBackground); }
+  button:hover { background: var(--vscode-button-secondaryHoverBackground); }
+  .filters button.active { color: var(--vscode-button-foreground); border-color: var(--vscode-focusBorder); background: var(--vscode-button-background); font-weight: 600; }
+  .filters button.active:hover { background: var(--vscode-button-hoverBackground); }
+  .filter-indicator { display: inline-block; width: 1em; }
   button:disabled { cursor: not-allowed; opacity: .55; }
   .close { border: 0; background: transparent; font-size: 1.15rem; }
   .filters { flex-wrap: wrap; font-size: .72rem; }
   .filters form { margin-left: auto; }
   input { width: 10rem; padding: .2rem .35rem; background: var(--vscode-input-background); }
-  ol { min-height: 0; overflow: auto; list-style: none; padding: 0; margin: 0; border: 1px solid var(--vscode-panel-border); }
+  ol { flex: 1 1 auto; min-height: 0; overflow-x: hidden; overflow-y: auto; overscroll-behavior: contain; list-style: none; padding: 0; margin: 0; border: 1px solid var(--vscode-panel-border); scrollbar-gutter: stable; }
   li { align-items: stretch; border-bottom: 1px solid var(--vscode-panel-border); }
   li:last-child { border-bottom: 0; }
   .entry-main { flex: 1; display: flex; flex-wrap: wrap; align-items: center; gap: .55rem; min-width: 0; padding: .38rem .5rem; border: 0; background: transparent; text-align: left; }
@@ -187,4 +230,9 @@
   .entry-actions button { font-size: .67rem; }
   .load-more { align-self: center; }
   .empty { padding: 1rem; text-align: center; }
+  .empty.error { display: flex; align-items: center; justify-content: center; gap: .6rem; color: var(--vscode-errorForeground); }
+
+  @media (max-width: 700px) {
+    .action-journal { width: min(72vw, 22rem); }
+  }
 </style>

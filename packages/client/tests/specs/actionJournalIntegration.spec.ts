@@ -31,6 +31,26 @@ describe('Action journal integration', () => {
     await destroyTestSession(sessionId)
   })
 
+  it('returns an empty viewport when the session has no changes', async () => {
+    const viewport = await getActionJournalViewport({
+      sessionId,
+      capacity: 256,
+      direction: 'older',
+    })
+
+    expect(viewport).toMatchObject({
+      activeTipSerial: '0',
+      changeCount: '0',
+      undoCount: '0',
+      checkpointCount: '0',
+      anchorSerial: '0',
+      capacity: 256,
+      direction: 'older',
+      entries: [],
+      hasMore: false,
+    })
+  })
+
   it('walks bounded native windows and canonicalizes transactional replace', async () => {
     await insert(sessionId, 0, Buffer.from('abcdef'))
     await runSessionTransaction(sessionId, async () => {

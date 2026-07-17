@@ -2,14 +2,17 @@
   "version": "0.2.0",
   "configurations": [
     {
-      "name": "Run OmegaEdit VS Code Example",
+      "name": "Preview Ωedit™ Data Editor",
       "type": "extensionHost",
       "request": "launch",
       "args": [
+        "--new-window",
         "--disable-extensions",
         "--disable-workspace-trust",
         "--skip-welcome",
-        "--extensionDevelopmentPath=${workspaceFolder}/vscode-extension"
+        "--extensionDevelopmentPath=${workspaceFolder}/vscode-extension",
+        "${workspaceFolder}/vscode-extension/tests/workspace/preview.code-workspace",
+        "${workspaceFolder}/vscode-extension/tests/workspace/sample.txt"
       ],
       "outFiles": [
         "${workspaceFolder}/vscode-extension/out/**/*.js"
@@ -17,7 +20,8 @@
       "windows": {
         "env": {
           "CPP_SERVER_BINARY": "${workspaceFolder}/packages/server/out/bin/omega-edit-grpc-server.exe",
-          "CPP_TRANSFORM_PLUGIN_HOST_BINARY": "${workspaceFolder}/packages/server/out/bin/omega-transform-plugin-host.exe"
+          "CPP_TRANSFORM_PLUGIN_HOST_BINARY": "${workspaceFolder}/packages/server/out/bin/omega-transform-plugin-host.exe",
+          "OMEGA_EDIT_SERVER_PORT": "19000"
         }
       },
       "preLaunchTask": "compile:vscode-extension"

@@ -124,6 +124,7 @@ import {
   type WebviewExternalHighlight,
   type WebviewActionJournalKind,
   type WebviewActionJournalViewport,
+  WEBVIEW_ACTION_JOURNAL_KINDS,
   type WebviewRangeMapNode,
   type WebviewSessionContentInfo,
   type WebviewSessionContentSource,
@@ -449,6 +450,7 @@ const CONTEXT_HAS_PENDING_CHANGES = 'omegaEdit.hasPendingChanges'
 const CONTEXT_TRANSFORM_IN_FLIGHT = 'omegaEdit.transformInFlight'
 const CONTEXT_ACTIVE_SESSION_RESOURCE_PATHS =
   'omegaEdit.activeSessionResourcePaths'
+const ACTION_JOURNAL_REQUEST_TIMEOUT_MS = 15_000
 
 function openEditorFirstMessage(): string {
   return vscode.l10n.t('Open an OmegaEdit editor first')
@@ -2578,7 +2580,7 @@ export class HexEditorProvider
         visible: false,
         capacity: 256,
         direction: 'older',
-        kinds: [],
+        kinds: [...WEBVIEW_ACTION_JOURNAL_KINDS],
         entries: new Map(),
         requestGeneration: 0,
         refreshPending: false,
@@ -4600,14 +4602,43 @@ export class HexEditorProvider
     state.direction = direction
     state.kinds = kinds
     state.transactionId = transactionId
-    const viewport = await requestActionJournalViewport({
-      sessionId: session.sessionId,
-      anchorSerial: options.anchorSerial,
-      capacity,
-      direction,
-      kinds,
-      transactionId,
-    })
+    let viewport: ActionJournalViewport
+    let timeout: ReturnType<typeof setTimeout> | undefined
+    try {
+      viewport = await Promise.race([
+        requestActionJournalViewport({
+          sessionId: session.sessionId,
+          anchorSerial: options.anchorSerial,
+          capacity,
+          direction,
+          kinds,
+          transactionId,
+        }),
+        new Promise<never>((_resolve, reject) => {
+          timeout = setTimeout(() => {
+            reject(new Error(vscode.l10n.t('Action journal request timed out')))
+          }, ACTION_JOURNAL_REQUEST_TIMEOUT_MS)
+        }),
+      ])
+    } catch (error) {
+      if (
+        requestGeneration === state.requestGeneration &&
+        !session.disposed &&
+        !session.scope.isDisposed
+      ) {
+        const message = error instanceof Error ? error.message : String(error)
+        this.postWebviewMessage(session, {
+          type: 'actionJournalError',
+          visible: true,
+          message: omegaEditErrorMessage(message),
+        })
+      }
+      throw error
+    } finally {
+      if (timeout) {
+        clearTimeout(timeout)
+      }
+    }
     if (
       requestGeneration !== state.requestGeneration ||
       session.disposed ||

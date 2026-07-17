@@ -601,7 +601,9 @@ const englishStrings = {
     transactionFilter: 'Transaction filter',
     filter: 'Filter',
     loadingHistory: 'Loading history…',
+    noChanges: 'No changes yet.',
     noMatchingChanges: 'No matching changes.',
+    retry: 'Retry',
     jumpToChangedBytes: 'Jump to changed bytes',
     rangeAt: (offset: number | bigint) => `@ ${formatNumber(offset)}`,
     rangeLength: (offset: number | bigint, length: number | bigint) =>
@@ -917,7 +919,9 @@ const localeOverrides: Record<string, LocaleStringOverrides> = {
       transactionFilter: 'Filtro de transacción',
       filter: 'Filtrar',
       loadingHistory: 'Cargando historial…',
+      noChanges: 'Aún no hay cambios.',
       noMatchingChanges: 'No hay cambios coincidentes.',
+      retry: 'Reintentar',
       jumpToChangedBytes: 'Ir a los bytes modificados',
       rangeAt: (offset: number | bigint) => `@ ${formatNumber(offset)}`,
       rangeLength: (offset: number | bigint, length: number | bigint) =>
