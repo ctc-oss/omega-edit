@@ -38,6 +38,7 @@ import {
 import {
   OMEGA_EDIT_CREATE_CHECKPOINT_COMMAND,
   OMEGA_EDIT_SHOW_CHECKPOINT_TIMELINE_COMMAND,
+  OMEGA_EDIT_SHOW_ACTION_JOURNAL_COMMAND,
   OMEGA_EDIT_APPLY_CHANGE_LOG_COMMAND,
   OMEGA_EDIT_CLEAR_EXTERNAL_HIGHLIGHTS_COMMAND,
   OMEGA_EDIT_EXPORT_CHANGE_LOG_COMMAND,
@@ -683,6 +684,9 @@ function createOmegaEditExtensionApi(
     getAssistantContext(options) {
       return provider.getAssistantContext(options)
     },
+    async getActionJournalViewport(options) {
+      return provider.getActionJournalViewport(options)
+    },
     async setExternalHighlights(request: OmegaEditExternalHighlightRequest) {
       return provider.setExternalHighlights(request)
     },
@@ -1107,6 +1111,15 @@ export async function activate(
       OMEGA_EDIT_SHOW_CHECKPOINT_TIMELINE_COMMAND,
       async (options?: unknown) => {
         return await provider.showCheckpointTimeline(options)
+      }
+    )
+  )
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand(
+      OMEGA_EDIT_SHOW_ACTION_JOURNAL_COMMAND,
+      async (options?: unknown) => {
+        return await provider.showActionJournal(options)
       }
     )
   )

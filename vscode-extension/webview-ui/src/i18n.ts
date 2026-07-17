@@ -55,6 +55,9 @@ const englishStrings = {
     searchPanel: 'Find',
     showSearchPanelTitle: 'Show search and replace',
     hideSearchPanelTitle: 'Hide search and replace',
+    actionJournal: 'History',
+    showActionJournalTitle: 'Show live action journal',
+    hideActionJournalTitle: 'Hide action journal',
   },
   encoding: {
     ascii: 'ASCII',
@@ -588,6 +591,36 @@ const englishStrings = {
     hiddenMarkers: (count: number) =>
       `${formatNumber(count)} additional checkpoint markers`,
   },
+  actionJournal: {
+    label: 'Action journal',
+    summary: (changes: number | bigint, undone: number | bigint) =>
+      `${formatNumber(changes)} changes · ${formatNumber(undone)} undone`,
+    close: 'Close action journal',
+    kind: 'Kind',
+    transactionPlaceholder: 'transaction:…',
+    transactionFilter: 'Transaction filter',
+    filter: 'Filter',
+    loadingHistory: 'Loading history…',
+    noMatchingChanges: 'No matching changes.',
+    jumpToChangedBytes: 'Jump to changed bytes',
+    rangeAt: (offset: number | bigint) => `@ ${formatNumber(offset)}`,
+    rangeLength: (offset: number | bigint, length: number | bigint) =>
+      `@ ${formatNumber(offset)} + ${formatNumber(length)} B`,
+    dataLength: (length: number | bigint) =>
+      `data ${formatNumber(length)} B`,
+    checkpointBefore: (checkpoint: number | bigint) =>
+      `CP ${formatNumber(checkpoint)} before`,
+    checkpointAfter: (checkpoint: number | bigint) =>
+      `CP ${formatNumber(checkpoint)} after`,
+    payloadNone: 'none',
+    payloadInline: 'inline',
+    payloadFileBacked: 'file-backed',
+    payloadCheckpointBacked: 'checkpoint-backed',
+    copyUnavailable:
+      'Copy details are unavailable after the JavaScript safe-integer history range',
+    loading: 'Loading…',
+    loadOlderChanges: 'Load older changes',
+  },
   status: {
     hexPending: (label: string) => `Hex edit: ${label}`,
     editorStatus: 'Editor status',
@@ -641,6 +674,9 @@ const localeOverrides: Record<string, LocaleStringOverrides> = {
       searchPanel: 'Buscar',
       showSearchPanelTitle: 'Mostrar buscar y reemplazar',
       hideSearchPanelTitle: 'Ocultar buscar y reemplazar',
+      actionJournal: 'Historial',
+      showActionJournalTitle: 'Mostrar el diario de acciones en vivo',
+      hideActionJournalTitle: 'Ocultar el diario de acciones',
     },
     encoding: {
       ascii: 'ASCII',
@@ -871,6 +907,36 @@ const localeOverrides: Record<string, LocaleStringOverrides> = {
       hiddenMarkers: (count: number) =>
         `${formatNumber(count)} marcador${count === 1 ? '' : 'es'} adicional${count === 1 ? '' : 'es'} de puntos de control`,
     },
+    actionJournal: {
+      label: 'Diario de acciones',
+      summary: (changes: number | bigint, undone: number | bigint) =>
+        `${formatNumber(changes)} cambios · ${formatNumber(undone)} deshechos`,
+      close: 'Cerrar el diario de acciones',
+      kind: 'Tipo',
+      transactionPlaceholder: 'transacción:…',
+      transactionFilter: 'Filtro de transacción',
+      filter: 'Filtrar',
+      loadingHistory: 'Cargando historial…',
+      noMatchingChanges: 'No hay cambios coincidentes.',
+      jumpToChangedBytes: 'Ir a los bytes modificados',
+      rangeAt: (offset: number | bigint) => `@ ${formatNumber(offset)}`,
+      rangeLength: (offset: number | bigint, length: number | bigint) =>
+        `@ ${formatNumber(offset)} + ${formatNumber(length)} B`,
+      dataLength: (length: number | bigint) =>
+        `datos ${formatNumber(length)} B`,
+      checkpointBefore: (checkpoint: number | bigint) =>
+        `PC ${formatNumber(checkpoint)} antes`,
+      checkpointAfter: (checkpoint: number | bigint) =>
+        `PC ${formatNumber(checkpoint)} después`,
+      payloadNone: 'ninguno',
+      payloadInline: 'integrado',
+      payloadFileBacked: 'respaldado por archivo',
+      payloadCheckpointBacked: 'respaldado por punto de control',
+      copyUnavailable:
+        'Los detalles de copia no estan disponibles fuera del rango de enteros seguros de JavaScript',
+      loading: 'Cargando…',
+      loadOlderChanges: 'Cargar cambios anteriores',
+    },
     status: {
       hexPending: (label: string) => `Edicion hex: ${label}`,
       editorStatus: 'Estado del editor',
@@ -897,6 +963,7 @@ function createStringTable(): WebviewStrings {
     inspector: { ...englishStrings.inspector },
     profiler: { ...englishStrings.profiler },
     timeline: { ...englishStrings.timeline },
+    actionJournal: { ...englishStrings.actionJournal },
     status: { ...englishStrings.status },
   }
 }
@@ -918,6 +985,11 @@ function applyLocaleOverrides(overrides?: LocaleStringOverrides): void {
   Object.assign(strings.inspector, englishStrings.inspector, overrides?.inspector)
   Object.assign(strings.profiler, englishStrings.profiler, overrides?.profiler)
   Object.assign(strings.timeline, englishStrings.timeline, overrides?.timeline)
+  Object.assign(
+    strings.actionJournal,
+    englishStrings.actionJournal,
+    overrides?.actionJournal
+  )
   Object.assign(strings.status, englishStrings.status, overrides?.status)
 }
 

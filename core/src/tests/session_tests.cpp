@@ -163,10 +163,16 @@ TEST_CASE("Session Checkpoint Tests", "[SessionCheckpointTests]") {
             omega_edit_insert_string(session_ptr, 0, "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"));
     REQUIRE(1 == omega_session_get_num_changes(session_ptr));
     REQUIRE(0 == omega_session_get_num_checkpoints(session_ptr));
+    REQUIRE(0 == omega_session_get_checkpoint_change_count(session_ptr, 0));
+    REQUIRE(0 == omega_session_get_checkpoint_at_change_count(session_ptr, 0));
+    REQUIRE(-1 == omega_session_get_checkpoint_change_count(session_ptr, 1));
     REQUIRE(-1 == omega_edit_destroy_last_checkpoint(session_ptr));
     REQUIRE(0 == omega_edit_apply_transform(session_ptr, to_lower, nullptr, 0, 0));
     REQUIRE(1 == omega_session_get_num_checkpoints(session_ptr));
     REQUIRE(2 == omega_session_get_num_changes(session_ptr));
+    REQUIRE(2 == omega_session_get_checkpoint_change_count(session_ptr, 1));
+    REQUIRE(1 == omega_session_get_checkpoint_at_change_count(session_ptr, 2));
+    REQUIRE(-1 == omega_session_get_checkpoint_at_change_count(session_ptr, 1));
     REQUIRE(2 == omega_session_get_num_change_transactions(session_ptr));
     auto change_ptr = omega_session_get_last_change(session_ptr);
     REQUIRE(change_ptr);
@@ -185,6 +191,8 @@ TEST_CASE("Session Checkpoint Tests", "[SessionCheckpointTests]") {
     mask_info.mask = 0xFF;
     REQUIRE(0 == omega_edit_apply_transform(session_ptr, byte_mask_transform, &mask_info, 10, 26));
     REQUIRE(2 == omega_session_get_num_checkpoints(session_ptr));
+    REQUIRE(4 == omega_session_get_checkpoint_change_count(session_ptr, 2));
+    REQUIRE(2 == omega_session_get_checkpoint_at_change_count(session_ptr, 4));
     REQUIRE(0 == omega_edit_save(session_ptr, MAKE_PATH("test1.actual.checkpoint.2.dat"),
                                  omega_io_flags_t::IO_FLG_OVERWRITE, nullptr));
     REQUIRE(0 == omega_edit_apply_transform(session_ptr, byte_mask_transform, &mask_info, 10, 26));
@@ -352,6 +360,26 @@ TEST_CASE("Checkpoint checkout preserves redo models until a branch edit",
     require_checkpoint(1, "ABC?", 1, 0);
     REQUIRE(-1 == omega_edit_checkout_checkpoint(session_ptr, 2));
     REQUIRE(3 == transform_state.calls);
+
+    omega_edit_destroy_session(session_ptr);
+}
+
+TEST_CASE("Checkpoint boundary lookup selects the newest duplicate", "[SessionCheckpointTests][CheckpointTimeline]") {
+    const auto input = reinterpret_cast<const omega_byte_t *>("abc");
+    const auto session_ptr = omega_edit_create_session_from_bytes(input, 3, nullptr, nullptr, NO_EVENTS, nullptr);
+    REQUIRE(session_ptr);
+
+    REQUIRE(0 == omega_edit_create_checkpoint(session_ptr));
+    REQUIRE(0 == omega_edit_create_checkpoint(session_ptr));
+    REQUIRE(2 == omega_session_get_num_checkpoints(session_ptr));
+    REQUIRE(0 == omega_session_get_checkpoint_change_count(session_ptr, 1));
+    REQUIRE(0 == omega_session_get_checkpoint_change_count(session_ptr, 2));
+    REQUIRE(2 == omega_session_get_checkpoint_at_change_count(session_ptr, 0));
+
+    REQUIRE(1 == omega_edit_insert_string(session_ptr, 3, "!"));
+    REQUIRE(0 == omega_edit_create_checkpoint(session_ptr));
+    REQUIRE(1 == omega_session_get_checkpoint_change_count(session_ptr, 3));
+    REQUIRE(3 == omega_session_get_checkpoint_at_change_count(session_ptr, 1));
 
     omega_edit_destroy_session(session_ptr);
 }
@@ -788,6 +816,7 @@ TEST_CASE("Transactions", "[TransactionTests]") {
     auto change_ptr = omega_session_get_change(session_ptr, change_id);
     auto transaction_bit = omega_change_get_transaction_bit(change_ptr);
     REQUIRE(0 == transaction_bit);
+    REQUIRE(0 == omega_change_get_transaction_start_serial(change_ptr));
     REQUIRE(0 == omega_session_get_transaction_state(session_ptr));
     REQUIRE(3 == session_events_count); // SESSION_EVT_EDIT
     REQUIRE(2 == viewport_events_count);// VIEWPORT_EVT_EDIT
@@ -802,12 +831,15 @@ TEST_CASE("Transactions", "[TransactionTests]") {
     REQUIRE(3 == viewport_events_count);// VIEWPORT_EVT_EDIT
     change_ptr = omega_session_get_change(session_ptr, change_id);
     REQUIRE(transaction_bit != omega_change_get_transaction_bit(change_ptr));
+    REQUIRE(2 == omega_change_get_transaction_start_serial(change_ptr));
     transaction_bit = omega_change_get_transaction_bit(change_ptr);
-    omega_edit_insert_string(session_ptr, 0, "ABCDEFGHIJKLMNOPQRSTUVWXYZ");
+    const auto second_transaction_change_id = omega_edit_insert_string(session_ptr, 0, "ABCDEFGHIJKLMNOPQRSTUVWXYZ");
     REQUIRE(2 == omega_session_get_transaction_state(session_ptr));
     REQUIRE(4 == session_events_count); // transactional SESSION_EVT_EDIT deferred until end
     REQUIRE(4 == viewport_events_count);// VIEWPORT_EVT_EDIT
     REQUIRE(transaction_bit == omega_change_get_transaction_bit(change_ptr));
+    REQUIRE(2 == omega_change_get_transaction_start_serial(
+                         omega_session_get_change(session_ptr, second_transaction_change_id)));
     REQUIRE(0 == omega_session_end_transaction(session_ptr));
     REQUIRE(3 == omega_session_get_num_changes(session_ptr));
     REQUIRE(2 == omega_session_get_num_change_transactions(session_ptr));
@@ -843,6 +875,7 @@ TEST_CASE("Transactions", "[TransactionTests]") {
     REQUIRE(7 == omega_session_get_num_changes(session_ptr));
     REQUIRE(0 == omega_session_get_num_undone_changes(session_ptr));
     REQUIRE(4 == omega_session_get_num_change_transactions(session_ptr));
+    REQUIRE(5 == omega_change_get_transaction_start_serial(omega_session_get_change(session_ptr, 7)));
     REQUIRE(12 == session_events_count);// SESSION_EVT_EDIT
 
     // Negative testing
@@ -1016,6 +1049,7 @@ TEST_CASE("Null Pointer Safety", "[NullSafety]") {
     REQUIRE(OMEGA_CHANGE_DATA_STORAGE_NONE == omega_change_get_data_storage(nullptr));
     REQUIRE('\0' == omega_change_get_kind_as_char(nullptr));
     REQUIRE(0 == omega_change_get_transaction_bit(nullptr));
+    REQUIRE(0 == omega_change_get_transaction_start_serial(nullptr));
     REQUIRE(0 == omega_change_is_undone(nullptr));
 
     // Search API null safety

@@ -194,6 +194,38 @@ These helpers wrap the raw server-stream subscriptions and own the repetitive pa
 
 Use them instead of wiring raw gRPC streams by hand in application code.
 
+### Action journal viewport
+
+`getActionJournalViewport(...)` reads primitive edit history in bounded windows
+without materializing payload bytes. Windows can move toward older or newer
+changes and can be filtered by primitive kind or transaction id. All history
+coordinates are canonical decimal strings, so large native `int64` values are
+not rounded by JavaScript.
+
+```typescript
+const page = await getActionJournalViewport({
+  sessionId,
+  capacity: 256,
+  direction: 'older',
+  kinds: ['REPLACE', 'TRANSFORM'],
+})
+
+if (page.hasMore && page.nextAnchorSerial) {
+  const older = await getActionJournalViewport({
+    sessionId,
+    anchorSerial: page.nextAnchorSerial,
+    capacity: page.capacity,
+    direction: 'older',
+  })
+}
+```
+
+Entries expose serial and change-count coordinates, byte ranges, data length,
+size delta, transaction identity, payload-storage hints, transform descriptors,
+and checkpoint boundaries. Use `subscribeActionJournalUpdates(...)` to
+invalidate or refresh a visible window after live session changes; the journal
+RPC itself stays unary and bounded so clients control prefetch and scrolling.
+
 ### Editor Integration Helpers
 
 These higher-level helpers sit on top of the session, viewport, and subscription primitives for editor-style applications:

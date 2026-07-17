@@ -5,7 +5,10 @@ export default defineConfig({
     environment: 'node',
     fileParallelism: false,
     globals: true,
-    include: ['tests/specs/changeLogCodec.spec.ts'],
+    include: [
+      'tests/specs/actionJournal.spec.ts',
+      'tests/specs/changeLogCodec.spec.ts',
+    ],
     maxWorkers: 1,
     minWorkers: 1,
     testTimeout: 100000,

@@ -112,6 +112,10 @@ int omega_change_get_transaction_bit(const omega_change_t *change_ptr) {
     return omega_change_get_transaction_bit_(change_ptr) ? 1 : 0;
 }
 
+int64_t omega_change_get_transaction_start_serial(const omega_change_t *change_ptr) {
+    return change_ptr ? change_ptr->transaction_start_serial : 0;
+}
+
 int omega_change_is_undone(const omega_change_t *change_ptr) {
     if (!change_ptr) { return 0; }
     return (0 < omega_change_get_serial(change_ptr)) ? 0 : 1;

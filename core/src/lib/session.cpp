@@ -30,6 +30,8 @@
 #include <cassert>
 #include <cstring>
 
+using omega_edit::internal::change_kind_t;
+using omega_edit::internal::omega_change_get_kind_;
 using omega_edit::internal::omega_change_get_transaction_bit_;
 using omega_edit::internal::omega_data_get_data_;
 using omega_edit::internal::omega_session_end_event_batch_;
@@ -303,6 +305,42 @@ int64_t omega_session_get_num_undone_change_transactions(const omega_session_t *
 int64_t omega_session_get_num_checkpoints(const omega_session_t *session_ptr) {
     if (!session_ptr) { return 0; }
     return static_cast<int64_t>(session_ptr->models_.size()) - 1;
+}
+
+int64_t omega_session_get_checkpoint_change_count(const omega_session_t *session_ptr, int64_t checkpoint_count) {
+    if (!session_ptr || checkpoint_count < 0 || checkpoint_count > omega_session_get_num_checkpoints(session_ptr)) {
+        return -1;
+    }
+    if (checkpoint_count == 0) { return 0; }
+    const auto *model = session_ptr->models_[static_cast<size_t>(checkpoint_count)].get();
+    if (!model) { return -1; }
+    int64_t result = model->change_serial_base;
+    if (!model->changes.empty()) {
+        const auto &first_change = model->changes.front();
+        if (omega_change_get_kind_(first_change.get()) == change_kind_t::CHANGE_TRANSFORM &&
+            first_change->transform_data && first_change->transform_data->checkpoint_file_path == model->file_path) {
+            ++result;
+        }
+    }
+    return result;
+}
+
+int64_t omega_session_get_checkpoint_at_change_count(const omega_session_t *session_ptr, int64_t change_count) {
+    if (!session_ptr || change_count < 0) { return -1; }
+    int64_t low = 0;
+    int64_t high = omega_session_get_num_checkpoints(session_ptr);
+    int64_t result = -1;
+    while (low <= high) {
+        const auto checkpoint = low + (high - low) / 2;
+        const auto boundary = omega_session_get_checkpoint_change_count(session_ptr, checkpoint);
+        if (boundary <= change_count) {
+            if (boundary == change_count) { result = checkpoint; }
+            low = checkpoint + 1;
+        } else {
+            high = checkpoint - 1;
+        }
+    }
+    return result;
 }
 
 int64_t omega_session_get_num_future_checkpoints(const omega_session_t *session_ptr) {
