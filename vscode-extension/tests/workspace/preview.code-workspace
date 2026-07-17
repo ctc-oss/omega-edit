@@ -1,0 +1,13 @@
+{
+  "folders": [
+    {
+      "name": "OmegaEdit Preview",
+      "path": "."
+    }
+  ],
+  "settings": {
+    "workbench.editorAssociations": {
+      "*.txt": "omegaEdit.hexEditor"
+    }
+  }
+}

@@ -523,6 +523,51 @@ test('package.json matches shared extension constants', () => {
   )
 })
 
+test('F5 opens the isolated OmegaEdit data editor preview', () => {
+  const workspaceFolder = '$' + '{workspaceFolder}'
+  const previewWorkspace = JSON.parse(
+    fs.readFileSync(
+      path.resolve(__dirname, 'workspace/preview.code-workspace'),
+      'utf8'
+    )
+  )
+  assert.equal(
+    previewWorkspace.settings['workbench.editorAssociations']['*.txt'],
+    OMEGA_EDIT_VIEW_TYPE
+  )
+
+  const launchConfigurations = [
+    {
+      config: JSON.parse(
+        fs.readFileSync(
+          path.resolve(__dirname, '../../.vscode/launch.json'),
+          'utf8'
+        )
+      ).configurations[0],
+      previewWorkspace: `${workspaceFolder}/vscode-extension/tests/workspace/preview.code-workspace`,
+      sampleFile: `${workspaceFolder}/vscode-extension/tests/workspace/sample.txt`,
+    },
+    {
+      config: JSON.parse(
+        fs.readFileSync(
+          path.resolve(__dirname, '../.vscode/launch.json'),
+          'utf8'
+        )
+      ).configurations[0],
+      previewWorkspace: `${workspaceFolder}/tests/workspace/preview.code-workspace`,
+      sampleFile: `${workspaceFolder}/tests/workspace/sample.txt`,
+    },
+  ]
+
+  for (const { config, previewWorkspace, sampleFile } of launchConfigurations) {
+    assert.equal(config.name, 'Preview Ωedit™ Data Editor')
+    assert.ok(config.args.includes('--new-window'))
+    assert.ok(config.args.includes(previewWorkspace))
+    assert.ok(config.args.includes(sampleFile))
+    assert.equal(config.windows.env.OMEGA_EDIT_SERVER_PORT, '19000')
+  }
+})
+
 test('routes save-conflict fingerprinting through the native guarded save path', () => {
   const extensionSource = fs.readFileSync(
     path.resolve(__dirname, '../src/hexEditorProvider.ts'),
