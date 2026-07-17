@@ -350,6 +350,7 @@ export class EditorHistoryController {
     this.undoneTransactionLog.length = 0
 
     const branchDepth = this.transactionLog.length
+    this.savedChangeDepth = Math.min(this.savedChangeDepth, branchDepth)
     for (let index = this.milestoneDepths.length - 1; index >= 0; index -= 1) {
       if (this.milestoneDepths[index] > branchDepth) {
         this.milestoneDepths.splice(index, 1)

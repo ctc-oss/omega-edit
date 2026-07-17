@@ -368,6 +368,50 @@ describe('Editor Patterns', () => {
     })
   })
 
+  it('should clamp the saved depth when discarding a saved future branch', () => {
+    const history = new EditorHistoryController()
+    history.recordLocalChange({
+      serial: 1,
+      kind: 'INSERT',
+      offset: 0,
+      length: 0,
+      data: '41',
+    })
+    history.recordLocalChange({
+      serial: 2,
+      kind: 'INSERT',
+      offset: 1,
+      length: 0,
+      data: '42',
+    })
+    history.markSaved()
+
+    const branch = EditorHistoryController.fromSnapshotAtDepth(
+      history.snapshot(),
+      0
+    )
+    branch.recordLocalChange({
+      serial: 1,
+      kind: 'INSERT',
+      offset: 0,
+      length: 0,
+      data: '58',
+    })
+
+    expect(branch.getEditState()).to.deep.equal({
+      canUndo: true,
+      canRedo: false,
+      undoCount: 1,
+      redoCount: 0,
+      isDirty: true,
+      savedChangeDepth: 0,
+    })
+
+    const snapshot = branch.snapshot()
+    const restored = EditorHistoryController.fromSnapshot(snapshot)
+    expect(restored.snapshot()).to.deep.equal(snapshot)
+  })
+
   it('should undo multi-record local transactions as a single unit', async () => {
     const history = new EditorHistoryController()
     const calls: string[] = []
