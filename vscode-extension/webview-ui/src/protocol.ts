@@ -9,6 +9,7 @@ export type {
   ServerHealthMessage,
   TextEncoding,
   WebviewEditorUiState,
+  WebviewActionJournalCheckpoint,
   WebviewActionJournalEntry,
   WebviewActionJournalKind,
   WebviewActionJournalViewport,

@@ -870,9 +870,20 @@ test('compiled extension entrypoints exist after build', () => {
   assert.match(providerSource, /ACTION_JOURNAL_REQUEST_TIMEOUT_MS = 15_000/)
   assert.match(actionJournalSource, /onUndo/)
   assert.match(actionJournalSource, /onRedo/)
+  assert.match(actionJournalSource, /disabled=\{!canUndo\}/)
+  assert.match(actionJournalSource, /disabled=\{!canRedo\}/)
   assert.doesNotMatch(actionJournalSource, /selectedKinds|transactionFilter/)
   assert.match(actionJournalSource, /onscroll=\{loadOlderNearEnd\}/)
   assert.match(actionJournalSource, /strings\.actionJournal\.noChanges/)
+  assert.match(actionJournalSource, /class="checkpoint-card"/)
+  assert.match(
+    svelteAppSource,
+    /checkpoints=\{checkpointTimeline\.checkpoints\}/
+  )
+  assert.match(
+    svelteAppSource,
+    /checkpointCursor=\{checkpointTimeline\.cursor\}/
+  )
   assert.match(actionJournalSource, /role="alert"/)
 
   const externalHighlightColorCountSources = [

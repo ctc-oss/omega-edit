@@ -6,12 +6,15 @@
  */
 
 import {
+  checkoutCheckpoint,
   createCheckpoint,
   del,
   getActionJournalViewport,
   insert,
   overwrite,
+  redo,
   runSessionTransaction,
+  undo,
 } from '@omega-edit/client'
 import {
   createTestSession,
@@ -130,5 +133,54 @@ describe('Action journal integration', () => {
       lastSerial: '3',
       kind: 'REPLACE',
     })
+  })
+
+  it('keeps redo history readable across undo and checkpoint checkout', async () => {
+    await insert(sessionId, 0, Buffer.from('abc'))
+    await createCheckpoint(sessionId)
+    await overwrite(sessionId, 0, Buffer.from('X'))
+    await createCheckpoint(sessionId)
+
+    await checkoutCheckpoint(sessionId, 1)
+    const rewound = await getActionJournalViewport({
+      sessionId,
+      capacity: 10,
+      direction: 'older',
+    })
+    expect(rewound).toMatchObject({
+      activeTipSerial: '1',
+      changeCount: '1',
+      undoCount: '1',
+    })
+    expect(rewound.entries.map((entry) => entry.firstSerial)).toEqual([
+      '2',
+      '1',
+    ])
+
+    await checkoutCheckpoint(sessionId, 2)
+    const forwarded = await getActionJournalViewport({
+      sessionId,
+      capacity: 10,
+      direction: 'older',
+    })
+    expect(forwarded.entries.map((entry) => entry.firstSerial)).toEqual([
+      '2',
+      '1',
+    ])
+
+    await overwrite(sessionId, 1, Buffer.from('Y'))
+    await undo(sessionId)
+    const undone = await getActionJournalViewport({
+      sessionId,
+      capacity: 10,
+      direction: 'older',
+    })
+    expect(undone.undoCount).toBe('1')
+    expect(undone.entries.map((entry) => entry.firstSerial)).toEqual([
+      '3',
+      '2',
+      '1',
+    ])
+    await redo(sessionId)
   })
 })
