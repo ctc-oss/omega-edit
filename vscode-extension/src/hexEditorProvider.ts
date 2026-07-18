@@ -7731,12 +7731,6 @@ export class HexEditorProvider
           break
         }
 
-        case 'hideCheckpointTimeline': {
-          session.checkpointTimeline.visible = false
-          this.postCheckpointTimeline(session)
-          break
-        }
-
         case 'rollbackCheckpoint': {
           await this.rollbackCheckpoint({ uri: session.document.uri })
           break

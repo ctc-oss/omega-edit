@@ -288,8 +288,8 @@ export type WebviewToHostMessage =
   | { type: 'createCheckpoint' }
   | { type: 'rollbackCheckpoint' }
   | { type: 'restoreCheckpoint' }
+  // Internal checkpoint-replay hook retained after retiring the standalone timeline UI.
   | { type: 'navigateCheckpointTimeline'; checkpoint: number }
-  | { type: 'hideCheckpointTimeline' }
   | { type: 'exportChangeLog' }
   | {
       type: 'requestActionJournalViewport'
@@ -1087,9 +1087,6 @@ export function normalizeWebviewMessage(
     case 'save':
     case 'saveAs':
     case 'revert':
-      return { type: raw.type }
-
-    case 'hideCheckpointTimeline':
       return { type: raw.type }
 
     case 'hideActionJournal':

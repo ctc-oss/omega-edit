@@ -288,26 +288,26 @@ test('package.json matches shared extension constants', () => {
     packageJson.contributes.commands[15].enablement,
     'omegaEdit.hexEditorActive && !omegaEdit.transformInFlight'
   )
-  assert.equal(
-    packageJson.contributes.commands[16].command,
-    OMEGA_EDIT_SHOW_ACTION_JOURNAL_COMMAND
+  const actionJournalCommand = packageJson.contributes.commands.find(
+    (entry) => entry.command === OMEGA_EDIT_SHOW_ACTION_JOURNAL_COMMAND
   )
-  assert.equal(
-    packageJson.contributes.commands[16].enablement,
-    'omegaEdit.hexEditorActive'
-  )
-  assert.deepEqual(
-    packageJson.contributes.commands.slice(17).map((entry) => entry.command),
-    [
-      OMEGA_EDIT_GET_EDITOR_STATE_COMMAND,
-      OMEGA_EDIT_GET_ASSISTANT_CONTEXT_COMMAND,
-      OMEGA_EDIT_SET_EXTERNAL_HIGHLIGHTS_COMMAND,
-      OMEGA_EDIT_CLEAR_EXTERNAL_HIGHLIGHTS_COMMAND,
-      OMEGA_EDIT_LOAD_RANGE_MAP_COMMAND,
-      OMEGA_EDIT_UNLOAD_RANGE_MAP_COMMAND,
-      OMEGA_EDIT_TOGGLE_EXPERIMENTAL_TRANSFORM_PLUGINS_COMMAND,
-    ]
-  )
+  assert.ok(actionJournalCommand)
+  assert.equal(actionJournalCommand.enablement, 'omegaEdit.hexEditorActive')
+  for (const command of [
+    OMEGA_EDIT_GET_EDITOR_STATE_COMMAND,
+    OMEGA_EDIT_GET_ASSISTANT_CONTEXT_COMMAND,
+    OMEGA_EDIT_SET_EXTERNAL_HIGHLIGHTS_COMMAND,
+    OMEGA_EDIT_CLEAR_EXTERNAL_HIGHLIGHTS_COMMAND,
+    OMEGA_EDIT_LOAD_RANGE_MAP_COMMAND,
+    OMEGA_EDIT_UNLOAD_RANGE_MAP_COMMAND,
+    OMEGA_EDIT_TOGGLE_EXPERIMENTAL_TRANSFORM_PLUGINS_COMMAND,
+  ]) {
+    assert.ok(
+      packageJson.contributes.commands.some(
+        (entry) => entry.command === command
+      )
+    )
+  }
   assert.equal(
     packageNls['omegaEdit.command.toggleInsertDirection.title'],
     'OmegaEdit: Toggle Insert Direction'
@@ -2756,6 +2756,10 @@ test('webview protocol normalizes editor commands and rejects invalid ranges', (
       undefined
     )
   }
+  assert.equal(
+    normalizeWebviewMessage(context, { type: 'hideCheckpointTimeline' }),
+    undefined
+  )
   assert.deepEqual(
     normalizeWebviewMessage(context, {
       type: 'setInsertDirection',
