@@ -67,7 +67,6 @@ import {
   SaveStatus,
   SearchCaseFolding,
   type IServerInfo,
-  type ActionJournalEntry,
   type ActionJournalViewport,
   insert,
   listTransformPlugins,
@@ -124,7 +123,6 @@ import {
   type WebviewExternalHighlight,
   type WebviewActionJournalKind,
   type WebviewActionJournalViewport,
-  WEBVIEW_ACTION_JOURNAL_KINDS,
   type WebviewRangeMapNode,
   type WebviewSessionContentInfo,
   type WebviewSessionContentSource,
@@ -197,9 +195,6 @@ interface ActionJournalState {
   visible: boolean
   capacity: number
   direction: 'older' | 'newer'
-  kinds: WebviewActionJournalKind[]
-  transactionId?: string
-  entries: Map<string, ActionJournalEntry>
   requestGeneration: number
   refreshTask?: Promise<void>
   refreshPending: boolean
@@ -458,10 +453,6 @@ function openEditorFirstMessage(): string {
 
 function omegaEditErrorMessage(message: string): string {
   return vscode.l10n.t('OmegaEdit error: {message}', { message })
-}
-
-function shellQuote(value: string): string {
-  return `'${value.split("'").join("'\\''")}'`
 }
 
 function describeSaveStatus(status: number): string {
@@ -2580,8 +2571,6 @@ export class HexEditorProvider
         visible: false,
         capacity: 256,
         direction: 'older',
-        kinds: [...WEBVIEW_ACTION_JOURNAL_KINDS],
-        entries: new Map(),
         requestGeneration: 0,
         refreshPending: false,
       },
@@ -4350,23 +4339,6 @@ export class HexEditorProvider
     }
   }
 
-  async showCheckpointTimeline(
-    options?: unknown
-  ): Promise<CheckpointTimelineResult | undefined> {
-    const session = this.resolveCommandSession(options)
-    if (!session) {
-      void vscode.window.showWarningMessage(openEditorFirstMessage())
-      return
-    }
-    session.checkpointTimeline.visible = true
-    this.postCheckpointTimeline(session)
-    return {
-      state: this.buildEditorState(session),
-      checkpointCount: session.checkpointTimeline.entries.length,
-      moved: false,
-    }
-  }
-
   private async navigateToCheckpoint(
     session: EditorSession,
     targetCheckpointCount: number
@@ -4583,8 +4555,6 @@ export class HexEditorProvider
       anchorSerial?: string
       capacity?: number
       direction?: 'older' | 'newer'
-      kinds?: WebviewActionJournalKind[]
-      transactionId?: string
       append?: boolean
     } = {}
   ): Promise<void> {
@@ -4592,16 +4562,9 @@ export class HexEditorProvider
     const requestGeneration = ++state.requestGeneration
     const capacity = options.capacity ?? state.capacity
     const direction = options.direction ?? state.direction
-    const kinds = options.kinds ?? state.kinds
-    const transactionId =
-      options.transactionId === undefined
-        ? state.transactionId
-        : options.transactionId.trim() || undefined
     state.visible = true
     state.capacity = capacity
     state.direction = direction
-    state.kinds = kinds
-    state.transactionId = transactionId
     let viewport: ActionJournalViewport
     let timeout: ReturnType<typeof setTimeout> | undefined
     try {
@@ -4611,8 +4574,6 @@ export class HexEditorProvider
           anchorSerial: options.anchorSerial,
           capacity,
           direction,
-          kinds,
-          transactionId,
         }),
         new Promise<never>((_resolve, reject) => {
           timeout = setTimeout(() => {
@@ -4646,13 +4607,6 @@ export class HexEditorProvider
     ) {
       return
     }
-    if (!options.append) {
-      state.entries.clear()
-    }
-    for (const entry of viewport.entries) {
-      state.entries.set(`${entry.firstSerial}:${entry.lastSerial}`, entry)
-    }
-
     const webviewViewport: WebviewActionJournalViewport = {
       version: 1,
       activeTipSerial: viewport.activeTipSerial,
@@ -4697,131 +4651,6 @@ export class HexEditorProvider
       .finally(() => {
         state.refreshTask = undefined
       })
-  }
-
-  private async copyActionJournalEntry(
-    session: EditorSession,
-    firstSerialText: string,
-    lastSerialText: string,
-    format: 'json' | 'cli' | 'mcp'
-  ): Promise<void> {
-    const journalEntry = session.actionJournal.entries.get(
-      `${firstSerialText}:${lastSerialText}`
-    )
-    if (!journalEntry) {
-      throw new Error(
-        vscode.l10n.t(
-          'The action journal entry is no longer in the active window'
-        )
-      )
-    }
-    const firstSerial = Number(firstSerialText)
-    const lastSerial = Number(lastSerialText)
-    if (
-      !Number.isSafeInteger(firstSerial) ||
-      !Number.isSafeInteger(lastSerial)
-    ) {
-      throw new Error(
-        vscode.l10n.t(
-          'This server history exceeds the client change-detail range'
-        )
-      )
-    }
-
-    let record = changeDetailsToChangeRecord(
-      await getChangeDetails(session.sessionId, firstSerial)
-    )
-    if (journalEntry.kind === 'REPLACE') {
-      const replacement = changeDetailsToChangeRecord(
-        await getChangeDetails(session.sessionId, lastSerial)
-      )
-      if (record.kind !== 'DELETE' || replacement.kind !== 'INSERT') {
-        throw new Error(
-          vscode.l10n.t(
-            'The replace journal entry no longer matches native history'
-          )
-        )
-      }
-      record = {
-        serial: firstSerial,
-        kind: 'REPLACE',
-        offset: record.offset,
-        length: record.length,
-        data: replacement.data,
-        groupId: journalEntry.transactionId,
-      }
-    } else if (journalEntry.transactionId) {
-      record = { ...record, groupId: journalEntry.transactionId }
-    }
-    if (record.kind === 'DELETE') {
-      record = { ...record, data: '' }
-    }
-
-    const serialized = serializeChangeLogEntry(record)
-    let clipboardText: string
-    if (format === 'json') {
-      clipboardText = JSON.stringify(serialized, null, 2)
-    } else if (record.kind === 'TRANSFORM') {
-      const descriptor = parseTransformPrimitiveDescriptor(
-        record.data,
-        'TRANSFORM change data'
-      )
-      const args = {
-        sessionId: session.sessionId,
-        pluginId: descriptor.transformId,
-        offset: record.offset,
-        length: record.length,
-        ...(descriptor.optionsJson === undefined
-          ? {}
-          : { optionsJson: descriptor.optionsJson }),
-      }
-      clipboardText =
-        format === 'mcp'
-          ? JSON.stringify(
-              { tool: 'omega_edit_apply_transform_plugin', arguments: args },
-              null,
-              2
-            )
-          : [
-              'oe apply-transform-plugin',
-              `--session ${shellQuote(session.sessionId)}`,
-              `--plugin ${shellQuote(descriptor.transformId)}`,
-              `--offset ${record.offset}`,
-              `--length ${record.length}`,
-              ...(descriptor.optionsJson === undefined
-                ? []
-                : [`--options-json ${shellQuote(descriptor.optionsJson)}`]),
-            ].join(' ')
-    } else {
-      const operation = record.kind.toLowerCase()
-      const args = {
-        sessionId: session.sessionId,
-        offset: record.offset,
-        operation,
-        ...(record.length === 0 ? {} : { deleteLength: record.length }),
-        ...(record.data.length === 0 ? {} : { hex: record.data }),
-      }
-      clipboardText =
-        format === 'mcp'
-          ? JSON.stringify(
-              { tool: 'omega_edit_apply_patch', arguments: args },
-              null,
-              2
-            )
-          : [
-              'oe patch',
-              `--session ${shellQuote(session.sessionId)}`,
-              `--offset ${record.offset}`,
-              `--operation ${operation}`,
-              ...(record.length === 0
-                ? []
-                : [`--delete-length ${record.length}`]),
-              ...(record.data.length === 0
-                ? []
-                : [`--hex ${shellQuote(record.data)}`]),
-            ].join(' ')
-    }
-    await vscode.env.clipboard.writeText(clipboardText)
   }
 
   private postPendingHealthWebviewMessage(
@@ -7931,32 +7760,7 @@ export class HexEditorProvider
         case 'hideActionJournal': {
           session.actionJournal.visible = false
           session.actionJournal.requestGeneration += 1
-          session.actionJournal.entries.clear()
           this.postWebviewMessage(session, { type: 'actionJournalHidden' })
-          break
-        }
-
-        case 'revealActionJournalEntry': {
-          const offset = Number(msg.offset)
-          if (!Number.isSafeInteger(offset) || offset < 0) {
-            throw new RangeError(
-              vscode.l10n.t('Action journal offset exceeds the editor range')
-            )
-          }
-          await this.scrollTo(
-            session,
-            Math.min(offset, Math.max(0, session.fileSize - 1))
-          )
-          break
-        }
-
-        case 'copyActionJournalEntry': {
-          await this.copyActionJournalEntry(
-            session,
-            msg.firstSerial,
-            msg.lastSerial,
-            msg.format
-          )
           break
         }
 

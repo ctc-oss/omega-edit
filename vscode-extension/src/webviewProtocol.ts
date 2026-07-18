@@ -296,18 +296,9 @@ export type WebviewToHostMessage =
       anchorSerial?: string
       capacity?: number
       direction?: 'older' | 'newer'
-      kinds?: WebviewActionJournalKind[]
-      transactionId?: string
       append?: boolean
     }
   | { type: 'hideActionJournal' }
-  | { type: 'revealActionJournalEntry'; offset: string }
-  | {
-      type: 'copyActionJournalEntry'
-      firstSerial: string
-      lastSerial: string
-      format: 'json' | 'cli' | 'mcp'
-    }
   | { type: 'applyChangeLog' }
   | { type: 'loadRangeMap' }
   | { type: 'unloadRangeMap' }
@@ -848,18 +839,6 @@ function safeExternalHighlightKind(
     : undefined
 }
 
-function safeActionJournalKind(
-  value: unknown
-): WebviewActionJournalKind | undefined {
-  return value === 'INSERT' ||
-    value === 'DELETE' ||
-    value === 'OVERWRITE' ||
-    value === 'REPLACE' ||
-    value === 'TRANSFORM'
-    ? value
-    : undefined
-}
-
 function safeActionJournalDecimal(value: unknown): string | undefined {
   return typeof value === 'string' && /^(0|[1-9]\d{0,18})$/.test(value)
     ? value
@@ -1131,23 +1110,11 @@ export function normalizeWebviewMessage(
           : raw.direction === 'older' || raw.direction === 'newer'
             ? raw.direction
             : null
-      const kinds = Array.isArray(raw.kinds)
-        ? raw.kinds.map(safeActionJournalKind)
-        : raw.kinds === undefined
-          ? undefined
-          : null
-      const transactionId =
-        raw.transactionId === undefined
-          ? undefined
-          : safeString(raw.transactionId, MAX_LABEL_LENGTH, true)
       if (
         (raw.anchorSerial !== undefined && anchorSerial === undefined) ||
         (raw.capacity !== undefined && capacity === undefined) ||
         (capacity !== undefined && capacity === 0) ||
         direction === null ||
-        kinds === null ||
-        kinds?.some((kind) => kind === undefined) ||
-        (raw.transactionId !== undefined && transactionId === undefined) ||
         (raw.append !== undefined && typeof raw.append !== 'boolean')
       ) {
         return undefined
@@ -1157,34 +1124,7 @@ export function normalizeWebviewMessage(
         ...(anchorSerial === undefined ? {} : { anchorSerial }),
         ...(capacity === undefined ? {} : { capacity }),
         ...(direction === undefined ? {} : { direction }),
-        ...(kinds === undefined
-          ? {}
-          : { kinds: kinds as WebviewActionJournalKind[] }),
-        ...(transactionId === undefined ? {} : { transactionId }),
         ...(raw.append === undefined ? {} : { append: raw.append }),
-      }
-    }
-
-    case 'revealActionJournalEntry': {
-      const offset = safeActionJournalDecimal(raw.offset)
-      return offset === undefined ? undefined : { type: raw.type, offset }
-    }
-
-    case 'copyActionJournalEntry': {
-      const firstSerial = safeActionJournalDecimal(raw.firstSerial)
-      const lastSerial = safeActionJournalDecimal(raw.lastSerial)
-      if (
-        firstSerial === undefined ||
-        lastSerial === undefined ||
-        (raw.format !== 'json' && raw.format !== 'cli' && raw.format !== 'mcp')
-      ) {
-        return undefined
-      }
-      return {
-        type: raw.type,
-        firstSerial,
-        lastSerial,
-        format: raw.format,
       }
     }
 

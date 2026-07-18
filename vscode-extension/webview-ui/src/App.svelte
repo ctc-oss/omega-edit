@@ -2,7 +2,6 @@
   import { onMount, untrack } from 'svelte'
   import ByteInspector from './components/ByteInspector.svelte'
   import ActionJournal from './components/ActionJournal.svelte'
-  import CheckpointTimeline from './components/CheckpointTimeline.svelte'
   import EditorWorkspace from './components/EditorWorkspace.svelte'
   import SearchPanel from './components/SearchPanel.svelte'
   import Toolbar from './components/Toolbar.svelte'
@@ -11,7 +10,6 @@
   import {
     MAX_BYTES_PER_ROW,
     MAX_ANALYSIS_PROFILE_BYTES,
-    WEBVIEW_ACTION_JOURNAL_KINDS,
     normalizeBytesPerRow,
     normalizeTextEncoding,
     type BytesPerRow,
@@ -22,7 +20,6 @@
     type ServerHealthMessage,
     type TextEncoding,
     type WebviewEditorUiState,
-    type WebviewActionJournalKind,
     type WebviewActionJournalViewport,
     type WebviewExternalHighlight,
     type WebviewRangeMapNode,
@@ -249,10 +246,6 @@
   let actionJournalViewport = $state<
     WebviewActionJournalViewport | undefined
   >(undefined)
-  let actionJournalKinds = $state<WebviewActionJournalKind[]>([
-    ...WEBVIEW_ACTION_JOURNAL_KINDS,
-  ])
-  let actionJournalTransactionId = $state('')
   let latestDataProfile = $state<AnalysisProfileMessage | undefined>(undefined)
   let latestViewportProfile = $state<ProfilerViewportSnapshot | undefined>(
     undefined
@@ -1584,10 +1577,6 @@
 
   function toggleSearchPanelVisible(): void {
     const visible = !searchPanelVisible
-    if (visible && checkpointTimeline.visible) {
-      checkpointTimeline = { ...checkpointTimeline, visible: false }
-      postToHost({ type: 'hideCheckpointTimeline' })
-    }
     if (visible && actionJournalVisible) {
       actionJournalVisible = false
       postToHost({ type: 'hideActionJournal' })
@@ -1597,10 +1586,6 @@
   }
 
   function openSearchPanel(showReplace = false): void {
-    if (checkpointTimeline.visible) {
-      checkpointTimeline = { ...checkpointTimeline, visible: false }
-      postToHost({ type: 'hideCheckpointTimeline' })
-    }
     if (actionJournalVisible) {
       actionJournalVisible = false
       postToHost({ type: 'hideActionJournal' })
@@ -1612,22 +1597,13 @@
     savePreviewState({ searchPanelVisible: true, replaceVisible })
   }
 
-  function requestActionJournal(
-    kinds = actionJournalKinds,
-    transactionId = actionJournalTransactionId,
-    anchorSerial?: string,
-    append = false
-  ): void {
+  function requestActionJournal(anchorSerial?: string, append = false): void {
     actionJournalLoading = true
     actionJournalError = ''
-    actionJournalKinds = kinds
-    actionJournalTransactionId = transactionId
     postToHost({
       type: 'requestActionJournalViewport',
       capacity: 256,
       direction: 'older',
-      kinds,
-      transactionId,
       anchorSerial,
       append,
     })
@@ -1638,10 +1614,6 @@
       actionJournalVisible = false
       postToHost({ type: 'hideActionJournal' })
       return
-    }
-    if (checkpointTimeline.visible) {
-      checkpointTimeline = { ...checkpointTimeline, visible: false }
-      postToHost({ type: 'hideCheckpointTimeline' })
     }
     if (searchPanelVisible) {
       closeSearchPanel()
@@ -3074,25 +3046,7 @@
   />
 
   <div class="top-panels">
-    {#if checkpointTimeline.visible}
-      <CheckpointTimeline
-        cursor={checkpointTimeline.cursor}
-        checkpointCount={checkpointTimeline.checkpointCount}
-        originalByteLength={checkpointTimeline.originalByteLength}
-        savedChangeCount={checkpointTimeline.savedChangeCount}
-        savedCheckpoint={checkpointTimeline.savedCheckpoint}
-        savedOffBranch={checkpointTimeline.savedOffBranch}
-        canRewind={checkpointTimeline.canRewind}
-        canFastForward={checkpointTimeline.canFastForward}
-        checkpoints={checkpointTimeline.checkpoints}
-        navigating={checkpointTimeline.navigating}
-        onNavigate={(checkpoint) =>
-          postToHost({ type: 'navigateCheckpointTimeline', checkpoint })}
-        onClose={() => postToHost({ type: 'hideCheckpointTimeline' })}
-      />
-    {/if}
-
-    {#if searchPanelVisible && !checkpointTimeline.visible}
+    {#if searchPanelVisible}
       <SearchPanel
         query={searchQuery}
         replacement={replacementQuery}
@@ -3207,28 +3161,13 @@
     {#if actionJournalVisible}
       <ActionJournal
         viewport={actionJournalViewport}
-        selectedKinds={actionJournalKinds}
-        transactionId={actionJournalTransactionId}
         loading={actionJournalLoading}
         error={actionJournalError}
-        onFilter={(kinds, transactionId) =>
-          requestActionJournal(kinds, transactionId)}
-        onLoadOlder={(anchorSerial) =>
-          requestActionJournal(
-            actionJournalKinds,
-            actionJournalTransactionId,
-            anchorSerial,
-            true
-          )}
-        onReveal={(offset) =>
-          postToHost({ type: 'revealActionJournalEntry', offset })}
-        onCopy={(firstSerial, lastSerial, format) =>
-          postToHost({
-            type: 'copyActionJournalEntry',
-            firstSerial,
-            lastSerial,
-            format,
-          })}
+        canUndo={canUndo && !transformInFlight}
+        canRedo={canRedo && !transformInFlight}
+        onUndo={() => postToHost({ type: 'undo' })}
+        onRedo={() => postToHost({ type: 'redo' })}
+        onLoadOlder={(anchorSerial) => requestActionJournal(anchorSerial, true)}
         onClose={toggleActionJournal}
         onRetry={() => requestActionJournal()}
       />

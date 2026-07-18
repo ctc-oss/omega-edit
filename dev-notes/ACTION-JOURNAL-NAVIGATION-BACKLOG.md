@@ -1,10 +1,11 @@
 # Action journal navigation backlog
 
 Issue #1491 establishes the action journal as a bounded, server-owned viewport
-over active primitive changes. The first PR intentionally stops short of making
-the journal a second session cursor. The following work should build on the
-`changeCountBefore`, `changeCountAfter`, `checkpointBefore`, and
-`checkpointAfter` coordinates shipped with each journal entry.
+over active primitive changes. The Journal is now the user-facing history
+surface: it provides transaction-aware rewind and fast-forward while checkpoints
+remain visible landmarks and internal acceleration points. The following work
+should build on the `changeCountBefore`, `changeCountAfter`, `checkpointBefore`,
+and `checkpointAfter` coordinates shipped with each journal entry.
 
 ## Per-change history navigation
 
@@ -39,9 +40,9 @@ the journal a second session cursor. The following work should build on the
   remain outside the active journal.
 - Add durable transaction identifiers if identifiers must survive exported log
   replay or session reconstruction.
-- Evaluate replacing the checkpoint slider after per-change navigation reaches
-  feature parity; retain checkpoint markers as acceleration and orientation
-  points in the unified history surface.
+- Continue consolidating checkpoint navigation into the Journal; checkpoint
+  markers remain acceleration and orientation points in the unified history
+  surface rather than a separate timeline UI.
 
 ## Validation
 
