@@ -1294,7 +1294,7 @@ test('compiled extension entrypoints exist after build', () => {
     assert.match(source, /\$(props|state|derived|effect)\(/, name)
     assert.doesNotMatch(source, /(^|\n)\s*export\s+let\s/, name)
     assert.doesNotMatch(source, /(^|\n)\s*\$:/, name)
-    assert.doesNotMatch(source, /on:[a-z]/, name)
+    assert.doesNotMatch(source, /<[^>]*\bon:[a-z]/, name)
   }
   assert.match(svelteAppSource, /selectionAnchor/)
   assert.match(svelteAppSource, /selectedOffset/)
