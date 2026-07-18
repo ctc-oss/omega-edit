@@ -544,67 +544,16 @@ const englishStrings = {
     yes: 'Yes',
     no: 'No',
   },
-  timeline: {
-    label: 'Checkpoint timeline',
-    original: 'Original file',
-    checkpoint: (checkpoint: number) =>
-      `Checkpoint ${formatNumber(checkpoint)}`,
-    position: (position: string, count: number) =>
-      `${position} of ${formatNumber(count)}`,
-    savedAtChange: (change: number) =>
-      `Last saved at change ${formatNumber(change)}`,
-    savedAtOriginal: 'Last saved at original file',
-    savedAtCheckpoint: (checkpoint: number) =>
-      `Last saved at checkpoint ${formatNumber(checkpoint)}`,
-    savedOffBranch: 'Last saved state is no longer on this branch',
-    previous: 'Previous checkpoint',
-    previousTitle: 'Rewind one checkpoint',
-    next: 'Next checkpoint',
-    nextTitle: 'Fast-forward one checkpoint',
-    current: 'Current checkpoint',
-    originalMarker: 'Original',
-    marker: (checkpoint: number, changes: number, saved: boolean) =>
-      `Checkpoint ${formatNumber(checkpoint)}, ${formatNumber(changes)} changes${saved ? ', last saved' : ''}`,
-    boundaryPlain: 'Manual checkpoint',
-    boundaryTransform: 'Transform checkpoint',
-    boundaryTip: 'Captured working tip',
-    originalDescription: 'Starting content before checkpointed changes',
-    changesInInterval: (count: number | bigint) =>
-      `${formatNumber(count)} source change${count === 1 || count === 1n ? '' : 's'}`,
-    replayOperations: (count: number | bigint) =>
-      `${formatNumber(count)} replay operation${count === 1 || count === 1n ? '' : 's'}`,
-    size: 'Size',
-    archive: 'Archive',
-    optimizedArchive: 'optimized',
-    rawArchive: 'raw',
-    plugins: 'Actions',
-    created: 'Created',
-    ready: 'Replay ready',
-    metadataUnavailable: 'Checkpoint metadata is not loaded',
-    displayedUnavailableCount: (count: number) =>
-      `${formatNumber(count)} displayed checkpoint${count === 1 ? '' : 's'} unavailable`,
-    unavailable: 'Replay unavailable',
-    unavailableCount: (count: number) =>
-      `${formatNumber(count)} checkpoint${count === 1 ? '' : 's'} unavailable`,
-    navigating: 'Moving through checkpoint history',
-    close: 'Close checkpoint timeline',
-    hiddenMarkers: (count: number) =>
-      `${formatNumber(count)} additional checkpoint markers`,
-  },
   actionJournal: {
     label: 'Action journal',
     summary: (changes: number | bigint, undone: number | bigint) =>
       `${formatNumber(changes)} changes · ${formatNumber(undone)} undone`,
     close: 'Close action journal',
-    kind: 'Kind',
-    transactionPlaceholder: 'transaction:…',
-    transactionFilter: 'Transaction filter',
-    filter: 'Filter',
+    rewind: 'Rewind one action',
+    fastForward: 'Fast-forward one action',
     loadingHistory: 'Loading history…',
     noChanges: 'No changes yet.',
-    noMatchingChanges: 'No matching changes.',
     retry: 'Retry',
-    jumpToChangedBytes: 'Jump to changed bytes',
     rangeAt: (offset: number | bigint) => `@ ${formatNumber(offset)}`,
     rangeLength: (offset: number | bigint, length: number | bigint) =>
       `@ ${formatNumber(offset)} + ${formatNumber(length)} B`,
@@ -618,8 +567,6 @@ const englishStrings = {
     payloadInline: 'inline',
     payloadFileBacked: 'file-backed',
     payloadCheckpointBacked: 'checkpoint-backed',
-    copyUnavailable:
-      'Copy details are unavailable after the JavaScript safe-integer history range',
     loading: 'Loading…',
     loadOlderChanges: 'Load older changes',
   },
@@ -864,65 +811,16 @@ const localeOverrides: Record<string, LocaleStringOverrides> = {
       yes: 'Si',
       no: 'No',
     },
-    timeline: {
-      label: 'Linea de tiempo de puntos de control',
-      original: 'Archivo original',
-      checkpoint: (checkpoint: number) =>
-        `Punto de control ${formatNumber(checkpoint)}`,
-      position: (position: string, count: number) =>
-        `${position} de ${formatNumber(count)}`,
-      savedAtChange: (change: number) =>
-        `Ultimo guardado en el cambio ${formatNumber(change)}`,
-      savedAtOriginal: 'Ultimo guardado en el archivo original',
-      savedAtCheckpoint: (checkpoint: number) =>
-        `Ultimo guardado en el punto de control ${formatNumber(checkpoint)}`,
-      savedOffBranch: 'El ultimo estado guardado ya no esta en esta rama',
-      previous: 'Punto de control anterior',
-      previousTitle: 'Retroceder un punto de control',
-      next: 'Punto de control siguiente',
-      nextTitle: 'Avanzar un punto de control',
-      current: 'Punto de control actual',
-      originalMarker: 'Original',
-      unavailable: 'Reproduccion no disponible',
-      unavailableCount: (count: number) =>
-        `${formatNumber(count)} punto${count === 1 ? '' : 's'} de control no disponible${count === 1 ? '' : 's'}`,
-      boundaryPlain: 'Punto de control manual',
-      boundaryTransform: 'Punto de control de transformacion',
-      boundaryTip: 'Punta de trabajo capturada',
-      originalDescription: 'Contenido inicial antes de los cambios con puntos de control',
-      changesInInterval: (count: number | bigint) =>
-        `${formatNumber(count)} cambio${count === 1 || count === 1n ? '' : 's'} de origen`,
-      replayOperations: (count: number | bigint) =>
-        `${formatNumber(count)} operacion${count === 1 || count === 1n ? '' : 'es'} de reproduccion`,
-      size: 'Tamano',
-      archive: 'Archivo',
-      optimizedArchive: 'optimizado',
-      rawArchive: 'sin optimizar',
-      plugins: 'Acciones',
-      created: 'Creado',
-      ready: 'Reproduccion lista',
-      metadataUnavailable: 'Los metadatos del punto de control no estan cargados',
-      displayedUnavailableCount: (count: number) =>
-        `${formatNumber(count)} punto${count === 1 ? '' : 's'} de control mostrado${count === 1 ? '' : 's'} no disponible${count === 1 ? '' : 's'}`,
-      navigating: 'Moviendo por el historial de puntos de control',
-      close: 'Cerrar la linea de tiempo de puntos de control',
-      hiddenMarkers: (count: number) =>
-        `${formatNumber(count)} marcador${count === 1 ? '' : 'es'} adicional${count === 1 ? '' : 'es'} de puntos de control`,
-    },
     actionJournal: {
       label: 'Diario de acciones',
       summary: (changes: number | bigint, undone: number | bigint) =>
         `${formatNumber(changes)} cambios · ${formatNumber(undone)} deshechos`,
       close: 'Cerrar el diario de acciones',
-      kind: 'Tipo',
-      transactionPlaceholder: 'transacción:…',
-      transactionFilter: 'Filtro de transacción',
-      filter: 'Filtrar',
+      rewind: 'Retroceder una acción',
+      fastForward: 'Avanzar una acción',
       loadingHistory: 'Cargando historial…',
       noChanges: 'Aún no hay cambios.',
-      noMatchingChanges: 'No hay cambios coincidentes.',
       retry: 'Reintentar',
-      jumpToChangedBytes: 'Ir a los bytes modificados',
       rangeAt: (offset: number | bigint) => `@ ${formatNumber(offset)}`,
       rangeLength: (offset: number | bigint, length: number | bigint) =>
         `@ ${formatNumber(offset)} + ${formatNumber(length)} B`,
@@ -936,8 +834,6 @@ const localeOverrides: Record<string, LocaleStringOverrides> = {
       payloadInline: 'integrado',
       payloadFileBacked: 'respaldado por archivo',
       payloadCheckpointBacked: 'respaldado por punto de control',
-      copyUnavailable:
-        'Los detalles de copia no estan disponibles fuera del rango de enteros seguros de JavaScript',
       loading: 'Cargando…',
       loadOlderChanges: 'Cargar cambios anteriores',
     },
@@ -966,7 +862,6 @@ function createStringTable(): WebviewStrings {
     grid: { ...englishStrings.grid },
     inspector: { ...englishStrings.inspector },
     profiler: { ...englishStrings.profiler },
-    timeline: { ...englishStrings.timeline },
     actionJournal: { ...englishStrings.actionJournal },
     status: { ...englishStrings.status },
   }
@@ -988,7 +883,6 @@ function applyLocaleOverrides(overrides?: LocaleStringOverrides): void {
   Object.assign(strings.grid, englishStrings.grid, overrides?.grid)
   Object.assign(strings.inspector, englishStrings.inspector, overrides?.inspector)
   Object.assign(strings.profiler, englishStrings.profiler, overrides?.profiler)
-  Object.assign(strings.timeline, englishStrings.timeline, overrides?.timeline)
   Object.assign(
     strings.actionJournal,
     englishStrings.actionJournal,

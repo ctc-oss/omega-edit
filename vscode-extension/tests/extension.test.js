@@ -30,7 +30,6 @@ const {
   OMEGA_EDIT_SEARCH_PREVIOUS_COMMAND,
   OMEGA_EDIT_SET_EXTERNAL_HIGHLIGHTS_COMMAND,
   OMEGA_EDIT_SET_TEXT_ENCODING_COMMAND,
-  OMEGA_EDIT_SHOW_CHECKPOINT_TIMELINE_COMMAND,
   OMEGA_EDIT_SHOW_ACTION_JOURNAL_COMMAND,
   OMEGA_EDIT_ROLLBACK_CHECKPOINT_COMMAND,
   OMEGA_EDIT_TOGGLE_EXPERIMENTAL_TRANSFORM_PLUGINS_COMMAND,
@@ -289,27 +288,26 @@ test('package.json matches shared extension constants', () => {
     packageJson.contributes.commands[15].enablement,
     'omegaEdit.hexEditorActive && !omegaEdit.transformInFlight'
   )
-  assert.equal(
-    packageJson.contributes.commands[16].command,
-    OMEGA_EDIT_SHOW_CHECKPOINT_TIMELINE_COMMAND
+  const actionJournalCommand = packageJson.contributes.commands.find(
+    (entry) => entry.command === OMEGA_EDIT_SHOW_ACTION_JOURNAL_COMMAND
   )
-  assert.equal(
-    packageJson.contributes.commands[16].enablement,
-    'omegaEdit.hexEditorActive && !omegaEdit.transformInFlight'
-  )
-  assert.deepEqual(
-    packageJson.contributes.commands.slice(17).map((entry) => entry.command),
-    [
-      OMEGA_EDIT_SHOW_ACTION_JOURNAL_COMMAND,
-      OMEGA_EDIT_GET_EDITOR_STATE_COMMAND,
-      OMEGA_EDIT_GET_ASSISTANT_CONTEXT_COMMAND,
-      OMEGA_EDIT_SET_EXTERNAL_HIGHLIGHTS_COMMAND,
-      OMEGA_EDIT_CLEAR_EXTERNAL_HIGHLIGHTS_COMMAND,
-      OMEGA_EDIT_LOAD_RANGE_MAP_COMMAND,
-      OMEGA_EDIT_UNLOAD_RANGE_MAP_COMMAND,
-      OMEGA_EDIT_TOGGLE_EXPERIMENTAL_TRANSFORM_PLUGINS_COMMAND,
-    ]
-  )
+  assert.ok(actionJournalCommand)
+  assert.equal(actionJournalCommand.enablement, 'omegaEdit.hexEditorActive')
+  for (const command of [
+    OMEGA_EDIT_GET_EDITOR_STATE_COMMAND,
+    OMEGA_EDIT_GET_ASSISTANT_CONTEXT_COMMAND,
+    OMEGA_EDIT_SET_EXTERNAL_HIGHLIGHTS_COMMAND,
+    OMEGA_EDIT_CLEAR_EXTERNAL_HIGHLIGHTS_COMMAND,
+    OMEGA_EDIT_LOAD_RANGE_MAP_COMMAND,
+    OMEGA_EDIT_UNLOAD_RANGE_MAP_COMMAND,
+    OMEGA_EDIT_TOGGLE_EXPERIMENTAL_TRANSFORM_PLUGINS_COMMAND,
+  ]) {
+    assert.ok(
+      packageJson.contributes.commands.some(
+        (entry) => entry.command === command
+      )
+    )
+  }
   assert.equal(
     packageNls['omegaEdit.command.toggleInsertDirection.title'],
     'OmegaEdit: Toggle Insert Direction'
@@ -846,6 +844,7 @@ test('compiled extension entrypoints exist after build', () => {
     ['TransformPanel.svelte', transformPanelSource],
     ['TransformResultPanel.svelte', transformResultPanelSource],
     ['SearchPanel.svelte', searchPanelSource],
+    ['ActionJournal.svelte', actionJournalSource],
     ['ByteInspector.svelte', byteInspectorSource],
     ['EditorWorkspace.svelte', editorWorkspaceSource],
     ['ProfilerPanel.svelte', profilerPanelSource],
@@ -863,18 +862,16 @@ test('compiled extension entrypoints exist after build', () => {
     )
   }
 
-  assert.match(
+  assert.doesNotMatch(
     svelteAppSource,
-    /actionJournalKinds = \$state<WebviewActionJournalKind\[]>\(\[\s*\.\.\.WEBVIEW_ACTION_JOURNAL_KINDS/
+    /actionJournalKinds|actionJournalTransactionId/
   )
   assert.match(svelteAppSource, /case 'actionJournalError':/)
   assert.match(providerSource, /ACTION_JOURNAL_REQUEST_TIMEOUT_MS = 15_000/)
-  assert.match(
-    actionJournalSource,
-    /aria-pressed=\{selectedKinds\.includes\(kind\)\}/
-  )
+  assert.match(actionJournalSource, /onUndo/)
+  assert.match(actionJournalSource, /onRedo/)
+  assert.doesNotMatch(actionJournalSource, /selectedKinds|transactionFilter/)
   assert.match(actionJournalSource, /onscroll=\{loadOlderNearEnd\}/)
-  assert.match(actionJournalSource, /maxlength=\{MAX_LABEL_LENGTH\}/)
   assert.match(actionJournalSource, /strings\.actionJournal\.noChanges/)
   assert.match(actionJournalSource, /role="alert"/)
 
@@ -1297,7 +1294,7 @@ test('compiled extension entrypoints exist after build', () => {
     assert.match(source, /\$(props|state|derived|effect)\(/, name)
     assert.doesNotMatch(source, /(^|\n)\s*export\s+let\s/, name)
     assert.doesNotMatch(source, /(^|\n)\s*\$:/, name)
-    assert.doesNotMatch(source, /on:[a-z]/, name)
+    assert.doesNotMatch(source, /<[^>]*\bon:[a-z]/, name)
   }
   assert.match(svelteAppSource, /selectionAnchor/)
   assert.match(svelteAppSource, /selectedOffset/)
@@ -2148,14 +2145,18 @@ test('compiled extension entrypoints exist after build', () => {
   assert.doesNotMatch(searchPanelSource, />Search Next</)
   assert.doesNotMatch(searchPanelSource, />Replace All</)
   assert.match(svelteAppSource, /function openSearchPanel/)
-  assert.match(
+  assert.doesNotMatch(
     svelteAppSource,
-    /postToHost\(\{ type: 'hideCheckpointTimeline' \}\)/
+    /components\/CheckpointTimeline|<CheckpointTimeline(?:\s|>)/
   )
-  assert.match(
-    svelteAppSource,
-    /searchPanelVisible && !checkpointTimeline\.visible/
-  )
+  assert.doesNotMatch(svelteAppSource, /hideCheckpointTimeline/)
+  assert.match(actionJournalSource, /strings\.actionJournal\.rewind/)
+  assert.match(actionJournalSource, /strings\.actionJournal\.fastForward/)
+  assert.match(actionJournalSource, /checkpointBefore/)
+  assert.match(actionJournalSource, /checkpointAfter/)
+  assert.doesNotMatch(actionJournalSource, /onReveal|onCopy|onFilter/)
+  assert.doesNotMatch(actionJournalSource, />JSON<|>CLI<|>MCP</)
+  assert.doesNotMatch(actionJournalSource, /<button class="entry-main"/)
   assert.match(
     svelteAppSource,
     /message\.visible && searchPanelVisible[\s\S]+closeSearchPanel\(\)/
@@ -2375,7 +2376,11 @@ test('compiled extension entrypoints exist after build', () => {
   assert.match(extensionJs, /OMEGA_EDIT_ROLLBACK_SESSION_COMMAND/)
   assert.match(extensionJs, /OMEGA_EDIT_ROLLBACK_CHECKPOINT_COMMAND/)
   assert.match(extensionJs, /OMEGA_EDIT_CREATE_CHECKPOINT_COMMAND/)
-  assert.match(extensionJs, /OMEGA_EDIT_SHOW_CHECKPOINT_TIMELINE_COMMAND/)
+  assert.match(extensionJs, /OMEGA_EDIT_SHOW_ACTION_JOURNAL_COMMAND/)
+  assert.doesNotMatch(
+    extensionJs,
+    /OMEGA_EDIT_SHOW_CHECKPOINT_TIMELINE_COMMAND/
+  )
   assert.match(extensionJs, /OMEGA_EDIT_GET_EDITOR_STATE_COMMAND/)
   assert.match(extensionJs, /OMEGA_EDIT_GET_ASSISTANT_CONTEXT_COMMAND/)
   assert.match(extensionJs, /OMEGA_EDIT_SET_EXTERNAL_HIGHLIGHTS_COMMAND/)
@@ -2751,6 +2756,10 @@ test('webview protocol normalizes editor commands and rejects invalid ranges', (
       undefined
     )
   }
+  assert.equal(
+    normalizeWebviewMessage(context, { type: 'hideCheckpointTimeline' }),
+    undefined
+  )
   assert.deepEqual(
     normalizeWebviewMessage(context, {
       type: 'setInsertDirection',
@@ -3012,6 +3021,41 @@ test('webview protocol normalizes editor commands and rejects invalid ranges', (
   )
 })
 
+test('action journal is the live history surface', () => {
+  const appSource = fs.readFileSync(
+    path.resolve(__dirname, '../webview-ui/src/App.svelte'),
+    'utf8'
+  )
+  const journalSource = fs.readFileSync(
+    path.resolve(
+      __dirname,
+      '../webview-ui/src/components/ActionJournal.svelte'
+    ),
+    'utf8'
+  )
+
+  assert.doesNotMatch(
+    appSource,
+    /components\/CheckpointTimeline|<CheckpointTimeline(?:\s|>)/
+  )
+  assert.doesNotMatch(appSource, /hideCheckpointTimeline/)
+  assert.match(appSource, /onUndo=\{\(\) => postToHost\(\{ type: 'undo' \}\)\}/)
+  assert.match(appSource, /onRedo=\{\(\) => postToHost\(\{ type: 'redo' \}\)\}/)
+  assert.match(journalSource, /strings\.actionJournal\.rewind/)
+  assert.match(journalSource, /strings\.actionJournal\.fastForward/)
+  assert.match(journalSource, /checkpointBefore/)
+  assert.match(journalSource, /checkpointAfter/)
+  assert.doesNotMatch(journalSource, /onReveal|onCopy|onFilter/)
+  assert.doesNotMatch(journalSource, />JSON<|>CLI<|>MCP</)
+  assert.doesNotMatch(journalSource, /<button class="entry-main"/)
+  assert.equal(
+    packageJson.contributes.commands.some(
+      (entry) => entry.command === 'omegaEdit.showCheckpointTimeline'
+    ),
+    false
+  )
+})
+
 test('webview protocol bounds and validates action journal requests', () => {
   const context = { fileSize: 10 }
   assert.deepEqual(
@@ -3020,8 +3064,6 @@ test('webview protocol bounds and validates action journal requests', () => {
       anchorSerial: '9007199254740993',
       capacity: 256,
       direction: 'older',
-      kinds: ['REPLACE', 'TRANSFORM'],
-      transactionId: ' transaction:7 ',
       append: true,
     }),
     {
@@ -3029,36 +3071,19 @@ test('webview protocol bounds and validates action journal requests', () => {
       anchorSerial: '9007199254740993',
       capacity: 256,
       direction: 'older',
-      kinds: ['REPLACE', 'TRANSFORM'],
-      transactionId: 'transaction:7',
       append: true,
-    }
-  )
-  assert.deepEqual(
-    normalizeWebviewMessage(context, {
-      type: 'copyActionJournalEntry',
-      firstSerial: '7',
-      lastSerial: '8',
-      format: 'mcp',
-    }),
-    {
-      type: 'copyActionJournalEntry',
-      firstSerial: '7',
-      lastSerial: '8',
-      format: 'mcp',
     }
   )
   for (const message of [
     { type: 'requestActionJournalViewport', capacity: 0 },
     { type: 'requestActionJournalViewport', capacity: 1001 },
     { type: 'requestActionJournalViewport', anchorSerial: '01' },
-    { type: 'requestActionJournalViewport', kinds: ['UNKNOWN'] },
-    { type: 'revealActionJournalEntry', offset: '-1' },
+    { type: 'revealActionJournalEntry', offset: '1' },
     {
       type: 'copyActionJournalEntry',
       firstSerial: '1',
       lastSerial: '2',
-      format: 'shell',
+      format: 'mcp',
     },
   ]) {
     assert.equal(normalizeWebviewMessage(context, message), undefined)

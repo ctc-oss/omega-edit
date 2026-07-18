@@ -31,7 +31,6 @@
   "omegaEdit.command.rollbackCheckpoint.title": "OmegaEdit: Roll Back Last Checkpoint",
   "omegaEdit.command.restoreCheckpoint.title": "OmegaEdit: Restore Last Checkpoint",
   "omegaEdit.command.createCheckpoint.title": "OmegaEdit: Create Checkpoint",
-  "omegaEdit.command.showCheckpointTimeline.title": "OmegaEdit: Show Checkpoint Timeline",
   "omegaEdit.command.showActionJournal.title": "OmegaEdit: Show Live Action Journal",
   "omegaEdit.command.getEditorState.title": "OmegaEdit: Get Editor State",
   "omegaEdit.command.getAssistantContext.title": "OmegaEdit: Get Assistant Context",
