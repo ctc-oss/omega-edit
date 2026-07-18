@@ -115,6 +115,8 @@
         return strings.actionJournal.checkpointTransform
       case 'tip':
         return strings.actionJournal.checkpointTip
+      default:
+        return strings.actionJournal.checkpointPlain
     }
   }
 

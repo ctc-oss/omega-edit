@@ -2391,8 +2391,7 @@ namespace omega_edit {
             }
 
             const auto get_history_change = [&](int64_t serial) {
-                const auto *change = omega_session_get_change(locked_session.session(), serial);
-                return change ? change : omega_session_get_change(locked_session.session(), -serial);
+                return omega_session_get_change(locked_session.session(), serial <= active_tip ? serial : -serial);
             };
             auto anchor = requested_anchor == 0 ? (older ? history_tip : 1) : requested_anchor;
             if (anchor <= 0 || anchor > history_tip || !get_history_change(anchor)) {
