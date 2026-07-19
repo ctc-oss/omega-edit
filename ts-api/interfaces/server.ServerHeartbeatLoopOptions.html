@@ -13,7 +13,7 @@
 <h1>Interface ServerHeartbeatLoopOptions</h1></div>
 <div class="tsd-signature"><span class="tsd-signature-keyword">interface</span> <span class="tsd-kind-interface">ServerHeartbeatLoopOptions</span> <span class="tsd-signature-symbol">{</span><br/>    <a class="tsd-kind-property" href="#immediate">immediate</a><span class="tsd-signature-symbol">?:</span> <span class="tsd-signature-type">boolean</span><span class="tsd-signature-symbol">;</span><br/>    <a class="tsd-kind-property" href="#intervalms">intervalMs</a><span class="tsd-signature-symbol">?:</span> <span class="tsd-signature-type">number</span><span class="tsd-signature-symbol">;</span><br/>    <a class="tsd-kind-call-signature" href="#getheartbeat-1">getHeartbeat</a><span class="tsd-signature-symbol">?</span><span class="tsd-signature-symbol">(</span><span class="tsd-kind-parameter">sessionIds</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">string</span><span class="tsd-signature-symbol">[]</span><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">Promise</span><span class="tsd-signature-symbol">&lt;</span><a href="server.IServerHeartbeat.html" class="tsd-signature-type tsd-kind-interface">IServerHeartbeat</a><span class="tsd-signature-symbol">&gt;</span><span class="tsd-signature-symbol">;</span><br/>    <a class="tsd-kind-call-signature" href="#getsessionids-1">getSessionIds</a><span class="tsd-signature-symbol">()</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">string</span><span class="tsd-signature-symbol">[]</span> <span class="tsd-signature-symbol">|</span> <span class="tsd-signature-type">Promise</span><span class="tsd-signature-symbol">&lt;</span><span class="tsd-signature-type">string</span><span class="tsd-signature-symbol">[]</span><span class="tsd-signature-symbol">&gt;</span><span class="tsd-signature-symbol">;</span><br/>    <a class="tsd-kind-call-signature" href="#onerror-1">onError</a><span class="tsd-signature-symbol">?</span><span class="tsd-signature-symbol">(</span><span class="tsd-kind-parameter">error</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">Error</span><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">void</span> <span class="tsd-signature-symbol">|</span> <span class="tsd-signature-type">Promise</span><span class="tsd-signature-symbol">&lt;</span><span class="tsd-signature-type">void</span><span class="tsd-signature-symbol">&gt;</span><span class="tsd-signature-symbol">;</span><br/>    <a class="tsd-kind-call-signature" href="#onheartbeat-1">onHeartbeat</a><span class="tsd-signature-symbol">?</span><span class="tsd-signature-symbol">(</span><span class="tsd-kind-parameter">heartbeat</span><span class="tsd-signature-symbol">:</span> <a href="server.IServerHeartbeat.html" class="tsd-signature-type tsd-kind-interface">IServerHeartbeat</a><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">void</span> <span class="tsd-signature-symbol">|</span> <span class="tsd-signature-type">Promise</span><span class="tsd-signature-symbol">&lt;</span><span class="tsd-signature-type">void</span><span class="tsd-signature-symbol">&gt;</span><span class="tsd-signature-symbol">;</span><br/><span class="tsd-signature-symbol">}</span></div><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/ctc-oss/omega-edit/blob/6b7ada2b665d9bc56fb3416a14128079468b8a36/packages/client/src/server.ts#L1394">server.ts:1394</a></li></ul></aside>
+<li>Defined in <a href="https://github.com/ctc-oss/omega-edit/blob/5c8f975024f83b6ef2e0ac83e3fc95f349215d0c/packages/client/src/server.ts#L1394">server.ts:1394</a></li></ul></aside>
 <section class="tsd-panel-group tsd-index-group">
 <section class="tsd-panel tsd-index-panel">
 <details class="tsd-index-content tsd-accordion" open><summary class="tsd-accordion-summary tsd-index-summary"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true"><use href="../assets/icons.svg#icon-chevronDown"></use></svg>
@@ -38,12 +38,12 @@
 <h3 class="tsd-anchor-link" id="immediate"><code class="tsd-tag">Optional</code><span>immediate</span><a href="#immediate" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <div class="tsd-signature"><span class="tsd-kind-property">immediate</span><span class="tsd-signature-symbol">?:</span> <span class="tsd-signature-type">boolean</span></div><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/ctc-oss/omega-edit/blob/6b7ada2b665d9bc56fb3416a14128079468b8a36/packages/client/src/server.ts#L1400">server.ts:1400</a></li></ul></aside></section>
+<li>Defined in <a href="https://github.com/ctc-oss/omega-edit/blob/5c8f975024f83b6ef2e0ac83e3fc95f349215d0c/packages/client/src/server.ts#L1400">server.ts:1400</a></li></ul></aside></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="intervalms"><code class="tsd-tag">Optional</code><span>interval<wbr/>Ms</span><a href="#intervalms" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <div class="tsd-signature"><span class="tsd-kind-property">intervalMs</span><span class="tsd-signature-symbol">?:</span> <span class="tsd-signature-type">number</span></div><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/ctc-oss/omega-edit/blob/6b7ada2b665d9bc56fb3416a14128079468b8a36/packages/client/src/server.ts#L1395">server.ts:1395</a></li></ul></aside></section></section></details>
+<li>Defined in <a href="https://github.com/ctc-oss/omega-edit/blob/5c8f975024f83b6ef2e0ac83e3fc95f349215d0c/packages/client/src/server.ts#L1395">server.ts:1395</a></li></ul></aside></section></section></details>
 <details class="tsd-panel-group tsd-member-group tsd-accordion" open><summary class="tsd-accordion-summary" data-key="section-Methods"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true"><use href="../assets/icons.svg#icon-chevronDown"></use></svg>
 <h2 class="tsd-anchor-link" id="methods-1">Methods<a href="#methods-1" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h2></summary>
 <section>
@@ -59,7 +59,7 @@
 <li><span><span class="tsd-kind-parameter">sessionIds</span>: <span class="tsd-signature-type">string</span><span class="tsd-signature-symbol">[]</span></span></li></ul></div>
 <h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">Promise</span><span class="tsd-signature-symbol">&lt;</span><a href="server.IServerHeartbeat.html" class="tsd-signature-type tsd-kind-interface">IServerHeartbeat</a><span class="tsd-signature-symbol">&gt;</span></h4><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/ctc-oss/omega-edit/blob/6b7ada2b665d9bc56fb3416a14128079468b8a36/packages/client/src/server.ts#L1397">server.ts:1397</a></li></ul></aside></div></li></ul></section>
+<li>Defined in <a href="https://github.com/ctc-oss/omega-edit/blob/5c8f975024f83b6ef2e0ac83e3fc95f349215d0c/packages/client/src/server.ts#L1397">server.ts:1397</a></li></ul></aside></div></li></ul></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="getsessionids"><span>get<wbr/>Session<wbr/>Ids</span><a href="#getsessionids" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <ul class="tsd-signatures">
@@ -68,7 +68,7 @@
 <div class="tsd-description">
 <h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">string</span><span class="tsd-signature-symbol">[]</span> <span class="tsd-signature-symbol">|</span> <span class="tsd-signature-type">Promise</span><span class="tsd-signature-symbol">&lt;</span><span class="tsd-signature-type">string</span><span class="tsd-signature-symbol">[]</span><span class="tsd-signature-symbol">&gt;</span></h4><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/ctc-oss/omega-edit/blob/6b7ada2b665d9bc56fb3416a14128079468b8a36/packages/client/src/server.ts#L1396">server.ts:1396</a></li></ul></aside></div></li></ul></section>
+<li>Defined in <a href="https://github.com/ctc-oss/omega-edit/blob/5c8f975024f83b6ef2e0ac83e3fc95f349215d0c/packages/client/src/server.ts#L1396">server.ts:1396</a></li></ul></aside></div></li></ul></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="onerror"><code class="tsd-tag">Optional</code><span>on<wbr/>Error</span><a href="#onerror" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <ul class="tsd-signatures">
@@ -81,7 +81,7 @@
 <li><span><span class="tsd-kind-parameter">error</span>: <span class="tsd-signature-type">Error</span></span></li></ul></div>
 <h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">void</span> <span class="tsd-signature-symbol">|</span> <span class="tsd-signature-type">Promise</span><span class="tsd-signature-symbol">&lt;</span><span class="tsd-signature-type">void</span><span class="tsd-signature-symbol">&gt;</span></h4><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/ctc-oss/omega-edit/blob/6b7ada2b665d9bc56fb3416a14128079468b8a36/packages/client/src/server.ts#L1399">server.ts:1399</a></li></ul></aside></div></li></ul></section>
+<li>Defined in <a href="https://github.com/ctc-oss/omega-edit/blob/5c8f975024f83b6ef2e0ac83e3fc95f349215d0c/packages/client/src/server.ts#L1399">server.ts:1399</a></li></ul></aside></div></li></ul></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="onheartbeat"><code class="tsd-tag">Optional</code><span>on<wbr/>Heartbeat</span><a href="#onheartbeat" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <ul class="tsd-signatures">
@@ -94,7 +94,7 @@
 <li><span><span class="tsd-kind-parameter">heartbeat</span>: <a href="server.IServerHeartbeat.html" class="tsd-signature-type tsd-kind-interface">IServerHeartbeat</a></span></li></ul></div>
 <h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">void</span> <span class="tsd-signature-symbol">|</span> <span class="tsd-signature-type">Promise</span><span class="tsd-signature-symbol">&lt;</span><span class="tsd-signature-type">void</span><span class="tsd-signature-symbol">&gt;</span></h4><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/ctc-oss/omega-edit/blob/6b7ada2b665d9bc56fb3416a14128079468b8a36/packages/client/src/server.ts#L1398">server.ts:1398</a></li></ul></aside></div></li></ul></section></section></details></div>
+<li>Defined in <a href="https://github.com/ctc-oss/omega-edit/blob/5c8f975024f83b6ef2e0ac83e3fc95f349215d0c/packages/client/src/server.ts#L1398">server.ts:1398</a></li></ul></aside></div></li></ul></section></section></details></div>
 <div class="col-sidebar">
 <div class="page-menu">
 <div class="tsd-navigation settings">
