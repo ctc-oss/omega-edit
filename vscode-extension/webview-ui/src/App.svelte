@@ -3163,6 +3163,8 @@
         viewport={actionJournalViewport}
         loading={actionJournalLoading}
         error={actionJournalError}
+        checkpoints={checkpointTimeline.checkpoints}
+        checkpointCursor={checkpointTimeline.cursor}
         canUndo={canUndo && !transformInFlight}
         canRedo={canRedo && !transformInFlight}
         onUndo={() => postToHost({ type: 'undo' })}

@@ -339,6 +339,11 @@ TEST_CASE("Checkpoint checkout preserves redo models until a branch edit",
         REQUIRE(future == omega_session_get_num_future_checkpoints(session_ptr));
         REQUIRE(expected ==
                 omega_session_get_segment_string(session_ptr, 0, omega_session_get_computed_file_size(session_ptr)));
+        const auto change_count = omega_session_get_num_changes(session_ptr);
+        for (int64_t serial = 1; serial <= change_count; ++serial) {
+            INFO("checkpoint=" << checkpoint << ", serial=" << serial);
+            REQUIRE(omega_session_get_change(session_ptr, serial));
+        }
         REQUIRE(3 == transform_state.calls);
     };
 
@@ -357,6 +362,7 @@ TEST_CASE("Checkpoint checkout preserves redo models until a branch edit",
     REQUIRE("ABC?" == omega_session_get_segment_string(session_ptr, 0, 4));
     REQUIRE(1 == omega_session_get_num_checkpoints(session_ptr));
     REQUIRE(0 == omega_session_get_num_future_checkpoints(session_ptr));
+    REQUIRE(0 == omega_session_get_num_undone_changes(session_ptr));
     require_checkpoint(1, "ABC?", 1, 0);
     REQUIRE(-1 == omega_edit_checkout_checkpoint(session_ptr, 2));
     REQUIRE(3 == transform_state.calls);

@@ -2372,6 +2372,10 @@ namespace omega_edit {
             }
             const auto active_tip = omega_session_get_num_changes(locked_session.session());
             const auto undo_count = omega_session_get_num_undone_changes(locked_session.session());
+            if (active_tip < 0 || undo_count < 0 || undo_count > (std::numeric_limits<int64_t>::max)() - active_tip) {
+                return grpc::Status(grpc::StatusCode::INTERNAL, "action journal history size overflow");
+            }
+            const auto history_tip = active_tip + undo_count;
             const auto checkpoint_count = omega_session_get_num_checkpoints(locked_session.session());
             response->set_format_version(1);
             response->set_session_id(request->session_id());
@@ -2381,15 +2385,18 @@ namespace omega_edit {
             response->set_checkpoint_count_decimal(std::to_string(checkpoint_count));
             response->set_direction(request->direction());
             response->set_capacity(request->capacity());
-            if (active_tip == 0) {
+            if (history_tip == 0) {
                 response->set_resolved_anchor_serial_decimal("0");
                 return grpc::Status::OK;
             }
 
-            auto anchor = requested_anchor == 0 ? (older ? active_tip : 1) : requested_anchor;
-            if (anchor <= 0 || anchor > active_tip || !omega_session_get_change(locked_session.session(), anchor)) {
+            const auto get_history_change = [&](int64_t serial) {
+                return omega_session_get_change(locked_session.session(), serial <= active_tip ? serial : -serial);
+            };
+            auto anchor = requested_anchor == 0 ? (older ? history_tip : 1) : requested_anchor;
+            if (anchor <= 0 || anchor > history_tip || !get_history_change(anchor)) {
                 return grpc::Status(grpc::StatusCode::INVALID_ARGUMENT,
-                                    "action journal anchor must identify an active change serial");
+                                    "action journal anchor must identify a retained change serial");
             }
 
             const auto is_replacement_pair = [](const omega_change_t *delete_change,
@@ -2400,13 +2407,10 @@ namespace omega_edit {
                                omega_change_get_transaction_bit(insert_change) &&
                        omega_change_get_offset(delete_change) == omega_change_get_offset(insert_change);
             };
-            const auto *anchor_change = omega_session_get_change(locked_session.session(), anchor);
-            if (older && anchor < active_tip &&
-                is_replacement_pair(anchor_change, omega_session_get_change(locked_session.session(), anchor + 1))) {
+            const auto *anchor_change = get_history_change(anchor);
+            if (older && anchor < history_tip && is_replacement_pair(anchor_change, get_history_change(anchor + 1))) {
                 ++anchor;
-            } else if (!older && anchor > 1 &&
-                       is_replacement_pair(omega_session_get_change(locked_session.session(), anchor - 1),
-                                           anchor_change)) {
+            } else if (!older && anchor > 1 && is_replacement_pair(get_history_change(anchor - 1), anchor_change)) {
                 --anchor;
             }
             response->set_resolved_anchor_serial_decimal(std::to_string(anchor));
@@ -2515,11 +2519,11 @@ namespace omega_edit {
                 return true;
             };
 
-            for (int64_t serial = anchor; older ? serial >= 1 : serial <= active_tip;) {
+            for (int64_t serial = anchor; older ? serial >= 1 : serial <= history_tip;) {
                 if (context->IsCancelled()) {
                     return grpc::Status(grpc::StatusCode::CANCELLED, "action journal request was cancelled");
                 }
-                const auto *change = omega_session_get_change(locked_session.session(), serial);
+                const auto *change = get_history_change(serial);
                 if (!change) {
                     return grpc::Status(grpc::StatusCode::ABORTED,
                                         "action journal changed while its viewport was being read");
@@ -2529,15 +2533,15 @@ namespace omega_edit {
                 int64_t continuation_anchor = serial;
                 int64_t step = 1;
                 if (older && omega_change_get_kind_as_char(change) == 'I' && serial > 1) {
-                    const auto *delete_change = omega_session_get_change(locked_session.session(), serial - 1);
+                    const auto *delete_change = get_history_change(serial - 1);
                     if (delete_change && omega_change_get_kind_as_char(delete_change) == 'D' &&
                         omega_change_get_transaction_bit(delete_change) == transaction_bit &&
                         omega_change_get_offset(delete_change) == omega_change_get_offset(change)) {
                         canonical = {{delete_change, serial - 1}, journal_source_entry{change, serial}};
                         step = 2;
                     }
-                } else if (!older && omega_change_get_kind_as_char(change) == 'D' && serial < active_tip) {
-                    const auto *insert_change = omega_session_get_change(locked_session.session(), serial + 1);
+                } else if (!older && omega_change_get_kind_as_char(change) == 'D' && serial < history_tip) {
+                    const auto *insert_change = get_history_change(serial + 1);
                     if (insert_change && omega_change_get_kind_as_char(insert_change) == 'I' &&
                         omega_change_get_transaction_bit(insert_change) == transaction_bit &&
                         omega_change_get_offset(insert_change) == omega_change_get_offset(change)) {

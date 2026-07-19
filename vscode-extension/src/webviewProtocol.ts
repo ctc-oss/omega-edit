@@ -183,6 +183,16 @@ export interface WebviewActionJournalViewport {
   nextAnchorSerial?: string
 }
 
+export interface WebviewActionJournalCheckpoint {
+  checkpoint: number
+  changeCount: number
+  sourceChangeCount?: string
+  byteLengthAfter: string
+  boundaryKind: 'plain' | 'transform' | 'tip'
+  createdAt: number
+  available: boolean
+}
+
 export interface WebviewExternalHighlight {
   id: string
   offset: number
@@ -460,22 +470,18 @@ export type HostToWebviewMessage =
       canRewind: boolean
       canFastForward: boolean
       navigating: boolean
-      checkpoints: Array<{
-        checkpoint: number
-        changeCount: number
-        sourceChangeCount: string
-        replayChangeCount?: string
-        byteLengthBefore: string
-        byteLengthAfter: string
-        archiveByteLength?: string
-        boundaryKind: 'plain' | 'transform' | 'tip'
-        transformPluginIds: string[]
-        missingPluginIds: string[]
-        optimized: boolean
-        createdAt: number
-        available: boolean
-        error?: string
-      }>
+      checkpoints: Array<
+        WebviewActionJournalCheckpoint & {
+          sourceChangeCount: string
+          replayChangeCount?: string
+          byteLengthBefore: string
+          archiveByteLength?: string
+          transformPluginIds: string[]
+          missingPluginIds: string[]
+          optimized: boolean
+          error?: string
+        }
+      >
     }
   | {
       type: 'actionJournalViewport'

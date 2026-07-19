@@ -563,6 +563,17 @@ const englishStrings = {
       `CP ${formatNumber(checkpoint)} before`,
     checkpointAfter: (checkpoint: number | bigint) =>
       `CP ${formatNumber(checkpoint)} after`,
+    checkpointCard: (checkpoint: number | bigint) =>
+      `Checkpoint ${formatNumber(checkpoint)}`,
+    checkpointChanges: (changes: number | bigint) =>
+      `${formatNumber(changes)} changes`,
+    checkpointBytes: (bytes: number | bigint) => `${formatNumber(bytes)} B`,
+    checkpointPlain: 'manual checkpoint',
+    checkpointTransform: 'transform checkpoint',
+    checkpointTip: 'history tip',
+    checkpointCurrent: 'current',
+    checkpointFuture: 'forward history',
+    checkpointUnavailable: 'unavailable',
     payloadNone: 'none',
     payloadInline: 'inline',
     payloadFileBacked: 'file-backed',
@@ -830,6 +841,17 @@ const localeOverrides: Record<string, LocaleStringOverrides> = {
         `PC ${formatNumber(checkpoint)} antes`,
       checkpointAfter: (checkpoint: number | bigint) =>
         `PC ${formatNumber(checkpoint)} después`,
+      checkpointCard: (checkpoint: number | bigint) =>
+        `Punto de control ${formatNumber(checkpoint)}`,
+      checkpointChanges: (changes: number | bigint) =>
+        `${formatNumber(changes)} cambios`,
+      checkpointBytes: (bytes: number | bigint) => `${formatNumber(bytes)} B`,
+      checkpointPlain: 'punto de control manual',
+      checkpointTransform: 'punto de control de transformación',
+      checkpointTip: 'fin del historial',
+      checkpointCurrent: 'actual',
+      checkpointFuture: 'historial futuro',
+      checkpointUnavailable: 'no disponible',
       payloadNone: 'ninguno',
       payloadInline: 'integrado',
       payloadFileBacked: 'respaldado por archivo',
