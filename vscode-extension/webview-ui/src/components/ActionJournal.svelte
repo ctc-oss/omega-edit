@@ -94,7 +94,9 @@
       ...checkpoints.map((checkpoint) => ({
         type: 'checkpoint' as const,
         key: `checkpoint:${checkpoint.checkpoint}`,
-        coordinate: BigInt(checkpoint.changeCount),
+        coordinate: decimal(
+          checkpoint.sourceChangeCount ?? String(checkpoint.changeCount)
+        ),
         checkpoint,
       })),
     ]
@@ -192,7 +194,7 @@
             <div>
               <strong>{strings.actionJournal.checkpointCard(row.checkpoint.checkpoint)}</strong>
               <span>{checkpointKind(row.checkpoint.boundaryKind)}</span>
-              <span>{strings.actionJournal.checkpointChanges(row.checkpoint.changeCount)}</span>
+              <span>{strings.actionJournal.checkpointChanges(row.coordinate)}</span>
               <span>{strings.actionJournal.checkpointBytes(decimal(row.checkpoint.byteLengthAfter))}</span>
               {#if row.checkpoint.checkpoint === checkpointCursor}<span class="checkpoint-state">{strings.actionJournal.checkpointCurrent}</span>{/if}
               {#if row.checkpoint.checkpoint > checkpointCursor}<span class="checkpoint-state">{strings.actionJournal.checkpointFuture}</span>{/if}

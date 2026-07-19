@@ -877,6 +877,11 @@ test('compiled extension entrypoints exist after build', () => {
   assert.match(actionJournalSource, /strings\.actionJournal\.noChanges/)
   assert.match(actionJournalSource, /class="checkpoint-card"/)
   assert.match(
+    actionJournalSource,
+    /checkpoint\.sourceChangeCount\s*\?\?\s*String\(checkpoint\.changeCount\)/
+  )
+  assert.match(actionJournalSource, /checkpointChanges\(row\.coordinate\)/)
+  assert.match(
     svelteAppSource,
     /checkpoints=\{checkpointTimeline\.checkpoints\}/
   )

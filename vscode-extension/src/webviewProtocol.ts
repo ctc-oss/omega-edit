@@ -186,6 +186,7 @@ export interface WebviewActionJournalViewport {
 export interface WebviewActionJournalCheckpoint {
   checkpoint: number
   changeCount: number
+  sourceChangeCount?: string
   byteLengthAfter: string
   boundaryKind: 'plain' | 'transform' | 'tip'
   createdAt: number
