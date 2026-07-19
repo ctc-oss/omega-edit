@@ -310,7 +310,7 @@ test('package.json matches shared extension constants', () => {
   }
   assert.equal(
     packageNls['omegaEdit.command.toggleInsertDirection.title'],
-    'OmegaEdit: Toggle Insert Direction'
+    'OmegaEdit: Set Insert Direction'
   )
   assert.equal(
     packageNls['omegaEdit.command.setTextEncoding.title'],
@@ -1012,8 +1012,8 @@ test('compiled extension entrypoints exist after build', () => {
   assert.match(providerJs, /Ωedit Selection/)
   assert.match(providerJs, /Ωedit File Size/)
   assert.match(providerJs, /Ωedit Edit Mode/)
-  assert.match(providerJs, /Ωedit Bytes Per Row/)
-  assert.match(providerJs, /B\/row/)
+  assert.doesNotMatch(providerJs, /Ωedit Bytes Per Row/)
+  assert.doesNotMatch(providerJs, /B\/row/)
   assert.match(providerJs, /Replacing matches\.\.\./)
   assert.match(providerJs, /Creating checkpoint\.\.\./)
   assert.match(providerJs, /buildServerHealthTooltip/)
@@ -1049,6 +1049,8 @@ test('compiled extension entrypoints exist after build', () => {
   assert.match(providerJs, /debug-disconnect/)
   assert.match(providerJs, /new vscode\.ThemeColor\(serverColorId\)/)
   assert.match(providerJs, /statusItems\.mode/)
+  assert.match(providerJs, /statusItems\.mode\.command/)
+  assert.match(providerJs, /OMEGA_EDIT_TOGGLE_INSERT_DIRECTION_COMMAND/)
   assert.match(providerJs, /Ωedit Edit Mode/)
   assert.doesNotMatch(providerJs, /vscode\.l10n\.t\('INS'\)/)
   assert.doesNotMatch(providerJs, /vscode\.l10n\.t\('OVR'\)/)
@@ -1257,6 +1259,20 @@ test('compiled extension entrypoints exist after build', () => {
   assert.match(svelteBundleCss, /\.editor-main/)
   assert.match(svelteBundleCss, /\.editor-grid-shell/)
   assert.match(svelteBundleCss, /\.editor-grid-scroller/)
+  assert.match(svelteStylesSource, /\.toolbar\s*\{[^}]*padding:\s*6px 0;/)
+  assert.match(svelteStylesSource, /\.preview-grid\s*\{[^}]*padding:\s*8px 0;/)
+  assert.match(
+    svelteStylesSource,
+    /\.byte-inspector-panel\s*\{[^}]*padding:\s*6px 0;/
+  )
+  assert.match(
+    svelteStylesSource,
+    /\.editor-grid-shell\s*\{[^}]*grid-template-columns:\s*minmax\(0,\s*1fr\)/
+  )
+  assert.doesNotMatch(
+    svelteStylesSource,
+    /\.editor-grid-shell\s*\{[^}]*grid-template-columns:[^;}]*18px/
+  )
   assert.match(svelteStylesSource, /\.editor-readonly-badge/)
   assert.match(svelteStylesSource, /\.editor-readonly-dot/)
   assert.match(svelteStylesSource, /\.transform-options-form/)
@@ -1334,6 +1350,9 @@ test('compiled extension entrypoints exist after build', () => {
   assert.match(svelteAppSource, /autoFitBytesPerRow=\{false\}/)
   assert.doesNotMatch(toolbarSource, /autoBytesPerRow/)
   assert.doesNotMatch(toolbarSource, /onBytesPerRowMode\('auto'\)/)
+  assert.doesNotMatch(toolbarSource, /direction-toggle/)
+  assert.doesNotMatch(toolbarSource, /onInsertDirection/)
+  assert.doesNotMatch(svelteAppSource, /onInsertDirection=/)
   assert.match(toolbarSource, /BytesPerRowCombobox/)
   assert.match(bytesPerRowComboboxSource, /role="combobox"/)
   assert.match(bytesPerRowComboboxSource, /role="listbox"/)
@@ -2105,6 +2124,7 @@ test('compiled extension entrypoints exist after build', () => {
   assert.doesNotMatch(offsetJumpSource, /offset-jump-button/)
   assert.doesNotMatch(offsetJumpSource, /strings\.navigation\.go(?:Title)?/)
   assert.match(fileScrollbarSource, /role="scrollbar"/)
+  assert.match(fileScrollbarSource, /class:disabled/)
   assert.match(fileScrollbarSource, /aria-controls="previewGrid"/)
   assert.match(fileScrollbarSource, /strings\.navigation\.scrollbarLabel/)
   assert.match(fileScrollbarSource, /WebviewExternalHighlight/)
@@ -2307,6 +2327,14 @@ test('compiled extension entrypoints exist after build', () => {
   assert.match(svelteStylesSource, /\.file-scrollbar-thumb-glyph/)
   assert.match(
     svelteStylesSource,
+    /\.file-scrollbar\s*\{[^}]*position:\s*absolute/
+  )
+  assert.match(
+    svelteStylesSource,
+    /\.file-scrollbar\.disabled\s*\{[^}]*pointer-events:\s*none/
+  )
+  assert.match(
+    svelteStylesSource,
     /\.file-scrollbar-track:hover \.file-scrollbar-range-marker/
   )
   assert.match(
@@ -2419,6 +2447,8 @@ test('compiled extension entrypoints exist after build', () => {
   assert.match(extensionJs, /undoActive/)
   assert.match(extensionJs, /redoActive/)
   assert.match(extensionJs, /setInsertDirection/)
+  assert.match(extensionJs, /Select Insert Direction/)
+  assert.match(extensionJs, /Choose how inserted bytes advance/)
   assert.match(extensionJs, /setTextEncoding/)
   assert.match(extensionJs, /rollbackActiveSession/)
   assert.match(extensionJs, /rollbackCheckpoint/)

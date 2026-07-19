@@ -66,6 +66,7 @@ import { HexEditorProvider } from './hexEditorProvider'
 import {
   TEXT_ENCODING_OPTIONS,
   normalizeTextEncoding,
+  type InsertDirection,
   type TextEncoding,
 } from './webviewProtocol'
 
@@ -192,6 +193,10 @@ function parseOffsetInput(value: string): number | undefined {
 function safeTextEncoding(value: unknown): TextEncoding | undefined {
   const textEncoding = normalizeTextEncoding(value)
   return value === textEncoding ? textEncoding : undefined
+}
+
+function safeInsertDirection(value: unknown): InsertDirection | undefined {
+  return value === 'forward' || value === 'backward' ? value : undefined
 }
 
 function textEncodingQuickPickLabel(encoding: TextEncoding): string {
@@ -934,8 +939,63 @@ export async function activate(
   context.subscriptions.push(
     vscode.commands.registerCommand(
       OMEGA_EDIT_TOGGLE_INSERT_DIRECTION_COMMAND,
-      (directionOrOptions?: unknown, options?: unknown) =>
-        provider.setInsertDirection(directionOrOptions, options)
+      async (directionOrOptions?: unknown, options?: unknown) => {
+        const requestedDirection =
+          safeInsertDirection(directionOrOptions) ??
+          (isRecord(directionOrOptions)
+            ? safeInsertDirection(
+                directionOrOptions.insertDirection ??
+                  directionOrOptions.direction
+              )
+            : undefined)
+
+        if (requestedDirection) {
+          return provider.setInsertDirection(directionOrOptions, options)
+        }
+
+        const commandOptions = isRecord(directionOrOptions)
+          ? directionOrOptions
+          : options
+        const state = provider.getEditorState(commandOptions)
+        if (!state) {
+          void vscode.window.showWarningMessage(
+            vscode.l10n.t('Open an OmegaEdit data editor first')
+          )
+          return undefined
+        }
+
+        const directionItems: Array<{
+          direction: InsertDirection
+          label: string
+        }> = [
+          {
+            direction: 'forward',
+            label: vscode.l10n.t('$(arrow-right) Forward'),
+          },
+          {
+            direction: 'backward',
+            label: vscode.l10n.t('$(arrow-left) Backward'),
+          },
+        ]
+        const picked = await vscode.window.showQuickPick(
+          directionItems.map((item) => ({
+            ...item,
+            description:
+              item.direction === state.insertDirection
+                ? vscode.l10n.t('Current direction')
+                : undefined,
+            picked: item.direction === state.insertDirection,
+          })),
+          {
+            title: vscode.l10n.t('Select Insert Direction'),
+            placeHolder: vscode.l10n.t('Choose how inserted bytes advance'),
+          }
+        )
+
+        return picked
+          ? provider.setInsertDirection(picked.direction, { uri: state.uri })
+          : state
+      }
     )
   )
 

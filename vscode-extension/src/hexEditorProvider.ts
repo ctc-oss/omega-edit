@@ -100,7 +100,10 @@ import {
 import * as os from 'node:os'
 import * as path from 'node:path'
 import * as vscode from 'vscode'
-import { OMEGA_EDIT_VIEW_TYPE } from './constants'
+import {
+  OMEGA_EDIT_TOGGLE_INSERT_DIRECTION_COMMAND,
+  OMEGA_EDIT_VIEW_TYPE,
+} from './constants'
 import {
   type AssistantSessionContext,
   cloneAssistantCommandSurfaces,
@@ -2065,21 +2068,17 @@ export class HexEditorProvider
       vscode.StatusBarAlignment.Right,
       106
     ),
-    layout: vscode.window.createStatusBarItem(
+    transforms: vscode.window.createStatusBarItem(
       vscode.StatusBarAlignment.Right,
       105
     ),
-    transforms: vscode.window.createStatusBarItem(
+    dirty: vscode.window.createStatusBarItem(
       vscode.StatusBarAlignment.Right,
       104
     ),
-    dirty: vscode.window.createStatusBarItem(
-      vscode.StatusBarAlignment.Right,
-      103
-    ),
     server: vscode.window.createStatusBarItem(
       vscode.StatusBarAlignment.Right,
-      102
+      103
     ),
   }
 
@@ -2095,11 +2094,11 @@ export class HexEditorProvider
       this.statusItems.size,
       this.statusItems.pane,
       this.statusItems.mode,
-      this.statusItems.layout,
       this.statusItems.transforms,
       this.statusItems.dirty,
       this.statusItems.server
     )
+    this.statusItems.mode.command = OMEGA_EDIT_TOGGLE_INSERT_DIRECTION_COMMAND
     const configuration = vscode.workspace.getConfiguration('omegaEdit')
     const configuredStorage =
       this.extensionContext?.storageUri?.fsPath ||
@@ -5466,10 +5465,12 @@ export class HexEditorProvider
         ? vscode.l10n.t('Overwrite')
         : vscode.l10n.t('Insert')
     const direction = state.insertDirection === 'forward' ? '→' : '←'
-    this.statusItems.mode.name = vscode.l10n.t('Ωedit Edit Mode')
+    this.statusItems.mode.name = vscode.l10n.t(
+      'Ωedit Edit Mode and Insert Direction'
+    )
     this.statusItems.mode.text = `${mode} ${direction}`
     this.statusItems.mode.tooltip = vscode.l10n.t(
-      'Ωedit {mode} mode; {direction} insertion direction',
+      'Ωedit {mode} mode; {direction} insertion direction. Click to change insert direction.',
       {
         mode,
         direction:
@@ -5477,15 +5478,6 @@ export class HexEditorProvider
             ? vscode.l10n.t('forward')
             : vscode.l10n.t('backward'),
       }
-    )
-
-    this.statusItems.layout.name = vscode.l10n.t('Ωedit Bytes Per Row')
-    this.statusItems.layout.text = vscode.l10n.t('{count} B/row', {
-      count: formatStatusByteCount(state.bytesPerRow),
-    })
-    this.statusItems.layout.tooltip = vscode.l10n.t(
-      'Ωedit displays {count} bytes per row',
-      { count: formatStatusByteCount(state.bytesPerRow) }
     )
 
     this.statusItems.transforms.text = session.transformInFlight

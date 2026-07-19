@@ -20,7 +20,7 @@
   "omegaEdit.command.searchPrevious.title": "OmegaEdit: Search Previous",
   "omegaEdit.command.undo.title": "OmegaEdit: Undo",
   "omegaEdit.command.redo.title": "OmegaEdit: Redo",
-  "omegaEdit.command.toggleInsertDirection.title": "OmegaEdit: Toggle Insert Direction",
+  "omegaEdit.command.toggleInsertDirection.title": "OmegaEdit: Set Insert Direction",
   "omegaEdit.command.setTextEncoding.title": "OmegaEdit: Set Text Encoding",
   "omegaEdit.command.toggleExperimentalTransformPlugins.title": "OmegaEdit: Toggle Experimental Transform Plugins",
   "omegaEdit.command.refreshTransformPlugins.title": "OmegaEdit: Refresh Transform List",
