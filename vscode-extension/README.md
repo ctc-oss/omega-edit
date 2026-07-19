@@ -276,14 +276,15 @@ host-backed search navigation, match highlighting on both the byte and text
 columns, command-routed Search Next / Search Previous, search replace /
 replace-all through the provider, active-pane Ctrl-C/Ctrl-X clipboard handling,
 active-pane Ctrl-V insert handling, direct grid editing for hex bytes and
-printable ASCII with Insert-key editing-mode toggling. The extension uses VS
-Code's native status-bar behavior for overwrite mode: blank in insert mode and
-`OVR` in overwrite mode. The UI also includes a
+printable ASCII with Insert-key editing-mode toggling. The status bar shows the
+current insert/overwrite mode and insertion direction; selecting that item opens
+a native VS Code picker for forward or backward insertion. Bytes per row remains
+in the webview toolbar, where it can be changed directly. The UI also includes a
 lightweight byte inspector with LE/BE contextual value editing for non-float
 values including UTF-8 and UTF-16 when valid. Native VS Code status-bar items
-show the active pane, current offset/progress, transform count, dirty state, and
-color-coded server health with a disconnected icon when the server is
-unavailable. The Server status-bar hover groups stable health, current
+show the active pane, current offset/progress, selection and file sizes,
+transform count, dirty state, and color-coded server health with a disconnected
+icon when the server is unavailable. The Server status-bar hover groups stable health, current
 instance, and host/build metadata, while live server metrics remain in Analysis
 > Structure > Server. The inspector is collapsible, inspector values highlight
 their participating bytes in both grid panes, offsets can be shown in hex or

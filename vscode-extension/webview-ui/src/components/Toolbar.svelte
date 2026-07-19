@@ -2,7 +2,6 @@
   import {
     TEXT_ENCODING_OPTIONS,
     type BytesPerRow,
-    type InsertDirection,
     type TextEncoding,
     type WebviewSessionContentInfo,
     type WebviewSessionContentSource,
@@ -27,7 +26,6 @@
     bytesPerRow: BytesPerRow
     offsetRadix?: 'hex' | 'dec'
     textEncoding?: TextEncoding
-    insertDirection?: InsertDirection
     fileSize?: number
     contentSources?: WebviewSessionContentInfo[]
     transformPlugins?: WebviewTransformPlugin[]
@@ -48,7 +46,6 @@
     onBytesPerRow: (bytesPerRow: BytesPerRow) => void
     onOffsetRadix: (radix: 'hex' | 'dec') => void
     onTextEncoding: (encoding: TextEncoding) => void
-    onInsertDirection: (direction: InsertDirection) => void
     onGoToOffset: (offset: number) => void
     onRequestTransforms: () => void
     onCancelTransform: () => void
@@ -76,7 +73,6 @@
     bytesPerRow,
     offsetRadix = 'hex',
     textEncoding = 'ascii',
-    insertDirection = 'forward',
     fileSize = 0,
     contentSources = [],
     transformPlugins = [],
@@ -97,7 +93,6 @@
     onBytesPerRow,
     onOffsetRadix,
     onTextEncoding,
-    onInsertDirection,
     onGoToOffset,
     onRequestTransforms,
     onCancelTransform,
@@ -179,31 +174,6 @@
       {/each}
     </select>
   </label>
-
-  <button
-    type="button"
-    class="direction-toggle"
-    class:backward={insertDirection === 'backward'}
-    aria-label={
-      insertDirection === 'forward'
-        ? strings.toolbar.forwardInsertTitle
-        : strings.toolbar.backwardInsertTitle
-    }
-    aria-pressed={insertDirection === 'backward'}
-    title={
-      insertDirection === 'forward'
-        ? strings.toolbar.forwardInsertTitle
-        : strings.toolbar.backwardInsertTitle
-    }
-    onclick={() =>
-      onInsertDirection(insertDirection === 'forward' ? 'backward' : 'forward')}
-  >
-    {#if insertDirection === 'forward'}
-      &rarr; <span>{strings.toolbar.forwardInsertShort}</span>
-    {:else}
-      &larr; <span>{strings.toolbar.backwardInsertShort}</span>
-    {/if}
-  </button>
 
   <button
     type="button"

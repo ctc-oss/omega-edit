@@ -1422,12 +1422,6 @@
     postToHost({ type: 'toggleEditMode' })
   }
 
-  function setInsertDirection(direction: InsertDirection): void {
-    insertDirection = direction
-    savePreviewState({ insertDirection: direction })
-    postToHost({ type: 'setInsertDirection', insertDirection: direction })
-  }
-
   function setActivePane(pane: GridEditPane): void {
     activePane = pane
     pendingHexNibble = undefined
@@ -3006,7 +3000,6 @@
     {bytesPerRow}
     {offsetRadix}
     {textEncoding}
-    {insertDirection}
     {fileSize}
     {contentSources}
     {transformPlugins}
@@ -3027,7 +3020,6 @@
     onBytesPerRow={setBytesPerRow}
     onOffsetRadix={setOffsetRadix}
     onTextEncoding={setTextEncoding}
-    onInsertDirection={setInsertDirection}
     onGoToOffset={goToOffset}
     onRequestTransforms={requestTransformPlugins}
     onCancelTransform={cancelTransform}
