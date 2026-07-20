@@ -347,6 +347,41 @@ TEST_CASE("Apply Builtin Transform", "[EditTransform]") {
     REQUIRE(audit.unchanged());
 }
 
+TEST_CASE("A transform after undo discards the abandoned transform redo branch", "[EditTransform][UndoTests]") {
+    const ScratchDir scratch;
+    DirAudit audit(scratch.str());
+    {
+        static const omega_byte_t input[] = "AbC";
+        auto session = TestSession::from_bytes(input, 3, scratch.c_str(), NO_EVENTS);
+        REQUIRE(session);
+        auto *session_ptr = session.get();
+
+        const omega_edit_transform_t lower_transform{OMEGA_EDIT_TRANSFORM_ASCII_TO_LOWER, 0};
+        REQUIRE(0 == omega_edit_apply_builtin_transform(session_ptr, lower_transform, 0, 0));
+        REQUIRE("abc" == content_string(session_ptr));
+        REQUIRE(-1 == omega_edit_undo_last_change(session_ptr));
+        REQUIRE("AbC" == content_string(session_ptr));
+
+        const omega_edit_transform_t upper_transform{OMEGA_EDIT_TRANSFORM_ASCII_TO_UPPER, 0};
+        REQUIRE(0 == omega_edit_apply_builtin_transform(session_ptr, upper_transform, 0, 0));
+        REQUIRE("ABC" == content_string(session_ptr));
+        REQUIRE(-1 == omega_edit_undo_last_change(session_ptr));
+        REQUIRE("AbC" == content_string(session_ptr));
+
+        REQUIRE(1 == omega_session_get_num_undone_changes(session_ptr));
+        const auto *undone_change = omega_session_get_change(session_ptr, -1);
+        REQUIRE(undone_change);
+        REQUIRE(std::string("builtin:ascii-to-upper") == omega_change_get_transform_id(undone_change));
+        REQUIRE(nullptr == omega_session_get_change(session_ptr, -2));
+
+        REQUIRE(1 == omega_edit_redo_last_undo(session_ptr));
+        REQUIRE("ABC" == content_string(session_ptr));
+        REQUIRE(0 == omega_edit_redo_last_undo(session_ptr));
+        REQUIRE(model_valid(session_ptr));
+    }
+    REQUIRE(audit.unchanged());
+}
+
 TEST_CASE("Apply Builtin Bitwise Transform", "[EditTransform]") {
     const ScratchDir scratch;
     DirAudit audit(scratch.str());

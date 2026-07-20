@@ -203,14 +203,20 @@ TEST_CASE("Harness: undo past a transform preserves later redo state", "[Harness
     REQUIRE(session_content(session.get()) == "XBC");
 
     REQUIRE(0 > omega_edit_undo_last_change(session.get()));// undo overwrite
+    REQUIRE(omega_session_get_num_undone_changes(session.get()) == 1);
     REQUIRE(0 > omega_edit_undo_last_change(session.get()));// undo transform
     REQUIRE(session_content(session.get()) == "abc");
+    REQUIRE(omega_session_get_num_undone_changes(session.get()) == 2);
+    REQUIRE(omega_session_get_change(session.get(), -2));
+    REQUIRE(omega_session_get_change(session.get(), -3));
 
     REQUIRE(0 < omega_edit_redo_last_undo(session.get()));// redo transform
     REQUIRE(session_content(session.get()) == "ABC");
+    REQUIRE(omega_session_get_num_undone_changes(session.get()) == 1);
     REQUIRE(0 < omega_edit_redo_last_undo(session.get()));// redo overwrite
     REQUIRE(session_content(session.get()) == "XBC");
     REQUIRE(omega_session_get_num_changes(session.get()) == 3);
+    REQUIRE(omega_session_get_num_undone_changes(session.get()) == 0);
     REQUIRE(model_valid(session.get()));
 }
 

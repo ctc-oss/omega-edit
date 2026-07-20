@@ -1438,6 +1438,10 @@ namespace {
             return -1;
         }
 
+        // A transform is a new edit, so it forks history just like update_() does. Clear any redoable changes only
+        // after the checkpoint has been promoted successfully; otherwise undoing the transform can merge it with
+        // the abandoned redo branch and leave duplicate negative serials in changes_undone.
+        if (transform_change_ptr) { free_session_changes_undone_(session_ptr); }
         discard_checkpoint_future_(session_ptr);
 
         session_ptr->num_changes_adjustment_ = change_serial_base;

@@ -41,6 +41,31 @@ using omega_edit::internal::safe_add_int64_;
 namespace {
     constexpr int64_t OMEGA_SESSION_SCAN_BUFFER_SIZE = 65536;
 
+    int64_t count_undone_changes_(const omega_changes_t &changes) {
+        int64_t result = 0;
+        for (const auto &change : changes) {
+            ++result;
+            if (change && change->transform_data) {
+                result += count_undone_changes_(change->transform_data->preserved_changes_undone);
+            }
+        }
+        return result;
+    }
+
+    const omega_change_t *find_undone_change_(const omega_changes_t &changes, int64_t serial) {
+        for (auto iter = changes.crbegin(); iter != changes.crend(); ++iter) {
+            const auto *change = iter->get();
+            if (omega_change_get_serial(change) == serial) { return change; }
+            if (change && change->transform_data) {
+                if (const auto *preserved =
+                            find_undone_change_(change->transform_data->preserved_changes_undone, serial)) {
+                    return preserved;
+                }
+            }
+        }
+        return nullptr;
+    }
+
     int64_t count_change_transactions_(const omega_changes_t &changes) {
         int64_t result = 0;
         bool transaction_bit = false;
@@ -132,7 +157,9 @@ int64_t omega_session_get_num_changes(const omega_session_t *session_ptr) {
 int64_t omega_session_get_num_undone_changes(const omega_session_t *session_ptr) {
     if (!session_ptr) { return 0; }
     assert(session_ptr->models_.back());
-    return (int64_t) session_ptr->models_.back()->changes_undone.size();
+    int64_t result = 0;
+    for (const auto &model : session_ptr->models_) { result += count_undone_changes_(model->changes_undone); }
+    return result;
 }
 
 const omega_change_t *omega_session_get_last_change(const omega_session_t *session_ptr) {
@@ -200,9 +227,7 @@ const omega_change_t *omega_session_get_change(const omega_session_t *session_pt
     } else if (change_serial < 0) {
         // Negative serials are undone changes
         for (const auto &model : session_ptr->models_) {
-            for (auto iter = model->changes_undone.crbegin(); iter != model->changes_undone.crend(); ++iter) {
-                if (omega_change_get_serial(iter->get()) == change_serial) { return iter->get(); }
-            }
+            if (const auto *change = find_undone_change_(model->changes_undone, change_serial)) { return change; }
         }
     }
     return nullptr;
