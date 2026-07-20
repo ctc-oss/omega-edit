@@ -38,8 +38,16 @@
 
   let requestedAnchor = $state('')
 
+  type ChangePosition = 'past' | 'current' | 'future'
+
   type JournalRow =
-    | { type: 'change'; key: string; coordinate: bigint; entry: WebviewActionJournalEntry }
+    | {
+        type: 'change'
+        key: string
+        coordinate: bigint
+        position: ChangePosition
+        entry: WebviewActionJournalEntry
+      }
     | { type: 'checkpoint'; key: string; coordinate: bigint; checkpoint: WebviewActionJournalCheckpoint }
 
   function decimal(value: string): bigint {
@@ -83,12 +91,21 @@
     onRetry()
   }
 
+  function changePosition(entry: WebviewActionJournalEntry): ChangePosition {
+    const activeChangeCount = decimal(viewport?.changeCount ?? '0')
+    const changeCountBefore = decimal(entry.changeCountBefore)
+    if (activeChangeCount <= changeCountBefore) return 'future'
+    if (activeChangeCount <= decimal(entry.changeCountAfter)) return 'current'
+    return 'past'
+  }
+
   function journalRows(): JournalRow[] {
     const rows: JournalRow[] = [
       ...((viewport?.entries ?? []).map((entry) => ({
         type: 'change' as const,
         key: `change:${entry.firstSerial}:${entry.lastSerial}`,
         coordinate: decimal(entry.changeCountAfter),
+        position: changePosition(entry),
         entry,
       }))),
       ...checkpoints.map((checkpoint) => ({
@@ -149,6 +166,11 @@
       <strong>{strings.actionJournal.label}</strong>
       {#if viewport}
         <span aria-live="polite">{strings.actionJournal.summary(decimal(viewport.changeCount), decimal(viewport.undoCount))}</span>
+        <span class="current-position-summary">
+          {decimal(viewport.changeCount) === 0n
+            ? strings.actionJournal.originalState
+            : strings.actionJournal.afterChange(decimal(viewport.changeCount))}
+        </span>
       {/if}
     </div>
     <div class="journal-controls">
@@ -202,10 +224,20 @@
             </div>
           </li>
         {:else}
-          <li>
+          <li
+            class="change-card"
+            class:current={row.position === 'current'}
+            class:future={row.position === 'future'}
+            aria-current={row.position === 'current' ? 'step' : undefined}
+          >
             <div class="entry-main">
               <span class="serial">#{formatted(row.entry.firstSerial)}{row.entry.lastSerial === row.entry.firstSerial ? '' : `–${formatted(row.entry.lastSerial)}`}</span>
               <strong class:transform={row.entry.kind === 'TRANSFORM'}>{row.entry.kind}</strong>
+              {#if row.position === 'current'}
+                <span class="history-state current-state">{strings.actionJournal.currentChange}</span>
+              {:else if row.position === 'future'}
+                <span class="history-state future-state">{strings.actionJournal.redoAvailable}</span>
+              {/if}
               <span>{range(row.entry)}</span>
               <span>{strings.actionJournal.dataLength(decimal(row.entry.dataLength))}</span>
               <span class:positive={decimal(row.entry.sizeDelta) > 0n} class:negative={decimal(row.entry.sizeDelta) < 0n}>Δ {delta(row.entry.sizeDelta)} B</span>
@@ -218,6 +250,13 @@
           </li>
         {/if}
       {/each}
+      {#if viewport && decimal(viewport.changeCount) === 0n && !viewport.hasMore}
+        <li class="baseline-card" aria-current="step">
+          <span class="cursor-symbol" aria-hidden="true">●</span>
+          <strong>{strings.actionJournal.originalState}</strong>
+          <span>{strings.actionJournal.currentPosition}</span>
+        </li>
+      {/if}
     </ol>
     {#if viewport?.hasMore && viewport.nextAnchorSerial}
       <button class="load-more" type="button" disabled={loading} onclick={() => loadOlder(viewport.nextAnchorSerial!)}>
@@ -231,7 +270,9 @@
   .action-journal { display: flex; flex-direction: column; gap: .5rem; width: clamp(20rem, 32vw, 30rem); height: 100%; min-height: 0; padding: .55rem .75rem; border-left: 1px solid var(--vscode-panel-border); background: var(--vscode-sideBar-background); }
   header, header > div, li { display: flex; align-items: center; gap: .5rem; }
   header { justify-content: space-between; }
+  header > div:first-child { flex-wrap: wrap; }
   header span, .empty { color: var(--vscode-descriptionForeground); font-size: .75rem; }
+  .current-position-summary { flex-basis: 100%; }
   button { color: var(--vscode-foreground); border: 1px solid var(--vscode-button-border, var(--vscode-panel-border)); background: var(--vscode-button-secondaryBackground); }
   button { cursor: pointer; padding: .18rem .42rem; }
   button:hover { background: var(--vscode-button-secondaryHoverBackground); }
@@ -242,6 +283,9 @@
   ol { flex: 1 1 auto; min-height: 0; overflow-x: hidden; overflow-y: auto; overscroll-behavior: contain; list-style: none; padding: 0; margin: 0; border: 1px solid var(--vscode-panel-border); scrollbar-gutter: stable; }
   li { align-items: stretch; border-bottom: 1px solid var(--vscode-panel-border); }
   li:last-child { border-bottom: 0; }
+  .change-card { border-left: 3px solid transparent; }
+  .change-card.current { border-left-color: var(--vscode-charts-green); background: color-mix(in srgb, var(--vscode-charts-green) 10%, transparent); }
+  .change-card.future { opacity: .55; border-left-color: var(--vscode-descriptionForeground); border-left-style: dashed; background: color-mix(in srgb, var(--vscode-descriptionForeground) 6%, transparent); }
   .entry-main { flex: 1; display: flex; flex-wrap: wrap; align-items: center; gap: .55rem; min-width: 0; padding: .38rem .5rem; text-align: left; }
   .entry-main strong { color: var(--vscode-charts-blue); }
   .entry-main strong.transform { color: var(--vscode-charts-purple); }
@@ -252,8 +296,14 @@
   .checkpoint-symbol { color: var(--vscode-charts-yellow); }
   .checkpoint-card.active .checkpoint-symbol { color: var(--vscode-charts-green); }
   .checkpoint-card span { color: var(--vscode-descriptionForeground); font-size: .7rem; }
-  .checkpoint-state { padding: .05rem .3rem; border: 1px solid var(--vscode-panel-border); border-radius: .3rem; }
+  .checkpoint-state, .history-state { padding: .05rem .3rem; border: 1px solid var(--vscode-panel-border); border-radius: .3rem; }
   .checkpoint-state.unavailable { color: var(--vscode-errorForeground); }
+  .history-state { font-size: .7rem; }
+  .current-state { color: var(--vscode-charts-green); border-color: var(--vscode-charts-green); }
+  .future-state { color: var(--vscode-descriptionForeground); }
+  .baseline-card { gap: .5rem; padding: .48rem .55rem; border-left: 3px solid var(--vscode-charts-green); background: color-mix(in srgb, var(--vscode-charts-green) 10%, transparent); }
+  .baseline-card span { color: var(--vscode-descriptionForeground); font-size: .7rem; }
+  .cursor-symbol { color: var(--vscode-charts-green) !important; }
   .serial, code, .payload, .checkpoint { font-size: .7rem; }
   code, .payload, .checkpoint { color: var(--vscode-descriptionForeground); }
   .positive { color: var(--vscode-charts-green); }
