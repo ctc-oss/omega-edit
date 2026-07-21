@@ -30,7 +30,7 @@ const {
   OMEGA_EDIT_SEARCH_PREVIOUS_COMMAND,
   OMEGA_EDIT_SET_EXTERNAL_HIGHLIGHTS_COMMAND,
   OMEGA_EDIT_SET_TEXT_ENCODING_COMMAND,
-  OMEGA_EDIT_SHOW_CHECKPOINT_TIMELINE_COMMAND,
+  OMEGA_EDIT_SHOW_ACTION_JOURNAL_COMMAND,
   OMEGA_EDIT_ROLLBACK_CHECKPOINT_COMMAND,
   OMEGA_EDIT_TOGGLE_EXPERIMENTAL_TRANSFORM_PLUGINS_COMMAND,
   OMEGA_EDIT_TOGGLE_INSERT_DIRECTION_COMMAND,
@@ -288,29 +288,29 @@ test('package.json matches shared extension constants', () => {
     packageJson.contributes.commands[15].enablement,
     'omegaEdit.hexEditorActive && !omegaEdit.transformInFlight'
   )
-  assert.equal(
-    packageJson.contributes.commands[16].command,
-    OMEGA_EDIT_SHOW_CHECKPOINT_TIMELINE_COMMAND
+  const actionJournalCommand = packageJson.contributes.commands.find(
+    (entry) => entry.command === OMEGA_EDIT_SHOW_ACTION_JOURNAL_COMMAND
   )
-  assert.equal(
-    packageJson.contributes.commands[16].enablement,
-    'omegaEdit.hexEditorActive && !omegaEdit.transformInFlight'
-  )
-  assert.deepEqual(
-    packageJson.contributes.commands.slice(17).map((entry) => entry.command),
-    [
-      OMEGA_EDIT_GET_EDITOR_STATE_COMMAND,
-      OMEGA_EDIT_GET_ASSISTANT_CONTEXT_COMMAND,
-      OMEGA_EDIT_SET_EXTERNAL_HIGHLIGHTS_COMMAND,
-      OMEGA_EDIT_CLEAR_EXTERNAL_HIGHLIGHTS_COMMAND,
-      OMEGA_EDIT_LOAD_RANGE_MAP_COMMAND,
-      OMEGA_EDIT_UNLOAD_RANGE_MAP_COMMAND,
-      OMEGA_EDIT_TOGGLE_EXPERIMENTAL_TRANSFORM_PLUGINS_COMMAND,
-    ]
-  )
+  assert.ok(actionJournalCommand)
+  assert.equal(actionJournalCommand.enablement, 'omegaEdit.hexEditorActive')
+  for (const command of [
+    OMEGA_EDIT_GET_EDITOR_STATE_COMMAND,
+    OMEGA_EDIT_GET_ASSISTANT_CONTEXT_COMMAND,
+    OMEGA_EDIT_SET_EXTERNAL_HIGHLIGHTS_COMMAND,
+    OMEGA_EDIT_CLEAR_EXTERNAL_HIGHLIGHTS_COMMAND,
+    OMEGA_EDIT_LOAD_RANGE_MAP_COMMAND,
+    OMEGA_EDIT_UNLOAD_RANGE_MAP_COMMAND,
+    OMEGA_EDIT_TOGGLE_EXPERIMENTAL_TRANSFORM_PLUGINS_COMMAND,
+  ]) {
+    assert.ok(
+      packageJson.contributes.commands.some(
+        (entry) => entry.command === command
+      )
+    )
+  }
   assert.equal(
     packageNls['omegaEdit.command.toggleInsertDirection.title'],
-    'OmegaEdit: Toggle Insert Direction'
+    'OmegaEdit: Set Insert Direction'
   )
   assert.equal(
     packageNls['omegaEdit.command.setTextEncoding.title'],
@@ -519,6 +519,51 @@ test('package.json matches shared extension constants', () => {
       { command: OMEGA_EDIT_CLEAR_EXTERNAL_HIGHLIGHTS_COMMAND, when: 'false' },
     ]
   )
+})
+
+test('F5 opens the isolated OmegaEdit data editor preview', () => {
+  const workspaceFolder = '$' + '{workspaceFolder}'
+  const previewWorkspace = JSON.parse(
+    fs.readFileSync(
+      path.resolve(__dirname, 'workspace/preview.code-workspace'),
+      'utf8'
+    )
+  )
+  assert.equal(
+    previewWorkspace.settings['workbench.editorAssociations']['*.txt'],
+    OMEGA_EDIT_VIEW_TYPE
+  )
+
+  const launchConfigurations = [
+    {
+      config: JSON.parse(
+        fs.readFileSync(
+          path.resolve(__dirname, '../../.vscode/launch.json'),
+          'utf8'
+        )
+      ).configurations[0],
+      previewWorkspace: `${workspaceFolder}/vscode-extension/tests/workspace/preview.code-workspace`,
+      sampleFile: `${workspaceFolder}/vscode-extension/tests/workspace/sample.txt`,
+    },
+    {
+      config: JSON.parse(
+        fs.readFileSync(
+          path.resolve(__dirname, '../.vscode/launch.json'),
+          'utf8'
+        )
+      ).configurations[0],
+      previewWorkspace: `${workspaceFolder}/tests/workspace/preview.code-workspace`,
+      sampleFile: `${workspaceFolder}/tests/workspace/sample.txt`,
+    },
+  ]
+
+  for (const { config, previewWorkspace, sampleFile } of launchConfigurations) {
+    assert.equal(config.name, 'Preview Ωedit™ Data Editor')
+    assert.ok(config.args.includes('--new-window'))
+    assert.ok(config.args.includes(previewWorkspace))
+    assert.ok(config.args.includes(sampleFile))
+    assert.equal(config.windows.env.OMEGA_EDIT_SERVER_PORT, '19000')
+  }
 })
 
 test('routes save-conflict fingerprinting through the native guarded save path', () => {
@@ -760,6 +805,13 @@ test('compiled extension entrypoints exist after build', () => {
     path.resolve(__dirname, '../webview-ui/src/components/SearchPanel.svelte'),
     'utf8'
   )
+  const actionJournalSource = fs.readFileSync(
+    path.resolve(
+      __dirname,
+      '../webview-ui/src/components/ActionJournal.svelte'
+    ),
+    'utf8'
+  )
   const byteInspectorSource = fs.readFileSync(
     path.resolve(
       __dirname,
@@ -792,6 +844,7 @@ test('compiled extension entrypoints exist after build', () => {
     ['TransformPanel.svelte', transformPanelSource],
     ['TransformResultPanel.svelte', transformResultPanelSource],
     ['SearchPanel.svelte', searchPanelSource],
+    ['ActionJournal.svelte', actionJournalSource],
     ['ByteInspector.svelte', byteInspectorSource],
     ['EditorWorkspace.svelte', editorWorkspaceSource],
     ['ProfilerPanel.svelte', profilerPanelSource],
@@ -808,6 +861,50 @@ test('compiled extension entrypoints exist after build', () => {
       `${name} should avoid runtime inline style mutation`
     )
   }
+
+  assert.doesNotMatch(
+    svelteAppSource,
+    /actionJournalKinds|actionJournalTransactionId/
+  )
+  assert.match(svelteAppSource, /case 'actionJournalError':/)
+  assert.match(providerSource, /ACTION_JOURNAL_REQUEST_TIMEOUT_MS = 15_000/)
+  assert.match(actionJournalSource, /onUndo/)
+  assert.match(actionJournalSource, /onRedo/)
+  assert.match(actionJournalSource, /disabled=\{!canUndo\}/)
+  assert.match(actionJournalSource, /disabled=\{!canRedo\}/)
+  assert.doesNotMatch(actionJournalSource, /selectedKinds|transactionFilter/)
+  assert.match(actionJournalSource, /onscroll=\{loadOlderNearEnd\}/)
+  assert.match(actionJournalSource, /strings\.actionJournal\.noChanges/)
+  assert.match(actionJournalSource, /class="checkpoint-card"/)
+  assert.match(
+    actionJournalSource,
+    /checkpoint\.sourceChangeCount\s*\?\?\s*String\(checkpoint\.changeCount\)/
+  )
+  assert.match(actionJournalSource, /checkpointChanges\(row\.coordinate\)/)
+  assert.match(
+    actionJournalSource,
+    /class:current=\{row\.position === 'current'\}/
+  )
+  assert.match(
+    actionJournalSource,
+    /class:future=\{row\.position === 'future'\}/
+  )
+  assert.match(
+    actionJournalSource,
+    /aria-current=\{row\.position === 'current'/
+  )
+  assert.match(actionJournalSource, /strings\.actionJournal\.currentChange/)
+  assert.match(actionJournalSource, /strings\.actionJournal\.redoAvailable/)
+  assert.match(actionJournalSource, /strings\.actionJournal\.originalState/)
+  assert.match(
+    svelteAppSource,
+    /checkpoints=\{checkpointTimeline\.checkpoints\}/
+  )
+  assert.match(
+    svelteAppSource,
+    /checkpointCursor=\{checkpointTimeline\.cursor\}/
+  )
+  assert.match(actionJournalSource, /role="alert"/)
 
   const externalHighlightColorCountSources = [
     ['PreviewGrid.svelte', previewGridSource],
@@ -930,8 +1027,8 @@ test('compiled extension entrypoints exist after build', () => {
   assert.match(providerJs, /Ωedit Selection/)
   assert.match(providerJs, /Ωedit File Size/)
   assert.match(providerJs, /Ωedit Edit Mode/)
-  assert.match(providerJs, /Ωedit Bytes Per Row/)
-  assert.match(providerJs, /B\/row/)
+  assert.doesNotMatch(providerJs, /Ωedit Bytes Per Row/)
+  assert.doesNotMatch(providerJs, /B\/row/)
   assert.match(providerJs, /Replacing matches\.\.\./)
   assert.match(providerJs, /Creating checkpoint\.\.\./)
   assert.match(providerJs, /buildServerHealthTooltip/)
@@ -967,6 +1064,8 @@ test('compiled extension entrypoints exist after build', () => {
   assert.match(providerJs, /debug-disconnect/)
   assert.match(providerJs, /new vscode\.ThemeColor\(serverColorId\)/)
   assert.match(providerJs, /statusItems\.mode/)
+  assert.match(providerJs, /statusItems\.mode\.command/)
+  assert.match(providerJs, /OMEGA_EDIT_TOGGLE_INSERT_DIRECTION_COMMAND/)
   assert.match(providerJs, /Ωedit Edit Mode/)
   assert.doesNotMatch(providerJs, /vscode\.l10n\.t\('INS'\)/)
   assert.doesNotMatch(providerJs, /vscode\.l10n\.t\('OVR'\)/)
@@ -1175,6 +1274,20 @@ test('compiled extension entrypoints exist after build', () => {
   assert.match(svelteBundleCss, /\.editor-main/)
   assert.match(svelteBundleCss, /\.editor-grid-shell/)
   assert.match(svelteBundleCss, /\.editor-grid-scroller/)
+  assert.match(svelteStylesSource, /\.toolbar\s*\{[^}]*padding:\s*6px 0;/)
+  assert.match(svelteStylesSource, /\.preview-grid\s*\{[^}]*padding:\s*8px 0;/)
+  assert.match(
+    svelteStylesSource,
+    /\.byte-inspector-panel\s*\{[^}]*padding:\s*6px 0;/
+  )
+  assert.match(
+    svelteStylesSource,
+    /\.editor-grid-shell\s*\{[^}]*grid-template-columns:\s*minmax\(0,\s*1fr\)/
+  )
+  assert.doesNotMatch(
+    svelteStylesSource,
+    /\.editor-grid-shell\s*\{[^}]*grid-template-columns:[^;}]*18px/
+  )
   assert.match(svelteStylesSource, /\.editor-readonly-badge/)
   assert.match(svelteStylesSource, /\.editor-readonly-dot/)
   assert.match(svelteStylesSource, /\.transform-options-form/)
@@ -1228,7 +1341,7 @@ test('compiled extension entrypoints exist after build', () => {
     assert.match(source, /\$(props|state|derived|effect)\(/, name)
     assert.doesNotMatch(source, /(^|\n)\s*export\s+let\s/, name)
     assert.doesNotMatch(source, /(^|\n)\s*\$:/, name)
-    assert.doesNotMatch(source, /on:[a-z]/, name)
+    assert.doesNotMatch(source, /<[^>]*\bon:[a-z]/, name)
   }
   assert.match(svelteAppSource, /selectionAnchor/)
   assert.match(svelteAppSource, /selectedOffset/)
@@ -1252,6 +1365,9 @@ test('compiled extension entrypoints exist after build', () => {
   assert.match(svelteAppSource, /autoFitBytesPerRow=\{false\}/)
   assert.doesNotMatch(toolbarSource, /autoBytesPerRow/)
   assert.doesNotMatch(toolbarSource, /onBytesPerRowMode\('auto'\)/)
+  assert.doesNotMatch(toolbarSource, /direction-toggle/)
+  assert.doesNotMatch(toolbarSource, /onInsertDirection/)
+  assert.doesNotMatch(svelteAppSource, /onInsertDirection=/)
   assert.match(toolbarSource, /BytesPerRowCombobox/)
   assert.match(bytesPerRowComboboxSource, /role="combobox"/)
   assert.match(bytesPerRowComboboxSource, /role="listbox"/)
@@ -2023,6 +2139,7 @@ test('compiled extension entrypoints exist after build', () => {
   assert.doesNotMatch(offsetJumpSource, /offset-jump-button/)
   assert.doesNotMatch(offsetJumpSource, /strings\.navigation\.go(?:Title)?/)
   assert.match(fileScrollbarSource, /role="scrollbar"/)
+  assert.match(fileScrollbarSource, /class:disabled/)
   assert.match(fileScrollbarSource, /aria-controls="previewGrid"/)
   assert.match(fileScrollbarSource, /strings\.navigation\.scrollbarLabel/)
   assert.match(fileScrollbarSource, /WebviewExternalHighlight/)
@@ -2079,14 +2196,18 @@ test('compiled extension entrypoints exist after build', () => {
   assert.doesNotMatch(searchPanelSource, />Search Next</)
   assert.doesNotMatch(searchPanelSource, />Replace All</)
   assert.match(svelteAppSource, /function openSearchPanel/)
-  assert.match(
+  assert.doesNotMatch(
     svelteAppSource,
-    /postToHost\(\{ type: 'hideCheckpointTimeline' \}\)/
+    /components\/CheckpointTimeline|<CheckpointTimeline(?:\s|>)/
   )
-  assert.match(
-    svelteAppSource,
-    /searchPanelVisible && !checkpointTimeline\.visible/
-  )
+  assert.doesNotMatch(svelteAppSource, /hideCheckpointTimeline/)
+  assert.match(actionJournalSource, /strings\.actionJournal\.rewind/)
+  assert.match(actionJournalSource, /strings\.actionJournal\.fastForward/)
+  assert.match(actionJournalSource, /checkpointBefore/)
+  assert.match(actionJournalSource, /checkpointAfter/)
+  assert.doesNotMatch(actionJournalSource, /onReveal|onCopy|onFilter/)
+  assert.doesNotMatch(actionJournalSource, />JSON<|>CLI<|>MCP</)
+  assert.doesNotMatch(actionJournalSource, /<button class="entry-main"/)
   assert.match(
     svelteAppSource,
     /message\.visible && searchPanelVisible[\s\S]+closeSearchPanel\(\)/
@@ -2221,6 +2342,14 @@ test('compiled extension entrypoints exist after build', () => {
   assert.match(svelteStylesSource, /\.file-scrollbar-thumb-glyph/)
   assert.match(
     svelteStylesSource,
+    /\.file-scrollbar\s*\{[^}]*position:\s*absolute/
+  )
+  assert.match(
+    svelteStylesSource,
+    /\.file-scrollbar\.disabled\s*\{[^}]*pointer-events:\s*none/
+  )
+  assert.match(
+    svelteStylesSource,
     /\.file-scrollbar-track:hover \.file-scrollbar-range-marker/
   )
   assert.match(
@@ -2306,7 +2435,11 @@ test('compiled extension entrypoints exist after build', () => {
   assert.match(extensionJs, /OMEGA_EDIT_ROLLBACK_SESSION_COMMAND/)
   assert.match(extensionJs, /OMEGA_EDIT_ROLLBACK_CHECKPOINT_COMMAND/)
   assert.match(extensionJs, /OMEGA_EDIT_CREATE_CHECKPOINT_COMMAND/)
-  assert.match(extensionJs, /OMEGA_EDIT_SHOW_CHECKPOINT_TIMELINE_COMMAND/)
+  assert.match(extensionJs, /OMEGA_EDIT_SHOW_ACTION_JOURNAL_COMMAND/)
+  assert.doesNotMatch(
+    extensionJs,
+    /OMEGA_EDIT_SHOW_CHECKPOINT_TIMELINE_COMMAND/
+  )
   assert.match(extensionJs, /OMEGA_EDIT_GET_EDITOR_STATE_COMMAND/)
   assert.match(extensionJs, /OMEGA_EDIT_GET_ASSISTANT_CONTEXT_COMMAND/)
   assert.match(extensionJs, /OMEGA_EDIT_SET_EXTERNAL_HIGHLIGHTS_COMMAND/)
@@ -2329,6 +2462,8 @@ test('compiled extension entrypoints exist after build', () => {
   assert.match(extensionJs, /undoActive/)
   assert.match(extensionJs, /redoActive/)
   assert.match(extensionJs, /setInsertDirection/)
+  assert.match(extensionJs, /Select Insert Direction/)
+  assert.match(extensionJs, /Choose how inserted bytes advance/)
   assert.match(extensionJs, /setTextEncoding/)
   assert.match(extensionJs, /rollbackActiveSession/)
   assert.match(extensionJs, /rollbackCheckpoint/)
@@ -2682,6 +2817,10 @@ test('webview protocol normalizes editor commands and rejects invalid ranges', (
       undefined
     )
   }
+  assert.equal(
+    normalizeWebviewMessage(context, { type: 'hideCheckpointTimeline' }),
+    undefined
+  )
   assert.deepEqual(
     normalizeWebviewMessage(context, {
       type: 'setInsertDirection',
@@ -2941,6 +3080,75 @@ test('webview protocol normalizes editor commands and rejects invalid ranges', (
     }),
     undefined
   )
+})
+
+test('action journal is the live history surface', () => {
+  const appSource = fs.readFileSync(
+    path.resolve(__dirname, '../webview-ui/src/App.svelte'),
+    'utf8'
+  )
+  const journalSource = fs.readFileSync(
+    path.resolve(
+      __dirname,
+      '../webview-ui/src/components/ActionJournal.svelte'
+    ),
+    'utf8'
+  )
+
+  assert.doesNotMatch(
+    appSource,
+    /components\/CheckpointTimeline|<CheckpointTimeline(?:\s|>)/
+  )
+  assert.doesNotMatch(appSource, /hideCheckpointTimeline/)
+  assert.match(appSource, /onUndo=\{\(\) => postToHost\(\{ type: 'undo' \}\)\}/)
+  assert.match(appSource, /onRedo=\{\(\) => postToHost\(\{ type: 'redo' \}\)\}/)
+  assert.match(journalSource, /strings\.actionJournal\.rewind/)
+  assert.match(journalSource, /strings\.actionJournal\.fastForward/)
+  assert.match(journalSource, /checkpointBefore/)
+  assert.match(journalSource, /checkpointAfter/)
+  assert.doesNotMatch(journalSource, /onReveal|onCopy|onFilter/)
+  assert.doesNotMatch(journalSource, />JSON<|>CLI<|>MCP</)
+  assert.doesNotMatch(journalSource, /<button class="entry-main"/)
+  assert.equal(
+    packageJson.contributes.commands.some(
+      (entry) => entry.command === 'omegaEdit.showCheckpointTimeline'
+    ),
+    false
+  )
+})
+
+test('webview protocol bounds and validates action journal requests', () => {
+  const context = { fileSize: 10 }
+  assert.deepEqual(
+    normalizeWebviewMessage(context, {
+      type: 'requestActionJournalViewport',
+      anchorSerial: '9007199254740993',
+      capacity: 256,
+      direction: 'older',
+      append: true,
+    }),
+    {
+      type: 'requestActionJournalViewport',
+      anchorSerial: '9007199254740993',
+      capacity: 256,
+      direction: 'older',
+      append: true,
+    }
+  )
+  for (const message of [
+    { type: 'requestActionJournalViewport', capacity: 0 },
+    { type: 'requestActionJournalViewport', capacity: 1001 },
+    { type: 'requestActionJournalViewport', anchorSerial: '01' },
+    { type: 'revealActionJournalEntry', offset: '1' },
+    {
+      type: 'copyActionJournalEntry',
+      firstSerial: '1',
+      lastSerial: '2',
+      format: 'mcp',
+    },
+  ]) {
+    assert.equal(normalizeWebviewMessage(context, message), undefined)
+  }
 })
 
 test('webview protocol normalizes analysis, search, and transform messages', () => {

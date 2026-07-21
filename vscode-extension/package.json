@@ -219,10 +219,10 @@
         "enablement": "omegaEdit.hexEditorActive && !omegaEdit.transformInFlight"
       },
       {
-        "command": "omegaEdit.showCheckpointTimeline",
-        "title": "%omegaEdit.command.showCheckpointTimeline.title%",
-        "icon": "$(history)",
-        "enablement": "omegaEdit.hexEditorActive && !omegaEdit.transformInFlight"
+        "command": "omegaEdit.showActionJournal",
+        "title": "%omegaEdit.command.showActionJournal.title%",
+        "icon": "$(list-ordered)",
+        "enablement": "omegaEdit.hexEditorActive"
       },
       {
         "command": "omegaEdit.getEditorState",
@@ -273,11 +273,6 @@
           "command": "omegaEdit.rollbackSession",
           "when": "omegaEdit.hexEditorActive && omegaEdit.hasPendingChanges && !omegaEdit.transformInFlight",
           "group": "navigation@9"
-        },
-        {
-          "command": "omegaEdit.showCheckpointTimeline",
-          "when": "omegaEdit.hexEditorActive && !omegaEdit.transformInFlight",
-          "group": "navigation@8"
         }
       ],
       "commandPalette": [
@@ -341,10 +336,6 @@
         },
         {
           "command": "omegaEdit.createCheckpoint",
-          "when": "omegaEdit.hexEditorActive && !omegaEdit.transformInFlight"
-        },
-        {
-          "command": "omegaEdit.showCheckpointTimeline",
           "when": "omegaEdit.hexEditorActive && !omegaEdit.transformInFlight"
         },
         {

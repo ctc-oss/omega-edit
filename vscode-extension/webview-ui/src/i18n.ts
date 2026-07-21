@@ -45,16 +45,12 @@ const englishStrings = {
     decOffsetsTitle: 'Display offsets in decimal',
     textEncoding: 'Text encoding',
     textEncodingTitle: (label: string) => `Display TEXT bytes as ${label}`,
-    insertDirection: 'Insert direction',
-    forwardInsert: 'Forward',
-    backwardInsert: 'Backward',
-    forwardInsertTitle: 'Insert direction: Forward. Click for backward insert.',
-    backwardInsertTitle: 'Insert direction: Backward. Click for forward insert.',
-    forwardInsertShort: 'Fwd',
-    backwardInsertShort: 'Bwd',
     searchPanel: 'Find',
     showSearchPanelTitle: 'Show search and replace',
     hideSearchPanelTitle: 'Hide search and replace',
+    actionJournal: 'History',
+    showActionJournalTitle: 'Show live action journal',
+    hideActionJournalTitle: 'Hide action journal',
   },
   encoding: {
     ascii: 'ASCII',
@@ -541,52 +537,48 @@ const englishStrings = {
     yes: 'Yes',
     no: 'No',
   },
-  timeline: {
-    label: 'Checkpoint timeline',
-    original: 'Original file',
-    checkpoint: (checkpoint: number) =>
+  actionJournal: {
+    label: 'Action journal',
+    summary: (changes: number | bigint, undone: number | bigint) =>
+      `${formatNumber(changes)} changes · ${formatNumber(undone)} undone`,
+    close: 'Close action journal',
+    rewind: 'Rewind one action',
+    fastForward: 'Fast-forward one action',
+    loadingHistory: 'Loading history…',
+    noChanges: 'No changes yet.',
+    retry: 'Retry',
+    rangeAt: (offset: number | bigint) => `@ ${formatNumber(offset)}`,
+    rangeLength: (offset: number | bigint, length: number | bigint) =>
+      `@ ${formatNumber(offset)} + ${formatNumber(length)} B`,
+    dataLength: (length: number | bigint) =>
+      `data ${formatNumber(length)} B`,
+    checkpointBefore: (checkpoint: number | bigint) =>
+      `CP ${formatNumber(checkpoint)} before`,
+    checkpointAfter: (checkpoint: number | bigint) =>
+      `CP ${formatNumber(checkpoint)} after`,
+    checkpointCard: (checkpoint: number | bigint) =>
       `Checkpoint ${formatNumber(checkpoint)}`,
-    position: (position: string, count: number) =>
-      `${position} of ${formatNumber(count)}`,
-    savedAtChange: (change: number) =>
-      `Last saved at change ${formatNumber(change)}`,
-    savedAtOriginal: 'Last saved at original file',
-    savedAtCheckpoint: (checkpoint: number) =>
-      `Last saved at checkpoint ${formatNumber(checkpoint)}`,
-    savedOffBranch: 'Last saved state is no longer on this branch',
-    previous: 'Previous checkpoint',
-    previousTitle: 'Rewind one checkpoint',
-    next: 'Next checkpoint',
-    nextTitle: 'Fast-forward one checkpoint',
-    current: 'Current checkpoint',
-    originalMarker: 'Original',
-    marker: (checkpoint: number, changes: number, saved: boolean) =>
-      `Checkpoint ${formatNumber(checkpoint)}, ${formatNumber(changes)} changes${saved ? ', last saved' : ''}`,
-    boundaryPlain: 'Manual checkpoint',
-    boundaryTransform: 'Transform checkpoint',
-    boundaryTip: 'Captured working tip',
-    originalDescription: 'Starting content before checkpointed changes',
-    changesInInterval: (count: number | bigint) =>
-      `${formatNumber(count)} source change${count === 1 || count === 1n ? '' : 's'}`,
-    replayOperations: (count: number | bigint) =>
-      `${formatNumber(count)} replay operation${count === 1 || count === 1n ? '' : 's'}`,
-    size: 'Size',
-    archive: 'Archive',
-    optimizedArchive: 'optimized',
-    rawArchive: 'raw',
-    plugins: 'Actions',
-    created: 'Created',
-    ready: 'Replay ready',
-    metadataUnavailable: 'Checkpoint metadata is not loaded',
-    displayedUnavailableCount: (count: number) =>
-      `${formatNumber(count)} displayed checkpoint${count === 1 ? '' : 's'} unavailable`,
-    unavailable: 'Replay unavailable',
-    unavailableCount: (count: number) =>
-      `${formatNumber(count)} checkpoint${count === 1 ? '' : 's'} unavailable`,
-    navigating: 'Moving through checkpoint history',
-    close: 'Close checkpoint timeline',
-    hiddenMarkers: (count: number) =>
-      `${formatNumber(count)} additional checkpoint markers`,
+    checkpointChanges: (changes: number | bigint) =>
+      `${formatNumber(changes)} changes`,
+    checkpointBytes: (bytes: number | bigint) => `${formatNumber(bytes)} B`,
+    checkpointPlain: 'manual checkpoint',
+    checkpointTransform: 'transform checkpoint',
+    checkpointTip: 'history tip',
+    checkpointCurrent: 'current',
+    checkpointFuture: 'forward history',
+    checkpointUnavailable: 'unavailable',
+    currentChange: 'Current',
+    redoAvailable: 'Undone · redo available',
+    currentPosition: 'current position',
+    originalState: 'Original state',
+    afterChange: (change: number | bigint) =>
+      `Current after change ${formatNumber(change)}`,
+    payloadNone: 'none',
+    payloadInline: 'inline',
+    payloadFileBacked: 'file-backed',
+    payloadCheckpointBacked: 'checkpoint-backed',
+    loading: 'Loading…',
+    loadOlderChanges: 'Load older changes',
   },
   status: {
     hexPending: (label: string) => `Hex edit: ${label}`,
@@ -631,16 +623,12 @@ const localeOverrides: Record<string, LocaleStringOverrides> = {
       decOffsets: 'Dec',
       hexOffsetsTitle: 'Mostrar desplazamientos en hexadecimal',
       decOffsetsTitle: 'Mostrar desplazamientos en decimal',
-      insertDirection: 'Direccion de insercion',
-      forwardInsert: 'Adelante',
-      backwardInsert: 'Atras',
-      forwardInsertTitle:
-        'Direccion de insercion: adelante. Haz clic para insertar hacia atras.',
-      backwardInsertTitle:
-        'Direccion de insercion: atras. Haz clic para insertar hacia adelante.',
       searchPanel: 'Buscar',
       showSearchPanelTitle: 'Mostrar buscar y reemplazar',
       hideSearchPanelTitle: 'Ocultar buscar y reemplazar',
+      actionJournal: 'Historial',
+      showActionJournalTitle: 'Mostrar el diario de acciones en vivo',
+      hideActionJournalTitle: 'Ocultar el diario de acciones',
     },
     encoding: {
       ascii: 'ASCII',
@@ -826,50 +814,48 @@ const localeOverrides: Record<string, LocaleStringOverrides> = {
       yes: 'Si',
       no: 'No',
     },
-    timeline: {
-      label: 'Linea de tiempo de puntos de control',
-      original: 'Archivo original',
-      checkpoint: (checkpoint: number) =>
+    actionJournal: {
+      label: 'Diario de acciones',
+      summary: (changes: number | bigint, undone: number | bigint) =>
+        `${formatNumber(changes)} cambios · ${formatNumber(undone)} deshechos`,
+      close: 'Cerrar el diario de acciones',
+      rewind: 'Retroceder una acción',
+      fastForward: 'Avanzar una acción',
+      loadingHistory: 'Cargando historial…',
+      noChanges: 'Aún no hay cambios.',
+      retry: 'Reintentar',
+      rangeAt: (offset: number | bigint) => `@ ${formatNumber(offset)}`,
+      rangeLength: (offset: number | bigint, length: number | bigint) =>
+        `@ ${formatNumber(offset)} + ${formatNumber(length)} B`,
+      dataLength: (length: number | bigint) =>
+        `datos ${formatNumber(length)} B`,
+      checkpointBefore: (checkpoint: number | bigint) =>
+        `PC ${formatNumber(checkpoint)} antes`,
+      checkpointAfter: (checkpoint: number | bigint) =>
+        `PC ${formatNumber(checkpoint)} después`,
+      checkpointCard: (checkpoint: number | bigint) =>
         `Punto de control ${formatNumber(checkpoint)}`,
-      position: (position: string, count: number) =>
-        `${position} de ${formatNumber(count)}`,
-      savedAtChange: (change: number) =>
-        `Ultimo guardado en el cambio ${formatNumber(change)}`,
-      savedAtOriginal: 'Ultimo guardado en el archivo original',
-      savedAtCheckpoint: (checkpoint: number) =>
-        `Ultimo guardado en el punto de control ${formatNumber(checkpoint)}`,
-      savedOffBranch: 'El ultimo estado guardado ya no esta en esta rama',
-      previous: 'Punto de control anterior',
-      previousTitle: 'Retroceder un punto de control',
-      next: 'Punto de control siguiente',
-      nextTitle: 'Avanzar un punto de control',
-      current: 'Punto de control actual',
-      originalMarker: 'Original',
-      unavailable: 'Reproduccion no disponible',
-      unavailableCount: (count: number) =>
-        `${formatNumber(count)} punto${count === 1 ? '' : 's'} de control no disponible${count === 1 ? '' : 's'}`,
-      boundaryPlain: 'Punto de control manual',
-      boundaryTransform: 'Punto de control de transformacion',
-      boundaryTip: 'Punta de trabajo capturada',
-      originalDescription: 'Contenido inicial antes de los cambios con puntos de control',
-      changesInInterval: (count: number | bigint) =>
-        `${formatNumber(count)} cambio${count === 1 || count === 1n ? '' : 's'} de origen`,
-      replayOperations: (count: number | bigint) =>
-        `${formatNumber(count)} operacion${count === 1 || count === 1n ? '' : 'es'} de reproduccion`,
-      size: 'Tamano',
-      archive: 'Archivo',
-      optimizedArchive: 'optimizado',
-      rawArchive: 'sin optimizar',
-      plugins: 'Acciones',
-      created: 'Creado',
-      ready: 'Reproduccion lista',
-      metadataUnavailable: 'Los metadatos del punto de control no estan cargados',
-      displayedUnavailableCount: (count: number) =>
-        `${formatNumber(count)} punto${count === 1 ? '' : 's'} de control mostrado${count === 1 ? '' : 's'} no disponible${count === 1 ? '' : 's'}`,
-      navigating: 'Moviendo por el historial de puntos de control',
-      close: 'Cerrar la linea de tiempo de puntos de control',
-      hiddenMarkers: (count: number) =>
-        `${formatNumber(count)} marcador${count === 1 ? '' : 'es'} adicional${count === 1 ? '' : 'es'} de puntos de control`,
+      checkpointChanges: (changes: number | bigint) =>
+        `${formatNumber(changes)} cambios`,
+      checkpointBytes: (bytes: number | bigint) => `${formatNumber(bytes)} B`,
+      checkpointPlain: 'punto de control manual',
+      checkpointTransform: 'punto de control de transformación',
+      checkpointTip: 'fin del historial',
+      checkpointCurrent: 'actual',
+      checkpointFuture: 'historial futuro',
+      checkpointUnavailable: 'no disponible',
+      currentChange: 'Actual',
+      redoAvailable: 'Deshecho · rehacer disponible',
+      currentPosition: 'posición actual',
+      originalState: 'Estado original',
+      afterChange: (change: number | bigint) =>
+        `Actual después del cambio ${formatNumber(change)}`,
+      payloadNone: 'ninguno',
+      payloadInline: 'integrado',
+      payloadFileBacked: 'respaldado por archivo',
+      payloadCheckpointBacked: 'respaldado por punto de control',
+      loading: 'Cargando…',
+      loadOlderChanges: 'Cargar cambios anteriores',
     },
     status: {
       hexPending: (label: string) => `Edicion hex: ${label}`,
@@ -896,7 +882,7 @@ function createStringTable(): WebviewStrings {
     grid: { ...englishStrings.grid },
     inspector: { ...englishStrings.inspector },
     profiler: { ...englishStrings.profiler },
-    timeline: { ...englishStrings.timeline },
+    actionJournal: { ...englishStrings.actionJournal },
     status: { ...englishStrings.status },
   }
 }
@@ -917,7 +903,11 @@ function applyLocaleOverrides(overrides?: LocaleStringOverrides): void {
   Object.assign(strings.grid, englishStrings.grid, overrides?.grid)
   Object.assign(strings.inspector, englishStrings.inspector, overrides?.inspector)
   Object.assign(strings.profiler, englishStrings.profiler, overrides?.profiler)
-  Object.assign(strings.timeline, englishStrings.timeline, overrides?.timeline)
+  Object.assign(
+    strings.actionJournal,
+    englishStrings.actionJournal,
+    overrides?.actionJournal
+  )
   Object.assign(strings.status, englishStrings.status, overrides?.status)
 }
 

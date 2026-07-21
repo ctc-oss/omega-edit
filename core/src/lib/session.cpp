@@ -30,6 +30,8 @@
 #include <cassert>
 #include <cstring>
 
+using omega_edit::internal::change_kind_t;
+using omega_edit::internal::omega_change_get_kind_;
 using omega_edit::internal::omega_change_get_transaction_bit_;
 using omega_edit::internal::omega_data_get_data_;
 using omega_edit::internal::omega_session_end_event_batch_;
@@ -38,6 +40,31 @@ using omega_edit::internal::safe_add_int64_;
 
 namespace {
     constexpr int64_t OMEGA_SESSION_SCAN_BUFFER_SIZE = 65536;
+
+    int64_t count_undone_changes_(const omega_changes_t &changes) {
+        int64_t result = 0;
+        for (const auto &change : changes) {
+            ++result;
+            if (change && change->transform_data) {
+                result += count_undone_changes_(change->transform_data->preserved_changes_undone);
+            }
+        }
+        return result;
+    }
+
+    const omega_change_t *find_undone_change_(const omega_changes_t &changes, int64_t serial) {
+        for (auto iter = changes.crbegin(); iter != changes.crend(); ++iter) {
+            const auto *change = iter->get();
+            if (omega_change_get_serial(change) == serial) { return change; }
+            if (change && change->transform_data) {
+                if (const auto *preserved =
+                            find_undone_change_(change->transform_data->preserved_changes_undone, serial)) {
+                    return preserved;
+                }
+            }
+        }
+        return nullptr;
+    }
 
     int64_t count_change_transactions_(const omega_changes_t &changes) {
         int64_t result = 0;
@@ -130,7 +157,9 @@ int64_t omega_session_get_num_changes(const omega_session_t *session_ptr) {
 int64_t omega_session_get_num_undone_changes(const omega_session_t *session_ptr) {
     if (!session_ptr) { return 0; }
     assert(session_ptr->models_.back());
-    return (int64_t) session_ptr->models_.back()->changes_undone.size();
+    int64_t result = 0;
+    for (const auto &model : session_ptr->models_) { result += count_undone_changes_(model->changes_undone); }
+    return result;
 }
 
 const omega_change_t *omega_session_get_last_change(const omega_session_t *session_ptr) {
@@ -198,9 +227,7 @@ const omega_change_t *omega_session_get_change(const omega_session_t *session_pt
     } else if (change_serial < 0) {
         // Negative serials are undone changes
         for (const auto &model : session_ptr->models_) {
-            for (auto iter = model->changes_undone.crbegin(); iter != model->changes_undone.crend(); ++iter) {
-                if (omega_change_get_serial(iter->get()) == change_serial) { return iter->get(); }
-            }
+            if (const auto *change = find_undone_change_(model->changes_undone, change_serial)) { return change; }
         }
     }
     return nullptr;
@@ -303,6 +330,42 @@ int64_t omega_session_get_num_undone_change_transactions(const omega_session_t *
 int64_t omega_session_get_num_checkpoints(const omega_session_t *session_ptr) {
     if (!session_ptr) { return 0; }
     return static_cast<int64_t>(session_ptr->models_.size()) - 1;
+}
+
+int64_t omega_session_get_checkpoint_change_count(const omega_session_t *session_ptr, int64_t checkpoint_count) {
+    if (!session_ptr || checkpoint_count < 0 || checkpoint_count > omega_session_get_num_checkpoints(session_ptr)) {
+        return -1;
+    }
+    if (checkpoint_count == 0) { return 0; }
+    const auto *model = session_ptr->models_[static_cast<size_t>(checkpoint_count)].get();
+    if (!model) { return -1; }
+    int64_t result = model->change_serial_base;
+    if (!model->changes.empty()) {
+        const auto &first_change = model->changes.front();
+        if (omega_change_get_kind_(first_change.get()) == change_kind_t::CHANGE_TRANSFORM &&
+            first_change->transform_data && first_change->transform_data->checkpoint_file_path == model->file_path) {
+            ++result;
+        }
+    }
+    return result;
+}
+
+int64_t omega_session_get_checkpoint_at_change_count(const omega_session_t *session_ptr, int64_t change_count) {
+    if (!session_ptr || change_count < 0) { return -1; }
+    int64_t low = 0;
+    int64_t high = omega_session_get_num_checkpoints(session_ptr);
+    int64_t result = -1;
+    while (low <= high) {
+        const auto checkpoint = low + (high - low) / 2;
+        const auto boundary = omega_session_get_checkpoint_change_count(session_ptr, checkpoint);
+        if (boundary <= change_count) {
+            if (boundary == change_count) { result = checkpoint; }
+            low = checkpoint + 1;
+        } else {
+            high = checkpoint - 1;
+        }
+    }
+    return result;
 }
 
 int64_t omega_session_get_num_future_checkpoints(const omega_session_t *session_ptr) {

@@ -2331,6 +2331,231 @@ namespace omega_edit {
             return grpc::Status::OK;
         }
 
+        grpc::Status
+        EditorServiceImpl::GetActionJournalViewport(grpc::ServerContext *context,
+                                                    const ::omega_edit::v1::GetActionJournalViewportRequest *request,
+                                                    ::omega_edit::v1::GetActionJournalViewportResponse *response) {
+            grpc::Status parse_status;
+            int64_t requested_anchor = 0;
+            if (request->has_anchor_serial_decimal() &&
+                !parse_canonical_decimal(request->anchor_serial_decimal(), "anchor_serial_decimal", requested_anchor,
+                                         parse_status)) {
+                return parse_status;
+            }
+            if (request->capacity() == 0 ||
+                request->capacity() > static_cast<uint64_t>(resource_limits_.max_changelog_export_entries)) {
+                return grpc::Status(grpc::StatusCode::INVALID_ARGUMENT,
+                                    "action journal viewport capacity is outside the configured range");
+            }
+            const bool older = request->direction() == ::omega_edit::v1::ACTION_JOURNAL_DIRECTION_OLDER;
+            if (!older && request->direction() != ::omega_edit::v1::ACTION_JOURNAL_DIRECTION_NEWER) {
+                return grpc::Status(grpc::StatusCode::INVALID_ARGUMENT,
+                                    "action journal viewport direction must be OLDER or NEWER");
+            }
+
+            std::array<bool, 6> included_kinds{};
+            const bool include_all_kinds = request->kinds().empty();
+            for (const auto kind : request->kinds()) {
+                if (kind < ::omega_edit::v1::CHANGE_LOG_ENTRY_KIND_DELETE ||
+                    kind > ::omega_edit::v1::CHANGE_LOG_ENTRY_KIND_TRANSFORM) {
+                    return grpc::Status(grpc::StatusCode::INVALID_ARGUMENT, "action journal kind filter is invalid");
+                }
+                included_kinds[static_cast<size_t>(kind)] = true;
+            }
+
+            auto locked_session = session_manager_.lock_session(request->session_id());
+            if (!locked_session) {
+                return grpc::Status(grpc::StatusCode::NOT_FOUND, "session not found: " + request->session_id());
+            }
+            if (context->IsCancelled()) {
+                return grpc::Status(grpc::StatusCode::CANCELLED, "action journal request was cancelled");
+            }
+            const auto active_tip = omega_session_get_num_changes(locked_session.session());
+            const auto undo_count = omega_session_get_num_undone_changes(locked_session.session());
+            if (active_tip < 0 || undo_count < 0 || undo_count > (std::numeric_limits<int64_t>::max)() - active_tip) {
+                return grpc::Status(grpc::StatusCode::INTERNAL, "action journal history size overflow");
+            }
+            const auto history_tip = active_tip + undo_count;
+            const auto checkpoint_count = omega_session_get_num_checkpoints(locked_session.session());
+            response->set_format_version(1);
+            response->set_session_id(request->session_id());
+            response->set_active_tip_serial_decimal(std::to_string(active_tip));
+            response->set_change_count_decimal(std::to_string(active_tip));
+            response->set_undo_count_decimal(std::to_string(undo_count));
+            response->set_checkpoint_count_decimal(std::to_string(checkpoint_count));
+            response->set_direction(request->direction());
+            response->set_capacity(request->capacity());
+            if (history_tip == 0) {
+                response->set_resolved_anchor_serial_decimal("0");
+                return grpc::Status::OK;
+            }
+
+            const auto get_history_change = [&](int64_t serial) {
+                return omega_session_get_change(locked_session.session(), serial <= active_tip ? serial : -serial);
+            };
+            auto anchor = requested_anchor == 0 ? (older ? history_tip : 1) : requested_anchor;
+            if (anchor <= 0 || anchor > history_tip || !get_history_change(anchor)) {
+                return grpc::Status(grpc::StatusCode::INVALID_ARGUMENT,
+                                    "action journal anchor must identify a retained change serial");
+            }
+
+            const auto is_replacement_pair = [](const omega_change_t *delete_change,
+                                                const omega_change_t *insert_change) {
+                return delete_change && insert_change && omega_change_get_kind_as_char(delete_change) == 'D' &&
+                       omega_change_get_kind_as_char(insert_change) == 'I' &&
+                       omega_change_get_transaction_bit(delete_change) ==
+                               omega_change_get_transaction_bit(insert_change) &&
+                       omega_change_get_offset(delete_change) == omega_change_get_offset(insert_change);
+            };
+            const auto *anchor_change = get_history_change(anchor);
+            if (older && anchor < history_tip && is_replacement_pair(anchor_change, get_history_change(anchor + 1))) {
+                ++anchor;
+            } else if (!older && anchor > 1 && is_replacement_pair(get_history_change(anchor - 1), anchor_change)) {
+                --anchor;
+            }
+            response->set_resolved_anchor_serial_decimal(std::to_string(anchor));
+
+            struct journal_source_entry {
+                const omega_change_t *change{};
+                int64_t serial{};
+            };
+            struct journal_canonical_entry {
+                journal_source_entry source;
+                std::optional<journal_source_entry> replacement;
+            };
+
+            const auto storage_kind = [](const omega_change_t *change, bool checkpoint_backed) {
+                if (checkpoint_backed) { return ::omega_edit::v1::ACTION_JOURNAL_PAYLOAD_STORAGE_CHECKPOINT_BACKED; }
+                switch (omega_change_get_data_storage(change)) {
+                    case OMEGA_CHANGE_DATA_STORAGE_INLINE:
+                        return ::omega_edit::v1::ACTION_JOURNAL_PAYLOAD_STORAGE_INLINE;
+                    case OMEGA_CHANGE_DATA_STORAGE_FILE_BACKED:
+                        return ::omega_edit::v1::ACTION_JOURNAL_PAYLOAD_STORAGE_FILE_BACKED;
+                    case OMEGA_CHANGE_DATA_STORAGE_NONE:
+                        return ::omega_edit::v1::ACTION_JOURNAL_PAYLOAD_STORAGE_NONE;
+                }
+                return ::omega_edit::v1::ACTION_JOURNAL_PAYLOAD_STORAGE_UNSPECIFIED;
+            };
+            const auto transaction_id_for = [](const omega_change_t *change) {
+                const auto transaction_start = omega_change_get_transaction_start_serial(change);
+                return transaction_start > 0 ? "transaction:" + std::to_string(transaction_start) : std::string{};
+            };
+            const auto append_entry = [&](const journal_canonical_entry &canonical, const std::string &transaction_id,
+                                          int64_t continuation_anchor) -> bool {
+                const auto kind_char = omega_change_get_kind_as_char(canonical.source.change);
+                auto kind = ::omega_edit::v1::CHANGE_LOG_ENTRY_KIND_UNSPECIFIED;
+                if (canonical.replacement) {
+                    kind = ::omega_edit::v1::CHANGE_LOG_ENTRY_KIND_REPLACE;
+                } else if (kind_char == 'D') {
+                    kind = ::omega_edit::v1::CHANGE_LOG_ENTRY_KIND_DELETE;
+                } else if (kind_char == 'I') {
+                    kind = ::omega_edit::v1::CHANGE_LOG_ENTRY_KIND_INSERT;
+                } else if (kind_char == 'O') {
+                    kind = ::omega_edit::v1::CHANGE_LOG_ENTRY_KIND_OVERWRITE;
+                } else if (kind_char == 'T') {
+                    kind = ::omega_edit::v1::CHANGE_LOG_ENTRY_KIND_TRANSFORM;
+                }
+                if (kind == ::omega_edit::v1::CHANGE_LOG_ENTRY_KIND_UNSPECIFIED) { return false; }
+                if (!include_all_kinds && !included_kinds[static_cast<size_t>(kind)]) { return true; }
+                if (request->has_transaction_id() && request->transaction_id() != transaction_id) { return true; }
+                if (response->entries_size() >= static_cast<int>(request->capacity())) {
+                    response->set_has_more(true);
+                    response->set_next_anchor_serial_decimal(std::to_string(continuation_anchor));
+                    return false;
+                }
+
+                auto *entry = response->add_entries();
+                entry->set_entry_index_decimal(std::to_string(response->entries_size() - 1));
+                entry->set_first_serial_decimal(std::to_string(canonical.source.serial));
+                entry->set_last_serial_decimal(std::to_string(canonical.replacement ? canonical.replacement->serial
+                                                                                    : canonical.source.serial));
+                const auto change_count_before = canonical.source.serial - 1;
+                const auto change_count_after =
+                        canonical.replacement ? canonical.replacement->serial : canonical.source.serial;
+                entry->set_change_count_before_decimal(std::to_string(change_count_before));
+                entry->set_change_count_after_decimal(std::to_string(change_count_after));
+                const auto checkpoint_before =
+                        omega_session_get_checkpoint_at_change_count(locked_session.session(), change_count_before);
+                if (checkpoint_before >= 0) { entry->set_checkpoint_before_decimal(std::to_string(checkpoint_before)); }
+                const auto checkpoint_after =
+                        omega_session_get_checkpoint_at_change_count(locked_session.session(), change_count_after);
+                if (checkpoint_after >= 0) { entry->set_checkpoint_after_decimal(std::to_string(checkpoint_after)); }
+                entry->set_kind(kind);
+                entry->set_offset_decimal(std::to_string(omega_change_get_offset(canonical.source.change)));
+                const auto remove_length = omega_change_get_length(canonical.source.change);
+                const auto *data_source =
+                        canonical.replacement ? canonical.replacement->change : canonical.source.change;
+                const auto data_length = kind == ::omega_edit::v1::CHANGE_LOG_ENTRY_KIND_TRANSFORM
+                                                 ? 0
+                                                 : omega_change_get_data_length(data_source);
+                entry->set_length_decimal(
+                        std::to_string(kind == ::omega_edit::v1::CHANGE_LOG_ENTRY_KIND_INSERT ? 0 : remove_length));
+                entry->set_data_length_decimal(std::to_string(data_length));
+                int64_t size_delta = 0;
+                if (kind == ::omega_edit::v1::CHANGE_LOG_ENTRY_KIND_INSERT) {
+                    size_delta = data_length;
+                } else if (kind == ::omega_edit::v1::CHANGE_LOG_ENTRY_KIND_DELETE) {
+                    size_delta = -remove_length;
+                } else if (kind == ::omega_edit::v1::CHANGE_LOG_ENTRY_KIND_REPLACE) {
+                    size_delta = data_length - remove_length;
+                } else if (kind == ::omega_edit::v1::CHANGE_LOG_ENTRY_KIND_TRANSFORM) {
+                    const auto before = omega_change_get_transform_computed_file_size_before(canonical.source.change);
+                    const auto after = omega_change_get_transform_computed_file_size_after(canonical.source.change);
+                    size_delta = before >= 0 && after >= 0 ? after - before : 0;
+                    auto *transform = entry->mutable_transform();
+                    const auto *transform_id = omega_change_get_transform_id(canonical.source.change);
+                    const auto *options_json = omega_change_get_transform_options_json(canonical.source.change);
+                    transform->set_transform_id(transform_id ? transform_id : "");
+                    transform->set_options_json(options_json ? options_json : "");
+                    transform->set_replacement_length_decimal(
+                            std::to_string(omega_change_get_transform_replacement_length(canonical.source.change)));
+                    transform->set_computed_file_size_before_decimal(std::to_string(before));
+                    transform->set_computed_file_size_after_decimal(std::to_string(after));
+                }
+                entry->set_size_delta_decimal(std::to_string(size_delta));
+                if (!transaction_id.empty()) { entry->set_transaction_id(transaction_id); }
+                entry->set_payload_storage(
+                        storage_kind(data_source, kind == ::omega_edit::v1::CHANGE_LOG_ENTRY_KIND_TRANSFORM));
+                return true;
+            };
+
+            for (int64_t serial = anchor; older ? serial >= 1 : serial <= history_tip;) {
+                if (context->IsCancelled()) {
+                    return grpc::Status(grpc::StatusCode::CANCELLED, "action journal request was cancelled");
+                }
+                const auto *change = get_history_change(serial);
+                if (!change) {
+                    return grpc::Status(grpc::StatusCode::ABORTED,
+                                        "action journal changed while its viewport was being read");
+                }
+                const auto transaction_bit = omega_change_get_transaction_bit(change);
+                journal_canonical_entry canonical{{change, serial}, std::nullopt};
+                int64_t continuation_anchor = serial;
+                int64_t step = 1;
+                if (older && omega_change_get_kind_as_char(change) == 'I' && serial > 1) {
+                    const auto *delete_change = get_history_change(serial - 1);
+                    if (delete_change && omega_change_get_kind_as_char(delete_change) == 'D' &&
+                        omega_change_get_transaction_bit(delete_change) == transaction_bit &&
+                        omega_change_get_offset(delete_change) == omega_change_get_offset(change)) {
+                        canonical = {{delete_change, serial - 1}, journal_source_entry{change, serial}};
+                        step = 2;
+                    }
+                } else if (!older && omega_change_get_kind_as_char(change) == 'D' && serial < history_tip) {
+                    const auto *insert_change = get_history_change(serial + 1);
+                    if (insert_change && omega_change_get_kind_as_char(insert_change) == 'I' &&
+                        omega_change_get_transaction_bit(insert_change) == transaction_bit &&
+                        omega_change_get_offset(insert_change) == omega_change_get_offset(change)) {
+                        canonical.replacement = journal_source_entry{insert_change, serial + 1};
+                        step = 2;
+                    }
+                }
+                const auto transaction_id = transaction_id_for(canonical.source.change);
+                if (!append_entry(canonical, transaction_id, continuation_anchor)) { break; }
+                serial += older ? -step : step;
+            }
+            return grpc::Status::OK;
+        }
+
         // ---------- Computed File Size ----------
 
         grpc::Status EditorServiceImpl::GetComputedFileSize(grpc::ServerContext * /*context*/,

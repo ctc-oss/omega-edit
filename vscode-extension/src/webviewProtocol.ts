@@ -134,6 +134,65 @@ export interface WebviewSessionContentInfo {
   label: string
 }
 
+export const WEBVIEW_ACTION_JOURNAL_KINDS = [
+  'INSERT',
+  'DELETE',
+  'OVERWRITE',
+  'REPLACE',
+  'TRANSFORM',
+] as const
+
+export type WebviewActionJournalKind =
+  (typeof WEBVIEW_ACTION_JOURNAL_KINDS)[number]
+
+export interface WebviewActionJournalEntry {
+  index: string
+  firstSerial: string
+  lastSerial: string
+  kind: WebviewActionJournalKind
+  offset: string
+  length: string
+  dataLength: string
+  sizeDelta: string
+  changeCountBefore: string
+  changeCountAfter: string
+  checkpointBefore?: string
+  checkpointAfter?: string
+  transactionId?: string
+  payloadHint: 'none' | 'inline' | 'file-backed' | 'checkpoint-backed'
+  transform?: {
+    transformId: string
+    optionsJson?: string
+    replacementLength: string
+    computedFileSizeBefore: string
+    computedFileSizeAfter: string
+  }
+}
+
+export interface WebviewActionJournalViewport {
+  version: 1
+  activeTipSerial: string
+  changeCount: string
+  undoCount: string
+  checkpointCount: string
+  anchorSerial: string
+  capacity: number
+  direction: 'older' | 'newer'
+  entries: WebviewActionJournalEntry[]
+  hasMore: boolean
+  nextAnchorSerial?: string
+}
+
+export interface WebviewActionJournalCheckpoint {
+  checkpoint: number
+  changeCount: number
+  sourceChangeCount?: string
+  byteLengthAfter: string
+  boundaryKind: 'plain' | 'transform' | 'tip'
+  createdAt: number
+  available: boolean
+}
+
 export interface WebviewExternalHighlight {
   id: string
   offset: number
@@ -239,9 +298,17 @@ export type WebviewToHostMessage =
   | { type: 'createCheckpoint' }
   | { type: 'rollbackCheckpoint' }
   | { type: 'restoreCheckpoint' }
+  // Internal checkpoint-replay hook retained after retiring the standalone timeline UI.
   | { type: 'navigateCheckpointTimeline'; checkpoint: number }
-  | { type: 'hideCheckpointTimeline' }
   | { type: 'exportChangeLog' }
+  | {
+      type: 'requestActionJournalViewport'
+      anchorSerial?: string
+      capacity?: number
+      direction?: 'older' | 'newer'
+      append?: boolean
+    }
+  | { type: 'hideActionJournal' }
   | { type: 'applyChangeLog' }
   | { type: 'loadRangeMap' }
   | { type: 'unloadRangeMap' }
@@ -403,23 +470,31 @@ export type HostToWebviewMessage =
       canRewind: boolean
       canFastForward: boolean
       navigating: boolean
-      checkpoints: Array<{
-        checkpoint: number
-        changeCount: number
-        sourceChangeCount: string
-        replayChangeCount?: string
-        byteLengthBefore: string
-        byteLengthAfter: string
-        archiveByteLength?: string
-        boundaryKind: 'plain' | 'transform' | 'tip'
-        transformPluginIds: string[]
-        missingPluginIds: string[]
-        optimized: boolean
-        createdAt: number
-        available: boolean
-        error?: string
-      }>
+      checkpoints: Array<
+        WebviewActionJournalCheckpoint & {
+          sourceChangeCount: string
+          replayChangeCount?: string
+          byteLengthBefore: string
+          archiveByteLength?: string
+          transformPluginIds: string[]
+          missingPluginIds: string[]
+          optimized: boolean
+          error?: string
+        }
+      >
     }
+  | {
+      type: 'actionJournalViewport'
+      visible: boolean
+      append: boolean
+      viewport: WebviewActionJournalViewport
+    }
+  | {
+      type: 'actionJournalError'
+      visible: boolean
+      message: string
+    }
+  | { type: 'actionJournalHidden' }
   | {
       type: 'clipboardComplete'
       action: 'copy' | 'cut'
@@ -770,6 +845,12 @@ function safeExternalHighlightKind(
     : undefined
 }
 
+function safeActionJournalDecimal(value: unknown): string | undefined {
+  return typeof value === 'string' && /^(0|[1-9]\d{0,18})$/.test(value)
+    ? value
+    : undefined
+}
+
 function normalizeEditorUiState(
   context: WebviewProtocolContext,
   raw: Record<string, unknown>
@@ -1014,8 +1095,41 @@ export function normalizeWebviewMessage(
     case 'revert':
       return { type: raw.type }
 
-    case 'hideCheckpointTimeline':
+    case 'hideActionJournal':
       return { type: raw.type }
+
+    case 'requestActionJournalViewport': {
+      const anchorSerial =
+        raw.anchorSerial === undefined
+          ? undefined
+          : safeActionJournalDecimal(raw.anchorSerial)
+      const capacity =
+        raw.capacity === undefined
+          ? undefined
+          : safeNonNegativeInteger(raw.capacity, 1000)
+      const direction =
+        raw.direction === undefined
+          ? undefined
+          : raw.direction === 'older' || raw.direction === 'newer'
+            ? raw.direction
+            : null
+      if (
+        (raw.anchorSerial !== undefined && anchorSerial === undefined) ||
+        (raw.capacity !== undefined && capacity === undefined) ||
+        (capacity !== undefined && capacity === 0) ||
+        direction === null ||
+        (raw.append !== undefined && typeof raw.append !== 'boolean')
+      ) {
+        return undefined
+      }
+      return {
+        type: raw.type,
+        ...(anchorSerial === undefined ? {} : { anchorSerial }),
+        ...(capacity === undefined ? {} : { capacity }),
+        ...(direction === undefined ? {} : { direction }),
+        ...(raw.append === undefined ? {} : { append: raw.append }),
+      }
+    }
 
     case 'navigateCheckpointTimeline': {
       const checkpoint = safeNonNegativeInteger(raw.checkpoint)

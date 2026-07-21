@@ -155,6 +155,10 @@ service EditorService {
     // Export an inclusive active-serial range as a bounded, validated frame stream.
     rpc ExportChangeLog(ExportChangeLogRequest) returns (stream ExportChangeLogResponse);
 
+    // Read a bounded metadata-only viewport over active primitive history.
+    // Payload bytes remain lazy and can be fetched through change-log export.
+    rpc GetActionJournalViewport(GetActionJournalViewportRequest) returns (GetActionJournalViewportResponse);
+
     // ---------------------------------------------------------------------------
     // Data inspection
     // ---------------------------------------------------------------------------
@@ -865,6 +869,64 @@ message ExportChangeLogResponse {
         ChangeLogPayloadChunk payload = 3;
         ChangeLogStreamComplete complete = 4;
     }
+}
+
+// Metadata-only primitive history viewport. Decimal strings preserve the
+// native int64 domain without relying on a JavaScript-safe-number transport.
+enum ActionJournalDirection {
+    ACTION_JOURNAL_DIRECTION_UNSPECIFIED = 0;
+    ACTION_JOURNAL_DIRECTION_OLDER = 1;
+    ACTION_JOURNAL_DIRECTION_NEWER = 2;
+}
+
+message GetActionJournalViewportRequest {
+    string session_id = 1;
+    optional string anchor_serial_decimal = 2;// Absent/"0" = newest for OLDER, oldest for NEWER.
+    uint32 capacity = 3;                      // Required bounded result capacity.
+    ActionJournalDirection direction = 4;
+    repeated ChangeLogEntryKind kinds = 5;// Empty = every primitive kind.
+    optional string transaction_id = 6;
+}
+
+enum ActionJournalPayloadStorage {
+    ACTION_JOURNAL_PAYLOAD_STORAGE_UNSPECIFIED = 0;
+    ACTION_JOURNAL_PAYLOAD_STORAGE_NONE = 1;
+    ACTION_JOURNAL_PAYLOAD_STORAGE_INLINE = 2;
+    ACTION_JOURNAL_PAYLOAD_STORAGE_FILE_BACKED = 3;
+    ACTION_JOURNAL_PAYLOAD_STORAGE_CHECKPOINT_BACKED = 4;
+}
+
+message ActionJournalEntry {
+    string entry_index_decimal = 1;
+    string first_serial_decimal = 2;
+    string last_serial_decimal = 3;
+    ChangeLogEntryKind kind = 4;
+    string offset_decimal = 5;
+    string length_decimal = 6;
+    string data_length_decimal = 7;
+    string size_delta_decimal = 8;
+    optional string transaction_id = 9;
+    ActionJournalPayloadStorage payload_storage = 10;
+    optional ChangeLogStreamTransform transform = 11;
+    string change_count_before_decimal = 12;
+    string change_count_after_decimal = 13;
+    optional string checkpoint_before_decimal = 14;
+    optional string checkpoint_after_decimal = 15;
+}
+
+message GetActionJournalViewportResponse {
+    int32 format_version = 1;
+    string session_id = 2;
+    string active_tip_serial_decimal = 3;
+    string change_count_decimal = 4;
+    string undo_count_decimal = 5;
+    string resolved_anchor_serial_decimal = 6;
+    ActionJournalDirection direction = 7;
+    uint32 capacity = 8;
+    repeated ActionJournalEntry entries = 9;
+    bool has_more = 10;
+    optional string next_anchor_serial_decimal = 11;
+    string checkpoint_count_decimal = 12;
 }
 
 // ===========================================================================

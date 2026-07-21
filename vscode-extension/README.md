@@ -111,10 +111,15 @@ npm install
 npm test
 ```
 
-Then open this folder in VS Code and press `F5`. A new Extension Development Host window will open.
+Then open either the repository root or this folder in VS Code and press `F5`.
+An Extension Development Host window will open the included `sample.txt`
+fixture in the data editor, ready for interactive previewing. On Windows, the
+preview server uses port `19000` so it does not replace a server on the default
+port used by an installed copy of the extension.
 
 In the new window:
 
+- Use the included sample immediately, including the Action Journal after making an edit
 - Run `OmegaEdit: Open in Data Editor` from the Command Palette to pick any file directly
 - Or right-click a file in the Explorer and choose `OmegaEdit: Open in Data Editor`
 
@@ -271,14 +276,15 @@ host-backed search navigation, match highlighting on both the byte and text
 columns, command-routed Search Next / Search Previous, search replace /
 replace-all through the provider, active-pane Ctrl-C/Ctrl-X clipboard handling,
 active-pane Ctrl-V insert handling, direct grid editing for hex bytes and
-printable ASCII with Insert-key editing-mode toggling. The extension uses VS
-Code's native status-bar behavior for overwrite mode: blank in insert mode and
-`OVR` in overwrite mode. The UI also includes a
+printable ASCII with Insert-key editing-mode toggling. The status bar shows the
+current insert/overwrite mode and insertion direction; selecting that item opens
+a native VS Code picker for forward or backward insertion. Bytes per row remains
+in the webview toolbar, where it can be changed directly. The UI also includes a
 lightweight byte inspector with LE/BE contextual value editing for non-float
 values including UTF-8 and UTF-16 when valid. Native VS Code status-bar items
-show the active pane, current offset/progress, transform count, dirty state, and
-color-coded server health with a disconnected icon when the server is
-unavailable. The Server status-bar hover groups stable health, current
+show the active pane, current offset/progress, selection and file sizes,
+transform count, dirty state, and color-coded server health with a disconnected
+icon when the server is unavailable. The Server status-bar hover groups stable health, current
 instance, and host/build metadata, while live server metrics remain in Analysis
 > Structure > Server. The inspector is collapsible, inspector values highlight
 their participating bytes in both grid panes, offsets can be shown in hex or
@@ -372,6 +378,7 @@ transform state, change-log status, and the command-surface map below.
 | Transform plugins | `omegaEdit.refreshTransformPlugins` | n/a | `oe list-transform-plugins`, `oe apply-transform-plugin` / transform MCP tools |
 | Checkpoints | Checkpoint commands | `createCheckpoint`, `restoreCheckpoint`, `rollbackCheckpoint` | Checkpoint CLI / MCP tools |
 | Change logs | `omegaEdit.exportChangeLog`, `omegaEdit.applyChangeLog` | `exportChangeLog`, `applyChangeLog` | `oe export-change-log`, `oe apply-change-log` / change-log MCP tools |
+| Action journal | `omegaEdit.showActionJournal` / Live History toolbar panel | `getActionJournalViewport` | Live transaction-aware rewind/fast-forward history with checkpoint landmarks |
 | External highlights / range maps | Hidden annotation commands | Highlight and range-map API methods | VS Code API only |
 
 ### Daffodil Integration Notes

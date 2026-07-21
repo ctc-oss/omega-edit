@@ -1214,6 +1214,153 @@ export interface ExportChangeLogResponse {
         oneofKind: undefined
       }
 }
+/**
+ * @generated from protobuf message omega_edit.v1.GetActionJournalViewportRequest
+ */
+export interface GetActionJournalViewportRequest {
+  /**
+   * @generated from protobuf field: string session_id = 1
+   */
+  sessionId: string
+  /**
+   * @generated from protobuf field: optional string anchor_serial_decimal = 2
+   */
+  anchorSerialDecimal?: string // Absent/"0" = newest for OLDER, oldest for NEWER.
+  /**
+   * @generated from protobuf field: uint32 capacity = 3
+   */
+  capacity: number // Required bounded result capacity.
+  /**
+   * @generated from protobuf field: omega_edit.v1.ActionJournalDirection direction = 4
+   */
+  direction: ActionJournalDirection
+  /**
+   * @generated from protobuf field: repeated omega_edit.v1.ChangeLogEntryKind kinds = 5
+   */
+  kinds: ChangeLogEntryKind[] // Empty = every primitive kind.
+  /**
+   * @generated from protobuf field: optional string transaction_id = 6
+   */
+  transactionId?: string
+}
+/**
+ * @generated from protobuf message omega_edit.v1.ActionJournalEntry
+ */
+export interface ActionJournalEntry {
+  /**
+   * @generated from protobuf field: string entry_index_decimal = 1
+   */
+  entryIndexDecimal: string
+  /**
+   * @generated from protobuf field: string first_serial_decimal = 2
+   */
+  firstSerialDecimal: string
+  /**
+   * @generated from protobuf field: string last_serial_decimal = 3
+   */
+  lastSerialDecimal: string
+  /**
+   * @generated from protobuf field: omega_edit.v1.ChangeLogEntryKind kind = 4
+   */
+  kind: ChangeLogEntryKind
+  /**
+   * @generated from protobuf field: string offset_decimal = 5
+   */
+  offsetDecimal: string
+  /**
+   * @generated from protobuf field: string length_decimal = 6
+   */
+  lengthDecimal: string
+  /**
+   * @generated from protobuf field: string data_length_decimal = 7
+   */
+  dataLengthDecimal: string
+  /**
+   * @generated from protobuf field: string size_delta_decimal = 8
+   */
+  sizeDeltaDecimal: string
+  /**
+   * @generated from protobuf field: optional string transaction_id = 9
+   */
+  transactionId?: string
+  /**
+   * @generated from protobuf field: omega_edit.v1.ActionJournalPayloadStorage payload_storage = 10
+   */
+  payloadStorage: ActionJournalPayloadStorage
+  /**
+   * @generated from protobuf field: optional omega_edit.v1.ChangeLogStreamTransform transform = 11
+   */
+  transform?: ChangeLogStreamTransform
+  /**
+   * @generated from protobuf field: string change_count_before_decimal = 12
+   */
+  changeCountBeforeDecimal: string
+  /**
+   * @generated from protobuf field: string change_count_after_decimal = 13
+   */
+  changeCountAfterDecimal: string
+  /**
+   * @generated from protobuf field: optional string checkpoint_before_decimal = 14
+   */
+  checkpointBeforeDecimal?: string
+  /**
+   * @generated from protobuf field: optional string checkpoint_after_decimal = 15
+   */
+  checkpointAfterDecimal?: string
+}
+/**
+ * @generated from protobuf message omega_edit.v1.GetActionJournalViewportResponse
+ */
+export interface GetActionJournalViewportResponse {
+  /**
+   * @generated from protobuf field: int32 format_version = 1
+   */
+  formatVersion: number
+  /**
+   * @generated from protobuf field: string session_id = 2
+   */
+  sessionId: string
+  /**
+   * @generated from protobuf field: string active_tip_serial_decimal = 3
+   */
+  activeTipSerialDecimal: string
+  /**
+   * @generated from protobuf field: string change_count_decimal = 4
+   */
+  changeCountDecimal: string
+  /**
+   * @generated from protobuf field: string undo_count_decimal = 5
+   */
+  undoCountDecimal: string
+  /**
+   * @generated from protobuf field: string resolved_anchor_serial_decimal = 6
+   */
+  resolvedAnchorSerialDecimal: string
+  /**
+   * @generated from protobuf field: omega_edit.v1.ActionJournalDirection direction = 7
+   */
+  direction: ActionJournalDirection
+  /**
+   * @generated from protobuf field: uint32 capacity = 8
+   */
+  capacity: number
+  /**
+   * @generated from protobuf field: repeated omega_edit.v1.ActionJournalEntry entries = 9
+   */
+  entries: ActionJournalEntry[]
+  /**
+   * @generated from protobuf field: bool has_more = 10
+   */
+  hasMore: boolean
+  /**
+   * @generated from protobuf field: optional string next_anchor_serial_decimal = 11
+   */
+  nextAnchorSerialDecimal?: string
+  /**
+   * @generated from protobuf field: string checkpoint_count_decimal = 12
+   */
+  checkpointCountDecimal: string
+}
 // ===========================================================================
 // Request / Response messages — Data inspection
 // ===========================================================================
@@ -2857,6 +3004,51 @@ export enum ServerControlStatus {
    * @generated from protobuf enum value: SERVER_CONTROL_STATUS_DRAINING = 2;
    */
   DRAINING = 2,
+}
+/**
+ * Metadata-only primitive history viewport. Decimal strings preserve the
+ * native int64 domain without relying on a JavaScript-safe-number transport.
+ *
+ * @generated from protobuf enum omega_edit.v1.ActionJournalDirection
+ */
+export enum ActionJournalDirection {
+  /**
+   * @generated from protobuf enum value: ACTION_JOURNAL_DIRECTION_UNSPECIFIED = 0;
+   */
+  UNSPECIFIED = 0,
+  /**
+   * @generated from protobuf enum value: ACTION_JOURNAL_DIRECTION_OLDER = 1;
+   */
+  OLDER = 1,
+  /**
+   * @generated from protobuf enum value: ACTION_JOURNAL_DIRECTION_NEWER = 2;
+   */
+  NEWER = 2,
+}
+/**
+ * @generated from protobuf enum omega_edit.v1.ActionJournalPayloadStorage
+ */
+export enum ActionJournalPayloadStorage {
+  /**
+   * @generated from protobuf enum value: ACTION_JOURNAL_PAYLOAD_STORAGE_UNSPECIFIED = 0;
+   */
+  UNSPECIFIED = 0,
+  /**
+   * @generated from protobuf enum value: ACTION_JOURNAL_PAYLOAD_STORAGE_NONE = 1;
+   */
+  NONE = 1,
+  /**
+   * @generated from protobuf enum value: ACTION_JOURNAL_PAYLOAD_STORAGE_INLINE = 2;
+   */
+  INLINE = 2,
+  /**
+   * @generated from protobuf enum value: ACTION_JOURNAL_PAYLOAD_STORAGE_FILE_BACKED = 3;
+   */
+  FILE_BACKED = 3,
+  /**
+   * @generated from protobuf enum value: ACTION_JOURNAL_PAYLOAD_STORAGE_CHECKPOINT_BACKED = 4;
+   */
+  CHECKPOINT_BACKED = 4,
 }
 /**
  * Which session content should be fingerprinted.
@@ -9043,6 +9235,671 @@ class ExportChangeLogResponse$Type extends MessageType<ExportChangeLogResponse> 
  * @generated MessageType for protobuf message omega_edit.v1.ExportChangeLogResponse
  */
 export const ExportChangeLogResponse = new ExportChangeLogResponse$Type()
+// @generated message type with reflection information, may provide speed optimized methods
+class GetActionJournalViewportRequest$Type extends MessageType<GetActionJournalViewportRequest> {
+  constructor() {
+    super('omega_edit.v1.GetActionJournalViewportRequest', [
+      { no: 1, name: 'session_id', kind: 'scalar', T: 9 /*ScalarType.STRING*/ },
+      {
+        no: 2,
+        name: 'anchor_serial_decimal',
+        kind: 'scalar',
+        opt: true,
+        T: 9 /*ScalarType.STRING*/,
+      },
+      { no: 3, name: 'capacity', kind: 'scalar', T: 13 /*ScalarType.UINT32*/ },
+      {
+        no: 4,
+        name: 'direction',
+        kind: 'enum',
+        T: () => [
+          'omega_edit.v1.ActionJournalDirection',
+          ActionJournalDirection,
+          'ACTION_JOURNAL_DIRECTION_',
+        ],
+      },
+      {
+        no: 5,
+        name: 'kinds',
+        kind: 'enum',
+        repeat: 1 /*RepeatType.PACKED*/,
+        T: () => [
+          'omega_edit.v1.ChangeLogEntryKind',
+          ChangeLogEntryKind,
+          'CHANGE_LOG_ENTRY_KIND_',
+        ],
+      },
+      {
+        no: 6,
+        name: 'transaction_id',
+        kind: 'scalar',
+        opt: true,
+        T: 9 /*ScalarType.STRING*/,
+      },
+    ])
+  }
+  create(
+    value?: PartialMessage<GetActionJournalViewportRequest>
+  ): GetActionJournalViewportRequest {
+    const message = globalThis.Object.create(this.messagePrototype!)
+    message.sessionId = ''
+    message.capacity = 0
+    message.direction = 0
+    message.kinds = []
+    if (value !== undefined)
+      reflectionMergePartial<GetActionJournalViewportRequest>(
+        this,
+        message,
+        value
+      )
+    return message
+  }
+  internalBinaryRead(
+    reader: IBinaryReader,
+    length: number,
+    options: BinaryReadOptions,
+    target?: GetActionJournalViewportRequest
+  ): GetActionJournalViewportRequest {
+    let message = target ?? this.create(),
+      end = reader.pos + length
+    while (reader.pos < end) {
+      let [fieldNo, wireType] = reader.tag()
+      switch (fieldNo) {
+        case /* string session_id */ 1:
+          message.sessionId = reader.string()
+          break
+        case /* optional string anchor_serial_decimal */ 2:
+          message.anchorSerialDecimal = reader.string()
+          break
+        case /* uint32 capacity */ 3:
+          message.capacity = reader.uint32()
+          break
+        case /* omega_edit.v1.ActionJournalDirection direction */ 4:
+          message.direction = reader.int32()
+          break
+        case /* repeated omega_edit.v1.ChangeLogEntryKind kinds */ 5:
+          if (wireType === WireType.LengthDelimited)
+            for (let e = reader.int32() + reader.pos; reader.pos < e; )
+              message.kinds.push(reader.int32())
+          else message.kinds.push(reader.int32())
+          break
+        case /* optional string transaction_id */ 6:
+          message.transactionId = reader.string()
+          break
+        default:
+          let u = options.readUnknownField
+          if (u === 'throw')
+            throw new globalThis.Error(
+              `Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`
+            )
+          let d = reader.skip(wireType)
+          if (u !== false)
+            (u === true ? UnknownFieldHandler.onRead : u)(
+              this.typeName,
+              message,
+              fieldNo,
+              wireType,
+              d
+            )
+      }
+    }
+    return message
+  }
+  internalBinaryWrite(
+    message: GetActionJournalViewportRequest,
+    writer: IBinaryWriter,
+    options: BinaryWriteOptions
+  ): IBinaryWriter {
+    /* string session_id = 1; */
+    if (message.sessionId !== '')
+      writer.tag(1, WireType.LengthDelimited).string(message.sessionId)
+    /* optional string anchor_serial_decimal = 2; */
+    if (message.anchorSerialDecimal !== undefined)
+      writer
+        .tag(2, WireType.LengthDelimited)
+        .string(message.anchorSerialDecimal)
+    /* uint32 capacity = 3; */
+    if (message.capacity !== 0)
+      writer.tag(3, WireType.Varint).uint32(message.capacity)
+    /* omega_edit.v1.ActionJournalDirection direction = 4; */
+    if (message.direction !== 0)
+      writer.tag(4, WireType.Varint).int32(message.direction)
+    /* repeated omega_edit.v1.ChangeLogEntryKind kinds = 5; */
+    if (message.kinds.length) {
+      writer.tag(5, WireType.LengthDelimited).fork()
+      for (let i = 0; i < message.kinds.length; i++)
+        writer.int32(message.kinds[i])
+      writer.join()
+    }
+    /* optional string transaction_id = 6; */
+    if (message.transactionId !== undefined)
+      writer.tag(6, WireType.LengthDelimited).string(message.transactionId)
+    let u = options.writeUnknownFields
+    if (u !== false)
+      (u == true ? UnknownFieldHandler.onWrite : u)(
+        this.typeName,
+        message,
+        writer
+      )
+    return writer
+  }
+}
+/**
+ * @generated MessageType for protobuf message omega_edit.v1.GetActionJournalViewportRequest
+ */
+export const GetActionJournalViewportRequest =
+  new GetActionJournalViewportRequest$Type()
+// @generated message type with reflection information, may provide speed optimized methods
+class ActionJournalEntry$Type extends MessageType<ActionJournalEntry> {
+  constructor() {
+    super('omega_edit.v1.ActionJournalEntry', [
+      {
+        no: 1,
+        name: 'entry_index_decimal',
+        kind: 'scalar',
+        T: 9 /*ScalarType.STRING*/,
+      },
+      {
+        no: 2,
+        name: 'first_serial_decimal',
+        kind: 'scalar',
+        T: 9 /*ScalarType.STRING*/,
+      },
+      {
+        no: 3,
+        name: 'last_serial_decimal',
+        kind: 'scalar',
+        T: 9 /*ScalarType.STRING*/,
+      },
+      {
+        no: 4,
+        name: 'kind',
+        kind: 'enum',
+        T: () => [
+          'omega_edit.v1.ChangeLogEntryKind',
+          ChangeLogEntryKind,
+          'CHANGE_LOG_ENTRY_KIND_',
+        ],
+      },
+      {
+        no: 5,
+        name: 'offset_decimal',
+        kind: 'scalar',
+        T: 9 /*ScalarType.STRING*/,
+      },
+      {
+        no: 6,
+        name: 'length_decimal',
+        kind: 'scalar',
+        T: 9 /*ScalarType.STRING*/,
+      },
+      {
+        no: 7,
+        name: 'data_length_decimal',
+        kind: 'scalar',
+        T: 9 /*ScalarType.STRING*/,
+      },
+      {
+        no: 8,
+        name: 'size_delta_decimal',
+        kind: 'scalar',
+        T: 9 /*ScalarType.STRING*/,
+      },
+      {
+        no: 9,
+        name: 'transaction_id',
+        kind: 'scalar',
+        opt: true,
+        T: 9 /*ScalarType.STRING*/,
+      },
+      {
+        no: 10,
+        name: 'payload_storage',
+        kind: 'enum',
+        T: () => [
+          'omega_edit.v1.ActionJournalPayloadStorage',
+          ActionJournalPayloadStorage,
+          'ACTION_JOURNAL_PAYLOAD_STORAGE_',
+        ],
+      },
+      {
+        no: 11,
+        name: 'transform',
+        kind: 'message',
+        T: () => ChangeLogStreamTransform,
+      },
+      {
+        no: 12,
+        name: 'change_count_before_decimal',
+        kind: 'scalar',
+        T: 9 /*ScalarType.STRING*/,
+      },
+      {
+        no: 13,
+        name: 'change_count_after_decimal',
+        kind: 'scalar',
+        T: 9 /*ScalarType.STRING*/,
+      },
+      {
+        no: 14,
+        name: 'checkpoint_before_decimal',
+        kind: 'scalar',
+        opt: true,
+        T: 9 /*ScalarType.STRING*/,
+      },
+      {
+        no: 15,
+        name: 'checkpoint_after_decimal',
+        kind: 'scalar',
+        opt: true,
+        T: 9 /*ScalarType.STRING*/,
+      },
+    ])
+  }
+  create(value?: PartialMessage<ActionJournalEntry>): ActionJournalEntry {
+    const message = globalThis.Object.create(this.messagePrototype!)
+    message.entryIndexDecimal = ''
+    message.firstSerialDecimal = ''
+    message.lastSerialDecimal = ''
+    message.kind = 0
+    message.offsetDecimal = ''
+    message.lengthDecimal = ''
+    message.dataLengthDecimal = ''
+    message.sizeDeltaDecimal = ''
+    message.payloadStorage = 0
+    message.changeCountBeforeDecimal = ''
+    message.changeCountAfterDecimal = ''
+    if (value !== undefined)
+      reflectionMergePartial<ActionJournalEntry>(this, message, value)
+    return message
+  }
+  internalBinaryRead(
+    reader: IBinaryReader,
+    length: number,
+    options: BinaryReadOptions,
+    target?: ActionJournalEntry
+  ): ActionJournalEntry {
+    let message = target ?? this.create(),
+      end = reader.pos + length
+    while (reader.pos < end) {
+      let [fieldNo, wireType] = reader.tag()
+      switch (fieldNo) {
+        case /* string entry_index_decimal */ 1:
+          message.entryIndexDecimal = reader.string()
+          break
+        case /* string first_serial_decimal */ 2:
+          message.firstSerialDecimal = reader.string()
+          break
+        case /* string last_serial_decimal */ 3:
+          message.lastSerialDecimal = reader.string()
+          break
+        case /* omega_edit.v1.ChangeLogEntryKind kind */ 4:
+          message.kind = reader.int32()
+          break
+        case /* string offset_decimal */ 5:
+          message.offsetDecimal = reader.string()
+          break
+        case /* string length_decimal */ 6:
+          message.lengthDecimal = reader.string()
+          break
+        case /* string data_length_decimal */ 7:
+          message.dataLengthDecimal = reader.string()
+          break
+        case /* string size_delta_decimal */ 8:
+          message.sizeDeltaDecimal = reader.string()
+          break
+        case /* optional string transaction_id */ 9:
+          message.transactionId = reader.string()
+          break
+        case /* omega_edit.v1.ActionJournalPayloadStorage payload_storage */ 10:
+          message.payloadStorage = reader.int32()
+          break
+        case /* optional omega_edit.v1.ChangeLogStreamTransform transform */ 11:
+          message.transform = ChangeLogStreamTransform.internalBinaryRead(
+            reader,
+            reader.uint32(),
+            options,
+            message.transform
+          )
+          break
+        case /* string change_count_before_decimal */ 12:
+          message.changeCountBeforeDecimal = reader.string()
+          break
+        case /* string change_count_after_decimal */ 13:
+          message.changeCountAfterDecimal = reader.string()
+          break
+        case /* optional string checkpoint_before_decimal */ 14:
+          message.checkpointBeforeDecimal = reader.string()
+          break
+        case /* optional string checkpoint_after_decimal */ 15:
+          message.checkpointAfterDecimal = reader.string()
+          break
+        default:
+          let u = options.readUnknownField
+          if (u === 'throw')
+            throw new globalThis.Error(
+              `Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`
+            )
+          let d = reader.skip(wireType)
+          if (u !== false)
+            (u === true ? UnknownFieldHandler.onRead : u)(
+              this.typeName,
+              message,
+              fieldNo,
+              wireType,
+              d
+            )
+      }
+    }
+    return message
+  }
+  internalBinaryWrite(
+    message: ActionJournalEntry,
+    writer: IBinaryWriter,
+    options: BinaryWriteOptions
+  ): IBinaryWriter {
+    /* string entry_index_decimal = 1; */
+    if (message.entryIndexDecimal !== '')
+      writer.tag(1, WireType.LengthDelimited).string(message.entryIndexDecimal)
+    /* string first_serial_decimal = 2; */
+    if (message.firstSerialDecimal !== '')
+      writer.tag(2, WireType.LengthDelimited).string(message.firstSerialDecimal)
+    /* string last_serial_decimal = 3; */
+    if (message.lastSerialDecimal !== '')
+      writer.tag(3, WireType.LengthDelimited).string(message.lastSerialDecimal)
+    /* omega_edit.v1.ChangeLogEntryKind kind = 4; */
+    if (message.kind !== 0) writer.tag(4, WireType.Varint).int32(message.kind)
+    /* string offset_decimal = 5; */
+    if (message.offsetDecimal !== '')
+      writer.tag(5, WireType.LengthDelimited).string(message.offsetDecimal)
+    /* string length_decimal = 6; */
+    if (message.lengthDecimal !== '')
+      writer.tag(6, WireType.LengthDelimited).string(message.lengthDecimal)
+    /* string data_length_decimal = 7; */
+    if (message.dataLengthDecimal !== '')
+      writer.tag(7, WireType.LengthDelimited).string(message.dataLengthDecimal)
+    /* string size_delta_decimal = 8; */
+    if (message.sizeDeltaDecimal !== '')
+      writer.tag(8, WireType.LengthDelimited).string(message.sizeDeltaDecimal)
+    /* optional string transaction_id = 9; */
+    if (message.transactionId !== undefined)
+      writer.tag(9, WireType.LengthDelimited).string(message.transactionId)
+    /* omega_edit.v1.ActionJournalPayloadStorage payload_storage = 10; */
+    if (message.payloadStorage !== 0)
+      writer.tag(10, WireType.Varint).int32(message.payloadStorage)
+    /* optional omega_edit.v1.ChangeLogStreamTransform transform = 11; */
+    if (message.transform)
+      ChangeLogStreamTransform.internalBinaryWrite(
+        message.transform,
+        writer.tag(11, WireType.LengthDelimited).fork(),
+        options
+      ).join()
+    /* string change_count_before_decimal = 12; */
+    if (message.changeCountBeforeDecimal !== '')
+      writer
+        .tag(12, WireType.LengthDelimited)
+        .string(message.changeCountBeforeDecimal)
+    /* string change_count_after_decimal = 13; */
+    if (message.changeCountAfterDecimal !== '')
+      writer
+        .tag(13, WireType.LengthDelimited)
+        .string(message.changeCountAfterDecimal)
+    /* optional string checkpoint_before_decimal = 14; */
+    if (message.checkpointBeforeDecimal !== undefined)
+      writer
+        .tag(14, WireType.LengthDelimited)
+        .string(message.checkpointBeforeDecimal)
+    /* optional string checkpoint_after_decimal = 15; */
+    if (message.checkpointAfterDecimal !== undefined)
+      writer
+        .tag(15, WireType.LengthDelimited)
+        .string(message.checkpointAfterDecimal)
+    let u = options.writeUnknownFields
+    if (u !== false)
+      (u == true ? UnknownFieldHandler.onWrite : u)(
+        this.typeName,
+        message,
+        writer
+      )
+    return writer
+  }
+}
+/**
+ * @generated MessageType for protobuf message omega_edit.v1.ActionJournalEntry
+ */
+export const ActionJournalEntry = new ActionJournalEntry$Type()
+// @generated message type with reflection information, may provide speed optimized methods
+class GetActionJournalViewportResponse$Type extends MessageType<GetActionJournalViewportResponse> {
+  constructor() {
+    super('omega_edit.v1.GetActionJournalViewportResponse', [
+      {
+        no: 1,
+        name: 'format_version',
+        kind: 'scalar',
+        T: 5 /*ScalarType.INT32*/,
+      },
+      { no: 2, name: 'session_id', kind: 'scalar', T: 9 /*ScalarType.STRING*/ },
+      {
+        no: 3,
+        name: 'active_tip_serial_decimal',
+        kind: 'scalar',
+        T: 9 /*ScalarType.STRING*/,
+      },
+      {
+        no: 4,
+        name: 'change_count_decimal',
+        kind: 'scalar',
+        T: 9 /*ScalarType.STRING*/,
+      },
+      {
+        no: 5,
+        name: 'undo_count_decimal',
+        kind: 'scalar',
+        T: 9 /*ScalarType.STRING*/,
+      },
+      {
+        no: 6,
+        name: 'resolved_anchor_serial_decimal',
+        kind: 'scalar',
+        T: 9 /*ScalarType.STRING*/,
+      },
+      {
+        no: 7,
+        name: 'direction',
+        kind: 'enum',
+        T: () => [
+          'omega_edit.v1.ActionJournalDirection',
+          ActionJournalDirection,
+          'ACTION_JOURNAL_DIRECTION_',
+        ],
+      },
+      { no: 8, name: 'capacity', kind: 'scalar', T: 13 /*ScalarType.UINT32*/ },
+      {
+        no: 9,
+        name: 'entries',
+        kind: 'message',
+        repeat: 2 /*RepeatType.UNPACKED*/,
+        T: () => ActionJournalEntry,
+      },
+      { no: 10, name: 'has_more', kind: 'scalar', T: 8 /*ScalarType.BOOL*/ },
+      {
+        no: 11,
+        name: 'next_anchor_serial_decimal',
+        kind: 'scalar',
+        opt: true,
+        T: 9 /*ScalarType.STRING*/,
+      },
+      {
+        no: 12,
+        name: 'checkpoint_count_decimal',
+        kind: 'scalar',
+        T: 9 /*ScalarType.STRING*/,
+      },
+    ])
+  }
+  create(
+    value?: PartialMessage<GetActionJournalViewportResponse>
+  ): GetActionJournalViewportResponse {
+    const message = globalThis.Object.create(this.messagePrototype!)
+    message.formatVersion = 0
+    message.sessionId = ''
+    message.activeTipSerialDecimal = ''
+    message.changeCountDecimal = ''
+    message.undoCountDecimal = ''
+    message.resolvedAnchorSerialDecimal = ''
+    message.direction = 0
+    message.capacity = 0
+    message.entries = []
+    message.hasMore = false
+    message.checkpointCountDecimal = ''
+    if (value !== undefined)
+      reflectionMergePartial<GetActionJournalViewportResponse>(
+        this,
+        message,
+        value
+      )
+    return message
+  }
+  internalBinaryRead(
+    reader: IBinaryReader,
+    length: number,
+    options: BinaryReadOptions,
+    target?: GetActionJournalViewportResponse
+  ): GetActionJournalViewportResponse {
+    let message = target ?? this.create(),
+      end = reader.pos + length
+    while (reader.pos < end) {
+      let [fieldNo, wireType] = reader.tag()
+      switch (fieldNo) {
+        case /* int32 format_version */ 1:
+          message.formatVersion = reader.int32()
+          break
+        case /* string session_id */ 2:
+          message.sessionId = reader.string()
+          break
+        case /* string active_tip_serial_decimal */ 3:
+          message.activeTipSerialDecimal = reader.string()
+          break
+        case /* string change_count_decimal */ 4:
+          message.changeCountDecimal = reader.string()
+          break
+        case /* string undo_count_decimal */ 5:
+          message.undoCountDecimal = reader.string()
+          break
+        case /* string resolved_anchor_serial_decimal */ 6:
+          message.resolvedAnchorSerialDecimal = reader.string()
+          break
+        case /* omega_edit.v1.ActionJournalDirection direction */ 7:
+          message.direction = reader.int32()
+          break
+        case /* uint32 capacity */ 8:
+          message.capacity = reader.uint32()
+          break
+        case /* repeated omega_edit.v1.ActionJournalEntry entries */ 9:
+          message.entries.push(
+            ActionJournalEntry.internalBinaryRead(
+              reader,
+              reader.uint32(),
+              options
+            )
+          )
+          break
+        case /* bool has_more */ 10:
+          message.hasMore = reader.bool()
+          break
+        case /* optional string next_anchor_serial_decimal */ 11:
+          message.nextAnchorSerialDecimal = reader.string()
+          break
+        case /* string checkpoint_count_decimal */ 12:
+          message.checkpointCountDecimal = reader.string()
+          break
+        default:
+          let u = options.readUnknownField
+          if (u === 'throw')
+            throw new globalThis.Error(
+              `Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`
+            )
+          let d = reader.skip(wireType)
+          if (u !== false)
+            (u === true ? UnknownFieldHandler.onRead : u)(
+              this.typeName,
+              message,
+              fieldNo,
+              wireType,
+              d
+            )
+      }
+    }
+    return message
+  }
+  internalBinaryWrite(
+    message: GetActionJournalViewportResponse,
+    writer: IBinaryWriter,
+    options: BinaryWriteOptions
+  ): IBinaryWriter {
+    /* int32 format_version = 1; */
+    if (message.formatVersion !== 0)
+      writer.tag(1, WireType.Varint).int32(message.formatVersion)
+    /* string session_id = 2; */
+    if (message.sessionId !== '')
+      writer.tag(2, WireType.LengthDelimited).string(message.sessionId)
+    /* string active_tip_serial_decimal = 3; */
+    if (message.activeTipSerialDecimal !== '')
+      writer
+        .tag(3, WireType.LengthDelimited)
+        .string(message.activeTipSerialDecimal)
+    /* string change_count_decimal = 4; */
+    if (message.changeCountDecimal !== '')
+      writer.tag(4, WireType.LengthDelimited).string(message.changeCountDecimal)
+    /* string undo_count_decimal = 5; */
+    if (message.undoCountDecimal !== '')
+      writer.tag(5, WireType.LengthDelimited).string(message.undoCountDecimal)
+    /* string resolved_anchor_serial_decimal = 6; */
+    if (message.resolvedAnchorSerialDecimal !== '')
+      writer
+        .tag(6, WireType.LengthDelimited)
+        .string(message.resolvedAnchorSerialDecimal)
+    /* omega_edit.v1.ActionJournalDirection direction = 7; */
+    if (message.direction !== 0)
+      writer.tag(7, WireType.Varint).int32(message.direction)
+    /* uint32 capacity = 8; */
+    if (message.capacity !== 0)
+      writer.tag(8, WireType.Varint).uint32(message.capacity)
+    /* repeated omega_edit.v1.ActionJournalEntry entries = 9; */
+    for (let i = 0; i < message.entries.length; i++)
+      ActionJournalEntry.internalBinaryWrite(
+        message.entries[i],
+        writer.tag(9, WireType.LengthDelimited).fork(),
+        options
+      ).join()
+    /* bool has_more = 10; */
+    if (message.hasMore !== false)
+      writer.tag(10, WireType.Varint).bool(message.hasMore)
+    /* optional string next_anchor_serial_decimal = 11; */
+    if (message.nextAnchorSerialDecimal !== undefined)
+      writer
+        .tag(11, WireType.LengthDelimited)
+        .string(message.nextAnchorSerialDecimal)
+    /* string checkpoint_count_decimal = 12; */
+    if (message.checkpointCountDecimal !== '')
+      writer
+        .tag(12, WireType.LengthDelimited)
+        .string(message.checkpointCountDecimal)
+    let u = options.writeUnknownFields
+    if (u !== false)
+      (u == true ? UnknownFieldHandler.onWrite : u)(
+        this.typeName,
+        message,
+        writer
+      )
+    return writer
+  }
+}
+/**
+ * @generated MessageType for protobuf message omega_edit.v1.GetActionJournalViewportResponse
+ */
+export const GetActionJournalViewportResponse =
+  new GetActionJournalViewportResponse$Type()
 // @generated message type with reflection information, may provide speed optimized methods
 class GetComputedFileSizeRequest$Type extends MessageType<GetComputedFileSizeRequest> {
   constructor() {
@@ -15423,6 +16280,12 @@ export const EditorService = new ServiceType('omega_edit.v1.EditorService', [
     options: {},
     I: ExportChangeLogRequest,
     O: ExportChangeLogResponse,
+  },
+  {
+    name: 'GetActionJournalViewport',
+    options: {},
+    I: GetActionJournalViewportRequest,
+    O: GetActionJournalViewportResponse,
   },
   {
     name: 'GetComputedFileSize',

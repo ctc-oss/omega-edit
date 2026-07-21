@@ -51,6 +51,7 @@ import {
   EditorSearchController,
   ScopedEditorSessionHandle,
   getByteOrderMark,
+  getActionJournalViewport as requestActionJournalViewport,
   getChangeCount,
   getChangeDetails,
   getClientVersion,
@@ -66,6 +67,7 @@ import {
   SaveStatus,
   SearchCaseFolding,
   type IServerInfo,
+  type ActionJournalViewport,
   insert,
   listTransformPlugins,
   modifyViewport,
@@ -98,7 +100,10 @@ import {
 import * as os from 'node:os'
 import * as path from 'node:path'
 import * as vscode from 'vscode'
-import { OMEGA_EDIT_VIEW_TYPE } from './constants'
+import {
+  OMEGA_EDIT_TOGGLE_INSERT_DIRECTION_COMMAND,
+  OMEGA_EDIT_VIEW_TYPE,
+} from './constants'
 import {
   type AssistantSessionContext,
   cloneAssistantCommandSurfaces,
@@ -119,6 +124,8 @@ import {
   type WebviewEditorState,
   type WebviewEditorUiState,
   type WebviewExternalHighlight,
+  type WebviewActionJournalKind,
+  type WebviewActionJournalViewport,
   type WebviewRangeMapNode,
   type WebviewSessionContentInfo,
   type WebviewSessionContentSource,
@@ -184,6 +191,16 @@ interface EditorSession {
   saveTask?: Promise<void>
   savedDiskFingerprint?: ChangeLogFingerprint
   checkpointTimeline: CheckpointTimelineState
+  actionJournal: ActionJournalState
+}
+
+interface ActionJournalState {
+  visible: boolean
+  capacity: number
+  direction: 'older' | 'newer'
+  requestGeneration: number
+  refreshTask?: Promise<void>
+  refreshPending: boolean
 }
 
 interface CheckpointTimelineEntry {
@@ -431,6 +448,7 @@ const CONTEXT_HAS_PENDING_CHANGES = 'omegaEdit.hasPendingChanges'
 const CONTEXT_TRANSFORM_IN_FLIGHT = 'omegaEdit.transformInFlight'
 const CONTEXT_ACTIVE_SESSION_RESOURCE_PATHS =
   'omegaEdit.activeSessionResourcePaths'
+const ACTION_JOURNAL_REQUEST_TIMEOUT_MS = 15_000
 
 function openEditorFirstMessage(): string {
   return vscode.l10n.t('Open an OmegaEdit editor first')
@@ -2050,21 +2068,17 @@ export class HexEditorProvider
       vscode.StatusBarAlignment.Right,
       106
     ),
-    layout: vscode.window.createStatusBarItem(
+    transforms: vscode.window.createStatusBarItem(
       vscode.StatusBarAlignment.Right,
       105
     ),
-    transforms: vscode.window.createStatusBarItem(
+    dirty: vscode.window.createStatusBarItem(
       vscode.StatusBarAlignment.Right,
       104
     ),
-    dirty: vscode.window.createStatusBarItem(
-      vscode.StatusBarAlignment.Right,
-      103
-    ),
     server: vscode.window.createStatusBarItem(
       vscode.StatusBarAlignment.Right,
-      102
+      103
     ),
   }
 
@@ -2080,11 +2094,11 @@ export class HexEditorProvider
       this.statusItems.size,
       this.statusItems.pane,
       this.statusItems.mode,
-      this.statusItems.layout,
       this.statusItems.transforms,
       this.statusItems.dirty,
       this.statusItems.server
     )
+    this.statusItems.mode.command = OMEGA_EDIT_TOGGLE_INSERT_DIRECTION_COMMAND
     const configuration = vscode.workspace.getConfiguration('omegaEdit')
     const configuredStorage =
       this.extensionContext?.storageUri?.fsPath ||
@@ -2552,6 +2566,13 @@ export class HexEditorProvider
         visible: false,
         navigating: false,
       },
+      actionJournal: {
+        visible: false,
+        capacity: 256,
+        direction: 'older',
+        requestGeneration: 0,
+        refreshPending: false,
+      },
     }
     if (timelineStorage) {
       const heartbeatTimer = setInterval(() => {
@@ -2778,6 +2799,18 @@ export class HexEditorProvider
       },
       onSessionEvent: async (event, context) => {
         this.postTransformProgress(session, event)
+        const kind = event.getSessionEventKind()
+        if (
+          kind === SessionEventKind.EDIT ||
+          kind === SessionEventKind.UNDO ||
+          kind === SessionEventKind.CLEAR ||
+          kind === SessionEventKind.TRANSFORM ||
+          kind === SessionEventKind.CREATE_CHECKPOINT ||
+          kind === SessionEventKind.DESTROY_CHECKPOINT ||
+          kind === SessionEventKind.RESTORE_CHECKPOINT
+        ) {
+          this.queueActionJournalRefresh(session)
+        }
         if (!context.stateChanged) {
           return
         }
@@ -2831,6 +2864,40 @@ export class HexEditorProvider
   getEditorState(options?: unknown): WebviewEditorState | undefined {
     const session = this.resolveCommandSession(options)
     return session ? this.buildEditorState(session) : undefined
+  }
+
+  async getActionJournalViewport(options?: {
+    uri?: vscode.Uri | string
+    anchorSerial?: string | number | bigint
+    capacity?: number
+    direction?: 'older' | 'newer'
+    kinds?: WebviewActionJournalKind[]
+    transactionId?: string
+  }): Promise<ActionJournalViewport | undefined> {
+    const session = this.resolveCommandSession(options)
+    if (!session) {
+      return undefined
+    }
+    return requestActionJournalViewport({
+      sessionId: session.sessionId,
+      anchorSerial: options?.anchorSerial,
+      capacity: options?.capacity,
+      direction: options?.direction,
+      kinds: options?.kinds,
+      transactionId: options?.transactionId,
+    })
+  }
+
+  async showActionJournal(options?: unknown): Promise<void> {
+    const session = this.resolveCommandSession(options)
+    if (!session) {
+      return
+    }
+    if (session.checkpointTimeline.visible) {
+      session.checkpointTimeline.visible = false
+      this.postCheckpointTimeline(session)
+    }
+    await this.postActionJournalViewport(session)
   }
 
   getAssistantContext(options?: unknown): AssistantSessionContext | undefined {
@@ -4271,23 +4338,6 @@ export class HexEditorProvider
     }
   }
 
-  async showCheckpointTimeline(
-    options?: unknown
-  ): Promise<CheckpointTimelineResult | undefined> {
-    const session = this.resolveCommandSession(options)
-    if (!session) {
-      void vscode.window.showWarningMessage(openEditorFirstMessage())
-      return
-    }
-    session.checkpointTimeline.visible = true
-    this.postCheckpointTimeline(session)
-    return {
-      state: this.buildEditorState(session),
-      checkpointCount: session.checkpointTimeline.entries.length,
-      moved: false,
-    }
-  }
-
   private async navigateToCheckpoint(
     session: EditorSession,
     targetCheckpointCount: number
@@ -4496,6 +4546,110 @@ export class HexEditorProvider
       }
       throw error
     }
+  }
+
+  private async postActionJournalViewport(
+    session: EditorSession,
+    options: {
+      anchorSerial?: string
+      capacity?: number
+      direction?: 'older' | 'newer'
+      append?: boolean
+    } = {}
+  ): Promise<void> {
+    const state = session.actionJournal
+    const requestGeneration = ++state.requestGeneration
+    const capacity = options.capacity ?? state.capacity
+    const direction = options.direction ?? state.direction
+    state.visible = true
+    state.capacity = capacity
+    state.direction = direction
+    let viewport: ActionJournalViewport
+    let timeout: ReturnType<typeof setTimeout> | undefined
+    try {
+      viewport = await Promise.race([
+        requestActionJournalViewport({
+          sessionId: session.sessionId,
+          anchorSerial: options.anchorSerial,
+          capacity,
+          direction,
+        }),
+        new Promise<never>((_resolve, reject) => {
+          timeout = setTimeout(() => {
+            reject(new Error(vscode.l10n.t('Action journal request timed out')))
+          }, ACTION_JOURNAL_REQUEST_TIMEOUT_MS)
+        }),
+      ])
+    } catch (error) {
+      if (
+        requestGeneration === state.requestGeneration &&
+        !session.disposed &&
+        !session.scope.isDisposed
+      ) {
+        const message = error instanceof Error ? error.message : String(error)
+        this.postWebviewMessage(session, {
+          type: 'actionJournalError',
+          visible: true,
+          message: omegaEditErrorMessage(message),
+        })
+      }
+      throw error
+    } finally {
+      if (timeout) {
+        clearTimeout(timeout)
+      }
+    }
+    if (
+      requestGeneration !== state.requestGeneration ||
+      session.disposed ||
+      session.scope.isDisposed
+    ) {
+      return
+    }
+    const webviewViewport: WebviewActionJournalViewport = {
+      version: 1,
+      activeTipSerial: viewport.activeTipSerial,
+      changeCount: viewport.changeCount,
+      undoCount: viewport.undoCount,
+      checkpointCount: viewport.checkpointCount,
+      anchorSerial: viewport.anchorSerial,
+      capacity: viewport.capacity,
+      direction: viewport.direction,
+      entries: viewport.entries,
+      hasMore: viewport.hasMore,
+      nextAnchorSerial: viewport.nextAnchorSerial,
+    }
+    this.postWebviewMessage(session, {
+      type: 'actionJournalViewport',
+      visible: true,
+      append: options.append === true,
+      viewport: webviewViewport,
+    })
+  }
+
+  private queueActionJournalRefresh(session: EditorSession): void {
+    const state = session.actionJournal
+    if (!state.visible || session.disposed || session.scope.isDisposed) {
+      return
+    }
+    if (state.refreshTask) {
+      state.refreshPending = true
+      return
+    }
+    state.refreshTask = (async () => {
+      do {
+        state.refreshPending = false
+        await this.postActionJournalViewport(session)
+      } while (state.refreshPending && state.visible)
+    })()
+      .catch((error) => {
+        console.warn(
+          `Failed to refresh action journal: ${error instanceof Error ? error.message : String(error)}`
+        )
+      })
+      .finally(() => {
+        state.refreshTask = undefined
+      })
   }
 
   private postPendingHealthWebviewMessage(
@@ -5311,10 +5465,12 @@ export class HexEditorProvider
         ? vscode.l10n.t('Overwrite')
         : vscode.l10n.t('Insert')
     const direction = state.insertDirection === 'forward' ? '→' : '←'
-    this.statusItems.mode.name = vscode.l10n.t('Ωedit Edit Mode')
+    this.statusItems.mode.name = vscode.l10n.t(
+      'Ωedit Edit Mode and Insert Direction'
+    )
     this.statusItems.mode.text = `${mode} ${direction}`
     this.statusItems.mode.tooltip = vscode.l10n.t(
-      'Ωedit {mode} mode; {direction} insertion direction',
+      'Ωedit {mode} mode; {direction} insertion direction. Click to change insert direction.',
       {
         mode,
         direction:
@@ -5322,15 +5478,6 @@ export class HexEditorProvider
             ? vscode.l10n.t('forward')
             : vscode.l10n.t('backward'),
       }
-    )
-
-    this.statusItems.layout.name = vscode.l10n.t('Ωedit Bytes Per Row')
-    this.statusItems.layout.text = vscode.l10n.t('{count} B/row', {
-      count: formatStatusByteCount(state.bytesPerRow),
-    })
-    this.statusItems.layout.tooltip = vscode.l10n.t(
-      'Ωedit displays {count} bytes per row',
-      { count: formatStatusByteCount(state.bytesPerRow) }
     )
 
     this.statusItems.transforms.text = session.transformInFlight
@@ -7576,12 +7723,6 @@ export class HexEditorProvider
           break
         }
 
-        case 'hideCheckpointTimeline': {
-          session.checkpointTimeline.visible = false
-          this.postCheckpointTimeline(session)
-          break
-        }
-
         case 'rollbackCheckpoint': {
           await this.rollbackCheckpoint({ uri: session.document.uri })
           break
@@ -7594,6 +7735,18 @@ export class HexEditorProvider
 
         case 'exportChangeLog': {
           await this.exportChangeLog({ uri: session.document.uri })
+          break
+        }
+
+        case 'requestActionJournalViewport': {
+          await this.postActionJournalViewport(session, msg)
+          break
+        }
+
+        case 'hideActionJournal': {
+          session.actionJournal.visible = false
+          session.actionJournal.requestGeneration += 1
+          this.postWebviewMessage(session, { type: 'actionJournalHidden' })
           break
         }
 

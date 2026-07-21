@@ -372,7 +372,7 @@
   })
 </script>
 
-<div class="file-scrollbar" class:dragging>
+<div class="file-scrollbar" class:dragging class:disabled>
   <div
     bind:this={trackElement}
     class="file-scrollbar-track"

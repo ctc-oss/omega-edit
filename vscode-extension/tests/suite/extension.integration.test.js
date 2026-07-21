@@ -247,6 +247,7 @@ suite('OmegaEdit VS Code extension', () => {
     assert.equal(typeof extensionApi.reveal, 'function')
     assert.equal(typeof extensionApi.getEditorState, 'function')
     assert.equal(typeof extensionApi.getAssistantContext, 'function')
+    assert.equal(typeof extensionApi.getActionJournalViewport, 'function')
     assert.equal(typeof extensionApi.setExternalHighlights, 'function')
     assert.equal(typeof extensionApi.clearExternalHighlights, 'function')
     assert.equal(typeof extensionApi.loadRangeMap, 'function')
@@ -317,6 +318,25 @@ suite('OmegaEdit VS Code extension', () => {
       assert.ok(session, 'Expected a live session for the typed API test')
       assert.equal(openedState.uri, uri.toString())
       assert.equal(openedState.fileSize, 6)
+
+      const emptyJournal = await extensionApi.getActionJournalViewport({
+        uri,
+        capacity: 256,
+        direction: 'older',
+        kinds: ['INSERT', 'DELETE', 'OVERWRITE', 'REPLACE', 'TRANSFORM'],
+      })
+      assert.equal(emptyJournal.version, 1)
+      assert.equal(emptyJournal.sessionId, session.sessionId)
+      assert.equal(emptyJournal.activeTipSerial, '0')
+      assert.equal(emptyJournal.changeCount, '0')
+      assert.equal(emptyJournal.undoCount, '0')
+      assert.equal(emptyJournal.checkpointCount, '0')
+      assert.equal(emptyJournal.anchorSerial, '0')
+      assert.equal(emptyJournal.capacity, 256)
+      assert.equal(emptyJournal.direction, 'older')
+      assert.deepEqual(emptyJournal.entries, [])
+      assert.equal(emptyJournal.hasMore, false)
+      assert.equal(emptyJournal.nextAnchorSerial, undefined)
 
       await provider.dispatchWebviewMessageForTesting(uri, {
         type: 'editorStateChanged',
@@ -1477,6 +1497,118 @@ suite('OmegaEdit VS Code extension', () => {
 
     await provider.navigateToCheckpoint(session, 0)
     await assertSessionText(session.sessionId, 'abc')
+
+    await panel.fireDidDispose()
+    await fs.rm(tmpDir, { recursive: true, force: true })
+  })
+
+  test('resets analyzer history and change serials when branching from the original checkpoint', async () => {
+    const tmpDir = await fs.mkdtemp(
+      path.join(os.tmpdir(), 'omega-edit-vscode-checkpoint-branch-history-')
+    )
+    const samplePath = path.join(tmpDir, 'branch-history.bin')
+    await fs.writeFile(samplePath, Buffer.from('abc', 'utf8'))
+
+    const provider = new HexEditorProvider({ subscriptions: [] }, testPort)
+    const panel = createMockWebviewPanel()
+    const document = await provider.openCustomDocument(
+      vscode.Uri.file(samplePath),
+      { backupId: undefined, untitledDocumentData: undefined },
+      new vscode.CancellationTokenSource().token
+    )
+    await provider.resolveCustomEditor(
+      document,
+      panel,
+      new vscode.CancellationTokenSource().token
+    )
+
+    const session = provider.getSessionForTesting(document.uri)
+    assert.ok(session, 'Expected a session for checkpoint branch history')
+
+    await provider.dispatchWebviewMessageForTesting(document.uri, {
+      type: 'insert',
+      offset: 3,
+      data: Buffer.from('1', 'utf8').toString('hex'),
+    })
+    assert.equal(
+      (await provider.createCheckpoint({ uri: document.uri }))?.checkpointCount,
+      1
+    )
+    await provider.dispatchWebviewMessageForTesting(document.uri, {
+      type: 'insert',
+      offset: 4,
+      data: Buffer.from('2', 'utf8').toString('hex'),
+    })
+    assert.equal(
+      (await provider.createCheckpoint({ uri: document.uri }))?.checkpointCount,
+      2
+    )
+    await assertSessionText(session.sessionId, 'abc12')
+
+    await provider.dispatchWebviewMessageForTesting(document.uri, {
+      type: 'navigateCheckpointTimeline',
+      checkpoint: 0,
+    })
+    await assertSessionText(session.sessionId, 'abc')
+
+    await provider.dispatchWebviewMessageForTesting(document.uri, {
+      type: 'insert',
+      offset: 3,
+      data: Buffer.from('X', 'utf8').toString('hex'),
+    })
+    await assertSessionText(session.sessionId, 'abcX')
+
+    assert.deepEqual(lastMessageOfType(panel.messages, 'editState'), {
+      type: 'editState',
+      canUndo: true,
+      canRedo: false,
+      undoCount: 1,
+      redoCount: 0,
+      isDirty: true,
+      savedChangeDepth: 0,
+    })
+    assert.equal(session.checkpointTimeline.entries.length, 0)
+    assert.equal(session.changeCount, 1)
+    assert.deepEqual(
+      session.history.getChangeLog().map((change) => change.serial),
+      [1]
+    )
+
+    await provider.dispatchWebviewMessageForTesting(
+      document.uri,
+      { type: 'undo' },
+      { propagateErrors: true }
+    )
+    await assertSessionText(session.sessionId, 'abc')
+    assert.deepEqual(lastMessageOfType(panel.messages, 'editState'), {
+      type: 'editState',
+      canUndo: false,
+      canRedo: true,
+      undoCount: 0,
+      redoCount: 1,
+      isDirty: false,
+      savedChangeDepth: 0,
+    })
+
+    await provider.dispatchWebviewMessageForTesting(
+      document.uri,
+      { type: 'redo' },
+      { propagateErrors: true }
+    )
+    await assertSessionText(session.sessionId, 'abcX')
+    assert.deepEqual(lastMessageOfType(panel.messages, 'editState'), {
+      type: 'editState',
+      canUndo: true,
+      canRedo: false,
+      undoCount: 1,
+      redoCount: 0,
+      isDirty: true,
+      savedChangeDepth: 0,
+    })
+    assert.deepEqual(
+      session.history.getChangeLog().map((change) => change.serial),
+      [1]
+    )
 
     await panel.fireDidDispose()
     await fs.rm(tmpDir, { recursive: true, force: true })

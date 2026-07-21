@@ -862,6 +862,23 @@ namespace {
         return result;
     }
 
+    template<typename UpdateFn>
+    auto update_model_transactionally_(omega_model_t *model_ptr, const UpdateFn &update_fn) -> int {
+        if (!model_ptr) { return -1; }
+
+        omega_model_t candidate_model{};
+        try {
+            candidate_model.model_segments = clone_model_segments_(model_ptr->model_segments);
+            const auto rc = update_fn(&candidate_model);
+            if (rc != 0) { return rc; }
+        } catch (const std::bad_alloc &) { return -1; } catch (...) {
+            return -1;
+        }
+
+        model_ptr->model_segments.swap(candidate_model.model_segments);
+        return 0;
+    }
+
     inline void free_model_changes_(omega_model_struct *model_ptr) {
         model_ptr->model_snapshots.clear();
         model_ptr->changes.clear();
@@ -913,7 +930,7 @@ namespace {
         return discarded;
     }
 
-    auto update_model_helper_(omega_model_t *model_ptr, const const_omega_change_ptr_t &change_ptr) -> int {
+    auto update_model_helper_in_place_(omega_model_t *model_ptr, const const_omega_change_ptr_t &change_ptr) -> int {
         if (!change_ptr) { return -1; }
         assert(change_ptr->length > 0);
         try {
@@ -1009,6 +1026,13 @@ namespace {
             if (!safe_add_int64_(read_offset, (*iter)->computed_length, read_offset)) { return -1; }
         }
         return -1;
+    }
+
+    auto update_model_helper_(omega_model_t *model_ptr, const const_omega_change_ptr_t &change_ptr) -> int {
+        if (!change_ptr) { return -1; }
+        return update_model_transactionally_(model_ptr, [&](omega_model_t *candidate_model_ptr) {
+            return update_model_helper_in_place_(candidate_model_ptr, change_ptr);
+        });
     }
 
     auto insert_payload_segment_(omega_model_t *model_ptr, const const_omega_change_ptr_t &change_ptr,
@@ -1122,14 +1146,16 @@ namespace {
     auto update_model_(omega_session_t *session_ptr, const const_omega_change_ptr_t &change_ptr) -> int {
         if (omega_change_get_kind_(change_ptr.get()) == change_kind_t::CHANGE_TRANSFORM) { return 0; }
         const auto model_ptr = session_ptr->models_.back().get();
-        if (omega_change_get_kind_(change_ptr.get()) == change_kind_t::CHANGE_OVERWRITE) {
-            const_omega_change_ptr_t const_change_ptr =
-                    del_(0, change_ptr->offset, change_ptr->length, !omega_session_get_transaction_bit_(session_ptr));
-            if (!const_change_ptr) { return -1; }
-            const auto rc = update_model_helper_(model_ptr, const_change_ptr);
-            if (0 != rc) { return rc; }
-        }
-        return update_model_helper_(model_ptr, change_ptr);
+        return update_model_transactionally_(model_ptr, [&](omega_model_t *candidate_model_ptr) {
+            if (omega_change_get_kind_(change_ptr.get()) == change_kind_t::CHANGE_OVERWRITE) {
+                const_omega_change_ptr_t const_change_ptr = del_(0, change_ptr->offset, change_ptr->length,
+                                                                 !omega_session_get_transaction_bit_(session_ptr));
+                if (!const_change_ptr) { return -1; }
+                const auto rc = update_model_helper_in_place_(candidate_model_ptr, const_change_ptr);
+                if (0 != rc) { return rc; }
+            }
+            return update_model_helper_in_place_(candidate_model_ptr, change_ptr);
+        });
     }
 
     auto rebuild_model_to_change_count_(omega_session_t *session_ptr, int64_t remaining_count) -> int {
@@ -1172,6 +1198,21 @@ namespace {
         return 0;
     }
 
+    void assign_transaction_start_serial_(omega_session_t *session_ptr, const const_omega_change_ptr_t &change_ptr) {
+        if (!session_ptr || !change_ptr || change_ptr->transaction_start_serial > 0 ||
+            omega_session_get_transaction_state(session_ptr) == 0) {
+            return;
+        }
+        const auto *previous = omega_session_get_last_change(session_ptr);
+        change_ptr->transaction_start_serial =
+                previous &&
+                                omega_change_get_transaction_bit_(previous) ==
+                                        omega_change_get_transaction_bit_(change_ptr.get()) &&
+                                previous->transaction_start_serial > 0
+                        ? previous->transaction_start_serial
+                        : omega_change_get_serial(change_ptr.get());
+    }
+
     auto update_(omega_session_t *session_ptr, const const_omega_change_ptr_t &change_ptr) -> int64_t {
         if (!change_ptr) { return -1; }
         if (change_ptr->offset <= omega_session_get_computed_file_size(session_ptr)) {
@@ -1184,6 +1225,7 @@ namespace {
             } else if (!session_ptr->models_.back()->changes_undone.empty()) {
                 free_session_changes_undone_(session_ptr);
             }
+            assign_transaction_start_serial_(session_ptr, change_ptr);
             auto *const model_ptr = session_ptr->models_.back().get();
             try {
                 model_ptr->changes.push_back(change_ptr);
@@ -1220,6 +1262,55 @@ namespace {
             return 0;
         }
         return first_change_ptr->transform_data->checkpoint_file_path == model_ptr->file_path ? 1U : 0U;
+    }
+
+    bool move_changes_to_undo_(omega_model_t *model_ptr, size_t keep_count) {
+        if (!model_ptr || keep_count > model_ptr->changes.size()) { return false; }
+        const auto move_count = model_ptr->changes.size() - keep_count;
+        if (move_count == 0) { return true; }
+        for (auto iter = model_ptr->changes.rbegin();
+             iter != model_ptr->changes.rbegin() + static_cast<std::ptrdiff_t>(move_count); ++iter) {
+            if (!*iter || omega_change_get_serial(iter->get()) <= 0) { return false; }
+        }
+        try {
+            model_ptr->changes_undone.reserve(model_ptr->changes_undone.size() + move_count);
+        } catch (const std::bad_alloc &) { return false; }
+
+        for (auto iter = model_ptr->changes.rbegin();
+             iter != model_ptr->changes.rbegin() + static_cast<std::ptrdiff_t>(move_count); ++iter) {
+            (*iter)->serial *= -1;
+            model_ptr->changes_undone.push_back(*iter);
+        }
+        model_ptr->changes.erase(model_ptr->changes.begin() + static_cast<std::ptrdiff_t>(keep_count),
+                                 model_ptr->changes.end());
+        model_ptr->model_snapshots.erase(model_ptr->model_snapshots.upper_bound(static_cast<int64_t>(keep_count)),
+                                         model_ptr->model_snapshots.end());
+        return true;
+    }
+
+    bool restore_changes_from_undo_(omega_model_t *model_ptr, size_t target_count) {
+        if (!model_ptr || target_count < model_ptr->changes.size()) { return false; }
+        const auto restore_count = target_count - model_ptr->changes.size();
+        if (restore_count > model_ptr->changes_undone.size()) { return false; }
+        for (size_t restored = 0; restored < restore_count; ++restored) {
+            const auto &change_ptr = model_ptr->changes_undone[model_ptr->changes_undone.size() - 1 - restored];
+            const auto expected_serial =
+                    model_ptr->change_serial_base + static_cast<int64_t>(model_ptr->changes.size() + restored) + 1;
+            if (!change_ptr || omega_change_get_serial(change_ptr.get()) != -expected_serial) { return false; }
+        }
+        try {
+            model_ptr->changes.reserve(target_count);
+        } catch (const std::bad_alloc &) { return false; }
+
+        for (size_t restored = 0; restored < restore_count; ++restored) {
+            const auto &change_ptr = model_ptr->changes_undone.back();
+            const auto expected_serial =
+                    model_ptr->change_serial_base + static_cast<int64_t>(model_ptr->changes.size()) + 1;
+            change_ptr->serial = expected_serial;
+            model_ptr->changes.push_back(change_ptr);
+            model_ptr->changes_undone.pop_back();
+        }
+        return true;
     }
 
     void notify_checkpoint_restore_(omega_session_t *session_ptr) {
@@ -1314,6 +1405,7 @@ namespace {
             omega_util_remove_file(checkpoint_filename);
             return -1;
         }
+        assign_transaction_start_serial_(session_ptr, transform_change_ptr);
 
         std::unique_ptr<omega_model_t> checkpoint_model_ptr;
         try {
@@ -1346,6 +1438,10 @@ namespace {
             return -1;
         }
 
+        // A transform is a new edit, so it forks history just like update_() does. Clear any redoable changes only
+        // after the checkpoint has been promoted successfully; otherwise undoing the transform can merge it with
+        // the abandoned redo branch and leave duplicate negative serials in changes_undone.
+        if (transform_change_ptr) { free_session_changes_undone_(session_ptr); }
         discard_checkpoint_future_(session_ptr);
 
         session_ptr->num_changes_adjustment_ = change_serial_base;
@@ -3149,20 +3245,24 @@ int omega_edit_checkout_checkpoint(omega_session_t *session_ptr, int64_t checkpo
         session_ptr->checkpoint_future_models_.pop_back();
     }
 
+    for (size_t model_index = 0; model_index + 1 < session_ptr->models_.size(); ++model_index) {
+        auto *const model_ptr = session_ptr->models_[model_index].get();
+        const auto *const next_model_ptr = session_ptr->models_[model_index + 1].get();
+        const auto target_count = next_model_ptr->change_serial_base - model_ptr->change_serial_base;
+        if (target_count < 0 || !restore_changes_from_undo_(model_ptr, static_cast<size_t>(target_count))) {
+            return -1;
+        }
+    }
+
     if (checkpoint_count == 0) {
         auto *const root_model_ptr = session_ptr->models_.front().get();
+        if (!move_changes_to_undo_(root_model_ptr, 0)) { return -1; }
         root_model_ptr->model_segments = std::move(original_segments);
-        free_model_changes_(root_model_ptr);
-        free_model_changes_undone_(root_model_ptr);
         session_ptr->num_changes_adjustment_ = 0;
     } else {
         auto *const model_ptr = session_ptr->models_.back().get();
         const auto keep_count = checkpoint_snapshot_change_count_(model_ptr);
-        if (model_ptr->changes.size() > keep_count) {
-            model_ptr->changes.erase(model_ptr->changes.begin() + static_cast<std::ptrdiff_t>(keep_count),
-                                     model_ptr->changes.end());
-        }
-        free_model_changes_undone_(model_ptr);
+        if (!move_changes_to_undo_(model_ptr, keep_count)) { return -1; }
         if (0 != rebuild_model_to_change_count_(session_ptr, static_cast<int64_t>(keep_count))) { return -1; }
         session_ptr->num_changes_adjustment_ = model_ptr->change_serial_base;
     }
