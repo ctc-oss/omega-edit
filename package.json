@@ -45,7 +45,7 @@
     "package": "yarn workspace @omega-edit/server package && yarn workspace @omega-edit/client package && yarn workspace @omega-edit/ai package"
   },
   "devDependencies": {
-    "@biomejs/biome": "^2.5.3",
+    "@biomejs/biome": "^2.5.4",
     "@types/node": "^22.20.0",
     "run-script-os": "^1.1.6",
     "typedoc": "^0.28.20",
