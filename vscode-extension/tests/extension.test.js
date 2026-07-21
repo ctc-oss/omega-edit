@@ -882,6 +882,21 @@ test('compiled extension entrypoints exist after build', () => {
   )
   assert.match(actionJournalSource, /checkpointChanges\(row\.coordinate\)/)
   assert.match(
+    actionJournalSource,
+    /class:current=\{row\.position === 'current'\}/
+  )
+  assert.match(
+    actionJournalSource,
+    /class:future=\{row\.position === 'future'\}/
+  )
+  assert.match(
+    actionJournalSource,
+    /aria-current=\{row\.position === 'current'/
+  )
+  assert.match(actionJournalSource, /strings\.actionJournal\.currentChange/)
+  assert.match(actionJournalSource, /strings\.actionJournal\.redoAvailable/)
+  assert.match(actionJournalSource, /strings\.actionJournal\.originalState/)
+  assert.match(
     svelteAppSource,
     /checkpoints=\{checkpointTimeline\.checkpoints\}/
   )
