@@ -6790,10 +6790,6 @@ export class HexEditorProvider
 
   private makeHistoryExecutor(session: EditorSession): EditorHistoryExecutor {
     const hasTimeline = session.checkpointTimeline.entries.length > 0
-    const undoCrossesTimelineMilestone =
-      hasTimeline && session.history.willUndoCrossMilestone()
-    const redoCrossesTimelineMilestone =
-      hasTimeline && session.history.willRedoCrossMilestone()
     const checkoutTimelineMilestone = async (direction: -1 | 1) => {
       const targetCheckpoint = session.checkpointTimeline.cursor + direction
       if (
@@ -6806,27 +6802,54 @@ export class HexEditorProvider
       }
       await checkoutCheckpoint(session.sessionId, targetCheckpoint)
     }
+    const checkoutTimelineAtHistoryDepth = async (historyDepth: number) => {
+      const entries = session.checkpointTimeline.entries
+      let low = 0
+      let high = entries.length
+      while (low < high) {
+        const middle = low + Math.floor((high - low) / 2)
+        const entry = entries[middle]
+        if (!entry) {
+          high = middle
+          continue
+        }
+        const checkpointHistory = entry.interval.history
+        if (!checkpointHistory) {
+          throw new Error(
+            `Checkpoint ${middle + 1} is missing editor history metadata`
+          )
+        }
+        const checkpointDepth = checkpointHistory.transactionLog.length
+        if (checkpointDepth <= historyDepth) {
+          low = middle + 1
+        } else {
+          high = middle
+        }
+      }
+      const targetCheckpoint = low
+      if (targetCheckpoint <= session.checkpointTimeline.cursor) return
+      await checkoutCheckpoint(session.sessionId, targetCheckpoint)
+    }
     return {
       async undoLocal() {
-        if (undoCrossesTimelineMilestone) {
-          await checkoutTimelineMilestone(-1)
-          return
-        }
         await undo(session.sessionId)
       },
       async redoLocal() {
-        if (redoCrossesTimelineMilestone) {
-          await checkoutTimelineMilestone(1)
-          return
-        }
         await redo(session.sessionId)
       },
       async undoMilestone() {
-        if (undoCrossesTimelineMilestone) return
+        // Native undo suspends plain materialized checkpoints on the future
+        // stack before undoing exactly one transaction from the prior model.
+        if (hasTimeline) return
         await destroyLastCheckpoint(session.sessionId)
       },
       async redoMilestone() {
-        if (redoCrossesTimelineMilestone) return
+        if (hasTimeline) {
+          await checkoutTimelineAtHistoryDepth(
+            session.history.getEditState().undoCount
+          )
+          return
+        }
         await createCheckpoint(session.sessionId)
       },
       async undoCheckpoint() {

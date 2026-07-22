@@ -1752,6 +1752,95 @@ suite('OmegaEdit VS Code extension', () => {
     await fs.rm(tmpDir, { recursive: true, force: true })
   })
 
+  test('undo traverses a multi-action materialized checkpoint one action at a time', async () => {
+    const tmpDir = await fs.mkdtemp(
+      path.join(os.tmpdir(), 'omega-edit-vscode-checkpoint-action-undo-')
+    )
+    const samplePath = path.join(tmpDir, 'checkpoint-action-undo.bin')
+    await fs.writeFile(samplePath, Buffer.from('abc', 'utf8'))
+
+    const provider = new HexEditorProvider({ subscriptions: [] }, testPort)
+    const panel = createMockWebviewPanel()
+    const document = await provider.openCustomDocument(
+      vscode.Uri.file(samplePath),
+      { backupId: undefined, untitledDocumentData: undefined },
+      new vscode.CancellationTokenSource().token
+    )
+    await provider.resolveCustomEditor(
+      document,
+      panel,
+      new vscode.CancellationTokenSource().token
+    )
+    const session = provider.getSessionForTesting(document.uri)
+    assert.ok(session)
+
+    await provider.dispatchWebviewMessageForTesting(document.uri, {
+      type: 'insert',
+      offset: 3,
+      data: Buffer.from('1', 'utf8').toString('hex'),
+    })
+    await provider.dispatchWebviewMessageForTesting(document.uri, {
+      type: 'insert',
+      offset: 4,
+      data: Buffer.from('2', 'utf8').toString('hex'),
+    })
+    assert.equal(
+      (await provider.createCheckpoint({ uri: document.uri }))?.checkpointCount,
+      1
+    )
+    await assertSessionText(session.sessionId, 'abc12')
+
+    await provider.dispatchWebviewMessageForTesting(
+      document.uri,
+      { type: 'undo' },
+      { propagateErrors: true }
+    )
+    await assertSessionText(session.sessionId, 'abc1')
+    assert.equal(session.checkpointTimeline.cursor, 0)
+    assert.deepEqual(session.history.getEditState(), {
+      canUndo: true,
+      canRedo: true,
+      undoCount: 1,
+      redoCount: 1,
+      isDirty: true,
+      savedChangeDepth: 0,
+    })
+
+    await provider.dispatchWebviewMessageForTesting(
+      document.uri,
+      { type: 'undo' },
+      { propagateErrors: true }
+    )
+    await assertSessionText(session.sessionId, 'abc')
+
+    await provider.dispatchWebviewMessageForTesting(
+      document.uri,
+      { type: 'redo' },
+      { propagateErrors: true }
+    )
+    await assertSessionText(session.sessionId, 'abc1')
+    assert.equal(session.checkpointTimeline.cursor, 0)
+
+    await provider.dispatchWebviewMessageForTesting(
+      document.uri,
+      { type: 'redo' },
+      { propagateErrors: true }
+    )
+    await assertSessionText(session.sessionId, 'abc12')
+    assert.equal(session.checkpointTimeline.cursor, 1)
+    assert.deepEqual(session.history.getEditState(), {
+      canUndo: true,
+      canRedo: false,
+      undoCount: 2,
+      redoCount: 0,
+      isDirty: true,
+      savedChangeDepth: 0,
+    })
+
+    await panel.fireDidDispose()
+    await fs.rm(tmpDir, { recursive: true, force: true })
+  })
+
   test('reports search matches and keeps undo/redo disabled state in sync', async () => {
     const tmpDir = await fs.mkdtemp(
       path.join(os.tmpdir(), 'omega-edit-vscode-state-')

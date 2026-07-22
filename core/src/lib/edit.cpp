@@ -1238,7 +1238,9 @@ namespace {
                 if (serial_was_negative) { change_ptr->serial *= -1; }
                 return -1;
             }
-            discard_checkpoint_future_(session_ptr);
+            // Reapplying an undone change follows the existing history branch, so any materialized future checkpoint
+            // models remain valid. A new positive-serial edit forks history and must discard that future.
+            if (!serial_was_negative) { discard_checkpoint_future_(session_ptr); }
             if (session_ptr->undo_snapshot_interval_ > 0) {
                 const auto count = static_cast<int64_t>(model_ptr->changes.size());
                 if (count % session_ptr->undo_snapshot_interval_ == 0) {
@@ -1311,6 +1313,38 @@ namespace {
             model_ptr->changes_undone.pop_back();
         }
         return true;
+    }
+
+    bool suspend_plain_checkpoint_models_for_undo_(omega_session_t *session_ptr, size_t &suspended_count) {
+        suspended_count = 0;
+        if (!session_ptr || session_ptr->models_.size() <= 1 || !session_ptr->models_.back()->changes.empty()) {
+            return true;
+        }
+
+        try {
+            session_ptr->checkpoint_future_models_.reserve(session_ptr->checkpoint_future_models_.size() +
+                                                           session_ptr->models_.size() - 1);
+        } catch (const std::bad_alloc &) { return false; }
+
+        // A plain checkpoint model contains no change of its own. Keep the materialized model on the future stack
+        // while exposing the preceding model so undo can operate on exactly one transaction. Consecutive checkpoints
+        // at the same change depth are all invisible history boundaries and must be crossed together.
+        while (session_ptr->models_.size() > 1 && session_ptr->models_.back()->changes.empty()) {
+            session_ptr->checkpoint_future_models_.push_back(std::move(session_ptr->models_.back()));
+            session_ptr->models_.pop_back();
+            ++suspended_count;
+        }
+        session_ptr->num_changes_adjustment_ = session_ptr->models_.back()->change_serial_base;
+        return true;
+    }
+
+    void restore_suspended_checkpoint_models_(omega_session_t *session_ptr, size_t suspended_count) {
+        while (session_ptr && suspended_count > 0 && !session_ptr->checkpoint_future_models_.empty()) {
+            session_ptr->models_.push_back(std::move(session_ptr->checkpoint_future_models_.back()));
+            session_ptr->checkpoint_future_models_.pop_back();
+            --suspended_count;
+        }
+        if (session_ptr) { session_ptr->num_changes_adjustment_ = session_ptr->models_.back()->change_serial_base; }
     }
 
     void notify_checkpoint_restore_(omega_session_t *session_ptr) {
@@ -3098,9 +3132,18 @@ int64_t omega_edit_undo_last_change(omega_session_t *session_ptr) {
     if (!session_ptr) { return 0; }
     int64_t result = 0;
     const scoped_session_event_batch_t event_batch(session_ptr, SESSION_EVT_UNDO);
+    size_t suspended_checkpoint_count = 0;
+    if ((omega_session_changes_paused(session_ptr) == 0) && session_ptr->models_.back()->changes.empty() &&
+        !suspend_plain_checkpoint_models_for_undo_(session_ptr, suspended_checkpoint_count)) {
+        return -1;
+    }
     if ((omega_session_changes_paused(session_ptr) == 0) && !session_ptr->models_.back()->changes.empty() &&
         omega_change_get_kind_(session_ptr->models_.back()->changes.back().get()) == change_kind_t::CHANGE_TRANSFORM) {
-        return undo_transform_checkpoint_(session_ptr);
+        result = undo_transform_checkpoint_(session_ptr);
+        if (result == 0 && suspended_checkpoint_count > 0) {
+            restore_suspended_checkpoint_models_(session_ptr, suspended_checkpoint_count);
+        }
+        return result;
     }
     while ((omega_session_changes_paused(session_ptr) == 0) && !session_ptr->models_.back()->changes.empty()) {
         auto *const model_ptr = session_ptr->models_.back().get();
@@ -3116,10 +3159,17 @@ int64_t omega_edit_undo_last_change(omega_session_t *session_ptr) {
         try {
             undone_changes.reserve(transaction_change_count);
             model_ptr->changes_undone.reserve(model_ptr->changes_undone.size() + transaction_change_count);
-        } catch (const std::bad_alloc &) { return -1; }
+        } catch (const std::bad_alloc &) {
+            restore_suspended_checkpoint_models_(session_ptr, suspended_checkpoint_count);
+            return -1;
+        }
 
         for (auto iter = model_ptr->changes.rbegin();
              iter != model_ptr->changes.rend() && undone_changes.size() < transaction_change_count; ++iter) {
+            if (omega_change_get_serial(iter->get()) <= 0) {
+                restore_suspended_checkpoint_models_(session_ptr, suspended_checkpoint_count);
+                return -1;
+            }
             undone_changes.push_back(*iter);
         }
 
@@ -3127,6 +3177,7 @@ int64_t omega_edit_undo_last_change(omega_session_t *session_ptr) {
                 static_cast<int64_t>(model_ptr->changes.size() - static_cast<size_t>(transaction_change_count));
         if (0 != undo_changes_in_model_(session_ptr, undone_changes)) {
             rebuild_model_to_change_count_(session_ptr, static_cast<int64_t>(model_ptr->changes.size()));
+            restore_suspended_checkpoint_models_(session_ptr, suspended_checkpoint_count);
             return -1;
         }
 
@@ -3137,7 +3188,6 @@ int64_t omega_edit_undo_last_change(omega_session_t *session_ptr) {
 
         for (const auto &change_ptr : undone_changes) {
             auto *const undone_change_ptr = change_ptr.get();
-            if (undone_change_ptr->serial <= 0) { return -1; }
             undone_change_ptr->serial *= -1;
 
             model_ptr->changes_undone.push_back(change_ptr);
@@ -3147,6 +3197,9 @@ int64_t omega_edit_undo_last_change(omega_session_t *session_ptr) {
             result = undone_change_ptr->serial;
         }
         break;
+    }
+    if (result == 0 && suspended_checkpoint_count > 0) {
+        restore_suspended_checkpoint_models_(session_ptr, suspended_checkpoint_count);
     }
     return result;
 }
