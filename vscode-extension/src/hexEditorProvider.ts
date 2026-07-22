@@ -30,6 +30,8 @@
 import {
   ALL_EVENTS,
   applyTransformPlugin,
+  CHANGE_LOG_DEFAULT_DIGEST_ALGORITHM as DEFAULT_CHANGE_LOG_DIGEST_ALGORITHM,
+  CHANGE_LOG_DEFAULT_DIGEST_PLUGIN_ID as DEFAULT_CHANGE_LOG_DIGEST_PLUGIN_ID,
   CHANGE_LOG_FORMAT,
   CHANGE_LOG_VERSION,
   ChangeLogCancelledError,
@@ -228,6 +230,8 @@ function timelineFingerprintsEqual(
 ): boolean {
   return (
     String(left.byteLength) === String(right.byteLength) &&
+    (left.digest.pluginId ?? DEFAULT_CHANGE_LOG_DIGEST_PLUGIN_ID) ===
+      (right.digest.pluginId ?? DEFAULT_CHANGE_LOG_DIGEST_PLUGIN_ID) &&
     left.digest.algorithm === right.digest.algorithm &&
     left.digest.value === right.digest.value
   )
@@ -255,6 +259,7 @@ interface CollectedChangeLogRecords {
 }
 
 interface ChangeLogDigest {
+  pluginId?: string
   algorithm: string
   value: string
 }
@@ -424,7 +429,6 @@ const MAX_TRANSFORM_RESULT_PREVIEW_BYTES = 4 * 1024
 const MAX_FILE_SPLICE_BYTES = 32 * 1024 * 1024
 const MAX_NON_FILE_CHANGE_LOG_BYTES = 64 * 1024 * 1024
 const MAX_NON_FILE_CHANGE_LOG_ENTRIES = 10_000
-const DEFAULT_CHANGE_LOG_DIGEST_ALGORITHM = 'sha256'
 const DEFAULT_SAVE_CONFLICT_FINGERPRINT_ALGORITHM = 'sha256'
 const SAVE_CONFLICT_FINGERPRINT_ALGORITHMS = [
   'sha224',
@@ -1787,9 +1791,15 @@ function assertCompleteChangeLog(
 async function getChangeLogFingerprint(
   sessionId: string,
   content: SessionFingerprintContent,
-  algorithm = DEFAULT_CHANGE_LOG_DIGEST_ALGORITHM
+  algorithm = DEFAULT_CHANGE_LOG_DIGEST_ALGORITHM,
+  pluginId = DEFAULT_CHANGE_LOG_DIGEST_PLUGIN_ID
 ): Promise<ChangeLogFingerprint> {
-  const response = await getSessionFingerprint(sessionId, content, algorithm)
+  const response = await getSessionFingerprint(
+    sessionId,
+    content,
+    algorithm,
+    pluginId
+  )
   if (!response.fingerprint?.digest) {
     throw new Error('Server fingerprint response is missing digest metadata')
   }
@@ -1797,6 +1807,7 @@ async function getChangeLogFingerprint(
   return {
     byteLength: int64ToDecimal(response.fingerprint.byteLength),
     digest: {
+      pluginId,
       algorithm: response.fingerprint.digest.algorithm.toLowerCase(),
       value: response.fingerprint.digest.value.toLowerCase(),
     },
@@ -1804,7 +1815,7 @@ async function getChangeLogFingerprint(
 }
 
 function fingerprintLabel(fingerprint: ChangeLogFingerprint): string {
-  return `${int64ToDecimal(fingerprint.byteLength)} bytes ${fingerprint.digest.algorithm}:${fingerprint.digest.value}`
+  return `${int64ToDecimal(fingerprint.byteLength)} bytes ${fingerprint.digest.pluginId ?? DEFAULT_CHANGE_LOG_DIGEST_PLUGIN_ID}/${fingerprint.digest.algorithm}:${fingerprint.digest.value}`
 }
 
 function fingerprintsMatch(
@@ -1813,6 +1824,8 @@ function fingerprintsMatch(
 ): boolean {
   return (
     int64ToDecimal(actual.byteLength) === int64ToDecimal(expected.byteLength) &&
+    (actual.digest.pluginId ?? DEFAULT_CHANGE_LOG_DIGEST_PLUGIN_ID) ===
+      (expected.digest.pluginId ?? DEFAULT_CHANGE_LOG_DIGEST_PLUGIN_ID) &&
     actual.digest.algorithm === expected.digest.algorithm &&
     actual.digest.value === expected.digest.value
   )
@@ -1837,7 +1850,8 @@ async function assertCurrentSessionFingerprint(
   const actual = await getChangeLogFingerprint(
     sessionId,
     SessionFingerprintContent.COMPUTED,
-    expected.digest.algorithm
+    expected.digest.algorithm,
+    expected.digest.pluginId ?? DEFAULT_CHANGE_LOG_DIGEST_PLUGIN_ID
   )
   if (fingerprintsMatch(actual, expected)) {
     return
@@ -1861,7 +1875,8 @@ async function assertChangeLogExportStable(
   const finalAfter = await getChangeLogFingerprint(
     sessionId,
     SessionFingerprintContent.COMPUTED,
-    expectedAfter.digest.algorithm
+    expectedAfter.digest.algorithm,
+    expectedAfter.digest.pluginId ?? DEFAULT_CHANGE_LOG_DIGEST_PLUGIN_ID
   )
   if (!fingerprintsMatch(finalAfter, expectedAfter)) {
     throw new Error(
@@ -3172,7 +3187,8 @@ export class HexEditorProvider
     const current = await getChangeLogFingerprint(
       session.sessionId,
       SessionFingerprintContent.COMPUTED,
-      parsed.before.digest.algorithm
+      parsed.before.digest.algorithm,
+      parsed.before.digest.pluginId ?? DEFAULT_CHANGE_LOG_DIGEST_PLUGIN_ID
     )
     if (!fingerprintsMatch(current, parsed.before)) {
       safetyIssues.push({
@@ -3434,7 +3450,8 @@ export class HexEditorProvider
     const after = await getChangeLogFingerprint(
       session.sessionId,
       SessionFingerprintContent.COMPUTED,
-      before.digest.algorithm
+      before.digest.algorithm,
+      before.digest.pluginId ?? DEFAULT_CHANGE_LOG_DIGEST_PLUGIN_ID
     )
     const controller = new AbortController()
     const withExportProgress = async <T>(
@@ -3861,7 +3878,8 @@ export class HexEditorProvider
     const finalFingerprint = await getChangeLogFingerprint(
       session.sessionId,
       SessionFingerprintContent.COMPUTED,
-      parsed.after.digest.algorithm
+      parsed.after.digest.algorithm,
+      parsed.after.digest.pluginId ?? DEFAULT_CHANGE_LOG_DIGEST_PLUGIN_ID
     )
     if (appliedChangeCount > 0) {
       await this.truncateCheckpointTimelineFuture(session)
@@ -6789,7 +6807,8 @@ export class HexEditorProvider
   }
 
   private makeHistoryExecutor(session: EditorSession): EditorHistoryExecutor {
-    const hasTimeline = session.checkpointTimeline.entries.length > 0
+    const hasTimelineEntries = () =>
+      session.checkpointTimeline.entries.length > 0
     const checkoutTimelineMilestone = async (direction: -1 | 1) => {
       const targetCheckpoint = session.checkpointTimeline.cursor + direction
       if (
@@ -6810,8 +6829,9 @@ export class HexEditorProvider
         const middle = low + Math.floor((high - low) / 2)
         const entry = entries[middle]
         if (!entry) {
-          high = middle
-          continue
+          throw new Error(
+            `Checkpoint timeline entry ${middle + 1} is unexpectedly missing`
+          )
         }
         const checkpointHistory = entry.interval.history
         if (!checkpointHistory) {
@@ -6838,13 +6858,14 @@ export class HexEditorProvider
         await redo(session.sessionId)
       },
       async undoMilestone() {
-        // Native undo suspends plain materialized checkpoints on the future
-        // stack before undoing exactly one transaction from the prior model.
-        if (hasTimeline) return
+        // With a materialized timeline, native undo moves plain checkpoint
+        // models to the future stack before undoing exactly one transaction.
+        // Only the legacy non-timeline path destroys the boundary explicitly.
+        if (hasTimelineEntries()) return
         await destroyLastCheckpoint(session.sessionId)
       },
       async redoMilestone() {
-        if (hasTimeline) {
+        if (hasTimelineEntries()) {
           await checkoutTimelineAtHistoryDepth(
             session.history.getEditState().undoCount
           )
@@ -6853,14 +6874,14 @@ export class HexEditorProvider
         await createCheckpoint(session.sessionId)
       },
       async undoCheckpoint() {
-        if (hasTimeline) {
+        if (hasTimelineEntries()) {
           await checkoutTimelineMilestone(-1)
           return
         }
         await destroyLastCheckpoint(session.sessionId)
       },
       async redoCheckpoint(transaction) {
-        if (hasTimeline) {
+        if (hasTimelineEntries()) {
           await checkoutTimelineMilestone(1)
           return
         }
@@ -7040,7 +7061,8 @@ export class HexEditorProvider
         ? await getChangeLogFingerprint(
             session.sessionId,
             SessionFingerprintContent.COMPUTED,
-            expectedAfter.digest.algorithm
+            expectedAfter.digest.algorithm,
+            expectedAfter.digest.pluginId ?? DEFAULT_CHANGE_LOG_DIGEST_PLUGIN_ID
           ).catch(() => undefined)
         : undefined
     const recordAppliedChanges = async () => {

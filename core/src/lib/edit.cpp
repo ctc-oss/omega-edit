@@ -1347,6 +1347,23 @@ namespace {
         if (session_ptr) { session_ptr->num_changes_adjustment_ = session_ptr->models_.back()->change_serial_base; }
     }
 
+    bool resume_plain_checkpoint_models_for_redo_(omega_session_t *session_ptr) {
+        if (!session_ptr) { return false; }
+        while (!session_ptr->checkpoint_future_models_.empty()) {
+            const auto *next_model_ptr = session_ptr->checkpoint_future_models_.back().get();
+            if (!next_model_ptr || checkpoint_snapshot_change_count_(next_model_ptr) != 0 ||
+                omega_session_get_num_changes(session_ptr) != next_model_ptr->change_serial_base) {
+                break;
+            }
+            try {
+                session_ptr->models_.push_back(std::move(session_ptr->checkpoint_future_models_.back()));
+            } catch (const std::bad_alloc &) { return false; }
+            session_ptr->checkpoint_future_models_.pop_back();
+        }
+        session_ptr->num_changes_adjustment_ = session_ptr->models_.back()->change_serial_base;
+        return true;
+    }
+
     void notify_checkpoint_restore_(omega_session_t *session_ptr) {
         for (const auto &viewport_ptr : session_ptr->viewports_) {
             viewport_ptr->data_segment.capacity =
@@ -3139,8 +3156,9 @@ int64_t omega_edit_undo_last_change(omega_session_t *session_ptr) {
     }
     if ((omega_session_changes_paused(session_ptr) == 0) && !session_ptr->models_.back()->changes.empty() &&
         omega_change_get_kind_(session_ptr->models_.back()->changes.back().get()) == change_kind_t::CHANGE_TRANSFORM) {
+        const auto model_count_before = session_ptr->models_.size();
         result = undo_transform_checkpoint_(session_ptr);
-        if (result == 0 && suspended_checkpoint_count > 0) {
+        if (session_ptr->models_.size() == model_count_before && suspended_checkpoint_count > 0) {
             restore_suspended_checkpoint_models_(session_ptr, suspended_checkpoint_count);
         }
         return result;
@@ -3208,10 +3226,15 @@ int64_t omega_edit_redo_last_undo(omega_session_t *session_ptr) {
     if (!session_ptr) { return 0; }
     int64_t rc = 0;
     const scoped_session_event_batch_t event_batch(session_ptr, SESSION_EVT_EDIT);
+    if (omega_session_changes_paused(session_ptr) == 0 && !resume_plain_checkpoint_models_for_redo_(session_ptr)) {
+        return -1;
+    }
     if ((omega_session_changes_paused(session_ptr) == 0) && !session_ptr->models_.back()->changes_undone.empty() &&
         omega_change_get_kind_(session_ptr->models_.back()->changes_undone.back().get()) ==
                 change_kind_t::CHANGE_TRANSFORM) {
-        return redo_transform_checkpoint_(session_ptr);
+        rc = redo_transform_checkpoint_(session_ptr);
+        if (rc > 0 && !resume_plain_checkpoint_models_for_redo_(session_ptr)) { return -1; }
+        return rc;
     }
     while ((omega_session_changes_paused(session_ptr) == 0) && !session_ptr->models_.back()->changes_undone.empty()) {
         const auto change_ptr = session_ptr->models_.back()->changes_undone.back();
@@ -3225,6 +3248,7 @@ int64_t omega_edit_redo_last_undo(omega_session_t *session_ptr) {
         }
         break;
     }
+    if (rc > 0 && !resume_plain_checkpoint_models_for_redo_(session_ptr)) { return -1; }
     return rc;
 }
 

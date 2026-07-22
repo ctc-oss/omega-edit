@@ -21,8 +21,6 @@
 #include <omega_edit/utility.h>
 #include <omega_edit/version.h>
 
-#include <openssl/evp.h>
-
 #include <algorithm>
 #include <array>
 #include <atomic>
@@ -35,7 +33,6 @@
 #include <fstream>
 #include <iostream>
 #include <limits>
-#include <memory>
 #include <optional>
 #include <sstream>
 #include <thread>
@@ -84,12 +81,22 @@ namespace omega_edit {
             return n > 0 ? static_cast<int>(n) : 1;
         }
 
-        static constexpr char SESSION_FINGERPRINT_DIGEST_PLUGIN_ID[] = "omega.example.openssl_digests";
+        static constexpr char DEFAULT_DIGEST_PLUGIN_ID[] = "omega.example.openssl_digests";
         static constexpr char DEFAULT_SESSION_FINGERPRINT_ALGORITHM[] = "sha256";
         static constexpr int64_t SESSION_CONTENT_INSPECTION_CHUNK_SIZE = 1024 * 1024;
         static constexpr int64_t CHANGELOG_PAYLOAD_CHUNK_SIZE = 256 * 1024;
         static constexpr size_t CHANGELOG_TRANSFORM_ID_LIMIT = 4096;
         static constexpr size_t CHANGELOG_TRANSFORM_OPTIONS_LIMIT = 1024 * 1024;
+        static constexpr size_t DIGEST_PLUGIN_ID_LIMIT = 4096;
+        static constexpr size_t DIGEST_ALGORITHM_LIMIT = 128;
+        static constexpr size_t DIGEST_VALUE_LIMIT = 4096;
+
+        static bool digest_plugin_id_is_safe(const std::string &plugin_id) {
+            return !plugin_id.empty() && plugin_id.size() <= DIGEST_PLUGIN_ID_LIMIT &&
+                   std::all_of(plugin_id.begin(), plugin_id.end(), [](unsigned char c) {
+                       return std::isalnum(c) != 0 || c == '.' || c == '_' || c == '-';
+                   });
+        }
 
         static bool parse_canonical_decimal(const std::string &value, const char *field_name, int64_t &result,
                                             grpc::Status &status) {
@@ -110,56 +117,6 @@ namespace omega_edit {
                 parsed = parsed * 10 + digit;
             }
             result = static_cast<int64_t>(parsed);
-            return true;
-        }
-
-        static std::string digest_hex(const unsigned char *digest, unsigned int length) {
-            static constexpr char HEX[] = "0123456789abcdef";
-            std::string result(length * 2, '0');
-            for (unsigned int index = 0; index < length; ++index) {
-                result[index * 2] = HEX[digest[index] >> 4U];
-                result[index * 2 + 1] = HEX[digest[index] & 0x0FU];
-            }
-            return result;
-        }
-
-        class sha256_context {
-        public:
-            sha256_context() : context_(EVP_MD_CTX_new(), EVP_MD_CTX_free) {
-                valid_ = context_ && EVP_DigestInit_ex(context_.get(), EVP_sha256(), nullptr) == 1;
-            }
-
-            bool update(const void *data, size_t length) {
-                return valid_ && EVP_DigestUpdate(context_.get(), data, length) == 1;
-            }
-
-            bool finish(std::array<unsigned char, EVP_MAX_MD_SIZE> &digest, unsigned int &length) {
-                if (!valid_ || EVP_DigestFinal_ex(context_.get(), digest.data(), &length) != 1 || length != 32) {
-                    return false;
-                }
-                valid_ = false;
-                return true;
-            }
-
-        private:
-            std::unique_ptr<EVP_MD_CTX, decltype(&EVP_MD_CTX_free)> context_;
-            bool valid_{};
-        };
-
-        static bool digest_changelog_source(const omega_changelog_content_source_t &source, std::string &hex) {
-            sha256_context digest;
-            std::vector<omega_byte_t> buffer(static_cast<size_t>(CHANGELOG_PAYLOAD_CHUNK_SIZE));
-            int64_t offset = 0;
-            while (offset < source.length) {
-                const auto read = source.read(source.context, offset, buffer.data(),
-                                              std::min<int64_t>(source.length - offset, CHANGELOG_PAYLOAD_CHUNK_SIZE));
-                if (read <= 0 || !digest.update(buffer.data(), static_cast<size_t>(read))) { return false; }
-                offset += read;
-            }
-            std::array<unsigned char, EVP_MAX_MD_SIZE> bytes{};
-            unsigned int length = 0;
-            if (!digest.finish(bytes, length)) { return false; }
-            hex = digest_hex(bytes.data(), length);
             return true;
         }
 
@@ -282,12 +239,27 @@ namespace omega_edit {
         struct changelog_export_context {
             grpc::ServerContext *rpc_context{};
             changelog_spool *spool{};
-            sha256_context payload_digest{};
+            omega_transform_plugin_registry_t *plugin_registry{};
+            std::mutex *plugin_registry_mutex{};
+            std::string checkpoint_directory;
+            std::string digest_plugin_id;
+            std::string digest_algorithm;
+            grpc::Status failure_status{};
             int64_t entry_count{};
             int64_t payload_bytes{};
             bool optimized{};
             int failure{};
         };
+
+        struct changelog_digest {
+            std::string plugin_id;
+            std::string algorithm;
+            std::string value;
+        };
+
+        static grpc::Status digest_changelog_source(changelog_export_context &context,
+                                                    const omega_changelog_content_source_t &source,
+                                                    changelog_digest &digest);
 
         static int write_changelog_summary(const omega_changelog_export_summary_t *summary, void *user_data) {
             auto &context = *static_cast<changelog_export_context *>(user_data);
@@ -295,28 +267,33 @@ namespace omega_edit {
                 context.failure = -10;
                 return context.failure;
             }
-            std::string before_digest;
-            std::string after_digest;
-            if (!digest_changelog_source(summary->before, before_digest) ||
-                !digest_changelog_source(summary->after, after_digest)) {
+            changelog_digest before_digest;
+            changelog_digest after_digest;
+            context.failure_status = digest_changelog_source(context, summary->before, before_digest);
+            if (context.failure_status.ok()) {
+                context.failure_status = digest_changelog_source(context, summary->after, after_digest);
+            }
+            if (!context.failure_status.ok()) {
                 context.failure = -12;
                 return context.failure;
             }
             ::omega_edit::v1::ExportChangeLogResponse frame;
             auto *header = frame.mutable_header();
-            header->set_format_version(2);
+            header->set_format_version(3);
             header->set_resolved_first_serial_decimal(std::to_string(summary->resolved_first_change_serial));
             header->set_resolved_last_serial_decimal(std::to_string(summary->resolved_last_change_serial));
             header->set_source_change_count_decimal(std::to_string(summary->source_change_count));
             header->set_optimized(context.optimized);
             auto *before = header->mutable_before();
             before->set_byte_length_decimal(std::to_string(summary->before.length));
-            before->set_digest_algorithm("sha256");
-            before->set_digest_value(before_digest);
+            before->set_digest_plugin_id(before_digest.plugin_id);
+            before->set_digest_algorithm(before_digest.algorithm);
+            before->set_digest_value(before_digest.value);
             auto *after = header->mutable_after();
             after->set_byte_length_decimal(std::to_string(summary->after.length));
-            after->set_digest_algorithm("sha256");
-            after->set_digest_value(after_digest);
+            after->set_digest_plugin_id(after_digest.plugin_id);
+            after->set_digest_algorithm(after_digest.algorithm);
+            after->set_digest_value(after_digest.value);
             if (!context.spool->write(frame)) {
                 context.failure = context.spool->exhausted() ? -11 : -12;
                 return context.failure;
@@ -383,7 +360,7 @@ namespace omega_edit {
                 const auto read = entry->read_payload(
                         entry->payload_context, offset, buffer.data(),
                         std::min<int64_t>(entry->payload_length - offset, CHANGELOG_PAYLOAD_CHUNK_SIZE));
-                if (read <= 0 || !context.payload_digest.update(buffer.data(), static_cast<size_t>(read))) {
+                if (read <= 0) {
                     context.failure = -12;
                     return context.failure;
                 }
@@ -431,8 +408,29 @@ namespace omega_edit {
         }
 
         static bool digest_algorithm_is_json_safe(const std::string &algorithm) {
-            return !algorithm.empty() && std::all_of(algorithm.begin(), algorithm.end(),
-                                                     [](unsigned char c) { return std::isalnum(c) != 0 || c == '-'; });
+            return !algorithm.empty() && algorithm.size() <= DIGEST_ALGORITHM_LIMIT &&
+                   std::all_of(algorithm.begin(), algorithm.end(), [](unsigned char c) {
+                       return (c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') || c == '-';
+                   });
+        }
+
+        static bool digest_value_is_safe(const std::string &digest) {
+            return !digest.empty() && digest.size() <= DIGEST_VALUE_LIMIT &&
+                   std::all_of(digest.begin(), digest.end(),
+                               [](unsigned char c) { return (c >= '0' && c <= '9') || (c >= 'a' && c <= 'f'); });
+        }
+
+        static bool normalize_plugin_digest_algorithm(const char *label, const std::string &fallback,
+                                                      std::string &algorithm) {
+            if (!label || !*label) {
+                algorithm = normalize_digest_algorithm(fallback);
+                return digest_algorithm_is_json_safe(algorithm);
+            }
+            size_t length = 0;
+            while (length <= DIGEST_ALGORITHM_LIMIT && label[length] != '\0') { ++length; }
+            if (length > DIGEST_ALGORITHM_LIMIT) { return false; }
+            algorithm = normalize_digest_algorithm(std::string(label, length));
+            return digest_algorithm_is_json_safe(algorithm);
         }
 
         static std::string make_digest_options_json(const std::string &algorithm) {
@@ -789,11 +787,64 @@ namespace omega_edit {
             return grpc::Status::OK;
         }
 
+        static int64_t read_changelog_source_chunk(int64_t relative_offset, omega_byte_t *buffer, int64_t length,
+                                                   void *user_data_ptr) {
+            const auto *source = static_cast<const omega_changelog_content_source_t *>(user_data_ptr);
+            if (!source || !source->read || !buffer || relative_offset < 0 || length < 0 || source->length < 0 ||
+                relative_offset > source->length) {
+                return -1;
+            }
+            const auto remaining = source->length - relative_offset;
+            const auto requested = std::min(length, remaining);
+            return requested == 0 ? 0 : source->read(source->context, relative_offset, buffer, requested);
+        }
+
+        static grpc::Status digest_changelog_source(changelog_export_context &context,
+                                                    const omega_changelog_content_source_t &source,
+                                                    changelog_digest &digest) {
+            if (!context.plugin_registry || !context.plugin_registry_mutex || !source.read || source.length < 0) {
+                return grpc::Status(grpc::StatusCode::INTERNAL, "invalid change-log digest source");
+            }
+
+            const auto options_json = make_digest_options_json(context.digest_algorithm);
+            transform_plugin_response_guard plugin_response;
+            const auto status = inspect_with_streaming_plugin(
+                    context.rpc_context, context.plugin_registry, *context.plugin_registry_mutex,
+                    context.digest_plugin_id, options_json.c_str(), context.checkpoint_directory.c_str(), 0,
+                    source.length, read_changelog_source_chunk, const_cast<omega_changelog_content_source_t *>(&source),
+                    grpc::StatusCode::FAILED_PRECONDITION,
+                    "change-log digest plugin is not registered: " + context.digest_plugin_id,
+                    "change-log digest plugin must be a streaming inspect plugin",
+                    "unsupported change-log digest algorithm: " + context.digest_algorithm,
+                    "change-log digest cancelled: " + context.digest_plugin_id, grpc::StatusCode::ABORTED,
+                    "change-log digest plugin failed: " + context.digest_plugin_id, &plugin_response.response);
+            if (!status.ok()) { return status; }
+            if (plugin_response.response.result_length <= 0 ||
+                plugin_response.response.result_length > static_cast<int64_t>(DIGEST_VALUE_LIMIT) ||
+                plugin_response.response.result_bytes == nullptr) {
+                return grpc::Status(grpc::StatusCode::INTERNAL,
+                                    "change-log digest plugin returned an invalid digest length");
+            }
+
+            digest.plugin_id = context.digest_plugin_id;
+            digest.value = normalize_digest_value(
+                    std::string(reinterpret_cast<const char *>(plugin_response.response.result_bytes),
+                                static_cast<size_t>(plugin_response.response.result_length)));
+            if (!normalize_plugin_digest_algorithm(plugin_response.response.result_label, context.digest_algorithm,
+                                                   digest.algorithm) ||
+                !digest_value_is_safe(digest.value)) {
+                return grpc::Status(grpc::StatusCode::INTERNAL,
+                                    "change-log digest plugin returned invalid digest metadata");
+            }
+            return grpc::Status::OK;
+        }
+
         struct overwrite_fingerprint_guard_context {
             grpc::ServerContext *grpc_context{};
             omega_transform_plugin_registry_t *registry{};
             std::mutex *registry_mutex{};
             std::string checkpoint_directory;
+            std::string plugin_id;
             std::string algorithm;
             std::string expected_digest;
             int64_t expected_length{};
@@ -815,18 +866,14 @@ namespace omega_edit {
             transform_plugin_response_guard plugin_response;
             const auto options_json = make_digest_options_json(context->algorithm);
             const auto status = inspect_with_streaming_plugin(
-                    context->grpc_context, context->registry, *context->registry_mutex,
-                    SESSION_FINGERPRINT_DIGEST_PLUGIN_ID, options_json.c_str(), context->checkpoint_directory.c_str(),
-                    0, context->expected_length, read_session_content_file_chunk, &reader,
-                    grpc::StatusCode::FAILED_PRECONDITION,
-                    "save conflict digest plugin is not registered: " +
-                            std::string(SESSION_FINGERPRINT_DIGEST_PLUGIN_ID),
+                    context->grpc_context, context->registry, *context->registry_mutex, context->plugin_id,
+                    options_json.c_str(), context->checkpoint_directory.c_str(), 0, context->expected_length,
+                    read_session_content_file_chunk, &reader, grpc::StatusCode::FAILED_PRECONDITION,
+                    "save conflict digest plugin is not registered: " + context->plugin_id,
                     "save conflict digest plugin must be a streaming inspect plugin",
                     "unsupported save conflict digest algorithm: " + context->algorithm,
-                    "save conflict digest cancelled: " + std::string(SESSION_FINGERPRINT_DIGEST_PLUGIN_ID),
-                    grpc::StatusCode::ABORTED,
-                    "save conflict digest failed: " + std::string(SESSION_FINGERPRINT_DIGEST_PLUGIN_ID),
-                    &plugin_response.response);
+                    "save conflict digest cancelled: " + context->plugin_id, grpc::StatusCode::ABORTED,
+                    "save conflict digest failed: " + context->plugin_id, &plugin_response.response);
             if (!status.ok()) {
                 context->failure_status = status;
                 return -1;
@@ -839,12 +886,17 @@ namespace omega_edit {
                 plugin_response.response.result_length <= 0 || plugin_response.response.result_bytes == nullptr) {
                 return 1;
             }
+            if (plugin_response.response.result_length > static_cast<int64_t>(DIGEST_VALUE_LIMIT)) { return 1; }
             const auto actual_digest = normalize_digest_value(
                     std::string(reinterpret_cast<const char *>(plugin_response.response.result_bytes),
                                 static_cast<size_t>(plugin_response.response.result_length)));
-            const auto actual_algorithm = normalize_digest_algorithm(
-                    plugin_response.response.result_label ? plugin_response.response.result_label : context->algorithm);
-            return actual_algorithm == context->algorithm && actual_digest == context->expected_digest ? 0 : 1;
+            std::string actual_algorithm;
+            return normalize_plugin_digest_algorithm(plugin_response.response.result_label, context->algorithm,
+                                                     actual_algorithm) &&
+                                   digest_value_is_safe(actual_digest) && actual_algorithm == context->algorithm &&
+                                   actual_digest == context->expected_digest
+                           ? 0
+                           : 1;
         }
 
         struct transform_progress_context {
@@ -1659,7 +1711,11 @@ namespace omega_edit {
                                         "expected_original_fingerprint must include a non-negative size and digest");
                 }
                 const auto algorithm = normalize_digest_algorithm(expected.digest().algorithm());
-                if (!digest_algorithm_is_json_safe(algorithm) || expected.digest().value().empty()) {
+                const auto plugin_id = expected.digest().has_plugin_id() ? expected.digest().plugin_id()
+                                                                         : std::string(DEFAULT_DIGEST_PLUGIN_ID);
+                const auto digest_value = normalize_digest_value(expected.digest().value());
+                if (!digest_plugin_id_is_safe(plugin_id) || !digest_algorithm_is_json_safe(algorithm) ||
+                    !digest_value_is_safe(digest_value)) {
                     return grpc::Status(grpc::StatusCode::INVALID_ARGUMENT,
                                         "expected_original_fingerprint contains invalid digest metadata");
                 }
@@ -1668,8 +1724,9 @@ namespace omega_edit {
                 guard_context.registry = transform_plugin_registry_;
                 guard_context.registry_mutex = &transform_plugin_registry_mutex_;
                 guard_context.checkpoint_directory = checkpoint_directory ? checkpoint_directory : "";
+                guard_context.plugin_id = plugin_id;
                 guard_context.algorithm = algorithm;
-                guard_context.expected_digest = normalize_digest_value(expected.digest().value());
+                guard_context.expected_digest = digest_value;
                 guard_context.expected_length = expected.byte_length();
                 save_options.overwrite_guard = verify_overwrite_fingerprint;
                 save_options.overwrite_guard_user_data = &guard_context;
@@ -2220,6 +2277,19 @@ namespace omega_edit {
                 return parse_status;
             }
 
+            const auto digest_plugin_id = request->has_digest_plugin_id() ? request->digest_plugin_id()
+                                                                          : std::string(DEFAULT_DIGEST_PLUGIN_ID);
+            const auto digest_algorithm =
+                    normalize_digest_algorithm(request->has_digest_algorithm() ? request->digest_algorithm() : "");
+            if (!digest_plugin_id_is_safe(digest_plugin_id)) {
+                return grpc::Status(grpc::StatusCode::INVALID_ARGUMENT,
+                                    "invalid change-log digest plugin id: " + digest_plugin_id);
+            }
+            if (!digest_algorithm_is_json_safe(digest_algorithm)) {
+                return grpc::Status(grpc::StatusCode::INVALID_ARGUMENT,
+                                    "unsupported change-log digest algorithm: " + digest_algorithm);
+            }
+
             const auto entry_cap = requested_entries == 0
                                            ? resource_limits_.max_changelog_export_entries
                                            : std::min(requested_entries, resource_limits_.max_changelog_export_entries);
@@ -2238,12 +2308,18 @@ namespace omega_edit {
             }
             changelog_export_context export_context{context, &spool};
             export_context.optimized = request->optimize();
+            export_context.digest_plugin_id = digest_plugin_id;
+            export_context.digest_algorithm = digest_algorithm;
 
             {
                 auto locked_session = session_manager_.lock_session(request->session_id());
                 if (!locked_session) {
                     return grpc::Status(grpc::StatusCode::NOT_FOUND, "session not found: " + request->session_id());
                 }
+                export_context.plugin_registry = transform_plugin_registry_;
+                export_context.plugin_registry_mutex = &transform_plugin_registry_mutex_;
+                const auto *checkpoint_directory = omega_session_get_checkpoint_directory(locked_session.session());
+                export_context.checkpoint_directory = checkpoint_directory ? checkpoint_directory : "";
                 omega_changelog_export_options_t options{};
                 options.first_change_serial = first;
                 options.last_change_serial = last;
@@ -2266,6 +2342,7 @@ namespace omega_edit {
                     if (export_context.failure == -10 || context->IsCancelled()) {
                         return grpc::Status(grpc::StatusCode::CANCELLED, "change-log export cancelled");
                     }
+                    if (!export_context.failure_status.ok()) { return export_context.failure_status; }
                     if (result == -2 || export_context.failure == -11 || spool.exhausted()) {
                         return grpc::Status(grpc::StatusCode::RESOURCE_EXHAUSTED,
                                             "change-log export exceeded a configured resource limit");
@@ -2274,16 +2351,10 @@ namespace omega_edit {
                                         "change-log range validation, planning, or spool write failed");
                 }
 
-                std::array<unsigned char, EVP_MAX_MD_SIZE> payload_digest{};
-                unsigned int payload_digest_length = 0;
-                if (!export_context.payload_digest.finish(payload_digest, payload_digest_length)) {
-                    return grpc::Status(grpc::StatusCode::INTERNAL, "failed to finalize change-log payload digest");
-                }
                 ::omega_edit::v1::ExportChangeLogResponse complete_frame;
                 auto *complete = complete_frame.mutable_complete();
                 complete->set_emitted_change_count_decimal(std::to_string(export_context.entry_count));
                 complete->set_payload_byte_count_decimal(std::to_string(export_context.payload_bytes));
-                complete->set_payload_sha256(payload_digest.data(), payload_digest_length);
                 if (!spool.write(complete_frame)) {
                     return grpc::Status(spool.exhausted() ? grpc::StatusCode::RESOURCE_EXHAUSTED
                                                           : grpc::StatusCode::INTERNAL,
@@ -2684,6 +2755,12 @@ namespace omega_edit {
                 return grpc::Status(grpc::StatusCode::INVALID_ARGUMENT,
                                     "unsupported fingerprint digest algorithm: " + algorithm);
             }
+            const auto plugin_id =
+                    request->has_plugin_id() ? request->plugin_id() : std::string(DEFAULT_DIGEST_PLUGIN_ID);
+            if (!digest_plugin_id_is_safe(plugin_id)) {
+                return grpc::Status(grpc::StatusCode::INVALID_ARGUMENT,
+                                    "invalid fingerprint digest plugin id: " + plugin_id);
+            }
             const auto options_json = make_digest_options_json(algorithm);
 
             const auto inspection_content = fingerprint_content_to_session_content(content);
@@ -2695,36 +2772,41 @@ namespace omega_edit {
 
             session_content_file_reader reader{source.file_path, source.reader_file_offset, source.effective_length};
             const auto inspect_status = inspect_with_streaming_plugin(
-                    context, transform_plugin_registry_, transform_plugin_registry_mutex_,
-                    SESSION_FINGERPRINT_DIGEST_PLUGIN_ID, options_json.c_str(), source.checkpoint_directory.c_str(), 0,
-                    source.effective_length, read_session_content_file_chunk, &reader,
-                    grpc::StatusCode::FAILED_PRECONDITION,
-                    "session fingerprint digest plugin is not registered: " +
-                            std::string(SESSION_FINGERPRINT_DIGEST_PLUGIN_ID),
+                    context, transform_plugin_registry_, transform_plugin_registry_mutex_, plugin_id,
+                    options_json.c_str(), source.checkpoint_directory.c_str(), 0, source.effective_length,
+                    read_session_content_file_chunk, &reader, grpc::StatusCode::FAILED_PRECONDITION,
+                    "session fingerprint digest plugin is not registered: " + plugin_id,
                     "session fingerprint digest plugin must be a streaming inspect plugin",
                     "unsupported fingerprint digest algorithm: " + algorithm,
-                    "session fingerprint digest plugin cancelled: " + std::string(SESSION_FINGERPRINT_DIGEST_PLUGIN_ID),
-                    grpc::StatusCode::ABORTED,
-                    "session fingerprint digest plugin failed: " + std::string(SESSION_FINGERPRINT_DIGEST_PLUGIN_ID),
-                    &plugin_response.response);
+                    "session fingerprint digest plugin cancelled: " + plugin_id, grpc::StatusCode::ABORTED,
+                    "session fingerprint digest plugin failed: " + plugin_id, &plugin_response.response);
             if (!inspect_status.ok()) { return inspect_status; }
 
-            if (plugin_response.response.result_length <= 0 || plugin_response.response.result_bytes == nullptr) {
+            if (plugin_response.response.result_length <= 0 ||
+                plugin_response.response.result_length > static_cast<int64_t>(DIGEST_VALUE_LIMIT) ||
+                plugin_response.response.result_bytes == nullptr) {
                 return grpc::Status(grpc::StatusCode::INTERNAL,
-                                    "session fingerprint digest plugin returned an empty digest");
+                                    "session fingerprint digest plugin returned an invalid digest length");
             }
 
-            std::string digest_value(reinterpret_cast<const char *>(plugin_response.response.result_bytes),
-                                     static_cast<size_t>(plugin_response.response.result_length));
-            if (plugin_response.response.result_label && *plugin_response.response.result_label) {
-                algorithm = normalize_digest_algorithm(plugin_response.response.result_label);
+            auto digest_value = normalize_digest_value(
+                    std::string(reinterpret_cast<const char *>(plugin_response.response.result_bytes),
+                                static_cast<size_t>(plugin_response.response.result_length)));
+            std::string output_algorithm;
+            if (!normalize_plugin_digest_algorithm(plugin_response.response.result_label, algorithm,
+                                                   output_algorithm) ||
+                !digest_value_is_safe(digest_value)) {
+                return grpc::Status(grpc::StatusCode::INTERNAL,
+                                    "session fingerprint digest plugin returned invalid digest metadata");
             }
+            algorithm = std::move(output_algorithm);
 
             response->set_session_id(request->session_id());
             response->set_content(content);
             auto *fingerprint = response->mutable_fingerprint();
             fingerprint->set_byte_length(source.content_byte_length);
             auto *digest_response = fingerprint->mutable_digest();
+            digest_response->set_plugin_id(plugin_id);
             digest_response->set_algorithm(algorithm);
             digest_response->set_value(digest_value);
             return grpc::Status::OK;

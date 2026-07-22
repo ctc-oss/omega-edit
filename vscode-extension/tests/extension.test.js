@@ -583,7 +583,7 @@ test('routes save-conflict fingerprinting through the native guarded save path',
   assert.doesNotMatch(extensionSource, /createReadStream|createHash/)
   assert.match(extensionSource, /expected\.digest/)
   assert.match(coreSource, /overwrite_guard/)
-  assert.match(serverSource, /SESSION_FINGERPRINT_DIGEST_PLUGIN_ID/)
+  assert.match(serverSource, /DEFAULT_DIGEST_PLUGIN_ID/)
   assert.match(serverSource, /verify_overwrite_fingerprint/)
 })
 

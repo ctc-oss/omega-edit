@@ -232,8 +232,8 @@ namespace omega_test {
      * session at the tip on success. This is the "one permitted visible change" oracle: any code
      * that rewrites history must keep every state on this trajectory truthful.
      *
-     * Note: undo stops at plain (non-transform) checkpoint boundaries by core design; the
-     * trajectory covers what the user can actually reach.
+     * Plain checkpoint models move to the future stack during undo and are rematerialized by
+     * redo when their history boundary is reached.
      */
     inline undo_redo_result_t verify_undo_redo_round_trip(omega_session_t *session_ptr) {
         undo_redo_result_t result;
