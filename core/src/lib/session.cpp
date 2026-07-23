@@ -84,15 +84,17 @@ namespace {
         if (serial == (std::numeric_limits<int64_t>::min)()) { return nullptr; }
 
         const auto positive_serial = -serial;
-        for (auto iter = model->changes.crbegin(); iter != model->changes.crend(); ++iter) {
-            const auto *change = iter->get();
-            if (!change) { continue; }
-            if (omega_change_get_serial(change) == positive_serial) { return change; }
-            if (change->transform_data) {
-                if (const auto *preserved =
-                            find_undone_change_(change->transform_data->preserved_changes_undone, serial)) {
-                    return preserved;
-                }
+        const auto index = positive_serial - 1 - model->change_serial_base;
+        if (index >= 0 && static_cast<size_t>(index) < model->changes.size()) {
+            const auto *change = model->changes[static_cast<size_t>(index)].get();
+            if (change && omega_change_get_serial(change) == positive_serial) { return change; }
+        }
+
+        // A checkpointed transform, when present, is the first change in its model and may retain its own redo suffix.
+        if (!model->changes.empty()) {
+            const auto *change = model->changes.front().get();
+            if (change && change->transform_data) {
+                return find_undone_change_(change->transform_data->preserved_changes_undone, serial);
             }
         }
         return nullptr;
@@ -262,8 +264,8 @@ const omega_change_t *omega_session_get_change(const omega_session_t *session_pt
     } else if (change_serial < 0) {
         // Negative serials are retained forward changes. A materialized checkpoint model can carry both changes that
         // have already been moved to its undo stack and positive-serial changes beyond the active checkpoint cursor.
-        for (const auto &model : session_ptr->models_) {
-            if (const auto *change = find_undone_change_(model->changes_undone, change_serial)) { return change; }
+        for (auto iter = session_ptr->models_.crbegin(); iter != session_ptr->models_.crend(); ++iter) {
+            if (const auto *change = find_undone_change_((*iter)->changes_undone, change_serial)) { return change; }
         }
         for (auto iter = session_ptr->checkpoint_future_models_.crbegin();
              iter != session_ptr->checkpoint_future_models_.crend(); ++iter) {

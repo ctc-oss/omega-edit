@@ -56,6 +56,7 @@ import {
   getActionJournalViewport as requestActionJournalViewport,
   getChangeCount,
   getChangeDetails,
+  getChangeTransactionCount,
   getClientVersion,
   getComputedFileSize,
   getCounts,
@@ -63,6 +64,7 @@ import {
   getServerInfo,
   getSessionContentInfo,
   getSessionFingerprint,
+  getUndoTransactionCount,
   getViewportData,
   IOFlags,
   inspectSessionContent,
@@ -2605,6 +2607,7 @@ export class HexEditorProvider
     resolvedSession = session
     this.activeSession = session
     this.updateEditCommandContexts(session)
+    await this.reconcileNativeHistory(session)
 
     // Send initial data to the webview. The message listener must be in place
     // first because the webview posts its first metrics update as soon as it
@@ -4445,6 +4448,7 @@ export class HexEditorProvider
             targetHistorySnapshot?.transactionLog.length ?? 0
           )
         : new EditorHistoryController()
+      await this.reconcileNativeHistory(session)
       await this.resetSessionState(session, isDirty, isDirty, false, true)
       await this.refreshSessionContentInfo(session)
       this.clearSearchState(session)
@@ -4623,6 +4627,9 @@ export class HexEditorProvider
       session.scope.isDisposed
     ) {
       return
+    }
+    if (await this.reconcileNativeHistory(session)) {
+      this.postEditState(session)
     }
     const webviewViewport: WebviewActionJournalViewport = {
       version: 1,
@@ -5929,6 +5936,30 @@ export class HexEditorProvider
     timeoutMs: number = SESSION_SYNC_TIMEOUT_MS
   ): Promise<void> {
     return session.scope.model.waitForSync(minimumVersion, timeoutMs)
+  }
+
+  private async reconcileNativeHistory(
+    session: EditorSession
+  ): Promise<boolean> {
+    const [activeTransactionCount, undoneTransactionCount, currentFingerprint] =
+      await Promise.all([
+        getChangeTransactionCount(session.sessionId),
+        getUndoTransactionCount(session.sessionId),
+        getChangeLogFingerprint(
+          session.sessionId,
+          SessionFingerprintContent.COMPUTED,
+          'sha256'
+        ),
+      ])
+    session.checkpointTimeline.currentFingerprint = currentFingerprint
+    return session.history.reconcileNativeTransactionCounts(
+      activeTransactionCount,
+      undoneTransactionCount,
+      timelineFingerprintsEqual(
+        session.checkpointTimeline.currentFingerprint,
+        session.checkpointTimeline.savedFingerprint
+      )
+    )
   }
 
   private async getCheckpointCount(session: EditorSession): Promise<number> {

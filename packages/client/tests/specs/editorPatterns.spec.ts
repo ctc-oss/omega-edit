@@ -412,6 +412,79 @@ describe('Editor Patterns', () => {
     expect(restored.snapshot()).to.deep.equal(snapshot)
   })
 
+  it('should reconcile history when another client changes native transaction stacks', async () => {
+    const history = new EditorHistoryController()
+    history.recordLocalChange({
+      serial: 17,
+      kind: 'INSERT',
+      offset: 649,
+      length: 0,
+      data: '42',
+    })
+
+    expect(history.reconcileNativeTransactionCounts(16, 1, true)).to.be.true
+    expect(history.getChangeLog()).to.deep.equal([])
+    expect(history.getEditState()).to.deep.equal({
+      canUndo: true,
+      canRedo: true,
+      undoCount: 16,
+      redoCount: 1,
+      isDirty: false,
+      savedChangeDepth: 16,
+    })
+    expect(history.reconcileNativeTransactionCounts(16, 1, true)).to.be.false
+
+    const calls: string[] = []
+    const executor = {
+      async undoLocal() {
+        calls.push('undoLocal')
+      },
+      async redoLocal() {
+        calls.push('redoLocal')
+      },
+      async undoCheckpoint() {
+        calls.push('undoCheckpoint')
+      },
+      async redoCheckpoint() {
+        calls.push('redoCheckpoint')
+      },
+    }
+    await history.undo(executor)
+    await history.redo(executor)
+    expect(calls).to.deep.equal(['undoLocal', 'redoLocal'])
+  })
+
+  it('should reject invalid native transaction counts', () => {
+    const history = new EditorHistoryController()
+    expect(() =>
+      history.reconcileNativeTransactionCounts(-1, 0, false)
+    ).to.throw(RangeError)
+    expect(() =>
+      history.reconcileNativeTransactionCounts(
+        0,
+        Number.MAX_SAFE_INTEGER + 1,
+        false
+      )
+    ).to.throw(RangeError)
+  })
+
+  it('should not mistake checkpoint-backed steps for native transactions', () => {
+    const history = new EditorHistoryController()
+    history.recordCheckpointReplaceAll({
+      kind: 'CHECKPOINT_REPLACE_ALL',
+      query: 'PD',
+      isHex: false,
+      caseFolding: SearchCaseFolding.NONE,
+      data: '504446',
+    })
+
+    expect(history.reconcileNativeTransactionCounts(0, 0, false)).to.be.false
+    expect(history.getEditState()).to.deep.include({
+      canUndo: true,
+      undoCount: 1,
+    })
+  })
+
   it('should undo multi-record local transactions as a single unit', async () => {
     const history = new EditorHistoryController()
     const calls: string[] = []

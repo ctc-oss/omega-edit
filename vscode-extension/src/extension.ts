@@ -76,6 +76,8 @@ let activeServerPid: number | undefined
 let activeServerSocketPath: string | undefined
 
 const DEFAULT_SERVER_PORT = 9000
+const SERVER_SESSION_TIMEOUT_MS = 60_000
+const SERVER_CLEANUP_INTERVAL_MS = 5_000
 const DARWIN_UNIX_SOCKET_PATH_MAX_BYTES = 103
 const SERVER_PORT_OVERRIDE_ENV = 'OMEGA_EDIT_SERVER_PORT'
 const SERVER_SOCKET_OVERRIDE_ENV = 'OMEGA_EDIT_SERVER_SOCKET'
@@ -558,6 +560,9 @@ async function startTcpServerConnection(
 ): Promise<StartedServer> {
   const tcpConnection = toTcpConnection(connection)
   const serverOptions = {
+    sessionTimeoutMs: SERVER_SESSION_TIMEOUT_MS,
+    cleanupIntervalMs: SERVER_CLEANUP_INTERVAL_MS,
+    shutdownWhenNoSessions: true,
     transformPluginDirectories,
     allowExperimentalTransformPlugins,
   }
@@ -586,6 +591,9 @@ async function startServerConnection(
   }
 
   const serverOptions = {
+    sessionTimeoutMs: SERVER_SESSION_TIMEOUT_MS,
+    cleanupIntervalMs: SERVER_CLEANUP_INTERVAL_MS,
+    shutdownWhenNoSessions: true,
     transformPluginDirectories,
     allowExperimentalTransformPlugins,
   }
@@ -621,8 +629,24 @@ async function stopServerConnectionGraceful(
     if (connection) {
       await connectToServer(connection)
     }
-    await stopServerGraceful()
-    return true
+    const result = await stopServerGraceful()
+
+    // The native server is deliberately detached from the extension host.
+    // A graceful request can therefore leave it alive while sessions drain,
+    // and Windows will keep the executable (and extension directory) locked.
+    // Wait for the known child PID to exit, escalating through the client's
+    // normal process-stop path when the RPC has not completed shutdown yet.
+    if (serverPid !== undefined && serverPid) {
+      const stopped = await stopProcessUsingPID(serverPid)
+      if (!stopped) {
+        console.warn(
+          `Failed to stop OmegaEdit server process ${serverPid} after graceful shutdown returned ${result.status}`
+        )
+      }
+      return stopped
+    }
+
+    return result.status === 'completed'
   } catch (err) {
     if (serverPid !== undefined && serverPid) {
       try {

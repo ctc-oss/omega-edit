@@ -139,7 +139,7 @@
     pendingHexLabel = '',
     canScrollUp = false,
     canScrollDown = false,
-    profilerExpanded = true,
+    profilerExpanded = false,
     profilerMode = 'profile',
     analysisSectionOrder,
     fileSize = 0,

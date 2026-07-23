@@ -186,6 +186,7 @@ describe('Action journal integration', () => {
 
   it('keeps the full redo suffix visible while crossing a checkpoint', async () => {
     const payload = Buffer.from('a')
+    const expectedSerials = ['10', '9', '8', '7', '6', '5', '4', '3', '2', '1']
     for (let serial = 1; serial <= 6; serial += 1) {
       await insert(sessionId, serial - 1, payload)
     }
@@ -207,18 +208,9 @@ describe('Action journal integration', () => {
       changeCount: '5',
       undoCount: '5',
     })
-    expect(beforeCheckpoint.entries.map((entry) => entry.firstSerial)).toEqual([
-      '10',
-      '9',
-      '8',
-      '7',
-      '6',
-      '5',
-      '4',
-      '3',
-      '2',
-      '1',
-    ])
+    expect(beforeCheckpoint.entries.map((entry) => entry.firstSerial)).toEqual(
+      expectedSerials
+    )
 
     await redo(sessionId)
     const atCheckpoint = await getActionJournalViewport({
@@ -231,17 +223,8 @@ describe('Action journal integration', () => {
       changeCount: '6',
       undoCount: '4',
     })
-    expect(atCheckpoint.entries.map((entry) => entry.firstSerial)).toEqual([
-      '10',
-      '9',
-      '8',
-      '7',
-      '6',
-      '5',
-      '4',
-      '3',
-      '2',
-      '1',
-    ])
+    expect(atCheckpoint.entries.map((entry) => entry.firstSerial)).toEqual(
+      expectedSerials
+    )
   })
 })

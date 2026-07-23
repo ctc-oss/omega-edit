@@ -212,6 +212,70 @@ export class EditorHistoryController {
     return history
   }
 
+  public reconcileNativeTransactionCounts(
+    activeTransactionCount: number,
+    undoneTransactionCount: number,
+    currentStateIsSaved: boolean
+  ): boolean {
+    if (
+      !Number.isSafeInteger(activeTransactionCount) ||
+      activeTransactionCount < 0 ||
+      !Number.isSafeInteger(undoneTransactionCount) ||
+      undoneTransactionCount < 0
+    ) {
+      throw new RangeError(
+        'Native transaction counts must be non-negative safe integers'
+      )
+    }
+    const nativeBackedActiveCount = this.transactionLog.filter(
+      (transaction) => transaction.kind !== 'CHECKPOINT_REPLACE_ALL'
+    ).length
+    const nativeBackedUndoneCount = this.undoneTransactionLog.filter(
+      (transaction) => transaction.kind !== 'CHECKPOINT_REPLACE_ALL'
+    ).length
+    if (
+      nativeBackedActiveCount === activeTransactionCount &&
+      nativeBackedUndoneCount === undoneTransactionCount
+    ) {
+      return false
+    }
+    if (
+      this.transactionLog.some(
+        (transaction) => transaction.kind === 'CHECKPOINT_REPLACE_ALL'
+      ) ||
+      this.undoneTransactionLog.some(
+        (transaction) => transaction.kind === 'CHECKPOINT_REPLACE_ALL'
+      )
+    ) {
+      return false
+    }
+
+    // Another client can attach to the same native file session and mutate it
+    // without contributing records to this controller. Once the native stack
+    // depths diverge, retaining typed local records would associate them with
+    // the wrong native transactions. Preserve correct undo/redo ordering by
+    // rebuilding both stacks as opaque transactions.
+    this.changeLog.length = 0
+    this.undoneChangeLog.length = 0
+    this.transactionLog.length = 0
+    this.undoneTransactionLog.length = 0
+    this.transactionLog.push(
+      ...Array.from(
+        { length: activeTransactionCount },
+        (): EditorTransactionRecord => ({ kind: 'LOCAL_UNTRACKED' })
+      )
+    )
+    this.undoneTransactionLog.push(
+      ...Array.from(
+        { length: undoneTransactionCount },
+        (): EditorTransactionRecord => ({ kind: 'LOCAL_UNTRACKED' })
+      )
+    )
+    this.savedChangeDepth = currentStateIsSaved ? activeTransactionCount : 0
+    this.milestoneDepths.length = 0
+    return true
+  }
+
   public recordLocalChange(change: EditorChangeRecord): void {
     this.recordLocalChanges([change])
   }
