@@ -29,6 +29,7 @@
 #include <algorithm>
 #include <cassert>
 #include <cstring>
+#include <limits>
 
 using omega_edit::internal::change_kind_t;
 using omega_edit::internal::omega_change_get_kind_;
@@ -52,10 +53,40 @@ namespace {
         return result;
     }
 
+    int64_t count_future_model_changes_(const omega_model_t *model) {
+        if (!model) { return 0; }
+        int64_t result = static_cast<int64_t>(model->changes.size());
+        for (const auto &change : model->changes) {
+            if (change && change->transform_data) {
+                result += count_undone_changes_(change->transform_data->preserved_changes_undone);
+            }
+        }
+        return result + count_undone_changes_(model->changes_undone);
+    }
+
     const omega_change_t *find_undone_change_(const omega_changes_t &changes, int64_t serial) {
         for (auto iter = changes.crbegin(); iter != changes.crend(); ++iter) {
             const auto *change = iter->get();
             if (omega_change_get_serial(change) == serial) { return change; }
+            if (change && change->transform_data) {
+                if (const auto *preserved =
+                            find_undone_change_(change->transform_data->preserved_changes_undone, serial)) {
+                    return preserved;
+                }
+            }
+        }
+        return nullptr;
+    }
+
+    const omega_change_t *find_future_model_change_(const omega_model_t *model, int64_t serial) {
+        if (!model || serial >= 0) { return nullptr; }
+        if (const auto *change = find_undone_change_(model->changes_undone, serial)) { return change; }
+        if (serial == (std::numeric_limits<int64_t>::min)()) { return nullptr; }
+
+        const auto positive_serial = -serial;
+        for (auto iter = model->changes.crbegin(); iter != model->changes.crend(); ++iter) {
+            const auto *change = iter->get();
+            if (omega_change_get_serial(change) == positive_serial) { return change; }
             if (change && change->transform_data) {
                 if (const auto *preserved =
                             find_undone_change_(change->transform_data->preserved_changes_undone, serial)) {
@@ -159,6 +190,9 @@ int64_t omega_session_get_num_undone_changes(const omega_session_t *session_ptr)
     assert(session_ptr->models_.back());
     int64_t result = 0;
     for (const auto &model : session_ptr->models_) { result += count_undone_changes_(model->changes_undone); }
+    for (const auto &model : session_ptr->checkpoint_future_models_) {
+        result += count_future_model_changes_(model.get());
+    }
     return result;
 }
 
@@ -225,9 +259,14 @@ const omega_change_t *omega_session_get_change(const omega_session_t *session_pt
             }
         }
     } else if (change_serial < 0) {
-        // Negative serials are undone changes
+        // Negative serials are retained forward changes. A materialized checkpoint model can carry both changes that
+        // have already been moved to its undo stack and positive-serial changes beyond the active checkpoint cursor.
         for (const auto &model : session_ptr->models_) {
             if (const auto *change = find_undone_change_(model->changes_undone, change_serial)) { return change; }
+        }
+        for (auto iter = session_ptr->checkpoint_future_models_.crbegin();
+             iter != session_ptr->checkpoint_future_models_.crend(); ++iter) {
+            if (const auto *change = find_future_model_change_(iter->get(), change_serial)) { return change; }
         }
     }
     return nullptr;

@@ -183,4 +183,64 @@ describe('Action journal integration', () => {
     ])
     await redo(sessionId)
   })
+
+  it('keeps the full redo suffix visible while crossing a checkpoint', async () => {
+    for (let serial = 1; serial <= 6; serial += 1) {
+      await insert(sessionId, serial - 1, Buffer.from('a'))
+    }
+    await createCheckpoint(sessionId)
+    for (let serial = 7; serial <= 10; serial += 1) {
+      await insert(sessionId, serial - 1, Buffer.from('a'))
+    }
+
+    for (let serial = 10; serial >= 6; serial -= 1) {
+      await undo(sessionId)
+    }
+    const beforeCheckpoint = await getActionJournalViewport({
+      sessionId,
+      capacity: 20,
+      direction: 'older',
+    })
+    expect(beforeCheckpoint).toMatchObject({
+      activeTipSerial: '5',
+      changeCount: '5',
+      undoCount: '5',
+    })
+    expect(beforeCheckpoint.entries.map((entry) => entry.firstSerial)).toEqual([
+      '10',
+      '9',
+      '8',
+      '7',
+      '6',
+      '5',
+      '4',
+      '3',
+      '2',
+      '1',
+    ])
+
+    await redo(sessionId)
+    const atCheckpoint = await getActionJournalViewport({
+      sessionId,
+      capacity: 20,
+      direction: 'older',
+    })
+    expect(atCheckpoint).toMatchObject({
+      activeTipSerial: '6',
+      changeCount: '6',
+      undoCount: '4',
+    })
+    expect(atCheckpoint.entries.map((entry) => entry.firstSerial)).toEqual([
+      '10',
+      '9',
+      '8',
+      '7',
+      '6',
+      '5',
+      '4',
+      '3',
+      '2',
+      '1',
+    ])
+  })
 })
