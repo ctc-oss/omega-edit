@@ -528,6 +528,7 @@ export async function writeChangeLogRpcExportAtomic(
           before: {
             byteLength: frame.header.before?.byteLengthDecimal,
             digest: {
+              pluginId: frame.header.before?.digestPluginId,
               algorithm: frame.header.before?.digestAlgorithm,
               value: frame.header.before?.digestValue,
             },
@@ -535,6 +536,7 @@ export async function writeChangeLogRpcExportAtomic(
           after: {
             byteLength: frame.header.after?.byteLengthDecimal,
             digest: {
+              pluginId: frame.header.after?.digestPluginId,
               algorithm: frame.header.after?.digestAlgorithm,
               value: frame.header.after?.digestValue,
             },
@@ -662,6 +664,7 @@ export async function writeChangeLogRpcExportAtomic(
       before: {
         byteLength: header.before!.byteLengthDecimal,
         digest: {
+          pluginId: header.before!.digestPluginId,
           algorithm: header.before!.digestAlgorithm,
           value: header.before!.digestValue,
         },
@@ -669,6 +672,7 @@ export async function writeChangeLogRpcExportAtomic(
       after: {
         byteLength: header.after!.byteLengthDecimal,
         digest: {
+          pluginId: header.after!.digestPluginId,
           algorithm: header.after!.digestAlgorithm,
           value: header.after!.digestValue,
         },

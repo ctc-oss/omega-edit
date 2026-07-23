@@ -370,6 +370,47 @@ TEST_CASE("Checkpoint checkout preserves redo models until a branch edit",
     omega_edit_destroy_session(session_ptr);
 }
 
+TEST_CASE("Undo crosses materialized checkpoints one transaction at a time",
+          "[SessionCheckpointTests][CheckpointTimeline][Undo][LargePayload]") {
+    constexpr auto large_size = size_t{2} * 1024 * 1024;
+    std::vector<omega_byte_t> input(large_size, static_cast<omega_byte_t>('A'));
+    const auto session_ptr = omega_edit_create_session_from_bytes(input.data(), static_cast<int64_t>(input.size()),
+                                                                  nullptr, nullptr, NO_EVENTS, nullptr);
+    REQUIRE(session_ptr);
+
+    REQUIRE(1 == omega_edit_overwrite_string(session_ptr, 0, "B"));
+    REQUIRE(0 == omega_edit_create_checkpoint(session_ptr));
+    REQUIRE(2 == omega_edit_delete(session_ptr, 0, static_cast<int64_t>(large_size)));
+    REQUIRE(0 == omega_edit_create_checkpoint(session_ptr));
+    const std::string tip_checkpoint_path = omega_session_get_latest_checkpoint_file_path(session_ptr);
+
+    REQUIRE(0 == omega_session_get_computed_file_size(session_ptr));
+    REQUIRE(-2 == omega_edit_undo_last_change(session_ptr));
+    REQUIRE(static_cast<int64_t>(large_size) == omega_session_get_computed_file_size(session_ptr));
+    REQUIRE("BAAA" == omega_session_get_segment_string(session_ptr, 0, 4));
+    REQUIRE(1 == omega_session_get_num_checkpoints(session_ptr));
+    REQUIRE(1 == omega_session_get_num_future_checkpoints(session_ptr));
+    REQUIRE(0 == omega_check_model(session_ptr));
+
+    REQUIRE(-1 == omega_edit_undo_last_change(session_ptr));
+    REQUIRE("AAAA" == omega_session_get_segment_string(session_ptr, 0, 4));
+    REQUIRE(0 == omega_session_get_num_checkpoints(session_ptr));
+    REQUIRE(2 == omega_session_get_num_future_checkpoints(session_ptr));
+    REQUIRE(0 == omega_check_model(session_ptr));
+
+    REQUIRE(1 == omega_edit_redo_last_undo(session_ptr));
+    REQUIRE(0 == omega_edit_checkout_checkpoint(session_ptr, 1));
+    REQUIRE(2 == omega_edit_redo_last_undo(session_ptr));
+    REQUIRE(0 == omega_edit_checkout_checkpoint(session_ptr, 2));
+    REQUIRE(0 == omega_session_get_computed_file_size(session_ptr));
+    REQUIRE(2 == omega_session_get_num_checkpoints(session_ptr));
+    REQUIRE(0 == omega_session_get_num_future_checkpoints(session_ptr));
+    REQUIRE(tip_checkpoint_path == omega_session_get_latest_checkpoint_file_path(session_ptr));
+    REQUIRE(0 == omega_check_model(session_ptr));
+
+    omega_edit_destroy_session(session_ptr);
+}
+
 TEST_CASE("Checkpoint boundary lookup selects the newest duplicate", "[SessionCheckpointTests][CheckpointTimeline]") {
     const auto input = reinterpret_cast<const omega_byte_t *>("abc");
     const auto session_ptr = omega_edit_create_session_from_bytes(input, 3, nullptr, nullptr, NO_EVENTS, nullptr);
@@ -378,9 +419,13 @@ TEST_CASE("Checkpoint boundary lookup selects the newest duplicate", "[SessionCh
     REQUIRE(0 == omega_edit_create_checkpoint(session_ptr));
     REQUIRE(0 == omega_edit_create_checkpoint(session_ptr));
     REQUIRE(2 == omega_session_get_num_checkpoints(session_ptr));
+    REQUIRE(0 == omega_session_get_num_future_checkpoints(session_ptr));
     REQUIRE(0 == omega_session_get_checkpoint_change_count(session_ptr, 1));
     REQUIRE(0 == omega_session_get_checkpoint_change_count(session_ptr, 2));
     REQUIRE(2 == omega_session_get_checkpoint_at_change_count(session_ptr, 0));
+    REQUIRE(0 == omega_edit_undo_last_change(session_ptr));
+    REQUIRE(2 == omega_session_get_num_checkpoints(session_ptr));
+    REQUIRE(0 == omega_session_get_num_future_checkpoints(session_ptr));
 
     REQUIRE(1 == omega_edit_insert_string(session_ptr, 3, "!"));
     REQUIRE(0 == omega_edit_create_checkpoint(session_ptr));

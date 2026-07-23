@@ -16,6 +16,10 @@
  */
 
 import {
+  CHANGE_LOG_DEFAULT_DIGEST_PLUGIN_ID,
+  CHANGE_LOG_DIGEST_ALGORITHM_MAX_LENGTH,
+  CHANGE_LOG_DIGEST_PLUGIN_ID_MAX_LENGTH,
+  CHANGE_LOG_DIGEST_VALUE_MAX_LENGTH,
   CHANGE_LOG_FORMAT,
   CHANGE_LOG_VERSION,
   type ChangeLogCodecLimits,
@@ -449,24 +453,46 @@ export function normalizeChangeLogFingerprint(
     )
   }
   const algorithm = value.digest.algorithm
+  const pluginId = value.digest.pluginId ?? CHANGE_LOG_DEFAULT_DIGEST_PLUGIN_ID
   const digestValue = value.digest.value
-  if (typeof algorithm !== 'string' || !algorithm.trim()) {
+  const normalizedPluginId = typeof pluginId === 'string' ? pluginId.trim() : ''
+  const normalizedAlgorithm =
+    typeof algorithm === 'string' ? algorithm.trim().toLowerCase() : ''
+  const normalizedDigestValue =
+    typeof digestValue === 'string' ? digestValue.trim().toLowerCase() : ''
+  if (
+    !/^[A-Za-z0-9._-]+$/.test(normalizedPluginId) ||
+    normalizedPluginId.length > CHANGE_LOG_DIGEST_PLUGIN_ID_MAX_LENGTH
+  ) {
     throw new ChangeLogCodecError(
       'CHANGE_LOG_INVALID_FINGERPRINT',
-      `Change log ${key}.digest.algorithm must be a string`
+      `Change log ${key}.digest.pluginId must contain 1-${CHANGE_LOG_DIGEST_PLUGIN_ID_MAX_LENGTH} ASCII letters, digits, dots, underscores, or hyphens`
     )
   }
-  if (typeof digestValue !== 'string' || !digestValue.trim()) {
+  if (
+    !/^[a-z0-9-]+$/.test(normalizedAlgorithm) ||
+    normalizedAlgorithm.length > CHANGE_LOG_DIGEST_ALGORITHM_MAX_LENGTH
+  ) {
     throw new ChangeLogCodecError(
       'CHANGE_LOG_INVALID_FINGERPRINT',
-      `Change log ${key}.digest.value must be a string`
+      `Change log ${key}.digest.algorithm must normalize to 1-${CHANGE_LOG_DIGEST_ALGORITHM_MAX_LENGTH} lowercase ASCII letters, digits, or hyphens`
+    )
+  }
+  if (
+    !/^[0-9a-f]+$/.test(normalizedDigestValue) ||
+    normalizedDigestValue.length > CHANGE_LOG_DIGEST_VALUE_MAX_LENGTH
+  ) {
+    throw new ChangeLogCodecError(
+      'CHANGE_LOG_INVALID_FINGERPRINT',
+      `Change log ${key}.digest.value must normalize to 1-${CHANGE_LOG_DIGEST_VALUE_MAX_LENGTH} lowercase hexadecimal characters`
     )
   }
   return {
     byteLength,
     digest: {
-      algorithm: algorithm.trim().toLowerCase(),
-      value: digestValue.trim().toLowerCase(),
+      pluginId: normalizedPluginId,
+      algorithm: normalizedAlgorithm,
+      value: normalizedDigestValue,
     },
   }
 }

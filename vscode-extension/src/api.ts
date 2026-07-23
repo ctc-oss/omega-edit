@@ -107,6 +107,7 @@ export interface OmegaEditRestoreCheckpointResult {
 }
 
 export interface OmegaEditChangeLogDigest {
+  pluginId?: string
   algorithm: string
   value: string
 }

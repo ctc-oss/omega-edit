@@ -7,6 +7,7 @@ import { createHash, randomBytes, randomUUID } from 'node:crypto'
 import * as fs from 'node:fs/promises'
 import { basename, dirname, join, relative, resolve, sep } from 'node:path'
 import {
+  CHANGE_LOG_DEFAULT_DIGEST_PLUGIN_ID,
   type ChangeLogFileReadResult,
   type ChangeLogFingerprint,
   type EditorHistorySnapshot,
@@ -26,6 +27,9 @@ const DEFAULT_LOCK_WAIT_MS = 5000
 const HEARTBEAT_INTERVAL_MS = 60 * 1000
 const MAX_METADATA_BYTES = 4 * 1024 * 1024
 const RESERVATION_CHUNK_BYTES = 16 * 1024 * 1024
+const DIGEST_PLUGIN_ID_MAX_LENGTH = 4096
+const DIGEST_ALGORITHM_MAX_LENGTH = 128
+const DIGEST_VALUE_MAX_LENGTH = 4096
 
 export const CHECKPOINT_HISTORY_DEFAULTS = {
   maxBytesPerSession: 1_073_741_824,
@@ -45,7 +49,7 @@ export type CheckpointBoundaryKind = 'plain' | 'transform' | 'tip'
 
 export interface NormalizedTimelineFingerprint {
   byteLength: string
-  digest: { algorithm: string; value: string }
+  digest: { pluginId?: string; algorithm: string; value: string }
 }
 
 export interface CheckpointIntervalManifestEntryV1 {
@@ -205,18 +209,27 @@ function normalizeFingerprint(
   value: ChangeLogFingerprint
 ): NormalizedTimelineFingerprint {
   const byteLength = decimal(value.byteLength, 'fingerprint.byteLength')
+  const pluginId = value.digest.pluginId ?? CHANGE_LOG_DEFAULT_DIGEST_PLUGIN_ID
   if (
-    value.digest.algorithm !== 'sha256' ||
-    !/^[0-9a-f]{64}$/.test(value.digest.value)
+    !/^[A-Za-z0-9._-]+$/.test(pluginId) ||
+    pluginId.length > DIGEST_PLUGIN_ID_MAX_LENGTH ||
+    !/^[a-z0-9-]+$/.test(value.digest.algorithm) ||
+    value.digest.algorithm.length > DIGEST_ALGORITHM_MAX_LENGTH ||
+    !/^[0-9a-f]+$/.test(value.digest.value) ||
+    value.digest.value.length > DIGEST_VALUE_MAX_LENGTH
   ) {
     throw new TimelineStorageError(
       'TIMELINE_INVALID_FINGERPRINT',
-      'Timeline fingerprints must use lowercase SHA-256'
+      'Timeline fingerprint digest metadata is invalid'
     )
   }
   return {
     byteLength,
-    digest: { algorithm: 'sha256', value: value.digest.value },
+    digest: {
+      pluginId,
+      algorithm: value.digest.algorithm,
+      value: value.digest.value,
+    },
   }
 }
 
@@ -226,6 +239,8 @@ function fingerprintsEqual(
 ): boolean {
   return (
     left.byteLength === right.byteLength &&
+    (left.digest.pluginId ?? CHANGE_LOG_DEFAULT_DIGEST_PLUGIN_ID) ===
+      (right.digest.pluginId ?? CHANGE_LOG_DEFAULT_DIGEST_PLUGIN_ID) &&
     left.digest.algorithm === right.digest.algorithm &&
     left.digest.value === right.digest.value
   )

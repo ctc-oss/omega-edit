@@ -42,7 +42,6 @@ set(CMAKE_VERBOSE_MAKEFILE ON)
 find_package(Protobuf CONFIG REQUIRED)
 find_package(gRPC CONFIG REQUIRED)
 find_package(Threads REQUIRED)
-find_package(OpenSSL REQUIRED COMPONENTS Crypto)
 
 # ── Resolve protoc and grpc_cpp_plugin executables ────────────────────────────
 # Try target property first, fall back to find_program.
@@ -241,32 +240,24 @@ target_include_directories(omega-edit-grpc-server PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/src
 )
 
-# Check if gRPC reflection is available (not always present in vcpkg builds)
-if(TARGET gRPC::grpc++_reflection)
-    target_compile_definitions(omega-edit-grpc-server PRIVATE HAS_GRPC_REFLECTION)
-    set(_GRPC_REFLECTION_LIB gRPC::grpc++_reflection)
-else()
-    set(_GRPC_REFLECTION_LIB "")
+if(NOT TARGET gRPC::grpc++_unsecure)
+    message(FATAL_ERROR "gRPC::grpc++_unsecure is required because the native server exposes only insecure endpoints")
 endif()
 
 if(omega_edit_FOUND)
     target_link_libraries(omega-edit-grpc-server PRIVATE
         omega_edit::omega_edit
-        gRPC::grpc++
-        ${_GRPC_REFLECTION_LIB}
+        gRPC::grpc++_unsecure
         protobuf::libprotobuf
         Threads::Threads
-        OpenSSL::Crypto
     )
 else()
     target_include_directories(omega-edit-grpc-server PRIVATE ${OMEGA_EDIT_INCLUDE})
     target_link_libraries(omega-edit-grpc-server PRIVATE
         ${OMEGA_EDIT_LIB}
-        gRPC::grpc++
-        ${_GRPC_REFLECTION_LIB}
+        gRPC::grpc++_unsecure
         protobuf::libprotobuf
         Threads::Threads
-        OpenSSL::Crypto
     )
 endif()
 

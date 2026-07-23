@@ -198,13 +198,16 @@ export async function checkSessionModel(
 export async function getSessionFingerprint(
   sessionId: string,
   content: SessionFingerprintContent,
-  algorithm = ''
+  algorithm = '',
+  pluginId = ''
 ): Promise<GetSessionFingerprintResponse> {
   const log = getLogger()
-  const request =
-    algorithm.length > 0
-      ? { sessionId, content, algorithm }
-      : { sessionId, content }
+  const request = {
+    sessionId,
+    content,
+    ...(algorithm.length > 0 ? { algorithm } : {}),
+    ...(pluginId.length > 0 ? { pluginId } : {}),
+  }
   debugLog(log, () => ({
     fn: 'protobufTs.getSessionFingerprint',
     rqst: request,

@@ -261,12 +261,14 @@ export async function checkSessionModel(
 export async function getSessionFingerprint(
   session_id: string,
   content: SessionFingerprintContent,
-  algorithm = 'sha256'
+  algorithm = 'sha256',
+  plugin_id = ''
 ): Promise<GetSessionFingerprintResponse> {
   const response = await rawGetSessionFingerprint(
     session_id,
     content,
-    algorithm
+    algorithm,
+    plugin_id
   )
   if (!response.fingerprint?.digest) {
     throw new Error('getSessionFingerprint response missing fingerprint digest')
@@ -281,6 +283,7 @@ export async function getSessionFingerprint(
         response.fingerprint.byteLength
       ),
       digest: {
+        pluginId: response.fingerprint.digest.pluginId,
         algorithm: response.fingerprint.digest.algorithm,
         value: response.fingerprint.digest.value,
       },

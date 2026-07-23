@@ -15,7 +15,6 @@
  * limitations under the License.
  */
 
-import { createHash } from 'node:crypto'
 import { getClient } from '../../client'
 import {
   ChangeLogEntryKind,
@@ -32,7 +31,13 @@ import {
   parseChangeLogNonNegativeInt64,
   throwIfChangeLogCancelled,
 } from '../codec'
-import type { ChangeLogCancellationSignal, ChangeLogInt64 } from '../types'
+import {
+  CHANGE_LOG_DIGEST_ALGORITHM_MAX_LENGTH,
+  CHANGE_LOG_DIGEST_PLUGIN_ID_MAX_LENGTH,
+  CHANGE_LOG_DIGEST_VALUE_MAX_LENGTH,
+  type ChangeLogCancellationSignal,
+  type ChangeLogInt64,
+} from '../types'
 
 const MAX_FRAME_QUEUE = 4
 const RESUME_FRAME_QUEUE = 2
@@ -57,6 +62,8 @@ export interface ChangeLogRpcExportOptions {
   maxSpanBytes?: ChangeLogInt64
   maxEntries?: ChangeLogInt64
   maxOutputBytes?: ChangeLogInt64
+  digestPluginId?: string
+  digestAlgorithm?: string
   signal?: ChangeLogCancellationSignal
   /** Test/embedding hook; normal callers use the shared client. */
   subscribe?: (request: ExportChangeLogRequest) => ExportReadableStream
@@ -90,13 +97,25 @@ function validateFingerprint(
     fail('CHANGE_LOG_RPC_FRAMING', `${name} fingerprint is required`)
   }
   parseDecimal(fingerprint.byteLengthDecimal, `${name}.byteLengthDecimal`)
-  if (fingerprint.digestAlgorithm !== 'sha256') {
-    fail('CHANGE_LOG_RPC_FRAMING', `${name} digest must use sha256`)
+  if (
+    !/^[A-Za-z0-9._-]+$/.test(fingerprint.digestPluginId) ||
+    fingerprint.digestPluginId.length > CHANGE_LOG_DIGEST_PLUGIN_ID_MAX_LENGTH
+  ) {
+    fail('CHANGE_LOG_RPC_FRAMING', `${name} digest plugin id is invalid`)
   }
-  if (!/^[0-9a-f]{64}$/.test(fingerprint.digestValue)) {
+  if (
+    !/^[a-z0-9-]+$/.test(fingerprint.digestAlgorithm) ||
+    fingerprint.digestAlgorithm.length > CHANGE_LOG_DIGEST_ALGORITHM_MAX_LENGTH
+  ) {
+    fail('CHANGE_LOG_RPC_FRAMING', `${name} digest algorithm is invalid`)
+  }
+  if (
+    !/^[0-9a-f]+$/.test(fingerprint.digestValue) ||
+    fingerprint.digestValue.length > CHANGE_LOG_DIGEST_VALUE_MAX_LENGTH
+  ) {
     fail(
       'CHANGE_LOG_RPC_FRAMING',
-      `${name} digest must be 64 lowercase hex characters`
+      `${name} digest must be lowercase hexadecimal`
     )
   }
 }
@@ -183,6 +202,8 @@ export async function* streamChangeLogExport(
     maxSpanBytesDecimal: decimal(options.maxSpanBytes),
     maxEntriesDecimal: decimal(options.maxEntries),
     maxOutputBytesDecimal: decimal(options.maxOutputBytes),
+    digestPluginId: options.digestPluginId,
+    digestAlgorithm: options.digestAlgorithm,
   }
   const stream = await openStream(request, options)
   const queue: ExportChangeLogResponse[] = []
@@ -224,7 +245,6 @@ export async function* streamChangeLogExport(
     | { entryIndex: bigint; declared: bigint; received: bigint }
     | undefined
   let payloadBytes = ZERO
-  const payloadDigest = createHash('sha256')
 
   try {
     while (!ended || queue.length > 0) {
@@ -249,7 +269,7 @@ export async function* streamChangeLogExport(
             fail('CHANGE_LOG_RPC_FRAMING', 'header must be the first frame')
           }
           const header = frame.frame.header
-          if (header.formatVersion !== 2) {
+          if (header.formatVersion !== 3) {
             fail(
               'CHANGE_LOG_RPC_FRAMING',
               'unsupported change-log stream version'
@@ -332,7 +352,6 @@ export async function* streamChangeLogExport(
               'payload final-chunk marker is invalid'
             )
           }
-          payloadDigest.update(payload.data)
           yield { type: 'payload', payload }
           if (atEnd) {
             expectedEntry += ONE
@@ -356,17 +375,9 @@ export async function* streamChangeLogExport(
             parseDecimal(
               complete.payloadByteCountDecimal,
               'complete.payloadByteCountDecimal'
-            ) !== payloadBytes ||
-            complete.payloadSha256.length !== 32
+            ) !== payloadBytes
           ) {
-            fail(
-              'CHANGE_LOG_RPC_FRAMING',
-              'completion counts or digest length are invalid'
-            )
-          }
-          const actualDigest = payloadDigest.digest()
-          if (!actualDigest.equals(Buffer.from(complete.payloadSha256))) {
-            fail('CHANGE_LOG_RPC_CHECKSUM', 'payload stream checksum mismatch')
+            fail('CHANGE_LOG_RPC_FRAMING', 'completion counts are invalid')
           }
           sawComplete = true
           yield { type: 'complete', complete }

@@ -1031,6 +1031,14 @@ export interface ExportChangeLogRequest {
    * @generated from protobuf field: optional string max_output_bytes_decimal = 7
    */
   maxOutputBytesDecimal?: string // Absent/"0" = server cap.
+  /**
+   * @generated from protobuf field: optional string digest_plugin_id = 8
+   */
+  digestPluginId?: string // Defaults to "omega.example.openssl_digests".
+  /**
+   * @generated from protobuf field: optional string digest_algorithm = 9
+   */
+  digestAlgorithm?: string // Plugin algorithm label; defaults to "sha256".
 }
 /**
  * @generated from protobuf message omega_edit.v1.ChangeLogStreamFingerprint
@@ -1048,6 +1056,10 @@ export interface ChangeLogStreamFingerprint {
    * @generated from protobuf field: string digest_value = 3
    */
   digestValue: string
+  /**
+   * @generated from protobuf field: string digest_plugin_id = 4
+   */
+  digestPluginId: string
 }
 /**
  * @generated from protobuf message omega_edit.v1.ChangeLogStreamHeader
@@ -1169,10 +1181,6 @@ export interface ChangeLogStreamComplete {
    * @generated from protobuf field: string payload_byte_count_decimal = 2
    */
   payloadByteCountDecimal: string
-  /**
-   * @generated from protobuf field: bytes payload_sha256 = 3
-   */
-  payloadSha256: Uint8Array
 }
 /**
  * @generated from protobuf message omega_edit.v1.ExportChangeLogResponse
@@ -1577,6 +1585,10 @@ export interface ContentDigest {
    * @generated from protobuf field: string value = 2
    */
   value: string // Lowercase hexadecimal digest value.
+  /**
+   * @generated from protobuf field: optional string plugin_id = 3
+   */
+  pluginId?: string // Streaming inspect plugin that produced the digest.
 }
 /**
  * Size and digest for a session content snapshot.
@@ -1611,6 +1623,10 @@ export interface GetSessionFingerprintRequest {
    * @generated from protobuf field: optional string algorithm = 3
    */
   algorithm?: string // Digest algorithm; defaults to "sha256".
+  /**
+   * @generated from protobuf field: optional string plugin_id = 4
+   */
+  pluginId?: string // Defaults to "omega.example.openssl_digests".
 }
 /**
  * Server-side content fingerprint result.
@@ -8194,6 +8210,20 @@ class ExportChangeLogRequest$Type extends MessageType<ExportChangeLogRequest> {
         opt: true,
         T: 9 /*ScalarType.STRING*/,
       },
+      {
+        no: 8,
+        name: 'digest_plugin_id',
+        kind: 'scalar',
+        opt: true,
+        T: 9 /*ScalarType.STRING*/,
+      },
+      {
+        no: 9,
+        name: 'digest_algorithm',
+        kind: 'scalar',
+        opt: true,
+        T: 9 /*ScalarType.STRING*/,
+      },
     ])
   }
   create(
@@ -8237,6 +8267,12 @@ class ExportChangeLogRequest$Type extends MessageType<ExportChangeLogRequest> {
           break
         case /* optional string max_output_bytes_decimal */ 7:
           message.maxOutputBytesDecimal = reader.string()
+          break
+        case /* optional string digest_plugin_id */ 8:
+          message.digestPluginId = reader.string()
+          break
+        case /* optional string digest_algorithm */ 9:
+          message.digestAlgorithm = reader.string()
           break
         default:
           let u = options.readUnknownField
@@ -8291,6 +8327,12 @@ class ExportChangeLogRequest$Type extends MessageType<ExportChangeLogRequest> {
       writer
         .tag(7, WireType.LengthDelimited)
         .string(message.maxOutputBytesDecimal)
+    /* optional string digest_plugin_id = 8; */
+    if (message.digestPluginId !== undefined)
+      writer.tag(8, WireType.LengthDelimited).string(message.digestPluginId)
+    /* optional string digest_algorithm = 9; */
+    if (message.digestAlgorithm !== undefined)
+      writer.tag(9, WireType.LengthDelimited).string(message.digestAlgorithm)
     let u = options.writeUnknownFields
     if (u !== false)
       (u == true ? UnknownFieldHandler.onWrite : u)(
@@ -8327,6 +8369,12 @@ class ChangeLogStreamFingerprint$Type extends MessageType<ChangeLogStreamFingerp
         kind: 'scalar',
         T: 9 /*ScalarType.STRING*/,
       },
+      {
+        no: 4,
+        name: 'digest_plugin_id',
+        kind: 'scalar',
+        T: 9 /*ScalarType.STRING*/,
+      },
     ])
   }
   create(
@@ -8336,6 +8384,7 @@ class ChangeLogStreamFingerprint$Type extends MessageType<ChangeLogStreamFingerp
     message.byteLengthDecimal = ''
     message.digestAlgorithm = ''
     message.digestValue = ''
+    message.digestPluginId = ''
     if (value !== undefined)
       reflectionMergePartial<ChangeLogStreamFingerprint>(this, message, value)
     return message
@@ -8359,6 +8408,9 @@ class ChangeLogStreamFingerprint$Type extends MessageType<ChangeLogStreamFingerp
           break
         case /* string digest_value */ 3:
           message.digestValue = reader.string()
+          break
+        case /* string digest_plugin_id */ 4:
+          message.digestPluginId = reader.string()
           break
         default:
           let u = options.readUnknownField
@@ -8393,6 +8445,9 @@ class ChangeLogStreamFingerprint$Type extends MessageType<ChangeLogStreamFingerp
     /* string digest_value = 3; */
     if (message.digestValue !== '')
       writer.tag(3, WireType.LengthDelimited).string(message.digestValue)
+    /* string digest_plugin_id = 4; */
+    if (message.digestPluginId !== '')
+      writer.tag(4, WireType.LengthDelimited).string(message.digestPluginId)
     let u = options.writeUnknownFields
     if (u !== false)
       (u == true ? UnknownFieldHandler.onWrite : u)(
@@ -8981,12 +9036,6 @@ class ChangeLogStreamComplete$Type extends MessageType<ChangeLogStreamComplete> 
         kind: 'scalar',
         T: 9 /*ScalarType.STRING*/,
       },
-      {
-        no: 3,
-        name: 'payload_sha256',
-        kind: 'scalar',
-        T: 12 /*ScalarType.BYTES*/,
-      },
     ])
   }
   create(
@@ -8995,7 +9044,6 @@ class ChangeLogStreamComplete$Type extends MessageType<ChangeLogStreamComplete> 
     const message = globalThis.Object.create(this.messagePrototype!)
     message.emittedChangeCountDecimal = ''
     message.payloadByteCountDecimal = ''
-    message.payloadSha256 = new Uint8Array(0)
     if (value !== undefined)
       reflectionMergePartial<ChangeLogStreamComplete>(this, message, value)
     return message
@@ -9016,9 +9064,6 @@ class ChangeLogStreamComplete$Type extends MessageType<ChangeLogStreamComplete> 
           break
         case /* string payload_byte_count_decimal */ 2:
           message.payloadByteCountDecimal = reader.string()
-          break
-        case /* bytes payload_sha256 */ 3:
-          message.payloadSha256 = reader.bytes()
           break
         default:
           let u = options.readUnknownField
@@ -9054,9 +9099,6 @@ class ChangeLogStreamComplete$Type extends MessageType<ChangeLogStreamComplete> 
       writer
         .tag(2, WireType.LengthDelimited)
         .string(message.payloadByteCountDecimal)
-    /* bytes payload_sha256 = 3; */
-    if (message.payloadSha256.length)
-      writer.tag(3, WireType.LengthDelimited).bytes(message.payloadSha256)
     let u = options.writeUnknownFields
     if (u !== false)
       (u == true ? UnknownFieldHandler.onWrite : u)(
@@ -11002,6 +11044,13 @@ class ContentDigest$Type extends MessageType<ContentDigest> {
     super('omega_edit.v1.ContentDigest', [
       { no: 1, name: 'algorithm', kind: 'scalar', T: 9 /*ScalarType.STRING*/ },
       { no: 2, name: 'value', kind: 'scalar', T: 9 /*ScalarType.STRING*/ },
+      {
+        no: 3,
+        name: 'plugin_id',
+        kind: 'scalar',
+        opt: true,
+        T: 9 /*ScalarType.STRING*/,
+      },
     ])
   }
   create(value?: PartialMessage<ContentDigest>): ContentDigest {
@@ -11028,6 +11077,9 @@ class ContentDigest$Type extends MessageType<ContentDigest> {
           break
         case /* string value */ 2:
           message.value = reader.string()
+          break
+        case /* optional string plugin_id */ 3:
+          message.pluginId = reader.string()
           break
         default:
           let u = options.readUnknownField
@@ -11059,6 +11111,9 @@ class ContentDigest$Type extends MessageType<ContentDigest> {
     /* string value = 2; */
     if (message.value !== '')
       writer.tag(2, WireType.LengthDelimited).string(message.value)
+    /* optional string plugin_id = 3; */
+    if (message.pluginId !== undefined)
+      writer.tag(3, WireType.LengthDelimited).string(message.pluginId)
     let u = options.writeUnknownFields
     if (u !== false)
       (u == true ? UnknownFieldHandler.onWrite : u)(
@@ -11188,6 +11243,13 @@ class GetSessionFingerprintRequest$Type extends MessageType<GetSessionFingerprin
         opt: true,
         T: 9 /*ScalarType.STRING*/,
       },
+      {
+        no: 4,
+        name: 'plugin_id',
+        kind: 'scalar',
+        opt: true,
+        T: 9 /*ScalarType.STRING*/,
+      },
     ])
   }
   create(
@@ -11219,6 +11281,9 @@ class GetSessionFingerprintRequest$Type extends MessageType<GetSessionFingerprin
           break
         case /* optional string algorithm */ 3:
           message.algorithm = reader.string()
+          break
+        case /* optional string plugin_id */ 4:
+          message.pluginId = reader.string()
           break
         default:
           let u = options.readUnknownField
@@ -11253,6 +11318,9 @@ class GetSessionFingerprintRequest$Type extends MessageType<GetSessionFingerprin
     /* optional string algorithm = 3; */
     if (message.algorithm !== undefined)
       writer.tag(3, WireType.LengthDelimited).string(message.algorithm)
+    /* optional string plugin_id = 4; */
+    if (message.pluginId !== undefined)
+      writer.tag(4, WireType.LengthDelimited).string(message.pluginId)
     let u = options.writeUnknownFields
     if (u !== false)
       (u == true ? UnknownFieldHandler.onWrite : u)(
