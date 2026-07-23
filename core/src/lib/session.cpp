@@ -86,8 +86,9 @@ namespace {
         const auto positive_serial = -serial;
         for (auto iter = model->changes.crbegin(); iter != model->changes.crend(); ++iter) {
             const auto *change = iter->get();
+            if (!change) { continue; }
             if (omega_change_get_serial(change) == positive_serial) { return change; }
-            if (change && change->transform_data) {
+            if (change->transform_data) {
                 if (const auto *preserved =
                             find_undone_change_(change->transform_data->preserved_changes_undone, serial)) {
                     return preserved;

@@ -185,12 +185,13 @@ describe('Action journal integration', () => {
   })
 
   it('keeps the full redo suffix visible while crossing a checkpoint', async () => {
+    const payload = Buffer.from('a')
     for (let serial = 1; serial <= 6; serial += 1) {
-      await insert(sessionId, serial - 1, Buffer.from('a'))
+      await insert(sessionId, serial - 1, payload)
     }
     await createCheckpoint(sessionId)
     for (let serial = 7; serial <= 10; serial += 1) {
-      await insert(sessionId, serial - 1, Buffer.from('a'))
+      await insert(sessionId, serial - 1, payload)
     }
 
     for (let serial = 10; serial >= 6; serial -= 1) {

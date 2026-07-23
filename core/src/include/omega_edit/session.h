@@ -142,10 +142,10 @@ int64_t omega_session_get_num_search_contexts(const omega_session_t *session_ptr
 int64_t omega_session_get_num_changes(const omega_session_t *session_ptr);
 
 /**
- * Given a session, return the current number of retained forward changes eligible for being redone, including changes
- * preserved in future checkpoint models.
- * @param session_ptr session to get the number of retained forward changes for
- * @return number of retained forward changes eligible for being redone
+ * Given a session, return the current number of undone changes eligible for redo. This is the complete
+ * forward-retained suffix, including changes preserved in future checkpoint models.
+ * @param session_ptr session to get the number of redoable, forward-retained changes for
+ * @return number of redoable, forward-retained changes
  */
 int64_t omega_session_get_num_undone_changes(const omega_session_t *session_ptr);
 
