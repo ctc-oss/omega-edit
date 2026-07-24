@@ -488,10 +488,7 @@ namespace {
         } else {
             result.public_entry.kind = OMEGA_CHANGELOG_PLAN_REPLACE;
         }
-        if (result.public_entry.payload_length > 0) {
-            result.public_entry.read_payload = payload_read_;
-            result.public_entry.payload_context = &result;
-        }
+        if (result.public_entry.payload_length > 0) { result.public_entry.read_payload = payload_read_; }
         return result;
     }
 
@@ -541,7 +538,6 @@ namespace {
             }
         });
         flush(baseline_length);
-        repair_payload_contexts_(result);
         return result;
     }
 
@@ -588,15 +584,15 @@ namespace {
             source.length = change->data.length;
             result.payload.push_back(std::move(source));
             result.public_entry.read_payload = payload_read_;
-            result.public_entry.payload_context = &result;
         }
         return result;
     }
 
     class planner_t {
     public:
-        planner_t(int64_t max_span_bytes, bool prefer_overwrite, bool optimize)
-            : max_span_bytes_(max_span_bytes), prefer_overwrite_(prefer_overwrite), optimize_(optimize) {}
+        planner_t(int64_t max_span_bytes, int64_t max_entries, bool prefer_overwrite, bool optimize)
+            : max_span_bytes_(max_span_bytes), max_entries_(max_entries), prefer_overwrite_(prefer_overwrite),
+              optimize_(optimize) {}
 
         bool reset_to_model(const omega_session_t *session, size_t model_index, size_t prefix_count) {
             if (!session || model_index >= session->models_.size()) { return false; }
@@ -670,12 +666,12 @@ namespace {
 
         bool barrier(const const_omega_change_ptr_t &transform) {
             if (!finish_span_()) { return false; }
-            output_.push_back(raw_entry_(transform));
-            repair_payload_contexts_(output_);
-            return true;
+            return append_output_(raw_entry_(transform));
         }
 
         bool finish() { return finish_span_(); }
+
+        bool entry_limit_exceeded() const { return entry_limit_exceeded_; }
 
         content_source_context_t snapshot_content() const {
             content_source_context_t result;
@@ -684,12 +680,18 @@ namespace {
             return result;
         }
 
-        std::vector<planned_entry_t> take_output() {
-            repair_payload_contexts_(output_);
-            return std::move(output_);
-        }
+        std::vector<planned_entry_t> take_output() { return std::move(output_); }
 
     private:
+        bool append_output_(planned_entry_t entry) {
+            if (max_entries_ > 0 && static_cast<uint64_t>(output_.size()) >= static_cast<uint64_t>(max_entries_)) {
+                entry_limit_exceeded_ = true;
+                return false;
+            }
+            output_.push_back(std::move(entry));
+            return true;
+        }
+
         bool apply_(const const_omega_change_ptr_t &change) {
             const auto kind = omega_change_get_kind_(change.get());
             const auto remove_length = kind == change_kind_t::CHANGE_INSERT
@@ -737,19 +739,24 @@ namespace {
                 optimized = diff_rope_(rope_, baseline_, baseline_length_, prefer_overwrite_);
             }
             if (!optimize_ || force_raw_ || optimized.size() > raw_.size()) {
-                for (const auto &change : raw_) { output_.push_back(raw_entry_(change)); }
+                for (const auto &change : raw_) {
+                    if (!append_output_(raw_entry_(change))) { return false; }
+                }
             } else {
-                for (auto &entry : optimized) { output_.push_back(std::move(entry)); }
+                for (auto &entry : optimized) {
+                    if (!append_output_(std::move(entry))) { return false; }
+                }
             }
             raw_.clear();
             relabel_baseline_();
-            repair_payload_contexts_(output_);
             return true;
         }
 
         int64_t max_span_bytes_{};
+        int64_t max_entries_{};
         bool prefer_overwrite_{};
         bool optimize_{};
+        bool entry_limit_exceeded_{};
         rope_ptr_t rope_{};
         std::vector<source_slice_t> baseline_{};
         int64_t baseline_length_{};
@@ -802,7 +809,7 @@ int omega_edit_export_changelog(const omega_session_t *session_ptr, const omega_
 
     try {
         planner_t planner(resolved.max_span_bytes == 0 ? DEFAULT_MAX_SPAN_BYTES : resolved.max_span_bytes,
-                          resolved.prefer_overwrite_form != 0, optimize != 0);
+                          resolved.max_entries, resolved.prefer_overwrite_form != 0, optimize != 0);
         const auto &first_model = session_ptr->models_[first_location.model];
         const auto first_is_transform =
                 first_location.change == 0 &&
@@ -833,13 +840,13 @@ int omega_edit_export_changelog(const omega_session_t *session_ptr, const omega_
             for (size_t change_index = begin; change_index < end; ++change_index) {
                 const auto &change = model->changes[change_index];
                 if (omega_change_get_kind_(change.get()) == change_kind_t::CHANGE_TRANSFORM) {
-                    if (!planner.barrier(change)) { return -1; }
+                    if (!planner.barrier(change)) { return planner.entry_limit_exceeded() ? -2 : -1; }
                     if (!planner.reset_to_model(session_ptr, model_index, change_index + 1)) { return -1; }
                 } else if (!planner.accept(change)) {
-                    return -1;
+                    return planner.entry_limit_exceeded() ? -2 : -1;
                 }
             }
-            if (!planner.finish()) { return -1; }
+            if (!planner.finish()) { return planner.entry_limit_exceeded() ? -2 : -1; }
         }
 
         auto after = planner.snapshot_content();

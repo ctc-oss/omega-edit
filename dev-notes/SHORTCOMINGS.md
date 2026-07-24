@@ -4,29 +4,9 @@ This is the current actionable backlog. It replaces the older historical audit,
 which had grown into a mix of fixed findings, follow-up notes, and a second
 prioritized review appended at the bottom.
 
-Items already fixed by recent work have been removed from the open list. In
-particular, the transform/change-log/checkpoint audit items that now have
-regression coverage are not repeated here. The recent VS Code extension issues
-around the initial Find toggle state, auto bytes-per-row overfitting, and the
-duplicate Ctrl-Z undo toast are also treated as fixed by the current extension
-branch/PR and are not listed as open. The redo preservation bug across
-transform undo boundaries found by the brutal-testing harness is also fixed by
-the current core test branch/PR and is no longer listed as open. The zlib
-decompression cap and C++ codec cancellation/base58 guardrail items are also
-fixed and no longer listed as open. The profile/character-count scan buffer
-issue, search read-failure reporting issue, and unbounded `replace_matches`
-materialization issue are also fixed and no longer listed as open. The utility
-string-helper issue and the fixed failure-signaling edges for unknown CLI
-options and missing session files are likewise no longer listed as open. The
-code-quality cleanup for computed-content inspection lock scope,
-descriptor-preserving temp-file writes, explicit C-string/named-options APIs, OpenSSL
-cipher key scrubbing, shared C plugin option parsing, targeted duplication
-extractions, and the replace/save failure-signaling edges is also complete and
-no longer listed as open. The in-process libmagic/CLD3 content and language
-detection RPCs have also been removed in favor of on-demand inspect/calculation
-plugins, so that item is no longer listed as open. Mutation-capable transform
-RPCs still intentionally serialize the session while a plugin runs because they
-can modify the current core model.
+Resolved items are removed rather than retained as history. Findings that were
+reviewed and determined not to be shortcomings remain at the end to avoid
+repeated audits of the same false positives.
 
 Recent core/server/plugin review findings have been folded into the priority
 list below rather than kept as a second appended review. A fresh core/server
@@ -57,10 +37,10 @@ Related execution plans:
 
 1. **Critical deployment boundary**: add optional TLS/mTLS and an authorization
    hook before making any "hardened for production" attestation.
-2. **Massive-file pressure caps**: apply a configurable segment-size cap to
-   read/classification RPCs.
-3. **Undo performance batch**: implement the remaining low-risk undo pieces
-   (transaction extents, redo batching, snapshot telemetry).
+2. **Massive-file pressure caps**: bound change-detail payload responses and
+   configure consistent gRPC message-size limits.
+3. **Redo performance batch**: batch transaction replay and coalesce repeated
+   update work.
 4. **Checkpoint caps/dedupe**: add server/API guardrails for unbounded checkpoint
    creation.
 
@@ -270,8 +250,8 @@ effectively unlimited outbound cap. Two consequences:
 - The advertised `--max-change-bytes` default of 64 MiB is unreachable — any
   `SubmitChange` above ~4 MiB is rejected at the transport layer with a
   generic gRPC error before the service's own limit or error message applies.
-- Outbound responses are unbounded, which is what makes items 4 and 5 (and
-  large `GetSegment` reads) able to produce multi-gigabyte responses.
+- Outbound responses are unbounded, which allows change-detail payloads from
+  item 2 to produce multi-gigabyte responses.
 
 Relevant code:
 - `server/cpp/src/main.cpp:556`
@@ -316,38 +296,6 @@ Suggested fix:
 ---
 
 ## P3 Low-Risk / Opportunistic Work
-
-### 23. Snapshot allocation failure silently degrades undo speed
-
-**Impact:** Low to Medium
-**Risk:** Low
-**Area:** Core undo telemetry
-
-When snapshot allocation fails, the snapshot is erased and undo performance can
-fall back to longer replay distances without any visible signal.
-
-Relevant code:
-- `core/src/lib/edit.cpp:928`
-
-Suggested fix:
-- Emit a debug/warn log or session diagnostic event when snapshot capture fails.
-- Add a test hook or allocator-failure test if the existing harness supports it.
-
-### 24. Transaction-boundary scan is linear per undo
-
-**Impact:** Low to Medium
-**Risk:** Low to Medium
-**Area:** Core undo performance
-
-Undo scans backward to find the current transaction extent each time. For very
-large transactions this is a repeated tail scan.
-
-Relevant code:
-- `core/src/lib/edit.cpp:2551`
-
-Suggested fix:
-- Store transaction extents or cached transaction change counts.
-- Reuse the same metadata for redo batching.
 
 ### 25. Redo still replays one change at a time
 
@@ -423,61 +371,8 @@ claiming production hardening:
 - Session/viewport ID validation (charset + 128-byte cap), path control-byte
   rejection, and shared-session attachment counting in the session manager are
   sound; UUIDv7 generation is mutex-guarded and monotonic.
-
----
-
-## Recently Fixed And Removed From The Open List
-
-These areas were in the old document but are no longer open backlog items:
-
-- Transform no-op/content-changed accuracy and client-side no-op undo.
-- Transform identity/history metadata in VS Code and change-log export/import.
-- Checkpoint rollback/restore naming and true restore-to-latest-checkpoint.
-- Atomic fingerprinted change-log apply with rollback compensation.
-- Change-log version enforcement, serial/group validation, completeness metadata,
-  and status-code-based missing-detail handling.
-- Former hard change-log entry/byte caps on export/import.
-- Unbounded `SearchSession` unary responses; the server now enforces a
-  configurable `max_search_matches` policy and returns `RESOURCE_EXHAUSTED`
-  instead of silently truncating when a search would exceed it.
-- Unbounded `GetSegment` allocations; the server now applies a configurable
-  read segment limit that defaults to the viewport capacity and can be disabled
-  with `0`.
-- Service-wide transform plugin execution locking; server plugin calls now
-  snapshot registry metadata under a short lock and execute under session/content
-  guards.
-- Missing explicit undo-to-baseline reset path.
-- Mixed edit API success conventions; serial-returning and status-returning core
-  APIs now have explicit success predicates.
-- Undo-based change-log rollback; AI and VS Code imports now use a native
-  restore-to-change-count primitive that discards redo.
-- Clear-changes now discards stacked checkpoint/transform models, resets change
-  serial bookkeeping to the original model, and marks viewports dirty.
-- Session creation and session/viewport subscription paths now avoid holding the
-  global session-map mutex across core session creation or per-session
-  `core_mutex` acquisition.
-- Shared file-backed session creation now reserves the file-path mapping in the
-  same critical section that observes no existing session, so concurrent authors
-  attach to one session instead of racing into adjacent reservations.
-- Session/viewport subscription lock ordering, handoff, queue closure, and
-  ordered callback delivery.
-- Desired ID/path validation and default host/port duplication.
-- Core memory ownership issues around `omega_data_t`, reverse visitor cleanup,
-  const-cast destruction, and allocation failure boundaries.
-- Transform option regex hardening.
-- Transform plugin cooperative cancellation in the core request ABI, SDK helper,
-  server gRPC/session-destroy cancellation paths, and bundled plugin polling
-  loops, with TypeScript client, AI/MCP, and VS Code webview cancellation wired
-  through to the same RPC cancellation path.
-- Large-search navigation now keeps anchor-based next/previous lookup bounded,
-  then decorates the active viewport with a separately bounded neighbor match
-  window that handles reverse navigation, overlaps, viewport boundaries, and
-  external range-map/debugger highlight overlays independently.
-- Near-`INT64_MAX` overflow coverage now exercises public C APIs and raw server
-  RPC boundaries for search, replace, segment, and viewport ranges.
-- VS Code text display encoding selection now covers ASCII, Windows-1252,
-  CP437, EBCDIC, and MacRoman across the TEXT pane, Data Inspector, Analyzer
-  labels/classification, and text search byte encoding, with both toolbar and
-  command-palette affordances.
-- Event mask signed `ALL_EVENTS` ambiguity.
-- Output collision suffix range and deprecated protobuf generator dependencies.
+- Undo's transaction-boundary discovery is two short passes over the current
+  transaction, after which those changes leave active history. Across a full
+  undo walk each active change is inspected a bounded number of times, so the
+  scan is aggregate-linear and does not justify persistent transaction-extent
+  state on its own.

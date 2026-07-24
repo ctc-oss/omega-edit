@@ -129,11 +129,14 @@ test('package.json matches shared extension constants', () => {
     `${packageJson.publisher}.${packageJson.name}`,
     OMEGA_EDIT_EXTENSION_ID
   )
-  const bytesPerRowConfiguration =
-    packageJson.contributes.configuration.properties['omegaEdit.bytesPerRow']
-  assert.equal(bytesPerRowConfiguration.minimum, 8)
-  assert.equal(bytesPerRowConfiguration.maximum, 64)
-  assert.equal(bytesPerRowConfiguration.anyOf, undefined)
+  assert.equal(
+    packageJson.contributes.configuration.properties['omegaEdit.bytesPerRow'],
+    undefined
+  )
+  assert.equal(
+    packageNls['omegaEdit.configuration.bytesPerRow.description'],
+    undefined
+  )
   const historyConfiguration = packageJson.contributes.configuration.properties
   assert.equal(
     historyConfiguration['omegaEdit.checkpointHistory.maxBytesPerSession']
@@ -1137,6 +1140,14 @@ test('compiled extension entrypoints exist after build', () => {
   assert.match(providerJs, /reconcileExternalHighlightStaleness/)
   assert.match(providerJs, /markExternalHighlightsStale/)
   assert.match(providerJs, /postBytesPerRow/)
+  assert.match(
+    providerSource,
+    /workspaceState\?\.update\(\s*BYTES_PER_ROW_STORAGE_KEY/
+  )
+  assert.doesNotMatch(
+    providerSource,
+    /configuration\.update\(['"]bytesPerRow['"]/
+  )
   assert.doesNotMatch(providerJs, /AUTO_BYTES_PER_ROW_SETTING/)
   assert.match(providerJs, /stale:\s*true/)
   assert.match(providerJs, /notifyDocumentChanged/)

@@ -44,6 +44,20 @@ struct counting_upper_transform_state {
     int64_t calls{};
 };
 
+struct retained_history_capture {
+    std::vector<int64_t> serials;
+    std::vector<char> kinds;
+    std::vector<const omega_change_t *> changes;
+};
+
+static int capture_retained_history(const omega_change_t *change, int64_t serial, void *user_data) {
+    auto *capture = static_cast<retained_history_capture *>(user_data);
+    capture->serials.push_back(serial);
+    capture->kinds.push_back(omega_change_get_kind_as_char(change));
+    capture->changes.push_back(change);
+    return 0;
+}
+
 static omega_byte_t counting_to_upper(omega_byte_t byte, void *user_data_ptr) {
     auto *state = static_cast<counting_upper_transform_state *>(user_data_ptr);
     if (state) { ++state->calls; }
@@ -430,7 +444,12 @@ TEST_CASE("Checkpoint traversal keeps the complete forward history visible",
     for (int64_t serial = 10; serial >= 6; --serial) { REQUIRE(-serial == omega_edit_undo_last_change(session_ptr)); }
     REQUIRE(5 == omega_session_get_num_changes(session_ptr));
     REQUIRE(5 == omega_session_get_num_undone_changes(session_ptr));
+    REQUIRE(5 == omega_session_get_num_undone_change_transactions(session_ptr));
     REQUIRE(1 == omega_session_get_num_future_checkpoints(session_ptr));
+    retained_history_capture transform_redo_suffix;
+    REQUIRE(0 == omega_visit_retained_history(session_ptr, 6, 10, 0, capture_retained_history, &transform_redo_suffix));
+    REQUIRE(transform_redo_suffix.serials == std::vector<int64_t>{6, 7, 8, 9, 10});
+    REQUIRE(transform_redo_suffix.kinds == std::vector<char>{'I', 'I', 'I', 'I', 'T'});
     for (int64_t serial = 6; serial <= 10; ++serial) {
         INFO("forward serial=" << serial);
         REQUIRE(omega_session_get_change(session_ptr, -serial));
@@ -453,11 +472,21 @@ TEST_CASE("Checkpoint traversal keeps the complete forward history visible",
     REQUIRE(0 == omega_edit_checkout_checkpoint(session_ptr, 0));
     REQUIRE(0 == omega_session_get_num_changes(session_ptr));
     REQUIRE(10 == omega_session_get_num_undone_changes(session_ptr));
+    REQUIRE(10 == omega_session_get_num_undone_change_transactions(session_ptr));
     REQUIRE(2 == omega_session_get_num_future_checkpoints(session_ptr));
     for (int64_t serial = 1; serial <= 10; ++serial) {
         INFO("future checkpoint serial=" << serial);
         REQUIRE(omega_session_get_change(session_ptr, -serial));
     }
+    retained_history_capture ascending;
+    REQUIRE(0 == omega_visit_retained_history(session_ptr, 1, 10, 0, capture_retained_history, &ascending));
+    REQUIRE(ascending.serials == std::vector<int64_t>{1, 2, 3, 4, 5, 6, 7, 8, 9, 10});
+    REQUIRE(ascending.kinds == std::vector<char>{'I', 'I', 'I', 'I', 'I', 'I', 'I', 'I', 'I', 'T'});
+    REQUIRE(ascending.changes.size() == ascending.serials.size());
+    retained_history_capture descending;
+    REQUIRE(0 == omega_visit_retained_history(session_ptr, 3, 8, 1, capture_retained_history, &descending));
+    REQUIRE(descending.serials == std::vector<int64_t>{8, 7, 6, 5, 4, 3});
+    REQUIRE(descending.changes.size() == descending.serials.size());
     REQUIRE(0 == omega_edit_checkout_checkpoint(session_ptr, 2));
     REQUIRE(10 == omega_session_get_num_changes(session_ptr));
     REQUIRE(0 == omega_session_get_num_undone_changes(session_ptr));

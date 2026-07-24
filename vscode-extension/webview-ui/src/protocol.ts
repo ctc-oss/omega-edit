@@ -32,9 +32,7 @@ export {
   MIN_BYTES_PER_ROW,
   TEXT_ENCODING_OPTIONS,
   WEBVIEW_ACTION_JOURNAL_KINDS,
-  bytesPerRowFromSetting,
   normalizeBytesPerRow,
   normalizeBytesPerRowMode,
-  normalizeBytesPerRowSetting,
   normalizeTextEncoding,
 } from '../../src/webviewProtocol'

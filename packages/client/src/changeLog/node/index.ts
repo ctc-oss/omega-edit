@@ -33,6 +33,7 @@ import {
   throwIfChangeLogCancelled,
 } from '../codec'
 import { scanChangeLogJson } from '../stream'
+import { changeLogKindFromProto } from '../proto'
 import type {
   ChangeLogCodecOptions,
   ChangeLogFileReadResult,
@@ -42,10 +43,7 @@ import type {
   ChangeLogWriteResult,
   NormalizedChangeLogEntry,
 } from '../types'
-import {
-  ChangeLogEntryKind,
-  type ChangeLogStreamHeader,
-} from '../../protobuf_ts/generated/omega_edit/v1/omega_edit'
+import type { ChangeLogStreamHeader } from '../../protobuf_ts/generated/omega_edit/v1/omega_edit'
 import { streamChangeLogExport, type ChangeLogRpcExportOptions } from './rpc'
 
 export * from './rpc'
@@ -123,6 +121,97 @@ async function syncParentDirectory(path: string): Promise<void> {
     // file-level fsync and atomic rename/link semantics.
   } finally {
     await handle?.close().catch(() => undefined)
+  }
+}
+
+function validateAtomicWriteOptions(
+  options: AtomicChangeLogWriteOptions
+): void {
+  if (
+    options.maxBytes !== undefined &&
+    (!Number.isSafeInteger(options.maxBytes) || options.maxBytes <= 0)
+  ) {
+    throw new ChangeLogCodecError(
+      'CHANGE_LOG_INVALID_LIMIT',
+      'maxBytes must be a positive safe integer'
+    )
+  }
+}
+
+class AtomicChangeLogOutput {
+  private readonly tempPath: string
+  private readonly stream: ReturnType<typeof createWriteStream>
+  private readonly hash = createHash('sha256')
+  private byteCount = 0
+  private committed = false
+  private streamEnded = false
+
+  constructor(
+    private readonly outputPath: string,
+    private readonly options: AtomicChangeLogWriteOptions
+  ) {
+    this.tempPath = join(
+      dirname(outputPath),
+      `.${basename(outputPath)}.${process.pid}.${randomBytes(12).toString('hex')}.tmp`
+    )
+    this.stream = createWriteStream(this.tempPath, {
+      encoding: 'utf8',
+      flags: 'wx',
+      mode: 0o600,
+    })
+  }
+
+  async writeText(text: string): Promise<void> {
+    throwIfChangeLogCancelled(this.options.signal)
+    const bytes = Buffer.byteLength(text, 'utf8')
+    if (
+      this.options.maxBytes !== undefined &&
+      this.byteCount + bytes > this.options.maxBytes
+    ) {
+      throw new ChangeLogCodecError(
+        'CHANGE_LOG_OUTPUT_LIMIT',
+        `Change log output exceeds ${this.options.maxBytes} bytes`
+      )
+    }
+    await this.options.onBytesWritten?.(this.byteCount + bytes)
+    this.hash.update(text, 'utf8')
+    this.byteCount += bytes
+    if (!this.stream.write(text)) {
+      await once(this.stream, 'drain')
+    }
+  }
+
+  async commit(): Promise<{ byteLength: number; sha256: string }> {
+    this.stream.end()
+    this.streamEnded = true
+    await finished(this.stream)
+    await syncFile(this.tempPath)
+    await this.options.beforeCommit?.()
+    throwIfChangeLogCancelled(this.options.signal)
+
+    if (this.options.overwrite) {
+      await fs.rename(this.tempPath, this.outputPath)
+      this.committed = true
+    } else {
+      await fs.link(this.tempPath, this.outputPath)
+      this.committed = true
+      await fs.rm(this.tempPath, { force: true }).catch(() => undefined)
+    }
+    await syncParentDirectory(this.outputPath)
+    return {
+      byteLength: this.byteCount,
+      sha256: this.hash.digest('hex'),
+    }
+  }
+
+  async cleanup(): Promise<void> {
+    if (!this.streamEnded) {
+      this.stream.destroy()
+      await finished(this.stream).catch(() => undefined)
+    }
+    if (!this.committed) {
+      await fs.rm(this.tempPath, { force: true }).catch(() => undefined)
+    }
   }
 }
 
@@ -313,55 +402,15 @@ export async function writeChangeLogFileAtomic(
       `Change log changeCount exceeds ${limits.maxEntryCount}`
     )
   }
-  if (
-    options.maxBytes !== undefined &&
-    (!Number.isSafeInteger(options.maxBytes) || options.maxBytes <= 0)
-  ) {
-    throw new ChangeLogCodecError(
-      'CHANGE_LOG_INVALID_LIMIT',
-      'maxBytes must be a positive safe integer'
-    )
-  }
+  validateAtomicWriteOptions(options)
   const validatedHeader = normalizeChangeLogHeader(
     normalizedHeaderObject(header),
     expectedCount,
     limits
   )
-  const tempPath = join(
-    dirname(outputPath),
-    `.${basename(outputPath)}.${process.pid}.${randomBytes(12).toString('hex')}.tmp`
-  )
-  const stream = createWriteStream(tempPath, {
-    encoding: 'utf8',
-    flags: 'wx',
-    mode: 0o600,
-  })
-  const hash = createHash('sha256')
+  const output = new AtomicChangeLogOutput(outputPath, options)
   const sequence = new ChangeLogEntrySequenceValidator(limits)
-  let byteLength = 0
   let entryCount = 0
-  let committed = false
-  let streamEnded = false
-
-  const writeText = async (text: string): Promise<void> => {
-    throwIfChangeLogCancelled(options.signal)
-    const bytes = Buffer.byteLength(text, 'utf8')
-    if (
-      options.maxBytes !== undefined &&
-      byteLength + bytes > options.maxBytes
-    ) {
-      throw new ChangeLogCodecError(
-        'CHANGE_LOG_OUTPUT_LIMIT',
-        `Change log output exceeds ${options.maxBytes} bytes`
-      )
-    }
-    await options.onBytesWritten?.(byteLength + bytes)
-    hash.update(text, 'utf8')
-    byteLength += bytes
-    if (!stream.write(text)) {
-      await once(stream, 'drain')
-    }
-  }
 
   try {
     const metadata = normalizedHeaderObject(validatedHeader)
@@ -369,7 +418,7 @@ export async function writeChangeLogFileAtomic(
       /\n}$/,
       ',\n  "changes": ['
     )}\n`
-    await writeText(prefix)
+    await output.writeText(prefix)
     let first = true
     await writeEntries({
       writeEntry: async (entry) => {
@@ -389,7 +438,7 @@ export async function writeChangeLogFileAtomic(
           .split('\n')
           .map((line) => `    ${line}`)
           .join('\n')
-        await writeText(`${first ? '' : ',\n'}${serialized}`)
+        await output.writeText(`${first ? '' : ',\n'}${serialized}`)
         first = false
         entryCount += 1
       },
@@ -405,59 +454,15 @@ export async function writeChangeLogFileAtomic(
       entryCount,
       limits
     )
-    await writeText('\n  ]\n}\n')
-    stream.end()
-    streamEnded = true
-    await finished(stream)
-    await syncFile(tempPath)
-    await options.beforeCommit?.()
-    throwIfChangeLogCancelled(options.signal)
-
-    if (options.overwrite) {
-      await fs.rename(tempPath, outputPath)
-      committed = true
-    } else {
-      await fs.link(tempPath, outputPath)
-      committed = true
-      await fs.rm(tempPath, { force: true }).catch(() => undefined)
-    }
-    await syncParentDirectory(outputPath)
+    await output.writeText('\n  ]\n}\n')
+    const committed = await output.commit()
     return {
       path: outputPath,
-      byteLength,
-      sha256: hash.digest('hex'),
+      ...committed,
       entryCount,
     }
   } finally {
-    if (!streamEnded) {
-      stream.destroy()
-      await finished(stream).catch(() => undefined)
-    }
-    if (!committed) {
-      await fs.rm(tempPath, { force: true }).catch(() => undefined)
-    }
-  }
-}
-
-function rpcEntryKind(
-  kind: ChangeLogEntryKind
-): NormalizedChangeLogEntry['kind'] {
-  switch (kind) {
-    case ChangeLogEntryKind.DELETE:
-      return 'DELETE'
-    case ChangeLogEntryKind.INSERT:
-      return 'INSERT'
-    case ChangeLogEntryKind.OVERWRITE:
-      return 'OVERWRITE'
-    case ChangeLogEntryKind.REPLACE:
-      return 'REPLACE'
-    case ChangeLogEntryKind.TRANSFORM:
-      return 'TRANSFORM'
-    default:
-      throw new ChangeLogCodecError(
-        'CHANGE_LOG_RPC_FRAMING',
-        'RPC entry has an unspecified kind'
-      )
+    await output.cleanup()
   }
 }
 
@@ -467,52 +472,16 @@ export async function writeChangeLogRpcExportAtomic(
   rpcOptions: ChangeLogRpcExportOptions,
   options: AtomicChangeLogWriteOptions = {}
 ): Promise<ChangeLogRpcFileResult> {
-  if (
-    options.maxBytes !== undefined &&
-    (!Number.isSafeInteger(options.maxBytes) || options.maxBytes <= 0)
-  ) {
-    throw new ChangeLogCodecError(
-      'CHANGE_LOG_INVALID_LIMIT',
-      'maxBytes must be a positive safe integer'
-    )
+  const atomicOptions = {
+    ...options,
+    signal: options.signal ?? rpcOptions.signal,
   }
-  const tempPath = join(
-    dirname(outputPath),
-    `.${basename(outputPath)}.${process.pid}.${randomBytes(12).toString('hex')}.tmp`
-  )
-  const stream = createWriteStream(tempPath, {
-    encoding: 'utf8',
-    flags: 'wx',
-    mode: 0o600,
-  })
-  const hash = createHash('sha256')
-  let byteLength = 0
-  let committed = false
-  let streamEnded = false
+  validateAtomicWriteOptions(atomicOptions)
+  const output = new AtomicChangeLogOutput(outputPath, atomicOptions)
   let header: ChangeLogStreamHeader | undefined
   let entryOpen = false
   let firstEntry = true
   let entryCount = 0
-
-  const writeText = async (text: string): Promise<void> => {
-    throwIfChangeLogCancelled(options.signal ?? rpcOptions.signal)
-    const bytes = Buffer.byteLength(text, 'utf8')
-    if (
-      options.maxBytes !== undefined &&
-      byteLength + bytes > options.maxBytes
-    ) {
-      throw new ChangeLogCodecError(
-        'CHANGE_LOG_OUTPUT_LIMIT',
-        `Change log output exceeds ${options.maxBytes} bytes`
-      )
-    }
-    await options.onBytesWritten?.(byteLength + bytes)
-    hash.update(text, 'utf8')
-    byteLength += bytes
-    if (!stream.write(text)) {
-      await once(stream, 'drain')
-    }
-  }
 
   try {
     for await (const frame of streamChangeLogExport({
@@ -545,12 +514,18 @@ export async function writeChangeLogRpcExportAtomic(
           unavailableChangeCount: '0',
           unavailableChangeSerials: [],
         }
-        await writeText(
+        await output.writeText(
           `${JSON.stringify(metadata).replace(/}$/, ',"changes":[')}`
         )
       } else if (frame.type === 'entry') {
         const entry = frame.entry
-        const kind = rpcEntryKind(entry.kind)
+        const kind = changeLogKindFromProto(entry.kind)
+        if (!kind) {
+          throw new ChangeLogCodecError(
+            'CHANGE_LOG_RPC_FRAMING',
+            'RPC entry has an unspecified kind'
+          )
+        }
         const prefix = firstEntry ? '' : ','
         firstEntry = false
         if (kind === 'TRANSFORM') {
@@ -577,7 +552,7 @@ export async function writeChangeLogRpcExportAtomic(
             JSON.stringify({ transformId: transform.transformId, args }),
             'utf8'
           ).toString('hex')
-          await writeText(
+          await output.writeText(
             `${prefix}${JSON.stringify({
               kind,
               offset: entry.offsetDecimal,
@@ -587,14 +562,14 @@ export async function writeChangeLogRpcExportAtomic(
           )
           entryCount += 1
         } else {
-          await writeText(
+          await output.writeText(
             `${prefix}{"kind":${JSON.stringify(kind)},"offset":${JSON.stringify(
               entry.offsetDecimal
             )},"length":${JSON.stringify(entry.lengthDecimal)},"data":"`
           )
           entryOpen = true
           if (entry.payloadLengthDecimal === '0') {
-            await writeText('"}')
+            await output.writeText('"}')
             entryOpen = false
             entryCount += 1
           }
@@ -606,9 +581,9 @@ export async function writeChangeLogRpcExportAtomic(
             'payload arrived without an open JSON entry'
           )
         }
-        await writeText(Buffer.from(frame.payload.data).toString('hex'))
+        await output.writeText(Buffer.from(frame.payload.data).toString('hex'))
         if (frame.payload.finalChunk) {
-          await writeText('"}')
+          await output.writeText('"}')
           entryOpen = false
           entryCount += 1
         }
@@ -627,7 +602,7 @@ export async function writeChangeLogRpcExportAtomic(
             'RPC entry count changed while writing JSON'
           )
         }
-        await writeText(
+        await output.writeText(
           `],"changeCount":${JSON.stringify(
             frame.complete.emittedChangeCountDecimal
           )}}\n`
@@ -640,25 +615,10 @@ export async function writeChangeLogRpcExportAtomic(
         'RPC stream did not provide a header'
       )
     }
-    stream.end()
-    streamEnded = true
-    await finished(stream)
-    await syncFile(tempPath)
-    await options.beforeCommit?.()
-    throwIfChangeLogCancelled(options.signal ?? rpcOptions.signal)
-    if (options.overwrite) {
-      await fs.rename(tempPath, outputPath)
-      committed = true
-    } else {
-      await fs.link(tempPath, outputPath)
-      committed = true
-      await fs.rm(tempPath, { force: true }).catch(() => undefined)
-    }
-    await syncParentDirectory(outputPath)
+    const committed = await output.commit()
     return {
       path: outputPath,
-      byteLength,
-      sha256: hash.digest('hex'),
+      ...committed,
       entryCount,
       sourceChangeCount: header.sourceChangeCountDecimal,
       before: {
@@ -680,13 +640,7 @@ export async function writeChangeLogRpcExportAtomic(
       optimized: header.optimized,
     }
   } finally {
-    if (!streamEnded) {
-      stream.destroy()
-      await finished(stream).catch(() => undefined)
-    }
-    if (!committed) {
-      await fs.rm(tempPath, { force: true }).catch(() => undefined)
-    }
+    await output.cleanup()
   }
 }
 

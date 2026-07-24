@@ -34,6 +34,9 @@ extern "C" {
  * Return 0 to continue visiting changes and non-zero to stop.*/
 typedef int (*omega_session_change_visitor_cbk_t)(const omega_change_t *, void *);
 
+/** Callback for visiting retained active/redo history. The serial argument is the positive logical history serial. */
+typedef int (*omega_retained_history_visitor_cbk_t)(const omega_change_t *, int64_t serial, void *);
+
 /**
  * Visit changes in the given session in chronological order (oldest first), if the callback returns an integer other
  * than 0, visitation will stop and the return value of the callback will be this function's return value
@@ -54,6 +57,19 @@ int omega_visit_changes(const omega_session_t *session_ptr, omega_session_change
  */
 int omega_visit_changes_reverse(const omega_session_t *session_ptr, omega_session_change_visitor_cbk_t cbk,
                                 void *user_data);
+
+/**
+ * Visit a bounded inclusive range of active and redoable retained history in logical serial order.
+ * @param session_ptr session whose retained history should be visited
+ * @param first_serial first positive logical serial to include
+ * @param last_serial last positive logical serial to include
+ * @param reverse non-zero to visit newest-to-oldest, otherwise oldest-to-newest
+ * @param cbk user-provided callback
+ * @param user_data user-provided callback data
+ * @return 0 when the range was visited, -1 for invalid history/range, or the callback's non-zero return value
+ */
+int omega_visit_retained_history(const omega_session_t *session_ptr, int64_t first_serial, int64_t last_serial,
+                                 int reverse, omega_retained_history_visitor_cbk_t cbk, void *user_data);
 
 /**
  * Opaque visit change context

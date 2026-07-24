@@ -3251,14 +3251,30 @@ suite('OmegaEdit VS Code extension', () => {
     }
   })
 
-  test('updates bytes per row without replacing the live webview', async () => {
+  test('stores bytes per row locally without replacing the live webview', async () => {
     const tmpDir = await fs.mkdtemp(
       path.join(os.tmpdir(), 'omega-edit-vscode-bytes-row-')
     )
     const samplePath = path.join(tmpDir, 'bytes-row.bin')
     await fs.writeFile(samplePath, Buffer.from('bytes per row', 'utf8'))
 
-    const provider = new HexEditorProvider({ subscriptions: [] }, testPort)
+    const workspaceValues = new Map([['omegaEdit.bytesPerRow', 32]])
+    const workspaceUpdates = []
+    const provider = new HexEditorProvider(
+      {
+        subscriptions: [],
+        workspaceState: {
+          keys: () => [...workspaceValues.keys()],
+          get: (key, fallback) =>
+            workspaceValues.has(key) ? workspaceValues.get(key) : fallback,
+          update: async (key, value) => {
+            workspaceUpdates.push([key, value])
+            workspaceValues.set(key, value)
+          },
+        },
+      },
+      testPort
+    )
     const panel = createMockWebviewPanel()
     const document = await provider.openCustomDocument(
       vscode.Uri.file(samplePath),
@@ -3279,19 +3295,23 @@ suite('OmegaEdit VS Code extension', () => {
         session,
         'Expected a live session for the bytes-per-row refresh test'
       )
-      session.bytesPerRowSetting = 0
-      session.bytesPerRow = 32
+      assert.equal(session.bytesPerRow, 32)
 
-      provider.refreshBytesPerRow(0)
+      await provider.dispatchWebviewMessageForTesting(document.uri, {
+        type: 'setBytesPerRow',
+        bytesPerRow: 24,
+      })
 
       assert.equal(panel.webview.html, initialHtml)
+      assert.deepEqual(workspaceUpdates, [['omegaEdit.bytesPerRow', 24]])
+      assert.equal(workspaceValues.get('omegaEdit.bytesPerRow'), 24)
       const bytesPerRowMessage = lastMessageOfType(
         panel.messages,
         'bytesPerRow'
       )
       assert.deepEqual(bytesPerRowMessage, {
         type: 'bytesPerRow',
-        bytesPerRow: 16,
+        bytesPerRow: 24,
         bytesPerRowMode: 'fixed',
       })
     } finally {

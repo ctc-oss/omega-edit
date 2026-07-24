@@ -31,6 +31,7 @@
 #include <cstring>
 #include <filesystem>
 #include <fstream>
+#include <functional>
 #include <iostream>
 #include <limits>
 #include <optional>
@@ -2511,6 +2512,7 @@ namespace omega_edit {
                 const auto transaction_start = omega_change_get_transaction_start_serial(change);
                 return transaction_start > 0 ? "transaction:" + std::to_string(transaction_start) : std::string{};
             };
+            bool invalid_history_kind = false;
             const auto append_entry = [&](const journal_canonical_entry &canonical, const std::string &transaction_id,
                                           int64_t continuation_anchor) -> bool {
                 const auto kind_char = omega_change_get_kind_as_char(canonical.source.change);
@@ -2526,7 +2528,10 @@ namespace omega_edit {
                 } else if (kind_char == 'T') {
                     kind = ::omega_edit::v1::CHANGE_LOG_ENTRY_KIND_TRANSFORM;
                 }
-                if (kind == ::omega_edit::v1::CHANGE_LOG_ENTRY_KIND_UNSPECIFIED) { return false; }
+                if (kind == ::omega_edit::v1::CHANGE_LOG_ENTRY_KIND_UNSPECIFIED) {
+                    invalid_history_kind = true;
+                    return false;
+                }
                 if (!include_all_kinds && !included_kinds[static_cast<size_t>(kind)]) { return true; }
                 if (request->has_transaction_id() && request->transaction_id() != transaction_id) { return true; }
                 if (response->entries_size() >= static_cast<int>(request->capacity())) {
@@ -2590,39 +2595,90 @@ namespace omega_edit {
                 return true;
             };
 
-            for (int64_t serial = anchor; older ? serial >= 1 : serial <= history_tip;) {
-                if (context->IsCancelled()) {
-                    return grpc::Status(grpc::StatusCode::CANCELLED, "action journal request was cancelled");
+            struct journal_visit_context {
+                bool older{};
+                bool cancelled{};
+                bool stopped{};
+                grpc::ServerContext *rpc_context{};
+                std::optional<journal_source_entry> pending{};
+                std::function<bool(const omega_change_t *, const omega_change_t *)> is_replacement_pair;
+                std::function<bool(const journal_canonical_entry &, int64_t)> append;
+            };
+            journal_visit_context visit_context{
+                    older,
+                    false,
+                    false,
+                    context,
+                    std::nullopt,
+                    is_replacement_pair,
+                    [&](const journal_canonical_entry &canonical, int64_t continuation_anchor) {
+                        return append_entry(canonical, transaction_id_for(canonical.source.change),
+                                            continuation_anchor);
+                    }};
+            const auto visit_change = [](const omega_change_t *change, int64_t serial, void *user_data) {
+                auto &state = *static_cast<journal_visit_context *>(user_data);
+                if (state.rpc_context->IsCancelled()) {
+                    state.cancelled = true;
+                    return 1;
                 }
-                const auto *change = get_history_change(serial);
-                if (!change) {
-                    return grpc::Status(grpc::StatusCode::ABORTED,
-                                        "action journal changed while its viewport was being read");
-                }
-                const auto transaction_bit = omega_change_get_transaction_bit(change);
-                journal_canonical_entry canonical{{change, serial}, std::nullopt};
-                int64_t continuation_anchor = serial;
-                int64_t step = 1;
-                if (older && omega_change_get_kind_as_char(change) == 'I' && serial > 1) {
-                    const auto *delete_change = get_history_change(serial - 1);
-                    if (delete_change && omega_change_get_kind_as_char(delete_change) == 'D' &&
-                        omega_change_get_transaction_bit(delete_change) == transaction_bit &&
-                        omega_change_get_offset(delete_change) == omega_change_get_offset(change)) {
-                        canonical = {{delete_change, serial - 1}, journal_source_entry{change, serial}};
-                        step = 2;
+
+                const journal_source_entry current{change, serial};
+                if (state.pending) {
+                    const auto replacement = state.older
+                                                     ? state.is_replacement_pair(current.change, state.pending->change)
+                                                     : state.is_replacement_pair(state.pending->change, current.change);
+                    if (replacement) {
+                        const journal_canonical_entry canonical =
+                                state.older
+                                        ? journal_canonical_entry{current, journal_source_entry{state.pending->change,
+                                                                                                state.pending->serial}}
+                                        : journal_canonical_entry{*state.pending, current};
+                        const auto continuation_anchor = state.pending->serial;
+                        state.pending.reset();
+                        if (!state.append(canonical, continuation_anchor)) {
+                            state.stopped = true;
+                            return 1;
+                        }
+                        return 0;
                     }
-                } else if (!older && omega_change_get_kind_as_char(change) == 'D' && serial < history_tip) {
-                    const auto *insert_change = get_history_change(serial + 1);
-                    if (insert_change && omega_change_get_kind_as_char(insert_change) == 'I' &&
-                        omega_change_get_transaction_bit(insert_change) == transaction_bit &&
-                        omega_change_get_offset(insert_change) == omega_change_get_offset(change)) {
-                        canonical.replacement = journal_source_entry{insert_change, serial + 1};
-                        step = 2;
+
+                    const journal_canonical_entry pending_entry{*state.pending, std::nullopt};
+                    const auto continuation_anchor = state.pending->serial;
+                    state.pending.reset();
+                    if (!state.append(pending_entry, continuation_anchor)) {
+                        state.stopped = true;
+                        return 1;
                     }
                 }
-                const auto transaction_id = transaction_id_for(canonical.source.change);
-                if (!append_entry(canonical, transaction_id, continuation_anchor)) { break; }
-                serial += older ? -step : step;
+
+                const auto kind = omega_change_get_kind_as_char(change);
+                if ((state.older && kind == 'I') || (!state.older && kind == 'D')) {
+                    state.pending = current;
+                    return 0;
+                }
+                if (!state.append(journal_canonical_entry{current, std::nullopt}, serial)) {
+                    state.stopped = true;
+                    return 1;
+                }
+                return 0;
+            };
+
+            const auto visit_result = omega_visit_retained_history(locked_session.session(), older ? 1 : anchor,
+                                                                   older ? anchor : history_tip, older ? 1 : 0,
+                                                                   visit_change, &visit_context);
+            if (visit_context.cancelled) {
+                return grpc::Status(grpc::StatusCode::CANCELLED, "action journal request was cancelled");
+            }
+            if (invalid_history_kind || visit_result < 0) {
+                return grpc::Status(grpc::StatusCode::ABORTED, "action journal encountered invalid retained history");
+            }
+            if (!visit_context.stopped && visit_context.pending) {
+                const journal_canonical_entry pending_entry{*visit_context.pending, std::nullopt};
+                append_entry(pending_entry, transaction_id_for(pending_entry.source.change),
+                             pending_entry.source.serial);
+            }
+            if (invalid_history_kind) {
+                return grpc::Status(grpc::StatusCode::ABORTED, "action journal encountered invalid retained history");
             }
             return grpc::Status::OK;
         }

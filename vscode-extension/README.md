@@ -148,13 +148,14 @@ The example extension uses a bounded search window of `1000` matches. It probes 
 
 This mode decision is made only when the user runs an explicit search. If a replace operation changes the remaining match count across the `1000` threshold, the extension keeps the current mode until the next explicit search. For example, a search that starts in `large` mode with exactly `1001` matches stays in `large` mode after one single replacement leaves `1000` remaining matches.
 
+The bytes-per-row toolbar preference is stored in VS Code's workspace-local extension state rather than workspace settings.
+
 ## Extension Settings
 
 | Setting                 | Default | Description                                                                |
 | ----------------------- | ------- | -------------------------------------------------------------------------- |
 | `omegaEdit.serverPort`  | `9000`  | TCP gRPC server port; setting this explicitly opts out of the default macOS/Linux Unix socket transport |
 | `omegaEdit.logLevel`    | `info`  | Client log level (`trace` / `debug` / `info` / `warn` / `error` / `fatal`) |
-| `omegaEdit.bytesPerRow` | `16`    | Bytes displayed per row (8 / 16 / 32)                                      |
 | `omegaEdit.language`    | `auto`  | Svelte data editor UI language (`auto` follows VS Code; explicit options include `en` and `es`) |
 | `omegaEdit.transformPluginDirectories` | `[]` | Native transform plugin directories; local build plugin folders are auto-detected when this is empty |
 | `omegaEdit.allowExperimentalTransformPlugins` | `false` | Load experimental transform plugins from configured or bundled plugin directories |

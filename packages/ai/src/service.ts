@@ -28,8 +28,6 @@ import {
   getSegment,
   getSessionFingerprint,
   isPortAvailable,
-  getUndoCount,
-  getViewportCount,
   insert,
   listTransformPlugins as listClientTransformPlugins,
   numAscii,
@@ -1122,19 +1120,29 @@ export class OmegaEditToolkit {
   async sessionStatus(sessionId: string): Promise<SessionStatus> {
     await this.ensureServerRunning()
 
-    const [
-      computedSize,
-      changeCount,
-      undoCount,
-      viewportCount,
-      checkpointCount,
-    ] = await Promise.all([
-      getComputedFileSize(sessionId),
-      getChangeCount(sessionId),
-      getUndoCount(sessionId),
-      getViewportCount(sessionId),
-      this.getCheckpointCount(sessionId),
-    ])
+    const countKinds = [
+      CountKind.COMPUTED_FILE_SIZE,
+      CountKind.CHANGES,
+      CountKind.UNDOS,
+      CountKind.VIEWPORTS,
+      CountKind.CHECKPOINTS,
+    ]
+    const counts = await getCounts(sessionId, countKinds)
+    const countsByKind = new Map(
+      counts.map((count) => [count.getKind(), count.getCount()])
+    )
+    const requiredCount = (kind: CountKind): number => {
+      const value = countsByKind.get(kind)
+      if (value === undefined) {
+        throw new Error(`Session status count ${kind} was not returned`)
+      }
+      return value
+    }
+    const computedSize = requiredCount(CountKind.COMPUTED_FILE_SIZE)
+    const changeCount = requiredCount(CountKind.CHANGES)
+    const undoCount = requiredCount(CountKind.UNDOS)
+    const viewportCount = requiredCount(CountKind.VIEWPORTS)
+    const checkpointCount = requiredCount(CountKind.CHECKPOINTS)
 
     let lastChange: SessionStatus['lastChange'] | undefined
 

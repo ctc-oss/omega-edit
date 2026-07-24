@@ -285,7 +285,6 @@ namespace {
             session_ptr->event_handler = cbk;
             session_ptr->user_data_ptr = user_data_ptr;
             session_ptr->event_interest_ = event_interest;
-            session_ptr->num_changes_adjustment_ = 0;
             session_ptr->original_file_modification_time_ = original_file_modification_time;
             session_ptr->original_file_modification_time_valid_ = original_file_modification_time_valid;
             session_ptr->models_.push_back(std::make_unique<omega_model_t>());
@@ -1246,7 +1245,11 @@ namespace {
                 if (count % session_ptr->undo_snapshot_interval_ == 0) {
                     try {
                         model_ptr->model_snapshots[count] = clone_model_segments_(model_ptr->model_segments);
-                    } catch (const std::bad_alloc &) { model_ptr->model_snapshots.erase(count); }
+                    } catch (const std::bad_alloc &) {
+                        model_ptr->model_snapshots.erase(count);
+                        LOG_ERROR("warning: unable to capture undo snapshot at change "
+                                  << count << "; undo replay may be slower");
+                    }
                 }
             }
             update_viewports_(session_ptr, change_ptr.get());
@@ -1334,7 +1337,6 @@ namespace {
             session_ptr->models_.pop_back();
             ++suspended_count;
         }
-        session_ptr->num_changes_adjustment_ = session_ptr->models_.back()->change_serial_base;
         return true;
     }
 
@@ -1344,7 +1346,6 @@ namespace {
             session_ptr->checkpoint_future_models_.pop_back();
             --suspended_count;
         }
-        if (session_ptr) { session_ptr->num_changes_adjustment_ = session_ptr->models_.back()->change_serial_base; }
     }
 
     bool resume_plain_checkpoint_models_for_redo_(omega_session_t *session_ptr) {
@@ -1360,7 +1361,6 @@ namespace {
             } catch (const std::bad_alloc &) { return false; }
             session_ptr->checkpoint_future_models_.pop_back();
         }
-        session_ptr->num_changes_adjustment_ = session_ptr->models_.back()->change_serial_base;
         return true;
     }
 
@@ -1495,7 +1495,6 @@ namespace {
         if (transform_change_ptr) { free_session_changes_undone_(session_ptr); }
         discard_checkpoint_future_(session_ptr);
 
-        session_ptr->num_changes_adjustment_ = change_serial_base;
         omega_session_notify(session_ptr, SESSION_EVT_CREATE_CHECKPOINT, nullptr);
 
         if (notify_transform) {
@@ -1952,8 +1951,6 @@ namespace {
         change_ptr->transform_data->preserved_changes_undone.swap(transform_model_ptr->changes_undone);
         FCLOSE(transform_model_ptr->file_ptr);
         session_ptr->models_.pop_back();
-        session_ptr->num_changes_adjustment_ = session_ptr->models_.back()->change_serial_base;
-
         auto *const undone_change_ptr = change_ptr.get();
         if (undone_change_ptr->serial <= 0) { return -1; }
         undone_change_ptr->serial *= -1;
@@ -2003,8 +2000,6 @@ namespace {
         session_ptr->models_.back()->changes_undone.swap(redone_change_ptr->transform_data->preserved_changes_undone);
         redone_change_ptr->serial = redone_serial;
         undone_changes.pop_back();
-        session_ptr->num_changes_adjustment_ = change_serial_base;
-
         mark_all_viewports_changed_(session_ptr, VIEWPORT_EVT_EDIT, redone_change_ptr);
         omega_session_notify(session_ptr, SESSION_EVT_EDIT, redone_change_ptr);
         return redone_change_ptr->serial;
@@ -2013,7 +2008,6 @@ namespace {
     void discard_top_model_(omega_session_t *session_ptr) {
         discard_model_(session_ptr->models_.back());
         session_ptr->models_.pop_back();
-        session_ptr->num_changes_adjustment_ = session_ptr->models_.back()->change_serial_base;
     }
 }// namespace
 
@@ -3099,7 +3093,6 @@ int omega_edit_clear_changes(omega_session_t *session_ptr) {
     session_ptr->models_.front()->model_segments = std::move(reset_segments);
     free_session_changes_(session_ptr);
     free_session_changes_undone_(session_ptr);
-    session_ptr->num_changes_adjustment_ = 0;
     mark_all_viewports_changed_(session_ptr, VIEWPORT_EVT_CLEAR, nullptr);
     omega_session_notify(session_ptr, SESSION_EVT_CLEAR, nullptr);
     return 0;
@@ -3137,7 +3130,6 @@ int omega_edit_restore_to_change_count(omega_session_t *session_ptr, int64_t cha
     }
     if (0 != rebuild_model_to_change_count_(session_ptr, keep_count)) { return -1; }
 
-    session_ptr->num_changes_adjustment_ = session_ptr->models_.back()->change_serial_base;
     if (restored) {
         mark_all_viewports_changed_(session_ptr, VIEWPORT_EVT_CHANGES, nullptr);
         omega_session_notify(session_ptr, SESSION_EVT_UNDO, nullptr);
@@ -3278,7 +3270,6 @@ int omega_edit_destroy_last_checkpoint(omega_session_t *session_ptr) {
         free_model_changes_(last_checkpoint_ptr);
         free_model_changes_undone_(last_checkpoint_ptr);
         session_ptr->models_.pop_back();
-        session_ptr->num_changes_adjustment_ = session_ptr->models_.back()->change_serial_base;
         omega_session_notify(session_ptr, SESSION_EVT_DESTROY_CHECKPOINT, nullptr);
         for (const auto &viewport_ptr : session_ptr->viewports_) {
             viewport_ptr->data_segment.capacity =
@@ -3335,13 +3326,11 @@ int omega_edit_checkout_checkpoint(omega_session_t *session_ptr, int64_t checkpo
         auto *const root_model_ptr = session_ptr->models_.front().get();
         if (!move_changes_to_undo_(root_model_ptr, 0)) { return -1; }
         root_model_ptr->model_segments = std::move(original_segments);
-        session_ptr->num_changes_adjustment_ = 0;
     } else {
         auto *const model_ptr = session_ptr->models_.back().get();
         const auto keep_count = checkpoint_snapshot_change_count_(model_ptr);
         if (!move_changes_to_undo_(model_ptr, keep_count)) { return -1; }
         if (0 != rebuild_model_to_change_count_(session_ptr, static_cast<int64_t>(keep_count))) { return -1; }
-        session_ptr->num_changes_adjustment_ = model_ptr->change_serial_base;
     }
 
     notify_checkpoint_restore_(session_ptr);
@@ -3364,7 +3353,6 @@ int omega_edit_restore_last_checkpoint(omega_session_t *session_ptr) {
     free_model_changes_undone_(model_ptr);
     if (0 != rebuild_model_to_change_count_(session_ptr, static_cast<int64_t>(keep_count))) { return -1; }
 
-    session_ptr->num_changes_adjustment_ = session_ptr->models_.back()->change_serial_base;
     notify_checkpoint_restore_(session_ptr);
     return 0;
 }
