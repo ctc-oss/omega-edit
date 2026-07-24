@@ -101,8 +101,10 @@ for (const platform of packagedPlatforms) {
   )
   if (plugins.length < 17)
     fail(`VSIX contains ${plugins.length} transform plugins for ${platform}; expected at least 17`)
+  if (!plugins.some((entry) => /omega_transform_zlib\.(?:dll|dylib|so)$/.test(entry)))
+    fail(`VSIX is missing the production zlib transform plugin for ${platform}`)
   if (!plugins.some((entry) => /omega_transform_zstd\.(?:dll|dylib|so)$/.test(entry)))
-    fail(`VSIX is missing the zstd transform plugin for ${platform}`)
+    fail(`VSIX is missing the production zstd transform plugin for ${platform}`)
 }
 if (entries.length > 200) fail(`VSIX contains ${entries.length} entries; limit is 200`)
 if (size > 70 * 1024 * 1024) fail(`VSIX is ${(size / (1024 * 1024)).toFixed(1)} MiB; limit is 70 MiB`)
