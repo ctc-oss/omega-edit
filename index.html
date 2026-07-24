@@ -483,9 +483,11 @@
 </li>
 <li><a class="reference internal" href="#visit-h">visit.h</a><ul>
 <li><a class="reference internal" href="#_CPPv434omega_session_change_visitor_cbk_t"><code class="docutils literal notranslate"><span class="pre">omega_session_change_visitor_cbk_t</span></code></a></li>
+<li><a class="reference internal" href="#_CPPv436omega_retained_history_visitor_cbk_t"><code class="docutils literal notranslate"><span class="pre">omega_retained_history_visitor_cbk_t</span></code></a></li>
 <li><a class="reference internal" href="#_CPPv428omega_visit_change_context_t"><code class="docutils literal notranslate"><span class="pre">omega_visit_change_context_t</span></code></a></li>
 <li><a class="reference internal" href="#_CPPv419omega_visit_changesPK15omega_session_t34omega_session_change_visitor_cbk_tPv"><code class="docutils literal notranslate"><span class="pre">omega_visit_changes()</span></code></a></li>
 <li><a class="reference internal" href="#_CPPv427omega_visit_changes_reversePK15omega_session_t34omega_session_change_visitor_cbk_tPv"><code class="docutils literal notranslate"><span class="pre">omega_visit_changes_reverse()</span></code></a></li>
+<li><a class="reference internal" href="#_CPPv428omega_visit_retained_historyPK15omega_session_t7int64_t7int64_ti36omega_retained_history_visitor_cbk_tPv"><code class="docutils literal notranslate"><span class="pre">omega_visit_retained_history()</span></code></a></li>
 <li><a class="reference internal" href="#_CPPv433omega_visit_change_create_contextPK15omega_session_ti"><code class="docutils literal notranslate"><span class="pre">omega_visit_change_create_context()</span></code></a></li>
 <li><a class="reference internal" href="#_CPPv425omega_visit_change_at_endPK28omega_visit_change_context_t"><code class="docutils literal notranslate"><span class="pre">omega_visit_change_at_end()</span></code></a></li>
 <li><a class="reference internal" href="#_CPPv424omega_visit_change_beginP28omega_visit_change_context_t"><code class="docutils literal notranslate"><span class="pre">omega_visit_change_begin()</span></code></a></li>
@@ -4568,6 +4570,12 @@
 </dd></dl>
 
 <dl class="cpp type">
+<dt class="sig sig-object cpp" id="_CPPv436omega_retained_history_visitor_cbk_t">
+<span id="_CPPv336omega_retained_history_visitor_cbk_t"></span><span id="_CPPv236omega_retained_history_visitor_cbk_t"></span><span id="omega_retained_history_visitor_cbk_t"></span><span class="target" id="visit_8h_1a317628efddcbe09bd32f6efa82dbf671"></span><span class="k"><span class="pre">typedef</span></span><span class="w"> </span><span class="kt"><span class="pre">int</span></span><span class="w"> </span><span class="p"><span class="pre">(</span></span><span class="p"><span class="pre">*</span></span><span class="sig-name descname"><span class="n"><span class="pre">omega_retained_history_visitor_cbk_t</span></span></span><span class="p"><span class="pre">)</span></span><span class="p"><span class="pre">(</span></span><span class="k"><span class="pre">const</span></span><span class="w"> </span><a class="reference internal" href="#_CPPv414omega_change_t" title="omega_change_t"><span class="n"><span class="pre">omega_change_t</span></span></a><span class="p"><span class="pre">*</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="n"><span class="pre">int64_t</span></span><span class="w"> </span><span class="n"><span class="pre">serial</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="kt"><span class="pre">void</span></span><span class="p"><span class="pre">*</span></span><span class="p"><span class="pre">)</span></span><a class="headerlink" href="#_CPPv436omega_retained_history_visitor_cbk_t" title="Link to this definition"></a><br /></dt>
+<dd><p>Callback for visiting retained active/redo history. The serial argument is the positive logical history serial. </p>
+</dd></dl>
+
+<dl class="cpp type">
 <dt class="sig sig-object cpp" id="_CPPv428omega_visit_change_context_t">
 <span id="_CPPv328omega_visit_change_context_t"></span><span id="_CPPv228omega_visit_change_context_t"></span><span id="omega_visit_change_context_t"></span><span class="target" id="visit_8h_1a4516bf628dbc272ff9803b9f9ede222f"></span><span class="k"><span class="pre">typedef</span></span><span class="w"> </span><span class="k"><span class="pre">struct</span></span><span class="w"> </span><span class="n"><span class="pre">omega_visit_change_context_struct</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">omega_visit_change_context_t</span></span></span><a class="headerlink" href="#_CPPv428omega_visit_change_context_t" title="Link to this definition"></a><br /></dt>
 <dd><p>Opaque visit change context </p>
@@ -4608,6 +4616,27 @@
 </dd>
 <dt class="field-even">Returns<span class="colon">:</span></dt>
 <dd class="field-even"><p>0 if all changes were visited or the non-zero return value of the callback if visitation was stopped early </p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="cpp function">
+<dt class="sig sig-object cpp" id="_CPPv428omega_visit_retained_historyPK15omega_session_t7int64_t7int64_ti36omega_retained_history_visitor_cbk_tPv">
+<span id="_CPPv328omega_visit_retained_historyPK15omega_session_t7int64_t7int64_ti36omega_retained_history_visitor_cbk_tPv"></span><span id="_CPPv228omega_visit_retained_historyPK15omega_session_t7int64_t7int64_ti36omega_retained_history_visitor_cbk_tPv"></span><span id="omega_visit_retained_history__omega_session_tCP.int64_t.int64_t.i.omega_retained_history_visitor_cbk_t.voidP"></span><span class="target" id="visit_8h_1a7c1b4548878aa88f75ce68489d5e8ea1"></span><span class="kt"><span class="pre">int</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">omega_visit_retained_history</span></span></span><span class="sig-paren">(</span><span class="k"><span class="pre">const</span></span><span class="w"> </span><a class="reference internal" href="#_CPPv415omega_session_t" title="omega_session_t"><span class="n"><span class="pre">omega_session_t</span></span></a><span class="w"> </span><span class="p"><span class="pre">*</span></span><span class="n sig-param"><span class="pre">session_ptr</span></span>, <span class="n"><span class="pre">int64_t</span></span><span class="w"> </span><span class="n sig-param"><span class="pre">first_serial</span></span>, <span class="n"><span class="pre">int64_t</span></span><span class="w"> </span><span class="n sig-param"><span class="pre">last_serial</span></span>, <span class="kt"><span class="pre">int</span></span><span class="w"> </span><span class="n sig-param"><span class="pre">reverse</span></span>, <a class="reference internal" href="#_CPPv436omega_retained_history_visitor_cbk_t" title="omega_retained_history_visitor_cbk_t"><span class="n"><span class="pre">omega_retained_history_visitor_cbk_t</span></span></a><span class="w"> </span><span class="n sig-param"><span class="pre">cbk</span></span>, <span class="kt"><span class="pre">void</span></span><span class="w"> </span><span class="p"><span class="pre">*</span></span><span class="n sig-param"><span class="pre">user_data</span></span><span class="sig-paren">)</span><a class="headerlink" href="#_CPPv428omega_visit_retained_historyPK15omega_session_t7int64_t7int64_ti36omega_retained_history_visitor_cbk_tPv" title="Link to this definition"></a><br /></dt>
+<dd><p>Visit a bounded inclusive range of active and redoable retained history in logical serial order. </p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>session_ptr</strong> – session whose retained history should be visited </p></li>
+<li><p><strong>first_serial</strong> – first positive logical serial to include </p></li>
+<li><p><strong>last_serial</strong> – last positive logical serial to include </p></li>
+<li><p><strong>reverse</strong> – non-zero to visit newest-to-oldest, otherwise oldest-to-newest </p></li>
+<li><p><strong>cbk</strong> – user-provided callback </p></li>
+<li><p><strong>user_data</strong> – user-provided callback data </p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>0 when the range was visited, -1 for invalid history/range, or the callback’s non-zero return value </p>
 </dd>
 </dl>
 </dd></dl>
