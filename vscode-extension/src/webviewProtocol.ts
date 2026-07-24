@@ -624,14 +624,6 @@ export function normalizeBytesPerRow(value: unknown): BytesPerRow {
     : DEFAULT_BYTES_PER_ROW
 }
 
-export function normalizeBytesPerRowSetting(value: unknown): number {
-  return normalizeBytesPerRow(value)
-}
-
-export function bytesPerRowFromSetting(value: unknown): BytesPerRow {
-  return normalizeBytesPerRowSetting(value)
-}
-
 export function normalizeBytesPerRowMode(value: unknown): BytesPerRowMode {
   void value
   return 'fixed'

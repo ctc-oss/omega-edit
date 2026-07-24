@@ -139,11 +139,9 @@ import {
   type ServerHealthMetricId,
   type ServerHealthMessage,
   type WebviewToHostMessage,
-  bytesPerRowFromSetting,
   checkpointTimelineMetadataWindow,
   normalizeExternalHighlights,
   normalizeBytesPerRow,
-  normalizeBytesPerRowSetting,
   normalizeTextEncoding,
   normalizeWebviewMessage,
 } from './webviewProtocol'
@@ -167,7 +165,6 @@ interface EditorSession {
   bufferOffset: number
   visibleRows: number
   capacity: number
-  bytesPerRowSetting: number
   bytesPerRow: BytesPerRow
   filePath: string
   panel: vscode.WebviewPanel
@@ -452,6 +449,7 @@ const CONTEXT_CAN_UNDO = 'omegaEdit.canUndo'
 const CONTEXT_CAN_REDO = 'omegaEdit.canRedo'
 const CONTEXT_HAS_PENDING_CHANGES = 'omegaEdit.hasPendingChanges'
 const CONTEXT_TRANSFORM_IN_FLIGHT = 'omegaEdit.transformInFlight'
+const BYTES_PER_ROW_STORAGE_KEY = 'omegaEdit.bytesPerRow'
 const CONTEXT_ACTIVE_SESSION_RESOURCE_PATHS =
   'omegaEdit.activeSessionResourcePaths'
 const ACTION_JOURNAL_REQUEST_TIMEOUT_MS = 15_000
@@ -2102,7 +2100,11 @@ export class HexEditorProvider
   constructor(
     private readonly extensionContext?: Pick<
       vscode.ExtensionContext,
-      'extensionUri' | 'subscriptions' | 'storageUri' | 'globalStorageUri'
+      | 'extensionUri'
+      | 'subscriptions'
+      | 'storageUri'
+      | 'globalStorageUri'
+      | 'workspaceState'
     >
   ) {
     this.extensionContext?.subscriptions.push(
@@ -2181,45 +2183,19 @@ export class HexEditorProvider
     this.postEditState(session)
   }
 
-  private async updateBytesPerRowConfiguration(
-    session: EditorSession,
-    value: number
-  ): Promise<void> {
-    const resource = vscode.Uri.file(session.filePath)
-    const workspaceFolder = vscode.workspace.getWorkspaceFolder(resource)
-    const configuration = vscode.workspace.getConfiguration(
-      'omegaEdit',
-      resource
+  private storedBytesPerRow(): BytesPerRow {
+    return normalizeBytesPerRow(
+      this.extensionContext?.workspaceState?.get(BYTES_PER_ROW_STORAGE_KEY)
     )
-    const targets = workspaceFolder
-      ? [
-          vscode.ConfigurationTarget.WorkspaceFolder,
-          vscode.ConfigurationTarget.Workspace,
-          vscode.ConfigurationTarget.Global,
-        ]
-      : vscode.workspace.workspaceFolders &&
-          vscode.workspace.workspaceFolders.length > 0
-        ? [
-            vscode.ConfigurationTarget.Workspace,
-            vscode.ConfigurationTarget.Global,
-          ]
-        : [vscode.ConfigurationTarget.Global]
+  }
 
-    let lastError: unknown
-    let updated = false
-    for (const target of targets) {
-      try {
-        await configuration.update('bytesPerRow', value, target)
-        updated = true
-        break
-      } catch (err) {
-        lastError = err
-      }
-    }
-
-    if (!updated && lastError) {
-      throw lastError
-    }
+  private async persistBytesPerRow(value: BytesPerRow): Promise<void> {
+    const bytesPerRow = normalizeBytesPerRow(value)
+    await this.extensionContext?.workspaceState?.update(
+      BYTES_PER_ROW_STORAGE_KEY,
+      bytesPerRow
+    )
+    this.refreshBytesPerRow(bytesPerRow)
   }
 
   public getSessionForTesting(uri: vscode.Uri): EditorSession | undefined {
@@ -2236,7 +2212,7 @@ export class HexEditorProvider
 
   private renderWebviewHtml(
     webview: vscode.Webview,
-    bytesPerRowSetting: number
+    bytesPerRow: BytesPerRow
   ): string {
     const extensionUri = this.extensionContext?.extensionUri
     if (!extensionUri) {
@@ -2246,7 +2222,7 @@ export class HexEditorProvider
       return `<!DOCTYPE html><html><body>${message}</body></html>`
     }
 
-    return getSvelteWebviewContent(webview, extensionUri, bytesPerRowSetting)
+    return getSvelteWebviewContent(webview, extensionUri, bytesPerRow)
   }
 
   public async dispatchWebviewMessageForTesting(
@@ -2412,11 +2388,7 @@ export class HexEditorProvider
     const filePath = uri.fsPath
 
     // --- Create Ωedit™ session for this file ---
-    const config = vscode.workspace.getConfiguration('omegaEdit')
-    const bytesPerRowSetting = normalizeBytesPerRowSetting(
-      config.get('bytesPerRow')
-    )
-    const bytesPerRow = bytesPerRowFromSetting(bytesPerRowSetting)
+    const bytesPerRow = this.storedBytesPerRow()
 
     // Keep a fixed buffered viewport so resizing the editor does not need to
     // resize the server-side viewport. Only the visible row count changes.
@@ -2431,7 +2403,7 @@ export class HexEditorProvider
     }
     webviewPanel.webview.html = this.renderWebviewHtml(
       webviewPanel.webview,
-      bytesPerRowSetting
+      bytesPerRow
     )
 
     const panelDisposables: vscode.Disposable[] = []
@@ -2555,7 +2527,6 @@ export class HexEditorProvider
       bufferOffset: 0,
       visibleRows: 32,
       capacity,
-      bytesPerRowSetting,
       bytesPerRow,
       filePath,
       panel: webviewPanel,
@@ -3121,15 +3092,12 @@ export class HexEditorProvider
     return this.buildEditorState(session)
   }
 
-  /** Re-read bytesPerRow from config and refresh all open editors */
-  refreshBytesPerRow(bytesPerRowSettingOverride?: number): void {
-    const bytesPerRowSetting = normalizeBytesPerRowSetting(
-      bytesPerRowSettingOverride ??
-        vscode.workspace.getConfiguration('omegaEdit').get('bytesPerRow')
+  /** Refresh all open editors from the workspace-local preference. */
+  refreshBytesPerRow(bytesPerRowOverride?: number): void {
+    const bytesPerRow = normalizeBytesPerRow(
+      bytesPerRowOverride ?? this.storedBytesPerRow()
     )
     for (const session of this.sessions.values()) {
-      const bytesPerRow = bytesPerRowFromSetting(bytesPerRowSetting)
-      session.bytesPerRowSetting = bytesPerRowSetting
       this.postBytesPerRow(session, bytesPerRow)
       this.postTransformStatus(
         session,
@@ -3152,7 +3120,7 @@ export class HexEditorProvider
       }
       session.panel.webview.html = this.renderWebviewHtml(
         session.panel.webview,
-        session.bytesPerRowSetting
+        session.bytesPerRow
       )
       this.postTransformStatus(
         session,
@@ -7596,18 +7564,13 @@ export class HexEditorProvider
           if (msg.persist === false) {
             await this.applySessionBytesPerRow(session, msg.bytesPerRow)
           } else {
-            session.bytesPerRowSetting = msg.bytesPerRow
-            await this.updateBytesPerRowConfiguration(session, msg.bytesPerRow)
+            await this.persistBytesPerRow(msg.bytesPerRow)
           }
           break
         }
 
         case 'setBytesPerRowMode': {
-          session.bytesPerRowSetting = session.bytesPerRow
-          await this.updateBytesPerRowConfiguration(
-            session,
-            session.bytesPerRow
-          )
+          await this.persistBytesPerRow(session.bytesPerRow)
           break
         }
 

@@ -1244,9 +1244,6 @@ export async function activate(
 
   context.subscriptions.push(
     vscode.workspace.onDidChangeConfiguration((event) => {
-      if (event.affectsConfiguration('omegaEdit.bytesPerRow')) {
-        provider.refreshBytesPerRow()
-      }
       if (event.affectsConfiguration('omegaEdit.language')) {
         provider.refreshLanguage()
       }
