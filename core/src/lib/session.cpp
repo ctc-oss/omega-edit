@@ -56,7 +56,9 @@ namespace {
     int64_t count_future_model_changes_(const omega_model_t *model) {
         if (!model) { return 0; }
         int64_t result = static_cast<int64_t>(model->changes.size());
-        for (const auto &change : model->changes) {
+        // A checkpointed transform, when present, is the first change in its model and may retain its own redo suffix.
+        if (!model->changes.empty()) {
+            const auto &change = model->changes.front();
             if (change && change->transform_data) {
                 result += count_undone_changes_(change->transform_data->preserved_changes_undone);
             }

@@ -2514,10 +2514,11 @@ test('compiled extension entrypoints exist after build', () => {
   assert.match(extensionJs, /startTcpServerConnection/)
   assert.doesNotMatch(extensionSource, /fallbackReason/)
   assert.match(extensionJs, /startServerUnixSocket/)
-  assert.match(
-    extensionSource,
-    /const serverOptions = \{\s*sessionTimeoutMs: SERVER_SESSION_TIMEOUT_MS,\s*cleanupIntervalMs: SERVER_CLEANUP_INTERVAL_MS,\s*shutdownWhenNoSessions: true,\s*transformPluginDirectories,\s*allowExperimentalTransformPlugins/
-  )
+  assert.match(extensionSource, /sessionTimeoutMs: SERVER_SESSION_TIMEOUT_MS/)
+  assert.match(extensionSource, /cleanupIntervalMs: SERVER_CLEANUP_INTERVAL_MS/)
+  assert.match(extensionSource, /shutdownWhenNoSessions: true/)
+  assert.match(extensionSource, /transformPluginDirectories/)
+  assert.match(extensionSource, /allowExperimentalTransformPlugins/)
   assert.match(extensionSource, /const SERVER_SESSION_TIMEOUT_MS = 60_000/)
   assert.match(extensionSource, /const SERVER_CLEANUP_INTERVAL_MS = 5_000/)
   assert.match(

@@ -2606,8 +2606,8 @@ export class HexEditorProvider
     this.pendingHealthWebviews.delete(webviewPanel.webview)
     resolvedSession = session
     this.activeSession = session
-    this.updateEditCommandContexts(session)
     await this.reconcileNativeHistory(session)
+    this.updateEditCommandContexts(session)
 
     // Send initial data to the webview. The message listener must be in place
     // first because the webview posts its first metrics update as soon as it
@@ -4629,6 +4629,7 @@ export class HexEditorProvider
       return
     }
     if (await this.reconcileNativeHistory(session)) {
+      this.updateEditCommandContexts(session)
       this.postEditState(session)
     }
     const webviewViewport: WebviewActionJournalViewport = {
@@ -6286,6 +6287,10 @@ export class HexEditorProvider
         created: false,
       }
     }
+    // Auto Save can publish the file before it finishes updating the durable
+    // saved fingerprint. Do not let checkpoint manifest publication overlap
+    // that final save bookkeeping.
+    await session.saveTask?.catch(() => undefined)
     await this.assertCheckpointTimelineNativeAlignment(
       session,
       'before checkpoint creation'

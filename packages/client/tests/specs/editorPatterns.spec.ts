@@ -468,6 +468,19 @@ describe('Editor Patterns', () => {
     ).to.throw(RangeError)
   })
 
+  it('should reconcile native transaction counts above argument limits', () => {
+    const history = new EditorHistoryController()
+    const activeTransactionCount = 200_000
+
+    expect(
+      history.reconcileNativeTransactionCounts(activeTransactionCount, 0, false)
+    ).to.be.true
+    expect(history.getEditState()).to.deep.include({
+      undoCount: activeTransactionCount,
+      redoCount: 0,
+    })
+  })
+
   it('should not mistake checkpoint-backed steps for native transactions', () => {
     const history = new EditorHistoryController()
     history.recordCheckpointReplaceAll({

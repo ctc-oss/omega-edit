@@ -638,12 +638,13 @@ async function stopServerConnectionGraceful(
     // normal process-stop path when the RPC has not completed shutdown yet.
     if (serverPid !== undefined && serverPid) {
       const stopped = await stopProcessUsingPID(serverPid)
-      if (!stopped) {
+      const shutdownCompleted = result.status === 'completed'
+      if (!stopped && !shutdownCompleted) {
         console.warn(
           `Failed to stop OmegaEdit server process ${serverPid} after graceful shutdown returned ${result.status}`
         )
       }
-      return stopped
+      return stopped || shutdownCompleted
     }
 
     return result.status === 'completed'

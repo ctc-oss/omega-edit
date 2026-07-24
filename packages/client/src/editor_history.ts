@@ -227,26 +227,30 @@ export class EditorHistoryController {
         'Native transaction counts must be non-negative safe integers'
       )
     }
-    const nativeBackedActiveCount = this.transactionLog.filter(
-      (transaction) => transaction.kind !== 'CHECKPOINT_REPLACE_ALL'
-    ).length
-    const nativeBackedUndoneCount = this.undoneTransactionLog.filter(
-      (transaction) => transaction.kind !== 'CHECKPOINT_REPLACE_ALL'
-    ).length
+    let nativeBackedActiveCount = 0
+    let nativeBackedUndoneCount = 0
+    let hasCheckpointReplaceAll = false
+    for (const transaction of this.transactionLog) {
+      if (transaction.kind === 'CHECKPOINT_REPLACE_ALL') {
+        hasCheckpointReplaceAll = true
+      } else {
+        nativeBackedActiveCount += 1
+      }
+    }
+    for (const transaction of this.undoneTransactionLog) {
+      if (transaction.kind === 'CHECKPOINT_REPLACE_ALL') {
+        hasCheckpointReplaceAll = true
+      } else {
+        nativeBackedUndoneCount += 1
+      }
+    }
     if (
       nativeBackedActiveCount === activeTransactionCount &&
       nativeBackedUndoneCount === undoneTransactionCount
     ) {
       return false
     }
-    if (
-      this.transactionLog.some(
-        (transaction) => transaction.kind === 'CHECKPOINT_REPLACE_ALL'
-      ) ||
-      this.undoneTransactionLog.some(
-        (transaction) => transaction.kind === 'CHECKPOINT_REPLACE_ALL'
-      )
-    ) {
+    if (hasCheckpointReplaceAll) {
       return false
     }
 
@@ -259,18 +263,12 @@ export class EditorHistoryController {
     this.undoneChangeLog.length = 0
     this.transactionLog.length = 0
     this.undoneTransactionLog.length = 0
-    this.transactionLog.push(
-      ...Array.from(
-        { length: activeTransactionCount },
-        (): EditorTransactionRecord => ({ kind: 'LOCAL_UNTRACKED' })
-      )
-    )
-    this.undoneTransactionLog.push(
-      ...Array.from(
-        { length: undoneTransactionCount },
-        (): EditorTransactionRecord => ({ kind: 'LOCAL_UNTRACKED' })
-      )
-    )
+    for (let index = 0; index < activeTransactionCount; index += 1) {
+      this.transactionLog.push({ kind: 'LOCAL_UNTRACKED' })
+    }
+    for (let index = 0; index < undoneTransactionCount; index += 1) {
+      this.undoneTransactionLog.push({ kind: 'LOCAL_UNTRACKED' })
+    }
     this.savedChangeDepth = currentStateIsSaved ? activeTransactionCount : 0
     this.milestoneDepths.length = 0
     return true
