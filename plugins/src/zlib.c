@@ -38,10 +38,11 @@ static const char ZLIB_ARGS_SCHEMA[] =
         "\"description\":\"Used when compressing: -1 uses the zlib default; 0 stores without compression; "
         "9 is smallest.\",\"default\":-1,\"minimum\":-1,\"maximum\":9},\"maxOutputBytes\":{\"type\":\"integer\","
         "\"title\":\"Maximum decompressed bytes\",\"description\":\"Used when decompressing. Expansion above this "
-        "limit fails before allocating more output memory.\",\"default\":67108864,\"minimum\":1}},"
+        "limit fails before allocating more output memory. The production safety ceiling is 64 MiB.\","
+        "\"default\":67108864,\"minimum\":1,\"maximum\":67108864}},"
         "\"additionalProperties\":false}";
 
-static const int64_t ZLIB_DEFAULT_MAX_OUTPUT_BYTES = OMEGA_MEMORY_BUFFER_LIMIT;
+static const int64_t ZLIB_MAX_OUTPUT_BYTES = OMEGA_MEMORY_BUFFER_LIMIT;
 
 static int input_length_to_ulong(int64_t input_length, uLong *input_length_out) {
     if (!input_length_out || input_length < 0 || (uint64_t) input_length > ULONG_MAX) { return -1; }
@@ -78,7 +79,7 @@ static int zlib_parse_positive_int64(const char **cursor, int64_t *value_out) {
     errno = 0;
     char *end_ptr = NULL;
     const long long parsed = strtoll(*cursor, &end_ptr, 10);
-    if (end_ptr == *cursor || errno == ERANGE || parsed < 1 || (uint64_t) parsed > INT64_MAX) { return -1; }
+    if (end_ptr == *cursor || errno == ERANGE || parsed < 1 || parsed > ZLIB_MAX_OUTPUT_BYTES) { return -1; }
     *cursor = end_ptr;
     *value_out = (int64_t) parsed;
     return 0;
@@ -88,7 +89,7 @@ static int zlib_parse_options(const char *options_json, omega_zlib_options_t *op
     if (!options_out) { return -1; }
     options_out->action = OMEGA_ZLIB_COMPRESS;
     options_out->level = Z_DEFAULT_COMPRESSION;
-    options_out->max_output_bytes = ZLIB_DEFAULT_MAX_OUTPUT_BYTES;
+    options_out->max_output_bytes = ZLIB_MAX_OUTPUT_BYTES;
     if (!options_json || !*options_json) { return 0; }
 
     const char *cursor = options_json;
@@ -228,11 +229,11 @@ OMEGA_TRANSFORM_PLUGIN_EXPORT int omega_transform_plugin_get_info(omega_transfor
                       OMEGA_TRANSFORM_PLUGIN_FLAG_BINARY_SAFE;
     info_ptr->help = "Choose compress or decompress. Compression level uses -1 for the zlib default, "
                      "0 for no compression, 1 for fastest compression, or 9 for best compression. "
-                     "Decompression stops at maxOutputBytes, defaulting to 64 MiB.";
+                     "Decompression stops at maxOutputBytes, which defaults to and cannot exceed 64 MiB.";
     info_ptr->example = "{\"action\":\"compress\",\"level\":9}";
     info_ptr->default_args = "{\"action\":\"compress\",\"level\":-1}";
     info_ptr->args_schema = ZLIB_ARGS_SCHEMA;
-    info_ptr->support = OMEGA_TRANSFORM_PLUGIN_SUPPORT_EXPERIMENTAL;
+    info_ptr->support = OMEGA_TRANSFORM_PLUGIN_SUPPORT_PRODUCTION;
     info_ptr->abi_version = OMEGA_TRANSFORM_PLUGIN_ABI_VERSION;
     return 0;
 }

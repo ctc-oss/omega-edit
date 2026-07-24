@@ -319,7 +319,7 @@ if (BUILD_TESTS)
 
     add_executable(omega_transform_plugin_tests tests/transform_plugin_tests.cpp)
     target_link_libraries(omega_transform_plugin_tests PRIVATE omega_edit::omega_edit Catch2::Catch2WithMain
-            ${FILESYSTEM_LIB})
+            ZLIB::ZLIB ${ZSTD_TARGET} ${FILESYSTEM_LIB})
     target_include_directories(omega_transform_plugin_tests PRIVATE ${OMEGA_EDIT_TRANSFORM_PLUGIN_TEST_BINARY_DIR})
     set_target_properties(omega_transform_plugin_tests PROPERTIES
             RUNTIME_OUTPUT_DIRECTORY ${OMEGA_EDIT_TRANSFORM_PLUGIN_TEST_BINARY_DIR})
