@@ -216,6 +216,7 @@ plugins/
 |- omega_transform_record_text_helpers.dll
 |- omega_transform_text_codecs.dll
 |- omega_transform_zlib.dll
+|- omega_transform_zstd.dll
 `- omega_transform_repeat.dll
 ```
 
@@ -345,13 +346,14 @@ The repository ships small examples in `plugins/src/`:
 | `omega.example.openssl_digests` | `openssl_digests.c` | Inspect | MD5, SHA-1, SHA-2, SHA-3, and BLAKE2 digest calculation using OpenSSL 3 without changing session content. |
 | `omega.example.record_text_helpers` | `record_text_helpers.cpp` | Replace | Newline normalization, fixed-width lines, delimiter escaping, CSV quoting, XML entities, and JSON string escaping. |
 | `omega.example.text_codecs` | `text_codecs.cpp` | Replace | Hex/base16, Base64URL, Base32, Base32-Crockford, Ascii85/Base85, Z85, Base58, percent/URL, quoted-printable, uuencode, and yEnc encode/decode helpers. Base58 is capped at 64 KiB selections. |
-| `omega.example.zlib` | `zlib.c` | Replace | Zlib compression/decompression with an `action` option. Compression accepts `level` values from `-1` through `9`; decompression accepts `maxOutputBytes` with a 64 MiB default cap. |
+| `omega.example.zlib` | `zlib.c` | Replace | Production zlib compression/decompression with an `action` option. Compression accepts `level` values from `-1` through `9`; decompression accepts `maxOutputBytes` with a 64 MiB default and absolute safety cap. Exactly one zlib stream is accepted per decompression. |
+| `omega.example.zstd` | `zstd.c` | Replace | Production Zstandard compression/decompression with an `action` option. Compression accepts `level` values from `1` through `22`; decompression has a 64 MiB output and decoder-window safety ceiling and accepts concatenated Zstandard frames. |
 | `omega.example.repeat` | `repeat.c` | Replace | Expansion by replacing a range with two copies of itself. |
 
-These examples are intentionally small so they can serve as test fixtures and copyable
-developer starting points. Third-party dependencies belong to the plugin package,
-not the core ABI/loader package; the zlib and OpenSSL digest exemplars use
-`plugins/conanfile.py`.
+These plugins are intentionally small so they can serve as test fixtures and
+copyable developer starting points. Third-party dependencies belong to the
+plugin package, not the core ABI/loader package; the compression and OpenSSL
+plugins use `plugins/conanfile.py`.
 
 MD5 and SHA-1 are provided for legacy formats, interoperability checks, and
 low-security data inspection workflows. Do not use them for security-sensitive
@@ -379,6 +381,31 @@ When adding release plugins:
 3. Add native registry/harness coverage under `plugins/tests/`.
 4. Add client or AI coverage if the plugin exercises new behavior.
 5. Document the plugin ID, operation, options JSON, and result format.
+
+## Promoting Experimental Plugins
+
+Production plugins load by default, so promotion is a compatibility and
+security commitment rather than only a metadata change. A promotion pull
+request must demonstrate:
+
+1. Stable plugin ID, options schema, defaults, output, and failure behavior.
+2. Independent interoperability vectors where an external format or protocol
+   applies.
+3. Positive, boundary, empty, malformed, truncated, trailing-input,
+   cancellation, and rollback coverage appropriate to the operation.
+4. Explicit input, output, intermediate-memory, and dependency-specific
+   resource ceilings for data-amplifying or parser plugins.
+5. Passing native plugin tests on supported Windows, macOS, Linux, and ARM64
+   release targets.
+6. Production-registry discovery without the experimental opt-in and package
+   or VSIX content verification.
+7. User documentation and release notes describing the newly default plugin
+   and any security-sensitive behavior.
+
+After these gates pass, change the plugin support metadata to
+`OMEGA_TRANSFORM_PLUGIN_SUPPORT_PRODUCTION` and add an explicit production
+support assertion. Treat subsequent removal, incompatible option changes, or a
+downgrade to experimental as a breaking compatibility decision.
 
 ## See Also
 

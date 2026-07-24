@@ -136,6 +136,7 @@ describe('Transform plugin gRPC integration', () => {
         'omega.example.record_text_helpers',
         'omega.example.text_codecs',
         'omega.example.zlib',
+        'omega.example.zstd',
         'omega.example.repeat',
       ])
       const bitwisePlugin = plugins.find(
@@ -170,6 +171,16 @@ describe('Transform plugin gRPC integration', () => {
         '{"action":"compress","level":-1}'
       )
       expect(zlibPlugin?.argsSchema).to.include('"maximum":9')
+      expect(zlibPlugin?.argsSchema).to.include('"maximum":67108864')
+      const zstdPlugin = plugins.find(
+        (plugin) => plugin.id === 'omega.example.zstd'
+      )
+      expect(zstdPlugin?.help).to.include('decoder windows')
+      expect(zstdPlugin?.defaultArgs).to.equal(
+        '{"action":"compress","level":3}'
+      )
+      expect(zstdPlugin?.argsSchema).to.include('"maximum":22')
+      expect(zstdPlugin?.argsSchema).to.include('"maximum":67108864')
       const digestPlugin = plugins.find(
         (plugin) => plugin.id === 'omega.example.openssl_digests'
       )

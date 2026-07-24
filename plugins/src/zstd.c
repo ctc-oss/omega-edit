@@ -37,10 +37,12 @@ static const char ZSTD_ARGS_SCHEMA[] =
         "\"description\":\"Used when compressing: 1 is fastest; 22 is smallest.\",\"default\":3,"
         "\"minimum\":1,\"maximum\":22},\"maxOutputBytes\":{\"type\":\"integer\","
         "\"title\":\"Maximum decompressed bytes\",\"description\":\"Used when decompressing. Expansion above this "
-        "limit fails before allocating more output memory.\",\"default\":67108864,\"minimum\":1}},"
+        "limit fails before allocating more output memory. The production safety ceiling is 64 MiB.\","
+        "\"default\":67108864,\"minimum\":1,\"maximum\":67108864}},"
         "\"additionalProperties\":false}";
 
-static const int64_t ZSTD_DEFAULT_MAX_OUTPUT_BYTES = OMEGA_MEMORY_BUFFER_LIMIT;
+static const int64_t ZSTD_MAX_OUTPUT_BYTES = OMEGA_MEMORY_BUFFER_LIMIT;
+static const int ZSTD_MAX_WINDOW_LOG = 26;
 
 static int zstd_parse_action(const char *value, omega_zstd_action_t *action_out) {
     if (!value || !action_out) { return -1; }
@@ -70,7 +72,7 @@ static int zstd_parse_positive_int64(const char **cursor, int64_t *value_out) {
     errno = 0;
     char *end_ptr = NULL;
     const long long parsed = strtoll(*cursor, &end_ptr, 10);
-    if (end_ptr == *cursor || errno == ERANGE || parsed < 1) { return -1; }
+    if (end_ptr == *cursor || errno == ERANGE || parsed < 1 || parsed > ZSTD_MAX_OUTPUT_BYTES) { return -1; }
     *cursor = end_ptr;
     *value_out = (int64_t) parsed;
     return 0;
@@ -80,7 +82,7 @@ static int zstd_parse_options(const char *options_json, omega_zstd_options_t *op
     if (!options_out) { return -1; }
     options_out->action = OMEGA_ZSTD_COMPRESS;
     options_out->level = 3;
-    options_out->max_output_bytes = ZSTD_DEFAULT_MAX_OUTPUT_BYTES;
+    options_out->max_output_bytes = ZSTD_MAX_OUTPUT_BYTES;
     if (!options_json || !*options_json) { return 0; }
 
     const char *cursor = options_json;
@@ -168,6 +170,10 @@ static int zstd_decompress(const omega_transform_plugin_request_t *request_ptr,
     }
     ZSTD_DCtx *context = ZSTD_createDCtx();
     if (!context) { return -1; }
+    if (ZSTD_isError(ZSTD_DCtx_setParameter(context, ZSTD_d_windowLogMax, ZSTD_MAX_WINDOW_LOG))) {
+        ZSTD_freeDCtx(context);
+        return -1;
+    }
 
     omega_byte_t *output = NULL;
     size_t capacity = 0;
@@ -213,11 +219,12 @@ OMEGA_TRANSFORM_PLUGIN_EXPORT int omega_transform_plugin_get_info(omega_transfor
     info_ptr->flags = OMEGA_TRANSFORM_PLUGIN_FLAG_MAY_EXPAND | OMEGA_TRANSFORM_PLUGIN_FLAG_MAY_SHRINK |
                       OMEGA_TRANSFORM_PLUGIN_FLAG_BINARY_SAFE;
     info_ptr->help = "Choose compress or decompress. Compression level ranges from 1 (fastest) through 22 "
-                     "(smallest), defaulting to 3. Decompression stops at maxOutputBytes, defaulting to 64 MiB.";
+                     "(smallest), defaulting to 3. Decompression stops at maxOutputBytes, which defaults to and cannot "
+                     "exceed 64 MiB; decoder windows are bounded to the same ceiling.";
     info_ptr->example = "{\"action\":\"compress\",\"level\":19}";
     info_ptr->default_args = "{\"action\":\"compress\",\"level\":3}";
     info_ptr->args_schema = ZSTD_ARGS_SCHEMA;
-    info_ptr->support = OMEGA_TRANSFORM_PLUGIN_SUPPORT_EXPERIMENTAL;
+    info_ptr->support = OMEGA_TRANSFORM_PLUGIN_SUPPORT_PRODUCTION;
     info_ptr->abi_version = OMEGA_TRANSFORM_PLUGIN_ABI_VERSION;
     return 0;
 }

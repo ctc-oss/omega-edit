@@ -277,7 +277,7 @@ Start the server with `transformPluginDirectories` or `--transform-plugin-dir`
 before listing or applying plugins. See the
 [Transform Plugins guide](https://github.com/ctc-oss/omega-edit/wiki/Transform-Plugins)
 for ABI, SDK, plugin package layout, and exemplar plugin details, including base64
-encode/decode, text codecs, character transcoding, zlib compress/decompress,
+encode/decode, text codecs, character transcoding, zlib and Zstandard compress/decompress,
 record/message helpers, and inspect-only digest/checksum examples.
 
 ### Logging

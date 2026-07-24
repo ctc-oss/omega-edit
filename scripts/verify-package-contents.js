@@ -100,10 +100,16 @@ function verifyCore(packageFiles, packageSize) {
     )
   if (
     !plugins.some((entry) =>
+      /omega_transform_zlib\.(?:dll|dylib|so)$/.test(entry)
+    )
+  )
+    fail('Core package is missing the production zlib transform plugin')
+  if (
+    !plugins.some((entry) =>
       /omega_transform_zstd\.(?:dll|dylib|so)$/.test(entry)
     )
   )
-    fail('Core package is missing the zstd transform plugin')
+    fail('Core package is missing the production zstd transform plugin')
   rejectMatches(packageFiles, [
     /\/(?:src|tests|node_modules|\.venv[^/]*)\//,
     /\/(?:CMakeCache\.txt|cmake_install\.cmake)$/,

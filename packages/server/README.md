@@ -178,7 +178,7 @@ test-only opt-in when used by test harnesses.
 Use the platform path-list separator (`:` on Unix-like systems, `;` on Windows).
 See the [Transform Plugins guide](https://github.com/ctc-oss/omega-edit/wiki/Transform-Plugins) for the native ABI,
 SDK helpers, plugin package layout, and exemplar plugins, including base64
-encode/decode, bitwise transforms, zlib compress/decompress, text codecs,
+encode/decode, bitwise transforms, zlib and Zstandard compress/decompress, text codecs,
 character transcoding, record/message helpers, and inspect-only digest/checksum
 examples.
 
