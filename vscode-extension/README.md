@@ -379,7 +379,7 @@ transform state, change-log status, and the command-surface map below.
 | Transform plugins | `omegaEdit.refreshTransformPlugins` | n/a | `oe list-transform-plugins`, `oe apply-transform-plugin` / transform MCP tools |
 | Checkpoints | Checkpoint commands | `createCheckpoint`, `restoreCheckpoint`, `rollbackCheckpoint` | Checkpoint CLI / MCP tools |
 | Change logs | `omegaEdit.exportChangeLog`, `omegaEdit.applyChangeLog` | `exportChangeLog`, `applyChangeLog` | `oe export-change-log`, `oe apply-change-log` / change-log MCP tools |
-| Action journal | `omegaEdit.showActionJournal` / Live History toolbar panel | `getActionJournalViewport` | Live transaction-aware rewind/fast-forward history with checkpoint landmarks |
+| Action journal | `omegaEdit.showActionJournal` / Live History toolbar panel | `getActionJournalViewport` | Live transaction-aware history with direct change checkout, rewind/fast-forward controls, and checkpoint landmarks |
 | External highlights / range maps | Hidden annotation commands | Highlight and range-map API methods | VS Code API only |
 
 ### Daffodil Integration Notes

@@ -5,8 +5,12 @@ const os = require('node:os')
 const path = require('node:path')
 const vscode = require('vscode')
 const {
+  checkSessionModel,
+  CountKind,
+  getActionJournalViewport,
   getClient,
   getComputedFileSize,
+  getCounts,
   getSegment,
   insert,
   IOFlags,
@@ -1350,10 +1354,7 @@ suite('OmegaEdit VS Code extension', () => {
     await assertSessionText(session.sessionId, 'Xbc1')
 
     for (let cycle = 0; cycle < 3; cycle += 1) {
-      await provider.dispatchWebviewMessageForTesting(document.uri, {
-        type: 'navigateCheckpointTimeline',
-        checkpoint: 1,
-      })
+      await provider.checkoutHistoryCheckpoint(session, 1)
       await assertSessionText(session.sessionId, 'Xbc')
 
       await provider.dispatchWebviewMessageForTesting(document.uri, {
@@ -1365,22 +1366,13 @@ suite('OmegaEdit VS Code extension', () => {
       })
       await assertSessionText(session.sessionId, 'Xbc')
 
-      await provider.dispatchWebviewMessageForTesting(document.uri, {
-        type: 'navigateCheckpointTimeline',
-        checkpoint: 2,
-      })
+      await provider.checkoutHistoryCheckpoint(session, 2)
       await assertSessionText(session.sessionId, 'Xbc1')
     }
 
-    await provider.dispatchWebviewMessageForTesting(document.uri, {
-      type: 'navigateCheckpointTimeline',
-      checkpoint: 0,
-    })
+    await provider.checkoutHistoryCheckpoint(session, 0)
     await assertSessionText(session.sessionId, 'abc')
-    await provider.dispatchWebviewMessageForTesting(document.uri, {
-      type: 'navigateCheckpointTimeline',
-      checkpoint: 2,
-    })
+    await provider.checkoutHistoryCheckpoint(session, 2)
     await assertSessionText(session.sessionId, 'Xbc1')
 
     await provider.dispatchWebviewMessageForTesting(document.uri, {
@@ -1389,26 +1381,25 @@ suite('OmegaEdit VS Code extension', () => {
       data: Buffer.from('!', 'utf8').toString('hex'),
     })
     await assertSessionText(session.sessionId, 'Xbc1!')
-    await provider.dispatchWebviewMessageForTesting(document.uri, {
-      type: 'navigateCheckpointTimeline',
-      checkpoint: 0,
-    })
+    await provider.dispatchWebviewMessageForTesting(
+      document.uri,
+      { type: 'navigateActionJournal', changeCount: '0' },
+      { propagateErrors: true }
+    )
     await assertSessionText(session.sessionId, 'abc')
-    assert.equal(session.checkpointTimeline.entries.length, 3)
+    assert.equal(session.checkpointTimeline.entries.length, 2)
     assert.equal(
       lastMessageOfType(panel.messages, 'checkpointTimeline').checkpoints
         .length,
-      3
+      2
     )
-    await provider.dispatchWebviewMessageForTesting(document.uri, {
-      type: 'navigateCheckpointTimeline',
-      checkpoint: 3,
-    })
+    await provider.dispatchWebviewMessageForTesting(
+      document.uri,
+      { type: 'navigateActionJournal', changeCount: '3' },
+      { propagateErrors: true }
+    )
     await assertSessionText(session.sessionId, 'Xbc1!')
-    await provider.dispatchWebviewMessageForTesting(document.uri, {
-      type: 'navigateCheckpointTimeline',
-      checkpoint: 2,
-    })
+    await provider.checkoutHistoryCheckpoint(session, 2)
     await assertSessionText(session.sessionId, 'Xbc1')
     await provider.dispatchWebviewMessageForTesting(document.uri, {
       type: 'overwrite',
@@ -1418,10 +1409,7 @@ suite('OmegaEdit VS Code extension', () => {
     await assertSessionText(session.sessionId, 'Xbc2')
     assert.equal(session.checkpointTimeline.entries.length, 2)
 
-    await provider.dispatchWebviewMessageForTesting(document.uri, {
-      type: 'navigateCheckpointTimeline',
-      checkpoint: 1,
-    })
+    await provider.checkoutHistoryCheckpoint(session, 1)
     assert.equal(lastMessageOfType(panel.messages, 'editState').isDirty, true)
     await provider.dispatchWebviewMessageForTesting(document.uri, {
       type: 'replace',
@@ -1429,16 +1417,10 @@ suite('OmegaEdit VS Code extension', () => {
       length: 1,
       data: Buffer.from('X', 'utf8').toString('hex'),
     })
-    await provider.dispatchWebviewMessageForTesting(document.uri, {
-      type: 'navigateCheckpointTimeline',
-      checkpoint: 2,
-    })
+    await provider.checkoutHistoryCheckpoint(session, 2)
     await assertSessionText(session.sessionId, 'Xbc1')
     assert.equal(lastMessageOfType(panel.messages, 'editState').isDirty, false)
-    await provider.dispatchWebviewMessageForTesting(document.uri, {
-      type: 'navigateCheckpointTimeline',
-      checkpoint: 1,
-    })
+    await provider.checkoutHistoryCheckpoint(session, 1)
     const abandonedArchiveFile =
       session.checkpointTimeline.entries[1].interval.archive.file
     await provider.dispatchWebviewMessageForTesting(document.uri, {
@@ -1464,14 +1446,8 @@ suite('OmegaEdit VS Code extension', () => {
     )
     await assertSessionText(session.sessionId, 'XYc')
 
-    await provider.dispatchWebviewMessageForTesting(document.uri, {
-      type: 'navigateCheckpointTimeline',
-      checkpoint: 1,
-    })
-    await provider.dispatchWebviewMessageForTesting(document.uri, {
-      type: 'navigateCheckpointTimeline',
-      checkpoint: 2,
-    })
+    await provider.checkoutHistoryCheckpoint(session, 1)
+    await provider.checkoutHistoryCheckpoint(session, 2)
     await assertSessionText(session.sessionId, 'XYc')
 
     const secondInterval = session.checkpointTimeline.entries[1].interval
@@ -1484,9 +1460,9 @@ suite('OmegaEdit VS Code extension', () => {
       ),
       'corrupt'
     )
-    await provider.navigateToCheckpoint(session, 1)
+    await provider.checkoutHistoryCheckpoint(session, 1)
     await assertSessionText(session.sessionId, 'Xbc')
-    await provider.navigateToCheckpoint(session, 2)
+    await provider.checkoutHistoryCheckpoint(session, 2)
     await assertSessionText(session.sessionId, 'XYc')
     const materializedTimeline = lastMessageOfType(
       panel.messages,
@@ -1496,7 +1472,7 @@ suite('OmegaEdit VS Code extension', () => {
     assert.equal(materializedTimeline.canRewind, true)
     assert.equal(materializedTimeline.canFastForward, false)
 
-    await provider.navigateToCheckpoint(session, 0)
+    await provider.checkoutHistoryCheckpoint(session, 0)
     await assertSessionText(session.sessionId, 'abc')
 
     await panel.fireDidDispose()
@@ -1546,10 +1522,7 @@ suite('OmegaEdit VS Code extension', () => {
     )
     await assertSessionText(session.sessionId, 'abc12')
 
-    await provider.dispatchWebviewMessageForTesting(document.uri, {
-      type: 'navigateCheckpointTimeline',
-      checkpoint: 0,
-    })
+    await provider.checkoutHistoryCheckpoint(session, 0)
     await assertSessionText(session.sessionId, 'abc')
 
     await provider.dispatchWebviewMessageForTesting(document.uri, {
@@ -1669,10 +1642,10 @@ suite('OmegaEdit VS Code extension', () => {
       'omega.example.zstd',
     ])
 
-    await provider.navigateToCheckpoint(session, 0)
+    await provider.checkoutHistoryCheckpoint(session, 0)
     await assertSessionText(session.sessionId, 'abc')
 
-    await provider.navigateToCheckpoint(session, 1)
+    await provider.checkoutHistoryCheckpoint(session, 1)
     assert.deepEqual(
       await readSessionBytes(session.sessionId),
       transformedBytes
@@ -1732,20 +1705,20 @@ suite('OmegaEdit VS Code extension', () => {
     // even if the durable audit archive is unavailable or damaged.
     const timelineStorage = session.checkpointTimeline.storage
     session.checkpointTimeline.storage = undefined
-    await provider.navigateToCheckpoint(session, 1)
+    await provider.checkoutHistoryCheckpoint(session, 1)
     await assertSessionText(session.sessionId, 'abefghij')
     assert.equal(session.checkpointTimeline.cursor, 1)
-    await provider.navigateToCheckpoint(session, 2)
+    await provider.checkoutHistoryCheckpoint(session, 2)
     await assertSessionText(session.sessionId, 'abefij')
-    await provider.navigateToCheckpoint(session, 1)
+    await provider.checkoutHistoryCheckpoint(session, 1)
     session.checkpointTimeline.storage = timelineStorage
 
     for (let cycle = 0; cycle < 3; cycle += 1) {
-      await provider.navigateToCheckpoint(session, 0)
+      await provider.checkoutHistoryCheckpoint(session, 0)
       await assertSessionText(session.sessionId, 'abcdefghij')
-      await provider.navigateToCheckpoint(session, 1)
+      await provider.checkoutHistoryCheckpoint(session, 1)
       await assertSessionText(session.sessionId, 'abefghij')
-      await provider.navigateToCheckpoint(session, 2)
+      await provider.checkoutHistoryCheckpoint(session, 2)
       await assertSessionText(session.sessionId, 'abefij')
     }
 
@@ -1851,6 +1824,226 @@ suite('OmegaEdit VS Code extension', () => {
         document?.dispose()
         await fs.rm(tmpDir, { recursive: true, force: true })
       }
+    }
+  })
+
+  test('action journal jumps to a middle delete through the nearest checkpoint', async () => {
+    const tmpDir = await fs.mkdtemp(
+      path.join(os.tmpdir(), 'omega-edit-vscode-history-jump-')
+    )
+    const samplePath = path.join(tmpDir, 'history-jump.bin')
+    await fs.writeFile(samplePath, Buffer.from('abcdefg', 'utf8'))
+
+    const provider = new HexEditorProvider({ subscriptions: [] }, testPort)
+    const panel = createMockWebviewPanel()
+    const document = await provider.openCustomDocument(
+      vscode.Uri.file(samplePath),
+      { backupId: undefined, untitledDocumentData: undefined },
+      new vscode.CancellationTokenSource().token
+    )
+
+    try {
+      await provider.resolveCustomEditor(
+        document,
+        panel,
+        new vscode.CancellationTokenSource().token
+      )
+      const session = provider.getSessionForTesting(document.uri)
+      assert.ok(session)
+
+      for (const [index, offset] of [1, 2, 3, 3].entries()) {
+        await provider.dispatchWebviewMessageForTesting(document.uri, {
+          type: 'delete',
+          offset,
+          length: 1,
+        })
+        if (index === 0 || index === 2) {
+          await provider.createCheckpoint({ uri: document.uri })
+        }
+      }
+      await assertSessionText(session.sessionId, 'ace')
+
+      const assertNoImplicitCheckpoints = async (expectedCursor) => {
+        assert.equal(session.checkpointTimeline.entries.length, 2)
+        assert.equal(session.checkpointTimeline.cursor, expectedCursor)
+        const counts = await getCounts(session.sessionId, [
+          CountKind.CHECKPOINTS,
+        ])
+        assert.equal(counts[0].getCount(), expectedCursor)
+      }
+      await assertNoImplicitCheckpoints(2)
+
+      await provider.dispatchWebviewMessageForTesting(
+        document.uri,
+        { type: 'navigateActionJournal', changeCount: '2' },
+        { propagateErrors: true }
+      )
+      await assertSessionText(session.sessionId, 'acefg')
+      await assertNoImplicitCheckpoints(1)
+      assert.equal(session.history.getEditState().canRedo, true)
+
+      await provider.dispatchWebviewMessageForTesting(
+        document.uri,
+        { type: 'navigateActionJournal', changeCount: '4' },
+        { propagateErrors: true }
+      )
+      await assertSessionText(session.sessionId, 'ace')
+      await assertNoImplicitCheckpoints(2)
+      assert.equal(session.history.getEditState().canRedo, false)
+
+      await provider.dispatchWebviewMessageForTesting(
+        document.uri,
+        { type: 'navigateActionJournal', changeCount: '0' },
+        { propagateErrors: true }
+      )
+      await assertSessionText(session.sessionId, 'abcdefg')
+      await assertNoImplicitCheckpoints(0)
+
+      await provider.dispatchWebviewMessageForTesting(
+        document.uri,
+        { type: 'navigateActionJournal', changeCount: '3' },
+        { propagateErrors: true }
+      )
+      await assertSessionText(session.sessionId, 'aceg')
+      await assertNoImplicitCheckpoints(2)
+    } finally {
+      await panel.fireDidDispose()
+      document.dispose()
+      await fs.rm(tmpDir, { recursive: true, force: true })
+    }
+  })
+
+  test('action journal repeatedly crosses an undone transform boundary', async () => {
+    const tmpDir = await fs.mkdtemp(
+      path.join(os.tmpdir(), 'omega-edit-vscode-transform-history-jump-')
+    )
+    const samplePath = path.join(tmpDir, 'transform-history-jump.bin')
+    const originalBytes = Buffer.from(
+      'the quick brown fox jumps over the lazy dog '.repeat(8),
+      'utf8'
+    )
+    await fs.writeFile(samplePath, originalBytes)
+
+    const provider = new HexEditorProvider({ subscriptions: [] }, testPort)
+    const panel = createMockWebviewPanel()
+    const document = await provider.openCustomDocument(
+      vscode.Uri.file(samplePath),
+      { backupId: undefined, untitledDocumentData: undefined },
+      new vscode.CancellationTokenSource().token
+    )
+
+    try {
+      await provider.resolveCustomEditor(
+        document,
+        panel,
+        new vscode.CancellationTokenSource().token
+      )
+      const session = provider.getSessionForTesting(document.uri)
+      assert.ok(session)
+
+      for (const offset of [3, 7, 11]) {
+        await provider.dispatchWebviewMessageForTesting(document.uri, {
+          type: 'delete',
+          offset,
+          length: 1,
+        })
+      }
+      await provider.createCheckpoint({ uri: document.uri })
+      for (const offset of [17, 23, 29]) {
+        await provider.dispatchWebviewMessageForTesting(document.uri, {
+          type: 'delete',
+          offset,
+          length: 1,
+        })
+      }
+      await provider.createCheckpoint({ uri: document.uri })
+      const beforeTransformBytes = await readSessionBytes(session.sessionId)
+
+      await provider.dispatchWebviewMessageForTesting(
+        document.uri,
+        {
+          type: 'applyTransform',
+          pluginId: 'omega.example.zstd',
+          offset: 0,
+          length: 0,
+          optionsJson: JSON.stringify({ action: 'compress', level: 3 }),
+        },
+        { propagateErrors: true }
+      )
+      const afterTransformBytes = await readSessionBytes(session.sessionId)
+      assert.notDeepEqual(afterTransformBytes, beforeTransformBytes)
+
+      await provider.dispatchWebviewMessageForTesting(document.uri, {
+        type: 'insert',
+        offset: afterTransformBytes.length,
+        data: Buffer.from('!', 'utf8').toString('hex'),
+      })
+      await provider.dispatchWebviewMessageForTesting(document.uri, {
+        type: 'overwrite',
+        offset: 0,
+        data: Buffer.from('?', 'utf8').toString('hex'),
+      })
+      const tipBytes = await readSessionBytes(session.sessionId)
+
+      const journal = await getActionJournalViewport({
+        sessionId: session.sessionId,
+        capacity: 100,
+        direction: 'older',
+      })
+      const transformEntry = journal.entries.find(
+        (entry) => entry.kind === 'TRANSFORM'
+      )
+      assert.ok(transformEntry)
+      const targets = new Map([
+        ['0', originalBytes],
+        [transformEntry.changeCountBefore, beforeTransformBytes],
+        [transformEntry.changeCountAfter, afterTransformBytes],
+        [journal.changeCount, tipBytes],
+      ])
+      const assertAt = async (changeCount) => {
+        assert.equal(session.changeCount, Number(changeCount))
+        assert.deepEqual(
+          await readSessionBytes(session.sessionId),
+          targets.get(changeCount)
+        )
+        assert.equal((await checkSessionModel(session.sessionId)).valid, true)
+        const counts = await getCounts(session.sessionId, [
+          CountKind.CHECKPOINTS,
+        ])
+        assert.equal(counts[0].getCount(), session.checkpointTimeline.cursor)
+      }
+      const navigate = async (changeCount) => {
+        await provider.dispatchWebviewMessageForTesting(
+          document.uri,
+          { type: 'navigateActionJournal', changeCount },
+          { propagateErrors: true }
+        )
+        await assertAt(changeCount)
+      }
+
+      // Every cycle uses native undo to remove the transform checkpoint model
+      // before asking the journal to replay it. The seeded extra jump varies
+      // the surrounding checkpoint path while keeping failures reproducible.
+      let randomState = 0xc0ffee
+      const targetChangeCounts = [...targets.keys()]
+      for (let cycle = 0; cycle < 20; cycle += 1) {
+        await navigate(transformEntry.changeCountAfter)
+        await provider.dispatchWebviewMessageForTesting(
+          document.uri,
+          { type: 'undo' },
+          { propagateErrors: true }
+        )
+        await assertAt(transformEntry.changeCountBefore)
+        await navigate(transformEntry.changeCountAfter)
+        randomState = (1664525 * randomState + 1013904223) >>> 0
+        await navigate(
+          targetChangeCounts[randomState % targetChangeCounts.length]
+        )
+      }
+    } finally {
+      await panel.fireDidDispose()
+      document.dispose()
+      await fs.rm(tmpDir, { recursive: true, force: true })
     }
   })
 
@@ -3590,9 +3783,9 @@ suite('OmegaEdit VS Code extension', () => {
       savedChangeDepth: 2,
     })
 
-    await provider.navigateToCheckpoint(session, 0)
+    await provider.checkoutHistoryCheckpoint(session, 0)
     await assertSessionText(session.sessionId, original)
-    await provider.navigateToCheckpoint(session, 1)
+    await provider.checkoutHistoryCheckpoint(session, 1)
     await assertSessionText(session.sessionId, replaced)
 
     await provider.dispatchWebviewMessageForTesting(document.uri, {
@@ -3600,7 +3793,7 @@ suite('OmegaEdit VS Code extension', () => {
     })
     await assertSessionText(session.sessionId, original)
     timeline = lastMessageOfType(panel.messages, 'checkpointTimeline')
-    assert.equal(timeline.checkpointCount, 2)
+    assert.equal(timeline.checkpointCount, 1)
     assert.equal(timeline.cursor, 0)
     assert.equal(timeline.canFastForward, true)
 
@@ -3609,7 +3802,7 @@ suite('OmegaEdit VS Code extension', () => {
     })
     await assertSessionText(session.sessionId, replaced)
     timeline = lastMessageOfType(panel.messages, 'checkpointTimeline')
-    assert.equal(timeline.checkpointCount, 2)
+    assert.equal(timeline.checkpointCount, 1)
     assert.equal(timeline.cursor, 1)
     assert.equal(timeline.canRewind, true)
 

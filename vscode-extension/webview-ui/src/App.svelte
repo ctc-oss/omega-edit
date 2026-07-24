@@ -1606,6 +1606,18 @@
     })
   }
 
+  function navigateActionJournal(changeCount: string): void {
+    if (
+      actionJournalLoading ||
+      actionJournalViewport?.changeCount === changeCount
+    ) {
+      return
+    }
+    actionJournalLoading = true
+    actionJournalError = ''
+    postToHost({ type: 'navigateActionJournal', changeCount })
+  }
+
   function toggleActionJournal(): void {
     if (actionJournalVisible) {
       actionJournalVisible = false
@@ -3164,6 +3176,7 @@
         canRedo={canRedo && !transformInFlight}
         onUndo={() => postToHost({ type: 'undo' })}
         onRedo={() => postToHost({ type: 'redo' })}
+        onNavigate={navigateActionJournal}
         onLoadOlder={(anchorSerial) => requestActionJournal(anchorSerial, true)}
         onClose={toggleActionJournal}
         onRetry={() => requestActionJournal()}

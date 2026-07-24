@@ -573,6 +573,9 @@ const englishStrings = {
     originalState: 'Original state',
     afterChange: (change: number | bigint) =>
       `Current after change ${formatNumber(change)}`,
+    navigateAfterChange: (change: number | bigint) =>
+      `Go to state after change ${formatNumber(change)}`,
+    navigateOriginal: 'Go to original state',
     payloadNone: 'none',
     payloadInline: 'inline',
     payloadFileBacked: 'file-backed',
@@ -850,6 +853,9 @@ const localeOverrides: Record<string, LocaleStringOverrides> = {
       originalState: 'Estado original',
       afterChange: (change: number | bigint) =>
         `Actual después del cambio ${formatNumber(change)}`,
+      navigateAfterChange: (change: number | bigint) =>
+        `Ir al estado después del cambio ${formatNumber(change)}`,
+      navigateOriginal: 'Ir al estado original',
       payloadNone: 'ninguno',
       payloadInline: 'integrado',
       payloadFileBacked: 'respaldado por archivo',
