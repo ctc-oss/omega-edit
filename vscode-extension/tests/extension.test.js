@@ -812,6 +812,10 @@ test('compiled extension entrypoints exist after build', () => {
     ),
     'utf8'
   )
+  const vscodeApiSource = fs.readFileSync(
+    path.resolve(__dirname, '../webview-ui/src/vscodeApi.ts'),
+    'utf8'
+  )
   const byteInspectorSource = fs.readFileSync(
     path.resolve(
       __dirname,
@@ -1604,6 +1608,19 @@ test('compiled extension entrypoints exist after build', () => {
   assert.match(svelteAppSource, /onScrollTo=\{requestVisibleOffset\}/)
   assert.match(svelteAppSource, /function toggleInspectorEndian/)
   assert.match(svelteAppSource, /function toggleInspectorExpanded/)
+  assert.match(
+    svelteAppSource,
+    /inspectorExpanded = \$state\(restoredState\?\.inspectorExpanded \?\? false\)/
+  )
+  assert.match(
+    svelteAppSource,
+    /profilerExpanded = \$state\(restoredState\?\.profilerExpanded \?\? false\)/
+  )
+  assert.match(svelteAppSource, /savePreviewState\(\{ inspectorExpanded \}\)/)
+  assert.match(vscodeApiSource, /inspectorExpanded\?: boolean/)
+  assert.match(byteInspectorSource, /expanded = false/)
+  assert.match(editorWorkspaceSource, /profilerExpanded = false/)
+  assert.match(profilerPanelSource, /expanded = false/)
   assert.match(svelteAppSource, /function setOffsetRadix/)
   assert.match(svelteAppSource, /offsetRadix = \$state<'hex' \| 'dec'>/)
   assert.match(svelteAppSource, /textEncoding = \$state<TextEncoding>/)
@@ -2497,9 +2514,16 @@ test('compiled extension entrypoints exist after build', () => {
   assert.match(extensionJs, /startTcpServerConnection/)
   assert.doesNotMatch(extensionSource, /fallbackReason/)
   assert.match(extensionJs, /startServerUnixSocket/)
+  assert.match(extensionSource, /sessionTimeoutMs: SERVER_SESSION_TIMEOUT_MS/)
+  assert.match(extensionSource, /cleanupIntervalMs: SERVER_CLEANUP_INTERVAL_MS/)
+  assert.match(extensionSource, /shutdownWhenNoSessions: true/)
+  assert.match(extensionSource, /transformPluginDirectories/)
+  assert.match(extensionSource, /allowExperimentalTransformPlugins/)
+  assert.match(extensionSource, /const SERVER_SESSION_TIMEOUT_MS = 60_000/)
+  assert.match(extensionSource, /const SERVER_CLEANUP_INTERVAL_MS = 5_000/)
   assert.match(
     extensionSource,
-    /const serverOptions = \{\s*transformPluginDirectories,\s*allowExperimentalTransformPlugins/
+    /const result = await stopServerGraceful\(\)[\s\S]*stopProcessUsingPID\(serverPid\)/
   )
   assert.match(
     extensionSource,

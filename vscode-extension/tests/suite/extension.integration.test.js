@@ -8,6 +8,7 @@ const {
   getClient,
   getComputedFileSize,
   getSegment,
+  insert,
   IOFlags,
   saveSession,
 } = require('@omega-edit/client')
@@ -3149,6 +3150,59 @@ suite('OmegaEdit VS Code extension', () => {
     }
   })
 
+  test('waits for an in-flight save before creating a checkpoint', async () => {
+    const tmpDir = await fs.mkdtemp(
+      path.join(os.tmpdir(), 'omega-edit-vscode-save-checkpoint-order-')
+    )
+    const samplePath = path.join(tmpDir, 'save-checkpoint-order.bin')
+    await fs.writeFile(samplePath, Buffer.from('abc', 'utf8'))
+
+    const provider = new HexEditorProvider({ subscriptions: [] }, testPort)
+    const panel = createMockWebviewPanel()
+    const document = await provider.openCustomDocument(
+      vscode.Uri.file(samplePath),
+      { backupId: undefined, untitledDocumentData: undefined },
+      new vscode.CancellationTokenSource().token
+    )
+
+    try {
+      await provider.resolveCustomEditor(
+        document,
+        panel,
+        new vscode.CancellationTokenSource().token
+      )
+      const session = provider.getSessionForTesting(document.uri)
+      assert.ok(session, 'Expected a live session for checkpoint ordering')
+      await provider.dispatchWebviewMessageForTesting(document.uri, {
+        type: 'overwrite',
+        offset: 0,
+        data: Buffer.from('X', 'utf8').toString('hex'),
+      })
+
+      let releaseSave
+      session.saveTask = new Promise((resolve) => {
+        releaseSave = resolve
+      })
+      let alignmentStarted = false
+      const getCheckpointCount = provider.getCheckpointCount.bind(provider)
+      provider.getCheckpointCount = async (...args) => {
+        alignmentStarted = true
+        return await getCheckpointCount(...args)
+      }
+
+      const checkpoint = provider.createCheckpoint({ uri: document.uri })
+      await Promise.resolve()
+      assert.equal(alignmentStarted, false)
+
+      releaseSave()
+      assert.equal((await checkpoint)?.checkpointCount, 1)
+      assert.equal(alignmentStarted, true)
+    } finally {
+      await panel.fireDidDispose()
+      await fs.rm(tmpDir, { recursive: true, force: true })
+    }
+  })
+
   test('refreshes viewport data when webview metrics arrive after initial load', async () => {
     const tmpDir = await fs.mkdtemp(
       path.join(os.tmpdir(), 'omega-edit-vscode-ready-')
@@ -3319,6 +3373,60 @@ suite('OmegaEdit VS Code extension', () => {
 
     const saved = await fs.readFile(samplePath, 'utf8')
     assert.equal(saved, 'qux qux qux qux')
+
+    await panel.fireDidDispose()
+    await fs.rm(tmpDir, { recursive: true, force: true })
+  })
+
+  test('reconciles action journal history changed by another attached client', async () => {
+    const tmpDir = await fs.mkdtemp(
+      path.join(os.tmpdir(), 'omega-edit-vscode-shared-history-')
+    )
+    const samplePath = path.join(tmpDir, 'shared-history.bin')
+    await fs.writeFile(samplePath, Buffer.from('abc', 'utf8'))
+
+    const provider = new HexEditorProvider({ subscriptions: [] }, testPort)
+    const panel = createMockWebviewPanel()
+    const document = await provider.openCustomDocument(
+      vscode.Uri.file(samplePath),
+      { backupId: undefined, untitledDocumentData: undefined },
+      new vscode.CancellationTokenSource().token
+    )
+
+    await provider.resolveCustomEditor(
+      document,
+      panel,
+      new vscode.CancellationTokenSource().token
+    )
+
+    const session = provider.getSessionForTesting(document.uri)
+    assert.ok(session, 'Expected a live session for shared history')
+
+    await insert(session.sessionId, 0, Buffer.from('!', 'utf8'))
+    await assertSessionText(session.sessionId, '!abc')
+    assert.equal(session.history.getEditState().canUndo, false)
+
+    await provider.dispatchWebviewMessageForTesting(document.uri, {
+      type: 'requestActionJournalViewport',
+      capacity: 20,
+      direction: 'older',
+    })
+
+    const editState = lastMessageOfType(panel.messages, 'editState')
+    assert.deepEqual(editState, {
+      type: 'editState',
+      canUndo: true,
+      canRedo: false,
+      undoCount: 1,
+      redoCount: 0,
+      isDirty: true,
+      savedChangeDepth: 0,
+    })
+
+    await provider.dispatchWebviewMessageForTesting(document.uri, {
+      type: 'undo',
+    })
+    await assertSessionText(session.sessionId, 'abc')
 
     await panel.fireDidDispose()
     await fs.rm(tmpDir, { recursive: true, force: true })
