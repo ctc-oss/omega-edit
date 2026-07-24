@@ -145,7 +145,7 @@
   }
 
   let {
-    expanded = true,
+    expanded = false,
     mode = 'profile',
     sectionOrder = DEFAULT_ANALYSIS_SECTION_ORDER,
     fileSize = 0,

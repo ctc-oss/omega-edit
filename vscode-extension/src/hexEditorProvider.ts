@@ -56,6 +56,7 @@ import {
   getActionJournalViewport as requestActionJournalViewport,
   getChangeCount,
   getChangeDetails,
+  getChangeTransactionCount,
   getClientVersion,
   getComputedFileSize,
   getCounts,
@@ -63,6 +64,7 @@ import {
   getServerInfo,
   getSessionContentInfo,
   getSessionFingerprint,
+  getUndoTransactionCount,
   getViewportData,
   IOFlags,
   inspectSessionContent,
@@ -2604,6 +2606,7 @@ export class HexEditorProvider
     this.pendingHealthWebviews.delete(webviewPanel.webview)
     resolvedSession = session
     this.activeSession = session
+    await this.reconcileNativeHistory(session)
     this.updateEditCommandContexts(session)
 
     // Send initial data to the webview. The message listener must be in place
@@ -4445,6 +4448,7 @@ export class HexEditorProvider
             targetHistorySnapshot?.transactionLog.length ?? 0
           )
         : new EditorHistoryController()
+      await this.reconcileNativeHistory(session)
       await this.resetSessionState(session, isDirty, isDirty, false, true)
       await this.refreshSessionContentInfo(session)
       this.clearSearchState(session)
@@ -4623,6 +4627,10 @@ export class HexEditorProvider
       session.scope.isDisposed
     ) {
       return
+    }
+    if (await this.reconcileNativeHistory(session)) {
+      this.updateEditCommandContexts(session)
+      this.postEditState(session)
     }
     const webviewViewport: WebviewActionJournalViewport = {
       version: 1,
@@ -5931,6 +5939,30 @@ export class HexEditorProvider
     return session.scope.model.waitForSync(minimumVersion, timeoutMs)
   }
 
+  private async reconcileNativeHistory(
+    session: EditorSession
+  ): Promise<boolean> {
+    const [activeTransactionCount, undoneTransactionCount, currentFingerprint] =
+      await Promise.all([
+        getChangeTransactionCount(session.sessionId),
+        getUndoTransactionCount(session.sessionId),
+        getChangeLogFingerprint(
+          session.sessionId,
+          SessionFingerprintContent.COMPUTED,
+          'sha256'
+        ),
+      ])
+    session.checkpointTimeline.currentFingerprint = currentFingerprint
+    return session.history.reconcileNativeTransactionCounts(
+      activeTransactionCount,
+      undoneTransactionCount,
+      timelineFingerprintsEqual(
+        session.checkpointTimeline.currentFingerprint,
+        session.checkpointTimeline.savedFingerprint
+      )
+    )
+  }
+
   private async getCheckpointCount(session: EditorSession): Promise<number> {
     const counts = await getCounts(session.sessionId, [CountKind.CHECKPOINTS])
     return counts[0]?.getCount() ?? 0
@@ -6255,6 +6287,10 @@ export class HexEditorProvider
         created: false,
       }
     }
+    // Auto Save can publish the file before it finishes updating the durable
+    // saved fingerprint. Do not let checkpoint manifest publication overlap
+    // that final save bookkeeping.
+    await session.saveTask?.catch(() => undefined)
     await this.assertCheckpointTimelineNativeAlignment(
       session,
       'before checkpoint creation'
