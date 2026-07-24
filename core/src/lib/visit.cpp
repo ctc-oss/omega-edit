@@ -14,6 +14,7 @@
 
 #include "../include/omega_edit/visit.h"
 #include "impl_/model_def.hpp"
+#include "impl_/retained_history.hpp"
 #include "impl_/session_def.hpp"
 #include <cassert>
 
@@ -35,6 +36,30 @@ int omega_visit_changes_reverse(const omega_session_t *session_ptr, omega_sessio
         if ((rc = cbk(iter->get(), user_data)) != 0) { break; }
     }
     return rc;
+}
+
+int omega_visit_retained_history(const omega_session_t *session_ptr, int64_t first_serial, int64_t last_serial,
+                                 int reverse, omega_retained_history_visitor_cbk_t cbk, void *user_data) {
+    if (!session_ptr || !cbk || first_serial <= 0 || last_serial < first_serial) { return -1; }
+    bool range_complete = false;
+    const auto result = omega_edit::internal::visit_complete_history_(
+            session_ptr, reverse != 0, [&](const omega_change_t *change, int64_t serial) {
+                if (reverse) {
+                    if (serial > last_serial) { return 0; }
+                    if (serial < first_serial) {
+                        range_complete = true;
+                        return 1;
+                    }
+                } else {
+                    if (serial < first_serial) { return 0; }
+                    if (serial > last_serial) {
+                        range_complete = true;
+                        return 1;
+                    }
+                }
+                return cbk(change, serial, user_data);
+            });
+    return range_complete ? 0 : result;
 }
 
 struct omega_visit_change_context_struct {

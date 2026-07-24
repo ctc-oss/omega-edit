@@ -18,6 +18,10 @@ import {
   ChangeLogCodecError,
   parseChangeLogNonNegativeInt64,
 } from './changeLog/codec'
+import {
+  CHANGE_LOG_KIND_TO_PROTO,
+  changeLogKindFromProto,
+} from './changeLog/proto'
 import type {
   ChangeLogEntryKind as JournalEntryKind,
   ChangeLogInt64,
@@ -136,29 +140,8 @@ function requestDecimal(value: ChangeLogInt64 | undefined): string | undefined {
     : parseChangeLogNonNegativeInt64(value, 'action-journal anchor').toString()
 }
 
-const protoKinds: Record<JournalEntryKind, ChangeLogEntryKind> = {
-  DELETE: ChangeLogEntryKind.DELETE,
-  INSERT: ChangeLogEntryKind.INSERT,
-  OVERWRITE: ChangeLogEntryKind.OVERWRITE,
-  REPLACE: ChangeLogEntryKind.REPLACE,
-  TRANSFORM: ChangeLogEntryKind.TRANSFORM,
-}
-
 function journalKind(kind: ChangeLogEntryKind): JournalEntryKind {
-  switch (kind) {
-    case ChangeLogEntryKind.DELETE:
-      return 'DELETE'
-    case ChangeLogEntryKind.INSERT:
-      return 'INSERT'
-    case ChangeLogEntryKind.OVERWRITE:
-      return 'OVERWRITE'
-    case ChangeLogEntryKind.REPLACE:
-      return 'REPLACE'
-    case ChangeLogEntryKind.TRANSFORM:
-      return 'TRANSFORM'
-    default:
-      return fail('entry kind is invalid')
-  }
+  return changeLogKindFromProto(kind) ?? fail('entry kind is invalid')
 }
 
 function payloadHint(
@@ -269,7 +252,7 @@ export async function getActionJournalViewport(
     throw new TypeError('action journal direction must be older or newer')
   }
   const kinds = options.kinds ?? []
-  if (kinds.some((kind) => protoKinds[kind] === undefined)) {
+  if (kinds.some((kind) => CHANGE_LOG_KIND_TO_PROTO[kind] === undefined)) {
     throw new TypeError('action journal kind filter is invalid')
   }
   const request: GetActionJournalViewportRequest = {
@@ -280,7 +263,7 @@ export async function getActionJournalViewport(
       direction === 'older'
         ? ActionJournalDirection.OLDER
         : ActionJournalDirection.NEWER,
-    kinds: kinds.map((kind) => protoKinds[kind]),
+    kinds: kinds.map((kind) => CHANGE_LOG_KIND_TO_PROTO[kind]),
     transactionId: options.transactionId?.trim() || undefined,
   }
   const response = options.fetch

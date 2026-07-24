@@ -30,6 +30,8 @@
 import {
   ALL_EVENTS,
   applyTransformPlugin,
+  CHANGE_LOG_DEFAULT_DIGEST_ALGORITHM as DEFAULT_CHANGE_LOG_DIGEST_ALGORITHM,
+  CHANGE_LOG_DEFAULT_DIGEST_PLUGIN_ID as DEFAULT_CHANGE_LOG_DIGEST_PLUGIN_ID,
   CHANGE_LOG_FORMAT,
   CHANGE_LOG_VERSION,
   ChangeLogCancelledError,
@@ -54,6 +56,7 @@ import {
   getActionJournalViewport as requestActionJournalViewport,
   getChangeCount,
   getChangeDetails,
+  getChangeTransactionCount,
   getClientVersion,
   getComputedFileSize,
   getCounts,
@@ -61,6 +64,7 @@ import {
   getServerInfo,
   getSessionContentInfo,
   getSessionFingerprint,
+  getUndoTransactionCount,
   getViewportData,
   IOFlags,
   inspectSessionContent,
@@ -135,11 +139,9 @@ import {
   type ServerHealthMetricId,
   type ServerHealthMessage,
   type WebviewToHostMessage,
-  bytesPerRowFromSetting,
   checkpointTimelineMetadataWindow,
   normalizeExternalHighlights,
   normalizeBytesPerRow,
-  normalizeBytesPerRowSetting,
   normalizeTextEncoding,
   normalizeWebviewMessage,
 } from './webviewProtocol'
@@ -163,7 +165,6 @@ interface EditorSession {
   bufferOffset: number
   visibleRows: number
   capacity: number
-  bytesPerRowSetting: number
   bytesPerRow: BytesPerRow
   filePath: string
   panel: vscode.WebviewPanel
@@ -228,6 +229,8 @@ function timelineFingerprintsEqual(
 ): boolean {
   return (
     String(left.byteLength) === String(right.byteLength) &&
+    (left.digest.pluginId ?? DEFAULT_CHANGE_LOG_DIGEST_PLUGIN_ID) ===
+      (right.digest.pluginId ?? DEFAULT_CHANGE_LOG_DIGEST_PLUGIN_ID) &&
     left.digest.algorithm === right.digest.algorithm &&
     left.digest.value === right.digest.value
   )
@@ -255,6 +258,7 @@ interface CollectedChangeLogRecords {
 }
 
 interface ChangeLogDigest {
+  pluginId?: string
   algorithm: string
   value: string
 }
@@ -424,7 +428,6 @@ const MAX_TRANSFORM_RESULT_PREVIEW_BYTES = 4 * 1024
 const MAX_FILE_SPLICE_BYTES = 32 * 1024 * 1024
 const MAX_NON_FILE_CHANGE_LOG_BYTES = 64 * 1024 * 1024
 const MAX_NON_FILE_CHANGE_LOG_ENTRIES = 10_000
-const DEFAULT_CHANGE_LOG_DIGEST_ALGORITHM = 'sha256'
 const DEFAULT_SAVE_CONFLICT_FINGERPRINT_ALGORITHM = 'sha256'
 const SAVE_CONFLICT_FINGERPRINT_ALGORITHMS = [
   'sha224',
@@ -446,6 +449,7 @@ const CONTEXT_CAN_UNDO = 'omegaEdit.canUndo'
 const CONTEXT_CAN_REDO = 'omegaEdit.canRedo'
 const CONTEXT_HAS_PENDING_CHANGES = 'omegaEdit.hasPendingChanges'
 const CONTEXT_TRANSFORM_IN_FLIGHT = 'omegaEdit.transformInFlight'
+const BYTES_PER_ROW_STORAGE_KEY = 'omegaEdit.bytesPerRow'
 const CONTEXT_ACTIVE_SESSION_RESOURCE_PATHS =
   'omegaEdit.activeSessionResourcePaths'
 const ACTION_JOURNAL_REQUEST_TIMEOUT_MS = 15_000
@@ -1787,9 +1791,15 @@ function assertCompleteChangeLog(
 async function getChangeLogFingerprint(
   sessionId: string,
   content: SessionFingerprintContent,
-  algorithm = DEFAULT_CHANGE_LOG_DIGEST_ALGORITHM
+  algorithm = DEFAULT_CHANGE_LOG_DIGEST_ALGORITHM,
+  pluginId = DEFAULT_CHANGE_LOG_DIGEST_PLUGIN_ID
 ): Promise<ChangeLogFingerprint> {
-  const response = await getSessionFingerprint(sessionId, content, algorithm)
+  const response = await getSessionFingerprint(
+    sessionId,
+    content,
+    algorithm,
+    pluginId
+  )
   if (!response.fingerprint?.digest) {
     throw new Error('Server fingerprint response is missing digest metadata')
   }
@@ -1797,6 +1807,7 @@ async function getChangeLogFingerprint(
   return {
     byteLength: int64ToDecimal(response.fingerprint.byteLength),
     digest: {
+      pluginId,
       algorithm: response.fingerprint.digest.algorithm.toLowerCase(),
       value: response.fingerprint.digest.value.toLowerCase(),
     },
@@ -1804,7 +1815,7 @@ async function getChangeLogFingerprint(
 }
 
 function fingerprintLabel(fingerprint: ChangeLogFingerprint): string {
-  return `${int64ToDecimal(fingerprint.byteLength)} bytes ${fingerprint.digest.algorithm}:${fingerprint.digest.value}`
+  return `${int64ToDecimal(fingerprint.byteLength)} bytes ${fingerprint.digest.pluginId ?? DEFAULT_CHANGE_LOG_DIGEST_PLUGIN_ID}/${fingerprint.digest.algorithm}:${fingerprint.digest.value}`
 }
 
 function fingerprintsMatch(
@@ -1813,6 +1824,8 @@ function fingerprintsMatch(
 ): boolean {
   return (
     int64ToDecimal(actual.byteLength) === int64ToDecimal(expected.byteLength) &&
+    (actual.digest.pluginId ?? DEFAULT_CHANGE_LOG_DIGEST_PLUGIN_ID) ===
+      (expected.digest.pluginId ?? DEFAULT_CHANGE_LOG_DIGEST_PLUGIN_ID) &&
     actual.digest.algorithm === expected.digest.algorithm &&
     actual.digest.value === expected.digest.value
   )
@@ -1837,7 +1850,8 @@ async function assertCurrentSessionFingerprint(
   const actual = await getChangeLogFingerprint(
     sessionId,
     SessionFingerprintContent.COMPUTED,
-    expected.digest.algorithm
+    expected.digest.algorithm,
+    expected.digest.pluginId ?? DEFAULT_CHANGE_LOG_DIGEST_PLUGIN_ID
   )
   if (fingerprintsMatch(actual, expected)) {
     return
@@ -1861,7 +1875,8 @@ async function assertChangeLogExportStable(
   const finalAfter = await getChangeLogFingerprint(
     sessionId,
     SessionFingerprintContent.COMPUTED,
-    expectedAfter.digest.algorithm
+    expectedAfter.digest.algorithm,
+    expectedAfter.digest.pluginId ?? DEFAULT_CHANGE_LOG_DIGEST_PLUGIN_ID
   )
   if (!fingerprintsMatch(finalAfter, expectedAfter)) {
     throw new Error(
@@ -2085,7 +2100,11 @@ export class HexEditorProvider
   constructor(
     private readonly extensionContext?: Pick<
       vscode.ExtensionContext,
-      'extensionUri' | 'subscriptions' | 'storageUri' | 'globalStorageUri'
+      | 'extensionUri'
+      | 'subscriptions'
+      | 'storageUri'
+      | 'globalStorageUri'
+      | 'workspaceState'
     >
   ) {
     this.extensionContext?.subscriptions.push(
@@ -2164,45 +2183,19 @@ export class HexEditorProvider
     this.postEditState(session)
   }
 
-  private async updateBytesPerRowConfiguration(
-    session: EditorSession,
-    value: number
-  ): Promise<void> {
-    const resource = vscode.Uri.file(session.filePath)
-    const workspaceFolder = vscode.workspace.getWorkspaceFolder(resource)
-    const configuration = vscode.workspace.getConfiguration(
-      'omegaEdit',
-      resource
+  private storedBytesPerRow(): BytesPerRow {
+    return normalizeBytesPerRow(
+      this.extensionContext?.workspaceState?.get(BYTES_PER_ROW_STORAGE_KEY)
     )
-    const targets = workspaceFolder
-      ? [
-          vscode.ConfigurationTarget.WorkspaceFolder,
-          vscode.ConfigurationTarget.Workspace,
-          vscode.ConfigurationTarget.Global,
-        ]
-      : vscode.workspace.workspaceFolders &&
-          vscode.workspace.workspaceFolders.length > 0
-        ? [
-            vscode.ConfigurationTarget.Workspace,
-            vscode.ConfigurationTarget.Global,
-          ]
-        : [vscode.ConfigurationTarget.Global]
+  }
 
-    let lastError: unknown
-    let updated = false
-    for (const target of targets) {
-      try {
-        await configuration.update('bytesPerRow', value, target)
-        updated = true
-        break
-      } catch (err) {
-        lastError = err
-      }
-    }
-
-    if (!updated && lastError) {
-      throw lastError
-    }
+  private async persistBytesPerRow(value: BytesPerRow): Promise<void> {
+    const bytesPerRow = normalizeBytesPerRow(value)
+    await this.extensionContext?.workspaceState?.update(
+      BYTES_PER_ROW_STORAGE_KEY,
+      bytesPerRow
+    )
+    this.refreshBytesPerRow(bytesPerRow)
   }
 
   public getSessionForTesting(uri: vscode.Uri): EditorSession | undefined {
@@ -2219,7 +2212,7 @@ export class HexEditorProvider
 
   private renderWebviewHtml(
     webview: vscode.Webview,
-    bytesPerRowSetting: number
+    bytesPerRow: BytesPerRow
   ): string {
     const extensionUri = this.extensionContext?.extensionUri
     if (!extensionUri) {
@@ -2229,7 +2222,7 @@ export class HexEditorProvider
       return `<!DOCTYPE html><html><body>${message}</body></html>`
     }
 
-    return getSvelteWebviewContent(webview, extensionUri, bytesPerRowSetting)
+    return getSvelteWebviewContent(webview, extensionUri, bytesPerRow)
   }
 
   public async dispatchWebviewMessageForTesting(
@@ -2395,11 +2388,7 @@ export class HexEditorProvider
     const filePath = uri.fsPath
 
     // --- Create Ωedit™ session for this file ---
-    const config = vscode.workspace.getConfiguration('omegaEdit')
-    const bytesPerRowSetting = normalizeBytesPerRowSetting(
-      config.get('bytesPerRow')
-    )
-    const bytesPerRow = bytesPerRowFromSetting(bytesPerRowSetting)
+    const bytesPerRow = this.storedBytesPerRow()
 
     // Keep a fixed buffered viewport so resizing the editor does not need to
     // resize the server-side viewport. Only the visible row count changes.
@@ -2414,7 +2403,7 @@ export class HexEditorProvider
     }
     webviewPanel.webview.html = this.renderWebviewHtml(
       webviewPanel.webview,
-      bytesPerRowSetting
+      bytesPerRow
     )
 
     const panelDisposables: vscode.Disposable[] = []
@@ -2538,7 +2527,6 @@ export class HexEditorProvider
       bufferOffset: 0,
       visibleRows: 32,
       capacity,
-      bytesPerRowSetting,
       bytesPerRow,
       filePath,
       panel: webviewPanel,
@@ -2589,6 +2577,7 @@ export class HexEditorProvider
     this.pendingHealthWebviews.delete(webviewPanel.webview)
     resolvedSession = session
     this.activeSession = session
+    await this.reconcileNativeHistory(session)
     this.updateEditCommandContexts(session)
 
     // Send initial data to the webview. The message listener must be in place
@@ -3103,15 +3092,12 @@ export class HexEditorProvider
     return this.buildEditorState(session)
   }
 
-  /** Re-read bytesPerRow from config and refresh all open editors */
-  refreshBytesPerRow(bytesPerRowSettingOverride?: number): void {
-    const bytesPerRowSetting = normalizeBytesPerRowSetting(
-      bytesPerRowSettingOverride ??
-        vscode.workspace.getConfiguration('omegaEdit').get('bytesPerRow')
+  /** Refresh all open editors from the workspace-local preference. */
+  refreshBytesPerRow(bytesPerRowOverride?: number): void {
+    const bytesPerRow = normalizeBytesPerRow(
+      bytesPerRowOverride ?? this.storedBytesPerRow()
     )
     for (const session of this.sessions.values()) {
-      const bytesPerRow = bytesPerRowFromSetting(bytesPerRowSetting)
-      session.bytesPerRowSetting = bytesPerRowSetting
       this.postBytesPerRow(session, bytesPerRow)
       this.postTransformStatus(
         session,
@@ -3134,7 +3120,7 @@ export class HexEditorProvider
       }
       session.panel.webview.html = this.renderWebviewHtml(
         session.panel.webview,
-        session.bytesPerRowSetting
+        session.bytesPerRow
       )
       this.postTransformStatus(
         session,
@@ -3172,7 +3158,8 @@ export class HexEditorProvider
     const current = await getChangeLogFingerprint(
       session.sessionId,
       SessionFingerprintContent.COMPUTED,
-      parsed.before.digest.algorithm
+      parsed.before.digest.algorithm,
+      parsed.before.digest.pluginId ?? DEFAULT_CHANGE_LOG_DIGEST_PLUGIN_ID
     )
     if (!fingerprintsMatch(current, parsed.before)) {
       safetyIssues.push({
@@ -3434,7 +3421,8 @@ export class HexEditorProvider
     const after = await getChangeLogFingerprint(
       session.sessionId,
       SessionFingerprintContent.COMPUTED,
-      before.digest.algorithm
+      before.digest.algorithm,
+      before.digest.pluginId ?? DEFAULT_CHANGE_LOG_DIGEST_PLUGIN_ID
     )
     const controller = new AbortController()
     const withExportProgress = async <T>(
@@ -3861,7 +3849,8 @@ export class HexEditorProvider
     const finalFingerprint = await getChangeLogFingerprint(
       session.sessionId,
       SessionFingerprintContent.COMPUTED,
-      parsed.after.digest.algorithm
+      parsed.after.digest.algorithm,
+      parsed.after.digest.pluginId ?? DEFAULT_CHANGE_LOG_DIGEST_PLUGIN_ID
     )
     if (appliedChangeCount > 0) {
       await this.truncateCheckpointTimelineFuture(session)
@@ -4427,6 +4416,7 @@ export class HexEditorProvider
             targetHistorySnapshot?.transactionLog.length ?? 0
           )
         : new EditorHistoryController()
+      await this.reconcileNativeHistory(session)
       await this.resetSessionState(session, isDirty, isDirty, false, true)
       await this.refreshSessionContentInfo(session)
       this.clearSearchState(session)
@@ -4605,6 +4595,10 @@ export class HexEditorProvider
       session.scope.isDisposed
     ) {
       return
+    }
+    if (await this.reconcileNativeHistory(session)) {
+      this.updateEditCommandContexts(session)
+      this.postEditState(session)
     }
     const webviewViewport: WebviewActionJournalViewport = {
       version: 1,
@@ -5913,6 +5907,30 @@ export class HexEditorProvider
     return session.scope.model.waitForSync(minimumVersion, timeoutMs)
   }
 
+  private async reconcileNativeHistory(
+    session: EditorSession
+  ): Promise<boolean> {
+    const [activeTransactionCount, undoneTransactionCount, currentFingerprint] =
+      await Promise.all([
+        getChangeTransactionCount(session.sessionId),
+        getUndoTransactionCount(session.sessionId),
+        getChangeLogFingerprint(
+          session.sessionId,
+          SessionFingerprintContent.COMPUTED,
+          'sha256'
+        ),
+      ])
+    session.checkpointTimeline.currentFingerprint = currentFingerprint
+    return session.history.reconcileNativeTransactionCounts(
+      activeTransactionCount,
+      undoneTransactionCount,
+      timelineFingerprintsEqual(
+        session.checkpointTimeline.currentFingerprint,
+        session.checkpointTimeline.savedFingerprint
+      )
+    )
+  }
+
   private async getCheckpointCount(session: EditorSession): Promise<number> {
     const counts = await getCounts(session.sessionId, [CountKind.CHECKPOINTS])
     return counts[0]?.getCount() ?? 0
@@ -6237,6 +6255,10 @@ export class HexEditorProvider
         created: false,
       }
     }
+    // Auto Save can publish the file before it finishes updating the durable
+    // saved fingerprint. Do not let checkpoint manifest publication overlap
+    // that final save bookkeeping.
+    await session.saveTask?.catch(() => undefined)
     await this.assertCheckpointTimelineNativeAlignment(
       session,
       'before checkpoint creation'
@@ -6789,11 +6811,8 @@ export class HexEditorProvider
   }
 
   private makeHistoryExecutor(session: EditorSession): EditorHistoryExecutor {
-    const hasTimeline = session.checkpointTimeline.entries.length > 0
-    const undoCrossesTimelineMilestone =
-      hasTimeline && session.history.willUndoCrossMilestone()
-    const redoCrossesTimelineMilestone =
-      hasTimeline && session.history.willRedoCrossMilestone()
+    const hasTimelineEntries = () =>
+      session.checkpointTimeline.entries.length > 0
     const checkoutTimelineMilestone = async (direction: -1 | 1) => {
       const targetCheckpoint = session.checkpointTimeline.cursor + direction
       if (
@@ -6806,38 +6825,67 @@ export class HexEditorProvider
       }
       await checkoutCheckpoint(session.sessionId, targetCheckpoint)
     }
+    const checkoutTimelineAtHistoryDepth = async (historyDepth: number) => {
+      const entries = session.checkpointTimeline.entries
+      let low = 0
+      let high = entries.length
+      while (low < high) {
+        const middle = low + Math.floor((high - low) / 2)
+        const entry = entries[middle]
+        if (!entry) {
+          throw new Error(
+            `Checkpoint timeline entry ${middle + 1} is unexpectedly missing`
+          )
+        }
+        const checkpointHistory = entry.interval.history
+        if (!checkpointHistory) {
+          throw new Error(
+            `Checkpoint ${middle + 1} is missing editor history metadata`
+          )
+        }
+        const checkpointDepth = checkpointHistory.transactionLog.length
+        if (checkpointDepth <= historyDepth) {
+          low = middle + 1
+        } else {
+          high = middle
+        }
+      }
+      const targetCheckpoint = low
+      if (targetCheckpoint <= session.checkpointTimeline.cursor) return
+      await checkoutCheckpoint(session.sessionId, targetCheckpoint)
+    }
     return {
       async undoLocal() {
-        if (undoCrossesTimelineMilestone) {
-          await checkoutTimelineMilestone(-1)
-          return
-        }
         await undo(session.sessionId)
       },
       async redoLocal() {
-        if (redoCrossesTimelineMilestone) {
-          await checkoutTimelineMilestone(1)
-          return
-        }
         await redo(session.sessionId)
       },
       async undoMilestone() {
-        if (undoCrossesTimelineMilestone) return
+        // With a materialized timeline, native undo moves plain checkpoint
+        // models to the future stack before undoing exactly one transaction.
+        // Only the legacy non-timeline path destroys the boundary explicitly.
+        if (hasTimelineEntries()) return
         await destroyLastCheckpoint(session.sessionId)
       },
       async redoMilestone() {
-        if (redoCrossesTimelineMilestone) return
+        if (hasTimelineEntries()) {
+          await checkoutTimelineAtHistoryDepth(
+            session.history.getEditState().undoCount
+          )
+          return
+        }
         await createCheckpoint(session.sessionId)
       },
       async undoCheckpoint() {
-        if (hasTimeline) {
+        if (hasTimelineEntries()) {
           await checkoutTimelineMilestone(-1)
           return
         }
         await destroyLastCheckpoint(session.sessionId)
       },
       async redoCheckpoint(transaction) {
-        if (hasTimeline) {
+        if (hasTimelineEntries()) {
           await checkoutTimelineMilestone(1)
           return
         }
@@ -7017,7 +7065,8 @@ export class HexEditorProvider
         ? await getChangeLogFingerprint(
             session.sessionId,
             SessionFingerprintContent.COMPUTED,
-            expectedAfter.digest.algorithm
+            expectedAfter.digest.algorithm,
+            expectedAfter.digest.pluginId ?? DEFAULT_CHANGE_LOG_DIGEST_PLUGIN_ID
           ).catch(() => undefined)
         : undefined
     const recordAppliedChanges = async () => {
@@ -7515,18 +7564,13 @@ export class HexEditorProvider
           if (msg.persist === false) {
             await this.applySessionBytesPerRow(session, msg.bytesPerRow)
           } else {
-            session.bytesPerRowSetting = msg.bytesPerRow
-            await this.updateBytesPerRowConfiguration(session, msg.bytesPerRow)
+            await this.persistBytesPerRow(msg.bytesPerRow)
           }
           break
         }
 
         case 'setBytesPerRowMode': {
-          session.bytesPerRowSetting = session.bytesPerRow
-          await this.updateBytesPerRowConfiguration(
-            session,
-            session.bytesPerRow
-          )
+          await this.persistBytesPerRow(session.bytesPerRow)
           break
         }
 

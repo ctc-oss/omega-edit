@@ -814,12 +814,15 @@ message ExportChangeLogRequest {
     optional string max_span_bytes_decimal = 5;     // Absent/"0" = 64 MiB.
     optional string max_entries_decimal = 6;        // Absent/"0" = server cap.
     optional string max_output_bytes_decimal = 7;   // Absent/"0" = server cap.
+    optional string digest_plugin_id = 8;           // Defaults to "omega.example.openssl_digests".
+    optional string digest_algorithm = 9;           // Plugin algorithm label; defaults to "sha256".
 }
 
 message ChangeLogStreamFingerprint {
     string byte_length_decimal = 1;
     string digest_algorithm = 2;
     string digest_value = 3;
+    string digest_plugin_id = 4;
 }
 
 message ChangeLogStreamHeader {
@@ -857,9 +860,10 @@ message ChangeLogPayloadChunk {
 }
 
 message ChangeLogStreamComplete {
+    reserved 3;
+    reserved "payload_sha256";
     string emitted_change_count_decimal = 1;
     string payload_byte_count_decimal = 2;
-    bytes payload_sha256 = 3;
 }
 
 message ExportChangeLogResponse {
@@ -1028,8 +1032,9 @@ message GetSessionContentInfoResponse {
 
 // Digest metadata for a content fingerprint.
 message ContentDigest {
-    string algorithm = 1;// Digest algorithm identifier, e.g. "sha256".
-    string value = 2;    // Lowercase hexadecimal digest value.
+    string algorithm = 1;         // Digest algorithm identifier, e.g. "sha256".
+    string value = 2;             // Lowercase hexadecimal digest value.
+    optional string plugin_id = 3;// Streaming inspect plugin that produced the digest.
 }
 
 // Size and digest for a session content snapshot.
@@ -1043,6 +1048,7 @@ message GetSessionFingerprintRequest {
     string session_id = 1;                // Session to fingerprint.
     SessionFingerprintContent content = 2;// Original or computed content.
     optional string algorithm = 3;        // Digest algorithm; defaults to "sha256".
+    optional string plugin_id = 4;        // Defaults to "omega.example.openssl_digests".
 }
 
 // Server-side content fingerprint result.

@@ -633,9 +633,8 @@ The server must cap `data` per message, preserve backpressure, honor
 cancellation, and never leave a half-entry committed by a consumer.
 Entry indexes and chunk offsets are contiguous. Exactly one final chunk ends
 at the declared payload length; zero-length payloads have no chunks. A final
-stream frame carries counts and SHA-256 over logical payload bytes in entry
-order, independent of chunk boundaries. The client validates all framing
-before atomically committing its temp output.
+stream frame carries entry and payload-byte counts. The client validates all
+framing before atomically committing its temp output.
 
 Every unbounded serial, offset, length, and count in the RPC is a canonical
 unsigned decimal string, not protobuf int64, because the generated TypeScript
@@ -974,7 +973,8 @@ planner matrix passes 11,765 assertions including 64 deterministic scripts ×
 session lock, releases the lock before network writes, caps payload frames at
 256 KiB, and deletes its `0600` spool on every exit. The client iterator pauses
 at four queued frames, resumes at two, validates every decimal, frame boundary,
-count, and SHA-256, and can atomically stream the result directly to v2 JSON.
+and count, and can atomically stream the result directly to v2 JSON while
+computing the archive's persisted SHA-256.
 
 ### WP3 — Timeline storage manager
 
@@ -1168,7 +1168,6 @@ Quota boundary matrix:
 ### 9.3 Corruption and hostile input
 
 - [ ] truncated JSON at every token boundary
-- [ ] checksum mismatch
 - [ ] valid checksum but wrong `before` fingerprint
 - [ ] correct `before`, wrong `after`
 - [ ] duplicate or missing checkpoint numbers
@@ -1180,8 +1179,7 @@ Quota boundary matrix:
 - [ ] unsafe int64 numbers and malformed decimal strings
 - [ ] unknown format/version
 - [ ] transform descriptor mismatch
-- [ ] corrupt/missing/duplicate payload frame and incorrect final
-      count/payload digest
+- [ ] corrupt/missing/duplicate payload frame and incorrect completion counts
 - [ ] server spool cap and entry cap at one below, exact, and one above limit
 
 ### 9.4 Scale and performance

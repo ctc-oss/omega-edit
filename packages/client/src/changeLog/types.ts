@@ -18,6 +18,11 @@
 export const CHANGE_LOG_FORMAT = 'omega-edit.change-log' as const
 export const CHANGE_LOG_VERSION = 2 as const
 export const CHANGE_LOG_DEFAULT_DIGEST_ALGORITHM = 'sha256'
+export const CHANGE_LOG_DEFAULT_DIGEST_PLUGIN_ID =
+  'omega.example.openssl_digests'
+export const CHANGE_LOG_DIGEST_PLUGIN_ID_MAX_LENGTH = 4096
+export const CHANGE_LOG_DIGEST_ALGORITHM_MAX_LENGTH = 128
+export const CHANGE_LOG_DIGEST_VALUE_MAX_LENGTH = 4096
 
 export type ChangeLogInt64 = number | string | bigint
 export type ChangeLogEntryKind =
@@ -37,6 +42,7 @@ export interface ChangeLogEntry {
 }
 
 export interface ChangeLogDigest {
+  pluginId?: string
   algorithm: string
   value: string
 }

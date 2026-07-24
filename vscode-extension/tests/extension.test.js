@@ -129,11 +129,14 @@ test('package.json matches shared extension constants', () => {
     `${packageJson.publisher}.${packageJson.name}`,
     OMEGA_EDIT_EXTENSION_ID
   )
-  const bytesPerRowConfiguration =
-    packageJson.contributes.configuration.properties['omegaEdit.bytesPerRow']
-  assert.equal(bytesPerRowConfiguration.minimum, 8)
-  assert.equal(bytesPerRowConfiguration.maximum, 64)
-  assert.equal(bytesPerRowConfiguration.anyOf, undefined)
+  assert.equal(
+    packageJson.contributes.configuration.properties['omegaEdit.bytesPerRow'],
+    undefined
+  )
+  assert.equal(
+    packageNls['omegaEdit.configuration.bytesPerRow.description'],
+    undefined
+  )
   const historyConfiguration = packageJson.contributes.configuration.properties
   assert.equal(
     historyConfiguration['omegaEdit.checkpointHistory.maxBytesPerSession']
@@ -583,7 +586,7 @@ test('routes save-conflict fingerprinting through the native guarded save path',
   assert.doesNotMatch(extensionSource, /createReadStream|createHash/)
   assert.match(extensionSource, /expected\.digest/)
   assert.match(coreSource, /overwrite_guard/)
-  assert.match(serverSource, /SESSION_FINGERPRINT_DIGEST_PLUGIN_ID/)
+  assert.match(serverSource, /DEFAULT_DIGEST_PLUGIN_ID/)
   assert.match(serverSource, /verify_overwrite_fingerprint/)
 })
 
@@ -810,6 +813,10 @@ test('compiled extension entrypoints exist after build', () => {
       __dirname,
       '../webview-ui/src/components/ActionJournal.svelte'
     ),
+    'utf8'
+  )
+  const vscodeApiSource = fs.readFileSync(
+    path.resolve(__dirname, '../webview-ui/src/vscodeApi.ts'),
     'utf8'
   )
   const byteInspectorSource = fs.readFileSync(
@@ -1133,6 +1140,14 @@ test('compiled extension entrypoints exist after build', () => {
   assert.match(providerJs, /reconcileExternalHighlightStaleness/)
   assert.match(providerJs, /markExternalHighlightsStale/)
   assert.match(providerJs, /postBytesPerRow/)
+  assert.match(
+    providerSource,
+    /workspaceState\?\.update\(\s*BYTES_PER_ROW_STORAGE_KEY/
+  )
+  assert.doesNotMatch(
+    providerSource,
+    /configuration\.update\(['"]bytesPerRow['"]/
+  )
   assert.doesNotMatch(providerJs, /AUTO_BYTES_PER_ROW_SETTING/)
   assert.match(providerJs, /stale:\s*true/)
   assert.match(providerJs, /notifyDocumentChanged/)
@@ -1604,6 +1619,19 @@ test('compiled extension entrypoints exist after build', () => {
   assert.match(svelteAppSource, /onScrollTo=\{requestVisibleOffset\}/)
   assert.match(svelteAppSource, /function toggleInspectorEndian/)
   assert.match(svelteAppSource, /function toggleInspectorExpanded/)
+  assert.match(
+    svelteAppSource,
+    /inspectorExpanded = \$state\(restoredState\?\.inspectorExpanded \?\? false\)/
+  )
+  assert.match(
+    svelteAppSource,
+    /profilerExpanded = \$state\(restoredState\?\.profilerExpanded \?\? false\)/
+  )
+  assert.match(svelteAppSource, /savePreviewState\(\{ inspectorExpanded \}\)/)
+  assert.match(vscodeApiSource, /inspectorExpanded\?: boolean/)
+  assert.match(byteInspectorSource, /expanded = false/)
+  assert.match(editorWorkspaceSource, /profilerExpanded = false/)
+  assert.match(profilerPanelSource, /expanded = false/)
   assert.match(svelteAppSource, /function setOffsetRadix/)
   assert.match(svelteAppSource, /offsetRadix = \$state<'hex' \| 'dec'>/)
   assert.match(svelteAppSource, /textEncoding = \$state<TextEncoding>/)
@@ -2497,9 +2525,16 @@ test('compiled extension entrypoints exist after build', () => {
   assert.match(extensionJs, /startTcpServerConnection/)
   assert.doesNotMatch(extensionSource, /fallbackReason/)
   assert.match(extensionJs, /startServerUnixSocket/)
+  assert.match(extensionSource, /sessionTimeoutMs: SERVER_SESSION_TIMEOUT_MS/)
+  assert.match(extensionSource, /cleanupIntervalMs: SERVER_CLEANUP_INTERVAL_MS/)
+  assert.match(extensionSource, /shutdownWhenNoSessions: true/)
+  assert.match(extensionSource, /transformPluginDirectories/)
+  assert.match(extensionSource, /allowExperimentalTransformPlugins/)
+  assert.match(extensionSource, /const SERVER_SESSION_TIMEOUT_MS = 60_000/)
+  assert.match(extensionSource, /const SERVER_CLEANUP_INTERVAL_MS = 5_000/)
   assert.match(
     extensionSource,
-    /const serverOptions = \{\s*transformPluginDirectories,\s*allowExperimentalTransformPlugins/
+    /const result = await stopServerGraceful\(\)[\s\S]*stopProcessUsingPID\(serverPid\)/
   )
   assert.match(
     extensionSource,

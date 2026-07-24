@@ -1,5 +1,7 @@
 import {
   ChangeKind,
+  CHANGE_LOG_DEFAULT_DIGEST_ALGORITHM as DEFAULT_CHANGE_LOG_DIGEST_ALGORITHM,
+  CHANGE_LOG_DEFAULT_DIGEST_PLUGIN_ID as DEFAULT_CHANGE_LOG_DIGEST_PLUGIN_ID,
   CHANGE_LOG_FORMAT,
   CHANGE_LOG_VERSION,
   CountKind,
@@ -26,8 +28,6 @@ import {
   getSegment,
   getSessionFingerprint,
   isPortAvailable,
-  getUndoCount,
-  getViewportCount,
   insert,
   listTransformPlugins as listClientTransformPlugins,
   numAscii,
@@ -104,7 +104,6 @@ import {
 
 const MAX_CHANGE_LOG_JSON_NESTING = 256
 const ASSISTANT_CONTEXT_VERSION = 1
-const DEFAULT_CHANGE_LOG_DIGEST_ALGORITHM = 'sha256'
 const GRPC_NOT_FOUND = 5
 const MAX_INT64 = 9_223_372_036_854_775_807n
 
@@ -782,9 +781,15 @@ function changeLogApplyErrorWithRollbackFailure(
 async function getChangeLogFingerprint(
   sessionId: string,
   content: SessionFingerprintContent,
-  algorithm = DEFAULT_CHANGE_LOG_DIGEST_ALGORITHM
+  algorithm = DEFAULT_CHANGE_LOG_DIGEST_ALGORITHM,
+  pluginId = DEFAULT_CHANGE_LOG_DIGEST_PLUGIN_ID
 ): Promise<ChangeLogFingerprint> {
-  const response = await getSessionFingerprint(sessionId, content, algorithm)
+  const response = await getSessionFingerprint(
+    sessionId,
+    content,
+    algorithm,
+    pluginId
+  )
   if (!response.fingerprint?.digest) {
     throw new Error('Server fingerprint response is missing digest metadata')
   }
@@ -792,6 +797,7 @@ async function getChangeLogFingerprint(
   return {
     byteLength: int64ToDecimal(response.fingerprint.byteLength),
     digest: {
+      pluginId,
       algorithm: response.fingerprint.digest.algorithm.toLowerCase(),
       value: response.fingerprint.digest.value.toLowerCase(),
     },
@@ -799,7 +805,7 @@ async function getChangeLogFingerprint(
 }
 
 function fingerprintLabel(fingerprint: ChangeLogFingerprint): string {
-  return `${int64ToDecimal(fingerprint.byteLength)} bytes ${fingerprint.digest.algorithm}:${fingerprint.digest.value}`
+  return `${int64ToDecimal(fingerprint.byteLength)} bytes ${fingerprint.digest.pluginId ?? DEFAULT_CHANGE_LOG_DIGEST_PLUGIN_ID}/${fingerprint.digest.algorithm}:${fingerprint.digest.value}`
 }
 
 function fingerprintsMatch(
@@ -808,6 +814,8 @@ function fingerprintsMatch(
 ): boolean {
   return (
     int64ToDecimal(actual.byteLength) === int64ToDecimal(expected.byteLength) &&
+    (actual.digest.pluginId ?? DEFAULT_CHANGE_LOG_DIGEST_PLUGIN_ID) ===
+      (expected.digest.pluginId ?? DEFAULT_CHANGE_LOG_DIGEST_PLUGIN_ID) &&
     actual.digest.algorithm === expected.digest.algorithm &&
     actual.digest.value === expected.digest.value
   )
@@ -832,7 +840,8 @@ async function assertCurrentSessionFingerprint(
   const actual = await getChangeLogFingerprint(
     sessionId,
     SessionFingerprintContent.COMPUTED,
-    expected.digest.algorithm
+    expected.digest.algorithm,
+    expected.digest.pluginId ?? DEFAULT_CHANGE_LOG_DIGEST_PLUGIN_ID
   )
   if (fingerprintsMatch(actual, expected)) {
     return
@@ -856,7 +865,8 @@ async function assertChangeLogExportStable(
   const finalAfter = await getChangeLogFingerprint(
     sessionId,
     SessionFingerprintContent.COMPUTED,
-    expectedAfter.digest.algorithm
+    expectedAfter.digest.algorithm,
+    expectedAfter.digest.pluginId ?? DEFAULT_CHANGE_LOG_DIGEST_PLUGIN_ID
   )
   if (!fingerprintsMatch(finalAfter, expectedAfter)) {
     throw new Error(
@@ -1110,19 +1120,29 @@ export class OmegaEditToolkit {
   async sessionStatus(sessionId: string): Promise<SessionStatus> {
     await this.ensureServerRunning()
 
-    const [
-      computedSize,
-      changeCount,
-      undoCount,
-      viewportCount,
-      checkpointCount,
-    ] = await Promise.all([
-      getComputedFileSize(sessionId),
-      getChangeCount(sessionId),
-      getUndoCount(sessionId),
-      getViewportCount(sessionId),
-      this.getCheckpointCount(sessionId),
-    ])
+    const countKinds = [
+      CountKind.COMPUTED_FILE_SIZE,
+      CountKind.CHANGES,
+      CountKind.UNDOS,
+      CountKind.VIEWPORTS,
+      CountKind.CHECKPOINTS,
+    ]
+    const counts = await getCounts(sessionId, countKinds)
+    const countsByKind = new Map(
+      counts.map((count) => [count.getKind(), count.getCount()])
+    )
+    const requiredCount = (kind: CountKind): number => {
+      const value = countsByKind.get(kind)
+      if (value === undefined) {
+        throw new Error(`Session status count ${kind} was not returned`)
+      }
+      return value
+    }
+    const computedSize = requiredCount(CountKind.COMPUTED_FILE_SIZE)
+    const changeCount = requiredCount(CountKind.CHANGES)
+    const undoCount = requiredCount(CountKind.UNDOS)
+    const viewportCount = requiredCount(CountKind.VIEWPORTS)
+    const checkpointCount = requiredCount(CountKind.CHECKPOINTS)
 
     let lastChange: SessionStatus['lastChange'] | undefined
 
@@ -1287,7 +1307,8 @@ export class OmegaEditToolkit {
       current = await getChangeLogFingerprint(
         sessionId,
         SessionFingerprintContent.COMPUTED,
-        parsed.before.digest.algorithm
+        parsed.before.digest.algorithm,
+        parsed.before.digest.pluginId ?? DEFAULT_CHANGE_LOG_DIGEST_PLUGIN_ID
       )
       if (!fingerprintsMatch(current, parsed.before)) {
         safetyIssues.push({
@@ -1461,7 +1482,8 @@ export class OmegaEditToolkit {
     const after = await getChangeLogFingerprint(
       sessionId,
       SessionFingerprintContent.COMPUTED,
-      before.digest.algorithm
+      before.digest.algorithm,
+      before.digest.pluginId ?? DEFAULT_CHANGE_LOG_DIGEST_PLUGIN_ID
     )
 
     if (outputPath) {
@@ -1581,7 +1603,8 @@ export class OmegaEditToolkit {
       await getChangeLogFingerprint(
         request.sessionId,
         SessionFingerprintContent.COMPUTED,
-        parsed.after.digest.algorithm
+        parsed.after.digest.algorithm,
+        parsed.after.digest.pluginId ?? DEFAULT_CHANGE_LOG_DIGEST_PLUGIN_ID
       ).catch(() => undefined)
     const createReplayResult = (
       applied: boolean,

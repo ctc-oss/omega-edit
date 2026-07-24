@@ -18,6 +18,7 @@
 #include "impl_/internal_fun.hpp"
 #include "impl_/macros.h"
 #include "impl_/model_def.hpp"
+#include "impl_/retained_history.hpp"
 #include "impl_/safe_math.hpp"
 #include "impl_/segment_def.hpp"
 #include "impl_/session_def.hpp"
@@ -29,6 +30,7 @@
 #include <algorithm>
 #include <cassert>
 #include <cstring>
+#include <limits>
 
 using omega_edit::internal::change_kind_t;
 using omega_edit::internal::omega_change_get_kind_;
@@ -40,31 +42,6 @@ using omega_edit::internal::safe_add_int64_;
 
 namespace {
     constexpr int64_t OMEGA_SESSION_SCAN_BUFFER_SIZE = 65536;
-
-    int64_t count_undone_changes_(const omega_changes_t &changes) {
-        int64_t result = 0;
-        for (const auto &change : changes) {
-            ++result;
-            if (change && change->transform_data) {
-                result += count_undone_changes_(change->transform_data->preserved_changes_undone);
-            }
-        }
-        return result;
-    }
-
-    const omega_change_t *find_undone_change_(const omega_changes_t &changes, int64_t serial) {
-        for (auto iter = changes.crbegin(); iter != changes.crend(); ++iter) {
-            const auto *change = iter->get();
-            if (omega_change_get_serial(change) == serial) { return change; }
-            if (change && change->transform_data) {
-                if (const auto *preserved =
-                            find_undone_change_(change->transform_data->preserved_changes_undone, serial)) {
-                    return preserved;
-                }
-            }
-        }
-        return nullptr;
-    }
 
     int64_t count_change_transactions_(const omega_changes_t &changes) {
         int64_t result = 0;
@@ -158,8 +135,13 @@ int64_t omega_session_get_num_undone_changes(const omega_session_t *session_ptr)
     if (!session_ptr) { return 0; }
     assert(session_ptr->models_.back());
     int64_t result = 0;
-    for (const auto &model : session_ptr->models_) { result += count_undone_changes_(model->changes_undone); }
-    return result;
+    const auto visit_result =
+            omega_edit::internal::visit_retained_history_(session_ptr, false, [&](const omega_change_t *, int64_t) {
+                if (result == (std::numeric_limits<int64_t>::max)()) { return -1; }
+                ++result;
+                return 0;
+            });
+    return visit_result == 0 ? result : -1;
 }
 
 const omega_change_t *omega_session_get_last_change(const omega_session_t *session_ptr) {
@@ -225,10 +207,16 @@ const omega_change_t *omega_session_get_change(const omega_session_t *session_pt
             }
         }
     } else if (change_serial < 0) {
-        // Negative serials are undone changes
-        for (const auto &model : session_ptr->models_) {
-            if (const auto *change = find_undone_change_(model->changes_undone, change_serial)) { return change; }
-        }
+        if (change_serial == (std::numeric_limits<int64_t>::min)()) { return nullptr; }
+        const auto requested_serial = -change_serial;
+        const omega_change_t *result = nullptr;
+        omega_edit::internal::visit_retained_history_(session_ptr, false,
+                                                      [&](const omega_change_t *change, int64_t serial) {
+                                                          if (serial < requested_serial) { return 0; }
+                                                          if (serial == requested_serial) { result = change; }
+                                                          return 1;
+                                                      });
+        return result;
     }
     return nullptr;
 }
@@ -323,8 +311,20 @@ int64_t omega_session_get_num_change_transactions(const omega_session_t *session
 int64_t omega_session_get_num_undone_change_transactions(const omega_session_t *session_ptr) {
     if (!session_ptr) { return 0; }
     int64_t result = 0;
-    for (const auto &model : session_ptr->models_) { result += count_change_transactions_(model->changes_undone); }
-    return result;
+    bool have_previous = false;
+    bool previous_transaction_bit = false;
+    const auto visit_result = omega_edit::internal::visit_retained_history_(
+            session_ptr, false, [&](const omega_change_t *change, int64_t) {
+                const auto transaction_bit = omega_change_get_transaction_bit_(change);
+                if (!have_previous || transaction_bit != previous_transaction_bit) {
+                    if (result == (std::numeric_limits<int64_t>::max)()) { return -1; }
+                    ++result;
+                    previous_transaction_bit = transaction_bit;
+                    have_previous = true;
+                }
+                return 0;
+            });
+    return visit_result == 0 ? result : -1;
 }
 
 int64_t omega_session_get_num_checkpoints(const omega_session_t *session_ptr) {

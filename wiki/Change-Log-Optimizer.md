@@ -585,6 +585,8 @@ message ExportChangeLogRequest {
     optional string max_span_bytes_decimal = 5;      // absent/"0" = 64 MiB
     optional string max_entries_decimal = 6;         // absent/"0" = server cap
     optional string max_output_bytes_decimal = 7;    // may lower server cap
+    optional string digest_plugin_id = 8;             // default: omega.example.openssl_digests
+    optional string digest_algorithm = 9;             // default: sha256
 }
 
 message ExportChangeLogResponse {
@@ -597,7 +599,7 @@ message ExportChangeLogResponse {
 }
 
 message ChangeLogStreamHeader {
-    int32 format_version = 1;       // 2
+    int32 format_version = 1;       // 3
     string resolved_first_serial_decimal = 2;
     string resolved_last_serial_decimal = 3;
     string source_change_count_decimal = 4;
@@ -610,6 +612,7 @@ message ChangeLogStreamFingerprint {
     string byte_length_decimal = 1;
     string digest_algorithm = 2;
     string digest_value = 3;
+    string digest_plugin_id = 4;
 }
 
 message ChangeLogEntryHeader {
@@ -639,7 +642,6 @@ message ChangeLogPayloadChunk {
 message ChangeLogStreamComplete {
     string emitted_change_count_decimal = 1;
     string payload_byte_count_decimal = 2;
-    bytes payload_sha256 = 3;       // payload bytes in entry order
 }
 
 rpc CompactChanges(CompactChangesRequest) returns (CompactChangesResponse);
@@ -668,8 +670,8 @@ Server implementation notes (`server/cpp/src/editor_service.cpp`):
 - `ExportChangeLog` is read-only: `lock_session` only. While holding that lock,
   resolve the range and fingerprints, plan the complete export, and write
   length-delimited canonical frames to a `0600` exclusive temporary spool in
-  a server-managed directory. Copy payloads through a 256 KiB buffer. Flush,
-  close, and finalize the frame digest before releasing the lock.
+  a server-managed directory. Copy payloads through a 256 KiB buffer, then
+  flush and close the spool before releasing the lock.
 - After releasing the lock, reopen the immutable spool read-only and stream
   its frames. No borrowed core pointer survives lock release. Network stalls
   therefore block only the RPC worker, not edits to the session.
@@ -680,10 +682,7 @@ Server implementation notes (`server/cpp/src/editor_service.cpp`):
   entry with `payload_length_decimal == "0"` has no payload frames. Otherwise
   chunk offsets are contiguous, exactly one chunk has `final_chunk`, and its
   end is exactly `payload_length_decimal`. The complete frame is last.
-  `payload_sha256` is
-  SHA-256 over the logical payload bytes in entry order, independent of chunk
-  boundaries; for no payload it is SHA-256 of empty input. Its counts and
-  digest must match. Any violation is `DATA_LOSS`; invalid ranges are
+  Its counts must match. Any violation is `DATA_LOSS`; invalid ranges are
   `INVALID_ARGUMENT`; limit or disk exhaustion is `RESOURCE_EXHAUSTED`;
   cancellation is `CANCELLED`.
 - Every `*_decimal` field uses canonical unsigned decimal grammar
@@ -692,14 +691,16 @@ Server implementation notes (`server/cpp/src/editor_service.cpp`):
   `INVALID_ARGUMENT` in requests and `DATA_LOSS` in responses/spools. This is
   deliberate: generated TypeScript currently maps protobuf int64 to unsafe
   JavaScript numbers. No unbounded numeric stream field uses protobuf int64.
-  Fingerprint byte length follows the same grammar; SHA-256 digest values are
-  exactly 64 lowercase hexadecimal characters.
+  Fingerprint byte length follows the same grammar. Digest values are
+  lowercase hexadecimal and carry both their fully qualified plugin ID and
+  result algorithm label. The OpenSSL digest plugin is only the default;
+  callers may select any registered streaming inspect plugin implementing the
+  digest options/result contract.
 - Entry headers are bounded too: UTF-8 `transform_id` is at most 4096 bytes
-  and UTF-8 `options_json` is at most 1 MiB. Digest algorithm is exactly
-  `sha256` for v2. An existing transform over either metadata limit makes
-  export `RESOURCE_EXHAUSTED`; it is never truncated. All other header fields
-  are fixed-size or bounded decimal text, keeping every response safely below
-  gRPC's 4 MiB default.
+  and UTF-8 `options_json` is at most 1 MiB. An existing transform over either
+  metadata limit makes export `RESOURCE_EXHAUSTED`; it is never truncated. All
+  other header fields are fixed-size or bounded decimal text, keeping every
+  response safely below gRPC's 4 MiB default.
 - The server applies `min(request.max_entries_decimal, configured entry cap)`
   and `min(request.max_output_bytes_decimal, configured spool cap)`, treating
   absent/zero request values as the server cap. Defaults are 1,000,000 entries

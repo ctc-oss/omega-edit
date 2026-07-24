@@ -60,7 +60,7 @@
     littleEndian = true,
     offsetRadix = 'hex',
     textEncoding = 'ascii',
-    expanded = true,
+    expanded = false,
     disabled = false,
     onToggleExpanded,
     onToggleEndian,

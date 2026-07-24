@@ -14,9 +14,6 @@
 
 #include "editor_service.h"
 
-#ifdef HAS_GRPC_REFLECTION
-#include <grpcpp/ext/proto_server_reflection_plugin.h>
-#endif
 #include <grpcpp/grpcpp.h>
 #include <grpcpp/health_check_service_interface.h>
 
@@ -721,9 +718,6 @@ int main(int argc, char **argv) {
             transform_plugin_host_path, allow_experimental_transform_plugins, allow_test_transform_plugins);
 
     grpc::EnableDefaultHealthCheckService(true);
-#ifdef HAS_GRPC_REFLECTION
-    grpc::reflection::InitProtoReflectionServerBuilderPlugin();
-#endif
 
     grpc::ServerBuilder builder;
 

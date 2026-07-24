@@ -57,13 +57,6 @@
           ],
           "description": "%omegaEdit.configuration.logLevel.description%"
         },
-        "omegaEdit.bytesPerRow": {
-          "type": "number",
-          "default": 16,
-          "minimum": 8,
-          "maximum": 64,
-          "description": "%omegaEdit.configuration.bytesPerRow.description%"
-        },
         "omegaEdit.language": {
           "type": "string",
           "default": "auto",

@@ -192,6 +192,42 @@ TEST_CASE("Harness: undo/redo trajectory oracle round-trips", "[Harness][UndoOra
         REQUIRE(result.undo_steps == 4);// post-transform overwrite, transform checkpoint, overwrite, insert
         REQUIRE(session_content(session.get()) == "MIXED case content");
     }
+
+    SECTION("round-trip rematerializes plain checkpoint boundaries") {
+        TestSession session;
+        REQUIRE(0 < omega_edit_insert_string(session.get(), 0, "a"));
+        REQUIRE(0 == omega_edit_create_checkpoint(session.get()));
+        REQUIRE(0 < omega_edit_insert_string(session.get(), 1, "b"));
+        REQUIRE(0 == omega_edit_create_checkpoint(session.get()));
+
+        const auto result = verify_undo_redo_round_trip(session.get());
+        REQUIRE(result.ok);
+        REQUIRE(result.mismatch_step == -1);
+        REQUIRE(result.model_valid_throughout);
+        REQUIRE(result.undo_steps == 2);
+        REQUIRE(session_content(session.get()) == "ab");
+        REQUIRE(omega_session_get_num_checkpoints(session.get()) == 2);
+        REQUIRE(omega_session_get_num_future_checkpoints(session.get()) == 0);
+    }
+
+    SECTION("serial-one transform undo preserves a following plain checkpoint for redo") {
+        const auto input = reinterpret_cast<const omega_byte_t *>("abc");
+        auto session = TestSession::from_bytes(input, 3);
+        const omega_edit_transform_t to_upper{OMEGA_EDIT_TRANSFORM_ASCII_TO_UPPER, 0};
+        REQUIRE(0 == omega_edit_apply_builtin_transform(session.get(), to_upper, 0, 0));
+        REQUIRE(0 == omega_edit_create_checkpoint(session.get()));
+
+        REQUIRE(-1 == omega_edit_undo_last_change(session.get()));
+        REQUIRE(session_content(session.get()) == "abc");
+        REQUIRE(omega_session_get_num_checkpoints(session.get()) == 0);
+        REQUIRE(omega_session_get_num_future_checkpoints(session.get()) == 1);
+
+        REQUIRE(1 == omega_edit_redo_last_undo(session.get()));
+        REQUIRE(session_content(session.get()) == "ABC");
+        REQUIRE(omega_session_get_num_checkpoints(session.get()) == 2);
+        REQUIRE(omega_session_get_num_future_checkpoints(session.get()) == 0);
+        REQUIRE(model_valid(session.get()));
+    }
 }
 
 TEST_CASE("Harness: undo past a transform preserves later redo state", "[Harness][UndoOracle][Transform]") {

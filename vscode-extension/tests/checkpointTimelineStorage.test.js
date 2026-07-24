@@ -7,15 +7,29 @@ const {
   CheckpointTimelineStorageManager,
   TimelineStorageError,
 } = require('../out/checkpointTimelineStorage.js')
-const { writeChangeLogFileAtomic } = require('@omega-edit/client')
+const {
+  CHANGE_LOG_DEFAULT_DIGEST_PLUGIN_ID,
+  writeChangeLogFileAtomic,
+} = require('@omega-edit/client')
+const DIGEST_PLUGIN_ID_MAX_LENGTH = 4096
+const DIGEST_ALGORITHM_MAX_LENGTH = 128
+const DIGEST_VALUE_MAX_LENGTH = 4096
 
 const before = {
   byteLength: '0',
-  digest: { algorithm: 'sha256', value: 'a'.repeat(64) },
+  digest: {
+    pluginId: CHANGE_LOG_DEFAULT_DIGEST_PLUGIN_ID,
+    algorithm: 'sha256',
+    value: 'a'.repeat(64),
+  },
 }
 const after = {
   byteLength: '2',
-  digest: { algorithm: 'sha256', value: 'b'.repeat(64) },
+  digest: {
+    pluginId: CHANGE_LOG_DEFAULT_DIGEST_PLUGIN_ID,
+    algorithm: 'sha256',
+    value: 'b'.repeat(64),
+  },
 }
 
 async function temporaryRoot(t) {
@@ -84,6 +98,39 @@ async function sessionFor(t, options = {}) {
   )
   return { root, manager, session }
 }
+
+test('rejects oversized timeline fingerprint digest metadata', async (t) => {
+  const root = await temporaryRoot(t)
+  const manager = new CheckpointTimelineStorageManager(root)
+  await manager.initialize()
+
+  for (const digest of [
+    {
+      pluginId: 'a'.repeat(DIGEST_PLUGIN_ID_MAX_LENGTH + 1),
+      algorithm: 'sha256',
+      value: 'a'.repeat(64),
+    },
+    {
+      pluginId: CHANGE_LOG_DEFAULT_DIGEST_PLUGIN_ID,
+      algorithm: 'a'.repeat(DIGEST_ALGORITHM_MAX_LENGTH + 1),
+      value: 'a'.repeat(64),
+    },
+    {
+      pluginId: CHANGE_LOG_DEFAULT_DIGEST_PLUGIN_ID,
+      algorithm: 'sha256',
+      value: 'a'.repeat(DIGEST_VALUE_MAX_LENGTH + 1),
+    },
+  ]) {
+    await assert.rejects(
+      manager.createSession(
+        'file:///oversized.bin',
+        { byteLength: '0', digest },
+        'oversized.bin'
+      ),
+      (error) => error?.code === 'TIMELINE_INVALID_FINGERPRINT'
+    )
+  }
+})
 
 test('validates production quota settings without an unlimited fallback', async () => {
   assert.throws(

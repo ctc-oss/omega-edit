@@ -182,9 +182,9 @@
   let inspectorLittleEndian = $state(true)
   let inspectorHighlightStart = $state(-1)
   let inspectorHighlightEnd = $state(-1)
-  let inspectorExpanded = $state(true)
+  let inspectorExpanded = $state(restoredState?.inspectorExpanded ?? false)
   let searchPanelVisible = $state(restoredState?.searchPanelVisible ?? false)
-  let profilerExpanded = $state(restoredState?.profilerExpanded ?? true)
+  let profilerExpanded = $state(restoredState?.profilerExpanded ?? false)
   let profilerMode = $state<AnalysisMode>('profile')
   let analysisSectionOrder = $state<AnalysisSectionOrder>(
     normalizeAnalysisSectionOrder(restoredState?.analysisSectionOrder)
@@ -462,6 +462,7 @@
       insertDirection: InsertDirection
       searchPanelVisible: boolean
       replaceVisible: boolean
+      inspectorExpanded: boolean
       profilerExpanded: boolean
       analysisSectionOrder: AnalysisSectionOrder
       selectionAnchor: number
@@ -477,6 +478,7 @@
       insertDirection,
       searchPanelVisible,
       replaceVisible,
+      inspectorExpanded,
       profilerExpanded,
       analysisSectionOrder,
       selectionAnchor,
@@ -1567,6 +1569,7 @@
 
   function toggleInspectorExpanded(): void {
     inspectorExpanded = !inspectorExpanded
+    savePreviewState({ inspectorExpanded })
   }
 
   function toggleSearchPanelVisible(): void {
