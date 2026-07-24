@@ -3397,13 +3397,13 @@
 <dl class="cpp function">
 <dt class="sig sig-object cpp" id="_CPPv436omega_session_get_num_undone_changesPK15omega_session_t">
 <span id="_CPPv336omega_session_get_num_undone_changesPK15omega_session_t"></span><span id="_CPPv236omega_session_get_num_undone_changesPK15omega_session_t"></span><span id="omega_session_get_num_undone_changes__omega_session_tCP"></span><span class="target" id="session_8h_1ac1245e9e69d3777859b5f580836f30b0"></span><span class="n"><span class="pre">int64_t</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">omega_session_get_num_undone_changes</span></span></span><span class="sig-paren">(</span><span class="k"><span class="pre">const</span></span><span class="w"> </span><a class="reference internal" href="#_CPPv415omega_session_t" title="omega_session_t"><span class="n"><span class="pre">omega_session_t</span></span></a><span class="w"> </span><span class="p"><span class="pre">*</span></span><span class="n sig-param"><span class="pre">session_ptr</span></span><span class="sig-paren">)</span><a class="headerlink" href="#_CPPv436omega_session_get_num_undone_changesPK15omega_session_t" title="Link to this definition"></a><br /></dt>
-<dd><p>Given a session, return the current number of undone changes eligible for being redone </p>
+<dd><p>Given a session, return the current number of undone changes eligible for redo. This is the complete forward-retained suffix, including changes preserved in future checkpoint models. </p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
-<dd class="field-odd"><p><strong>session_ptr</strong> – session to get the number of undone changes for </p>
+<dd class="field-odd"><p><strong>session_ptr</strong> – session to get the number of redoable, forward-retained changes for </p>
 </dd>
 <dt class="field-even">Returns<span class="colon">:</span></dt>
-<dd class="field-even"><p>number of undone changes eligible for being redone </p>
+<dd class="field-even"><p>number of redoable, forward-retained changes </p>
 </dd>
 </dl>
 </dd></dl>
