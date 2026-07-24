@@ -505,23 +505,24 @@ export async function getComputedFileSize(sessionId: string): Promise<number> {
   })
 }
 
-export async function getCounts(
+async function requestCounts(
   sessionId: string,
-  kinds: number[]
+  kinds: CountKind[],
+  fn: string
 ): Promise<SingleCount[]> {
   const log = getLogger()
   const request = {
     sessionId: sessionId,
-    kind: kinds as CountKind[],
+    kind: kinds,
   }
-  debugLog(log, () => ({ fn: 'protobufTs.getCounts', rqst: request }))
+  debugLog(log, () => ({ fn: `protobufTs.${fn}`, rqst: request }))
   const client = await getClient()
 
   return new Promise<SingleCount[]>((resolve, reject) => {
     callUnary(client, client.getCount, request, (err, response) => {
       if (err) {
         log.error({
-          fn: 'protobufTs.getCounts',
+          fn: `protobufTs.${fn}`,
           rqst: request,
           err: {
             msg: err.message,
@@ -530,21 +531,41 @@ export async function getCounts(
             stack: err.stack,
           },
         })
-        return reject(makeWrappedError('getCounts', err))
+        return reject(makeWrappedError(fn, err))
       }
 
       try {
         const required = requireResponse(
           response as GetCountResponse | undefined,
-          'getCounts'
+          fn
         )
-        debugLog(log, () => ({ fn: 'protobufTs.getCounts', resp: required }))
+        debugLog(log, () => ({ fn: `protobufTs.${fn}`, resp: required }))
         return resolve(required.counts)
       } catch (error) {
-        return reject(makeWrappedError('getCounts', error))
+        return reject(makeWrappedError(fn, error))
       }
     })
   })
+}
+
+export async function getCounts(
+  sessionId: string,
+  kinds: number[]
+): Promise<SingleCount[]> {
+  return requestCounts(sessionId, kinds as CountKind[], 'getCounts')
+}
+
+export async function getSingleCount(
+  sessionId: string,
+  kind: CountKind,
+  fn: string
+): Promise<number> {
+  const counts = await requestCounts(sessionId, [kind], fn)
+  const count = counts[0]?.count
+  if (count === undefined) {
+    throw makeWrappedError(fn, 'empty count response')
+  }
+  return count
 }
 
 export async function pauseSessionChanges(sessionId: string): Promise<string> {

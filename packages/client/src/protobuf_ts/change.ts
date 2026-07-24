@@ -20,7 +20,6 @@
 import {
   ChangeKind as ProtoChangeKind,
   CountKind,
-  type GetCountResponse,
   type GetChangeDetailsResponse,
   type GetLastChangeResponse,
   type GetLastUndoResponse,
@@ -29,6 +28,7 @@ import {
 import { debugLog, getLogger } from '../logger'
 import { getClient } from '../client'
 import { callUnary, makeWrappedError } from './utils'
+import { getSingleCount } from './session'
 
 export const ChangeKind = {
   UNSPECIFIED: ProtoChangeKind.UNSPECIFIED,
@@ -66,14 +66,6 @@ export class EditStats implements IEditStats {
     this.clear_count = 0
     this.error_count = 0
   }
-}
-
-function getFirstCount(response: GetCountResponse, fn: string): number {
-  const count = response.counts[0]?.count
-  if (count === undefined) {
-    throw new Error(`${fn} failed: empty count response`)
-  }
-  return count
 }
 
 async function submitChange(
@@ -463,163 +455,29 @@ export async function getLastUndo(
 }
 
 export async function getChangeCount(sessionId: string): Promise<number> {
-  const log = getLogger()
-  const request = {
-    sessionId: sessionId,
-    kind: [CountKind.CHANGES],
-  }
-  debugLog(log, () => ({ fn: 'protobufTs.getChangeCount', rqst: request }))
-  const client = await getClient()
-
-  return new Promise<number>((resolve, reject) => {
-    callUnary(client, client.getCount, request, (err, response) => {
-      if (err) {
-        log.error({
-          fn: 'protobufTs.getChangeCount',
-          err: {
-            msg: err.message,
-            details: err.details,
-            code: err.code,
-            stack: err.stack,
-          },
-        })
-        return reject(new Error('getChangeCount failed: ' + err))
-      }
-
-      if (!response) {
-        return reject(new Error('getChangeCount failed: empty response'))
-      }
-
-      debugLog(log, () => ({
-        fn: 'protobufTs.getChangeCount',
-        resp: response,
-      }))
-      return resolve(getFirstCount(response, 'getChangeCount'))
-    })
-  })
+  return getSingleCount(sessionId, CountKind.CHANGES, 'getChangeCount')
 }
 
 export async function getUndoCount(sessionId: string): Promise<number> {
-  const log = getLogger()
-  const request = {
-    sessionId: sessionId,
-    kind: [CountKind.UNDOS],
-  }
-  debugLog(log, () => ({ fn: 'protobufTs.getUndoCount', rqst: request }))
-  const client = await getClient()
-
-  return new Promise<number>((resolve, reject) => {
-    callUnary(client, client.getCount, request, (err, response) => {
-      if (err) {
-        log.error({
-          fn: 'protobufTs.getUndoCount',
-          err: {
-            msg: err.message,
-            details: err.details,
-            code: err.code,
-            stack: err.stack,
-          },
-        })
-        return reject(new Error('getUndoCount failed: ' + err))
-      }
-
-      if (!response) {
-        return reject(new Error('getUndoCount failed: empty response'))
-      }
-
-      debugLog(log, () => ({
-        fn: 'protobufTs.getUndoCount',
-        resp: response,
-      }))
-      return resolve(getFirstCount(response, 'getUndoCount'))
-    })
-  })
+  return getSingleCount(sessionId, CountKind.UNDOS, 'getUndoCount')
 }
 
 export async function getChangeTransactionCount(
   sessionId: string
 ): Promise<number> {
-  const log = getLogger()
-  const request = {
-    sessionId: sessionId,
-    kind: [CountKind.CHANGE_TRANSACTIONS],
-  }
-  debugLog(log, () => ({
-    fn: 'protobufTs.getChangeTransactionCount',
-    rqst: request,
-  }))
-  const client = await getClient()
-
-  return new Promise<number>((resolve, reject) => {
-    callUnary(client, client.getCount, request, (err, response) => {
-      if (err) {
-        log.error({
-          fn: 'protobufTs.getChangeTransactionCount',
-          err: {
-            msg: err.message,
-            details: err.details,
-            code: err.code,
-            stack: err.stack,
-          },
-        })
-        return reject(new Error('getChangeTransactionCount failed: ' + err))
-      }
-
-      if (!response) {
-        return reject(
-          new Error('getChangeTransactionCount failed: empty response')
-        )
-      }
-
-      debugLog(log, () => ({
-        fn: 'protobufTs.getChangeTransactionCount',
-        resp: response,
-      }))
-      return resolve(getFirstCount(response, 'getChangeTransactionCount'))
-    })
-  })
+  return getSingleCount(
+    sessionId,
+    CountKind.CHANGE_TRANSACTIONS,
+    'getChangeTransactionCount'
+  )
 }
 
 export async function getUndoTransactionCount(
   sessionId: string
 ): Promise<number> {
-  const log = getLogger()
-  const request = {
-    sessionId: sessionId,
-    kind: [CountKind.UNDO_TRANSACTIONS],
-  }
-  debugLog(log, () => ({
-    fn: 'protobufTs.getUndoTransactionCount',
-    rqst: request,
-  }))
-  const client = await getClient()
-
-  return new Promise<number>((resolve, reject) => {
-    callUnary(client, client.getCount, request, (err, response) => {
-      if (err) {
-        log.error({
-          fn: 'protobufTs.getUndoTransactionCount',
-          err: {
-            msg: err.message,
-            details: err.details,
-            code: err.code,
-            stack: err.stack,
-          },
-        })
-        return reject(new Error('getUndoTransactionCount failed: ' + err))
-      }
-
-      if (!response) {
-        return reject(
-          new Error('getUndoTransactionCount failed: empty response')
-        )
-      }
-
-      debugLog(log, () => ({
-        fn: 'protobufTs.getUndoTransactionCount',
-        resp: response,
-      }))
-      return resolve(getFirstCount(response, 'getUndoTransactionCount'))
-    })
-  })
+  return getSingleCount(
+    sessionId,
+    CountKind.UNDO_TRANSACTIONS,
+    'getUndoTransactionCount'
+  )
 }
