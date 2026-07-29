@@ -2571,11 +2571,13 @@ test('range map parser loads the OmegaEdit PNG logo fixture', () => {
     __dirname,
     '../../images/OmegaEditLogo.omega-ranges.json'
   )
+  const sourcePath = path.resolve(__dirname, '../../images/OmegaEditLogo.png')
   const parsed = parseRangeMapContent(fs.readFileSync(fixturePath))
 
   assert.equal(parsed.document.format, 'omega-edit.range-map')
   assert.equal(parsed.document.version, 1)
   assert.equal(parsed.document.source, 'images/OmegaEditLogo.png')
+  assert.equal(parsed.document.sourceFileSize, fs.statSync(sourcePath).size)
   assert.equal(parsed.document.selectedPath, '/png/chunks[0]/data/width')
   assert.equal(parsed.document.nodes.length, 28)
   assert.equal(parsed.nodeCount, 142)
@@ -2619,6 +2621,10 @@ test('range map parser loads the OmegaEdit PNG logo fixture', () => {
     value: '1254',
     children: [],
   })
+
+  assert.doesNotThrow(() =>
+    assertRangeMapFitsFile(parsed, fs.statSync(sourcePath).size)
+  )
 })
 
 test('range map parser rejects hostile node shapes before flattening', () => {
@@ -2721,6 +2727,39 @@ test('range map file-fit validation names the offending node', () => {
   assert.throws(
     () => assertRangeMapFitsFile(parsed, 6),
     /Range map node \/too-far \[6, 7\) is outside file bounds \(6 bytes\)/
+  )
+})
+
+test('range map validates its optional source file size', () => {
+  const parsed = parseRangeMapContent(
+    encodeRangeMap({
+      sourceFileSize: 6,
+      nodes: [
+        {
+          path: '/byte',
+          offset: 0,
+          length: 1,
+        },
+      ],
+    })
+  )
+
+  assert.equal(parsed.document.sourceFileSize, 6)
+  assert.doesNotThrow(() => assertRangeMapFitsFile(parsed, 6))
+  assert.throws(
+    () => assertRangeMapFitsFile(parsed, 7),
+    /Range map source file size \(6 bytes\) does not match open file size \(7 bytes\)/
+  )
+
+  assert.throws(
+    () =>
+      parseRangeMapContent(
+        encodeRangeMap({
+          sourceFileSize: -1,
+          nodes: [],
+        })
+      ),
+    /Range map sourceFileSize must be a non-negative safe integer/
   )
 })
 
