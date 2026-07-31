@@ -877,6 +877,7 @@ test('compiled extension entrypoints exist after build', () => {
   assert.match(providerSource, /ACTION_JOURNAL_REQUEST_TIMEOUT_MS = 15_000/)
   assert.match(actionJournalSource, /onUndo/)
   assert.match(actionJournalSource, /onRedo/)
+  assert.match(actionJournalSource, /onNavigate/)
   assert.match(actionJournalSource, /disabled=\{!canUndo\}/)
   assert.match(actionJournalSource, /disabled=\{!canRedo\}/)
   assert.doesNotMatch(actionJournalSource, /selectedKinds|transactionFilter/)
@@ -885,7 +886,11 @@ test('compiled extension entrypoints exist after build', () => {
   assert.match(actionJournalSource, /class="checkpoint-card"/)
   assert.match(
     actionJournalSource,
-    /checkpoint\.sourceChangeCount\s*\?\?\s*String\(checkpoint\.changeCount\)/
+    /coordinate:\s*decimal\(String\(checkpoint\.changeCount\)\)/
+  )
+  assert.doesNotMatch(
+    actionJournalSource,
+    /coordinate:[\s\S]{0,100}checkpoint\.sourceChangeCount/
   )
   assert.match(actionJournalSource, /checkpointChanges\(row\.coordinate\)/)
   assert.match(
@@ -903,6 +908,11 @@ test('compiled extension entrypoints exist after build', () => {
   assert.match(actionJournalSource, /strings\.actionJournal\.currentChange/)
   assert.match(actionJournalSource, /strings\.actionJournal\.redoAvailable/)
   assert.match(actionJournalSource, /strings\.actionJournal\.originalState/)
+  assert.match(
+    actionJournalSource,
+    /strings\.actionJournal\.navigateAfterChange/
+  )
+  assert.match(actionJournalSource, /strings\.actionJournal\.navigateOriginal/)
   assert.match(
     svelteAppSource,
     /checkpoints=\{checkpointTimeline\.checkpoints\}/
@@ -2235,7 +2245,7 @@ test('compiled extension entrypoints exist after build', () => {
   assert.match(actionJournalSource, /checkpointAfter/)
   assert.doesNotMatch(actionJournalSource, /onReveal|onCopy|onFilter/)
   assert.doesNotMatch(actionJournalSource, />JSON<|>CLI<|>MCP</)
-  assert.doesNotMatch(actionJournalSource, /<button class="entry-main"/)
+  assert.match(actionJournalSource, /class="entry-main"/)
   assert.match(
     svelteAppSource,
     /message\.visible && searchPanelVisible[\s\S]+closeSearchPanel\(\)/
@@ -2561,11 +2571,13 @@ test('range map parser loads the OmegaEdit PNG logo fixture', () => {
     __dirname,
     '../../images/OmegaEditLogo.omega-ranges.json'
   )
+  const sourcePath = path.resolve(__dirname, '../../images/OmegaEditLogo.png')
   const parsed = parseRangeMapContent(fs.readFileSync(fixturePath))
 
   assert.equal(parsed.document.format, 'omega-edit.range-map')
   assert.equal(parsed.document.version, 1)
   assert.equal(parsed.document.source, 'images/OmegaEditLogo.png')
+  assert.equal(parsed.document.sourceFileSize, fs.statSync(sourcePath).size)
   assert.equal(parsed.document.selectedPath, '/png/chunks[0]/data/width')
   assert.equal(parsed.document.nodes.length, 28)
   assert.equal(parsed.nodeCount, 142)
@@ -2609,6 +2621,10 @@ test('range map parser loads the OmegaEdit PNG logo fixture', () => {
     value: '1254',
     children: [],
   })
+
+  assert.doesNotThrow(() =>
+    assertRangeMapFitsFile(parsed, fs.statSync(sourcePath).size)
+  )
 })
 
 test('range map parser rejects hostile node shapes before flattening', () => {
@@ -2711,6 +2727,39 @@ test('range map file-fit validation names the offending node', () => {
   assert.throws(
     () => assertRangeMapFitsFile(parsed, 6),
     /Range map node \/too-far \[6, 7\) is outside file bounds \(6 bytes\)/
+  )
+})
+
+test('range map validates its optional source file size', () => {
+  const parsed = parseRangeMapContent(
+    encodeRangeMap({
+      sourceFileSize: 6,
+      nodes: [
+        {
+          path: '/byte',
+          offset: 0,
+          length: 1,
+        },
+      ],
+    })
+  )
+
+  assert.equal(parsed.document.sourceFileSize, 6)
+  assert.doesNotThrow(() => assertRangeMapFitsFile(parsed, 6))
+  assert.throws(
+    () => assertRangeMapFitsFile(parsed, 7),
+    /Range map source file size \(6 bytes\) does not match open file size \(7 bytes\)/
+  )
+
+  assert.throws(
+    () =>
+      parseRangeMapContent(
+        encodeRangeMap({
+          sourceFileSize: -1,
+          nodes: [],
+        })
+      ),
+    /Range map sourceFileSize must be a non-negative safe integer/
   )
 })
 
@@ -2836,22 +2885,13 @@ test('webview protocol normalizes editor commands and rejects invalid ranges', (
       type: 'cancelTransform',
     }
   )
-  assert.deepEqual(
+  assert.equal(
     normalizeWebviewMessage(context, {
       type: 'navigateCheckpointTimeline',
       checkpoint: 3,
     }),
-    { type: 'navigateCheckpointTimeline', checkpoint: 3 }
+    undefined
   )
-  for (const checkpoint of [-1, 1.5, Number.NaN, '2']) {
-    assert.equal(
-      normalizeWebviewMessage(context, {
-        type: 'navigateCheckpointTimeline',
-        checkpoint,
-      }),
-      undefined
-    )
-  }
   assert.equal(
     normalizeWebviewMessage(context, { type: 'hideCheckpointTimeline' }),
     undefined
@@ -3129,6 +3169,10 @@ test('action journal is the live history surface', () => {
     ),
     'utf8'
   )
+  const providerSource = fs.readFileSync(
+    path.resolve(__dirname, '../src/hexEditorProvider.ts'),
+    'utf8'
+  )
 
   assert.doesNotMatch(
     appSource,
@@ -3137,13 +3181,37 @@ test('action journal is the live history surface', () => {
   assert.doesNotMatch(appSource, /hideCheckpointTimeline/)
   assert.match(appSource, /onUndo=\{\(\) => postToHost\(\{ type: 'undo' \}\)\}/)
   assert.match(appSource, /onRedo=\{\(\) => postToHost\(\{ type: 'redo' \}\)\}/)
+  assert.match(appSource, /onNavigate=\{navigateActionJournal\}/)
   assert.match(journalSource, /strings\.actionJournal\.rewind/)
   assert.match(journalSource, /strings\.actionJournal\.fastForward/)
   assert.match(journalSource, /checkpointBefore/)
   assert.match(journalSource, /checkpointAfter/)
   assert.doesNotMatch(journalSource, /onReveal|onCopy|onFilter/)
   assert.doesNotMatch(journalSource, />JSON<|>CLI<|>MCP</)
-  assert.doesNotMatch(journalSource, /<button class="entry-main"/)
+  assert.match(journalSource, /class="entry-main"/)
+  assert.match(
+    journalSource,
+    /onclick=\{\(\) => onNavigate\(row\.entry\.changeCountAfter\)\}/
+  )
+  assert.match(journalSource, /onclick=\{\(\) => onNavigate\('0'\)\}/)
+  assert.match(
+    providerSource,
+    /if \(direction === 'undo'\) \{\s*await this\.performUndoOnSession\(session\)/
+  )
+  assert.match(
+    providerSource,
+    /else \{\s*await this\.performRedoOnSession\(session\)/
+  )
+  assert.doesNotMatch(
+    providerSource,
+    /navigateActionJournalToChangeCount[\s\S]*?executeCommand\(direction\)/
+  )
+  assert.match(
+    providerSource,
+    /checkoutHistoryCheckpoint\(session, nearest\.checkpoint\)/
+  )
+  assert.doesNotMatch(providerSource, /captureCheckpointTimelineTip/)
+  assert.doesNotMatch(providerSource, /case 'navigateCheckpointTimeline'/)
   assert.equal(
     packageJson.contributes.commands.some(
       (entry) => entry.command === 'omegaEdit.showCheckpointTimeline'
@@ -3170,10 +3238,22 @@ test('webview protocol bounds and validates action journal requests', () => {
       append: true,
     }
   )
+  assert.deepEqual(
+    normalizeWebviewMessage(context, {
+      type: 'navigateActionJournal',
+      changeCount: '9007199254740993',
+    }),
+    {
+      type: 'navigateActionJournal',
+      changeCount: '9007199254740993',
+    }
+  )
   for (const message of [
     { type: 'requestActionJournalViewport', capacity: 0 },
     { type: 'requestActionJournalViewport', capacity: 1001 },
     { type: 'requestActionJournalViewport', anchorSerial: '01' },
+    { type: 'navigateActionJournal', changeCount: '01' },
+    { type: 'navigateActionJournal', changeCount: -1 },
     { type: 'revealActionJournalEntry', offset: '1' },
     {
       type: 'copyActionJournalEntry',

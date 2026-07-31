@@ -200,6 +200,7 @@ interface ActionJournalState {
   capacity: number
   direction: 'older' | 'newer'
   requestGeneration: number
+  navigating: boolean
   refreshTask?: Promise<void>
   refreshPending: boolean
 }
@@ -2255,6 +2256,9 @@ export class HexEditorProvider
         }
         await this.performRedoOnSession(session)
         return
+      case 'navigateActionJournal':
+        await this.navigateActionJournalToChangeCount(session, msg.changeCount)
+        return
       case 'save':
       case 'saveAs': {
         const cts = new vscode.CancellationTokenSource()
@@ -2559,6 +2563,7 @@ export class HexEditorProvider
         capacity: 256,
         direction: 'older',
         requestGeneration: 0,
+        navigating: false,
         refreshPending: false,
       },
     }
@@ -4327,7 +4332,7 @@ export class HexEditorProvider
     }
   }
 
-  private async navigateToCheckpoint(
+  private async checkoutHistoryCheckpoint(
     session: EditorSession,
     targetCheckpointCount: number
   ): Promise<CheckpointTimelineResult> {
@@ -4343,15 +4348,27 @@ export class HexEditorProvider
       )
     }
 
+    const targetFingerprint =
+      targetCheckpointCount === 0
+        ? timeline.originalFingerprint
+        : timeline.entries[targetCheckpointCount - 1].interval.after
+    let resetCurrentCheckpoint = false
     if (targetCheckpointCount === timeline.cursor) {
-      return {
-        state: this.buildEditorState(session),
-        checkpointCount,
-        moved: false,
+      const currentFingerprint = await getChangeLogFingerprint(
+        session.sessionId,
+        SessionFingerprintContent.COMPUTED,
+        'sha256'
+      )
+      if (timelineFingerprintsEqual(currentFingerprint, targetFingerprint)) {
+        return {
+          state: this.buildEditorState(session),
+          checkpointCount,
+          moved: false,
+        }
       }
+      resetCurrentCheckpoint = true
     }
 
-    await this.captureCheckpointTimelineTip(session)
     await this.assertCheckpointTimelineNativeAlignment(
       session,
       'before navigation'
@@ -4369,26 +4386,30 @@ export class HexEditorProvider
     const originalCursor = timeline.cursor
     try {
       const sessionSyncVersion = session.sessionSyncVersion
+      if (resetCurrentCheckpoint) {
+        if (targetCheckpointCount <= 0) {
+          throw new Error(
+            'The original checkpoint cannot be reset while it contains uncheckpointed changes'
+          )
+        }
+        await checkoutCheckpoint(session.sessionId, targetCheckpointCount - 1)
+      }
       const response = await checkoutCheckpoint(
         session.sessionId,
         targetCheckpointCount
       )
       if (
         response.checkpointCount !== targetCheckpointCount ||
-        response.futureCheckpointCount !==
+        response.futureCheckpointCount >
           timeline.entries.length - targetCheckpointCount
       ) {
         throw new Error(
-          `Native checkpoint checkout reached ${response.checkpointCount} with ${response.futureCheckpointCount} future checkpoints; expected ${targetCheckpointCount} with ${timeline.entries.length - targetCheckpointCount} future checkpoints`
+          `Native checkpoint checkout reached ${response.checkpointCount} with ${response.futureCheckpointCount} future checkpoints; expected checkpoint ${targetCheckpointCount} with at most ${timeline.entries.length - targetCheckpointCount} future checkpoints`
         )
       }
-      const expected =
-        targetCheckpointCount === 0
-          ? timeline.originalFingerprint
-          : timeline.entries[targetCheckpointCount - 1].interval.after
       await assertCurrentSessionFingerprint(
         session.sessionId,
-        expected,
+        targetFingerprint,
         'after'
       )
       timeline.cursor = targetCheckpointCount
@@ -4621,9 +4642,164 @@ export class HexEditorProvider
     })
   }
 
+  private async nearestCheckpointForChangeCount(
+    session: EditorSession,
+    targetChangeCount: number
+  ): Promise<{ checkpoint: number; changeCount: number }> {
+    let nearest = { checkpoint: 0, changeCount: 0 }
+    let nearestDistance = Math.abs(targetChangeCount)
+    const timeline = session.checkpointTimeline
+    const nativeTimeline = await checkoutCheckpoint(
+      session.sessionId,
+      timeline.cursor
+    )
+    const logicalFutureCount = timeline.entries.length - timeline.cursor
+    if (
+      nativeTimeline.checkpointCount !== timeline.cursor ||
+      nativeTimeline.futureCheckpointCount > logicalFutureCount
+    ) {
+      throw new Error(
+        `Native checkpoint timeline is misaligned at ${nativeTimeline.checkpointCount} with ${nativeTimeline.futureCheckpointCount} future checkpoints`
+      )
+    }
+    const firstUnavailableTransformIndex =
+      nativeTimeline.futureCheckpointCount < logicalFutureCount
+        ? timeline.entries.findIndex(
+            (entry, index) =>
+              index >= timeline.cursor &&
+              entry.interval.boundaryKind === 'transform'
+          )
+        : -1
+    session.checkpointTimeline.entries.forEach((entry, index) => {
+      const checkpoint = index + 1
+      if (
+        checkpoint > timeline.cursor &&
+        nativeTimeline.futureCheckpointCount < logicalFutureCount &&
+        (firstUnavailableTransformIndex < 0 ||
+          index >= firstUnavailableTransformIndex)
+      ) {
+        // Undoing a transform removes its checkpoint model and retains the
+        // transform as redo history. A directly checked-out transform remains
+        // a materialized future model, so only avoid future ordinals when the
+        // native future count proves that the logical timeline has a gap.
+        return
+      }
+      const distance = Math.abs(entry.changeCount - targetChangeCount)
+      if (
+        distance < nearestDistance ||
+        (distance === nearestDistance &&
+          entry.changeCount < nearest.changeCount)
+      ) {
+        nearest = {
+          checkpoint,
+          changeCount: entry.changeCount,
+        }
+        nearestDistance = distance
+      }
+    })
+    return nearest
+  }
+
+  private async navigateActionJournalToChangeCount(
+    session: EditorSession,
+    targetChangeCountValue: string
+  ): Promise<void> {
+    const targetChangeCount = normalizeNonNegativeInt64ForClient(
+      targetChangeCountValue,
+      'action journal change count'
+    )
+    const state = session.actionJournal
+    if (state.navigating) {
+      return
+    }
+    if (targetChangeCount === session.changeCount) {
+      await this.postActionJournalViewport(session)
+      return
+    }
+    if (!this.ensureSessionCanMutate(session, true)) {
+      await this.postActionJournalViewport(session)
+      return
+    }
+
+    await session.historyCommandTask?.catch(() => undefined)
+    state.navigating = true
+    try {
+      const nearest = await this.nearestCheckpointForChangeCount(
+        session,
+        targetChangeCount
+      )
+      if (
+        nearest.checkpoint !== session.checkpointTimeline.cursor &&
+        nearest.changeCount !== session.changeCount
+      ) {
+        await this.checkoutHistoryCheckpoint(session, nearest.checkpoint)
+      }
+
+      session.checkpointTimeline.navigating = true
+      this.postCheckpointTimeline(session)
+      while (session.changeCount !== targetChangeCount) {
+        const before = session.changeCount
+        const direction = targetChangeCount < before ? 'undo' : 'redo'
+        const editState = session.history.getEditState()
+        if (
+          (direction === 'undo' && !editState.canUndo) ||
+          (direction === 'redo' && !editState.canRedo)
+        ) {
+          throw new Error(
+            `Change count ${targetChangeCount} is not available in retained history`
+          )
+        }
+
+        // History-card activation comes from a focused webview control. The
+        // generic VS Code undo/redo commands are focus-sensitive and may
+        // complete without invoking this custom editor, so navigate through
+        // the same session callbacks used by the registered edit events.
+        if (direction === 'undo') {
+          await this.performUndoOnSession(session)
+        } else {
+          await this.performRedoOnSession(session)
+        }
+
+        const after = session.changeCount
+        if (after === before) {
+          throw new Error(
+            `History ${direction} made no progress from change count ${before}`
+          )
+        }
+        if (
+          (direction === 'undo' && after < targetChangeCount) ||
+          (direction === 'redo' && after > targetChangeCount)
+        ) {
+          throw new Error(
+            `Change count ${targetChangeCount} is inside an atomic transaction and cannot be checked out`
+          )
+        }
+      }
+
+      state.refreshPending = false
+      await this.postActionJournalViewport(session)
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error)
+      this.postWebviewMessage(session, {
+        type: 'actionJournalError',
+        visible: true,
+        message: omegaEditErrorMessage(message),
+      })
+      throw error
+    } finally {
+      state.navigating = false
+      session.checkpointTimeline.navigating = false
+      this.postCheckpointTimeline(session)
+    }
+  }
+
   private queueActionJournalRefresh(session: EditorSession): void {
     const state = session.actionJournal
     if (!state.visible || session.disposed || session.scope.isDisposed) {
+      return
+    }
+    if (state.navigating) {
+      state.refreshPending = true
       return
     }
     if (state.refreshTask) {
@@ -6113,35 +6289,6 @@ export class HexEditorProvider
     } finally {
       resolveTimelineOperation()
       timeline.operation = undefined
-    }
-  }
-
-  private async captureCheckpointTimelineTip(
-    session: EditorSession
-  ): Promise<void> {
-    const timeline = session.checkpointTimeline
-    if (timeline.cursor !== timeline.entries.length) return
-
-    const changeCount = await getChangeCount(session.sessionId)
-    if (changeCount === timeline.lastArchivedChangeCount) return
-
-    const historyBefore = session.history.snapshot()
-    const sessionSyncVersion = session.sessionSyncVersion
-    const count = await createCheckpoint(session.sessionId)
-    session.history.recordMilestone()
-    await this.waitForSessionSync(session, sessionSyncVersion)
-    const interval = await this.recordCheckpointTimelineEntry(
-      session,
-      count,
-      'tip'
-    )
-    if (interval?.state !== 'ready') {
-      await this.rollbackUnusableTimelineBoundary(session, count, historyBefore)
-      throw new TimelineStorageError(
-        interval?.error?.code ?? 'TIMELINE_CAPTURE_FAILED',
-        interval?.error?.message ??
-          'Latest editor history could not be archived'
-      )
     }
   }
 
@@ -7758,15 +7905,6 @@ export class HexEditorProvider
           break
         }
 
-        case 'navigateCheckpointTimeline': {
-          const timeline = session.checkpointTimeline
-          if (msg.checkpoint > timeline.entries.length || timeline.navigating) {
-            break
-          }
-          await this.navigateToCheckpoint(session, msg.checkpoint)
-          break
-        }
-
         case 'rollbackCheckpoint': {
           await this.rollbackCheckpoint({ uri: session.document.uri })
           break
@@ -7784,6 +7922,14 @@ export class HexEditorProvider
 
         case 'requestActionJournalViewport': {
           await this.postActionJournalViewport(session, msg)
+          break
+        }
+
+        case 'navigateActionJournal': {
+          await this.navigateActionJournalToChangeCount(
+            session,
+            msg.changeCount
+          )
           break
         }
 

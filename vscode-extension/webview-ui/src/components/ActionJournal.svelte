@@ -16,6 +16,7 @@
     canRedo: boolean
     onUndo: () => void
     onRedo: () => void
+    onNavigate: (changeCount: string) => void
     onLoadOlder: (anchorSerial: string) => void
     onClose: () => void
     onRetry: () => void
@@ -31,6 +32,7 @@
     canRedo,
     onUndo,
     onRedo,
+    onNavigate,
     onLoadOlder,
     onClose,
     onRetry,
@@ -111,9 +113,7 @@
       ...checkpoints.map((checkpoint) => ({
         type: 'checkpoint' as const,
         key: `checkpoint:${checkpoint.checkpoint}`,
-        coordinate: decimal(
-          checkpoint.sourceChangeCount ?? String(checkpoint.changeCount)
-        ),
+        coordinate: decimal(String(checkpoint.changeCount)),
         checkpoint,
       })),
     ]
@@ -230,7 +230,13 @@
             class:future={row.position === 'future'}
             aria-current={row.position === 'current' ? 'step' : undefined}
           >
-            <div class="entry-main">
+            <button
+              type="button"
+              class="entry-main"
+              disabled={loading || row.position === 'current'}
+              aria-label={strings.actionJournal.navigateAfterChange(row.coordinate)}
+              onclick={() => onNavigate(row.entry.changeCountAfter)}
+            >
               <span class="serial">#{formatted(row.entry.firstSerial)}{row.entry.lastSerial === row.entry.firstSerial ? '' : `–${formatted(row.entry.lastSerial)}`}</span>
               <strong class:transform={row.entry.kind === 'TRANSFORM'}>{row.entry.kind}</strong>
               {#if row.position === 'current'}
@@ -246,7 +252,7 @@
               {#if row.entry.checkpointAfter !== undefined}<span class="checkpoint">{strings.actionJournal.checkpointAfter(decimal(row.entry.checkpointAfter))}</span>{/if}
               <span class="payload">{payloadHint(row.entry)}</span>
               {#if row.entry.transform}<code>{row.entry.transform.transformId}</code>{/if}
-            </div>
+            </button>
           </li>
         {/if}
       {/each}
@@ -255,6 +261,19 @@
           <span class="cursor-symbol" aria-hidden="true">●</span>
           <strong>{strings.actionJournal.originalState}</strong>
           <span>{strings.actionJournal.currentPosition}</span>
+        </li>
+      {:else if viewport && !viewport.hasMore}
+        <li class="baseline-card">
+          <button
+            type="button"
+            class="baseline-target"
+            disabled={loading}
+            aria-label={strings.actionJournal.navigateOriginal}
+            onclick={() => onNavigate('0')}
+          >
+            <span class="cursor-symbol" aria-hidden="true">○</span>
+            <strong>{strings.actionJournal.originalState}</strong>
+          </button>
         </li>
       {/if}
     </ol>
@@ -286,7 +305,9 @@
   .change-card { border-left: 3px solid transparent; }
   .change-card.current { border-left-color: var(--vscode-charts-green); background: color-mix(in srgb, var(--vscode-charts-green) 10%, transparent); }
   .change-card.future { opacity: .55; border-left-color: var(--vscode-descriptionForeground); border-left-style: dashed; background: color-mix(in srgb, var(--vscode-descriptionForeground) 6%, transparent); }
-  .entry-main { flex: 1; display: flex; flex-wrap: wrap; align-items: center; gap: .55rem; min-width: 0; padding: .38rem .5rem; text-align: left; }
+  .entry-main { flex: 1; display: flex; flex-wrap: wrap; align-items: center; gap: .55rem; min-width: 0; padding: .38rem .5rem; border: 0; background: transparent; text-align: left; }
+  .entry-main:hover:not(:disabled), .entry-main:focus-visible, .baseline-target:hover:not(:disabled), .baseline-target:focus-visible { background: var(--vscode-list-hoverBackground); }
+  .entry-main:disabled { opacity: 1; }
   .entry-main strong { color: var(--vscode-charts-blue); }
   .entry-main strong.transform { color: var(--vscode-charts-purple); }
   .checkpoint-card { gap: .6rem; padding: .48rem .55rem; border-left: 3px solid var(--vscode-charts-yellow); background: color-mix(in srgb, var(--vscode-charts-yellow) 8%, transparent); }
@@ -302,6 +323,7 @@
   .current-state { color: var(--vscode-charts-green); border-color: var(--vscode-charts-green); }
   .future-state { color: var(--vscode-descriptionForeground); }
   .baseline-card { gap: .5rem; padding: .48rem .55rem; border-left: 3px solid var(--vscode-charts-green); background: color-mix(in srgb, var(--vscode-charts-green) 10%, transparent); }
+  .baseline-target { display: flex; align-items: center; gap: .5rem; width: 100%; padding: 0; border: 0; background: transparent; text-align: left; }
   .baseline-card span { color: var(--vscode-descriptionForeground); font-size: .7rem; }
   .cursor-symbol { color: var(--vscode-charts-green) !important; }
   .serial, code, .payload, .checkpoint { font-size: .7rem; }

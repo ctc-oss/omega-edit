@@ -298,8 +298,7 @@ export type WebviewToHostMessage =
   | { type: 'createCheckpoint' }
   | { type: 'rollbackCheckpoint' }
   | { type: 'restoreCheckpoint' }
-  // Internal checkpoint-replay hook retained after retiring the standalone timeline UI.
-  | { type: 'navigateCheckpointTimeline'; checkpoint: number }
+  | { type: 'navigateActionJournal'; changeCount: string }
   | { type: 'exportChangeLog' }
   | {
       type: 'requestActionJournalViewport'
@@ -1123,10 +1122,10 @@ export function normalizeWebviewMessage(
       }
     }
 
-    case 'navigateCheckpointTimeline': {
-      const checkpoint = safeNonNegativeInteger(raw.checkpoint)
-      return checkpoint !== undefined
-        ? { type: raw.type, checkpoint }
+    case 'navigateActionJournal': {
+      const changeCount = safeActionJournalDecimal(raw.changeCount)
+      return changeCount !== undefined
+        ? { type: raw.type, changeCount }
         : undefined
     }
 
