@@ -32,10 +32,13 @@ async function main() {
   const userDataDir = path.join(profileRoot, 'user-data')
 
   try {
-    const vscodeExecutablePath = await downloadVSCodeWithRetry({
+    const downloadedVSCodeExecutablePath = await downloadVSCodeWithRetry({
       version,
       cachePath: vscodeTestRoot,
     })
+    const vscodeExecutablePath = resolveVSCodeExecutablePath(
+      downloadedVSCodeExecutablePath
+    )
     const serverPort = await reserveServerPort()
     const args = [
       '--no-sandbox',
@@ -175,6 +178,42 @@ function runProcess(command, args, cwd, extraEnv = {}) {
       )
     })
   })
+}
+
+function resolveVSCodeExecutablePath(executablePath) {
+  if (fs.existsSync(executablePath) || process.platform !== 'darwin') {
+    return executablePath
+  }
+
+  const executableDir = path.dirname(executablePath)
+  let entries
+
+  try {
+    entries = fs.readdirSync(executableDir, { withFileTypes: true })
+  } catch {
+    return executablePath
+  }
+
+  const fallback = entries
+    .filter((entry) => entry.isFile())
+    .map((entry) => path.join(executableDir, entry.name))
+    .find((candidate) => {
+      try {
+        fs.accessSync(candidate, fs.constants.X_OK)
+        return true
+      } catch {
+        return false
+      }
+    })
+
+  if (fallback) {
+    console.warn(
+      `VS Code executable not found at ${executablePath}; using ${fallback}`
+    )
+    return fallback
+  }
+
+  return executablePath
 }
 
 function reserveServerPort() {
