@@ -46,7 +46,7 @@
   },
   "devDependencies": {
     "@biomejs/biome": "^2.5.9",
-    "@types/node": "^22.20.0",
+    "@types/node": "^26.2.0",
     "run-script-os": "^1.1.6",
     "typedoc": "^0.28.20",
     "typescript": "^6.0.3",
@@ -54,7 +54,7 @@
     "vitest": "^4.1.10"
   },
   "resolutions": {
-    "@types/node": "22.20.0",
+    "@types/node": "26.2.0",
     "globby/**/brace-expansion": "1.1.13",
     "rimraf/**/brace-expansion": "1.1.13"
   },
