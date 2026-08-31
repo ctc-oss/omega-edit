@@ -1162,10 +1162,10 @@ typedoc@^0.28.20:
     minimatch "^10.2.5"
     yaml "^2.9.0"
 
-typescript-language-server@5.3.0:
-  version "5.3.0"
-  resolved "https://registry.yarnpkg.com/typescript-language-server/-/typescript-language-server-5.3.0.tgz#0f3e8c9d1ea915d4d74c548803346a157ae29856"
-  integrity sha512-5puofxZHgFdAYtfNpmwCAvgtaYgg8wrUnH30m7Ze3QuguId5RNRadKASpOpyDxTyUdAF51FjhTdjntLw/EuWcQ==
+typescript-language-server@6.0.0:
+  version "6.0.0"
+  resolved "https://registry.yarnpkg.com/typescript-language-server/-/typescript-language-server-6.0.0.tgz#0348000f502a7b2cc3f1e65047adee966d6603c2"
+  integrity sha512-LXtzY3UZGfghWA5eRU6/T5j1+YiGRgy14mR3GOKyTKlE1op1TYKQnLVxwBsmnXeDhGLuvzZyIHBAqvrekAITYQ==
 
 typescript@5.4.5:
   version "5.4.5"
