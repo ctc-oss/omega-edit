@@ -75,9 +75,9 @@ namespace omega_edit {
             bool is_control_or_nul_byte(unsigned char ch) { return ch == '\0' || ch < 0x20U || ch == 0x7FU; }
 
             bool is_valid_external_path(const std::string &path) {
-                return path.size() < FILENAME_MAX &&
-                       std::none_of(
-                               path.begin(), path.end(), [](unsigned char ch) { return is_control_or_nul_byte(ch); });
+                return path.size() < FILENAME_MAX && std::none_of(path.begin(), path.end(), [](unsigned char ch) {
+                           return is_control_or_nul_byte(ch);
+                       });
             }
 
             int get_current_process_id() {
@@ -982,6 +982,7 @@ namespace omega_edit {
         ResourceMetricsSnapshot SessionManager::resource_metrics_snapshot() const {
             ResourceMetricsSnapshot metrics;
             std::vector<std::shared_ptr<SessionInfo>> sessions;
+            std::vector<std::shared_ptr<ViewportInfo>> viewports;
             {
                 std::lock_guard<std::mutex> lock(mutex_);
                 sessions.reserve(sessions_.size());
@@ -989,6 +990,7 @@ namespace omega_edit {
                 for (const auto &entry : sessions_) {
                     const auto &info = entry.second;
                     sessions.push_back(info);
+                    for (const auto &viewport_entry : info->viewports) { viewports.push_back(viewport_entry.second); }
                     metrics.viewport_count += static_cast<int64_t>(info->viewports.size());
                     metrics.attachment_count += static_cast<int64_t>(info->attachment_count);
                     metrics.active_operation_count += static_cast<int64_t>(info->active_operations);
@@ -996,7 +998,7 @@ namespace omega_edit {
                     metrics.active_transform_count += info->transform_in_progress ? 1 : 0;
                     metrics.file_backed_session_count += info->canonical_file_path.empty() ? 0 : 1;
                     const auto idle = std::chrono::duration_cast<std::chrono::milliseconds>(now - info->last_activity);
-                    metrics.oldest_session_idle_ms = std::max(metrics.oldest_session_idle_ms, idle.count());
+                    metrics.oldest_session_idle_ms = std::max<int64_t>(metrics.oldest_session_idle_ms, idle.count());
                 }
             }
 
@@ -1011,16 +1013,14 @@ namespace omega_edit {
                         }
                     }
                 }
-                for (const auto &viewport_entry : info->viewports) {
-                    const auto &viewport = viewport_entry.second;
-                    std::lock_guard<std::mutex> subscription_lock(viewport->viewport_subscription_mutex);
-                    metrics.viewport_subscription_count +=
-                            static_cast<int64_t>(viewport->viewport_subscriptions.size());
-                    for (const auto &subscription : viewport->viewport_subscriptions) {
-                        if (subscription.event_queue) {
-                            metrics.event_queue_dropped_count +=
-                                    static_cast<int64_t>(subscription.event_queue->dropped_count());
-                        }
+            }
+            for (const auto &viewport : viewports) {
+                std::lock_guard<std::mutex> subscription_lock(viewport->viewport_subscription_mutex);
+                metrics.viewport_subscription_count += static_cast<int64_t>(viewport->viewport_subscriptions.size());
+                for (const auto &subscription : viewport->viewport_subscriptions) {
+                    if (subscription.event_queue) {
+                        metrics.event_queue_dropped_count +=
+                                static_cast<int64_t>(subscription.event_queue->dropped_count());
                     }
                 }
             }

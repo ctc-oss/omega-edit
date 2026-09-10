@@ -29,12 +29,13 @@ namespace fs = std::filesystem;
 
 namespace omega_edit::grpc_server {
     namespace {
-        bool lexical_path_is_safe(const std::string &value) {
+        bool lexical_path_is_safe(const std::string &value, bool reject_parent_traversal = true) {
             if (value.empty() || value.size() >= FILENAME_MAX) { return false; }
             if (std::any_of(value.begin(), value.end(),
                             [](unsigned char ch) { return ch == '\0' || ch < 0x20U || ch == 0x7FU; })) {
                 return false;
             }
+            if (!reject_parent_traversal) { return true; }
             const fs::path path(value);
             return std::none_of(path.begin(), path.end(), [](const fs::path &component) { return component == ".."; });
         }
@@ -100,8 +101,8 @@ namespace omega_edit::grpc_server {
     bool AllowedPathLease::target_matches_object() const {
 #ifndef _WIN32
         if (object_fd_ < 0 || parent_fd_ < 0 || leaf_name_.empty()) { return false; }
-        struct stat object_status{};
-        struct stat target_status{};
+        struct stat object_status {};
+        struct stat target_status {};
         return fstat(object_fd_, &object_status) == 0 &&
                fstatat(parent_fd_, leaf_name_.c_str(), &target_status, AT_SYMLINK_NOFOLLOW) == 0 &&
                !S_ISLNK(target_status.st_mode) && object_status.st_dev == target_status.st_dev &&
@@ -273,7 +274,7 @@ namespace omega_edit::grpc_server {
             error = "could not securely open file: " + std::error_code(saved_errno, std::generic_category()).message();
             return saved_errno == ENOENT ? AllowedPathResult::NOT_FOUND : AllowedPathResult::OUTSIDE_ROOT;
         }
-        struct stat status{};
+        struct stat status {};
         if (fstat(object_fd, &status) != 0 || !S_ISREG(status.st_mode)) {
             close(object_fd);
             close(parent_fd);
@@ -357,7 +358,7 @@ namespace omega_edit::grpc_server {
         std::string leaf;
         result = lease_parent(components, true, parent_fd, leaf, error);
         if (result != AllowedPathResult::OK) { return result; }
-        struct stat status{};
+        struct stat status {};
         errno = 0;
         const auto stat_result = fstatat(parent_fd, leaf.c_str(), &status, AT_SYMLINK_NOFOLLOW);
         if (stat_result == 0 && S_ISLNK(status.st_mode)) {
@@ -389,14 +390,14 @@ namespace omega_edit::grpc_server {
             if (result == AllowedPathResult::OK) { resolved = lease->display_path(); }
             return result;
         }
-        if (!lexical_path_is_safe(path)) {
+        if (!lexical_path_is_safe(path, enabled_)) {
             error = "path is invalid or contains a parent traversal component";
             return AllowedPathResult::INVALID_PATH;
         }
         std::error_code ec;
         const auto canonical_path = fs::canonical(fs::absolute(fs::path(path), ec), ec);
         if (ec == std::errc::no_such_file_or_directory) {
-            error = "path does not exist";
+            error = "file does not exist";
             return AllowedPathResult::NOT_FOUND;
         }
         if (ec) { return filesystem_failure(ec, "could not resolve path", error); }
@@ -432,15 +433,18 @@ namespace omega_edit::grpc_server {
 
     AllowedPathResult AllowedPathPolicy::resolve_creatable_path(const std::string &path, bool directory,
                                                                 std::string &resolved, std::string &error) const {
-        if (!lexical_path_is_safe(path)) {
+        if (!lexical_path_is_safe(path, enabled_)) {
             error = "path is invalid or contains a parent traversal component";
             return AllowedPathResult::INVALID_PATH;
         }
         std::error_code ec;
         auto absolute_path = fs::absolute(fs::path(path), ec).lexically_normal();
         if (ec) { return filesystem_failure(ec, "could not make path absolute", error); }
-        if (directory && !fs::exists(absolute_path, ec)) { fs::create_directories(absolute_path, ec); }
-        if (ec) { return filesystem_failure(ec, "could not prepare path", error); }
+        if (directory && fs::exists(absolute_path, ec) && !fs::is_directory(absolute_path, ec)) {
+            error = "path must identify a directory";
+            return AllowedPathResult::INVALID_PATH;
+        }
+        if (ec) { return filesystem_failure(ec, "could not resolve path", error); }
         resolved = absolute_path.string();
         return AllowedPathResult::OK;
     }

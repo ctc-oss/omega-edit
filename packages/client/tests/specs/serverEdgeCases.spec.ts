@@ -931,6 +931,18 @@ describe('Server Edge Cases', () => {
     const fsModule = require('fs') as typeof import('fs')
     const originalUnlinkSync = fsModule.unlinkSync
     fs.writeFileSync(socketPath, 'stale')
+    const originalLstatSync = fsModule.lstatSync
+    const restoreLstatSync = overrideProperty(
+      fsModule as Record<string, any>,
+      'lstatSync',
+      ((filePath: fs.PathLike) => {
+        const stats = originalLstatSync(filePath)
+        if (String(filePath) === socketPath) {
+          stats.isSocket = () => true
+        }
+        return stats
+      }) as typeof fs.lstatSync
+    )
 
     const restoreUnlinkSync = overrideProperty(
       fsModule as Record<string, any>,
@@ -960,6 +972,7 @@ describe('Server Edge Cases', () => {
       expect((err as Error).message).to.equal('blocked unlink')
     } finally {
       restoreUnlinkSync()
+      restoreLstatSync()
       fs.rmSync(tempDir, { recursive: true, force: true })
     }
   })

@@ -45,11 +45,38 @@ int main() {
     std::ofstream(root / "inside.dat") << "inside";
     std::ofstream(outside / "outside.dat") << "outside";
 
+    AllowedPathPolicy unrestricted_policy;
+    std::string unrestricted_error;
+    std::string unrestricted_path;
+    const auto parent_path = root / "nested" / ".." / "inside.dat";
+    check(unrestricted_policy.resolve_existing_file(parent_path.string(), unrestricted_path, unrestricted_error) ==
+                  AllowedPathResult::OK,
+          "unrestricted file paths may contain parent components");
+    check(fs::path(unrestricted_path) == fs::canonical(root / "inside.dat"),
+          "unrestricted file paths should resolve to the canonical file");
+    check(unrestricted_policy.resolve_output_file((root / "nested" / ".." / "result.dat").string(), unrestricted_path,
+                                                  unrestricted_error) == AllowedPathResult::OK,
+          "unrestricted output paths may contain parent components");
+    check(unrestricted_policy.resolve_directory((root / "nested" / "..").string(), unrestricted_path,
+                                                unrestricted_error) == AllowedPathResult::OK,
+          "unrestricted directory paths may contain parent components");
+    check(unrestricted_policy.resolve_directory((root / "unused-checkpoint").string(), unrestricted_path,
+                                                unrestricted_error) == AllowedPathResult::OK,
+          "unrestricted checkpoint directories should resolve before creation");
+    check(!fs::exists(root / "unused-checkpoint"), "resolving a checkpoint directory must not create it");
+
     AllowedPathPolicy policy;
     std::string error;
     check(policy.configure(root.string(), error), "allowed root should configure");
 
     std::string resolved;
+    check(policy.resolve_existing_file(parent_path.string(), resolved, error) == AllowedPathResult::INVALID_PATH,
+          "confined file paths must reject parent components");
+    check(policy.resolve_output_file(parent_path.string(), resolved, error) == AllowedPathResult::INVALID_PATH,
+          "confined output paths must reject parent components");
+    check(policy.resolve_directory((root / "nested" / "..").string(), resolved, error) ==
+                  AllowedPathResult::INVALID_PATH,
+          "confined directory paths must reject parent components");
     std::shared_ptr<omega_edit::grpc_server::AllowedPathLease> lease;
     error.clear();
     check(policy.resolve_existing_file((root / "inside.dat").string(), resolved, error) == AllowedPathResult::OK,

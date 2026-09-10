@@ -383,10 +383,9 @@ namespace omega_edit {
         }
 
         static bool path_argument_is_safe_for_core(const std::string &path) {
-            return path.size() < FILENAME_MAX &&
-                   std::none_of(
-                           path.begin(), path.end(),
-                           [](unsigned char ch) { return ch == '\0' || ch < 0x20U || ch == 0x7FU; });
+            return path.size() < FILENAME_MAX && std::none_of(path.begin(), path.end(), [](unsigned char ch) {
+                       return ch == '\0' || ch < 0x20U || ch == 0x7FU;
+                   });
         }
 
         static grpc::Status validate_path_argument(const std::string &path, const char *field_name) {
@@ -1322,7 +1321,7 @@ namespace omega_edit {
         static int64_t transactional_replace_match_limit(const ResourceLimits &resource_limits) {
             auto limit = static_cast<int64_t>(OMEGA_REPLACE_MATCHES_LIMIT);
             if (resource_limits.max_search_matches > 0) {
-                limit = (std::min) (limit, resource_limits.max_search_matches);
+                limit = (std::min)(limit, resource_limits.max_search_matches);
             }
             return limit;
         }
@@ -1354,7 +1353,7 @@ namespace omega_edit {
             }
 
             const auto effective_length =
-                    length > 0 ? (std::min) (length, session_size - offset) : session_size - offset;
+                    length > 0 ? (std::min)(length, session_size - offset) : session_size - offset;
             if (static_cast<int64_t>(pattern.size()) > effective_length) { return grpc::Status::OK; }
 
             auto *ctx = omega_search_create_context_bytes(

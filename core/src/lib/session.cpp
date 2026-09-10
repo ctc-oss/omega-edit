@@ -91,7 +91,7 @@ int omega_session_get_original_segment(const omega_session_t *session_ptr, omega
     if (original_file_size < 0 || offset > original_file_size) { return -1; }
     if (data_segment_ptr->capacity == 0 || offset == original_file_size) { return 0; }
 
-    const auto read_length = (std::min) (data_segment_ptr->capacity, original_file_size - offset);
+    const auto read_length = (std::min)(data_segment_ptr->capacity, original_file_size - offset);
     auto *file_ptr = session_ptr->models_.front()->file_ptr;
     if (file_ptr == nullptr) { return read_length == 0 ? 0 : -1; }
     if (0 != FSEEK(file_ptr, offset, SEEK_SET)) { return -1; }
@@ -435,7 +435,7 @@ int omega_session_byte_frequency_profile(const omega_session_t *session_ptr,
     }
     memset(profile_ptr, 0, sizeof(omega_byte_frequency_profile_t));
     if (0 < length) {
-        const auto segment_ptr = omega_segment_create((std::min) (length, OMEGA_SESSION_SCAN_BUFFER_SIZE));
+        const auto segment_ptr = omega_segment_create((std::min)(length, OMEGA_SESSION_SCAN_BUFFER_SIZE));
         if (!segment_ptr) { return -1; }
         omega_byte_t last_profiled_byte = 0;
         int64_t dos_eol_count = 0;
@@ -445,7 +445,7 @@ int omega_session_byte_frequency_profile(const omega_session_t *session_ptr,
                 omega_segment_destroy(segment_ptr);
                 return rc;
             }
-            const auto profile_length = (std::min) (length, omega_segment_get_length(segment_ptr));
+            const auto profile_length = (std::min)(length, omega_segment_get_length(segment_ptr));
             const auto segment_data = omega_segment_get_data(segment_ptr);
             for (auto i = 0; i < profile_length; ++i) {
                 if (last_profiled_byte == '\r' && segment_data[i] == '\n') { ++dos_eol_count; }
@@ -474,7 +474,7 @@ int omega_session_character_counts(const omega_session_t *session_ptr, omega_cha
     }
     omega_character_counts_set_BOM(omega_character_counts_reset(counts_ptr), bom);
     if (0 < length) {
-        const auto scan_capacity = (std::min) (length, OMEGA_SESSION_SCAN_BUFFER_SIZE);
+        const auto scan_capacity = (std::min)(length, OMEGA_SESSION_SCAN_BUFFER_SIZE);
         const auto segment_ptr = omega_segment_create(scan_capacity);
         if (!segment_ptr) { return -1; }
         std::vector<omega_byte_t> pending;
@@ -486,7 +486,7 @@ int omega_session_character_counts(const omega_session_t *session_ptr, omega_cha
                 return rc;
             }
             const auto segment_data = omega_segment_get_data(segment_ptr);
-            const auto count_length = (std::min) (length, omega_segment_get_length(segment_ptr));
+            const auto count_length = (std::min)(length, omega_segment_get_length(segment_ptr));
             std::vector<omega_byte_t> count_data;
             try {
                 count_data.reserve(pending.size() + static_cast<size_t>(count_length));
