@@ -130,6 +130,10 @@ namespace omega_edit::grpc_server {
             enabled_ = false;
             return true;
         }
+#ifdef _WIN32
+        error = "allowed-root confinement is not supported on Windows";
+        return false;
+#else
         if (!lexical_path_is_safe(root)) {
             error = "allowed root is invalid";
             return false;
@@ -149,16 +153,15 @@ namespace omega_edit::grpc_server {
             error = "allowed root must be an existing directory";
             return false;
         }
-#ifndef _WIN32
         root_fd_ = open(canonical_root.c_str(), O_RDONLY | O_DIRECTORY | O_CLOEXEC | O_NOFOLLOW);
         if (root_fd_ < 0) {
             error = "could not open allowed root: " + std::error_code(errno, std::generic_category()).message();
             return false;
         }
-#endif
         root_ = canonical_root.lexically_normal();
         enabled_ = true;
         return true;
+#endif
     }
 
     bool AllowedPathPolicy::contains(const fs::path &path) const {

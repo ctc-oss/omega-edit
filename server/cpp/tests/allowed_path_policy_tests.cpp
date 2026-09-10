@@ -67,6 +67,15 @@ int main() {
 
     AllowedPathPolicy policy;
     std::string error;
+    check(policy.configure("", error), "an empty allowed root should configure on every platform");
+    check(!policy.enabled(), "an empty allowed root should leave confinement disabled");
+#ifdef _WIN32
+    check(!policy.configure(root.string(), error), "allowed root must fail configuration on Windows");
+    check(error == "allowed-root confinement is not supported on Windows",
+          "unsupported confinement should report a clear configuration error");
+    check(!policy.enabled(), "unsupported confinement must not become enabled");
+    check(policy.configure("", error), "unrestricted configuration should still succeed after a rejected root");
+#else
     check(policy.configure(root.string(), error), "allowed root should configure");
 
     std::string resolved;
@@ -105,7 +114,6 @@ int main() {
                   AllowedPathResult::INVALID_PATH,
           "parent traversal should be rejected");
 
-#ifndef _WIN32
     check(policy.lease_existing_file((root / "inside.dat").string(), lease, error) == AllowedPathResult::OK,
           "input lease should succeed");
     fs::rename(root / "inside.dat", root / "inside-original.dat");
