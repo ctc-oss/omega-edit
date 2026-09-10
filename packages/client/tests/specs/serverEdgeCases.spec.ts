@@ -236,6 +236,78 @@ describe('Server Edge Cases', () => {
     }
   })
 
+  it.each([false, true])(
+    'should reject a TCP child that exits before readiness (pid file: %s)',
+    async (withPidFile) => {
+      const tempDir = fs.mkdtempSync(
+        path.join(os.tmpdir(), 'omega-edit-early-exit-')
+      )
+      const port = await findFirstAvailablePort(9200, 9300)
+      expect(port).to.not.equal(null)
+      try {
+        await expect(
+          serverModule.startServer(
+            port as number,
+            '127.0.0.1',
+            withPidFile ? path.join(tempDir, 'server.pid') : undefined,
+            { maxChangeBytes: -1 }
+          )
+        ).rejects.toThrow('exited')
+      } finally {
+        fs.rmSync(tempDir, { recursive: true, force: true })
+      }
+    }
+  )
+
+  it.skipIf(process.platform === 'win32').each([false, true])(
+    'should reject a UDS child that exits before readiness (pid file: %s)',
+    async (withPidFile) => {
+      const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'oe-uds-exit-'))
+      const socketPath = path.join(tempDir, 'server.sock')
+      try {
+        await expect(
+          serverModule.startServerUnixSocket(
+            socketPath,
+            withPidFile ? path.join(tempDir, 'server.pid') : undefined,
+            true,
+            0,
+            '127.0.0.1',
+            { maxChangeBytes: -1 }
+          )
+        ).rejects.toThrow('exited')
+        expect(fs.existsSync(socketPath)).to.equal(false)
+      } finally {
+        fs.rmSync(tempDir, { recursive: true, force: true })
+      }
+    }
+  )
+
+  it.each([new Error('listen denied'), 'listen denied'])(
+    'should preserve unexpected port-probe failures (%s)',
+    async (failure) => {
+      const prototype = (require('net') as typeof import('net')).Server
+        .prototype
+      const restoreListen = overrideProperty(
+        prototype as unknown as Record<string, any>,
+        'listen',
+        function (this: import('net').Server) {
+          if (!(failure instanceof Error)) throw failure
+          queueMicrotask(() =>
+            this.emit('error', Object.assign(failure, { code: 'EACCES' }))
+          )
+          return this
+        }
+      )
+      try {
+        await expect(
+          serverModule.findFirstAvailablePort(9200, 9200)
+        ).rejects.to.equal(failure)
+      } finally {
+        restoreListen()
+      }
+    }
+  )
+
   it('should resolve nested node_modules server bin directories without stripping parent segments', () => {
     const tempDir = fs.mkdtempSync(
       path.join(os.tmpdir(), 'omega-edit-nested-node-modules-')
@@ -583,6 +655,70 @@ describe('Server Edge Cases', () => {
     }
   })
 
+  it.each([0, -1, 1.5, Number.NaN])(
+    'should reject invalid heartbeat interval %s',
+    (intervalMs) => {
+      expect(() =>
+        startServerHeartbeatLoop({ intervalMs, getSessionIds: () => [] })
+      ).to.throw('positive integer')
+    }
+  )
+
+  it.each([undefined, new Error('callback failure'), 'callback failure'])(
+    'should contain heartbeat error-handler failures (%s)',
+    async (callbackFailure) => {
+      let attempts = 0
+      const loop = startServerHeartbeatLoop({
+        immediate: false,
+        getSessionIds: () => {
+          attempts++
+          throw 'session list unavailable'
+        },
+        onError:
+          callbackFailure === undefined
+            ? undefined
+            : async (error) => {
+                expect(error.message).to.equal('session list unavailable')
+                throw callbackFailure
+              },
+      })
+      try {
+        await loop.tick()
+        await loop.tick()
+        expect(attempts).to.equal(2)
+        loop.stop()
+        await loop.tick()
+        expect(attempts).to.equal(2)
+      } finally {
+        loop.stop()
+      }
+    }
+  )
+
+  it('should allow a heartbeat loop without notification callbacks', async () => {
+    let calls = 0
+    const loop = startServerHeartbeatLoop({
+      immediate: false,
+      getSessionIds: () => [],
+      getHeartbeat: async () => {
+        calls++
+        return {
+          latency: 0,
+          sessionCount: 0,
+          serverTimestamp: 1,
+          serverUptime: 1,
+          serverCpuCount: 1,
+        }
+      },
+    })
+    try {
+      await loop.tick()
+      expect(calls).to.equal(1)
+    } finally {
+      loop.stop()
+    }
+  })
+
   it('should run a reusable heartbeat loop immediately without overlapping requests', async () => {
     let concurrentCalls = 0
     let maxConcurrentCalls = 0
@@ -905,6 +1041,26 @@ describe('Server Edge Cases', () => {
     }
   })
 
+  it('should honor disabled SIGKILL fallback when a process remains alive', async () => {
+    const signals: (string | number | undefined)[] = []
+    const restoreKill = overrideProperty(
+      process as unknown as Record<string, any>,
+      'kill',
+      (_pid: number, signal?: string | number) => {
+        signals.push(signal)
+        return true
+      }
+    )
+    try {
+      expect(
+        await serverModule.stopProcessUsingPID(12345, 'SIGTERM', 1, false)
+      ).to.equal(false)
+      expect(signals).to.deep.equal(['SIGTERM', 0])
+    } finally {
+      restoreKill()
+    }
+  })
+
   it('should rethrow pidIsRunning errors other than ESRCH', () => {
     const restoreKill = overrideProperty(
       process as unknown as Record<string, any>,
@@ -920,6 +1076,79 @@ describe('Server Edge Cases', () => {
       expect(() => pidIsRunning(12345)).to.throw('permission denied')
     } finally {
       restoreKill()
+    }
+  })
+
+  it.skipIf(process.platform === 'win32')(
+    'should preserve a regular file at the requested socket path',
+    async () => {
+      const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'oe-socket-file-'))
+      const socketPath = path.join(tempDir, 'server.sock')
+      fs.writeFileSync(socketPath, 'keep me')
+      try {
+        await expect(
+          serverModule.startServerUnixSocket(socketPath)
+        ).rejects.toThrow('not a socket')
+        expect(fs.readFileSync(socketPath, 'utf8')).to.equal('keep me')
+      } finally {
+        fs.rmSync(tempDir, { recursive: true, force: true })
+      }
+    }
+  )
+
+  it.skipIf(process.platform === 'win32')(
+    'should preserve an active socket owned by another server',
+    async () => {
+      const tempDir = fs.mkdtempSync(
+        path.join(os.tmpdir(), 'oe-socket-active-')
+      )
+      const socketPath = path.join(tempDir, 'server.sock')
+      const listener = createServer((socket) => socket.end())
+      await new Promise<void>((resolve, reject) => {
+        listener.once('error', reject)
+        listener.listen(socketPath, resolve)
+      })
+      try {
+        await expect(
+          serverModule.startServerUnixSocket(socketPath)
+        ).rejects.toThrow('already active')
+        expect(listener.listening).to.equal(true)
+        expect(fs.lstatSync(socketPath).isSocket()).to.equal(true)
+      } finally {
+        await new Promise<void>((resolve) => listener.close(() => resolve()))
+        fs.rmSync(tempDir, { recursive: true, force: true })
+      }
+    }
+  )
+
+  it('should suppress in-flight heartbeat errors after stopping', async () => {
+    let rejectHeartbeat!: (error: Error) => void
+    let notifyStarted!: () => void
+    const started = new Promise<void>((resolve) => {
+      notifyStarted = resolve
+    })
+    const errors: Error[] = []
+    const loop = startServerHeartbeatLoop({
+      immediate: false,
+      getSessionIds: () => [],
+      getHeartbeat: () =>
+        new Promise((_, reject) => {
+          rejectHeartbeat = reject
+          notifyStarted()
+        }),
+      onError: (error) => {
+        errors.push(error)
+      },
+    })
+    try {
+      const tick = loop.tick()
+      await started
+      loop.stop()
+      rejectHeartbeat(new Error('request ended after stop'))
+      await tick
+      expect(errors).to.deep.equal([])
+    } finally {
+      loop.stop()
     }
   })
 
