@@ -20,6 +20,7 @@
 import * as fs from 'fs'
 import * as os from 'os'
 import * as path from 'path'
+import { createServer } from 'net'
 import { status as GrpcStatus } from '@grpc/grpc-js'
 import { expect, initExpect } from './common.js'
 import {
@@ -190,7 +191,7 @@ describe('Server Edge Cases', () => {
     }
   })
 
-  it('should reject invalid stale pid files before attempting startup', async () => {
+  it('should reject an occupied port without signaling a pid-file process', async () => {
     delete process.env.OMEGA_EDIT_SERVER_URI
     delete process.env.OMEGA_EDIT_SERVER_SOCKET
     resetClient()
@@ -199,17 +200,28 @@ describe('Server Edge Cases', () => {
     expect(port).to.not.equal(null)
 
     const tempDir = fs.mkdtempSync(
-      path.join(os.tmpdir(), 'omega-edit-invalid-pid-')
+      path.join(os.tmpdir(), 'omega-edit-occupied-port-')
     )
     const pidFile = path.join(tempDir, 'omega-edit.pid')
-    fs.writeFileSync(pidFile, 'garbage')
+    fs.writeFileSync(pidFile, String(process.pid))
+    const listener = createServer()
+    await new Promise<void>((resolve, reject) => {
+      listener.once('error', reject)
+      listener.listen(port as number, '127.0.0.1', resolve)
+    })
 
     try {
       await startServer(port as number, '127.0.0.1', pidFile)
-      expect.fail('startServer should reject invalid pid file contents')
+      expect.fail('startServer should reject an occupied port')
     } catch (err) {
-      expect((err as Error).message).to.equal(`Invalid PID in ${pidFile}`)
+      expect((err as Error).message).to.equal(
+        `port ${port} on host 127.0.0.1 is not currently available`
+      )
+      expect(pidIsRunning(process.pid)).to.be.true
+      expect(fs.readFileSync(pidFile, 'utf8')).to.equal(String(process.pid))
+      expect(listener.listening).to.be.true
     } finally {
+      await new Promise<void>((resolve) => listener.close(() => resolve()))
       fs.rmSync(tempDir, { recursive: true, force: true })
     }
   })
@@ -303,44 +315,53 @@ describe('Server Edge Cases', () => {
     }
   })
 
-  it('should start a UDS-only server after removing a stale socket file', async () => {
+  it('should preserve and reject a non-socket Unix path', async () => {
     if (process.platform === 'win32') {
       return
     }
 
     const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'omega-edit-uds-'))
     const socketPath = path.join(tempDir, 'omega-edit.sock')
-    const pidFile = path.join(tempDir, 'omega-edit.pid')
-    fs.writeFileSync(socketPath, 'stale')
+    fs.writeFileSync(socketPath, 'do not remove')
 
-    let pid: number | undefined
     try {
-      process.env.OMEGA_EDIT_SERVER_SOCKET = socketPath
-      delete process.env.OMEGA_EDIT_SERVER_URI
-
-      resetClient()
-      pid = await startServerUnixSocket(socketPath, pidFile, true)
-      expect(pid).to.be.a('number').greaterThan(0)
-      expect(pidIsRunning(pid as number)).to.be.true
-      expect(fs.existsSync(socketPath)).to.be.true
-      expect(fs.lstatSync(socketPath).isSocket()).to.be.true
-      expect(fs.readFileSync(pidFile, 'utf8').trim()).to.equal(String(pid))
-
-      const serverInfo = await getServerInfo()
-      expect(serverInfo.serverProcessId).to.equal(pid)
-
-      expect((await stopServerImmediate()).status).to.equal('completed')
-      for (let attempt = 0; attempt < 30; attempt += 1) {
-        await delay(100)
-        if (!pidIsRunning(pid as number)) {
-          break
-        }
-      }
-      expect(pidIsRunning(pid as number)).to.be.false
+      await startServerUnixSocket(socketPath)
+      expect.fail('startServerUnixSocket should reject a non-socket path')
+    } catch (err) {
+      expect((err as Error).message).to.equal(
+        `Unix socket path ${socketPath} exists and is not a socket`
+      )
+      expect(fs.readFileSync(socketPath, 'utf8')).to.equal('do not remove')
     } finally {
-      if (pid && pidIsRunning(pid)) {
-        await stopProcessUsingPID(pid, 'SIGKILL')
-      }
+      fs.rmSync(tempDir, { recursive: true, force: true })
+    }
+  })
+
+  it('should reject an active Unix socket without stopping its owner', async () => {
+    if (process.platform === 'win32') {
+      return
+    }
+
+    const tempDir = fs.mkdtempSync(
+      path.join(os.tmpdir(), 'omega-edit-active-uds-')
+    )
+    const socketPath = path.join(tempDir, 'omega-edit.sock')
+    const listener = createServer()
+    await new Promise<void>((resolve, reject) => {
+      listener.once('error', reject)
+      listener.listen(socketPath, resolve)
+    })
+
+    try {
+      await startServerUnixSocket(socketPath)
+      expect.fail('startServerUnixSocket should reject an active socket')
+    } catch (err) {
+      expect((err as Error).message).to.equal(
+        `Unix socket ${socketPath} is already active`
+      )
+      expect(listener.listening).to.be.true
+    } finally {
+      await new Promise<void>((resolve) => listener.close(() => resolve()))
       fs.rmSync(tempDir, { recursive: true, force: true })
     }
   })

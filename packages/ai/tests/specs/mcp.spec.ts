@@ -65,6 +65,45 @@ function makeTransformDataHex(
 }
 
 describe('@omega-edit/ai mcp server', () => {
+  it('rejects primitive and oversized requests without terminating', async () => {
+    const child = spawn(
+      process.execPath,
+      [path.resolve(__dirname, '../../dist/cjs/mcp.js'), '--no-autostart'],
+      { stdio: ['pipe', 'pipe', 'pipe'] }
+    )
+    const responses: Array<Record<string, unknown>> = []
+    const stdoutReader = readline.createInterface({
+      input: child.stdout!,
+      crlfDelay: Infinity,
+    })
+    stdoutReader.on('line', (line) => {
+      responses.push(JSON.parse(line) as Record<string, unknown>)
+    })
+
+    const waitForResponses = async (count: number) => {
+      const deadline = Date.now() + 5000
+      while (responses.length < count && Date.now() < deadline) {
+        await new Promise((resolve) => setTimeout(resolve, 10))
+      }
+      assert.equal(responses.length, count)
+    }
+
+    try {
+      child.stdin!.write('null\n')
+      child.stdin!.write(`${'x'.repeat(1_048_577)}\n`)
+      child.stdin!.write('{"jsonrpc":"2.0","id":1,"method":"ping"}\n')
+      await waitForResponses(3)
+
+      assert.equal((responses[0].error as Record<string, unknown>).code, -32600)
+      assert.equal((responses[1].error as Record<string, unknown>).code, -32700)
+      assert.deepEqual(responses[2].result, {})
+      assert.equal(child.exitCode, null)
+    } finally {
+      stdoutReader.close()
+      child.kill()
+    }
+  })
+
   it('wires MCP cancellation notifications to tool abort signals', () => {
     const source = fs.readFileSync(
       path.resolve(__dirname, '../../src/mcp.ts'),
@@ -84,6 +123,8 @@ describe('@omega-edit/ai mcp server', () => {
       source,
       /tool\.run\(argumentsObject, abortController\.signal\)/
     )
+    assert.match(source, /MAX_CONCURRENT_TOOL_CALLS = 8/)
+    assert.match(source, /activeToolCallCount >= MAX_CONCURRENT_TOOL_CALLS/)
   })
 
   it('serves OmegaEdit operations over MCP stdio', async function () {

@@ -38,6 +38,16 @@
 #include <string>
 #include <vector>
 
+#ifdef OMEGA_BUILD_WINDOWS
+#include <io.h>
+#else
+#include <unistd.h>
+#endif
+#ifdef __linux__
+#include <linux/fs.h>
+#include <sys/ioctl.h>
+#endif
+
 using omega_edit::internal::add_overflows_int64_;
 using omega_edit::internal::apply_builtin_transform_;
 using omega_edit::internal::builtin_transform_id_;
@@ -1400,6 +1410,55 @@ namespace {
         return file_ptr;
     }
 
+    auto reset_file_descriptor_(int fd) -> bool {
+#ifdef OMEGA_BUILD_WINDOWS
+        return 0 == _chsize_s(fd, 0) && 0 <= _lseeki64(fd, 0, SEEK_SET);
+#else
+        return 0 == ftruncate(fd, 0) && 0 <= lseek(fd, 0, SEEK_SET);
+#endif
+    }
+
+    auto copy_file_to_descriptor_(const char *source_path, int destination_fd) -> bool {
+        if (!source_path || !*source_path || destination_fd < 0 || !reset_file_descriptor_(destination_fd)) {
+            return false;
+        }
+#ifdef __linux__
+        const auto source_fd = OPEN(source_path, O_RDONLY, 0);
+        if (source_fd >= 0) {
+            const auto cloned = 0 == ioctl(destination_fd, FICLONE, source_fd);
+            CLOSE(source_fd);
+            if (cloned) { return 0 <= lseek(destination_fd, 0, SEEK_SET); }
+            if (!reset_file_descriptor_(destination_fd)) { return false; }
+        }
+#endif
+        const auto source_size = omega_util_file_size(source_path);
+        if (source_size < 0) { return false; }
+        auto *source_file = FOPEN(source_path, "rb");
+        if (!source_file) { return false; }
+#ifdef OMEGA_BUILD_WINDOWS
+        const auto destination_copy_fd = _dup(destination_fd);
+#else
+        const auto destination_copy_fd = dup(destination_fd);
+#endif
+        auto *destination_file = open_owned_fd_as_file_(destination_copy_fd, "wb");
+        if (!destination_file) {
+            FCLOSE(source_file);
+            return false;
+        }
+        const auto copied = omega_util_write_segment_to_file(source_file, 0, source_size, destination_file);
+        const auto flushed = fflush(destination_file);
+        const auto source_close_result = FCLOSE(source_file);
+        const auto destination_close_result = FCLOSE(destination_file);
+        if (copied != source_size || flushed != 0 || source_close_result != 0 || destination_close_result != 0) {
+            return false;
+        }
+#ifdef OMEGA_BUILD_WINDOWS
+        return 0 <= _lseeki64(destination_fd, 0, SEEK_SET);
+#else
+        return 0 <= lseek(destination_fd, 0, SEEK_SET);
+#endif
+    }
+
     auto create_temp_file_in_checkpoint_dir_(omega_session_t *session_ptr, const char *prefix, char *filename,
                                              size_t filename_size) -> int {
         if (!session_ptr || !prefix || !filename || filename_size == 0) { return -1; }
@@ -2037,20 +2096,21 @@ omega_session_t *omega_edit_create_session(const char *file_path, omega_session_
                       << static_cast<char *>(checkpoint_filename) << "'");
             return nullptr;
         }
-        CLOSE(checkpoint_fd);
-        if (0 != omega_util_file_copy(file_path, static_cast<char *>(checkpoint_filename), mode)) {
+        if (!copy_file_to_descriptor_(file_path, checkpoint_fd)) {
             LOG_ERROR("failed to copy original file '" << file_path << "' to checkpoint file '"
                                                        << static_cast<char *>(checkpoint_filename) << "'");
+            CLOSE(checkpoint_fd);
             omega_util_remove_file(checkpoint_filename);
             return nullptr;
         }
         if (0 != omega_util_get_modification_time(file_path, &original_file_modification_time)) {
             LOG_ERROR("failed to read original file modification time for '" << file_path << "'");
+            CLOSE(checkpoint_fd);
             omega_util_remove_file(checkpoint_filename);
             return nullptr;
         }
         original_file_modification_time_valid = true;
-        file_ptr = FOPEN(checkpoint_filename, "rb");
+        file_ptr = open_owned_fd_as_file_(checkpoint_fd, "rb");
         if (file_ptr == nullptr) {
             omega_util_remove_file(checkpoint_filename);
             return nullptr;

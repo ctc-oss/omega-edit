@@ -1373,6 +1373,8 @@ TEST_CASE("Large sparse file viewports use 64-bit file offsets", "[.][LargeFile]
     }
     REQUIRE(1 == original_markers.size());
     REQUIRE(expected_size == fs::file_size(original_markers.front()));
+    REQUIRE(!fs::is_symlink(original_markers.front()));
+    REQUIRE(fs::is_regular_file(original_markers.front()));
 
     const auto viewport_ptr =
             omega_edit_create_viewport(session_ptr, marker_offset, sizeof(marker) - 1, 0, nullptr, nullptr, NO_EVENTS);

@@ -566,54 +566,6 @@ async function getPidByPortWithNetstat(
 }
 
 /**
- * Get the process id using a Unix socket path
- * @param socketPath Unix socket path to check
- * @returns process id or undefined if the socket is not bound to a process
- */
-async function getPidBySocket(socketPath: string): Promise<number | undefined> {
-  const log = getLogger()
-  try {
-    // Use lsof in PID-only mode to find processes associated with the socket
-    // `-t` outputs only PIDs, one per line
-    const { stdout } = await execFilePromise('lsof', ['-t', '--', socketPath])
-    const pids = stdout
-      .split('\n')
-      .map((line) => line.trim())
-      .filter((line) => line.length > 0)
-      .map((line) => parseInt(line, 10))
-      .filter((pid) => !Number.isNaN(pid))
-
-    const uniquePids = Array.from(new Set(pids))
-
-    if (uniquePids.length === 1) {
-      return uniquePids[0]
-    }
-
-    if (uniquePids.length > 1) {
-      const msg =
-        'Multiple PIDs found for socket; refusing to choose arbitrarily'
-      log.debug({
-        fn: 'getPidBySocket',
-        socketPath,
-        msg,
-        pids: uniquePids,
-      })
-      throw new Error(msg)
-    }
-    return undefined
-  } catch (error) {
-    log.error({
-      fn: 'getPidBySocket',
-      socketPath,
-      err: {
-        msg: error instanceof Error ? error.message : String(error),
-      },
-    })
-    throw error
-  }
-}
-
-/**
  * Stop the service running on a port
  * @param port port
  * @param signal signal to send to the service (default: SIGTERM)
@@ -684,66 +636,32 @@ export async function stopServiceOnPort(
   }
 }
 
-/**
- * Stop the service bound to a Unix socket
- * @param socketPath Unix socket path
- * @param signal signal to send to the service (default: SIGTERM)
- * @returns true if the service was stopped or no service was bound to the socket, false otherwise
- */
-async function stopServiceOnSocket(
-  socketPath: string,
-  signal: string = 'SIGTERM'
-): Promise<boolean> {
-  const log = getLogger()
-  const logMetadata = {
-    fn: 'stopServiceOnSocket',
-    socketPath,
-    signal,
-  }
-  log.debug(logMetadata)
-
+function removeExistingPidFile(pidFilePath: string): void {
   try {
-    const pid = await getPidBySocket(socketPath)
-    if (pid) {
-      log.debug({
-        ...logMetadata,
-        pid,
-        msg: 'Process found bound to socket',
-      })
-      // Attempt to stop the process using the PID
-      const result = await stopProcessUsingPID(pid, signal)
-      log.debug({
-        ...logMetadata,
-        msg: `stopProcessUsingPID result: ${result}`,
-      })
-      return result
-    } else {
-      log.warn({
-        ...logMetadata,
-        stopped: false,
-        msg: 'Unable to determine PID for socket; refusing to treat as stopped',
-      })
-      return false
-    }
+    fs.unlinkSync(pidFilePath)
   } catch (err) {
-    if (err instanceof Error) {
-      log.error({
-        ...logMetadata,
-        stopped: false,
-        err: {
-          msg: err.message,
-          stack: err.stack,
-        },
-      })
-    } else {
-      log.error({
-        ...logMetadata,
-        stopped: false,
-        err: { msg: String(err) },
-      })
+    if ((err as NodeJS.ErrnoException).code !== 'ENOENT') {
+      throw err
     }
-    return false // Return false for any errors that occur
   }
+}
+
+function removeStaleUnixSocket(socketPath: string): void {
+  let stats: fs.Stats
+  try {
+    stats = fs.lstatSync(socketPath)
+  } catch (err) {
+    if ((err as NodeJS.ErrnoException).code === 'ENOENT') {
+      return
+    }
+    throw err
+  }
+
+  if (!stats.isSocket()) {
+    throw new Error(`Unix socket path ${socketPath} exists and is not a socket`)
+  }
+
+  fs.unlinkSync(socketPath)
 }
 
 /**
@@ -769,53 +687,24 @@ export async function startServer(
   const log = getLogger()
   log.debug(logMetadata)
 
-  async function handleExistingPidFile(pidFilePath: string): Promise<void> {
-    if (fs.existsSync(pidFilePath)) {
-      const pidFromFile = readPidFromFile(pidFilePath)
-      log.warn({
-        ...logMetadata,
-        err: {
-          msg: 'pidFile already exists',
-          pid: pidFromFile,
-        },
-      })
-
-      if (!(await stopProcessUsingPID(pidFromFile))) {
-        const errMsg = `server pidFile ${pidFilePath} already exists and server shutdown using PID ${pidFromFile} failed`
-        log.error({
-          ...logMetadata,
-          err: {
-            msg: errMsg,
-            pid: pidFromFile,
-          },
-        })
-        throw new Error(errMsg)
-      }
-
-      fs.unlinkSync(pidFilePath)
-    }
-  }
-
   async function getServerPid(pidFilePath: string): Promise<number> {
     await waitForFileToExist(pidFilePath)
     return readPidFromFile(pidFilePath)
   }
 
-  if (pidFile) {
-    await handleExistingPidFile(pidFile)
+  if (!(await isPortAvailable(port, host))) {
+    const errMsg = `port ${port} on host ${host} is not currently available`
+    log.error({
+      ...logMetadata,
+      err: {
+        msg: errMsg,
+      },
+    })
+    throw new Error(errMsg)
   }
 
-  if (!(await isPortAvailable(port, host))) {
-    if (!(await stopServiceOnPort(port))) {
-      const errMsg = `port ${port} on host ${host} is not currently available`
-      log.error({
-        ...logMetadata,
-        err: {
-          msg: errMsg,
-        },
-      })
-      throw new Error(errMsg)
-    }
+  if (pidFile) {
+    removeExistingPidFile(pidFile)
   }
 
   const { pid } = await runServer(port, host, pidFile, heartbeat)
@@ -925,7 +814,7 @@ export async function startServerUnixSocket(
     }
 
     try {
-      fs.unlinkSync(socketPath)
+      removeStaleUnixSocket(socketPath)
       log.debug({
         ...logMetadata,
         msg: 'Removed unix socket after failed startup',
@@ -961,74 +850,16 @@ export async function startServerUnixSocket(
     fs.mkdirSync(socketDir, { recursive: true })
   }
 
-  // Check if socket exists and if it has an active server bound to it
-  if (fs.existsSync(socketPath)) {
-    const socketActive = await isSocketActive(socketPath)
-    if (socketActive) {
-      // Socket has an active server - attempt to stop it first
-      log.warn({
-        ...logMetadata,
-        msg: 'Active server detected on socket path, attempting to stop it',
-      })
-      if (!(await stopServiceOnSocket(socketPath))) {
-        const errMsg = `Unix socket ${socketPath} has an active server that could not be stopped. This may be due to insufficient permissions, a hung server process, or unavailable system utilities.`
-        log.error({
-          ...logMetadata,
-          err: {
-            msg: errMsg,
-          },
-        })
-        throw new Error(errMsg)
-      }
+  const socketExists = fs.existsSync(socketPath)
+  if (socketExists) {
+    const socketStats = fs.lstatSync(socketPath)
+    if (!socketStats.isSocket()) {
+      throw new Error(
+        `Unix socket path ${socketPath} exists and is not a socket`
+      )
     }
-
-    // Socket is stale or server was stopped - safe to remove
-    try {
-      fs.unlinkSync(socketPath)
-      log.debug({
-        ...logMetadata,
-        msg: 'Removed stale unix socket',
-      })
-    } catch (err) {
-      const unlinkErr = err as NodeJS.ErrnoException
-      log.error({
-        ...logMetadata,
-        err: {
-          msg: 'failed to remove existing unix socket',
-          code: unlinkErr.code,
-          errno: unlinkErr.errno,
-          syscall: unlinkErr.syscall,
-          path: unlinkErr.path,
-        },
-      })
-      throw err
-    }
-  }
-
-  async function handleExistingPidFile(pidFilePath: string): Promise<void> {
-    if (fs.existsSync(pidFilePath)) {
-      const pidFromFile = readPidFromFile(pidFilePath)
-      log.warn({
-        ...logMetadata,
-        err: {
-          msg: 'pidFile already exists',
-          pid: pidFromFile,
-        },
-      })
-
-      if (!(await stopProcessUsingPID(pidFromFile))) {
-        const errMsg = `server pidFile ${pidFilePath} already exists and server shutdown using PID ${pidFromFile} failed`
-        log.error({
-          ...logMetadata,
-          err: {
-            msg: errMsg,
-            pid: pidFromFile,
-          },
-        })
-        throw new Error(errMsg)
-      }
-
-      fs.unlinkSync(pidFilePath)
+    if (await isSocketActive(socketPath)) {
+      throw new Error(`Unix socket ${socketPath} is already active`)
     }
   }
 
@@ -1037,23 +868,22 @@ export async function startServerUnixSocket(
     return readPidFromFile(pidFilePath)
   }
 
-  if (pidFile) {
-    await handleExistingPidFile(pidFile)
+  if (!udsOnly && !(await isPortAvailable(port, host))) {
+    const errMsg = `port ${port} on host ${host} is not currently available`
+    log.error({
+      ...logMetadata,
+      err: {
+        msg: errMsg,
+      },
+    })
+    throw new Error(errMsg)
   }
 
-  if (!udsOnly) {
-    if (!(await isPortAvailable(port, host))) {
-      if (!(await stopServiceOnPort(port))) {
-        const errMsg = `port ${port} on host ${host} is not currently available`
-        log.error({
-          ...logMetadata,
-          err: {
-            msg: errMsg,
-          },
-        })
-        throw new Error(errMsg)
-      }
-    }
+  if (socketExists) {
+    removeStaleUnixSocket(socketPath)
+  }
+  if (pidFile) {
+    removeExistingPidFile(pidFile)
   }
 
   const args: string[] = [`--unix-socket=${socketPath}`]

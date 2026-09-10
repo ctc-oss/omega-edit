@@ -66,7 +66,7 @@ int omega_util_compute_mode(int mode) {
 }
 
 int64_t omega_util_write_segment_to_file(FILE *from_file_ptr, int64_t offset, int64_t byte_count, FILE *to_file_ptr) {
-    if (!from_file_ptr || !to_file_ptr) { return -1; }
+    if (!from_file_ptr || !to_file_ptr || offset < 0 || byte_count < 0) { return -1; }
     if (0 != FSEEK(from_file_ptr, offset, SEEK_SET)) { return -1; }
     int64_t remaining = byte_count;
     omega_byte_t buff[BUFSIZ];
@@ -230,7 +230,7 @@ int omega_util_strnicmp(const char *s1, const char *s2, uint64_t sz) {
 }
 
 char *omega_util_strndup(const char *s, size_t len) {
-    if (!s && len > 0) { return NULL; }
+    if ((!s && len > 0) || len == SIZE_MAX) { return NULL; }
     char *result = (char *) malloc(len + 1);
     if (result != NULL) {
         if (len > 0) { memcpy(result, s, len); }
