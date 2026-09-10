@@ -180,6 +180,19 @@ namespace omega_edit {
 
         class SessionManager;
 
+        struct ResourceMetricsSnapshot {
+            int64_t viewport_count{};
+            int64_t attachment_count{};
+            int64_t active_operation_count{};
+            int64_t active_mutation_count{};
+            int64_t active_transform_count{};
+            int64_t session_subscription_count{};
+            int64_t viewport_subscription_count{};
+            int64_t file_backed_session_count{};
+            int64_t event_queue_dropped_count{};
+            int64_t oldest_session_idle_ms{};
+        };
+
         /// Information about a session managed by the session manager
         struct SessionInfo {
             omega_session_t *session{};
@@ -317,6 +330,7 @@ namespace omega_edit {
             bool publish_transform_progress(const std::string &session_id, int32_t event_kind,
                                             const TransformProgressData &progress);
             int64_t session_count() const;
+            ResourceMetricsSnapshot resource_metrics_snapshot() const;
 
             // Viewport lifecycle
             std::string create_viewport(const std::string &session_id, int64_t offset, int64_t capacity,

@@ -979,6 +979,54 @@ namespace omega_edit {
             return static_cast<int64_t>(sessions_.size());
         }
 
+        ResourceMetricsSnapshot SessionManager::resource_metrics_snapshot() const {
+            ResourceMetricsSnapshot metrics;
+            std::vector<std::shared_ptr<SessionInfo>> sessions;
+            {
+                std::lock_guard<std::mutex> lock(mutex_);
+                sessions.reserve(sessions_.size());
+                const auto now = std::chrono::steady_clock::now();
+                for (const auto &entry : sessions_) {
+                    const auto &info = entry.second;
+                    sessions.push_back(info);
+                    metrics.viewport_count += static_cast<int64_t>(info->viewports.size());
+                    metrics.attachment_count += static_cast<int64_t>(info->attachment_count);
+                    metrics.active_operation_count += static_cast<int64_t>(info->active_operations);
+                    metrics.active_mutation_count += static_cast<int64_t>(info->active_mutations);
+                    metrics.active_transform_count += info->transform_in_progress ? 1 : 0;
+                    metrics.file_backed_session_count += info->canonical_file_path.empty() ? 0 : 1;
+                    const auto idle = std::chrono::duration_cast<std::chrono::milliseconds>(now - info->last_activity);
+                    metrics.oldest_session_idle_ms = std::max(metrics.oldest_session_idle_ms, idle.count());
+                }
+            }
+
+            for (const auto &info : sessions) {
+                {
+                    std::lock_guard<std::mutex> subscription_lock(info->session_subscription_mutex);
+                    metrics.session_subscription_count += static_cast<int64_t>(info->session_subscriptions.size());
+                    for (const auto &subscription : info->session_subscriptions) {
+                        if (subscription.event_queue) {
+                            metrics.event_queue_dropped_count +=
+                                    static_cast<int64_t>(subscription.event_queue->dropped_count());
+                        }
+                    }
+                }
+                for (const auto &viewport_entry : info->viewports) {
+                    const auto &viewport = viewport_entry.second;
+                    std::lock_guard<std::mutex> subscription_lock(viewport->viewport_subscription_mutex);
+                    metrics.viewport_subscription_count +=
+                            static_cast<int64_t>(viewport->viewport_subscriptions.size());
+                    for (const auto &subscription : viewport->viewport_subscriptions) {
+                        if (subscription.event_queue) {
+                            metrics.event_queue_dropped_count +=
+                                    static_cast<int64_t>(subscription.event_queue->dropped_count());
+                        }
+                    }
+                }
+            }
+            return metrics;
+        }
+
         // ── Viewport lifecycle ───────────────────────────────────────────────────────
         std::string SessionManager::create_viewport(const std::string &session_id, int64_t offset, int64_t capacity,
                                                     bool is_floating, const std::string &desired_viewport_id,

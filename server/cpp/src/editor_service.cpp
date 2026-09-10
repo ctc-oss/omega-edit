@@ -3876,6 +3876,18 @@ namespace omega_edit {
                 response->set_peak_resident_memory_bytes(*memory.peak_resident_memory_bytes);
             }
 
+            const auto resources = session_manager_.resource_metrics_snapshot();
+            response->set_viewport_count(resources.viewport_count);
+            response->set_attachment_count(resources.attachment_count);
+            response->set_active_operation_count(resources.active_operation_count);
+            response->set_active_mutation_count(resources.active_mutation_count);
+            response->set_active_transform_count(resources.active_transform_count);
+            response->set_session_subscription_count(resources.session_subscription_count);
+            response->set_viewport_subscription_count(resources.viewport_subscription_count);
+            response->set_file_backed_session_count(resources.file_backed_session_count);
+            response->set_event_queue_dropped_count(resources.event_queue_dropped_count);
+            response->set_oldest_session_idle_ms(resources.oldest_session_idle_ms);
+
             return grpc::Status::OK;
         }
 

@@ -1267,6 +1267,16 @@ export interface IServerHeartbeat {
   serverResidentMemoryBytes?: number // resident memory in bytes
   serverVirtualMemoryBytes?: number // virtual memory in bytes
   serverPeakResidentMemoryBytes?: number // peak resident memory in bytes
+  viewportCount?: number // active viewports
+  attachmentCount?: number // attached session authors
+  activeOperationCount?: number // RPCs holding session access
+  activeMutationCount?: number // admitted mutations
+  activeTransformCount?: number // active transforms
+  sessionSubscriptionCount?: number // session event subscriptions
+  viewportSubscriptionCount?: number // viewport event subscriptions
+  fileBackedSessionCount?: number // file-backed sessions
+  eventQueueDroppedCount?: number // dropped buffered events
+  oldestSessionIdleMs?: number // longest current session idle time
 }
 
 export interface ServerHeartbeatLoopOptions {
@@ -1358,6 +1368,46 @@ export async function getServerHeartbeat(
             serverPeakResidentMemoryBytes: requireOptionalSafeIntegerOutput(
               'server peak resident memory bytes',
               heartbeatResponse.peakResidentMemoryBytes
+            ),
+            viewportCount: requireOptionalSafeIntegerOutput(
+              'server viewport count',
+              heartbeatResponse.viewportCount
+            ),
+            attachmentCount: requireOptionalSafeIntegerOutput(
+              'server attachment count',
+              heartbeatResponse.attachmentCount
+            ),
+            activeOperationCount: requireOptionalSafeIntegerOutput(
+              'server active operation count',
+              heartbeatResponse.activeOperationCount
+            ),
+            activeMutationCount: requireOptionalSafeIntegerOutput(
+              'server active mutation count',
+              heartbeatResponse.activeMutationCount
+            ),
+            activeTransformCount: requireOptionalSafeIntegerOutput(
+              'server active transform count',
+              heartbeatResponse.activeTransformCount
+            ),
+            sessionSubscriptionCount: requireOptionalSafeIntegerOutput(
+              'server session subscription count',
+              heartbeatResponse.sessionSubscriptionCount
+            ),
+            viewportSubscriptionCount: requireOptionalSafeIntegerOutput(
+              'server viewport subscription count',
+              heartbeatResponse.viewportSubscriptionCount
+            ),
+            fileBackedSessionCount: requireOptionalSafeIntegerOutput(
+              'server file-backed session count',
+              heartbeatResponse.fileBackedSessionCount
+            ),
+            eventQueueDroppedCount: requireOptionalSafeIntegerOutput(
+              'server event queue dropped count',
+              heartbeatResponse.eventQueueDroppedCount
+            ),
+            oldestSessionIdleMs: requireOptionalSafeIntegerOutput(
+              'server oldest session idle milliseconds',
+              heartbeatResponse.oldestSessionIdleMs
             ),
           })
         } catch (safeIntegerError) {
