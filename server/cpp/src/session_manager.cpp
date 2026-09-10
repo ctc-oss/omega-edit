@@ -506,7 +506,9 @@ namespace omega_edit {
         std::string SessionManager::create_session(const std::string &file_path, const std::string &desired_id,
                                                    const std::string &checkpoint_directory,
                                                    const std::string *initial_data, int64_t &file_size_out,
-                                                   std::string &checkpoint_dir_out, SessionCreateError *error_out) {
+                                                   std::string &checkpoint_dir_out, SessionCreateError *error_out,
+                                                   std::shared_ptr<AllowedPathLease> source_lease,
+                                                   std::shared_ptr<AllowedPathLease> checkpoint_lease) {
             if (error_out) { *error_out = SessionCreateError::SUCCESS; }
 
             if (!file_path.empty() && !is_valid_external_path(file_path)) {
@@ -520,7 +522,9 @@ namespace omega_edit {
 
             const bool has_file_backing = !file_path.empty() && initial_data == nullptr;
             std::string canonical_file_path;
-            if (has_file_backing && !normalize_existing_file_path(file_path, canonical_file_path)) {
+            if (source_lease) {
+                canonical_file_path = source_lease->display_path();
+            } else if (has_file_backing && !normalize_existing_file_path(file_path, canonical_file_path)) {
                 if (error_out) { *error_out = SessionCreateError::CORE_ERROR; }
                 return "";
             }
@@ -563,6 +567,8 @@ namespace omega_edit {
                 }
 
                 info->checkpoint_directory = effective_checkpoint_directory;
+                info->source_lease = source_lease;
+                info->checkpoint_lease = checkpoint_lease;
                 sessions_[session_id] = info;
                 if (share_existing_file_session) { file_sessions_by_path_[canonical_file_path] = session_id; }
                 reserved_new_session = true;
@@ -637,8 +643,11 @@ namespace omega_edit {
                 if (!reserve_new_session_locked()) { return ""; }
             }
 
-            const char *chkpt_dir =
-                    effective_checkpoint_directory.empty() ? nullptr : effective_checkpoint_directory.c_str();
+            const auto checkpoint_core_path = checkpoint_lease ? checkpoint_lease->core_path() : std::string{};
+            const char *chkpt_dir = checkpoint_lease ? checkpoint_core_path.c_str()
+                                                     : (effective_checkpoint_directory.empty()
+                                                                ? nullptr
+                                                                : effective_checkpoint_directory.c_str());
 
             omega_session_t *session = nullptr;
             if (initial_data != nullptr) {
@@ -646,8 +655,15 @@ namespace omega_edit {
                         reinterpret_cast<const omega_byte_t *>(initial_data->data()),
                         static_cast<int64_t>(initial_data->size()), session_event_callback, info.get(), 0, chkpt_dir);
             } else {
-                const char *path = canonical_file_path.empty() ? nullptr : canonical_file_path.c_str();
+                const auto source_core_path = source_lease ? source_lease->core_path() : canonical_file_path;
+                const char *path = source_core_path.empty() ? nullptr : source_core_path.c_str();
                 session = omega_edit_create_session(path, session_event_callback, info.get(), 0, chkpt_dir);
+            }
+
+            if (session && source_lease &&
+                omega_edit_set_session_file_path(session, source_lease->target_path().c_str()) != 0) {
+                omega_edit_destroy_session(session);
+                session = nullptr;
             }
 
             if (!session) {
@@ -687,7 +703,7 @@ namespace omega_edit {
             }
 
             const char *chkpt = omega_session_get_checkpoint_directory(session);
-            checkpoint_dir_out = chkpt ? chkpt : "";
+            checkpoint_dir_out = checkpoint_lease ? checkpoint_lease->display_path() : (chkpt ? chkpt : "");
             bool publish_failed = false;
             {
                 std::lock_guard<std::mutex> lock(mutex_);

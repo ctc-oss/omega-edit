@@ -50,6 +50,7 @@ int main() {
     check(policy.configure(root.string(), error), "allowed root should configure");
 
     std::string resolved;
+    std::shared_ptr<omega_edit::grpc_server::AllowedPathLease> lease;
     error.clear();
     check(policy.resolve_existing_file((root / "inside.dat").string(), resolved, error) == AllowedPathResult::OK,
           "file inside root should resolve");
@@ -62,11 +63,31 @@ int main() {
                   AllowedPathResult::OK,
           "new output inside root should resolve");
     error.clear();
+    check(policy.lease_output_file((root / "nested" / "leased.dat").string(), lease, error) == AllowedPathResult::OK,
+          "output lease should succeed");
+    const auto original_nested = root / "nested-original";
+    fs::rename(root / "nested", original_nested);
+    fs::create_directory_symlink(outside, root / "nested");
+    std::ofstream(lease->core_path()) << "leased";
+    check(fs::exists(original_nested / "leased.dat"), "leased output should remain in original directory");
+    check(!fs::exists(outside / "leased.dat"), "leased output must not escape through replacement symlink");
+    fs::remove(root / "nested");
+    fs::rename(original_nested, root / "nested");
+    error.clear();
     check(policy.resolve_output_file((root / "nested" / ".." / "result.dat").string(), resolved, error) ==
                   AllowedPathResult::INVALID_PATH,
           "parent traversal should be rejected");
 
 #ifndef _WIN32
+    check(policy.lease_existing_file((root / "inside.dat").string(), lease, error) == AllowedPathResult::OK,
+          "input lease should succeed");
+    fs::rename(root / "inside.dat", root / "inside-original.dat");
+    fs::create_symlink(outside / "outside.dat", root / "inside.dat");
+    std::ifstream leased_input(lease->core_path());
+    std::string leased_contents;
+    leased_input >> leased_contents;
+    check(leased_contents == "inside", "leased input should retain the originally opened file");
+
     fs::create_symlink(outside / "outside.dat", root / "escape.dat");
     error.clear();
     check(policy.resolve_existing_file((root / "escape.dat").string(), resolved, error) ==

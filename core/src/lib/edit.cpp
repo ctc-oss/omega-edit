@@ -226,6 +226,14 @@ namespace {
 
     auto resolve_checkpoint_directory_(const char *file_path, const char *checkpoint_directory,
                                        std::string &checkpoint_directory_str) -> bool {
+#ifdef __linux__
+        if (checkpoint_directory != nullptr && strncmp(checkpoint_directory, "/proc/self/fd/", 14) == 0) {
+            try {
+                checkpoint_directory_str.assign(checkpoint_directory);
+                return true;
+            } catch (const std::bad_alloc &) { return false; }
+        }
+#endif
         if (checkpoint_directory == nullptr) {
             if ((file_path != nullptr) && file_path[0] != '\0') {
                 auto *const dirname = omega_util_dirname(file_path, nullptr);
@@ -2073,6 +2081,14 @@ namespace {
 int omega_edit_serial_result_is_success(int64_t result) { return result > 0 ? 1 : 0; }
 
 int omega_edit_status_result_is_success(int result) { return result == 0 ? 1 : 0; }
+
+int omega_edit_set_session_file_path(omega_session_t *session_ptr, const char *file_path) {
+    if (!session_ptr || session_ptr->models_.empty() || !file_path || !*file_path) { return -1; }
+    try {
+        session_ptr->models_.front()->file_path.assign(file_path);
+        return 0;
+    } catch (const std::bad_alloc &) { return -1; }
+}
 
 omega_session_t *omega_edit_create_session(const char *file_path, omega_session_event_cbk_t cbk, void *user_data_ptr,
                                            int32_t event_interest, const char *checkpoint_directory) {

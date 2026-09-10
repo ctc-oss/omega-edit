@@ -15,6 +15,8 @@
 #ifndef OMEGA_EDIT_SESSION_MANAGER_H
 #define OMEGA_EDIT_SESSION_MANAGER_H
 
+#include "allowed_path_policy.h"
+
 #include <omega_edit.h>
 #include <omega_edit/character_counts.h>
 
@@ -186,6 +188,8 @@ namespace omega_edit {
             std::string canonical_file_path;
             std::string checkpoint_directory;
             bool owns_checkpoint_directory{false};
+            std::shared_ptr<AllowedPathLease> source_lease;
+            std::shared_ptr<AllowedPathLease> checkpoint_lease;
             // Shared sessions begin life with one attached author and are only reaped
             // after the last attachment detaches.
             size_t attachment_count{0};
@@ -300,7 +304,9 @@ namespace omega_edit {
             std::string create_session(const std::string &file_path, const std::string &desired_id,
                                        const std::string &checkpoint_directory, const std::string *initial_data,
                                        int64_t &file_size_out, std::string &checkpoint_dir_out,
-                                       SessionCreateError *error_out = nullptr);
+                                       SessionCreateError *error_out = nullptr,
+                                       std::shared_ptr<AllowedPathLease> source_lease = {},
+                                       std::shared_ptr<AllowedPathLease> checkpoint_lease = {});
             bool destroy_session(const std::string &session_id);
             bool detach_session(const std::string &session_id);
             omega_session_t *get_session(const std::string &session_id);
