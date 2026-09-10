@@ -329,9 +329,12 @@ void omega_util_count_characters(const unsigned char *data, size_t length, omega
     assert(data);
     assert(counts_ptr);
 
-    // Skip the BOM if present (the BOM is metadata, not part of the text)
+    // Skip the BOM only at the beginning of the counted stream.
     const size_t bomSize = omega_util_BOM_size(counts_ptr->bom);
-    switch (counts_ptr->bom) {
+    const int at_stream_start = counts_ptr->bomBytes == 0 && counts_ptr->singleByteChars == 0 &&
+                                counts_ptr->doubleByteChars == 0 && counts_ptr->tripleByteChars == 0 &&
+                                counts_ptr->quadByteChars == 0 && counts_ptr->invalidBytes == 0;
+    switch (at_stream_start ? counts_ptr->bom : BOM_NONE) {
         case BOM_UTF8:
             if (length >= 3 && data[0] == 0xEF && data[1] == 0xBB && data[2] == 0xBF) {
                 data += bomSize;

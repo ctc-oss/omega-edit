@@ -1506,11 +1506,10 @@ namespace omega_edit {
                 }
                 if (reaper_stop_) break;
 
-                auto idle_ids = session_manager_.get_idle_session_ids(heartbeat_config_.session_timeout);
-                for (const auto &sid : idle_ids) { session_manager_.destroy_session(sid); }
+                const auto reaped_count = session_manager_.reap_idle_sessions(heartbeat_config_.session_timeout);
 
                 if (heartbeat_config_.shutdown_when_no_sessions && session_manager_.session_count() == 0 &&
-                    !idle_ids.empty()) {
+                    reaped_count > 0) {
                     // We just reaped sessions and now there are none left
                     request_shutdown();
                     break;

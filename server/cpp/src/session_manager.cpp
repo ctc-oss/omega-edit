@@ -75,9 +75,9 @@ namespace omega_edit {
             bool is_control_or_nul_byte(unsigned char ch) { return ch == '\0' || ch < 0x20U || ch == 0x7FU; }
 
             bool is_valid_external_path(const std::string &path) {
-                return path.size() < FILENAME_MAX && std::none_of(path.begin(), path.end(), [](unsigned char ch) {
-                           return is_control_or_nul_byte(ch);
-                       });
+                return path.size() < FILENAME_MAX &&
+                       std::none_of(
+                               path.begin(), path.end(), [](unsigned char ch) { return is_control_or_nul_byte(ch); });
             }
 
             int get_current_process_id() {
@@ -807,6 +807,33 @@ namespace omega_edit {
             return (it != sessions_.end()) ? it->second->session : nullptr;
         }
 
+        LockedSession::LockedSession(LockedSession &&other) noexcept
+            : info(std::move(other.info)), lock(std::move(other.lock)), manager(other.manager),
+              session_id(std::move(other.session_id)) {
+            other.manager = nullptr;
+        }
+
+        auto LockedSession::operator=(LockedSession &&other) noexcept -> LockedSession & {
+            if (this != &other) {
+                release();
+                info = std::move(other.info);
+                lock = std::move(other.lock);
+                manager = other.manager;
+                session_id = std::move(other.session_id);
+                other.manager = nullptr;
+            }
+            return *this;
+        }
+
+        LockedSession::~LockedSession() { release(); }
+
+        void LockedSession::release() {
+            if (!manager) { return; }
+            if (lock.owns_lock()) { lock.unlock(); }
+            manager->finish_locked_session(session_id, info);
+            manager = nullptr;
+        }
+
         LockedSession SessionManager::lock_session(const std::string &session_id) {
             std::shared_ptr<SessionInfo> info;
             {
@@ -814,12 +841,30 @@ namespace omega_edit {
                 auto it = sessions_.find(session_id);
                 if (it == sessions_.end()) { return {}; }
                 info = it->second;
+                ++info->active_operations;
                 info->last_activity = std::chrono::steady_clock::now();
             }
 
             std::unique_lock<std::mutex> core_lock(info->core_mutex);
-            if (info->session == nullptr) { return {}; }
-            return LockedSession{std::move(info), std::move(core_lock)};
+            if (info->session == nullptr) {
+                finish_locked_session(session_id, info);
+                return {};
+            }
+            LockedSession result;
+            result.info = std::move(info);
+            result.lock = std::move(core_lock);
+            result.manager = this;
+            result.session_id = session_id;
+            return result;
+        }
+
+        void SessionManager::finish_locked_session(const std::string &session_id,
+                                                   const std::shared_ptr<SessionInfo> &info) {
+            std::lock_guard<std::mutex> lock(mutex_);
+            auto it = sessions_.find(session_id);
+            if (it == sessions_.end() || it->second != info) { return; }
+            if (info->active_operations > 0) { --info->active_operations; }
+            info->last_activity = std::chrono::steady_clock::now();
         }
 
         SessionOperationGuard SessionManager::try_begin_mutation(const std::string &session_id) {
@@ -1307,15 +1352,32 @@ namespace omega_edit {
             if (it != sessions_.end()) { it->second->last_activity = std::chrono::steady_clock::now(); }
         }
 
-        std::vector<std::string> SessionManager::get_idle_session_ids(std::chrono::milliseconds timeout) const {
-            std::lock_guard<std::mutex> lock(mutex_);
-            auto now = std::chrono::steady_clock::now();
-            std::vector<std::string> idle;
-            for (const auto &pair : sessions_) {
-                auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(now - pair.second->last_activity);
-                if (elapsed >= timeout) { idle.push_back(pair.first); }
+        size_t SessionManager::reap_idle_sessions(std::chrono::milliseconds timeout) {
+            std::vector<std::shared_ptr<SessionInfo>> reaped;
+            {
+                std::lock_guard<std::mutex> lock(mutex_);
+                const auto now = std::chrono::steady_clock::now();
+                for (auto it = sessions_.begin(); it != sessions_.end();) {
+                    const auto &info = it->second;
+                    const auto elapsed =
+                            std::chrono::duration_cast<std::chrono::milliseconds>(now - info->last_activity);
+                    if (info->initialization_complete && info->active_operations == 0 && info->active_mutations == 0 &&
+                        !info->transform_in_progress && elapsed >= timeout) {
+                        if (!info->canonical_file_path.empty()) {
+                            auto mapped = file_sessions_by_path_.find(info->canonical_file_path);
+                            if (mapped != file_sessions_by_path_.end() && mapped->second == it->first) {
+                                file_sessions_by_path_.erase(mapped);
+                            }
+                        }
+                        reaped.push_back(info);
+                        it = sessions_.erase(it);
+                    } else {
+                        ++it;
+                    }
+                }
             }
-            return idle;
+            for (const auto &info : reaped) { destroy_session_info(info); }
+            return reaped.size();
         }
 
     }// namespace grpc_server

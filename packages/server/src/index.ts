@@ -516,22 +516,23 @@ async function executeServer(
     fs.chmodSync(serverBinary, 0o755)
   }
 
-  const serverProcess: ChildProcess = spawn(serverBinary, serverArgs, {
-    cwd: path.dirname(serverBinary),
-    detached: true,
-    shell: false,
-    stdio: ['ignore', 'ignore', 'ignore'],
-    windowsHide: true, // avoid showing a console window
+  return await new Promise<ChildProcess>((resolve, reject) => {
+    const serverProcess: ChildProcess = spawn(serverBinary, serverArgs, {
+      cwd: path.dirname(serverBinary),
+      detached: true,
+      shell: false,
+      stdio: ['ignore', 'ignore', 'ignore'],
+      windowsHide: true,
+    })
+
+    const onError = (error: Error) => reject(error)
+    serverProcess.once('error', onError)
+    serverProcess.once('spawn', () => {
+      serverProcess.off('error', onError)
+      serverProcess.unref()
+      resolve(serverProcess)
+    })
   })
-
-  serverProcess.on('error', (err: Error) => {
-    // ignore the error if the process was cancelled
-    if (!err.message.includes('Call cancelled')) throw err
-  })
-
-  serverProcess.unref()
-
-  return serverProcess
 }
 
 /**

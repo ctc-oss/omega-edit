@@ -176,6 +176,8 @@ namespace omega_edit {
             std::vector<ViewportEventSubscriptionInfo> viewport_subscriptions;
         };
 
+        class SessionManager;
+
         /// Information about a session managed by the session manager
         struct SessionInfo {
             omega_session_t *session{};
@@ -191,6 +193,7 @@ namespace omega_edit {
             bool transform_in_progress{false};
             std::shared_ptr<std::atomic_bool> transform_cancel_requested{std::make_shared<std::atomic_bool>(false)};
             size_t active_mutations{0};
+            size_t active_operations{0};
             // Serializes all access to the underlying non-thread-safe omega_session_t and its viewports.
             std::mutex core_mutex;
             std::mutex initialization_mutex;
@@ -203,9 +206,21 @@ namespace omega_edit {
         struct LockedSession {
             std::shared_ptr<SessionInfo> info;
             std::unique_lock<std::mutex> lock;
+            SessionManager *manager{};
+            std::string session_id;
+
+            LockedSession() = default;
+            LockedSession(const LockedSession &) = delete;
+            auto operator=(const LockedSession &) -> LockedSession & = delete;
+            LockedSession(LockedSession &&other) noexcept;
+            auto operator=(LockedSession &&other) noexcept -> LockedSession &;
+            ~LockedSession();
 
             omega_session_t *session() const { return info ? info->session : nullptr; }
             explicit operator bool() const { return session() != nullptr; }
+
+        private:
+            void release();
         };
 
         struct LockedViewport {
@@ -248,8 +263,6 @@ namespace omega_edit {
             MUTATION,
             TRANSFORM,
         };
-
-        class SessionManager;
 
         class SessionOperationGuard {
         public:
@@ -330,12 +343,13 @@ namespace omega_edit {
                     if (it != sessions_.end()) { it->second->last_activity = now; }
                 }
             }
-            std::vector<std::string> get_idle_session_ids(std::chrono::milliseconds timeout) const;
+            size_t reap_idle_sessions(std::chrono::milliseconds timeout);
 
             // Destroy all sessions (for shutdown)
             void destroy_all();
 
         private:
+            friend class LockedSession;
             friend class SessionOperationGuard;
 
             static std::string generate_uuid_v4();
@@ -354,6 +368,7 @@ namespace omega_edit {
             void destroy_session_info(const std::shared_ptr<SessionInfo> &info);
             bool destroy_session_locked(std::unique_lock<std::mutex> &lock,
                                         const std::map<std::string, std::shared_ptr<SessionInfo>>::iterator &it);
+            void finish_locked_session(const std::string &session_id, const std::shared_ptr<SessionInfo> &info);
             void finish_operation(const std::string &session_id, SessionOperationKind kind);
 
             // Callbacks

@@ -103,17 +103,17 @@ namespace {
     constexpr int OMEGA_OUTPUT_PATH_SUFFIX_ATTEMPTS = 1000000;
     constexpr int64_t OMEGA_REPLACE_MATCH_SCRIPT_OPS_PER_MATCH = 1;
     constexpr int64_t OMEGA_REPLACE_MATCH_SCRIPT_MATCH_LIMIT =
-            (std::min)(static_cast<int64_t>(OMEGA_REPLACE_MATCHES_LIMIT),
-                       static_cast<int64_t>(OMEGA_MEMORY_BUFFER_LIMIT /
-                                            (sizeof(int64_t) + (sizeof(omega_edit_script_op_t) *
-                                                                OMEGA_REPLACE_MATCH_SCRIPT_OPS_PER_MATCH))));
+            (std::min) (static_cast<int64_t>(OMEGA_REPLACE_MATCHES_LIMIT),
+                        static_cast<int64_t>(OMEGA_MEMORY_BUFFER_LIMIT /
+                                             (sizeof(int64_t) + (sizeof(omega_edit_script_op_t) *
+                                                                 OMEGA_REPLACE_MATCH_SCRIPT_OPS_PER_MATCH))));
 
     auto initialize_model_segments_(omega_model_segments_t &model_segments, int64_t length) -> bool;
     auto create_checkpoint_file_for_write_(omega_session_t *session_ptr, char *checkpoint_filename,
                                            size_t checkpoint_filename_size) -> FILE *;
     auto promote_checkpoint_file_(omega_session_t *session_ptr, const char *checkpoint_filename, int64_t file_size,
-                                  bool notify_transform,
-                                  const const_omega_change_ptr_t &transform_change_ptr) -> int64_t;
+                                  bool notify_transform, const const_omega_change_ptr_t &transform_change_ptr)
+            -> int64_t;
     auto initialize_session_stream_cursor_(const omega_session_t *session_ptr, int64_t offset,
                                            session_stream_cursor_t &cursor) -> bool;
     auto stream_session_range_(session_stream_cursor_t &cursor, int64_t end_offset, FILE *to_file_ptr,
@@ -323,8 +323,8 @@ namespace {
         }
     }
 
-    auto reserve_output_path_(const char *requested_path, int mode, char *reserved_path,
-                              size_t reserved_path_size) -> FILE * {
+    auto reserve_output_path_(const char *requested_path, int mode, char *reserved_path, size_t reserved_path_size)
+            -> FILE * {
         if (!requested_path || !*requested_path || !reserved_path || reserved_path_size == 0) {
             errno = EINVAL;
             return nullptr;
@@ -391,12 +391,12 @@ namespace {
 
     auto original_file_modified_since_last_sync_(omega_session_t *session_ptr, const char *file_path) -> bool {
         if (!session_ptr || !file_path || !*file_path || !session_ptr->original_file_modification_time_valid_) {
-            return false;
+            return true;
         }
 
         int64_t modification_time = 0;
-        if (0 != omega_util_get_modification_time(file_path, &modification_time)) { return false; }
-        return modification_time > session_ptr->original_file_modification_time_;
+        if (0 != omega_util_get_modification_time(file_path, &modification_time)) { return true; }
+        return modification_time != session_ptr->original_file_modification_time_;
     }
 
     auto refresh_original_file_modification_time_(omega_session_t *session_ptr, const char *file_path) -> int {
@@ -599,8 +599,8 @@ namespace {
     }
 
     auto compute_single_replace_match_stats_(const omega_byte_t *pattern, int64_t pattern_length,
-                                             const omega_byte_t *replacement,
-                                             int64_t replacement_length) -> replace_match_stats_t {
+                                             const omega_byte_t *replacement, int64_t replacement_length)
+            -> replace_match_stats_t {
         replace_match_stats_t stats;
         std::vector<omega_edit_script_op_t> sample_ops;
         sample_ops.reserve(1);
@@ -639,8 +639,8 @@ namespace {
 
     auto count_non_overlapping_matches_(omega_session_t *session_ptr, const omega_byte_t *pattern,
                                         int64_t pattern_length, int64_t offset, int64_t length,
-                                        omega_search_case_folding_t case_folding, int is_reverse,
-                                        int64_t &match_count) -> int {
+                                        omega_search_case_folding_t case_folding, int is_reverse, int64_t &match_count)
+            -> int {
         match_count = 0;
         scoped_search_context_t search_context(omega_search_create_context_bytes(
                 session_ptr, pattern, pattern_length, offset, length, case_folding, is_reverse));
@@ -676,8 +676,8 @@ namespace {
         return stream_session_range_(cursor, end_offset, to_file_ptr, io_buf) == (end_offset - start_offset);
     }
 
-    auto write_bytes_to_file_at_(FILE *to_file_ptr, int64_t output_offset, const omega_byte_t *bytes,
-                                 int64_t length) -> bool {
+    auto write_bytes_to_file_at_(FILE *to_file_ptr, int64_t output_offset, const omega_byte_t *bytes, int64_t length)
+            -> bool {
         if (!to_file_ptr || output_offset < 0 || length < 0 || (!bytes && length > 0)) { return false; }
         if (length == 0) { return true; }
         if (0 != FSEEK(to_file_ptr, output_offset, SEEK_SET)) { return false; }
@@ -687,8 +687,8 @@ namespace {
     auto replace_all_bytes_reverse_checkpointed_(omega_session_t *session_ptr, const omega_byte_t *pattern,
                                                  int64_t pattern_length, const omega_byte_t *replacement,
                                                  int64_t replacement_length, omega_search_case_folding_t case_folding,
-                                                 int64_t offset, int64_t length,
-                                                 int64_t *replacement_count_out) -> int {
+                                                 int64_t offset, int64_t length, int64_t *replacement_count_out)
+            -> int {
         if (replacement_count_out != nullptr) { *replacement_count_out = 0; }
         if (!session_ptr || !pattern || pattern_length <= 0 || offset < 0 || length < 0 || replacement_length < 0) {
             return -1;
@@ -1503,8 +1503,8 @@ namespace {
     }
 
     auto promote_checkpoint_file_(omega_session_t *session_ptr, const char *checkpoint_filename, int64_t file_size,
-                                  bool notify_transform,
-                                  const const_omega_change_ptr_t &transform_change_ptr = nullptr) -> int64_t {
+                                  bool notify_transform, const const_omega_change_ptr_t &transform_change_ptr = nullptr)
+            -> int64_t {
         if (!session_ptr || !checkpoint_filename) { return -1; }
         if (file_size < 0) {
             omega_util_remove_file(checkpoint_filename);
@@ -1687,7 +1687,7 @@ namespace {
         if (!session_ptr || offset < 0 || length < 0) { return false; }
         if (length == 0) { return true; }
         const auto inline_payload_limit =
-                (std::min)(session_ptr->change_inline_payload_limit_, static_cast<int64_t>(OMEGA_MEMORY_BUFFER_LIMIT));
+                (std::min) (session_ptr->change_inline_payload_limit_, static_cast<int64_t>(OMEGA_MEMORY_BUFFER_LIMIT));
         if (length <= inline_payload_limit) {
             omega_byte_t *bytes = nullptr;
             int64_t byte_count = 0;
@@ -1737,8 +1737,8 @@ namespace {
 
     auto replace_bytes_checkpointed_(omega_session_t *session_ptr, int64_t offset, int64_t delete_length,
                                      const omega_byte_t *bytes, int64_t insert_length,
-                                     const char *transform_id = nullptr,
-                                     const char *options_json = nullptr) -> int64_t {
+                                     const char *transform_id = nullptr, const char *options_json = nullptr)
+            -> int64_t {
         if (!session_ptr || !valid_nonnegative_range_(offset, delete_length) || insert_length < 0) { return -1; }
         if (!bytes && insert_length > 0) { return -1; }
         if (omega_session_changes_paused(session_ptr) != 0) { return -1; }
@@ -2400,7 +2400,7 @@ int omega_edit_replace_matches_bytes(omega_session_t *session_ptr, const omega_b
     try {
         if (OMEGA_REPLACE_MATCH_SCRIPT_MATCH_LIMIT <= 0) { return -1; }
 
-        const auto collect_limit = (limit > 0) ? (std::min)(limit, OMEGA_REPLACE_MATCH_SCRIPT_MATCH_LIMIT)
+        const auto collect_limit = (limit > 0) ? (std::min) (limit, OMEGA_REPLACE_MATCH_SCRIPT_MATCH_LIMIT)
                                                : OMEGA_REPLACE_MATCH_SCRIPT_MATCH_LIMIT;
         std::vector<int64_t> match_offsets;
         int64_t last_accepted_offset = -1;
@@ -2828,9 +2828,10 @@ int omega_edit_save_segment_with_options(omega_session_t *session_ptr, const cha
         io_buf = std::make_unique<omega_byte_t[]>(OMEGA_IO_BUFFER_SIZE);
     } catch (const std::bad_alloc &) { return -6; }
 
-    const auto overwrite_original =
-            (overwrite && (session_file_path != nullptr) && (omega_util_file_exists(file_path) != 0) &&
-             (omega_util_paths_equivalent(file_path, session_file_path) != 0));
+    const auto overwrite_original = overwrite && session_file_path != nullptr &&
+                                    ((omega_util_file_exists(file_path) != 0 &&
+                                      omega_util_paths_equivalent(file_path, session_file_path) != 0) ||
+                                     strcmp(file_path, session_file_path) == 0);
 
     const auto has_overwrite_guard = options_ptr != nullptr && options_ptr->overwrite_guard != nullptr;
     if (overwrite_original && (force_overwrite == 0) && !has_overwrite_guard &&
@@ -2981,12 +2982,16 @@ int omega_edit_save_segment_with_options(omega_session_t *session_ptr, const cha
         return -9;
     }
     if (overwrite) {
-        if (overwrite_original && (force_overwrite == 0) &&
-            original_file_modified_since_last_sync_(session_ptr, session_file_path) &&
-            (!has_overwrite_guard ||
-             options_ptr->overwrite_guard(file_path, options_ptr->overwrite_guard_user_data) != 0)) {
-            omega_util_remove_file(temp_filename);
-            return ORIGINAL_MODIFIED;
+        if (overwrite_original && (force_overwrite == 0)) {
+            const auto guard_denied =
+                    has_overwrite_guard &&
+                    options_ptr->overwrite_guard(file_path, options_ptr->overwrite_guard_user_data) != 0;
+            const auto legacy_conflict =
+                    !has_overwrite_guard && original_file_modified_since_last_sync_(session_ptr, session_file_path);
+            if (guard_denied || legacy_conflict) {
+                omega_util_remove_file(temp_filename);
+                return ORIGINAL_MODIFIED;
+            }
         }
         if (!atomic_replace_file_(temp_filename, file_path)) {
             LOG_ERRNO();

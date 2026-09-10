@@ -18,7 +18,7 @@
  */
 
 import { getLogger } from './logger'
-import { getClient } from './client'
+import { getClient, resetClient } from './client'
 import { status as GrpcStatus } from '@grpc/grpc-js'
 import * as fs from 'fs'
 import * as path from 'path'
@@ -149,6 +149,59 @@ export async function waitForFileToExist(
     }
 
     check()
+  })
+}
+
+async function waitForPortWhileProcessRuns(
+  host: string,
+  port: number,
+  childProcess: ChildProcess,
+  timeout: number
+): Promise<void> {
+  await new Promise<void>((resolve, reject) => {
+    let settled = false
+    const finish = (callback: () => void) => {
+      if (settled) return
+      settled = true
+      clearTimeout(timer)
+      childProcess.off('exit', onExit)
+      childProcess.off('error', onError)
+      callback()
+    }
+    const onExit = (code: number | null, signal: NodeJS.Signals | null) =>
+      finish(() =>
+        reject(
+          new Error(
+            `Server process exited before port ${host}:${port} was ready (code ${code ?? 'unknown'}${signal ? `, signal ${signal}` : ''})`
+          )
+        )
+      )
+    const onError = (error: Error) => finish(() => reject(error))
+    const timer = setTimeout(
+      () =>
+        finish(() =>
+          reject(
+            new Error(
+              `Server port ${host}:${port} was not ready after ${timeout} milliseconds`
+            )
+          )
+        ),
+      timeout
+    )
+
+    childProcess.once('exit', onExit)
+    childProcess.once('error', onError)
+    waitPort({ host, port, output: 'silent', timeout })
+      .then((ready) => {
+        if (!ready) {
+          finish(() =>
+            reject(new Error(`Server port ${host}:${port} was not ready`))
+          )
+          return
+        }
+        finish(resolve)
+      })
+      .catch((error) => finish(() => reject(error)))
   })
 }
 
@@ -707,55 +760,50 @@ export async function startServer(
     removeExistingPidFile(pidFile)
   }
 
-  const { pid } = await runServer(port, host, pidFile, heartbeat)
+  const serverProcess = await runServer(port, host, pidFile, heartbeat)
+  const { pid } = serverProcess
+  const startupTimeout = Number(
+    process.env.OMEGA_EDIT_SERVER_STARTUP_TIMEOUT_MS || '20000'
+  )
 
-  log.debug({
-    ...logMetadata,
-    state: 'waiting',
-  })
-  await waitPort({
-    host: host,
-    port: port,
-    output: 'silent',
-  })
-  log.debug({
-    ...logMetadata,
-    state: 'online',
-  })
-
-  if (pidFile) {
-    const pidFromFile = await getServerPid(pidFile)
-
-    if (pidFromFile !== pid) {
-      const errMsg = `Error pid from pidFile(${pidFromFile}) and pid(${pid}) from server script do not match`
-      log.error({
-        ...logMetadata,
-        err: {
-          msg: errMsg,
-          pid: pid,
-          pidFromFile: pidFromFile,
-        },
-      })
-      throw new Error(errMsg)
+  try {
+    if (!pid) {
+      throw new Error('Error getting server pid')
     }
-  }
-
-  if (pid !== undefined && pid) {
     log.debug({
       ...logMetadata,
-      pid: pid,
+      state: 'waiting',
     })
-    await getClient(port, host)
-    return pid
-  } else {
-    const errMsg = 'Error getting server pid'
-    log.error({
+    await waitForPortWhileProcessRuns(host, port, serverProcess, startupTimeout)
+    log.debug({
       ...logMetadata,
-      err: {
-        msg: errMsg,
-      },
+      state: 'online',
     })
-    throw new Error(errMsg)
+
+    if (pidFile) {
+      const pidFromFile = await getServerPid(pidFile)
+      if (pidFromFile !== pid) {
+        throw new Error(
+          `Error pid from pidFile(${pidFromFile}) and pid(${pid}) from server script do not match`
+        )
+      }
+    }
+
+    await getClient(port, host)
+    log.debug({
+      ...logMetadata,
+      pid,
+    })
+    return pid
+  } catch (error) {
+    if (pid && pidIsRunning(pid)) {
+      await stopProcessUsingPID(pid)
+    }
+    if (pidFile) {
+      removeExistingPidFile(pidFile)
+    }
+    resetClient()
+    throw error
   }
 }
 

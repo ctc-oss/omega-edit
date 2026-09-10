@@ -761,6 +761,41 @@ TEST_CASE("Character Counts", "[CharCounts]") {
     omega_character_counts_destroy(char_counts_ptr);
 }
 
+TEST_CASE("Character Counts Preserve Multi-Byte Sequences Across Scan Chunks", "[CharCounts][Boundary]") {
+    const std::vector<omega_byte_t> utf8_sequence{0xF0, 0x9F, 0x8C, 0x8D};
+    const size_t utf8_start = 65535;
+    std::vector<omega_byte_t> utf8_data(utf8_start + utf8_sequence.size(), 'A');
+    std::copy(utf8_sequence.begin(), utf8_sequence.end(), utf8_data.begin() + utf8_start);
+    auto *session = omega_edit_create_session_from_bytes(utf8_data.data(), static_cast<int64_t>(utf8_data.size()),
+                                                         nullptr, nullptr, NO_EVENTS, nullptr);
+    REQUIRE(session);
+    auto *counts = omega_character_counts_create();
+    REQUIRE(counts);
+    REQUIRE(0 == omega_session_character_counts(session, counts, 0, 0, BOM_NONE));
+    REQUIRE(static_cast<int64_t>(utf8_start) == omega_character_counts_single_byte_chars(counts));
+    REQUIRE(1 == omega_character_counts_quad_byte_chars(counts));
+    REQUIRE(0 == omega_character_counts_invalid_bytes(counts));
+    omega_edit_destroy_session(session);
+
+    std::vector<omega_byte_t> bom_data(65540, 'A');
+    bom_data[0] = 0xEF;
+    bom_data[1] = 0xBB;
+    bom_data[2] = 0xBF;
+    bom_data[65536] = 0xEF;
+    bom_data[65537] = 0xBB;
+    bom_data[65538] = 0xBF;
+    session = omega_edit_create_session_from_bytes(bom_data.data(), static_cast<int64_t>(bom_data.size()), nullptr,
+                                                   nullptr, NO_EVENTS, nullptr);
+    REQUIRE(session);
+    REQUIRE(0 == omega_session_character_counts(session, counts, 0, 0, BOM_UTF8));
+    REQUIRE(3 == omega_character_counts_bom_bytes(counts));
+    REQUIRE(65534 == omega_character_counts_single_byte_chars(counts));
+    REQUIRE(1 == omega_character_counts_triple_byte_chars(counts));
+    REQUIRE(0 == omega_character_counts_invalid_bytes(counts));
+    omega_edit_destroy_session(session);
+    omega_character_counts_destroy(counts);
+}
+
 TEST_CASE("Hanoi insert", "[ModelTests]") {
     file_info_t file_info;
     file_info.num_changes = 0;
