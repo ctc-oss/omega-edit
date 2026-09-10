@@ -82,7 +82,9 @@ const proc2 = await runServerWithArgs([
 The native gRPC server has no built-in authentication. Its default `127.0.0.1` TCP bind and Unix domain socket mode are
 the intended trust boundary. Non-loopback TCP binds require `--insecure-allow-non-loopback` or the
 `insecureAllowNonLoopback` option because any reachable client can create sessions, read and edit files, save output,
-and invoke registered transform plugins with the server process's privileges.
+and invoke registered transform plugins with the server process's privileges. Set `allowedRoot` or `--allowed-root` to
+confine RPC-controlled file and checkpoint paths. For remote access, keep the backend on a private network and expose
+only an HTTP/2-capable gRPC proxy that supplies TLS, authentication, authorization, rate limits, and request limits.
 
 ### Standalone Binary
 
@@ -132,6 +134,7 @@ interface HeartbeatOptions {
   allowExperimentalTransformPlugins?: boolean // Load experimental transform plugins
   allowTestTransformPlugins?: boolean // Load test-only transform plugins
   insecureAllowNonLoopback?: boolean // Permit unauthenticated non-loopback TCP binds
+  allowedRoot?: string              // Restrict RPC file and checkpoint paths
 }
 ```
 
@@ -163,6 +166,7 @@ The native binary supports:
 | `--allow-experimental-transform-plugins` | Load experimental transform plugins from registered directories |
 | `--allow-test-transform-plugins` | Load test-only transform plugins from registered directories |
 | `--insecure-allow-non-loopback` | Permit unauthenticated TCP binds outside loopback |
+| `--allowed-root` | Restrict RPC file and checkpoint paths to an existing directory |
 
 The package includes the first-party transform plugins for the current platform and
 registers them automatically when no explicit transform plugin directories are supplied.

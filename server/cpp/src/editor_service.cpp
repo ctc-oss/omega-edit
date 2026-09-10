@@ -383,9 +383,10 @@ namespace omega_edit {
         }
 
         static bool path_argument_is_safe_for_core(const std::string &path) {
-            return path.size() < FILENAME_MAX && std::none_of(path.begin(), path.end(), [](unsigned char ch) {
-                       return ch == '\0' || ch < 0x20U || ch == 0x7FU;
-                   });
+            return path.size() < FILENAME_MAX &&
+                   std::none_of(
+                           path.begin(), path.end(),
+                           [](unsigned char ch) { return ch == '\0' || ch < 0x20U || ch == 0x7FU; });
         }
 
         static grpc::Status validate_path_argument(const std::string &path, const char *field_name) {
@@ -1313,7 +1314,7 @@ namespace omega_edit {
         static int64_t transactional_replace_match_limit(const ResourceLimits &resource_limits) {
             auto limit = static_cast<int64_t>(OMEGA_REPLACE_MATCHES_LIMIT);
             if (resource_limits.max_search_matches > 0) {
-                limit = (std::min)(limit, resource_limits.max_search_matches);
+                limit = (std::min) (limit, resource_limits.max_search_matches);
             }
             return limit;
         }
@@ -1345,7 +1346,7 @@ namespace omega_edit {
             }
 
             const auto effective_length =
-                    length > 0 ? (std::min)(length, session_size - offset) : session_size - offset;
+                    length > 0 ? (std::min) (length, session_size - offset) : session_size - offset;
             if (static_cast<int64_t>(pattern.size()) > effective_length) { return grpc::Status::OK; }
 
             auto *ctx = omega_search_create_context_bytes(
@@ -1427,10 +1428,14 @@ namespace omega_edit {
                                              std::vector<std::string> transform_plugin_directories,
                                              std::string transform_plugin_host_path,
                                              bool allow_experimental_transform_plugins,
-                                             bool allow_test_transform_plugins)
+                                             bool allow_test_transform_plugins, std::string allowed_root)
             : session_manager_(resource_limits), transform_plugin_registry_(omega_transform_plugin_registry_create()),
               start_time_(std::chrono::steady_clock::now()), heartbeat_config_(heartbeat_config),
               resource_limits_(resource_limits), shutdown_callback_(std::move(shutdown_callback)) {
+            std::string allowed_root_error;
+            if (!allowed_path_policy_.configure(allowed_root, allowed_root_error)) {
+                throw std::invalid_argument("invalid allowed root: " + allowed_root_error);
+            }
             if (!transform_plugin_host_path.empty()) {
                 omega_transform_plugin_registry_set_host_path(transform_plugin_registry_,
                                                               transform_plugin_host_path.c_str());
@@ -1454,6 +1459,30 @@ namespace omega_edit {
             if (heartbeat_config_.session_timeout.count() > 0 && heartbeat_config_.cleanup_interval.count() > 0) {
                 reaper_thread_ = std::thread(&EditorServiceImpl::reaper_loop, this);
             }
+        }
+
+        grpc::Status EditorServiceImpl::resolve_allowed_path(const std::string &path, const char *field_name,
+                                                             bool existing_file, bool directory,
+                                                             std::string &resolved) const {
+            std::string error;
+            AllowedPathResult result;
+            if (existing_file) {
+                result = allowed_path_policy_.resolve_existing_file(path, resolved, error);
+            } else if (directory) {
+                result = allowed_path_policy_.resolve_directory(path, resolved, error);
+            } else {
+                result = allowed_path_policy_.resolve_output_file(path, resolved, error);
+            }
+            if (result == AllowedPathResult::OK) { return grpc::Status::OK; }
+            auto code = grpc::StatusCode::INVALID_ARGUMENT;
+            if (result == AllowedPathResult::NOT_FOUND) {
+                code = grpc::StatusCode::NOT_FOUND;
+            } else if (result == AllowedPathResult::OUTSIDE_ROOT) {
+                code = grpc::StatusCode::PERMISSION_DENIED;
+            } else if (result == AllowedPathResult::FILESYSTEM_ERROR) {
+                code = grpc::StatusCode::FAILED_PRECONDITION;
+            }
+            return grpc::Status(code, std::string(field_name) + ": " + error);
         }
 
         EditorServiceImpl::~EditorServiceImpl() {
@@ -1617,6 +1646,13 @@ namespace omega_edit {
             if (request->has_file_path()) { file_path = request->file_path(); }
             const auto file_path_status = validate_path_argument(file_path, "file_path");
             if (!file_path_status.ok()) { return file_path_status; }
+            if (!file_path.empty()) {
+                std::string resolved_file_path;
+                const auto allowed_status =
+                        resolve_allowed_path(file_path, "file_path", true, false, resolved_file_path);
+                if (!allowed_status.ok()) { return allowed_status; }
+                file_path.swap(resolved_file_path);
+            }
 
             const auto has_initial_data = request->has_initial_data();
             if (!file_path.empty() && has_initial_data) {
@@ -1640,6 +1676,13 @@ namespace omega_edit {
             if (request->has_checkpoint_directory()) { checkpoint_dir = request->checkpoint_directory(); }
             const auto checkpoint_dir_status = validate_path_argument(checkpoint_dir, "checkpoint_directory");
             if (!checkpoint_dir_status.ok()) { return checkpoint_dir_status; }
+            if (!checkpoint_dir.empty()) {
+                std::string resolved_checkpoint_dir;
+                const auto allowed_status = resolve_allowed_path(checkpoint_dir, "checkpoint_directory", false, true,
+                                                                 resolved_checkpoint_dir);
+                if (!allowed_status.ok()) { return allowed_status; }
+                checkpoint_dir.swap(resolved_checkpoint_dir);
+            }
 
             int64_t file_size = 0;
             std::string checkpoint_dir_out;
@@ -1691,6 +1734,12 @@ namespace omega_edit {
             }
             const auto path_status = validate_path_argument(request->file_path(), "file_path");
             if (!path_status.ok()) { return path_status; }
+            std::string save_file_path = request->file_path();
+            std::string resolved_save_file_path;
+            const auto allowed_status =
+                    resolve_allowed_path(save_file_path, "file_path", false, false, resolved_save_file_path);
+            if (!allowed_status.ok()) { return allowed_status; }
+            save_file_path.swap(resolved_save_file_path);
 
             auto locked_session = session_manager_.lock_session(request->session_id());
             if (!locked_session) {
@@ -1736,11 +1785,10 @@ namespace omega_edit {
 
             int result;
             if (offset != 0 || length != 0) {
-                result =
-                        omega_edit_save_segment_with_options(session, request->file_path().c_str(), request->io_flags(),
-                                                             saved_file_path, offset, length, save_options_ptr);
+                result = omega_edit_save_segment_with_options(session, save_file_path.c_str(), request->io_flags(),
+                                                              saved_file_path, offset, length, save_options_ptr);
             } else {
-                result = omega_edit_save_with_options(session, request->file_path().c_str(), request->io_flags(),
+                result = omega_edit_save_with_options(session, save_file_path.c_str(), request->io_flags(),
                                                       saved_file_path, save_options_ptr);
             }
             if (!guard_context.failure_status.ok()) { return guard_context.failure_status; }
@@ -1749,8 +1797,7 @@ namespace omega_edit {
             response->set_save_status(result);
             if (result == 0) {
                 // Only set file_path on success
-                std::string actual_path =
-                        (saved_file_path[0] != '\0') ? std::string(saved_file_path) : request->file_path();
+                std::string actual_path = (saved_file_path[0] != '\0') ? std::string(saved_file_path) : save_file_path;
                 response->set_file_path(actual_path);
             }
             return grpc::Status::OK;

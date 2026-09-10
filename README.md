@@ -132,7 +132,10 @@ For an installed package instead of a source checkout, use the Codex MCP format 
 The bundled gRPC server is an unauthenticated local editing service. By default it binds to `127.0.0.1`; keep it on
 loopback or a Unix domain socket unless the surrounding environment supplies its own access control. Non-loopback TCP
 binds, such as `0.0.0.0`, require the explicit `--insecure-allow-non-loopback` opt-in because any client that can reach
-the server can read, edit, save, and invoke registered transform plugins with the server process's privileges.
+the server can read, edit, save, and invoke registered transform plugins with the server process's privileges. Use
+`--allowed-root` to confine RPC-controlled file and checkpoint paths. Remote deployments should keep the backend on a
+private network and expose only an HTTP/2-capable gRPC proxy that enforces TLS, authentication, authorization, rate
+limits, and request limits.
 
 ## Transform Plugins
 

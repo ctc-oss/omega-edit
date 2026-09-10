@@ -67,6 +67,8 @@ export interface HeartbeatOptions {
   allowTestTransformPlugins?: boolean
   /** Permit unauthenticated TCP binds outside loopback. */
   insecureAllowNonLoopback?: boolean
+  /** Restrict RPC file and checkpoint paths to this directory. */
+  allowedRoot?: string
 }
 
 /**
@@ -453,6 +455,9 @@ function heartbeatToArgs(
   }
   if (opts?.insecureAllowNonLoopback) {
     args.push('--insecure-allow-non-loopback')
+  }
+  if (opts?.allowedRoot !== undefined) {
+    args.push(`--allowed-root=${opts.allowedRoot}`)
   }
   const transformPluginHostPath =
     opts?.transformPluginHostPath || defaultTransformPluginHostPath
