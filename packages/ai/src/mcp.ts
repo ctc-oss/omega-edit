@@ -1227,7 +1227,8 @@ async function main(): Promise<void> {
     }
   }
 
-  let pendingInput = Buffer.alloc(0)
+  let pendingInput: Buffer[] = []
+  let pendingInputLength = 0
   let discardingOversizedLine = false
 
   const queueLine = (lineBuffer: Buffer) => {
@@ -1253,8 +1254,9 @@ async function main(): Promise<void> {
         newlineIndex >= 0 ? input.subarray(newlineIndex + 1) : Buffer.alloc(0)
 
       if (!discardingOversizedLine) {
-        if (pendingInput.length + segment.length > MAX_MCP_REQUEST_LINE_BYTES) {
-          pendingInput = Buffer.alloc(0)
+        if (pendingInputLength + segment.length > MAX_MCP_REQUEST_LINE_BYTES) {
+          pendingInput = []
+          pendingInputLength = 0
           discardingOversizedLine = true
           sendMessage(
             makeErrorResponse(
@@ -1264,23 +1266,25 @@ async function main(): Promise<void> {
             )
           )
         } else if (segment.length > 0) {
-          pendingInput = Buffer.concat([pendingInput, segment])
+          pendingInput.push(segment)
+          pendingInputLength += segment.length
         }
       }
 
       if (newlineIndex >= 0) {
         if (!discardingOversizedLine) {
-          queueLine(pendingInput)
+          queueLine(Buffer.concat(pendingInput, pendingInputLength))
         }
-        pendingInput = Buffer.alloc(0)
+        pendingInput = []
+        pendingInputLength = 0
         discardingOversizedLine = false
       }
     }
   })
 
   process.stdin.on('end', () => {
-    if (!discardingOversizedLine && pendingInput.length > 0) {
-      queueLine(pendingInput)
+    if (!discardingOversizedLine && pendingInputLength > 0) {
+      queueLine(Buffer.concat(pendingInput, pendingInputLength))
     }
   })
 }

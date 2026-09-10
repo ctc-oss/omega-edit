@@ -448,6 +448,13 @@ namespace omega_edit::grpc_server {
             return AllowedPathResult::INVALID_PATH;
         }
         if (ec) { return filesystem_failure(ec, "could not resolve path", error); }
+        if (!directory && fs::is_directory(absolute_path, ec)) {
+            error = "output path must not identify a directory";
+            return AllowedPathResult::INVALID_PATH;
+        }
+        if (ec && ec != std::errc::no_such_file_or_directory) {
+            return filesystem_failure(ec, "could not resolve path", error);
+        }
         resolved = absolute_path.string();
         return AllowedPathResult::OK;
     }

@@ -478,7 +478,14 @@ int omega_session_character_counts(const omega_session_t *session_ptr, omega_cha
         const auto segment_ptr = omega_segment_create(scan_capacity);
         if (!segment_ptr) { return -1; }
         std::vector<omega_byte_t> pending;
-        pending.reserve(4);
+        std::vector<omega_byte_t> combined_data;
+        try {
+            pending.reserve(4);
+            combined_data.reserve(static_cast<size_t>(scan_capacity) + 4);
+        } catch (const std::bad_alloc &) {
+            omega_segment_destroy(segment_ptr);
+            return -1;
+        }
         while (length) {
             const auto rc = omega_session_get_segment(session_ptr, segment_ptr, offset);
             if (rc != 0) {
@@ -487,14 +494,13 @@ int omega_session_character_counts(const omega_session_t *session_ptr, omega_cha
             }
             const auto segment_data = omega_segment_get_data(segment_ptr);
             const auto count_length = (std::min)(length, omega_segment_get_length(segment_ptr));
-            std::vector<omega_byte_t> count_data;
-            try {
-                count_data.reserve(pending.size() + static_cast<size_t>(count_length));
-                count_data.insert(count_data.end(), pending.begin(), pending.end());
-                count_data.insert(count_data.end(), segment_data, segment_data + count_length);
-            } catch (const std::bad_alloc &) {
-                omega_segment_destroy(segment_ptr);
-                return -1;
+            const omega_byte_t *count_data = segment_data;
+            auto count_size = static_cast<size_t>(count_length);
+            if (!pending.empty()) {
+                combined_data.assign(pending.begin(), pending.end());
+                combined_data.insert(combined_data.end(), segment_data, segment_data + count_length);
+                count_data = combined_data.data();
+                count_size = combined_data.size();
             }
             pending.clear();
             size_t pending_length = 0;
@@ -502,9 +508,9 @@ int omega_session_character_counts(const omega_session_t *session_ptr, omega_cha
                 switch (bom) {
                     case BOM_UTF16LE:
                     case BOM_UTF16BE:
-                        pending_length = count_data.size() % 2;
-                        if (count_data.size() >= pending_length + 2) {
-                            const auto last_word_offset = count_data.size() - pending_length - 2;
+                        pending_length = count_size % 2;
+                        if (count_size >= pending_length + 2) {
+                            const auto last_word_offset = count_size - pending_length - 2;
                             const auto last_word =
                                     bom == BOM_UTF16LE
                                             ? static_cast<uint16_t>(count_data[last_word_offset]) |
@@ -516,12 +522,12 @@ int omega_session_character_counts(const omega_session_t *session_ptr, omega_cha
                         break;
                     case BOM_UTF32LE:
                     case BOM_UTF32BE:
-                        pending_length = count_data.size() % 4;
+                        pending_length = count_size % 4;
                         break;
                     default:
-                        if (!count_data.empty()) {
+                        if (count_size > 0) {
                             size_t continuation_count = 0;
-                            for (size_t i = count_data.size(); i > 0 && continuation_count < 3; --i) {
+                            for (size_t i = count_size; i > 0 && continuation_count < 3; --i) {
                                 if ((count_data[i - 1] & 0xC0) != 0x80) {
                                     const auto lead = count_data[i - 1];
                                     const size_t expected = (lead & 0xE0) == 0xC0   ? 2
@@ -538,11 +544,12 @@ int omega_session_character_counts(const omega_session_t *session_ptr, omega_cha
                         break;
                 }
             }
-            if (pending_length > count_data.size()) { pending_length = count_data.size(); }
-            const auto process_length = count_data.size() - pending_length;
-            if (process_length > 0) { omega_util_count_characters(count_data.data(), process_length, counts_ptr); }
+            if (pending_length > count_size) { pending_length = count_size; }
+            const auto process_length = count_size - pending_length;
+            if (process_length > 0) { omega_util_count_characters(count_data, process_length, counts_ptr); }
             if (pending_length > 0) {
-                pending.assign(count_data.end() - static_cast<std::ptrdiff_t>(pending_length), count_data.end());
+                pending.assign(count_data + count_size - static_cast<std::ptrdiff_t>(pending_length),
+                               count_data + count_size);
             }
             if (!safe_add_int64_(offset, count_length, offset)) {
                 omega_segment_destroy(segment_ptr);

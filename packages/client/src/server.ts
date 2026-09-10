@@ -762,9 +762,15 @@ export async function startServer(
 
   const serverProcess = await runServer(port, host, pidFile, heartbeat)
   const { pid } = serverProcess
-  const startupTimeout = Number(
-    process.env.OMEGA_EDIT_SERVER_STARTUP_TIMEOUT_MS || '20000'
+  const configuredTimeout = Number(
+    process.env.OMEGA_EDIT_SERVER_STARTUP_TIMEOUT_MS
   )
+  const startupTimeout =
+    Number.isInteger(configuredTimeout) &&
+    configuredTimeout > 0 &&
+    configuredTimeout <= 2_147_483_647
+      ? configuredTimeout
+      : 20000
 
   try {
     if (!pid) {

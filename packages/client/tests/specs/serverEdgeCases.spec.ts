@@ -338,6 +338,29 @@ describe('Server Edge Cases', () => {
     }
   })
 
+  it.each(['not-a-number', 'NaN', 'Infinity', '-1', '0', '1.5', '2147483648'])(
+    'should start with an invalid timeout override (%s) and empty allowed root',
+    async (value) => {
+      const originalTimeout = process.env.OMEGA_EDIT_SERVER_STARTUP_TIMEOUT_MS
+      const port = await findFirstAvailablePort(9200, 9300)
+      let pid: number | undefined
+      try {
+        process.env.OMEGA_EDIT_SERVER_STARTUP_TIMEOUT_MS = value
+        pid = await startServer(port as number, '127.0.0.1', undefined, {
+          allowedRoot: '',
+        })
+        expect(pidIsRunning(pid)).to.equal(true)
+      } finally {
+        if (originalTimeout === undefined) {
+          delete process.env.OMEGA_EDIT_SERVER_STARTUP_TIMEOUT_MS
+        } else {
+          process.env.OMEGA_EDIT_SERVER_STARTUP_TIMEOUT_MS = originalTimeout
+        }
+        if (pid) await stopProcessUsingPID(pid, 'SIGKILL')
+      }
+    }
+  )
+
   it('should expose native server health fields through current protobuf fields', async () => {
     const port = await findFirstAvailablePort(9200, 9300)
     expect(port).to.not.equal(null)

@@ -456,7 +456,7 @@ function heartbeatToArgs(
   if (opts?.insecureAllowNonLoopback) {
     args.push('--insecure-allow-non-loopback')
   }
-  if (opts?.allowedRoot !== undefined) {
+  if (opts?.allowedRoot !== undefined && opts.allowedRoot.length > 0) {
     args.push(`--allowed-root=${opts.allowedRoot}`)
   }
   const transformPluginHostPath =

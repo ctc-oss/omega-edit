@@ -65,6 +65,12 @@ int main() {
           "unrestricted checkpoint directories should resolve before creation");
     check(!fs::exists(root / "unused-checkpoint"), "resolving a checkpoint directory must not create it");
 
+    check(unrestricted_policy.resolve_output_file(root.string(), unrestricted_path, unrestricted_error) ==
+                  AllowedPathResult::INVALID_PATH,
+          "an existing directory must not resolve as an output file");
+    check(unrestricted_error == "output path must not identify a directory",
+          "an output directory should report a clear error");
+
     AllowedPathPolicy policy;
     std::string error;
     check(policy.configure("", error), "an empty allowed root should configure on every platform");

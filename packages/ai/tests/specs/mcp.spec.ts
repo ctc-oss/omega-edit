@@ -97,7 +97,21 @@ describe('@omega-edit/ai mcp server', () => {
       assert.equal((responses[0].error as Record<string, unknown>).code, -32600)
       assert.equal((responses[1].error as Record<string, unknown>).code, -32700)
       assert.deepEqual(responses[2].result, {})
+      // Split a valid UTF-8 request across many writes, including within a code point.
+      const fragmented = Buffer.from(
+        JSON.stringify({ jsonrpc: '2.0', id: '🙂', method: 'ping' }) + '\r\n'
+      )
+      for (const byte of fragmented) {
+        child.stdin!.write(Buffer.from([byte]))
+        await new Promise((resolve) => setTimeout(resolve, 1))
+      }
+      await waitForResponses(4)
+      assert.equal(responses[3].id, '🙂')
+      assert.deepEqual(responses[3].result, {})
       assert.equal(child.exitCode, null)
+      child.stdin!.end('{"jsonrpc":"2.0","id":2,"method":"ping"}')
+      await waitForResponses(5)
+      assert.deepEqual(responses[4].result, {})
     } finally {
       stdoutReader.close()
       child.kill()
