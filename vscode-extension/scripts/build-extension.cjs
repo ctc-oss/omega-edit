@@ -21,6 +21,8 @@ const extensionRoot = path.resolve(__dirname, '..')
 const production = process.argv.includes('--production')
 
 async function main() {
+  require('./build-api.cjs')
+
   const result = await esbuild.build({
     entryPoints: [path.join(extensionRoot, 'src', 'extension.ts')],
     outfile: path.join(extensionRoot, 'out', 'extension.js'),

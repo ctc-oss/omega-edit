@@ -175,20 +175,17 @@ annotating data files.
 }
 ```
 
+Copy the helper and standalone declaration from `integration/` as described in
+the [consumer setup](../README.md#extension-dependency-contract). This requires
+no OmegaEdit npm package.
+
 ```ts
-import type { OmegaEditExtensionApi } from 'omega-edit-data-editor'
+import { getOmegaEditApi } from './vendor/omegaEdit/omegaEdit'
 
-const extension = vscode.extensions.getExtension<OmegaEditExtensionApi>(
-  'ctc-oss.omega-edit-data-editor'
-)
-const omegaEdit = await extension?.activate()
+const omegaEdit = await getOmegaEditApi()
 
-if (omegaEdit?.version !== 1) {
-  throw new Error('Unsupported OmegaEdit Data Editor API version')
-}
-
-await omegaEdit?.open(document.uri, { offset: parserOffset })
-await omegaEdit?.setExternalHighlights({
+await omegaEdit.open(document.uri, { offset: parserOffset })
+await omegaEdit.setExternalHighlights({
   uri: document.uri,
   reveal: true,
   highlights: [

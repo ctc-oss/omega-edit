@@ -315,7 +315,8 @@ External highlight kinds are generic (`current`, `parsed`, `error`, `warning`,
 parsers can map their own concepts into the shared editor.
 
 TypeScript extensions can also consume the typed API returned from activation.
-The package declaration entrypoint is `out/api.d.ts`.
+The package declaration entrypoint is `out/api.d.ts`, a self-contained declaration
+also shipped as `integration/omegaEditApi.d.ts`.
 
 ### Extension Dependency Contract
 
@@ -329,21 +330,26 @@ Downstream VS Code extensions should depend on the stable extension id
 }
 ```
 
+An extension dependency installs the runtime extension; it does not create a
+TypeScript module in your project. No OmegaEdit npm dependency is needed.
+
+1. Copy [omegaEdit.ts](./integration/omegaEdit.ts) and
+   [omegaEditApi.d.ts](./integration/omegaEditApi.d.ts) into your extension, for
+   example under `src/vendor/omegaEdit/`. Take both files from the same release
+   tag, or extract them from `extension/integration/` in that release's VSIX.
+2. Keep your usual VS Code development types (`@types/vscode`). The copied
+   files require no other package.
+3. Activate the installed extension using the helper:
+
 ```ts
-import type { OmegaEditExtensionApi } from 'omega-edit-data-editor'
+import { getOmegaEditApi } from './vendor/omegaEdit/omegaEdit'
+import type { OmegaEditExtensionApi } from './vendor/omegaEdit/omegaEditApi'
 
-const extension = vscode.extensions.getExtension<OmegaEditExtensionApi>(
-  'ctc-oss.omega-edit-data-editor'
-)
-const omegaEdit = await extension?.activate()
+const omegaEdit: OmegaEditExtensionApi = await getOmegaEditApi()
 
-if (omegaEdit?.version !== 2) {
-  throw new Error('Unsupported OmegaEdit Data Editor API version')
-}
-
-await omegaEdit?.open(document.uri, { offset: 128 })
-const context = omegaEdit?.getAssistantContext({ uri: document.uri })
-await omegaEdit?.setExternalHighlights({
+await omegaEdit.open(document.uri, { offset: 128 })
+const context = omegaEdit.getAssistantContext({ uri: document.uri })
+await omegaEdit.setExternalHighlights({
   uri: document.uri,
   reveal: true,
   highlights: [
@@ -358,6 +364,17 @@ await omegaEdit?.setExternalHighlights({
   ],
 })
 ```
+
+The helper reports missing/disabled extensions, activation failures, and an
+incompatible API version. Handle its rejected promise through your extension's
+normal error reporting. It neither installs packages nor starts a separate
+OmegaEdit server. Import declarations with `import type`; the `.d.ts` file has
+no runtime implementation. Actual editor operations come from the activated
+extension.
+
+Maintainers: `npm run compile:extension` regenerates the standalone declaration
+from the public API and its referenced types. Do not hand-edit it. The consumer
+compile test checks the copied files in isolation with only VS Code types.
 
 ### Assistant Command Parity
 
