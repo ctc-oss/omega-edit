@@ -126,6 +126,7 @@
 </ul>
 </li>
 <li><a class="reference internal" href="#_CPPv425omega_edit_create_sessionPKc25omega_session_event_cbk_tPv7int32_tPKc"><code class="docutils literal notranslate"><span class="pre">omega_edit_create_session()</span></code></a></li>
+<li><a class="reference internal" href="#_CPPv432omega_edit_set_session_file_pathP15omega_session_tPKc"><code class="docutils literal notranslate"><span class="pre">omega_edit_set_session_file_path()</span></code></a></li>
 <li><a class="reference internal" href="#_CPPv436omega_edit_create_session_from_bytesPK12omega_byte_t7int64_t25omega_session_event_cbk_tPv7int32_tPKc"><code class="docutils literal notranslate"><span class="pre">omega_edit_create_session_from_bytes()</span></code></a></li>
 <li><a class="reference internal" href="#_CPPv426omega_edit_destroy_sessionP15omega_session_t"><code class="docutils literal notranslate"><span class="pre">omega_edit_destroy_session()</span></code></a></li>
 <li><a class="reference internal" href="#_CPPv426omega_edit_create_viewportP15omega_session_t7int64_t7int64_ti26omega_viewport_event_cbk_tPv7int32_t"><code class="docutils literal notranslate"><span class="pre">omega_edit_create_viewport()</span></code></a></li>
@@ -1076,6 +1077,23 @@
 </dd>
 <dt class="field-even">Returns<span class="colon">:</span></dt>
 <dd class="field-even"><p>pointer to the created session, or NULL on failure </p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="cpp function">
+<dt class="sig sig-object cpp" id="_CPPv432omega_edit_set_session_file_pathP15omega_session_tPKc">
+<span id="_CPPv332omega_edit_set_session_file_pathP15omega_session_tPKc"></span><span id="_CPPv232omega_edit_set_session_file_pathP15omega_session_tPKc"></span><span id="omega_edit_set_session_file_path__omega_session_tP.cCP"></span><span class="target" id="edit_8h_1ad4708a2e8e05e3cf26d7252f8114d659"></span><span class="kt"><span class="pre">int</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">omega_edit_set_session_file_path</span></span></span><span class="sig-paren">(</span><a class="reference internal" href="#_CPPv415omega_session_t" title="omega_session_t"><span class="n"><span class="pre">omega_session_t</span></span></a><span class="w"> </span><span class="p"><span class="pre">*</span></span><span class="n sig-param"><span class="pre">session_ptr</span></span>, <span class="k"><span class="pre">const</span></span><span class="w"> </span><span class="kt"><span class="pre">char</span></span><span class="w"> </span><span class="p"><span class="pre">*</span></span><span class="n sig-param"><span class="pre">file_path</span></span><span class="sig-paren">)</span><a class="headerlink" href="#_CPPv432omega_edit_set_session_file_pathP15omega_session_tPKc" title="Link to this definition"></a><br /></dt>
+<dd><p>Replace the original file locator used for save conflict detection without reopening it. The caller must ensure the locator refers to the same file captured when the session was created. </p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>session_ptr</strong> – session to update </p></li>
+<li><p><strong>file_path</strong> – stable locator for the original file </p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>zero on success, non-zero on failure </p>
 </dd>
 </dl>
 </dd></dl>
