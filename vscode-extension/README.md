@@ -376,6 +376,37 @@ Maintainers: `npm run compile:extension` regenerates the standalone declaration
 from the public API and its referenced types. Do not hand-edit it. The consumer
 compile test checks the copied files in isolation with only VS Code types.
 
+### Annotation ownership
+
+Pass an `owner` to isolate highlights by extension and debug session:
+
+```ts
+const owner = `apache.daffodil:${debugSession.id}`
+await omegaEdit.setExternalHighlights({
+  uri: document.uri,
+  owner,
+  reveal: true,
+  highlights: [{ id: 'current', offset: parserOffset, length: 1,
+    kind: 'current', label: 'Current parse point' }],
+})
+// On termination, clear this owner for each file annotated by the session.
+omegaEdit.clearExternalHighlights({ uri: document.uri, owner })
+```
+
+Setting highlights replaces only that owner's collection; an empty array or
+`clearExternalHighlights` removes it. IDs are unique within an owner, so separate
+sessions can both use `current`. Returned highlights include their owner. `source`
+is a display label, not an ownership key. Owners are opaque, nonblank strings of
+at most 256 characters; they are coordination keys, not access controls.
+
+Omitting `owner` retains the legacy unowned collection, shared with loaded range
+maps. Unowned set/clear and range-map load/unload leave owned collections intact;
+owned updates leave the range-map tree intact. Each collection tracks staleness
+against its own edit baseline. The editor-wide limit remains 512 highlights.
+Annotations belong to the open editor session and are discarded when it closes.
+Consumers should clear their owners on debug termination and extension disposal.
+This is an additive API version 2 feature.
+
 ### Assistant Command Parity
 
 Assistants and scripted integrations should use structured command/API results,

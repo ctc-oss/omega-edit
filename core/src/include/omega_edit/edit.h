@@ -54,6 +54,15 @@ omega_session_t *omega_edit_create_session(const char *file_path, omega_session_
                                            int32_t event_interest, const char *checkpoint_directory);
 
 /**
+ * Replace the original file locator used for save conflict detection without reopening it.
+ * The caller must ensure the locator refers to the same file captured when the session was created.
+ * @param session_ptr session to update
+ * @param file_path stable locator for the original file
+ * @return zero on success, non-zero on failure
+ */
+int omega_edit_set_session_file_path(omega_session_t *session_ptr, const char *file_path);
+
+/**
  * Create an editing session backed by an in-memory byte buffer.
  * @param data_ptr bytes to seed the session with, or nullptr if length is zero
  * @param length number of bytes in data_ptr

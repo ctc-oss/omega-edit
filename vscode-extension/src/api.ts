@@ -44,8 +44,14 @@ export interface OmegaEditInsertDirectionOptions
   direction?: OmegaEditInsertDirection
 }
 
-export interface OmegaEditExternalHighlightRequest
+export interface OmegaEditExternalHighlightOptions
   extends OmegaEditEditorSelector {
+  /** Opaque owner key, preferably extension id plus debug session id. Omit for legacy annotations. */
+  owner?: string
+}
+
+export interface OmegaEditExternalHighlightRequest
+  extends OmegaEditExternalHighlightOptions {
   highlights: OmegaEditExternalHighlight[]
   reveal?: boolean
 }
@@ -245,7 +251,7 @@ export interface OmegaEditExtensionApi {
     request: OmegaEditExternalHighlightRequest
   ): Promise<OmegaEditEditorState | undefined>
   clearExternalHighlights(
-    options?: vscode.Uri | string | OmegaEditEditorSelector
+    options?: vscode.Uri | string | OmegaEditExternalHighlightOptions
   ): OmegaEditEditorState | undefined
   loadRangeMap(
     options?: vscode.Uri | string | OmegaEditRangeMapLoadOptions

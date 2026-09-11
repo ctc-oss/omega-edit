@@ -965,6 +965,10 @@ test('compiled extension entrypoints exist after build', () => {
   assert.match(providerJs, /kind:\s*['"]REPLACE['"]/)
   assert.match(providerJs, /startServerHeartbeatLoop/)
   assert.match(providerJs, /getServerInfo/)
+  assert.match(providerJs, /viewportCount/)
+  assert.match(providerJs, /activeOperationCount/)
+  assert.match(providerJs, /eventQueueDroppedCount/)
+  assert.match(providerJs, /oldestSessionIdleMs/)
   assert.match(providerJs, /profileSession/)
   assert.match(providerJs, /countCharacters/)
   assert.match(providerJs, /listTransformPlugins/)
@@ -2341,6 +2345,10 @@ test('compiled extension entrypoints exist after build', () => {
   assert.match(profilerPanelSource, /buildServerRows/)
   assert.match(profilerPanelSource, /serverRows/)
   assert.match(profilerPanelSource, /SERVER_CURRENT_INSTANCE_METRIC_IDS/)
+  assert.match(profilerPanelSource, /activeOperations/)
+  assert.match(profilerPanelSource, /sessionSubscriptions/)
+  assert.match(profilerPanelSource, /droppedEvents/)
+  assert.match(profilerPanelSource, /oldestSessionIdle/)
   assert.match(profilerPanelSource, /SERVER_HOST_BUILD_METRIC_IDS/)
   assert.match(profilerPanelSource, /strings\.profiler\.liveStatus/)
   assert.match(profilerPanelSource, /strings\.profiler\.currentInstance/)
@@ -3502,4 +3510,45 @@ test('webview protocol normalizes analysis, search, and transform messages', () 
     }),
     undefined
   )
+})
+
+test('annotation UI identities distinguish owners and delimiter-like ids', () => {
+  const { externalHighlightKey } = require('../out/webviewProtocol.js')
+  const keys = [
+    { id: 'current' },
+    { id: 'current', owner: 'daffodil:1' },
+    { id: 'current', owner: 'daffodil:2' },
+    { id: 'b:c', owner: 'a' },
+    { id: 'c', owner: 'a:b' },
+    { id: '["daffodil:1","current"]' },
+  ].map(externalHighlightKey)
+  assert.equal(new Set(keys).size, keys.length)
+})
+
+test('annotation keys avoid repeated serialization and refresh changed identities', () => {
+  const { externalHighlightKey } = require('../out/webviewProtocol.js')
+  const highlight = { id: 'current', owner: 'daffodil:1' }
+  const stringify = JSON.stringify
+  let serializations = 0
+  JSON.stringify = (...args) => {
+    serializations += 1
+    return stringify(...args)
+  }
+  try {
+    const original = externalHighlightKey(highlight)
+    for (let index = 0; index < 1000; index += 1) {
+      assert.equal(externalHighlightKey(highlight), original)
+    }
+    assert.equal(serializations, 1)
+    highlight.owner = 'daffodil:2'
+    const otherOwner = externalHighlightKey(highlight)
+    assert.notEqual(otherOwner, original)
+    highlight.id = 'next'
+    assert.notEqual(externalHighlightKey(highlight), otherOwner)
+    delete highlight.owner
+    assert.equal(externalHighlightKey(highlight), '[null,"next"]')
+    assert.equal(serializations, 4)
+  } finally {
+    JSON.stringify = stringify
+  }
 })
