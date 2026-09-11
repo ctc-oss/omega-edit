@@ -15,6 +15,7 @@
 #ifndef OMEGA_EDIT_EDITOR_SERVICE_H
 #define OMEGA_EDIT_EDITOR_SERVICE_H
 
+#include "allowed_path_policy.h"
 #include "session_manager.h"
 
 #include <grpcpp/grpcpp.h>
@@ -50,7 +51,7 @@ namespace omega_edit {
                                        std::vector<std::string> transform_plugin_directories = {},
                                        std::string transform_plugin_host_path = {},
                                        bool allow_experimental_transform_plugins = false,
-                                       bool allow_test_transform_plugins = false);
+                                       bool allow_test_transform_plugins = false, std::string allowed_root = {});
             ~EditorServiceImpl() override;
 
             grpc::Status GetServerInfo(grpc::ServerContext *context,
@@ -275,8 +276,11 @@ namespace omega_edit {
             template<typename T>
             void fill_change_details(const omega_change_t *change, const std::string &session_id, T *response);
             void request_shutdown();
+            grpc::Status resolve_allowed_path(const std::string &path, const char *field_name, bool existing_file,
+                                              bool directory, std::string &resolved) const;
 
             SessionManager session_manager_;
+            AllowedPathPolicy allowed_path_policy_;
             omega_transform_plugin_registry_t *transform_plugin_registry_{nullptr};
             std::mutex transform_plugin_registry_mutex_;
             std::chrono::steady_clock::time_point start_time_;

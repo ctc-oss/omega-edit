@@ -88,8 +88,9 @@ await stopServerGraceful()
 
 `startServer(..., heartbeat)` and `startServerUnixSocket(..., heartbeat)` accept the same `HeartbeatOptions` bag exported from `@omega-edit/server`, including native logging fields such as `logFile`, `logLevel`, and `logConfigFile`.
 
-The bundled server is unauthenticated. Keep TCP binds on `127.0.0.1`/`localhost` or use Unix domain sockets unless an
-outer layer controls access. Binding outside loopback requires `insecureAllowNonLoopback: true`.
+The bundled server is unauthenticated. Keep TCP binds on `127.0.0.1`/`localhost` or use Unix domain sockets. For remote
+access, keep the backend on a private network and expose only an authenticating HTTP/2-capable gRPC proxy. Binding
+outside loopback requires `insecureAllowNonLoopback: true`; use `allowedRoot` to confine RPC file and checkpoint paths.
 
 Shutdown migration note:
 

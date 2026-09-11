@@ -392,6 +392,7 @@ static void print_usage(const char *progname) {
               << "      --unix-socket-only           Bind only to Unix domain socket\n"
               << "      --insecure-allow-non-loopback\n"
               << "                                   Permit TCP binds outside loopback without authentication\n"
+              << "      --allowed-root <dir>         Restrict RPC file and checkpoint paths to this directory\n"
               << "\nLogging options:\n"
               << "      --log-file <path>            Append native server logs to file\n"
               << "      --log-level <level>          Native log level (debug, info, warn, error)\n"
@@ -436,6 +437,7 @@ int main(int argc, char **argv) {
     std::string unix_socket;
     std::string log_file;
     std::string log_config_file;
+    std::string allowed_root;
     bool unix_socket_only = false;
     bool insecure_allow_non_loopback = false;
     LogLevel log_level = LogLevel::Info;
@@ -470,6 +472,7 @@ int main(int argc, char **argv) {
         insecure_allow_non_loopback = env_value_is_true(env);
     }
     if (const char *env = std::getenv("OMEGA_EDIT_SERVER_PIDFILE")) { pidfile = env; }
+    if (const char *env = std::getenv("OMEGA_EDIT_ALLOWED_ROOT")) { allowed_root = env; }
     if (const char *env = std::getenv("OMEGA_EDIT_SERVER_LOG_CONFIG")) {
         log_config_file = env;
         if (!apply_log_config_file(log_config_file, log_file, log_level)) return 1;
@@ -661,6 +664,9 @@ int main(int argc, char **argv) {
                 if (!parse_int64(value, "--max-changelog-spool-bytes", 1, std::numeric_limits<int64_t>::max(),
                                  max_changelog_spool_bytes))
                     return 1;
+            } else if (key == "--allowed-root") {
+                if (!require_option_value(key, value)) { return 1; }
+                allowed_root = value;
             } else if (key == "--transform-plugin-dir") {
                 if (!require_option_value(key, value)) { return 1; }
                 transform_plugin_directories.push_back(value);
@@ -672,6 +678,16 @@ int main(int argc, char **argv) {
                 return 1;
             }
         }
+    }
+
+    if (!allowed_root.empty()) {
+        std::string allowed_root_error;
+        omega_edit::grpc_server::AllowedPathPolicy allowed_root_validation;
+        if (!allowed_root_validation.configure(allowed_root, allowed_root_error)) {
+            std::cerr << "Invalid --allowed-root: " << allowed_root_error << std::endl;
+            return 1;
+        }
+        allowed_root = allowed_root_validation.root().string();
     }
 
     g_log_level = log_level;
@@ -713,9 +729,10 @@ int main(int argc, char **argv) {
         // Set the shutdown flag so the monitor thread exits cleanly and shuts down the server
         g_shutdown_requested.store(true, std::memory_order_relaxed);
     };
-    omega_edit::grpc_server::EditorServiceImpl service(
-            heartbeat_config, resource_limits, shutdown_callback, transform_plugin_directories,
-            transform_plugin_host_path, allow_experimental_transform_plugins, allow_test_transform_plugins);
+    omega_edit::grpc_server::EditorServiceImpl service(heartbeat_config, resource_limits, shutdown_callback,
+                                                       transform_plugin_directories, transform_plugin_host_path,
+                                                       allow_experimental_transform_plugins,
+                                                       allow_test_transform_plugins, allowed_root);
 
     grpc::EnableDefaultHealthCheckService(true);
 

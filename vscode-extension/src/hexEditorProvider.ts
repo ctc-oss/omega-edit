@@ -6740,6 +6740,16 @@ export class HexEditorProvider
     serverResidentMemoryBytes?: number
     serverVirtualMemoryBytes?: number
     serverPeakResidentMemoryBytes?: number
+    viewportCount?: number
+    attachmentCount?: number
+    activeOperationCount?: number
+    activeMutationCount?: number
+    activeTransformCount?: number
+    sessionSubscriptionCount?: number
+    viewportSubscriptionCount?: number
+    fileBackedSessionCount?: number
+    eventQueueDroppedCount?: number
+    oldestSessionIdleMs?: number
   }): Promise<void> {
     if (this.sessions.size === 0 && this.pendingHealthWebviews.size === 0) {
       return
@@ -6842,6 +6852,81 @@ export class HexEditorProvider
           logicalCpuValue
         ),
       ]
+
+      const addCountMetric = (
+        id:
+          | 'viewports'
+          | 'attachments'
+          | 'activeOperations'
+          | 'activeMutations'
+          | 'activeTransforms'
+          | 'sessionSubscriptions'
+          | 'viewportSubscriptions'
+          | 'fileBackedSessions'
+          | 'droppedEvents',
+        label: string,
+        value: number | undefined
+      ) => {
+        if (value !== undefined) {
+          metrics.push(serverHealthMetric(id, label, String(value)))
+        }
+      }
+      addCountMetric(
+        'viewports',
+        vscode.l10n.t('Viewports'),
+        heartbeat.viewportCount
+      )
+      addCountMetric(
+        'attachments',
+        vscode.l10n.t('Attachments'),
+        heartbeat.attachmentCount
+      )
+      addCountMetric(
+        'activeOperations',
+        vscode.l10n.t('Active Operations'),
+        heartbeat.activeOperationCount
+      )
+      addCountMetric(
+        'activeMutations',
+        vscode.l10n.t('Active Mutations'),
+        heartbeat.activeMutationCount
+      )
+      addCountMetric(
+        'activeTransforms',
+        vscode.l10n.t('Active Transforms'),
+        heartbeat.activeTransformCount
+      )
+      addCountMetric(
+        'sessionSubscriptions',
+        vscode.l10n.t('Session Subscriptions'),
+        heartbeat.sessionSubscriptionCount
+      )
+      addCountMetric(
+        'viewportSubscriptions',
+        vscode.l10n.t('Viewport Subscriptions'),
+        heartbeat.viewportSubscriptionCount
+      )
+      addCountMetric(
+        'fileBackedSessions',
+        vscode.l10n.t('File-backed Sessions'),
+        heartbeat.fileBackedSessionCount
+      )
+      addCountMetric(
+        'droppedEvents',
+        vscode.l10n.t('Dropped Events'),
+        heartbeat.eventQueueDroppedCount
+      )
+      if (heartbeat.oldestSessionIdleMs !== undefined) {
+        metrics.push(
+          serverHealthMetric(
+            'oldestSessionIdle',
+            vscode.l10n.t('Oldest Session Idle'),
+            vscode.l10n.t('{milliseconds} ms', {
+              milliseconds: heartbeat.oldestSessionIdleMs,
+            })
+          )
+        )
+      }
 
       if (heartbeat.serverLoadAverage !== undefined) {
         metrics.push(

@@ -15,6 +15,8 @@
 #ifndef OMEGA_EDIT_SESSION_MANAGER_H
 #define OMEGA_EDIT_SESSION_MANAGER_H
 
+#include "allowed_path_policy.h"
+
 #include <omega_edit.h>
 #include <omega_edit/character_counts.h>
 
@@ -176,6 +178,21 @@ namespace omega_edit {
             std::vector<ViewportEventSubscriptionInfo> viewport_subscriptions;
         };
 
+        class SessionManager;
+
+        struct ResourceMetricsSnapshot {
+            int64_t viewport_count{};
+            int64_t attachment_count{};
+            int64_t active_operation_count{};
+            int64_t active_mutation_count{};
+            int64_t active_transform_count{};
+            int64_t session_subscription_count{};
+            int64_t viewport_subscription_count{};
+            int64_t file_backed_session_count{};
+            int64_t event_queue_dropped_count{};
+            int64_t oldest_session_idle_ms{};
+        };
+
         /// Information about a session managed by the session manager
         struct SessionInfo {
             omega_session_t *session{};
@@ -184,6 +201,8 @@ namespace omega_edit {
             std::string canonical_file_path;
             std::string checkpoint_directory;
             bool owns_checkpoint_directory{false};
+            std::shared_ptr<AllowedPathLease> source_lease;
+            std::shared_ptr<AllowedPathLease> checkpoint_lease;
             // Shared sessions begin life with one attached author and are only reaped
             // after the last attachment detaches.
             size_t attachment_count{0};
@@ -191,6 +210,7 @@ namespace omega_edit {
             bool transform_in_progress{false};
             std::shared_ptr<std::atomic_bool> transform_cancel_requested{std::make_shared<std::atomic_bool>(false)};
             size_t active_mutations{0};
+            size_t active_operations{0};
             // Serializes all access to the underlying non-thread-safe omega_session_t and its viewports.
             std::mutex core_mutex;
             std::mutex initialization_mutex;
@@ -203,9 +223,21 @@ namespace omega_edit {
         struct LockedSession {
             std::shared_ptr<SessionInfo> info;
             std::unique_lock<std::mutex> lock;
+            SessionManager *manager{};
+            std::string session_id;
+
+            LockedSession() = default;
+            LockedSession(const LockedSession &) = delete;
+            auto operator=(const LockedSession &) -> LockedSession & = delete;
+            LockedSession(LockedSession &&other) noexcept;
+            auto operator=(LockedSession &&other) noexcept -> LockedSession &;
+            ~LockedSession();
 
             omega_session_t *session() const { return info ? info->session : nullptr; }
             explicit operator bool() const { return session() != nullptr; }
+
+        private:
+            void release();
         };
 
         struct LockedViewport {
@@ -249,8 +281,6 @@ namespace omega_edit {
             TRANSFORM,
         };
 
-        class SessionManager;
-
         class SessionOperationGuard {
         public:
             SessionOperationGuard() = default;
@@ -287,7 +317,9 @@ namespace omega_edit {
             std::string create_session(const std::string &file_path, const std::string &desired_id,
                                        const std::string &checkpoint_directory, const std::string *initial_data,
                                        int64_t &file_size_out, std::string &checkpoint_dir_out,
-                                       SessionCreateError *error_out = nullptr);
+                                       SessionCreateError *error_out = nullptr,
+                                       std::shared_ptr<AllowedPathLease> source_lease = {},
+                                       std::shared_ptr<AllowedPathLease> checkpoint_lease = {});
             bool destroy_session(const std::string &session_id);
             bool detach_session(const std::string &session_id);
             omega_session_t *get_session(const std::string &session_id);
@@ -298,6 +330,7 @@ namespace omega_edit {
             bool publish_transform_progress(const std::string &session_id, int32_t event_kind,
                                             const TransformProgressData &progress);
             int64_t session_count() const;
+            ResourceMetricsSnapshot resource_metrics_snapshot() const;
 
             // Viewport lifecycle
             std::string create_viewport(const std::string &session_id, int64_t offset, int64_t capacity,
@@ -330,12 +363,13 @@ namespace omega_edit {
                     if (it != sessions_.end()) { it->second->last_activity = now; }
                 }
             }
-            std::vector<std::string> get_idle_session_ids(std::chrono::milliseconds timeout) const;
+            size_t reap_idle_sessions(std::chrono::milliseconds timeout);
 
             // Destroy all sessions (for shutdown)
             void destroy_all();
 
         private:
+            friend class LockedSession;
             friend class SessionOperationGuard;
 
             static std::string generate_uuid_v4();
@@ -354,6 +388,7 @@ namespace omega_edit {
             void destroy_session_info(const std::shared_ptr<SessionInfo> &info);
             bool destroy_session_locked(std::unique_lock<std::mutex> &lock,
                                         const std::map<std::string, std::shared_ptr<SessionInfo>>::iterator &it);
+            void finish_locked_session(const std::string &session_id, const std::shared_ptr<SessionInfo> &info);
             void finish_operation(const std::string &session_id, SessionOperationKind kind);
 
             // Callbacks

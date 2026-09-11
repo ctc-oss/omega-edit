@@ -163,6 +163,46 @@ export interface GetHeartbeatResponse {
    * @generated from protobuf field: optional int64 peak_resident_memory_bytes = 12
    */
   peakResidentMemoryBytes?: number // Peak RSS in bytes.
+  /**
+   * @generated from protobuf field: optional int64 viewport_count = 13
+   */
+  viewportCount?: number // Total active viewports across all sessions.
+  /**
+   * @generated from protobuf field: optional int64 attachment_count = 14
+   */
+  attachmentCount?: number // Total attached session authors.
+  /**
+   * @generated from protobuf field: optional int64 active_operation_count = 15
+   */
+  activeOperationCount?: number // RPCs currently holding session access.
+  /**
+   * @generated from protobuf field: optional int64 active_mutation_count = 16
+   */
+  activeMutationCount?: number // Mutations currently admitted.
+  /**
+   * @generated from protobuf field: optional int64 active_transform_count = 17
+   */
+  activeTransformCount?: number // Transform operations currently running.
+  /**
+   * @generated from protobuf field: optional int64 session_subscription_count = 18
+   */
+  sessionSubscriptionCount?: number // Active session-event subscriptions.
+  /**
+   * @generated from protobuf field: optional int64 viewport_subscription_count = 19
+   */
+  viewportSubscriptionCount?: number // Active viewport-event subscriptions.
+  /**
+   * @generated from protobuf field: optional int64 file_backed_session_count = 20
+   */
+  fileBackedSessionCount?: number // Sessions created from files.
+  /**
+   * @generated from protobuf field: optional int64 event_queue_dropped_count = 21
+   */
+  eventQueueDroppedCount?: number // Buffered events dropped by active queues.
+  /**
+   * @generated from protobuf field: optional int64 oldest_session_idle_ms = 22
+   */
+  oldestSessionIdleMs?: number // Longest current session idle duration.
 }
 // ===========================================================================
 // Request / Response messages — Session lifecycle
@@ -3741,6 +3781,86 @@ class GetHeartbeatResponse$Type extends MessageType<GetHeartbeatResponse> {
         T: 3 /*ScalarType.INT64*/,
         L: 2 /*LongType.NUMBER*/,
       },
+      {
+        no: 13,
+        name: 'viewport_count',
+        kind: 'scalar',
+        opt: true,
+        T: 3 /*ScalarType.INT64*/,
+        L: 2 /*LongType.NUMBER*/,
+      },
+      {
+        no: 14,
+        name: 'attachment_count',
+        kind: 'scalar',
+        opt: true,
+        T: 3 /*ScalarType.INT64*/,
+        L: 2 /*LongType.NUMBER*/,
+      },
+      {
+        no: 15,
+        name: 'active_operation_count',
+        kind: 'scalar',
+        opt: true,
+        T: 3 /*ScalarType.INT64*/,
+        L: 2 /*LongType.NUMBER*/,
+      },
+      {
+        no: 16,
+        name: 'active_mutation_count',
+        kind: 'scalar',
+        opt: true,
+        T: 3 /*ScalarType.INT64*/,
+        L: 2 /*LongType.NUMBER*/,
+      },
+      {
+        no: 17,
+        name: 'active_transform_count',
+        kind: 'scalar',
+        opt: true,
+        T: 3 /*ScalarType.INT64*/,
+        L: 2 /*LongType.NUMBER*/,
+      },
+      {
+        no: 18,
+        name: 'session_subscription_count',
+        kind: 'scalar',
+        opt: true,
+        T: 3 /*ScalarType.INT64*/,
+        L: 2 /*LongType.NUMBER*/,
+      },
+      {
+        no: 19,
+        name: 'viewport_subscription_count',
+        kind: 'scalar',
+        opt: true,
+        T: 3 /*ScalarType.INT64*/,
+        L: 2 /*LongType.NUMBER*/,
+      },
+      {
+        no: 20,
+        name: 'file_backed_session_count',
+        kind: 'scalar',
+        opt: true,
+        T: 3 /*ScalarType.INT64*/,
+        L: 2 /*LongType.NUMBER*/,
+      },
+      {
+        no: 21,
+        name: 'event_queue_dropped_count',
+        kind: 'scalar',
+        opt: true,
+        T: 3 /*ScalarType.INT64*/,
+        L: 2 /*LongType.NUMBER*/,
+      },
+      {
+        no: 22,
+        name: 'oldest_session_idle_ms',
+        kind: 'scalar',
+        opt: true,
+        T: 3 /*ScalarType.INT64*/,
+        L: 2 /*LongType.NUMBER*/,
+      },
     ])
   }
   create(value?: PartialMessage<GetHeartbeatResponse>): GetHeartbeatResponse {
@@ -3787,6 +3907,36 @@ class GetHeartbeatResponse$Type extends MessageType<GetHeartbeatResponse> {
           break
         case /* optional int64 peak_resident_memory_bytes */ 12:
           message.peakResidentMemoryBytes = reader.int64().toNumber()
+          break
+        case /* optional int64 viewport_count */ 13:
+          message.viewportCount = reader.int64().toNumber()
+          break
+        case /* optional int64 attachment_count */ 14:
+          message.attachmentCount = reader.int64().toNumber()
+          break
+        case /* optional int64 active_operation_count */ 15:
+          message.activeOperationCount = reader.int64().toNumber()
+          break
+        case /* optional int64 active_mutation_count */ 16:
+          message.activeMutationCount = reader.int64().toNumber()
+          break
+        case /* optional int64 active_transform_count */ 17:
+          message.activeTransformCount = reader.int64().toNumber()
+          break
+        case /* optional int64 session_subscription_count */ 18:
+          message.sessionSubscriptionCount = reader.int64().toNumber()
+          break
+        case /* optional int64 viewport_subscription_count */ 19:
+          message.viewportSubscriptionCount = reader.int64().toNumber()
+          break
+        case /* optional int64 file_backed_session_count */ 20:
+          message.fileBackedSessionCount = reader.int64().toNumber()
+          break
+        case /* optional int64 event_queue_dropped_count */ 21:
+          message.eventQueueDroppedCount = reader.int64().toNumber()
+          break
+        case /* optional int64 oldest_session_idle_ms */ 22:
+          message.oldestSessionIdleMs = reader.int64().toNumber()
           break
         default:
           let u = options.readUnknownField
@@ -3836,6 +3986,36 @@ class GetHeartbeatResponse$Type extends MessageType<GetHeartbeatResponse> {
     /* optional int64 peak_resident_memory_bytes = 12; */
     if (message.peakResidentMemoryBytes !== undefined)
       writer.tag(12, WireType.Varint).int64(message.peakResidentMemoryBytes)
+    /* optional int64 viewport_count = 13; */
+    if (message.viewportCount !== undefined)
+      writer.tag(13, WireType.Varint).int64(message.viewportCount)
+    /* optional int64 attachment_count = 14; */
+    if (message.attachmentCount !== undefined)
+      writer.tag(14, WireType.Varint).int64(message.attachmentCount)
+    /* optional int64 active_operation_count = 15; */
+    if (message.activeOperationCount !== undefined)
+      writer.tag(15, WireType.Varint).int64(message.activeOperationCount)
+    /* optional int64 active_mutation_count = 16; */
+    if (message.activeMutationCount !== undefined)
+      writer.tag(16, WireType.Varint).int64(message.activeMutationCount)
+    /* optional int64 active_transform_count = 17; */
+    if (message.activeTransformCount !== undefined)
+      writer.tag(17, WireType.Varint).int64(message.activeTransformCount)
+    /* optional int64 session_subscription_count = 18; */
+    if (message.sessionSubscriptionCount !== undefined)
+      writer.tag(18, WireType.Varint).int64(message.sessionSubscriptionCount)
+    /* optional int64 viewport_subscription_count = 19; */
+    if (message.viewportSubscriptionCount !== undefined)
+      writer.tag(19, WireType.Varint).int64(message.viewportSubscriptionCount)
+    /* optional int64 file_backed_session_count = 20; */
+    if (message.fileBackedSessionCount !== undefined)
+      writer.tag(20, WireType.Varint).int64(message.fileBackedSessionCount)
+    /* optional int64 event_queue_dropped_count = 21; */
+    if (message.eventQueueDroppedCount !== undefined)
+      writer.tag(21, WireType.Varint).int64(message.eventQueueDroppedCount)
+    /* optional int64 oldest_session_idle_ms = 22; */
+    if (message.oldestSessionIdleMs !== undefined)
+      writer.tag(22, WireType.Varint).int64(message.oldestSessionIdleMs)
     let u = options.writeUnknownFields
     if (u !== false)
       (u == true ? UnknownFieldHandler.onWrite : u)(

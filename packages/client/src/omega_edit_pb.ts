@@ -312,6 +312,27 @@ export class HeartbeatResponse {
     )
   }
 
+  getViewportCount(): number | undefined {
+    return requireOptionalSafeIntegerOutput(
+      'HeartbeatResponse.viewportCount',
+      this.response_.viewportCount
+    )
+  }
+
+  getActiveOperationCount(): number | undefined {
+    return requireOptionalSafeIntegerOutput(
+      'HeartbeatResponse.activeOperationCount',
+      this.response_.activeOperationCount
+    )
+  }
+
+  getEventQueueDroppedCount(): number | undefined {
+    return requireOptionalSafeIntegerOutput(
+      'HeartbeatResponse.eventQueueDroppedCount',
+      this.response_.eventQueueDroppedCount
+    )
+  }
+
   toObject(): RawGetHeartbeatResponse {
     return {
       ...this.response_,
@@ -320,6 +341,9 @@ export class HeartbeatResponse {
       residentMemoryBytes: this.getResidentMemoryBytes(),
       virtualMemoryBytes: this.getVirtualMemoryBytes(),
       peakResidentMemoryBytes: this.getPeakResidentMemoryBytes(),
+      viewportCount: this.getViewportCount(),
+      activeOperationCount: this.getActiveOperationCount(),
+      eventQueueDroppedCount: this.getEventQueueDroppedCount(),
     }
   }
 }

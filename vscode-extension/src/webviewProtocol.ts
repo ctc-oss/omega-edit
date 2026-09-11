@@ -597,6 +597,16 @@ export type ServerHealthMetricId =
   | 'residentMemory'
   | 'virtualMemory'
   | 'peakResidentMemory'
+  | 'viewports'
+  | 'attachments'
+  | 'activeOperations'
+  | 'activeMutations'
+  | 'activeTransforms'
+  | 'sessionSubscriptions'
+  | 'viewportSubscriptions'
+  | 'fileBackedSessions'
+  | 'droppedEvents'
+  | 'oldestSessionIdle'
   | 'error'
 
 export interface ServerHealthMetric {
