@@ -7,13 +7,17 @@
 import * as vscode from 'vscode'
 import type { OmegaEditExtensionApi } from './omegaEditApi'
 
+const OMEGA_EDIT_EXTENSION_ID = 'ctc-oss.omega-edit-data-editor'
+const EXPECTED_API_VERSION = 2
+
 /** Activate the installed extension; no OmegaEdit npm package is required. */
 export async function getOmegaEditApi(): Promise<OmegaEditExtensionApi> {
-  const id = 'ctc-oss.omega-edit-data-editor'
-  const extension = vscode.extensions.getExtension<OmegaEditExtensionApi>(id)
+  const extension = vscode.extensions.getExtension<OmegaEditExtensionApi>(
+    OMEGA_EDIT_EXTENSION_ID
+  )
   if (!extension) {
     throw new Error(
-      `OmegaEdit Data Editor (${id}) is unavailable. Install or enable it and reload VS Code.`
+      `OmegaEdit Data Editor (${OMEGA_EDIT_EXTENSION_ID}) is unavailable. Install or enable it and reload VS Code.`
     )
   }
 
@@ -27,14 +31,14 @@ export async function getOmegaEditApi(): Promise<OmegaEditExtensionApi> {
   }
   if (
     !api ||
-    api.extensionId !== id ||
-    api.version !== 2 ||
+    api.extensionId !== OMEGA_EDIT_EXTENSION_ID ||
+    api.version !== EXPECTED_API_VERSION ||
     typeof api.open !== 'function' ||
     typeof api.setExternalHighlights !== 'function' ||
     typeof api.clearExternalHighlights !== 'function'
   ) {
     throw new Error(
-      'Incompatible OmegaEdit Data Editor API. This integration requires API version 2; update the extension or integration.'
+      `Incompatible OmegaEdit Data Editor API. This integration requires API version ${EXPECTED_API_VERSION}; update the extension or integration.`
     )
   }
   return api

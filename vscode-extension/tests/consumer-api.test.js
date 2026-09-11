@@ -11,6 +11,7 @@ const os = require('node:os')
 const path = require('node:path')
 const vm = require('node:vm')
 const ts = require('typescript')
+const { normalizePath } = require('../scripts/build-api.cjs')
 
 const root = path.resolve(__dirname, '..')
 const helper = fs.readFileSync(
@@ -105,14 +106,15 @@ async function integrate() {
         getNewLine: () => '\n',
       })
     )
-    const localImports = program
-      .getSourceFiles()
-      .filter(
-        (file) =>
-          file.fileName.includes('omega-edit') &&
-          !file.fileName.startsWith(dir + path.sep) &&
-          !file.fileName.includes('node_modules')
+    const normalizedDir = `${normalizePath(dir)}/`
+    const localImports = program.getSourceFiles().filter((file) => {
+      const fileName = normalizePath(file.fileName)
+      return (
+        fileName.includes('omega-edit') &&
+        !fileName.startsWith(normalizedDir) &&
+        !fileName.includes('/node_modules/')
       )
+    })
     assert.deepEqual(
       localImports.map((file) => file.fileName),
       []
@@ -120,6 +122,15 @@ async function integrate() {
   } finally {
     fs.rmSync(dir, { recursive: true, force: true })
   }
+})
+
+test('consumer API path checks normalize Windows and POSIX separators', () => {
+  const normalized = normalizePath(
+    path.join(root, 'out', 'nested', 'contract.d.ts')
+  )
+  assert.equal(normalized.includes('\\'), false)
+  assert.equal(normalized.endsWith('/out/nested/contract.d.ts'), true)
+  assert.equal(normalizePath(normalized), normalized)
 })
 
 test('consumer helper returns the installed extension API', async () => {
