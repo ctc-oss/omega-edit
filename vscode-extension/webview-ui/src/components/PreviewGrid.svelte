@@ -193,7 +193,8 @@
       return undefined
     }
     const byteOffset = offset + hoveredRowIndex * bytesPerRow + hoveredColumn
-    return externalHighlightFor(byteOffset)?.id
+    const highlight = externalHighlightFor(byteOffset)
+    return highlight ? externalHighlightKey(highlight) : undefined
   })
   const activeExternalHighlightId = $derived(
     hoveredExternalHighlightId ?? gridHoveredExternalHighlightId

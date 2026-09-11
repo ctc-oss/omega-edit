@@ -1359,10 +1359,22 @@ export function normalizeWebviewMessage(
   }
 }
 
+// Weak keys retain no obsolete viewport highlights. Remember the fields as well
+// so callers that mutate a highlight's identity cannot receive a stale key.
+const externalHighlightKeyCache = new WeakMap<
+  { id: string; owner?: string },
+  { id: string; owner?: string; key: string }
+>()
+
 /** Identity for UI keys and hover state; highlight ids are local to an owner. */
 export function externalHighlightKey(highlight: {
   id: string
   owner?: string
 }): string {
-  return JSON.stringify([highlight.owner ?? null, highlight.id])
+  const { id, owner } = highlight
+  const cached = externalHighlightKeyCache.get(highlight)
+  if (cached && cached.id === id && cached.owner === owner) return cached.key
+  const key = JSON.stringify([owner ?? null, id])
+  externalHighlightKeyCache.set(highlight, { id, owner, key })
+  return key
 }

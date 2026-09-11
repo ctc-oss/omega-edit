@@ -636,6 +636,23 @@ suite('OmegaEdit VS Code extension', () => {
     try {
       await extensionApi.open(uri)
       await waitForSession(provider, uri)
+      // Even internal, already-normalized callers cannot assign ownership
+      // through a per-highlight field when storing the legacy group.
+      const session = provider.getSessionForTesting(uri)
+      provider.setAnnotationGroup(session, [{ ...marker, owner: 'forged' }], [])
+      assert.equal(Object.hasOwn(state().externalHighlights[0], 'owner'), false)
+      extensionApi.clearExternalHighlights(uri)
+      assert.equal(state().externalHighlights.length, 0)
+      await extensionApi.setExternalHighlights({
+        uri,
+        owner: 'actual',
+        highlights: [{ ...marker, owner: 'forged' }],
+      })
+      assert.equal(state().externalHighlights[0].owner, 'actual')
+      extensionApi.clearExternalHighlights({ uri, owner: 'forged' })
+      assert.equal(state().externalHighlights.length, 1)
+      extensionApi.clearExternalHighlights({ uri, owner: 'actual' })
+      assert.equal(state().externalHighlights.length, 0)
       await extensionApi.loadRangeMap({
         uri,
         sourceUri,

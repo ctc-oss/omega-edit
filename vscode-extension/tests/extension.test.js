@@ -3516,3 +3516,31 @@ test('annotation UI identities distinguish owners and delimiter-like ids', () =>
   ].map(externalHighlightKey)
   assert.equal(new Set(keys).size, keys.length)
 })
+
+test('annotation keys avoid repeated serialization and refresh changed identities', () => {
+  const { externalHighlightKey } = require('../out/webviewProtocol.js')
+  const highlight = { id: 'current', owner: 'daffodil:1' }
+  const stringify = JSON.stringify
+  let serializations = 0
+  JSON.stringify = (...args) => {
+    serializations += 1
+    return stringify(...args)
+  }
+  try {
+    const original = externalHighlightKey(highlight)
+    for (let index = 0; index < 1000; index += 1) {
+      assert.equal(externalHighlightKey(highlight), original)
+    }
+    assert.equal(serializations, 1)
+    highlight.owner = 'daffodil:2'
+    const otherOwner = externalHighlightKey(highlight)
+    assert.notEqual(otherOwner, original)
+    highlight.id = 'next'
+    assert.notEqual(externalHighlightKey(highlight), otherOwner)
+    delete highlight.owner
+    assert.equal(externalHighlightKey(highlight), '[null,"next"]')
+    assert.equal(serializations, 4)
+  } finally {
+    JSON.stringify = stringify
+  }
+})

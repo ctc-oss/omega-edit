@@ -5104,10 +5104,13 @@ export class HexEditorProvider
       groups.set(owner, {
         changeCount: session.changeCount,
         fileSize: session.fileSize,
-        highlights: highlights.map((highlight) => ({
-          ...highlight,
-          ...(owner === undefined ? {} : { owner }),
-        })),
+        highlights: highlights.map((highlight) => {
+          const annotation = { ...highlight }
+          // Ownership always comes from the group, including the legacy group.
+          delete annotation.owner
+          if (owner !== undefined) annotation.owner = owner
+          return annotation
+        }),
         rangeMapTree: this.cloneRangeMapTree(tree),
       })
     }
