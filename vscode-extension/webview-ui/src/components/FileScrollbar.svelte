@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { externalHighlightKey } from '../../../src/webviewProtocol'
   import { onDestroy, onMount } from 'svelte'
   import { formatNumber, strings } from '../i18n'
   import type { BytesPerRow, WebviewExternalHighlight } from '../protocol'
@@ -191,7 +192,7 @@
   }
 
   function isRangeMarkerHovered(highlight: WebviewExternalHighlight): boolean {
-    return hoveredExternalHighlightId === highlight.id
+    return hoveredExternalHighlightId === externalHighlightKey(highlight)
   }
 
   function scrollToRangeMarker(highlight: WebviewExternalHighlight): void {
@@ -200,7 +201,7 @@
 
   function activateRangeMarker(highlight: WebviewExternalHighlight): void {
     scrollToRangeMarker(highlight)
-    onExternalHighlightEmphasis(highlight.id)
+    onExternalHighlightEmphasis(externalHighlightKey(highlight))
   }
 
   function handleRangeMarkerPointerDown(
@@ -399,7 +400,7 @@
       viewBox={`0 0 14 ${thumbViewBoxHeight}`}
       preserveAspectRatio="none"
     >
-      {#each rangeMarkers as marker (marker.highlight.id)}
+      {#each rangeMarkers as marker (externalHighlightKey(marker.highlight))}
         <rect
           class="file-scrollbar-range-marker"
           class:hovered={isRangeMarkerHovered(marker.highlight)}
@@ -416,7 +417,7 @@
           aria-label={rangeMarkerTitle(marker.highlight)}
           onpointerdown={(event) =>
             handleRangeMarkerPointerDown(marker.highlight, event)}
-          onpointerenter={() => onExternalHighlightHover(marker.highlight.id)}
+          onpointerenter={() => onExternalHighlightHover(externalHighlightKey(marker.highlight))}
           onpointerleave={() => onExternalHighlightHover(undefined)}
           onkeydown={(event) =>
             handleRangeMarkerKeydown(marker.highlight, event)}
