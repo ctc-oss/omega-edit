@@ -194,6 +194,8 @@ export interface WebviewActionJournalCheckpoint {
 }
 
 export interface WebviewExternalHighlight {
+  /** Assigned by the host from the request, not from individual highlights. */
+  owner?: string
   id: string
   offset: number
   length: number
@@ -1355,4 +1357,12 @@ export function normalizeWebviewMessage(
     default:
       return undefined
   }
+}
+
+/** Identity for UI keys and hover state; highlight ids are local to an owner. */
+export function externalHighlightKey(highlight: {
+  id: string
+  owner?: string
+}): string {
+  return JSON.stringify([highlight.owner ?? null, highlight.id])
 }

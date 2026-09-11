@@ -3503,3 +3503,16 @@ test('webview protocol normalizes analysis, search, and transform messages', () 
     undefined
   )
 })
+
+test('annotation UI identities distinguish owners and delimiter-like ids', () => {
+  const { externalHighlightKey } = require('../out/webviewProtocol.js')
+  const keys = [
+    { id: 'current' },
+    { id: 'current', owner: 'daffodil:1' },
+    { id: 'current', owner: 'daffodil:2' },
+    { id: 'b:c', owner: 'a' },
+    { id: 'c', owner: 'a:b' },
+    { id: '["daffodil:1","current"]' },
+  ].map(externalHighlightKey)
+  assert.equal(new Set(keys).size, keys.length)
+})

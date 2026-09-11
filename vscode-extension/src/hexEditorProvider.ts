@@ -139,6 +139,7 @@ import {
   type ServerHealthMetricId,
   type ServerHealthMessage,
   type WebviewToHostMessage,
+  MAX_EXTERNAL_HIGHLIGHTS,
   checkpointTimelineMetadataWindow,
   normalizeExternalHighlights,
   normalizeBytesPerRow,
@@ -181,7 +182,10 @@ interface EditorSession {
   webviewState: WebviewEditorUiState
   externalHighlights: WebviewExternalHighlight[]
   rangeMapTree: WebviewRangeMapNode[]
-  externalHighlightBaseline?: ExternalHighlightBaseline
+  externalHighlightBaselines?: Map<
+    string | undefined,
+    ExternalHighlightBaseline
+  >
   contentSources: WebviewSessionContentInfo[]
   transformPlugins: WebviewTransformPlugin[]
   transformInFlight: boolean
@@ -2920,7 +2924,11 @@ export class HexEditorProvider
       throw new Error('Invalid external highlight request')
     }
 
-    this.setSessionExternalHighlights(session, highlights)
+    this.setSessionExternalHighlights(
+      session,
+      highlights,
+      request.options.owner
+    )
 
     if (request.options.reveal && highlights.length > 0) {
       await this.scrollTo(session, highlights[0].offset)
@@ -2930,12 +2938,13 @@ export class HexEditorProvider
   }
 
   clearExternalHighlights(options?: unknown): WebviewEditorState | undefined {
+    const owner = this.parseExternalHighlightOwner(options)
     const session = this.resolveCommandSession(options)
     if (!session) {
       return undefined
     }
 
-    this.clearSessionExternalHighlights(session)
+    this.clearSessionExternalHighlights(session, owner)
     return this.buildEditorState(session)
   }
 
@@ -2946,7 +2955,9 @@ export class HexEditorProvider
       return
     }
 
-    const unloadedCount = session.externalHighlights.length
+    const unloadedCount = session.externalHighlights.filter(
+      (highlight) => highlight.owner === undefined
+    ).length
     this.clearSessionExternalHighlights(session)
 
     if (unloadedCount > 0 && (!isRecord(options) || options.notify !== false)) {
@@ -5027,12 +5038,6 @@ export class HexEditorProvider
     this.fireEditorStateChanged(session)
   }
 
-  private cloneExternalHighlights(
-    highlights: WebviewExternalHighlight[]
-  ): WebviewExternalHighlight[] {
-    return highlights.map((highlight) => ({ ...highlight }))
-  }
-
   private cloneRangeMapTree(
     nodes: WebviewRangeMapNode[]
   ): WebviewRangeMapNode[] {
@@ -5061,21 +5066,10 @@ export class HexEditorProvider
 
   private setSessionExternalHighlights(
     session: EditorSession,
-    highlights: WebviewExternalHighlight[]
+    highlights: WebviewExternalHighlight[],
+    owner?: string
   ): void {
-    session.externalHighlights = this.cloneExternalHighlights(highlights)
-    session.rangeMapTree = []
-    session.externalHighlightBaseline =
-      highlights.length === 0
-        ? undefined
-        : {
-            changeCount: session.changeCount,
-            fileSize: session.fileSize,
-            highlights: this.cloneExternalHighlights(highlights),
-            rangeMapTree: [],
-          }
-    this.postExternalHighlights(session)
-    this.postRangeMapTree(session)
+    this.setAnnotationGroup(session, highlights, [], owner)
   }
 
   private setSessionRangeMap(
@@ -5083,49 +5077,72 @@ export class HexEditorProvider
     highlights: WebviewExternalHighlight[],
     tree: WebviewRangeMapNode[]
   ): void {
-    session.externalHighlights = this.cloneExternalHighlights(highlights)
-    session.rangeMapTree = this.cloneRangeMapTree(tree)
-    session.externalHighlightBaseline =
-      highlights.length === 0
-        ? undefined
-        : {
-            changeCount: session.changeCount,
-            fileSize: session.fileSize,
-            highlights: this.cloneExternalHighlights(highlights),
-            rangeMapTree: this.cloneRangeMapTree(tree),
-          }
-    this.postExternalHighlights(session)
-    this.postRangeMapTree(session)
+    this.setAnnotationGroup(session, highlights, tree)
   }
 
-  private clearSessionExternalHighlights(session: EditorSession): void {
-    session.externalHighlights = []
-    session.rangeMapTree = []
-    session.externalHighlightBaseline = undefined
-    this.postExternalHighlights(session)
-    this.postRangeMapTree(session)
+  private setAnnotationGroup(
+    session: EditorSession,
+    highlights: WebviewExternalHighlight[],
+    tree: WebviewRangeMapNode[],
+    owner?: string
+  ): void {
+    session.externalHighlightBaselines ??= new Map()
+    const groups = session.externalHighlightBaselines
+    const otherCount = [...groups].reduce(
+      (count, [key, group]) =>
+        count + (key === owner ? 0 : group.highlights.length),
+      0
+    )
+    if (otherCount + highlights.length > MAX_EXTERNAL_HIGHLIGHTS) {
+      throw new Error(
+        `At most ${MAX_EXTERNAL_HIGHLIGHTS} external highlights are supported per editor`
+      )
+    }
+    if (highlights.length === 0) {
+      groups.delete(owner)
+    } else {
+      groups.set(owner, {
+        changeCount: session.changeCount,
+        fileSize: session.fileSize,
+        highlights: highlights.map((highlight) => ({
+          ...highlight,
+          ...(owner === undefined ? {} : { owner }),
+        })),
+        rangeMapTree: this.cloneRangeMapTree(tree),
+      })
+    }
+    this.reconcileExternalHighlightStaleness(session)
+  }
+
+  private clearSessionExternalHighlights(
+    session: EditorSession,
+    owner?: string
+  ): void {
+    session.externalHighlightBaselines?.delete(owner)
+    this.reconcileExternalHighlightStaleness(session)
   }
 
   private reconcileExternalHighlightStaleness(session: EditorSession): void {
-    const baseline = session.externalHighlightBaseline
-    if (!baseline || session.externalHighlights.length === 0) {
-      return
-    }
-
-    if (
-      session.changeCount === baseline.changeCount &&
-      session.fileSize === baseline.fileSize
-    ) {
-      session.externalHighlights = this.cloneExternalHighlights(
-        baseline.highlights
+    session.externalHighlights = []
+    session.rangeMapTree = []
+    for (const [owner, baseline] of session.externalHighlightBaselines ?? []) {
+      const fresh =
+        session.changeCount === baseline.changeCount &&
+        session.fileSize === baseline.fileSize
+      session.externalHighlights.push(
+        ...baseline.highlights.map((highlight) => ({
+          ...highlight,
+          ...(fresh ? {} : { stale: true }),
+        }))
       )
-      session.rangeMapTree = this.cloneRangeMapTree(baseline.rangeMapTree)
-      this.postExternalHighlights(session)
-      this.postRangeMapTree(session)
-      return
+      if (owner === undefined) {
+        session.rangeMapTree = fresh
+          ? this.cloneRangeMapTree(baseline.rangeMapTree)
+          : this.markRangeMapTreeNodesStale(baseline.rangeMapTree)
+      }
     }
-
-    this.markExternalHighlightsStale(session)
+    this.postExternalHighlights(session)
+    this.postRangeMapTree(session)
   }
 
   private postBytesPerRow(
@@ -5477,12 +5494,27 @@ export class HexEditorProvider
     return this.sessions.get(uri.toString())
   }
 
+  private parseExternalHighlightOwner(options: unknown): string | undefined {
+    const owner = isRecord(options) ? options.owner : undefined
+    if (owner === undefined) return undefined
+    if (
+      typeof owner !== 'string' ||
+      owner.trim().length === 0 ||
+      owner.length > 256
+    ) {
+      throw new Error(
+        'External highlight owner must be a nonblank string of at most 256 characters'
+      )
+    }
+    return owner
+  }
+
   private parseExternalHighlightCommand(
     highlightsOrRequest: unknown,
     options?: unknown
   ): {
     highlights: unknown
-    options: { uri?: vscode.Uri | string; reveal?: boolean }
+    options: { uri?: vscode.Uri | string; reveal?: boolean; owner?: string }
   } {
     if (
       isRecord(highlightsOrRequest) &&
@@ -5493,6 +5525,7 @@ export class HexEditorProvider
         options: {
           uri: highlightsOrRequest.uri as vscode.Uri | string | undefined,
           reveal: highlightsOrRequest.reveal === true,
+          owner: this.parseExternalHighlightOwner(highlightsOrRequest),
         },
       }
     }
@@ -5504,6 +5537,7 @@ export class HexEditorProvider
           ? (options.uri as vscode.Uri | string | undefined)
           : undefined,
         reveal: isRecord(options) && options.reveal === true,
+        owner: this.parseExternalHighlightOwner(options),
       },
     }
   }

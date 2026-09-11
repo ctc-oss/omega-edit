@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { externalHighlightKey } from '../../../src/webviewProtocol'
   import { onMount, tick } from 'svelte'
   import { formatNumber, strings } from '../i18n'
   import ByteTooltip from './ByteTooltip.svelte'
@@ -428,7 +429,7 @@
       return false
     }
     const previous = externalHighlightFor(byteOffset - 1)
-    return byteOffset === highlight.offset || previous?.id !== highlight.id
+    return byteOffset === highlight.offset || (!previous || externalHighlightKey(previous) !== externalHighlightKey(highlight))
   }
 
   function isExternalRangeEnd(
@@ -441,21 +442,22 @@
     const next = externalHighlightFor(byteOffset + 1)
     return (
       byteOffset === highlight.offset + highlight.length - 1 ||
-      next?.id !== highlight.id
+      (!next || externalHighlightKey(next) !== externalHighlightKey(highlight))
     )
   }
 
   function isExternalHighlightHovered(
     highlight: WebviewExternalHighlight | undefined
   ): boolean {
-    return !!highlight && activeExternalHighlightId === highlight.id
+    return !!highlight && activeExternalHighlightId === externalHighlightKey(highlight)
   }
 
   function updateHover(rowIndex: number, column: number): void {
     hoveredRowIndex = rowIndex
     hoveredColumn = column
     const byteOffset = offset + rowIndex * bytesPerRow + column
-    onExternalHighlightHover(externalHighlightFor(byteOffset)?.id)
+    const highlight = externalHighlightFor(byteOffset)
+    onExternalHighlightHover(highlight ? externalHighlightKey(highlight) : undefined)
   }
 
   function clearHover(): void {
