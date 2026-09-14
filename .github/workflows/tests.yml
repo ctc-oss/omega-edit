@@ -539,17 +539,13 @@ jobs:
           echo "CPP_SERVER_BINARY=$(pwd)/server/cpp/build/omega-edit-grpc-server" >> $GITHUB_ENV
 
       - name: Yarn Install
-        run: |
-          for attempt in 1 2 3; do
-            if yarn --network-timeout 300000; then
-              exit 0
-            fi
-            if [ "$attempt" -eq 3 ]; then
-              exit 1
-            fi
-            echo "yarn install failed on attempt $attempt; retrying in 15 seconds" >&2
-            sleep 15
-          done
+        uses: nick-fields/retry@ad984534de44a9489a53aefd81eb77f87c70dc60 # v4.0.0
+        with:
+          timeout_minutes: 10
+          max_attempts: 3
+          retry_wait_seconds: 15
+          shell: bash
+          command: yarn --network-timeout 300000
 
       - name: Yarn Package - Server
         run: yarn workspace @omega-edit/server package
