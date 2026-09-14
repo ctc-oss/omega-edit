@@ -27,6 +27,10 @@
 #include <windows.h>
 #else
 #include <dlfcn.h>
+#include <fcntl.h>
+#include <sys/mman.h>
+#include <sys/stat.h>
+#include <unistd.h>
 #endif
 
 namespace {
@@ -100,7 +104,7 @@ namespace {
 
     auto read_string(std::istream &in, std::string &value) -> bool {
         int64_t length = 0;
-        if (!read_pod(in, length) || length < 0) { return false; }
+        if (!read_pod(in, length) || length < 0 || length > 16 * 1024 * 1024) { return false; }
         value.assign(static_cast<size_t>(length), '\0');
         return length == 0 || static_cast<bool>(in.read(value.data(), static_cast<std::streamsize>(value.size())));
     }
@@ -122,12 +126,21 @@ namespace {
 
     struct allocation_state_t {
         std::vector<void *> allocations;
+        size_t allocated_bytes{};
+        size_t max_bytes{};
     };
 
     auto host_alloc(size_t size, void *user_data_ptr) -> void * {
         auto *state = static_cast<allocation_state_t *>(user_data_ptr);
+        if (state && state->max_bytes > 0 &&
+            (state->allocated_bytes > state->max_bytes || size > state->max_bytes - state->allocated_bytes)) {
+            return nullptr;
+        }
         void *ptr = std::malloc(size == 0 ? 1 : size);
-        if (ptr && state) { state->allocations.push_back(ptr); }
+        if (ptr && state) {
+            state->allocations.push_back(ptr);
+            state->allocated_bytes += size;
+        }
         return ptr;
     }
 
@@ -151,8 +164,55 @@ namespace {
         response = {};
     }
 
+    struct mapped_request_t {
+        const omega_byte_t *data{};
+        size_t size{};
+#ifdef _WIN32
+        HANDLE file{INVALID_HANDLE_VALUE};
+        HANDLE mapping{};
+#else
+        int file{-1};
+#endif
+
+        explicit mapped_request_t(const char *path) {
+#ifdef _WIN32
+            file = CreateFileA(path, GENERIC_READ, FILE_SHARE_READ, nullptr, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL,
+                               nullptr);
+            LARGE_INTEGER length{};
+            if (file != INVALID_HANDLE_VALUE && GetFileSizeEx(file, &length) && length.QuadPart > 0) {
+                mapping = CreateFileMappingA(file, nullptr, PAGE_READONLY, 0, 0, nullptr);
+                if (mapping) {
+                    data = static_cast<const omega_byte_t *>(MapViewOfFile(mapping, FILE_MAP_READ, 0, 0, 0));
+                    size = static_cast<size_t>(length.QuadPart);
+                }
+            }
+#else
+            file = open(path, O_RDONLY | O_CLOEXEC);
+            struct stat status{};
+            if (file >= 0 && fstat(file, &status) == 0 && status.st_size > 0) {
+                size = static_cast<size_t>(status.st_size);
+                void *mapping = mmap(nullptr, size, PROT_READ, MAP_PRIVATE, file, 0);
+                if (mapping != MAP_FAILED) { data = static_cast<const omega_byte_t *>(mapping); }
+            }
+#endif
+        }
+
+        ~mapped_request_t() {
+#ifdef _WIN32
+            if (data) { UnmapViewOfFile(data); }
+            if (mapping) { CloseHandle(mapping); }
+            if (file != INVALID_HANDLE_VALUE) { CloseHandle(file); }
+#else
+            if (data) { munmap(const_cast<omega_byte_t *>(data), size); }
+            if (file >= 0) { close(file); }
+#endif
+        }
+
+        bool ok() const { return data != nullptr; }
+    };
+
     struct request_input_t {
-        std::vector<omega_byte_t> bytes;
+        const omega_byte_t *bytes{};
         int64_t session_length{};
     };
 
@@ -168,11 +228,8 @@ namespace {
         }
         const auto available = std::min<int64_t>(input->session_length - relative_offset, length);
         if (available <= 0) { return 0; }
-        if (relative_offset > static_cast<int64_t>(input->bytes.size()) ||
-            available > static_cast<int64_t>(input->bytes.size()) - relative_offset) {
-            return -1;
-        }
-        std::memcpy(buffer, input->bytes.data() + relative_offset, static_cast<size_t>(available));
+        if (!input->bytes && available > 0) { return -1; }
+        std::memcpy(buffer, input->bytes + relative_offset, static_cast<size_t>(available));
         return available;
     }
 
@@ -205,7 +262,8 @@ namespace {
         int64_t session_length{};
         int64_t preferred_chunk_size{};
         std::string options_json;
-        std::vector<omega_byte_t> input;
+        int64_t input_length{};
+        uint64_t input_file_offset{};
         std::string progress_path;
         std::string cancel_path;
     };
@@ -243,12 +301,17 @@ namespace {
         std::ifstream in(request_path, std::ios::binary);
         uint32_t magic = 0;
         if (!in || !read_pod(in, magic) || magic != HOST_REQUEST_MAGIC) { return false; }
-        return read_pod(in, request.session_offset) && read_pod(in, request.session_length) &&
-               read_pod(in, request.preferred_chunk_size) && request.session_offset >= 0 &&
-               request.session_length >= 0 && request.preferred_chunk_size >= 0 &&
-               read_string(in, request.options_json) && read_bytes(in, request.input) &&
-               static_cast<int64_t>(request.input.size()) == request.session_length &&
-               read_string(in, request.progress_path) && read_string(in, request.cancel_path);
+        if (!read_pod(in, request.session_offset) || !read_pod(in, request.session_length) ||
+            !read_pod(in, request.preferred_chunk_size) || request.session_offset < 0 || request.session_length < 0 ||
+            request.preferred_chunk_size < 0 || !read_string(in, request.options_json) ||
+            !read_pod(in, request.input_length) || request.input_length != request.session_length) {
+            return false;
+        }
+        const auto input_offset = in.tellg();
+        if (input_offset < 0) { return false; }
+        request.input_file_offset = static_cast<uint64_t>(input_offset);
+        in.seekg(request.input_length, std::ios::cur);
+        return static_cast<bool>(in) && read_string(in, request.progress_path) && read_string(in, request.cancel_path);
     }
 
     auto write_apply_response(const char *response_path, int32_t status,
@@ -278,12 +341,25 @@ namespace {
             return write_apply_response(response_path, -1, empty);
         }
 
+        mapped_request_t mapped_request(request_path);
+        if (!mapped_request.ok() || host_request.input_file_offset > mapped_request.size ||
+            static_cast<uint64_t>(host_request.input_length) > mapped_request.size - host_request.input_file_offset) {
+            omega_transform_plugin_response_t empty{};
+            return write_apply_response(response_path, -1, empty);
+        }
         allocation_state_t allocation_state;
-        request_input_t input{std::move(host_request.input), host_request.session_length};
+        if (const char *limit = std::getenv("OMEGA_EDIT_TRANSFORM_HOST_MAX_OUTPUT_BYTES")) {
+            try {
+                allocation_state.max_bytes = static_cast<size_t>(std::stoull(limit));
+            } catch (const std::exception &) { allocation_state.max_bytes = 0; }
+        }
+        request_input_t input{host_request.input_length == 0 ? nullptr
+                                                             : mapped_request.data + host_request.input_file_offset,
+                              host_request.session_length};
         callback_state_t callbacks{std::move(host_request.progress_path), std::move(host_request.cancel_path)};
         omega_transform_plugin_request_t request{};
-        request.input_bytes = input.bytes.empty() ? nullptr : input.bytes.data();
-        request.input_length = static_cast<int64_t>(input.bytes.size());
+        request.input_bytes = input.bytes;
+        request.input_length = host_request.input_length;
         request.session_offset = host_request.session_offset;
         request.session_length = host_request.session_length;
         request.options_json = host_request.options_json.empty() ? nullptr : host_request.options_json.c_str();
