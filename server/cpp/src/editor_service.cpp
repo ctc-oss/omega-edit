@@ -383,9 +383,10 @@ namespace omega_edit {
         }
 
         static bool path_argument_is_safe_for_core(const std::string &path) {
-            return path.size() < FILENAME_MAX && std::none_of(path.begin(), path.end(), [](unsigned char ch) {
-                       return ch == '\0' || ch < 0x20U || ch == 0x7FU;
-                   });
+            return path.size() < FILENAME_MAX &&
+                   std::none_of(
+                           path.begin(), path.end(),
+                           [](unsigned char ch) { return ch == '\0' || ch < 0x20U || ch == 0x7FU; });
         }
 
         static grpc::Status validate_path_argument(const std::string &path, const char *field_name) {
@@ -1321,7 +1322,7 @@ namespace omega_edit {
         static int64_t transactional_replace_match_limit(const ResourceLimits &resource_limits) {
             auto limit = static_cast<int64_t>(OMEGA_REPLACE_MATCHES_LIMIT);
             if (resource_limits.max_search_matches > 0) {
-                limit = (std::min)(limit, resource_limits.max_search_matches);
+                limit = (std::min) (limit, resource_limits.max_search_matches);
             }
             return limit;
         }
@@ -1353,7 +1354,7 @@ namespace omega_edit {
             }
 
             const auto effective_length =
-                    length > 0 ? (std::min)(length, session_size - offset) : session_size - offset;
+                    length > 0 ? (std::min) (length, session_size - offset) : session_size - offset;
             if (static_cast<int64_t>(pattern.size()) > effective_length) { return grpc::Status::OK; }
 
             auto *ctx = omega_search_create_context_bytes(
@@ -1438,7 +1439,11 @@ namespace omega_edit {
                                              bool allow_test_transform_plugins, std::string allowed_root)
             : session_manager_(resource_limits), transform_plugin_registry_(omega_transform_plugin_registry_create()),
               start_time_(std::chrono::steady_clock::now()), heartbeat_config_(heartbeat_config),
-              resource_limits_(resource_limits), shutdown_callback_(std::move(shutdown_callback)) {
+              resource_limits_(resource_limits), scan_gate_(resource_limits.max_concurrent_scans),
+              transform_gate_(resource_limits.max_concurrent_transforms),
+              changelog_export_gate_(resource_limits.max_concurrent_changelog_exports),
+              checkpoint_write_gate_(resource_limits.max_concurrent_checkpoint_writes),
+              shutdown_callback_(std::move(shutdown_callback)) {
             std::string allowed_root_error;
             if (!allowed_path_policy_.configure(allowed_root, allowed_root_error)) {
                 throw std::invalid_argument("invalid allowed root: " + allowed_root_error);
@@ -1490,6 +1495,31 @@ namespace omega_edit {
                 code = grpc::StatusCode::FAILED_PRECONDITION;
             }
             return grpc::Status(code, std::string(field_name) + ": " + error);
+        }
+
+        grpc::Status EditorServiceImpl::admit_checkpoint_write(omega_session_t *session,
+                                                               ResourceAdmissionLease &lease) {
+            lease = checkpoint_write_gate_.try_acquire();
+            if (!lease) {
+                return grpc::Status(grpc::StatusCode::RESOURCE_EXHAUSTED,
+                                    "all configured checkpoint writer slots are active; retry later");
+            }
+            if (resource_limits_.max_checkpoint_models_per_session > 0 &&
+                omega_session_get_num_checkpoints(session) >=
+                        static_cast<int64_t>(resource_limits_.max_checkpoint_models_per_session)) {
+                return grpc::Status(grpc::StatusCode::RESOURCE_EXHAUSTED,
+                                    "session has reached its configured checkpoint retention limit");
+            }
+            if (resource_limits_.min_checkpoint_free_bytes > 0) {
+                std::error_code ec;
+                const auto available =
+                        std::filesystem::space(omega_session_get_checkpoint_directory(session), ec).available;
+                if (ec || available < resource_limits_.min_checkpoint_free_bytes) {
+                    return grpc::Status(grpc::StatusCode::RESOURCE_EXHAUSTED,
+                                        "checkpoint filesystem has insufficient configured free-space headroom");
+                }
+            }
+            return grpc::Status::OK;
         }
 
         EditorServiceImpl::~EditorServiceImpl() {
@@ -1585,9 +1615,12 @@ namespace omega_edit {
             response->set_offset(omega_change_get_offset(change));
             response->set_length(omega_change_get_length(change));
 
-            const auto *bytes = omega_change_get_bytes(change);
             const auto data_length = omega_change_get_data_length(change);
-            if (bytes && data_length > 0) { response->set_data(bytes, static_cast<size_t>(data_length)); }
+            if (resource_limits_.max_read_segment_bytes <= 0 ||
+                data_length <= resource_limits_.max_read_segment_bytes) {
+                const auto *bytes = omega_change_get_bytes(change);
+                if (bytes && data_length > 0) { response->set_data(bytes, static_cast<size_t>(data_length)); }
+            }
 
             if (omega_change_is_transform(change)) {
                 auto *transform = response->mutable_transform();
@@ -1730,6 +1763,9 @@ namespace omega_edit {
                                 "control characters");
                     case SessionCreateError::ALREADY_EXISTS:
                         return grpc::Status(grpc::StatusCode::ALREADY_EXISTS, "session already exists: " + desired_id);
+                    case SessionCreateError::RESOURCE_EXHAUSTED:
+                        return grpc::Status(grpc::StatusCode::RESOURCE_EXHAUSTED,
+                                            "configured active session limit has been reached");
                     default:
                         return grpc::Status(grpc::StatusCode::INTERNAL, "Failed to create session");
                 }
@@ -2335,6 +2371,11 @@ namespace omega_edit {
         EditorServiceImpl::ExportChangeLog(grpc::ServerContext *context,
                                            const ::omega_edit::v1::ExportChangeLogRequest *request,
                                            grpc::ServerWriter<::omega_edit::v1::ExportChangeLogResponse> *writer) {
+            auto export_slot = changelog_export_gate_.try_acquire();
+            if (!export_slot) {
+                return grpc::Status(grpc::StatusCode::RESOURCE_EXHAUSTED,
+                                    "all configured change-log export slots are active; retry later");
+            }
             grpc::Status parse_status;
             int64_t first = 0;
             int64_t last = 0;
@@ -2372,16 +2413,19 @@ namespace omega_edit {
                                     "unsupported change-log digest algorithm: " + digest_algorithm);
             }
 
-            const auto entry_cap = requested_entries == 0
-                                           ? resource_limits_.max_changelog_export_entries
-                                           : std::min(requested_entries, resource_limits_.max_changelog_export_entries);
-            const auto output_cap = requested_output_bytes == 0 ? resource_limits_.max_changelog_spool_bytes
-                                                                : std::min(requested_output_bytes,
-                                                                           resource_limits_.max_changelog_spool_bytes);
-            if (entry_cap <= 0 || output_cap <= 0) {
-                return grpc::Status(grpc::StatusCode::RESOURCE_EXHAUSTED,
-                                    "change-log export is disabled by server resource limits");
-            }
+            const auto entry_cap =
+                    resource_limits_.max_changelog_export_entries <= 0
+                            ? (requested_entries == 0 ? (std::numeric_limits<int64_t>::max)() : requested_entries)
+                            : (requested_entries == 0
+                                       ? resource_limits_.max_changelog_export_entries
+                                       : std::min(requested_entries, resource_limits_.max_changelog_export_entries));
+            const auto output_cap =
+                    resource_limits_.max_changelog_spool_bytes <= 0
+                            ? (requested_output_bytes == 0 ? (std::numeric_limits<int64_t>::max)()
+                                                           : requested_output_bytes)
+                            : (requested_output_bytes == 0
+                                       ? resource_limits_.max_changelog_spool_bytes
+                                       : std::min(requested_output_bytes, resource_limits_.max_changelog_spool_bytes));
 
             changelog_spool spool(output_cap);
             if (!spool.valid()) {
@@ -2495,8 +2539,8 @@ namespace omega_edit {
                                          parse_status)) {
                 return parse_status;
             }
-            if (request->capacity() == 0 ||
-                request->capacity() > static_cast<uint64_t>(resource_limits_.max_changelog_export_entries)) {
+            constexpr uint64_t ACTION_JOURNAL_CAPACITY_LIMIT = 1000000;
+            if (request->capacity() == 0 || request->capacity() > ACTION_JOURNAL_CAPACITY_LIMIT) {
                 return grpc::Status(grpc::StatusCode::INVALID_ARGUMENT,
                                     "action journal viewport capacity is outside the configured range");
             }
@@ -3001,6 +3045,16 @@ namespace omega_edit {
                 return grpc::Status(grpc::StatusCode::INVALID_ARGUMENT, "plugin_id is required");
             }
 
+            auto transform_slot = transform_gate_.try_acquire();
+            if (!transform_slot) {
+                return grpc::Status(grpc::StatusCode::RESOURCE_EXHAUSTED,
+                                    "all configured transform slots are active; retry later");
+            }
+            if (resource_limits_.max_transform_options_bytes > 0 && request->has_options_json() &&
+                request->options_json().size() > resource_limits_.max_transform_options_bytes) {
+                return grpc::Status(grpc::StatusCode::RESOURCE_EXHAUSTED,
+                                    "transform options exceed configured materialization limit");
+            }
             const int64_t requested_offset = request->has_offset() ? request->offset() : 0;
             const int64_t requested_length = request->has_length() ? request->length() : 0;
             transform_plugin_response_guard plugin_response;
@@ -3026,6 +3080,12 @@ namespace omega_edit {
             if (!inspect_plugin_response_is_valid(plugin_response.response)) {
                 return grpc::Status(grpc::StatusCode::INTERNAL,
                                     "session content inspection returned an invalid result");
+            }
+            if (resource_limits_.max_transform_result_bytes > 0 &&
+                plugin_response.response.result_length >
+                        static_cast<int64_t>(resource_limits_.max_transform_result_bytes)) {
+                return grpc::Status(grpc::StatusCode::RESOURCE_EXHAUSTED,
+                                    "inspection result exceeds configured materialization limit");
             }
 
             response->set_session_id(request->session_id());
@@ -3096,9 +3156,14 @@ namespace omega_edit {
 
         // ---------- Search ----------
 
-        grpc::Status EditorServiceImpl::SearchSession(grpc::ServerContext * /*context*/,
+        grpc::Status EditorServiceImpl::SearchSession(grpc::ServerContext *context,
                                                       const ::omega_edit::v1::SearchSessionRequest *request,
                                                       ::omega_edit::v1::SearchSessionResponse *response) {
+            auto scan_slot = scan_gate_.try_acquire();
+            if (!scan_slot) {
+                return grpc::Status(grpc::StatusCode::RESOURCE_EXHAUSTED,
+                                    "all configured scan slots are active; retry later");
+            }
             bool is_reverse = request->has_is_reverse() ? request->is_reverse() : false;
             const auto requested_case_folding = request->has_case_folding()
                                                         ? request->case_folding()
@@ -3156,6 +3221,10 @@ namespace omega_edit {
                     auto search_result = 0;
                     while ((bounded_limit <= 0 || num_matches < bounded_limit) &&
                            (search_result = omega_search_next_match(ctx, 1)) > 0) {
+                        if (context->IsCancelled()) {
+                            omega_search_destroy_context(ctx);
+                            return grpc::Status(grpc::StatusCode::CANCELLED, "search cancelled");
+                        }
                         match_offsets.push_back(omega_search_context_get_match_offset(ctx));
                         ++num_matches;
                     }
@@ -3297,6 +3366,9 @@ namespace omega_edit {
                                                         std::to_string(replace_match_limit) +
                                                         "; use checkpointed replace for large replace-all operations");
                         }
+                        ResourceAdmissionLease checkpoint_slot;
+                        const auto checkpoint_status = admit_checkpoint_write(session, checkpoint_slot);
+                        if (!checkpoint_status.ok()) { return checkpoint_status; }
                         const auto rc = omega_edit_replace_all_bytes_directional(
                                 session, reinterpret_cast<const omega_byte_t *>(request->pattern().data()),
                                 static_cast<int64_t>(request->pattern().size()),
@@ -3409,6 +3481,9 @@ namespace omega_edit {
                                                 request->session_id());
                 }
 
+                ResourceAdmissionLease checkpoint_slot;
+                const auto checkpoint_status = admit_checkpoint_write(session, checkpoint_slot);
+                if (!checkpoint_status.ok()) { return checkpoint_status; }
                 const auto rc = omega_edit_replace_all_bytes(
                         session, reinterpret_cast<const omega_byte_t *>(request->pattern().data()),
                         static_cast<int64_t>(request->pattern().size()),
@@ -3561,7 +3636,9 @@ namespace omega_edit {
                 return grpc::Status(grpc::StatusCode::NOT_FOUND, "session not found: " + request->session_id());
             }
             auto *session = locked_session.session();
-
+            ResourceAdmissionLease checkpoint_slot;
+            const auto checkpoint_status = admit_checkpoint_write(session, checkpoint_slot);
+            if (!checkpoint_status.ok()) { return checkpoint_status; }
             if (0 != omega_edit_create_checkpoint(session)) {
                 return grpc::Status(grpc::StatusCode::INTERNAL, "failed to create checkpoint");
             }
@@ -3588,8 +3665,18 @@ namespace omega_edit {
         EditorServiceImpl::ApplyTransformPlugin(grpc::ServerContext *context,
                                                 const ::omega_edit::v1::ApplyTransformPluginRequest *request,
                                                 ::omega_edit::v1::ApplyTransformPluginResponse *response) {
+            auto transform_slot = transform_gate_.try_acquire();
+            if (!transform_slot) {
+                return grpc::Status(grpc::StatusCode::RESOURCE_EXHAUSTED,
+                                    "all configured transform slots are active; retry later");
+            }
             if (request->plugin_id().empty()) {
                 return grpc::Status(grpc::StatusCode::INVALID_ARGUMENT, "plugin_id is required");
+            }
+            if (resource_limits_.max_transform_options_bytes > 0 && request->has_options_json() &&
+                request->options_json().size() > resource_limits_.max_transform_options_bytes) {
+                return grpc::Status(grpc::StatusCode::RESOURCE_EXHAUSTED,
+                                    "transform options exceed configured materialization limit");
             }
 
             const int64_t offset = request->has_offset() ? request->offset() : 0;
@@ -3661,6 +3748,12 @@ namespace omega_edit {
             }
 
             operation = plugin_metadata.operation;
+            ResourceAdmissionLease checkpoint_slot;
+            if (operation == OMEGA_TRANSFORM_PLUGIN_OPERATION_REPLACE ||
+                operation == OMEGA_TRANSFORM_PLUGIN_OPERATION_REPLACE_AND_INSPECT) {
+                const auto checkpoint_status = admit_checkpoint_write(session, checkpoint_slot);
+                if (!checkpoint_status.ok()) { return checkpoint_status; }
+            }
             const char *options_json = request->has_options_json() ? request->options_json().c_str() : nullptr;
             if (0 !=
                 omega_transform_plugin_options_match_args_schema(options_json, plugin_metadata.args_schema_ptr())) {
@@ -3694,6 +3787,12 @@ namespace omega_edit {
                                                 "Transform plugin returned an invalid inspection result"));
                 return grpc::Status(grpc::StatusCode::INTERNAL,
                                     "transform plugin returned an invalid inspection result");
+            }
+            if (resource_limits_.max_transform_result_bytes > 0 &&
+                plugin_response.response.result_length >
+                        static_cast<int64_t>(resource_limits_.max_transform_result_bytes)) {
+                return grpc::Status(grpc::StatusCode::RESOURCE_EXHAUSTED,
+                                    "transform result exceeds configured materialization limit");
             }
 
             const bool operation_replaces = operation == OMEGA_TRANSFORM_PLUGIN_OPERATION_REPLACE ||
@@ -3742,6 +3841,11 @@ namespace omega_edit {
         EditorServiceImpl::GetByteFrequencyProfile(grpc::ServerContext * /*context*/,
                                                    const ::omega_edit::v1::GetByteFrequencyProfileRequest *request,
                                                    ::omega_edit::v1::GetByteFrequencyProfileResponse *response) {
+            auto scan_slot = scan_gate_.try_acquire();
+            if (!scan_slot) {
+                return grpc::Status(grpc::StatusCode::RESOURCE_EXHAUSTED,
+                                    "all configured scan slots are active; retry later");
+            }
             omega_byte_frequency_profile_t profile;
             std::memset(profile, 0, sizeof(profile));
 
@@ -3774,6 +3878,11 @@ namespace omega_edit {
         grpc::Status EditorServiceImpl::GetCharacterCounts(grpc::ServerContext * /*context*/,
                                                            const ::omega_edit::v1::GetCharacterCountsRequest *request,
                                                            ::omega_edit::v1::GetCharacterCountsResponse *response) {
+            auto scan_slot = scan_gate_.try_acquire();
+            if (!scan_slot) {
+                return grpc::Status(grpc::StatusCode::RESOURCE_EXHAUSTED,
+                                    "all configured scan slots are active; retry later");
+            }
             omega_bom_t bom = omega_util_cstring_to_BOM(request->byte_order_mark().c_str());
             auto *counts = omega_character_counts_create();
             omega_character_counts_set_BOM(counts, bom);
@@ -3848,8 +3957,18 @@ namespace omega_edit {
         grpc::Status EditorServiceImpl::GetHeartbeat(grpc::ServerContext * /*context*/,
                                                      const ::omega_edit::v1::GetHeartbeatRequest *request,
                                                      ::omega_edit::v1::GetHeartbeatResponse *response) {
-            // Touch sessions referenced in the heartbeat to keep them alive
-            if (request->session_ids_size() > 0) { session_manager_.touch_sessions(request->session_ids()); }
+            // Touch sessions referenced in the heartbeat to keep them alive.
+            if (resource_limits_.max_heartbeat_session_ids > 0 &&
+                request->session_ids_size() > static_cast<int>(resource_limits_.max_heartbeat_session_ids)) {
+                return grpc::Status(grpc::StatusCode::RESOURCE_EXHAUSTED,
+                                    "heartbeat contains more session IDs than the configured limit");
+            }
+            if (request->session_ids_size() > 0) {
+                std::vector<std::string> unique_ids(request->session_ids().begin(), request->session_ids().end());
+                std::sort(unique_ids.begin(), unique_ids.end());
+                unique_ids.erase(std::unique(unique_ids.begin(), unique_ids.end()), unique_ids.end());
+                session_manager_.touch_sessions(unique_ids);
+            }
 
             auto now = std::chrono::system_clock::now();
             auto uptime = std::chrono::steady_clock::now() - start_time_;
@@ -3886,6 +4005,14 @@ namespace omega_edit {
             response->set_file_backed_session_count(resources.file_backed_session_count);
             response->set_event_queue_dropped_count(resources.event_queue_dropped_count);
             response->set_oldest_session_idle_ms(resources.oldest_session_idle_ms);
+            response->set_event_queue_bytes(resources.event_queue_bytes);
+            response->set_peak_event_queue_bytes(resources.peak_event_queue_bytes);
+            response->set_resource_rejection_count(resources.resource_rejection_count + scan_gate_.rejected() +
+                                                   transform_gate_.rejected() + changelog_export_gate_.rejected() +
+                                                   checkpoint_write_gate_.rejected());
+            response->set_active_scan_count(static_cast<int64_t>(scan_gate_.active()));
+            response->set_active_changelog_export_count(static_cast<int64_t>(changelog_export_gate_.active()));
+            response->set_active_checkpoint_write_count(static_cast<int64_t>(checkpoint_write_gate_.active()));
 
             return grpc::Status::OK;
         }
@@ -3896,9 +4023,15 @@ namespace omega_edit {
                 grpc::ServerContext *context, const ::omega_edit::v1::SubscribeToSessionEventsRequest *request,
                 grpc::ServerWriter<::omega_edit::v1::SubscribeToSessionEventsResponse> *writer) {
 
-            auto queue = session_manager_.subscribe_session_events(request->id(),
-                                                                   request->has_interest() ? request->interest() : -1);
-            if (!queue) { return grpc::Status(grpc::StatusCode::NOT_FOUND, "session not found: " + request->id()); }
+            EventSubscriptionCreateError subscription_error{};
+            auto queue = session_manager_.subscribe_session_events(
+                    request->id(), request->has_interest() ? request->interest() : -1, &subscription_error);
+            if (!queue) {
+                return subscription_error == EventSubscriptionCreateError::RESOURCE_EXHAUSTED
+                               ? grpc::Status(grpc::StatusCode::RESOURCE_EXHAUSTED,
+                                              "configured event subscription limit has been reached")
+                               : grpc::Status(grpc::StatusCode::NOT_FOUND, "session not found: " + request->id());
+            }
 
             SessionEventData event_data;
             while (!context->IsCancelled()) {
@@ -3951,9 +4084,15 @@ namespace omega_edit {
                 return grpc::Status(grpc::StatusCode::INVALID_ARGUMENT, "malformed viewport id: " + request->id());
             }
 
-            auto queue = session_manager_.subscribe_viewport_events(sid, vid,
-                                                                    request->has_interest() ? request->interest() : -1);
-            if (!queue) { return grpc::Status(grpc::StatusCode::NOT_FOUND, "viewport not found: " + request->id()); }
+            EventSubscriptionCreateError subscription_error{};
+            auto queue = session_manager_.subscribe_viewport_events(
+                    sid, vid, request->has_interest() ? request->interest() : -1, &subscription_error);
+            if (!queue) {
+                return subscription_error == EventSubscriptionCreateError::RESOURCE_EXHAUSTED
+                               ? grpc::Status(grpc::StatusCode::RESOURCE_EXHAUSTED,
+                                              "configured event subscription limit has been reached")
+                               : grpc::Status(grpc::StatusCode::NOT_FOUND, "viewport not found: " + request->id());
+            }
 
             ViewportEventData event_data;
             while (!context->IsCancelled()) {

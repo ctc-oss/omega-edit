@@ -16,6 +16,7 @@
 #define OMEGA_EDIT_EDITOR_SERVICE_H
 
 #include "allowed_path_policy.h"
+#include "resource_admission.h"
 #include "session_manager.h"
 
 #include <grpcpp/grpcpp.h>
@@ -278,6 +279,7 @@ namespace omega_edit {
             void request_shutdown();
             grpc::Status resolve_allowed_path(const std::string &path, const char *field_name, bool existing_file,
                                               bool directory, std::string &resolved) const;
+            grpc::Status admit_checkpoint_write(omega_session_t *session, ResourceAdmissionLease &lease);
 
             SessionManager session_manager_;
             AllowedPathPolicy allowed_path_policy_;
@@ -289,6 +291,10 @@ namespace omega_edit {
             // Session reaping
             HeartbeatConfig heartbeat_config_;
             ResourceLimits resource_limits_;
+            ResourceAdmissionGate scan_gate_;
+            ResourceAdmissionGate transform_gate_;
+            ResourceAdmissionGate changelog_export_gate_;
+            ResourceAdmissionGate checkpoint_write_gate_;
             std::function<void()> shutdown_callback_;
             std::once_flag shutdown_once_;
             std::thread reaper_thread_;

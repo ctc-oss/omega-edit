@@ -75,9 +75,9 @@ namespace omega_edit {
             bool is_control_or_nul_byte(unsigned char ch) { return ch == '\0' || ch < 0x20U || ch == 0x7FU; }
 
             bool is_valid_external_path(const std::string &path) {
-                return path.size() < FILENAME_MAX && std::none_of(path.begin(), path.end(), [](unsigned char ch) {
-                           return is_control_or_nul_byte(ch);
-                       });
+                return path.size() < FILENAME_MAX &&
+                       std::none_of(
+                               path.begin(), path.end(), [](unsigned char ch) { return is_control_or_nul_byte(ch); });
             }
 
             int get_current_process_id() {
@@ -496,7 +496,10 @@ namespace omega_edit {
         }
 
         // ── Constructor / Destructor ─────────────────────────────────────────────────
-        SessionManager::SessionManager(ResourceLimits limits) : limits_(limits) {
+        SessionManager::SessionManager(ResourceLimits limits)
+            : limits_(limits),
+              event_queue_budget_(std::make_shared<EventQueueBudget>(limits.max_total_event_queue_bytes)),
+              event_subscription_gate_(limits.max_event_subscriptions) {
             cleanup_stale_server_roots_best_effort(get_managed_temp_root_path());
         }
 
@@ -536,6 +539,11 @@ namespace omega_edit {
             std::string effective_checkpoint_directory = checkpoint_directory;
             bool reserved_new_session = false;
             auto reserve_new_session_locked = [&]() -> bool {
+                if (limits_.max_sessions > 0 && sessions_.size() >= limits_.max_sessions) {
+                    ++resource_rejection_count_;
+                    if (error_out) { *error_out = SessionCreateError::RESOURCE_EXHAUSTED; }
+                    return false;
+                }
                 // Session ID priority: desired_id > generated opaque session ID
                 if (!desired_id.empty()) {
                     if (!is_valid_external_id(desired_id)) {
@@ -745,7 +753,10 @@ namespace omega_edit {
             {
                 std::lock_guard<std::mutex> subscription_lock(info->session_subscription_mutex);
                 for (auto &subscription : info->session_subscriptions) {
-                    if (subscription.event_queue) { subscription.event_queue->close(); }
+                    if (subscription.event_queue) {
+                        subscription.event_queue->clear();
+                        subscription.event_queue->close();
+                    }
                 }
                 info->session_subscriptions.clear();
             }
@@ -755,7 +766,10 @@ namespace omega_edit {
                 {
                     std::lock_guard<std::mutex> subscription_lock(vp.second->viewport_subscription_mutex);
                     for (auto &subscription : vp.second->viewport_subscriptions) {
-                        if (subscription.event_queue) { subscription.event_queue->close(); }
+                        if (subscription.event_queue) {
+                            subscription.event_queue->clear();
+                            subscription.event_queue->close();
+                        }
                     }
                     vp.second->viewport_subscriptions.clear();
                 }
@@ -981,6 +995,9 @@ namespace omega_edit {
 
         ResourceMetricsSnapshot SessionManager::resource_metrics_snapshot() const {
             ResourceMetricsSnapshot metrics;
+            metrics.event_queue_bytes = static_cast<int64_t>(event_queue_budget_->used_bytes.load());
+            metrics.peak_event_queue_bytes = static_cast<int64_t>(event_queue_budget_->peak_bytes.load());
+            metrics.resource_rejection_count = resource_rejection_count_.load() + event_subscription_gate_.rejected();
             std::vector<std::shared_ptr<SessionInfo>> sessions;
             std::vector<std::shared_ptr<ViewportInfo>> viewports;
             {
@@ -1126,7 +1143,10 @@ namespace omega_edit {
             {
                 std::lock_guard<std::mutex> subscription_lock(vp_info->viewport_subscription_mutex);
                 for (auto &subscription : vp_info->viewport_subscriptions) {
-                    if (subscription.event_queue) { subscription.event_queue->close(); }
+                    if (subscription.event_queue) {
+                        subscription.event_queue->clear();
+                        subscription.event_queue->close();
+                    }
                 }
                 vp_info->viewport_subscriptions.clear();
             }
@@ -1169,25 +1189,36 @@ namespace omega_edit {
         }
 
         std::shared_ptr<EventQueue<SessionEventData>>
-        SessionManager::subscribe_session_events(const std::string &session_id, int32_t interest) {
+        SessionManager::subscribe_session_events(const std::string &session_id, int32_t interest,
+                                                 EventSubscriptionCreateError *error_out) {
+            if (error_out) { *error_out = EventSubscriptionCreateError::SUCCESS; }
             std::shared_ptr<SessionInfo> info;
             {
                 std::lock_guard<std::mutex> lock(mutex_);
 
                 auto it = sessions_.find(session_id);
-                if (it == sessions_.end()) return nullptr;
+                if (it == sessions_.end()) {
+                    if (error_out) { *error_out = EventSubscriptionCreateError::NOT_FOUND; }
+                    return nullptr;
+                }
 
                 info = it->second;
                 info->last_activity = std::chrono::steady_clock::now();
             }
 
-            auto queue = std::make_shared<EventQueue<SessionEventData>>(limits_.session_event_queue_capacity,
-                                                                        "session subscription '" + session_id + "#" +
-                                                                                generate_subscription_id() + "'");
+            auto admission = event_subscription_gate_.try_acquire();
+            if (!admission) {
+                if (error_out) { *error_out = EventSubscriptionCreateError::RESOURCE_EXHAUSTED; }
+                return nullptr;
+            }
+            auto queue = std::make_shared<EventQueue<SessionEventData>>(
+                    limits_.session_event_queue_capacity, limits_.session_event_queue_byte_capacity,
+                    event_queue_budget_,
+                    "session subscription '" + session_id + "#" + generate_subscription_id() + "'");
             int32_t combined_interest = 0;
             {
                 std::lock_guard<std::mutex> subscription_lock(info->session_subscription_mutex);
-                info->session_subscriptions.push_back({queue, interest});
+                info->session_subscriptions.push_back({queue, interest, std::move(admission)});
                 combined_interest = combine_event_interest(info->session_subscriptions);
             }
             std::unique_lock<std::mutex> core_lock(info->core_mutex);
@@ -1204,6 +1235,7 @@ namespace omega_edit {
                 }
                 queue->clear();
                 queue->close();
+                if (error_out) { *error_out = EventSubscriptionCreateError::NOT_FOUND; }
                 return nullptr;
             }
             omega_session_set_event_interest(info->session, combined_interest);
@@ -1276,7 +1308,8 @@ namespace omega_edit {
 
         std::shared_ptr<EventQueue<ViewportEventData>>
         SessionManager::subscribe_viewport_events(const std::string &session_id, const std::string &viewport_id,
-                                                  int32_t interest) {
+                                                  int32_t interest, EventSubscriptionCreateError *error_out) {
+            if (error_out) { *error_out = EventSubscriptionCreateError::SUCCESS; }
             std::shared_ptr<SessionInfo> session_info;
             std::shared_ptr<ViewportInfo> vp_info;
             {
@@ -1292,17 +1325,26 @@ namespace omega_edit {
                 vp_info = vit->second;
             }
 
+            auto admission = event_subscription_gate_.try_acquire();
+            if (!admission) {
+                if (error_out) { *error_out = EventSubscriptionCreateError::RESOURCE_EXHAUSTED; }
+                return nullptr;
+            }
             auto queue = std::make_shared<EventQueue<ViewportEventData>>(
-                    limits_.viewport_event_queue_capacity, "viewport subscription '" +
-                                                                   make_viewport_fqid(session_id, viewport_id) + "#" +
-                                                                   generate_subscription_id() + "'");
+                    limits_.viewport_event_queue_capacity, limits_.viewport_event_queue_byte_capacity,
+                    event_queue_budget_,
+                    "viewport subscription '" + make_viewport_fqid(session_id, viewport_id) + "#" +
+                            generate_subscription_id() + "'");
             std::lock_guard<std::mutex> core_lock(session_info->core_mutex);
-            if (vp_info->viewport == nullptr) { return nullptr; }
+            if (vp_info->viewport == nullptr) {
+                if (error_out) { *error_out = EventSubscriptionCreateError::NOT_FOUND; }
+                return nullptr;
+            }
 
             int32_t combined_interest = 0;
             {
                 std::lock_guard<std::mutex> subscription_lock(vp_info->viewport_subscription_mutex);
-                vp_info->viewport_subscriptions.push_back({queue, interest});
+                vp_info->viewport_subscriptions.push_back({queue, interest, std::move(admission)});
                 combined_interest = combine_event_interest(vp_info->viewport_subscriptions);
             }
             omega_viewport_set_event_interest(vp_info->viewport, combined_interest);
