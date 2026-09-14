@@ -75,9 +75,9 @@ namespace omega_edit {
             bool is_control_or_nul_byte(unsigned char ch) { return ch == '\0' || ch < 0x20U || ch == 0x7FU; }
 
             bool is_valid_external_path(const std::string &path) {
-                return path.size() < FILENAME_MAX &&
-                       std::none_of(
-                               path.begin(), path.end(), [](unsigned char ch) { return is_control_or_nul_byte(ch); });
+                return path.size() < FILENAME_MAX && std::none_of(path.begin(), path.end(), [](unsigned char ch) {
+                           return is_control_or_nul_byte(ch);
+                       });
             }
 
             int get_current_process_id() {

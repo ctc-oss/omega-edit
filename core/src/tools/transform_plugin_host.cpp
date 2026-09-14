@@ -188,7 +188,7 @@ namespace {
             }
 #else
             file = open(path, O_RDONLY | O_CLOEXEC);
-            struct stat status{};
+            struct stat status {};
             if (file >= 0 && fstat(file, &status) == 0 && status.st_size > 0) {
                 size = static_cast<size_t>(status.st_size);
                 void *mapping = mmap(nullptr, size, PROT_READ, MAP_PRIVATE, file, 0);

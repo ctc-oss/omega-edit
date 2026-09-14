@@ -276,8 +276,8 @@ namespace {
             }
         }
 
-        auto parse_literal(const char *literal, json_value_t::kind_t kind, json_value_t &value, bool bool_value)
-                -> bool {
+        auto parse_literal(const char *literal, json_value_t::kind_t kind, json_value_t &value,
+                           bool bool_value) -> bool {
             const auto length = std::strlen(literal);
             if (std::strncmp(input_ + pos_, literal, length) != 0) { return false; }
             pos_ += length;
@@ -754,8 +754,8 @@ namespace {
             if (!path_.empty()) { omega_util_remove_file(path_.c_str()); }
         }
 
-        static auto create(const char *directory, const char *prefix, size_t size)
-                -> std::shared_ptr<file_backed_buffer_t> {
+        static auto create(const char *directory, const char *prefix,
+                           size_t size) -> std::shared_ptr<file_backed_buffer_t> {
             if (size == 0) { return nullptr; }
             const auto *const dir = (directory && *directory) ? directory : ".";
             char path[FILENAME_MAX + 1];
@@ -937,8 +937,8 @@ namespace {
         }
     };
 
-    auto read_session_range_chunk_(int64_t relative_offset, omega_byte_t *buffer, int64_t length, void *user_data_ptr)
-            -> int64_t;
+    auto read_session_range_chunk_(int64_t relative_offset, omega_byte_t *buffer, int64_t length,
+                                   void *user_data_ptr) -> int64_t;
 
     // Transfers plugin-owned response buffers to the caller. If no caller response is supplied,
     // the temporary response is cleared here so plugins never leak allocator-owned memory.
@@ -1002,8 +1002,8 @@ namespace {
         return 0;
     }
 
-    auto read_session_range_chunk_(int64_t relative_offset, omega_byte_t *buffer, int64_t length, void *user_data_ptr)
-            -> int64_t {
+    auto read_session_range_chunk_(int64_t relative_offset, omega_byte_t *buffer, int64_t length,
+                                   void *user_data_ptr) -> int64_t {
         auto *reader = static_cast<session_range_reader_t *>(user_data_ptr);
         if (!reader || !reader->session_ptr || !buffer || relative_offset < 0 || length < 0 ||
             relative_offset > reader->length) {
