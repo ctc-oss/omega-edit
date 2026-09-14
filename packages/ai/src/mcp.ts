@@ -1,7 +1,6 @@
 #!/usr/bin/env node
 
 import { parseArgs } from 'node:util'
-import * as readline from 'readline'
 import {
   DEFAULT_HOST,
   DEFAULT_PORT,
@@ -38,6 +37,8 @@ interface OneShotOperation {
 }
 
 const MAX_ONE_SHOT_OPERATIONS = 16
+const MAX_MCP_REQUEST_LINE_BYTES = 1_048_576
+const MAX_CONCURRENT_TOOL_CALLS = 8
 
 function sendMessage(message: JsonObject): void {
   process.stdout.write(`${JSON.stringify(message)}\n`)
@@ -1046,28 +1047,34 @@ async function main(): Promise<void> {
   const tools = buildTools(toolkit)
   const toolMap = new Map(tools.map((tool) => [tool.name, tool]))
   const activeToolRequests = new Map<unknown, AbortController>()
+  let activeToolCallCount = 0
   let initializeComplete = false
   let receivedInitializedNotification = false
 
-  const rl = readline.createInterface({
-    input: process.stdin,
-    crlfDelay: Infinity,
-  })
-
-  rl.on('line', async (line) => {
+  const processLine = async (line: string) => {
     if (line.trim().length === 0) {
       return
     }
 
-    let message: JsonRpcRequest
+    let parsedMessage: unknown
 
     try {
-      message = JSON.parse(line) as JsonRpcRequest
+      parsedMessage = JSON.parse(line)
     } catch (error) {
       sendMessage(makeErrorResponse(null, -32700, 'Parse error'))
       return
     }
 
+    if (
+      parsedMessage === null ||
+      typeof parsedMessage !== 'object' ||
+      Array.isArray(parsedMessage)
+    ) {
+      sendMessage(makeErrorResponse(null, -32600, 'Invalid Request'))
+      return
+    }
+
+    const message = parsedMessage as JsonRpcRequest
     const id = message.id
     const method =
       typeof message.method === 'string' ? message.method : undefined
@@ -1163,12 +1170,24 @@ async function main(): Promise<void> {
           return
         }
 
+        if (activeToolCallCount >= MAX_CONCURRENT_TOOL_CALLS) {
+          sendMessage(
+            makeErrorResponse(
+              id ?? null,
+              -32000,
+              `Too many concurrent tools/call requests; maximum is ${MAX_CONCURRENT_TOOL_CALLS}`
+            )
+          )
+          return
+        }
+
         const argumentsObject = asObject(params.arguments)
         const abortController = new AbortController()
         if (id !== undefined && id !== null) {
           activeToolRequests.set(id, abortController)
         }
 
+        activeToolCallCount += 1
         try {
           const result = await tool.run(argumentsObject, abortController.signal)
           sendMessage(makeResult(id, toolResult(result)))
@@ -1191,6 +1210,7 @@ async function main(): Promise<void> {
             )
           )
         } finally {
+          activeToolCallCount -= 1
           if (activeToolRequests.get(id) === abortController) {
             activeToolRequests.delete(id)
           }
@@ -1204,6 +1224,67 @@ async function main(): Promise<void> {
     } catch (error) {
       const messageText = error instanceof Error ? error.message : String(error)
       sendMessage(makeErrorResponse(id ?? null, -32603, messageText))
+    }
+  }
+
+  let pendingInput: Buffer[] = []
+  let pendingInputLength = 0
+  let discardingOversizedLine = false
+
+  const queueLine = (lineBuffer: Buffer) => {
+    const line =
+      lineBuffer.length > 0 && lineBuffer[lineBuffer.length - 1] === 0x0d
+        ? lineBuffer.subarray(0, lineBuffer.length - 1)
+        : lineBuffer
+    void processLine(line.toString('utf8')).catch((error) => {
+      process.stderr.write(
+        `${error instanceof Error ? error.message : String(error)}\n`
+      )
+    })
+  }
+
+  process.stdin.on('data', (chunk: Buffer | string) => {
+    let input = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk)
+
+    while (input.length > 0) {
+      const newlineIndex = input.indexOf(0x0a)
+      const segment =
+        newlineIndex >= 0 ? input.subarray(0, newlineIndex) : input
+      input =
+        newlineIndex >= 0 ? input.subarray(newlineIndex + 1) : Buffer.alloc(0)
+
+      if (!discardingOversizedLine) {
+        if (pendingInputLength + segment.length > MAX_MCP_REQUEST_LINE_BYTES) {
+          pendingInput = []
+          pendingInputLength = 0
+          discardingOversizedLine = true
+          sendMessage(
+            makeErrorResponse(
+              null,
+              -32700,
+              `Request exceeds maximum line length of ${MAX_MCP_REQUEST_LINE_BYTES} bytes`
+            )
+          )
+        } else if (segment.length > 0) {
+          pendingInput.push(segment)
+          pendingInputLength += segment.length
+        }
+      }
+
+      if (newlineIndex >= 0) {
+        if (!discardingOversizedLine) {
+          queueLine(Buffer.concat(pendingInput, pendingInputLength))
+        }
+        pendingInput = []
+        pendingInputLength = 0
+        discardingOversizedLine = false
+      }
+    }
+  })
+
+  process.stdin.on('end', () => {
+    if (!discardingOversizedLine && pendingInputLength > 0) {
+      queueLine(Buffer.concat(pendingInput, pendingInputLength))
     }
   })
 }

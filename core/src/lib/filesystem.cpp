@@ -355,6 +355,7 @@ char *omega_util_available_filename(char const *path, char *buffer) {
     do {
         if (++i >= OMEGA_AVAILABLE_FILENAME_SUFFIX_ATTEMPTS) { return nullptr; }
         auto const filename_str = fs::path(dirname).append(basename + "-" + std::to_string(i) + extension).string();
+        if (filename_str.length() >= FILENAME_MAX) { return nullptr; }
         auto const len = filename_str.copy(buffer, filename_str.length());
         assert(len == filename_str.length());
         buffer[len] = '\0';

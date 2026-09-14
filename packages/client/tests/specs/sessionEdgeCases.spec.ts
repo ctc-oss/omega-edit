@@ -58,6 +58,119 @@ describe('Session Edge Cases', () => {
     restoreLogger()
   })
 
+  it.each(['insert', 'del', 'overwrite', 'undo', 'redo', 'clear'])(
+    'should account for %s RPC outcomes with and without edit statistics',
+    async (operation) => {
+      const raw = require('../../dist/cjs/protobuf_ts/change.js')
+      const rpc =
+        operation === 'undo'
+          ? 'undoLastChange'
+          : operation === 'redo'
+            ? 'redoLastUndo'
+            : operation === 'clear'
+              ? 'clearChanges'
+              : 'submitChange'
+      const counter =
+        operation === 'del' ? 'delete_count' : `${operation}_count`
+      for (const withStats of [false, true]) {
+        for (const outcome of ['error', 'empty', 'zero', 'success']) {
+          if (operation === 'clear' && outcome === 'zero') continue
+          const stats = withStats ? new raw.EditStats() : undefined
+          const restore = overrideProperty(
+            clientModule as Record<string, any>,
+            'getClient',
+            async () => ({
+              [rpc](
+                _request: unknown,
+                callback: (error: Error | null, response?: unknown) => void
+              ) {
+                callback(
+                  outcome === 'error' ? new Error('transport failure') : null,
+                  outcome === 'empty'
+                    ? undefined
+                    : operation === 'clear'
+                      ? { id: 'sid' }
+                      : { serial: outcome === 'zero' ? 0 : 7 }
+                )
+              },
+            })
+          )
+          try {
+            const args =
+              operation === 'del'
+                ? ['sid', 0, 1, stats]
+                : ['insert', 'overwrite'].includes(operation)
+                  ? ['sid', 0, new Uint8Array([65]), stats]
+                  : ['sid', stats]
+            const result = raw[operation](...args)
+            if (outcome === 'success') {
+              expect(await result).to.equal(operation === 'clear' ? 'sid' : 7)
+              if (stats) {
+                expect(stats[counter]).to.equal(1)
+                expect(stats.error_count).to.equal(0)
+              }
+            } else {
+              await expect(result).rejects.toThrow(`${operation} failed`)
+              if (stats) {
+                expect(stats[counter]).to.equal(0)
+                expect(stats.error_count).to.equal(1)
+              }
+            }
+          } finally {
+            restore()
+          }
+        }
+      }
+    }
+  )
+
+  it.each(['getChangeDetails', 'getLastChange', 'getLastUndo'])(
+    'should preserve %s transport failures',
+    async (operation) => {
+      const raw = require('../../dist/cjs/protobuf_ts/change.js')
+      const restore = overrideProperty(
+        clientModule as Record<string, any>,
+        'getClient',
+        async () => ({
+          [operation](_request: unknown, callback: (error: Error) => void) {
+            callback(new Error('transport failure'))
+          },
+        })
+      )
+      try {
+        await expect(raw[operation]('sid', 1)).rejects.toThrow(
+          'transport failure'
+        )
+      } finally {
+        restore()
+      }
+    }
+  )
+
+  it.each(['getChangeDetails', 'getLastChange', 'getLastUndo'])(
+    'should reject missing %s results',
+    async (operation) => {
+      const raw = require('../../dist/cjs/protobuf_ts/change.js')
+      const restore = overrideProperty(
+        clientModule as Record<string, any>,
+        'getClient',
+        async () => ({
+          [operation](
+            _request: unknown,
+            callback: (error: Error | null, response?: unknown) => void
+          ) {
+            callback(null)
+          },
+        })
+      )
+      try {
+        await expect(raw[operation]('sid', 1)).rejects.toThrow('empty response')
+      } finally {
+        restore()
+      }
+    }
+  )
+
   it('should reject createSession and saveSession failures', async () => {
     const restoreGetClient = overrideProperty(
       clientModule as Record<string, any>,

@@ -1,5 +1,6 @@
 <script lang="ts">
   import { tick } from 'svelte'
+  import { externalHighlightKey } from '../../../src/webviewProtocol'
   import type {
     BytesPerRow,
     HostToWebviewMessage,
@@ -216,8 +217,23 @@
     onSelectRangeMapNode(node)
   }
 
+  const activeRangeMapHighlightId = $derived(
+    externalHighlights.find((highlight) =>
+      highlight.owner === undefined &&
+      externalHighlightKey(highlight) === activeExternalHighlightId
+    )?.id
+  )
+
+  function setHoveredRangeMapNode(id: string | undefined): void {
+    setHoveredExternalHighlightId(
+      id === undefined ? undefined : externalHighlightKey({ id })
+    )
+  }
+
   function externalHighlightExists(id: string | undefined): boolean {
-    return !!id && externalHighlights.some((highlight) => highlight.id === id)
+    return !!id && externalHighlights.some(
+      (highlight) => externalHighlightKey(highlight) === id
+    )
   }
 
   function measureAutoFitBytesPerRow(): BytesPerRow | undefined {
@@ -467,7 +483,7 @@
     {selectionLength}
     {selectionStart}
     {selectionEnd}
-    hoveredExternalHighlightId={activeExternalHighlightId}
+    hoveredExternalHighlightId={activeRangeMapHighlightId}
     {dataProfile}
     {viewportProfile}
     {serverHealth}
@@ -479,7 +495,7 @@
     onToggleExpanded={onToggleProfilerExpanded}
     onModeChange={onProfilerModeChange}
     onSelectRangeMapNode={selectRangeMapNode}
-    onRangeMapNodeHover={setHoveredExternalHighlightId}
+    onRangeMapNodeHover={setHoveredRangeMapNode}
     onLoadRangeMap={onLoadRangeMap}
     onUnloadRangeMap={onUnloadRangeMap}
     onMoveSection={onMoveAnalysisSection}

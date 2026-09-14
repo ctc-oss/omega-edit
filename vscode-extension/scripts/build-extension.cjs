@@ -16,11 +16,14 @@ const fs = require('fs')
 const { builtinModules } = require('module')
 const path = require('path')
 const esbuild = require('esbuild')
+const { buildApi } = require('./build-api.cjs')
 
 const extensionRoot = path.resolve(__dirname, '..')
 const production = process.argv.includes('--production')
 
 async function main() {
+  buildApi()
+
   const result = await esbuild.build({
     entryPoints: [path.join(extensionRoot, 'src', 'extension.ts')],
     outfile: path.join(extensionRoot, 'out', 'extension.js'),

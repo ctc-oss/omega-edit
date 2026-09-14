@@ -20,6 +20,7 @@
 import {
   ALL_EVENTS,
   createViewport,
+  getServerHeartbeat,
   del,
   destroyViewport,
   getChangeCount,
@@ -59,6 +60,36 @@ describe('Viewports', () => {
 
   afterEach(async () => {
     await destroyTestSession(session_id)
+  })
+
+  it('Should snapshot heartbeat metrics during concurrent viewport changes', async () => {
+    const baseline = await getServerHeartbeat([session_id])
+    await Promise.all([
+      (async () => {
+        for (let i = 0; i < 200; i++) {
+          const viewport = await createViewport(
+            undefined,
+            session_id,
+            0,
+            10,
+            false
+          )
+          await destroyViewport(viewport.getViewportId())
+        }
+      })(),
+      (async () => {
+        for (let i = 0; i < 200; i++) {
+          const heartbeat = await getServerHeartbeat([session_id])
+          expect(heartbeat.viewportCount).to.be.within(
+            baseline.viewportCount,
+            baseline.viewportCount + 1
+          )
+        }
+      })(),
+    ])
+    expect((await getServerHeartbeat([session_id])).viewportCount).to.equal(
+      baseline.viewportCount
+    )
   })
 
   it('Should create and destroy viewports', async () => {

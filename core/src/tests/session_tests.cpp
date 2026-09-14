@@ -836,21 +836,21 @@ TEST_CASE("Guarded session save fails closed at the publish boundary", "[Session
     REQUIRE(0 == omega_edit_save(session, saved_path.c_str(), IO_FLG_OVERWRITE, nullptr));
     REQUIRE(0 == omega_util_compare_files(path.c_str(), saved_path.c_str()));
 
-    // Once the successful save refreshes core's synchronized file version, the guard is not called on the fast path.
+    // A configured guard is authoritative even when the timestamp fast path reports no change.
     REQUIRE(0 == omega_edit_save_with_options(session, path.c_str(), IO_FLG_OVERWRITE, saved_filename, &options));
-    REQUIRE(4 == guard_state.calls);
+    REQUIRE(5 == guard_state.calls);
 
     // A non-null options struct without a callback is equivalent to the legacy save API.
     omega_edit_save_options_t empty_options{};
     REQUIRE(0 == omega_edit_save_with_options(session, path.c_str(), IO_FLG_OVERWRITE, saved_filename, &empty_options));
-    REQUIRE(4 == guard_state.calls);
+    REQUIRE(5 == guard_state.calls);
 
     // Explicit force-overwrite remains an intentional bypass and never consults the guard.
     std::this_thread::sleep_for(std::chrono::milliseconds(20));
     write_test_file(path.c_str(), "external-again");
     guard_state.result = 1;
     REQUIRE(0 == omega_edit_save_with_options(session, path.c_str(), IO_FLG_FORCE_OVERWRITE, saved_filename, &options));
-    REQUIRE(4 == guard_state.calls);
+    REQUIRE(5 == guard_state.calls);
 
     omega_edit_destroy_session(session);
     omega_util_remove_file(path.c_str());

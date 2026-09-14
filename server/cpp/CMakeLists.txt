@@ -225,6 +225,8 @@ endif()
 # ── Server executable ─────────────────────────────────────────────────────────
 set(SERVER_SOURCES
     src/main.cpp
+    src/allowed_path_policy.cpp
+    src/allowed_path_policy.h
     src/editor_service.cpp
     src/editor_service.h
     src/session_manager.cpp
@@ -275,6 +277,15 @@ elseif(NOT APPLE)
     if(UUID_LIB)
         target_link_libraries(omega-edit-grpc-server PRIVATE ${UUID_LIB})
     endif()
+endif()
+
+if(BUILD_TESTING)
+    add_executable(allowed-path-policy-tests
+        tests/allowed_path_policy_tests.cpp
+        src/allowed_path_policy.cpp
+        src/allowed_path_policy.h)
+    target_include_directories(allowed-path-policy-tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
+    add_test(NAME allowed-path-policy-tests COMMAND allowed-path-policy-tests)
 endif()
 
 # ── Install rules ─────────────────────────────────────────────────────────────

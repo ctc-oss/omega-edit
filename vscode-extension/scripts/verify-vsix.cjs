@@ -35,6 +35,9 @@ const size = fs.statSync(archive).size
 const required = [
   'extension/package.json',
   'extension/out/extension.js',
+  'extension/out/api.d.ts',
+  'extension/integration/omegaEditApi.d.ts',
+  'extension/integration/omegaEdit.ts',
   'extension/out/svelte-webview/webview.css',
   'extension/out/svelte-webview/webview.js',
 ]
@@ -49,7 +52,9 @@ const forbidden = entries.filter(
       entry
     ) ||
     (/\.(?:d\.ts|map|tsbuildinfo)$/.test(entry) &&
-      !entry.startsWith('extension/node_modules/@omega-edit/server/'))
+      !entry.startsWith('extension/node_modules/@omega-edit/server/') &&
+      entry !== 'extension/out/api.d.ts' &&
+      entry !== 'extension/integration/omegaEditApi.d.ts')
 )
 if (forbidden.length > 0) fail(`VSIX contains development files:\n${forbidden.slice(0, 20).join('\n')}`)
 if (!entries.some((entry) => entry.startsWith('extension/node_modules/@omega-edit/server/')))

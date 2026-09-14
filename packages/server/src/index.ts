@@ -67,6 +67,8 @@ export interface HeartbeatOptions {
   allowTestTransformPlugins?: boolean
   /** Permit unauthenticated TCP binds outside loopback. */
   insecureAllowNonLoopback?: boolean
+  /** Restrict RPC file and checkpoint paths to this directory. */
+  allowedRoot?: string
 }
 
 /**
@@ -454,6 +456,9 @@ function heartbeatToArgs(
   if (opts?.insecureAllowNonLoopback) {
     args.push('--insecure-allow-non-loopback')
   }
+  if (opts?.allowedRoot !== undefined && opts.allowedRoot.length > 0) {
+    args.push(`--allowed-root=${opts.allowedRoot}`)
+  }
   const transformPluginHostPath =
     opts?.transformPluginHostPath || defaultTransformPluginHostPath
   if (transformPluginHostPath) {
@@ -511,22 +516,23 @@ async function executeServer(
     fs.chmodSync(serverBinary, 0o755)
   }
 
-  const serverProcess: ChildProcess = spawn(serverBinary, serverArgs, {
-    cwd: path.dirname(serverBinary),
-    detached: true,
-    shell: false,
-    stdio: ['ignore', 'ignore', 'ignore'],
-    windowsHide: true, // avoid showing a console window
+  return await new Promise<ChildProcess>((resolve, reject) => {
+    const serverProcess: ChildProcess = spawn(serverBinary, serverArgs, {
+      cwd: path.dirname(serverBinary),
+      detached: true,
+      shell: false,
+      stdio: ['ignore', 'ignore', 'ignore'],
+      windowsHide: true,
+    })
+
+    const onError = (error: Error) => reject(error)
+    serverProcess.once('error', onError)
+    serverProcess.once('spawn', () => {
+      serverProcess.off('error', onError)
+      serverProcess.unref()
+      resolve(serverProcess)
+    })
   })
-
-  serverProcess.on('error', (err: Error) => {
-    // ignore the error if the process was cancelled
-    if (!err.message.includes('Call cancelled')) throw err
-  })
-
-  serverProcess.unref()
-
-  return serverProcess
 }
 
 /**

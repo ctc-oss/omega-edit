@@ -38,6 +38,16 @@
 #include <string>
 #include <vector>
 
+#ifdef OMEGA_BUILD_WINDOWS
+#include <io.h>
+#else
+#include <unistd.h>
+#endif
+#ifdef __linux__
+#include <linux/fs.h>
+#include <sys/ioctl.h>
+#endif
+
 using omega_edit::internal::add_overflows_int64_;
 using omega_edit::internal::apply_builtin_transform_;
 using omega_edit::internal::builtin_transform_id_;
@@ -216,6 +226,14 @@ namespace {
 
     auto resolve_checkpoint_directory_(const char *file_path, const char *checkpoint_directory,
                                        std::string &checkpoint_directory_str) -> bool {
+#ifdef __linux__
+        if (checkpoint_directory != nullptr && strncmp(checkpoint_directory, "/proc/self/fd/", 14) == 0) {
+            try {
+                checkpoint_directory_str.assign(checkpoint_directory);
+                return true;
+            } catch (const std::bad_alloc &) { return false; }
+        }
+#endif
         if (checkpoint_directory == nullptr) {
             if ((file_path != nullptr) && file_path[0] != '\0') {
                 auto *const dirname = omega_util_dirname(file_path, nullptr);
@@ -381,12 +399,12 @@ namespace {
 
     auto original_file_modified_since_last_sync_(omega_session_t *session_ptr, const char *file_path) -> bool {
         if (!session_ptr || !file_path || !*file_path || !session_ptr->original_file_modification_time_valid_) {
-            return false;
+            return true;
         }
 
         int64_t modification_time = 0;
-        if (0 != omega_util_get_modification_time(file_path, &modification_time)) { return false; }
-        return modification_time > session_ptr->original_file_modification_time_;
+        if (0 != omega_util_get_modification_time(file_path, &modification_time)) { return true; }
+        return modification_time != session_ptr->original_file_modification_time_;
     }
 
     auto refresh_original_file_modification_time_(omega_session_t *session_ptr, const char *file_path) -> int {
@@ -1400,6 +1418,55 @@ namespace {
         return file_ptr;
     }
 
+    auto reset_file_descriptor_(int fd) -> bool {
+#ifdef OMEGA_BUILD_WINDOWS
+        return 0 == _chsize_s(fd, 0) && 0 <= _lseeki64(fd, 0, SEEK_SET);
+#else
+        return 0 == ftruncate(fd, 0) && 0 <= lseek(fd, 0, SEEK_SET);
+#endif
+    }
+
+    auto copy_file_to_descriptor_(const char *source_path, int destination_fd) -> bool {
+        if (!source_path || !*source_path || destination_fd < 0 || !reset_file_descriptor_(destination_fd)) {
+            return false;
+        }
+#ifdef __linux__
+        const auto source_fd = OPEN(source_path, O_RDONLY, 0);
+        if (source_fd >= 0) {
+            const auto cloned = 0 == ioctl(destination_fd, FICLONE, source_fd);
+            CLOSE(source_fd);
+            if (cloned) { return 0 <= lseek(destination_fd, 0, SEEK_SET); }
+            if (!reset_file_descriptor_(destination_fd)) { return false; }
+        }
+#endif
+        const auto source_size = omega_util_file_size(source_path);
+        if (source_size < 0) { return false; }
+        auto *source_file = FOPEN(source_path, "rb");
+        if (!source_file) { return false; }
+#ifdef OMEGA_BUILD_WINDOWS
+        const auto destination_copy_fd = _dup(destination_fd);
+#else
+        const auto destination_copy_fd = dup(destination_fd);
+#endif
+        auto *destination_file = open_owned_fd_as_file_(destination_copy_fd, "wb");
+        if (!destination_file) {
+            FCLOSE(source_file);
+            return false;
+        }
+        const auto copied = omega_util_write_segment_to_file(source_file, 0, source_size, destination_file);
+        const auto flushed = fflush(destination_file);
+        const auto source_close_result = FCLOSE(source_file);
+        const auto destination_close_result = FCLOSE(destination_file);
+        if (copied != source_size || flushed != 0 || source_close_result != 0 || destination_close_result != 0) {
+            return false;
+        }
+#ifdef OMEGA_BUILD_WINDOWS
+        return 0 <= _lseeki64(destination_fd, 0, SEEK_SET);
+#else
+        return 0 <= lseek(destination_fd, 0, SEEK_SET);
+#endif
+    }
+
     auto create_temp_file_in_checkpoint_dir_(omega_session_t *session_ptr, const char *prefix, char *filename,
                                              size_t filename_size) -> int {
         if (!session_ptr || !prefix || !filename || filename_size == 0) { return -1; }
@@ -2015,6 +2082,14 @@ int omega_edit_serial_result_is_success(int64_t result) { return result > 0 ? 1 
 
 int omega_edit_status_result_is_success(int result) { return result == 0 ? 1 : 0; }
 
+int omega_edit_set_session_file_path(omega_session_t *session_ptr, const char *file_path) {
+    if (!session_ptr || session_ptr->models_.empty() || !file_path || !*file_path) { return -1; }
+    try {
+        session_ptr->models_.front()->file_path.assign(file_path);
+        return 0;
+    } catch (const std::bad_alloc &) { return -1; }
+}
+
 omega_session_t *omega_edit_create_session(const char *file_path, omega_session_event_cbk_t cbk, void *user_data_ptr,
                                            int32_t event_interest, const char *checkpoint_directory) {
     std::string checkpoint_directory_str;
@@ -2037,20 +2112,21 @@ omega_session_t *omega_edit_create_session(const char *file_path, omega_session_
                       << static_cast<char *>(checkpoint_filename) << "'");
             return nullptr;
         }
-        CLOSE(checkpoint_fd);
-        if (0 != omega_util_file_copy(file_path, static_cast<char *>(checkpoint_filename), mode)) {
+        if (!copy_file_to_descriptor_(file_path, checkpoint_fd)) {
             LOG_ERROR("failed to copy original file '" << file_path << "' to checkpoint file '"
                                                        << static_cast<char *>(checkpoint_filename) << "'");
+            CLOSE(checkpoint_fd);
             omega_util_remove_file(checkpoint_filename);
             return nullptr;
         }
         if (0 != omega_util_get_modification_time(file_path, &original_file_modification_time)) {
             LOG_ERROR("failed to read original file modification time for '" << file_path << "'");
+            CLOSE(checkpoint_fd);
             omega_util_remove_file(checkpoint_filename);
             return nullptr;
         }
         original_file_modification_time_valid = true;
-        file_ptr = FOPEN(checkpoint_filename, "rb");
+        file_ptr = open_owned_fd_as_file_(checkpoint_fd, "rb");
         if (file_ptr == nullptr) {
             omega_util_remove_file(checkpoint_filename);
             return nullptr;
@@ -2768,9 +2844,10 @@ int omega_edit_save_segment_with_options(omega_session_t *session_ptr, const cha
         io_buf = std::make_unique<omega_byte_t[]>(OMEGA_IO_BUFFER_SIZE);
     } catch (const std::bad_alloc &) { return -6; }
 
-    const auto overwrite_original =
-            (overwrite && (session_file_path != nullptr) && (omega_util_file_exists(file_path) != 0) &&
-             (omega_util_paths_equivalent(file_path, session_file_path) != 0));
+    const auto overwrite_original = overwrite && session_file_path != nullptr &&
+                                    ((omega_util_file_exists(file_path) != 0 &&
+                                      omega_util_paths_equivalent(file_path, session_file_path) != 0) ||
+                                     strcmp(file_path, session_file_path) == 0);
 
     const auto has_overwrite_guard = options_ptr != nullptr && options_ptr->overwrite_guard != nullptr;
     if (overwrite_original && (force_overwrite == 0) && !has_overwrite_guard &&
@@ -2921,12 +2998,16 @@ int omega_edit_save_segment_with_options(omega_session_t *session_ptr, const cha
         return -9;
     }
     if (overwrite) {
-        if (overwrite_original && (force_overwrite == 0) &&
-            original_file_modified_since_last_sync_(session_ptr, session_file_path) &&
-            (!has_overwrite_guard ||
-             options_ptr->overwrite_guard(file_path, options_ptr->overwrite_guard_user_data) != 0)) {
-            omega_util_remove_file(temp_filename);
-            return ORIGINAL_MODIFIED;
+        if (overwrite_original && (force_overwrite == 0)) {
+            const auto guard_denied =
+                    has_overwrite_guard &&
+                    options_ptr->overwrite_guard(file_path, options_ptr->overwrite_guard_user_data) != 0;
+            const auto legacy_conflict =
+                    !has_overwrite_guard && original_file_modified_since_last_sync_(session_ptr, session_file_path);
+            if (guard_denied || legacy_conflict) {
+                omega_util_remove_file(temp_filename);
+                return ORIGINAL_MODIFIED;
+            }
         }
         if (!atomic_replace_file_(temp_filename, file_path)) {
             LOG_ERRNO();

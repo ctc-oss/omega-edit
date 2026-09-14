@@ -164,10 +164,15 @@ npm install
 Run the Ωedit™ gRPC server with no local toolchain required:
 
 ```bash
-docker run -p 9000:9000 ghcr.io/ctc-oss/omega-edit-server:latest
+docker run --rm \
+  --publish 127.0.0.1:9000:9000 \
+  --mount type=bind,source="$PWD",target=/data \
+  ghcr.io/ctc-oss/omega-edit-server:latest
 ```
 
-Then connect from any gRPC client (TypeScript, Python, Go, etc.):
+The image confines RPC-controlled file and checkpoint paths to `/data`. Keep the unauthenticated backend on host loopback or a private container network. For remote access, expose only an HTTP/2-capable gRPC proxy that provides TLS, authentication, authorization, rate limits, and request limits.
+
+Then connect from any local gRPC client (TypeScript, Python, Go, etc.):
 
 ```typescript
 import { getClient, createSession, insert } from '@omega-edit/client'

@@ -20,6 +20,7 @@
 import * as fs from 'fs'
 import * as os from 'os'
 import * as path from 'path'
+import { createServer } from 'net'
 import { status as GrpcStatus } from '@grpc/grpc-js'
 import { expect, initExpect } from './common.js'
 import {
@@ -150,6 +151,16 @@ describe('Server Edge Cases', () => {
       const heartbeat = await getServerHeartbeat([])
       expect(heartbeat.latency).to.be.greaterThanOrEqual(0)
       expect(heartbeat.sessionCount).to.equal(0)
+      expect(heartbeat.viewportCount).to.equal(0)
+      expect(heartbeat.attachmentCount).to.equal(0)
+      expect(heartbeat.activeOperationCount).to.equal(0)
+      expect(heartbeat.activeMutationCount).to.equal(0)
+      expect(heartbeat.activeTransformCount).to.equal(0)
+      expect(heartbeat.sessionSubscriptionCount).to.equal(0)
+      expect(heartbeat.viewportSubscriptionCount).to.equal(0)
+      expect(heartbeat.fileBackedSessionCount).to.equal(0)
+      expect(heartbeat.eventQueueDroppedCount).to.equal(0)
+      expect(heartbeat.oldestSessionIdleMs).to.equal(0)
       expect(heartbeat.serverCpuCount).to.be.greaterThanOrEqual(0)
       if (heartbeat.serverLoadAverage !== undefined) {
         expect(heartbeat.serverLoadAverage).to.be.a('number')
@@ -190,7 +201,7 @@ describe('Server Edge Cases', () => {
     }
   })
 
-  it('should reject invalid stale pid files before attempting startup', async () => {
+  it('should reject an occupied port without signaling a pid-file process', async () => {
     delete process.env.OMEGA_EDIT_SERVER_URI
     delete process.env.OMEGA_EDIT_SERVER_SOCKET
     resetClient()
@@ -199,20 +210,103 @@ describe('Server Edge Cases', () => {
     expect(port).to.not.equal(null)
 
     const tempDir = fs.mkdtempSync(
-      path.join(os.tmpdir(), 'omega-edit-invalid-pid-')
+      path.join(os.tmpdir(), 'omega-edit-occupied-port-')
     )
     const pidFile = path.join(tempDir, 'omega-edit.pid')
-    fs.writeFileSync(pidFile, 'garbage')
+    fs.writeFileSync(pidFile, String(process.pid))
+    const listener = createServer()
+    await new Promise<void>((resolve, reject) => {
+      listener.once('error', reject)
+      listener.listen(port as number, '127.0.0.1', resolve)
+    })
 
     try {
       await startServer(port as number, '127.0.0.1', pidFile)
-      expect.fail('startServer should reject invalid pid file contents')
+      expect.fail('startServer should reject an occupied port')
     } catch (err) {
-      expect((err as Error).message).to.equal(`Invalid PID in ${pidFile}`)
+      expect((err as Error).message).to.equal(
+        `port ${port} on host 127.0.0.1 is not currently available`
+      )
+      expect(pidIsRunning(process.pid)).to.be.true
+      expect(fs.readFileSync(pidFile, 'utf8')).to.equal(String(process.pid))
+      expect(listener.listening).to.be.true
     } finally {
+      await new Promise<void>((resolve) => listener.close(() => resolve()))
       fs.rmSync(tempDir, { recursive: true, force: true })
     }
   })
+
+  it.each([false, true])(
+    'should reject a TCP child that exits before readiness (pid file: %s)',
+    async (withPidFile) => {
+      const tempDir = fs.mkdtempSync(
+        path.join(os.tmpdir(), 'omega-edit-early-exit-')
+      )
+      const port = await findFirstAvailablePort(9200, 9300)
+      expect(port).to.not.equal(null)
+      try {
+        await expect(
+          serverModule.startServer(
+            port as number,
+            '127.0.0.1',
+            withPidFile ? path.join(tempDir, 'server.pid') : undefined,
+            { maxChangeBytes: -1 }
+          )
+        ).rejects.toThrow('exited')
+      } finally {
+        fs.rmSync(tempDir, { recursive: true, force: true })
+      }
+    }
+  )
+
+  it.skipIf(process.platform === 'win32').each([false, true])(
+    'should reject a UDS child that exits before readiness (pid file: %s)',
+    async (withPidFile) => {
+      const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'oe-uds-exit-'))
+      const socketPath = path.join(tempDir, 'server.sock')
+      try {
+        await expect(
+          serverModule.startServerUnixSocket(
+            socketPath,
+            withPidFile ? path.join(tempDir, 'server.pid') : undefined,
+            true,
+            0,
+            '127.0.0.1',
+            { maxChangeBytes: -1 }
+          )
+        ).rejects.toThrow('exited')
+        expect(fs.existsSync(socketPath)).to.equal(false)
+      } finally {
+        fs.rmSync(tempDir, { recursive: true, force: true })
+      }
+    }
+  )
+
+  it.each([new Error('listen denied'), 'listen denied'])(
+    'should preserve unexpected port-probe failures (%s)',
+    async (failure) => {
+      const prototype = (require('net') as typeof import('net')).Server
+        .prototype
+      const restoreListen = overrideProperty(
+        prototype as unknown as Record<string, any>,
+        'listen',
+        function (this: import('net').Server) {
+          if (!(failure instanceof Error)) throw failure
+          queueMicrotask(() =>
+            this.emit('error', Object.assign(failure, { code: 'EACCES' }))
+          )
+          return this
+        }
+      )
+      try {
+        await expect(
+          serverModule.findFirstAvailablePort(9200, 9200)
+        ).rejects.to.equal(failure)
+      } finally {
+        restoreListen()
+      }
+    }
+  )
 
   it('should resolve nested node_modules server bin directories without stripping parent segments', () => {
     const tempDir = fs.mkdtempSync(
@@ -243,6 +337,29 @@ describe('Server Edge Cases', () => {
       fs.rmSync(tempDir, { recursive: true, force: true })
     }
   })
+
+  it.each(['not-a-number', 'NaN', 'Infinity', '-1', '0', '1.5', '2147483648'])(
+    'should start with an invalid timeout override (%s) and empty allowed root',
+    async (value) => {
+      const originalTimeout = process.env.OMEGA_EDIT_SERVER_STARTUP_TIMEOUT_MS
+      const port = await findFirstAvailablePort(9200, 9300)
+      let pid: number | undefined
+      try {
+        process.env.OMEGA_EDIT_SERVER_STARTUP_TIMEOUT_MS = value
+        pid = await startServer(port as number, '127.0.0.1', undefined, {
+          allowedRoot: '',
+        })
+        expect(pidIsRunning(pid)).to.equal(true)
+      } finally {
+        if (originalTimeout === undefined) {
+          delete process.env.OMEGA_EDIT_SERVER_STARTUP_TIMEOUT_MS
+        } else {
+          process.env.OMEGA_EDIT_SERVER_STARTUP_TIMEOUT_MS = originalTimeout
+        }
+        if (pid) await stopProcessUsingPID(pid, 'SIGKILL')
+      }
+    }
+  )
 
   it('should expose native server health fields through current protobuf fields', async () => {
     const port = await findFirstAvailablePort(9200, 9300)
@@ -303,44 +420,53 @@ describe('Server Edge Cases', () => {
     }
   })
 
-  it('should start a UDS-only server after removing a stale socket file', async () => {
+  it('should preserve and reject a non-socket Unix path', async () => {
     if (process.platform === 'win32') {
       return
     }
 
     const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'omega-edit-uds-'))
     const socketPath = path.join(tempDir, 'omega-edit.sock')
-    const pidFile = path.join(tempDir, 'omega-edit.pid')
-    fs.writeFileSync(socketPath, 'stale')
+    fs.writeFileSync(socketPath, 'do not remove')
 
-    let pid: number | undefined
     try {
-      process.env.OMEGA_EDIT_SERVER_SOCKET = socketPath
-      delete process.env.OMEGA_EDIT_SERVER_URI
-
-      resetClient()
-      pid = await startServerUnixSocket(socketPath, pidFile, true)
-      expect(pid).to.be.a('number').greaterThan(0)
-      expect(pidIsRunning(pid as number)).to.be.true
-      expect(fs.existsSync(socketPath)).to.be.true
-      expect(fs.lstatSync(socketPath).isSocket()).to.be.true
-      expect(fs.readFileSync(pidFile, 'utf8').trim()).to.equal(String(pid))
-
-      const serverInfo = await getServerInfo()
-      expect(serverInfo.serverProcessId).to.equal(pid)
-
-      expect((await stopServerImmediate()).status).to.equal('completed')
-      for (let attempt = 0; attempt < 30; attempt += 1) {
-        await delay(100)
-        if (!pidIsRunning(pid as number)) {
-          break
-        }
-      }
-      expect(pidIsRunning(pid as number)).to.be.false
+      await startServerUnixSocket(socketPath)
+      expect.fail('startServerUnixSocket should reject a non-socket path')
+    } catch (err) {
+      expect((err as Error).message).to.equal(
+        `Unix socket path ${socketPath} exists and is not a socket`
+      )
+      expect(fs.readFileSync(socketPath, 'utf8')).to.equal('do not remove')
     } finally {
-      if (pid && pidIsRunning(pid)) {
-        await stopProcessUsingPID(pid, 'SIGKILL')
-      }
+      fs.rmSync(tempDir, { recursive: true, force: true })
+    }
+  })
+
+  it('should reject an active Unix socket without stopping its owner', async () => {
+    if (process.platform === 'win32') {
+      return
+    }
+
+    const tempDir = fs.mkdtempSync(
+      path.join(os.tmpdir(), 'omega-edit-active-uds-')
+    )
+    const socketPath = path.join(tempDir, 'omega-edit.sock')
+    const listener = createServer()
+    await new Promise<void>((resolve, reject) => {
+      listener.once('error', reject)
+      listener.listen(socketPath, resolve)
+    })
+
+    try {
+      await startServerUnixSocket(socketPath)
+      expect.fail('startServerUnixSocket should reject an active socket')
+    } catch (err) {
+      expect((err as Error).message).to.equal(
+        `Unix socket ${socketPath} is already active`
+      )
+      expect(listener.listening).to.be.true
+    } finally {
+      await new Promise<void>((resolve) => listener.close(() => resolve()))
       fs.rmSync(tempDir, { recursive: true, force: true })
     }
   })
@@ -549,6 +675,70 @@ describe('Server Edge Cases', () => {
       )
     } finally {
       restoreGetClient()
+    }
+  })
+
+  it.each([0, -1, 1.5, Number.NaN])(
+    'should reject invalid heartbeat interval %s',
+    (intervalMs) => {
+      expect(() =>
+        startServerHeartbeatLoop({ intervalMs, getSessionIds: () => [] })
+      ).to.throw('positive integer')
+    }
+  )
+
+  it.each([undefined, new Error('callback failure'), 'callback failure'])(
+    'should contain heartbeat error-handler failures (%s)',
+    async (callbackFailure) => {
+      let attempts = 0
+      const loop = startServerHeartbeatLoop({
+        immediate: false,
+        getSessionIds: () => {
+          attempts++
+          throw 'session list unavailable'
+        },
+        onError:
+          callbackFailure === undefined
+            ? undefined
+            : async (error) => {
+                expect(error.message).to.equal('session list unavailable')
+                throw callbackFailure
+              },
+      })
+      try {
+        await loop.tick()
+        await loop.tick()
+        expect(attempts).to.equal(2)
+        loop.stop()
+        await loop.tick()
+        expect(attempts).to.equal(2)
+      } finally {
+        loop.stop()
+      }
+    }
+  )
+
+  it('should allow a heartbeat loop without notification callbacks', async () => {
+    let calls = 0
+    const loop = startServerHeartbeatLoop({
+      immediate: false,
+      getSessionIds: () => [],
+      getHeartbeat: async () => {
+        calls++
+        return {
+          latency: 0,
+          sessionCount: 0,
+          serverTimestamp: 1,
+          serverUptime: 1,
+          serverCpuCount: 1,
+        }
+      },
+    })
+    try {
+      await loop.tick()
+      expect(calls).to.equal(1)
+    } finally {
+      loop.stop()
     }
   })
 
@@ -874,6 +1064,26 @@ describe('Server Edge Cases', () => {
     }
   })
 
+  it('should honor disabled SIGKILL fallback when a process remains alive', async () => {
+    const signals: (string | number | undefined)[] = []
+    const restoreKill = overrideProperty(
+      process as unknown as Record<string, any>,
+      'kill',
+      (_pid: number, signal?: string | number) => {
+        signals.push(signal)
+        return true
+      }
+    )
+    try {
+      expect(
+        await serverModule.stopProcessUsingPID(12345, 'SIGTERM', 1, false)
+      ).to.equal(false)
+      expect(signals).to.deep.equal(['SIGTERM', 0])
+    } finally {
+      restoreKill()
+    }
+  })
+
   it('should rethrow pidIsRunning errors other than ESRCH', () => {
     const restoreKill = overrideProperty(
       process as unknown as Record<string, any>,
@@ -892,6 +1102,79 @@ describe('Server Edge Cases', () => {
     }
   })
 
+  it.skipIf(process.platform === 'win32')(
+    'should preserve a regular file at the requested socket path',
+    async () => {
+      const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'oe-socket-file-'))
+      const socketPath = path.join(tempDir, 'server.sock')
+      fs.writeFileSync(socketPath, 'keep me')
+      try {
+        await expect(
+          serverModule.startServerUnixSocket(socketPath)
+        ).rejects.toThrow('not a socket')
+        expect(fs.readFileSync(socketPath, 'utf8')).to.equal('keep me')
+      } finally {
+        fs.rmSync(tempDir, { recursive: true, force: true })
+      }
+    }
+  )
+
+  it.skipIf(process.platform === 'win32')(
+    'should preserve an active socket owned by another server',
+    async () => {
+      const tempDir = fs.mkdtempSync(
+        path.join(os.tmpdir(), 'oe-socket-active-')
+      )
+      const socketPath = path.join(tempDir, 'server.sock')
+      const listener = createServer((socket) => socket.end())
+      await new Promise<void>((resolve, reject) => {
+        listener.once('error', reject)
+        listener.listen(socketPath, resolve)
+      })
+      try {
+        await expect(
+          serverModule.startServerUnixSocket(socketPath)
+        ).rejects.toThrow('already active')
+        expect(listener.listening).to.equal(true)
+        expect(fs.lstatSync(socketPath).isSocket()).to.equal(true)
+      } finally {
+        await new Promise<void>((resolve) => listener.close(() => resolve()))
+        fs.rmSync(tempDir, { recursive: true, force: true })
+      }
+    }
+  )
+
+  it('should suppress in-flight heartbeat errors after stopping', async () => {
+    let rejectHeartbeat!: (error: Error) => void
+    let notifyStarted!: () => void
+    const started = new Promise<void>((resolve) => {
+      notifyStarted = resolve
+    })
+    const errors: Error[] = []
+    const loop = startServerHeartbeatLoop({
+      immediate: false,
+      getSessionIds: () => [],
+      getHeartbeat: () =>
+        new Promise((_, reject) => {
+          rejectHeartbeat = reject
+          notifyStarted()
+        }),
+      onError: (error) => {
+        errors.push(error)
+      },
+    })
+    try {
+      const tick = loop.tick()
+      await started
+      loop.stop()
+      rejectHeartbeat(new Error('request ended after stop'))
+      await tick
+      expect(errors).to.deep.equal([])
+    } finally {
+      loop.stop()
+    }
+  })
+
   it('should surface unix socket cleanup failures before startup', async () => {
     const tempDir = fs.mkdtempSync(
       path.join(os.tmpdir(), 'omega-edit-uds-fail-')
@@ -900,6 +1183,18 @@ describe('Server Edge Cases', () => {
     const fsModule = require('fs') as typeof import('fs')
     const originalUnlinkSync = fsModule.unlinkSync
     fs.writeFileSync(socketPath, 'stale')
+    const originalLstatSync = fsModule.lstatSync
+    const restoreLstatSync = overrideProperty(
+      fsModule as Record<string, any>,
+      'lstatSync',
+      ((filePath: fs.PathLike) => {
+        const stats = originalLstatSync(filePath)
+        if (String(filePath) === socketPath) {
+          stats.isSocket = () => true
+        }
+        return stats
+      }) as typeof fs.lstatSync
+    )
 
     const restoreUnlinkSync = overrideProperty(
       fsModule as Record<string, any>,
@@ -929,6 +1224,7 @@ describe('Server Edge Cases', () => {
       expect((err as Error).message).to.equal('blocked unlink')
     } finally {
       restoreUnlinkSync()
+      restoreLstatSync()
       fs.rmSync(tempDir, { recursive: true, force: true })
     }
   })

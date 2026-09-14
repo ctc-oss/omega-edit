@@ -28,6 +28,10 @@
 #     gRPC endpoint is not exposed beyond the host unless you opt into it.
 #   - The server listens on 0.0.0.0 inside the container so Docker port mapping
 #     works; the image command passes --insecure-allow-non-loopback explicitly.
+#   - The container runs with --allowed-root=/data, so RPC file and checkpoint
+#     paths cannot resolve outside the mounted data directory.
+#   - Do not publish this unauthenticated endpoint publicly. For remote access,
+#     expose only an authenticating HTTP/2-capable gRPC proxy on a private network.
 #   - The container runs with a read-only root filesystem; only /data and /tmp
 #     remain writable.
 #   - The server runs as the caller-supplied UID/GID instead of root. Export
@@ -45,6 +49,7 @@ services:
     environment:
       - OMEGA_EDIT_SERVER_HOST=0.0.0.0
       - OMEGA_EDIT_SERVER_PORT=9000
+      - OMEGA_EDIT_ALLOWED_ROOT=/data
       - OMEGA_EDIT_MAX_CHANGE_BYTES=${OMEGA_EDIT_MAX_CHANGE_BYTES:-67108864}
       - OMEGA_EDIT_MAX_VIEWPORTS_PER_SESSION=${OMEGA_EDIT_MAX_VIEWPORTS_PER_SESSION:-256}
       - OMEGA_EDIT_SESSION_EVENT_QUEUE_CAPACITY=${OMEGA_EDIT_SESSION_EVENT_QUEUE_CAPACITY:-1024}

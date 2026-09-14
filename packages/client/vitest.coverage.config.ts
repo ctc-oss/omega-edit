@@ -12,7 +12,6 @@ export default defineConfig({
   },
   test: {
     coverage: {
-      all: true,
       excludeAfterRemap: true,
       exclude: [
         'dist/**/*.d.ts',
@@ -26,7 +25,7 @@ export default defineConfig({
         'tests/**',
         'scripts/**',
       ],
-      include: ['dist/**/*.js'],
+      include: ['dist/**/*.js', 'src/**/*.ts'],
       provider: 'v8',
       reporter: ['lcov', 'text'],
       reportsDirectory: 'coverage',

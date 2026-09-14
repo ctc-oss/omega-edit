@@ -595,6 +595,140 @@ suite('OmegaEdit VS Code extension', () => {
     }
   })
 
+  test('isolates annotation owners, range maps, and edit baselines', async () => {
+    const provider = getHexEditorProviderForTesting()
+    const tmpDir = await fs.mkdtemp(
+      path.join(os.tmpdir(), 'omega-edit-owners-')
+    )
+    const uri = vscode.Uri.file(path.join(tmpDir, 'data.bin'))
+    const sourceUri = vscode.Uri.file(path.join(tmpDir, 'map.json'))
+    await fs.writeFile(uri.fsPath, 'abcdef')
+    await fs.writeFile(
+      sourceUri.fsPath,
+      JSON.stringify({
+        format: 'omega-edit.range-map',
+        version: 1,
+        nodes: [
+          {
+            path: '/header',
+            offset: 0,
+            length: 2,
+            label: 'Header',
+            kind: 'parsed',
+          },
+        ],
+      })
+    )
+    const marker = {
+      id: 'current',
+      offset: 1,
+      length: 1,
+      kind: 'current',
+      label: 'Current',
+    }
+    const set = (owner, offset = 1) =>
+      extensionApi.setExternalHighlights({
+        uri,
+        owner,
+        highlights: [{ ...marker, offset }],
+      })
+    const state = () => extensionApi.getEditorState(uri)
+    try {
+      await extensionApi.open(uri)
+      await waitForSession(provider, uri)
+      // Even internal, already-normalized callers cannot assign ownership
+      // through a per-highlight field when storing the legacy group.
+      const session = provider.getSessionForTesting(uri)
+      provider.setAnnotationGroup(session, [{ ...marker, owner: 'forged' }], [])
+      assert.equal(Object.hasOwn(state().externalHighlights[0], 'owner'), false)
+      extensionApi.clearExternalHighlights(uri)
+      assert.equal(state().externalHighlights.length, 0)
+      await extensionApi.setExternalHighlights({
+        uri,
+        owner: 'actual',
+        highlights: [{ ...marker, owner: 'forged' }],
+      })
+      assert.equal(state().externalHighlights[0].owner, 'actual')
+      extensionApi.clearExternalHighlights({ uri, owner: 'forged' })
+      assert.equal(state().externalHighlights.length, 1)
+      extensionApi.clearExternalHighlights({ uri, owner: 'actual' })
+      assert.equal(state().externalHighlights.length, 0)
+      await extensionApi.loadRangeMap({
+        uri,
+        sourceUri,
+        reveal: false,
+        notify: false,
+      })
+      await set('daffodil:1')
+      await set('daffodil:2')
+      assert.equal(state().externalHighlights.length, 3)
+      await set('daffodil:1', 2)
+      assert.equal(state().externalHighlights.length, 3)
+      assert.equal(
+        state().externalHighlights.find((h) => h.owner === 'daffodil:2').offset,
+        1
+      )
+      for (const owner of ['', ' ', null, 42, 'x'.repeat(257)]) {
+        await assert.rejects(set(owner), /owner/)
+        assert.throws(
+          () => extensionApi.clearExternalHighlights({ uri, owner }),
+          /owner/
+        )
+      }
+      assert.equal(state().externalHighlights.length, 3)
+      await provider.dispatchWebviewMessageForTesting(uri, {
+        type: 'insert',
+        offset: 0,
+        data: '21',
+      })
+      assert.ok(state().externalHighlights.every((h) => h.stale))
+      await set('daffodil:1')
+      assert.ok(
+        state().externalHighlights.find((h) => h.owner === 'daffodil:2').stale
+      )
+      assert.ok(
+        !state().externalHighlights.find((h) => h.owner === 'daffodil:1').stale
+      )
+      await provider.dispatchWebviewMessageForTesting(uri, { type: 'undo' })
+      assert.ok(
+        state().externalHighlights.find((h) => h.owner === 'daffodil:1').stale
+      )
+      assert.ok(
+        !state().externalHighlights.find((h) => h.owner === 'daffodil:2').stale
+      )
+      extensionApi.clearExternalHighlights({ uri, owner: 'daffodil:1' })
+      assert.equal(state().externalHighlights.length, 2)
+      await extensionApi.loadRangeMap({
+        uri,
+        sourceUri,
+        reveal: false,
+        notify: false,
+      })
+      assert.equal(state().externalHighlights.length, 2)
+      assert.equal(
+        extensionApi.unloadRangeMap({ uri, notify: false }).unloadedCount,
+        1
+      )
+      assert.equal(state().externalHighlights.length, 1)
+      await set(undefined)
+      extensionApi.clearExternalHighlights(uri)
+      assert.equal(state().externalHighlights.length, 1)
+      await vscode.commands.executeCommand(
+        OMEGA_EDIT_SET_EXTERNAL_HIGHLIGHTS_COMMAND,
+        {
+          uri,
+          owner: 'daffodil:2',
+          highlights: [],
+        }
+      )
+      assert.equal(state().externalHighlights.length, 0)
+      extensionApi.clearExternalHighlights({ uri, owner: 'missing' })
+    } finally {
+      await vscode.commands.executeCommand('workbench.action.closeActiveEditor')
+      await fs.rm(tmpDir, { recursive: true, force: true })
+    }
+  })
+
   test('lets a code assistant operate the editor through public VS Code commands', async () => {
     const provider = getHexEditorProviderForTesting()
     assert.ok(

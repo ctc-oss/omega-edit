@@ -22,21 +22,21 @@ import { expect, initExpect } from './common.js'
 import { getModuleCompat } from './moduleCompat.js'
 
 const { require } = getModuleCompat(import.meta.url)
-const {
+let {
   CountKind,
   ServerControlKind,
   ServerControlStatus,
 } = require('../../dist/cjs/proto.js')
-const {
+let {
   IOFlags,
   SearchCaseFolding: PublicSearchCaseFolding,
   SessionEventKind: PublicSessionEventKind,
   ViewportEventKind: PublicViewportEventKind,
 } = require('../../dist/cjs/session.js')
-const {
+let {
   EditorServiceClient,
 } = require('../../dist/cjs/protobuf_ts/generated/omega_edit/v1/omega_edit.grpc-client.js')
-const {
+let {
   IOFlags: ProtoIOFlags,
   CountKind: ProtoCountKind,
   ServerControlKind: ProtoServerControlKind,
@@ -49,7 +49,7 @@ const {
   ReplaceSessionCheckpointedRequest,
   ReplaceSessionRequest,
 } = require('../../dist/cjs/protobuf_ts/generated/omega_edit/v1/omega_edit.js')
-const {
+let {
   ByteOrderMarkResponse,
   ChangeDetailsResponse,
   CharacterCountResponse,
@@ -78,7 +78,7 @@ const {
   wrapViewportDataResponse,
   wrapViewportEvent,
 } = require('../../dist/cjs/omega_edit_pb.js')
-const { EditorClient } = require('../../dist/cjs/omega_edit_grpc_pb.js')
+let { EditorClient } = require('../../dist/cjs/omega_edit_grpc_pb.js')
 
 type Handler = (...args: any[]) => void
 
@@ -120,9 +120,67 @@ class FakeReadableStream<T> {
   }
 }
 
-describe('Proto Compatibility', () => {
+describe.each(['cjs', 'esm'])('Proto Compatibility (%s)', (format) => {
   beforeAll(async () => {
     await initExpect()
+    const loadModule = async (file: string) =>
+      format === 'cjs'
+        ? require(`../../dist/cjs/${file}`)
+        : import(`../../dist/esm/${file}`)
+    ;({ CountKind, ServerControlKind, ServerControlStatus } =
+      await loadModule('proto.js'))
+    ;({
+      IOFlags,
+      SearchCaseFolding: PublicSearchCaseFolding,
+      SessionEventKind: PublicSessionEventKind,
+      ViewportEventKind: PublicViewportEventKind,
+    } = await loadModule('session.js'))
+    ;({ EditorServiceClient } = await loadModule(
+      'protobuf_ts/generated/omega_edit/v1/omega_edit.grpc-client.js'
+    ))
+    ;({
+      IOFlags: ProtoIOFlags,
+      CountKind: ProtoCountKind,
+      ServerControlKind: ProtoServerControlKind,
+      ServerControlResponse: ProtoServerControlResponseMessage,
+      ServerControlStatus: ProtoServerControlStatus,
+      SearchCaseFolding: ProtoSearchCaseFolding,
+      SearchSessionRequest,
+      SessionEventKind,
+      ViewportEventKind,
+      ReplaceSessionCheckpointedRequest,
+      ReplaceSessionRequest,
+    } = await loadModule('protobuf_ts/generated/omega_edit/v1/omega_edit.js'))
+    ;({
+      ByteOrderMarkResponse,
+      ChangeDetailsResponse,
+      CharacterCountResponse,
+      CreateSessionResponse,
+      EventSubscriptionRequest,
+      HeartbeatRequest,
+      HeartbeatResponse,
+      SaveSessionResponse,
+      ServerControlRequest,
+      ServerControlResponse,
+      ServerInfoResponse,
+      SessionEvent,
+      SingleCount,
+      ViewportDataResponse,
+      ViewportEvent,
+      wrapByteOrderMarkResponse,
+      wrapChangeDetailsResponse,
+      wrapCharacterCountResponse,
+      wrapCreateSessionResponse,
+      wrapHeartbeatResponse,
+      wrapSaveSessionResponse,
+      wrapServerControlResponse,
+      wrapServerInfoResponse,
+      wrapSessionEvent,
+      wrapSingleCount,
+      wrapViewportDataResponse,
+      wrapViewportEvent,
+    } = await loadModule('omega_edit_pb.js'))
+    ;({ EditorClient } = await loadModule('omega_edit_grpc_pb.js'))
   })
 
   it('should preserve wrapper getter behavior for protobuf-ts compatibility classes', () => {
@@ -474,6 +532,63 @@ describe('Proto Compatibility', () => {
     expect('VIEWPORT_EVT_EDIT' in PublicViewportEventKind).to.equal(false)
   })
 
+  it('should preserve absent optional fields without inventing values', () => {
+    const created = new CreateSessionResponse({
+      sessionId: 'sid',
+      checkpointDirectory: '',
+    })
+    expect(created.hasFileSize()).to.equal(false)
+    expect(created.getFileSize()).to.equal(0)
+    expect(created.toObject().fileSize).to.equal(undefined)
+    const session = new SessionEvent({
+      sessionId: 'sid',
+      sessionEventKind: SessionEventKind.EDIT,
+      computedFileSize: 0,
+      changeCount: 0,
+      undoCount: 0,
+    })
+    expect(session.getSerial()).to.equal(0)
+    expect(session.toObject().serial).to.equal(undefined)
+    const viewport = new ViewportEvent({
+      sessionId: 'sid',
+      viewportId: 'vid',
+      viewportEventKind: ViewportEventKind.EDIT,
+    })
+    expect(viewport.getSerial()).to.equal(0)
+    expect(viewport.getOffset()).to.equal(0)
+    expect(viewport.getLength()).to.equal(0)
+    expect(viewport.toObject()).to.deep.equal({
+      sessionId: 'sid',
+      viewportId: 'vid',
+      viewportEventKind: ViewportEventKind.EDIT,
+      serial: undefined,
+      offset: undefined,
+      length: undefined,
+      data: new Uint8Array(),
+    })
+    const heartbeat = new HeartbeatResponse({
+      sessionCount: 0,
+      timestamp: 1,
+      uptime: 2,
+      cpuCount: 1,
+    })
+    expect(heartbeat.getViewportCount()).to.equal(undefined)
+    expect(heartbeat.getActiveOperationCount()).to.equal(undefined)
+    expect(heartbeat.getEventQueueDroppedCount()).to.equal(undefined)
+    const metrics = new HeartbeatResponse({
+      sessionCount: 1,
+      timestamp: 1,
+      uptime: 2,
+      cpuCount: 1,
+      viewportCount: 3,
+      activeOperationCount: 4,
+      eventQueueDroppedCount: 5,
+    })
+    expect(metrics.toObject().viewportCount).to.equal(3)
+    expect(metrics.toObject().activeOperationCount).to.equal(4)
+    expect(metrics.toObject().eventQueueDroppedCount).to.equal(5)
+  })
+
   it('should preserve search case-folding enum values and request field numbers', () => {
     expect(PublicSearchCaseFolding.NONE).to.equal(
       ProtoSearchCaseFolding.UNSPECIFIED
@@ -647,4 +762,42 @@ describe('Proto Compatibility', () => {
       "ViewportEvent.serial exceeds the OmegaEdit TypeScript client's safe integer range"
     )
   })
+})
+
+it('should validate safe integer boundaries and optional values at the source API', async () => {
+  const safe = await import('../../src/safe_int')
+  for (const value of [0, Number.MIN_SAFE_INTEGER, Number.MAX_SAFE_INTEGER]) {
+    expect(safe.requireSafeIntegerInput('value', value)).to.equal(value)
+    expect(safe.requireSafeIntegerOutput('value', value)).to.equal(value)
+    expect(safe.requireOptionalSafeIntegerOutput('value', value)).to.equal(
+      value
+    )
+  }
+  expect(safe.requireOptionalSafeIntegerOutput('value', undefined)).to.equal(
+    undefined
+  )
+  for (const value of [
+    Number.MIN_SAFE_INTEGER - 1,
+    Number.MAX_SAFE_INTEGER + 1,
+    1.5,
+    Number.NaN,
+    Number.POSITIVE_INFINITY,
+  ]) {
+    expect(() => safe.requireSafeIntegerInput('value', value)).to.throw(
+      'safe integer'
+    )
+    expect(() => safe.requireSafeIntegerOutput('value', value)).to.throw(
+      'safe integer'
+    )
+    expect(() =>
+      safe.requireOptionalSafeIntegerOutput('value', value)
+    ).to.throw('safe integer')
+  }
+  const values = [0, Number.MAX_SAFE_INTEGER]
+  expect(safe.requireSafeIntegerArrayOutput('values', values)).to.deep.equal(
+    values
+  )
+  expect(() =>
+    safe.requireSafeIntegerArrayOutput('values', [0, Number.POSITIVE_INFINITY])
+  ).to.throw('values[1]')
 })

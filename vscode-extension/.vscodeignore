@@ -29,3 +29,8 @@ out/**
 !out/svelte-webview/**
 *.tgz
 *.vsix
+
+# Public extension contract and copyable consumer helper
+!out/api.d.ts
+!integration/omegaEditApi.d.ts
+!integration/omegaEdit.ts

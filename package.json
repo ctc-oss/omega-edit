@@ -45,13 +45,13 @@
     "package": "yarn workspace @omega-edit/server package && yarn workspace @omega-edit/client package && yarn workspace @omega-edit/ai package"
   },
   "devDependencies": {
-    "@biomejs/biome": "^2.5.11",
+    "@biomejs/biome": "^2.5.12",
     "@types/node": "^22.20.0",
     "run-script-os": "^1.1.6",
     "typedoc": "^0.28.20",
     "typescript": "^6.0.3",
     "vite": "^8.2.2",
-    "vitest": "^4.1.10"
+    "vitest": "^5.0.0"
   },
   "resolutions": {
     "@types/node": "22.20.0",
