@@ -203,6 +203,30 @@ export interface GetHeartbeatResponse {
    * @generated from protobuf field: optional int64 oldest_session_idle_ms = 22
    */
   oldestSessionIdleMs?: number // Longest current session idle duration.
+  /**
+   * @generated from protobuf field: optional int64 event_queue_bytes = 23
+   */
+  eventQueueBytes?: number // Bytes currently buffered by active event queues.
+  /**
+   * @generated from protobuf field: optional int64 peak_event_queue_bytes = 24
+   */
+  peakEventQueueBytes?: number // Peak aggregate event queue bytes.
+  /**
+   * @generated from protobuf field: optional int64 resource_rejection_count = 25
+   */
+  resourceRejectionCount?: number // Admission and queue budget rejections.
+  /**
+   * @generated from protobuf field: optional int64 active_scan_count = 26
+   */
+  activeScanCount?: number // Whole-range scans currently running.
+  /**
+   * @generated from protobuf field: optional int64 active_changelog_export_count = 27
+   */
+  activeChangelogExportCount?: number // Change-log exports currently spooling or streaming.
+  /**
+   * @generated from protobuf field: optional int64 active_checkpoint_write_count = 28
+   */
+  activeCheckpointWriteCount?: number // Checkpoint writers currently running.
 }
 // ===========================================================================
 // Request / Response messages — Session lifecycle
@@ -3861,6 +3885,54 @@ class GetHeartbeatResponse$Type extends MessageType<GetHeartbeatResponse> {
         T: 3 /*ScalarType.INT64*/,
         L: 2 /*LongType.NUMBER*/,
       },
+      {
+        no: 23,
+        name: 'event_queue_bytes',
+        kind: 'scalar',
+        opt: true,
+        T: 3 /*ScalarType.INT64*/,
+        L: 2 /*LongType.NUMBER*/,
+      },
+      {
+        no: 24,
+        name: 'peak_event_queue_bytes',
+        kind: 'scalar',
+        opt: true,
+        T: 3 /*ScalarType.INT64*/,
+        L: 2 /*LongType.NUMBER*/,
+      },
+      {
+        no: 25,
+        name: 'resource_rejection_count',
+        kind: 'scalar',
+        opt: true,
+        T: 3 /*ScalarType.INT64*/,
+        L: 2 /*LongType.NUMBER*/,
+      },
+      {
+        no: 26,
+        name: 'active_scan_count',
+        kind: 'scalar',
+        opt: true,
+        T: 3 /*ScalarType.INT64*/,
+        L: 2 /*LongType.NUMBER*/,
+      },
+      {
+        no: 27,
+        name: 'active_changelog_export_count',
+        kind: 'scalar',
+        opt: true,
+        T: 3 /*ScalarType.INT64*/,
+        L: 2 /*LongType.NUMBER*/,
+      },
+      {
+        no: 28,
+        name: 'active_checkpoint_write_count',
+        kind: 'scalar',
+        opt: true,
+        T: 3 /*ScalarType.INT64*/,
+        L: 2 /*LongType.NUMBER*/,
+      },
     ])
   }
   create(value?: PartialMessage<GetHeartbeatResponse>): GetHeartbeatResponse {
@@ -3937,6 +4009,24 @@ class GetHeartbeatResponse$Type extends MessageType<GetHeartbeatResponse> {
           break
         case /* optional int64 oldest_session_idle_ms */ 22:
           message.oldestSessionIdleMs = reader.int64().toNumber()
+          break
+        case /* optional int64 event_queue_bytes */ 23:
+          message.eventQueueBytes = reader.int64().toNumber()
+          break
+        case /* optional int64 peak_event_queue_bytes */ 24:
+          message.peakEventQueueBytes = reader.int64().toNumber()
+          break
+        case /* optional int64 resource_rejection_count */ 25:
+          message.resourceRejectionCount = reader.int64().toNumber()
+          break
+        case /* optional int64 active_scan_count */ 26:
+          message.activeScanCount = reader.int64().toNumber()
+          break
+        case /* optional int64 active_changelog_export_count */ 27:
+          message.activeChangelogExportCount = reader.int64().toNumber()
+          break
+        case /* optional int64 active_checkpoint_write_count */ 28:
+          message.activeCheckpointWriteCount = reader.int64().toNumber()
           break
         default:
           let u = options.readUnknownField
@@ -4016,6 +4106,24 @@ class GetHeartbeatResponse$Type extends MessageType<GetHeartbeatResponse> {
     /* optional int64 oldest_session_idle_ms = 22; */
     if (message.oldestSessionIdleMs !== undefined)
       writer.tag(22, WireType.Varint).int64(message.oldestSessionIdleMs)
+    /* optional int64 event_queue_bytes = 23; */
+    if (message.eventQueueBytes !== undefined)
+      writer.tag(23, WireType.Varint).int64(message.eventQueueBytes)
+    /* optional int64 peak_event_queue_bytes = 24; */
+    if (message.peakEventQueueBytes !== undefined)
+      writer.tag(24, WireType.Varint).int64(message.peakEventQueueBytes)
+    /* optional int64 resource_rejection_count = 25; */
+    if (message.resourceRejectionCount !== undefined)
+      writer.tag(25, WireType.Varint).int64(message.resourceRejectionCount)
+    /* optional int64 active_scan_count = 26; */
+    if (message.activeScanCount !== undefined)
+      writer.tag(26, WireType.Varint).int64(message.activeScanCount)
+    /* optional int64 active_changelog_export_count = 27; */
+    if (message.activeChangelogExportCount !== undefined)
+      writer.tag(27, WireType.Varint).int64(message.activeChangelogExportCount)
+    /* optional int64 active_checkpoint_write_count = 28; */
+    if (message.activeCheckpointWriteCount !== undefined)
+      writer.tag(28, WireType.Varint).int64(message.activeCheckpointWriteCount)
     let u = options.writeUnknownFields
     if (u !== false)
       (u == true ? UnknownFieldHandler.onWrite : u)(

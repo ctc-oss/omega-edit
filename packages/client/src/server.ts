@@ -1283,6 +1283,12 @@ export interface IServerHeartbeat {
   fileBackedSessionCount?: number // file-backed sessions
   eventQueueDroppedCount?: number // dropped buffered events
   oldestSessionIdleMs?: number // longest current session idle time
+  eventQueueBytes?: number // active event queue bytes
+  peakEventQueueBytes?: number // peak event queue bytes
+  resourceRejectionCount?: number // admission and queue rejections
+  activeScanCount?: number // active whole-range scans
+  activeChangelogExportCount?: number // active change-log exports
+  activeCheckpointWriteCount?: number // active checkpoint writers
 }
 
 export interface ServerHeartbeatLoopOptions {
@@ -1414,6 +1420,30 @@ export async function getServerHeartbeat(
             oldestSessionIdleMs: requireOptionalSafeIntegerOutput(
               'server oldest session idle milliseconds',
               heartbeatResponse.oldestSessionIdleMs
+            ),
+            eventQueueBytes: requireOptionalSafeIntegerOutput(
+              'server event queue bytes',
+              heartbeatResponse.eventQueueBytes
+            ),
+            peakEventQueueBytes: requireOptionalSafeIntegerOutput(
+              'server peak event queue bytes',
+              heartbeatResponse.peakEventQueueBytes
+            ),
+            resourceRejectionCount: requireOptionalSafeIntegerOutput(
+              'server resource rejection count',
+              heartbeatResponse.resourceRejectionCount
+            ),
+            activeScanCount: requireOptionalSafeIntegerOutput(
+              'server active scan count',
+              heartbeatResponse.activeScanCount
+            ),
+            activeChangelogExportCount: requireOptionalSafeIntegerOutput(
+              'server active change-log export count',
+              heartbeatResponse.activeChangelogExportCount
+            ),
+            activeCheckpointWriteCount: requireOptionalSafeIntegerOutput(
+              'server active checkpoint writer count',
+              heartbeatResponse.activeCheckpointWriteCount
             ),
           })
         } catch (safeIntegerError) {
