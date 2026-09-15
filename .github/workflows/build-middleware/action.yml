@@ -46,6 +46,8 @@ runs:
 
     - name: Setup cmake
       uses: lukka/get-cmake@latest
+      with:
+        cmakeVersion: 3.31.12
 
     - name: Setup Python
       uses: actions/setup-python@v6
@@ -108,12 +110,18 @@ runs:
       if: inputs.runner-os == 'Windows' || inputs.runner-os == 'macOS'
       uses: nick-fields/retry@ad984534de44a9489a53aefd81eb77f87c70dc60 # v4.0.0
       with:
-        timeout_minutes: 30
+        timeout_minutes: 60
         max_attempts: 3
         retry_wait_seconds: 30
         shell: bash
         command: |
           conan_arch=()
+          conan_profiles=(
+            "-pr:h" "default"
+            "-pr:h" "$GITHUB_WORKSPACE/.github/conan/profiles/ci-cmake-3.31.12"
+            "-pr:b" "default"
+            "-pr:b" "$GITHUB_WORKSPACE/.github/conan/profiles/ci-cmake-3.31.12"
+          )
           if [ "${{ inputs.runner-os }}" == "macOS" ]; then
             conan_arch=("-s:h" "arch=${TARGET_CONAN_ARCH}")
           fi
@@ -121,6 +129,7 @@ runs:
             --build=missing \
             -s build_type=Release \
             "${conan_arch[@]}" \
+            "${conan_profiles[@]}" \
             ${CONAN_MSBUILD_VS_CONF:-} \
             -c tools.cmake.cmaketoolchain:generator=Ninja
 
@@ -157,13 +166,19 @@ runs:
     - name: Install server dependencies via Conan
       uses: nick-fields/retry@ad984534de44a9489a53aefd81eb77f87c70dc60 # v4.0.0
       with:
-        timeout_minutes: 30
+        timeout_minutes: 60
         max_attempts: 3
         retry_wait_seconds: 30
         shell: bash
         command: |
           cd server/cpp
           conan_arch=()
+          conan_profiles=(
+            "-pr:h" "default"
+            "-pr:h" "$GITHUB_WORKSPACE/.github/conan/profiles/ci-cmake-3.31.12"
+            "-pr:b" "default"
+            "-pr:b" "$GITHUB_WORKSPACE/.github/conan/profiles/ci-cmake-3.31.12"
+          )
           if [ "${{ inputs.runner-os }}" == "macOS" ]; then
             conan_arch=("-s:h" "arch=${TARGET_CONAN_ARCH}")
           fi
@@ -172,6 +187,7 @@ runs:
             -s build_type=Release \
             -s compiler.cppstd=17 \
             "${conan_arch[@]}" \
+            "${conan_profiles[@]}" \
             ${CONAN_MSBUILD_VS_CONF:-} \
             -c tools.cmake.cmaketoolchain:generator=Ninja
 
