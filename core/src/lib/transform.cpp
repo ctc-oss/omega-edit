@@ -1070,9 +1070,18 @@ namespace {
                (length == 0 || static_cast<bool>(out.write(text.data(), static_cast<std::streamsize>(length))));
     }
 
+    auto host_output_limit_() -> int64_t {
+        const auto *value = std::getenv("OMEGA_EDIT_TRANSFORM_HOST_MAX_OUTPUT_BYTES");
+        if (!value || !*value) { return 0; }
+        try {
+            const auto parsed = std::stoll(value);
+            return parsed > 0 ? parsed : 0;
+        } catch (const std::exception &) { return 0; }
+    }
+
     auto read_string_(std::istream &in, std::string &value) -> bool {
         int64_t length = 0;
-        if (!read_pod_(in, length) || length < 0) { return false; }
+        if (!read_pod_(in, length) || length < 0 || length > 16 * 1024 * 1024) { return false; }
         value.assign(static_cast<size_t>(length), '\0');
         return length == 0 || static_cast<bool>(in.read(value.data(), static_cast<std::streamsize>(value.size())));
     }
@@ -1086,7 +1095,8 @@ namespace {
 
     auto read_bytes_(std::istream &in, std::vector<omega_byte_t> &bytes) -> bool {
         int64_t length = 0;
-        if (!read_pod_(in, length) || length < 0) { return false; }
+        const auto limit = host_output_limit_();
+        if (!read_pod_(in, length) || length < 0 || (limit > 0 && length > limit)) { return false; }
         bytes.assign(static_cast<size_t>(length), omega_byte_t{});
         return length == 0 || static_cast<bool>(in.read(reinterpret_cast<char *>(bytes.data()),
                                                         static_cast<std::streamsize>(bytes.size())));
