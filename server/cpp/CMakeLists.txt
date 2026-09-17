@@ -227,6 +227,8 @@ set(SERVER_SOURCES
     src/main.cpp
     src/allowed_path_policy.cpp
     src/allowed_path_policy.h
+    src/resource_admission.cpp
+    src/resource_admission.h
     src/editor_service.cpp
     src/editor_service.h
     src/session_manager.cpp
@@ -286,6 +288,19 @@ if(BUILD_TESTING)
         src/allowed_path_policy.h)
     target_include_directories(allowed-path-policy-tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
     add_test(NAME allowed-path-policy-tests COMMAND allowed-path-policy-tests)
+    add_executable(resource-admission-tests
+        tests/resource_admission_tests.cpp
+        src/resource_admission.cpp
+        src/resource_admission.h)
+    target_include_directories(resource-admission-tests PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/src
+        ${OMEGA_EDIT_INCLUDE})
+    if(omega_edit_FOUND)
+        target_link_libraries(resource-admission-tests PRIVATE omega_edit::omega_edit Threads::Threads)
+    else()
+        target_link_libraries(resource-admission-tests PRIVATE ${OMEGA_EDIT_LIB} Threads::Threads)
+    endif()
+    add_test(NAME resource-admission-tests COMMAND resource-admission-tests)
 endif()
 
 # ── Install rules ─────────────────────────────────────────────────────────────
