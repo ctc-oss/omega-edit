@@ -51,6 +51,38 @@ export interface HeartbeatOptions {
   maxReadSegmentBytes?: number
   /** Limit unary search matches returned by one RPC (0 = unbounded). */
   maxSearchMatches?: number
+  /** Limit change-log entries per export (0 = unbounded). */
+  maxChangelogExportEntries?: number
+  /** Limit temporary bytes per change-log export (0 = unbounded). */
+  maxChangelogSpoolBytes?: number
+  /** Limit active sessions (0 = unbounded). */
+  maxSessions?: number
+  /** Limit whole-range scans running concurrently (0 = unbounded). */
+  maxConcurrentScans?: number
+  /** Limit plugin transforms running concurrently (0 = unbounded). */
+  maxConcurrentTransforms?: number
+  /** Limit change-log exports running concurrently (0 = unbounded). */
+  maxConcurrentChangelogExports?: number
+  /** Limit checkpoint writers running concurrently (0 = unbounded). */
+  maxConcurrentCheckpointWrites?: number
+  /** Limit retained checkpoint models per session (0 = unbounded). */
+  maxCheckpointModelsPerSession?: number
+  /** Require this much free checkpoint filesystem space (0 = disabled). */
+  minCheckpointFreeBytes?: number
+  /** Limit active event subscriptions (0 = unbounded). */
+  maxEventSubscriptions?: number
+  /** Limit bytes buffered per session event subscription (0 = unbounded). */
+  sessionEventQueueByteCapacity?: number
+  /** Limit bytes buffered per viewport event subscription (0 = unbounded). */
+  viewportEventQueueByteCapacity?: number
+  /** Limit aggregate event queue bytes (0 = unbounded). */
+  maxTotalEventQueueBytes?: number
+  /** Limit transform options JSON bytes (0 = unbounded). */
+  maxTransformOptionsBytes?: number
+  /** Limit materialized transform result bytes (0 = unbounded). */
+  maxTransformResultBytes?: number
+  /** Limit session IDs touched by one heartbeat (0 = unbounded). */
+  maxHeartbeatSessionIds?: number
   /** Append native server lifecycle logs to this file. */
   logFile?: string
   /** Native server log level. */
@@ -444,6 +476,30 @@ function heartbeatToArgs(
   if (opts?.maxSearchMatches !== undefined) {
     args.push(`--max-search-matches=${opts.maxSearchMatches}`)
   }
+  const numericLimits: Array<[string, number | undefined]> = [
+    ['max-changelog-export-entries', opts?.maxChangelogExportEntries],
+    ['max-changelog-spool-bytes', opts?.maxChangelogSpoolBytes],
+    ['max-sessions', opts?.maxSessions],
+    ['max-concurrent-scans', opts?.maxConcurrentScans],
+    ['max-concurrent-transforms', opts?.maxConcurrentTransforms],
+    ['max-concurrent-changelog-exports', opts?.maxConcurrentChangelogExports],
+    ['max-concurrent-checkpoint-writes', opts?.maxConcurrentCheckpointWrites],
+    ['max-checkpoint-models-per-session', opts?.maxCheckpointModelsPerSession],
+    ['min-checkpoint-free-bytes', opts?.minCheckpointFreeBytes],
+    ['max-event-subscriptions', opts?.maxEventSubscriptions],
+    ['session-event-queue-byte-capacity', opts?.sessionEventQueueByteCapacity],
+    [
+      'viewport-event-queue-byte-capacity',
+      opts?.viewportEventQueueByteCapacity,
+    ],
+    ['max-total-event-queue-bytes', opts?.maxTotalEventQueueBytes],
+    ['max-transform-options-bytes', opts?.maxTransformOptionsBytes],
+    ['max-transform-result-bytes', opts?.maxTransformResultBytes],
+    ['max-heartbeat-session-ids', opts?.maxHeartbeatSessionIds],
+  ]
+  for (const [name, value] of numericLimits) {
+    if (value !== undefined) args.push(`--${name}=${value}`)
+  }
   if (opts?.logConfigFile !== undefined) {
     args.push(`--log-config=${opts.logConfigFile}`)
   }
@@ -523,6 +579,17 @@ async function executeServer(
       shell: false,
       stdio: ['ignore', 'ignore', 'ignore'],
       windowsHide: true,
+      env: {
+        ...process.env,
+        ...(heartbeat?.maxTransformResultBytes !== undefined &&
+        heartbeat.maxTransformResultBytes > 0
+          ? {
+              OMEGA_EDIT_TRANSFORM_HOST_MAX_OUTPUT_BYTES: String(
+                heartbeat.maxTransformResultBytes
+              ),
+            }
+          : {}),
+      },
     })
 
     const onError = (error: Error) => reject(error)
