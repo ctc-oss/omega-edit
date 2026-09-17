@@ -116,14 +116,6 @@ namespace {
                                                            static_cast<std::streamsize>(length))));
     }
 
-    auto read_bytes(std::istream &in, std::vector<omega_byte_t> &bytes) -> bool {
-        int64_t length = 0;
-        if (!read_pod(in, length) || length < 0) { return false; }
-        bytes.assign(static_cast<size_t>(length), omega_byte_t{});
-        return length == 0 || static_cast<bool>(in.read(reinterpret_cast<char *>(bytes.data()),
-                                                        static_cast<std::streamsize>(bytes.size())));
-    }
-
     struct allocation_state_t {
         std::vector<void *> allocations;
         size_t allocated_bytes{};
