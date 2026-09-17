@@ -834,15 +834,10 @@ int main(int argc, char **argv) {
     grpc::EnableDefaultHealthCheckService(true);
 
     grpc::ServerBuilder builder;
-    if (resource_limits.max_change_bytes > 0) {
-        constexpr int64_t protobuf_overhead = 1024 * 1024;
-        const auto configured = std::min<int64_t>(resource_limits.max_change_bytes + protobuf_overhead, INT_MAX);
-        builder.SetMaxReceiveMessageSize(static_cast<int>(configured));
-        builder.SetMaxSendMessageSize(static_cast<int>(configured));
-    } else {
-        builder.SetMaxReceiveMessageSize(-1);
-        builder.SetMaxSendMessageSize(-1);
-    }
+    // Resource limits are enforced by the RPC that owns each materialized field. Do not derive the transport-wide
+    // message limit from max_change_bytes: unrelated requests and responses may have independently configured sizes.
+    builder.SetMaxReceiveMessageSize(-1);
+    builder.SetMaxSendMessageSize(-1);
 
     if (unix_socket_only) {
 #ifdef _WIN32

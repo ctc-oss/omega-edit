@@ -22,9 +22,13 @@ import {
   createSession,
   createSimpleFileLogger,
   delay,
+  del,
   destroySession,
+  getChangeDetails,
   getComputedFileSize,
   getClient,
+  getLastChange,
+  getLastUndo,
   getSegment,
   getServerHeartbeat,
   getSessionCount,
@@ -45,6 +49,7 @@ import {
   stopServerGraceful,
   stopServerImmediate,
   stopServiceOnPort,
+  undo,
 } from '@omega-edit/client'
 import {
   expect,
@@ -777,6 +782,32 @@ describe('Server Resource Limits', () => {
       expect.fail(
         'getSegment should reject lengths larger than maxReadSegmentBytes'
       )
+    } catch (err) {
+      expectResourceExhausted(err, 'configured read segment limit of 1 bytes')
+    }
+  })
+
+  it(`on port ${serverTestPort} should reject oversized change details instead of omitting data`, async () => {
+    await insert(session_id, 0, Uint8Array.from([0x41]))
+    await insert(session_id, 1, Uint8Array.from([0x42]))
+    const serial = await del(session_id, 0, 2)
+
+    for (const readChange of [
+      () => getChangeDetails(session_id, serial),
+      () => getLastChange(session_id),
+    ]) {
+      try {
+        await readChange()
+        expect.fail('change detail read should reject an oversized payload')
+      } catch (err) {
+        expectResourceExhausted(err, 'configured read segment limit of 1 bytes')
+      }
+    }
+
+    await undo(session_id)
+    try {
+      await getLastUndo(session_id)
+      expect.fail('last undo read should reject an oversized payload')
     } catch (err) {
       expectResourceExhausted(err, 'configured read segment limit of 1 bytes')
     }

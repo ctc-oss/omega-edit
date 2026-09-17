@@ -275,7 +275,7 @@ namespace omega_edit {
             grpc::Status fill_viewport_data(const std::string &session_id, const std::string &viewport_id,
                                             const std::string &fqid, T *response);
             template<typename T>
-            void fill_change_details(const omega_change_t *change, const std::string &session_id, T *response);
+            grpc::Status fill_change_details(const omega_change_t *change, const std::string &session_id, T *response);
             void request_shutdown();
             grpc::Status resolve_allowed_path(const std::string &path, const char *field_name, bool existing_file,
                                               bool directory, std::string &resolved) const;
