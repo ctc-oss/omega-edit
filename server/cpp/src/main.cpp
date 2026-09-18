@@ -411,6 +411,8 @@ static void print_usage(const char *progname) {
               << "      --viewport-event-queue-capacity <count>\n"
               << "                                   Cap buffered viewport events per subscription (0 = unbounded)\n"
               << "      --max-change-bytes <bytes>   Limit insert/overwrite payload size (0 = unbounded)\n"
+              << "      --max-rpc-request-bytes <bytes>\n"
+              << "                                   Limit serialized gRPC request size (0 = unbounded)\n"
               << "      --max-viewports-per-session <count>\n"
               << "                                   Limit concurrently open viewports per session (0 = unbounded)\n"
               << "      --max-read-segment-bytes <bytes>\n"
@@ -465,6 +467,7 @@ int main(int argc, char **argv) {
     size_t session_event_queue_capacity = resource_limits.session_event_queue_capacity;
     size_t viewport_event_queue_capacity = resource_limits.viewport_event_queue_capacity;
     int64_t max_change_bytes = resource_limits.max_change_bytes;
+    int max_rpc_request_bytes = 0;
     size_t max_viewports_per_session = resource_limits.max_viewports_per_session;
     int64_t max_read_segment_bytes = resource_limits.max_read_segment_bytes;
     int64_t max_search_matches = resource_limits.max_search_matches;
@@ -537,6 +540,9 @@ int main(int argc, char **argv) {
     if (const char *env = std::getenv("OMEGA_EDIT_MAX_CHANGE_BYTES")) {
         if (!parse_int64(env, "OMEGA_EDIT_MAX_CHANGE_BYTES", 0, std::numeric_limits<int64_t>::max(), max_change_bytes))
             return 1;
+    }
+    if (const char *env = std::getenv("OMEGA_EDIT_MAX_RPC_REQUEST_BYTES")) {
+        if (!parse_int(env, "OMEGA_EDIT_MAX_RPC_REQUEST_BYTES", 0, INT_MAX, max_rpc_request_bytes)) return 1;
     }
     if (const char *env = std::getenv("OMEGA_EDIT_MAX_VIEWPORTS_PER_SESSION")) {
         if (!parse_size_t(env, "OMEGA_EDIT_MAX_VIEWPORTS_PER_SESSION", 0, std::numeric_limits<size_t>::max(),
@@ -690,6 +696,9 @@ int main(int argc, char **argv) {
                 if (!require_option_value(key, value)) { return 1; }
                 if (!parse_int64(value, "--max-change-bytes", 0, std::numeric_limits<int64_t>::max(), max_change_bytes))
                     return 1;
+            } else if (key == "--max-rpc-request-bytes") {
+                if (!require_option_value(key, value)) { return 1; }
+                if (!parse_int(value, "--max-rpc-request-bytes", 0, INT_MAX, max_rpc_request_bytes)) return 1;
             } else if (key == "--max-viewports-per-session") {
                 if (!require_option_value(key, value)) { return 1; }
                 if (!parse_size_t(value, "--max-viewports-per-session", 0, std::numeric_limits<size_t>::max(),
@@ -834,9 +843,8 @@ int main(int argc, char **argv) {
     grpc::EnableDefaultHealthCheckService(true);
 
     grpc::ServerBuilder builder;
-    // Resource limits are enforced by the RPC that owns each materialized field. Do not derive the transport-wide
-    // message limit from max_change_bytes: unrelated requests and responses may have independently configured sizes.
-    builder.SetMaxReceiveMessageSize(-1);
+    // Keep the transport limit independent from field-specific resource limits such as max_change_bytes.
+    builder.SetMaxReceiveMessageSize(max_rpc_request_bytes > 0 ? max_rpc_request_bytes : -1);
     builder.SetMaxSendMessageSize(-1);
 
     if (unix_socket_only) {

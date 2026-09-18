@@ -547,6 +547,7 @@ describe('Server Resource Limits', () => {
 
   const heartbeat: HeartbeatOptions = {
     maxChangeBytes: 1,
+    maxRpcRequestBytes: 1024,
     maxReadSegmentBytes: 1,
     maxSearchMatches: 2,
     maxViewportsPerSession: 1,
@@ -638,6 +639,21 @@ describe('Server Resource Limits', () => {
       expect.fail('overwrite should reject payloads larger than maxChangeBytes')
     } catch (err) {
       expectResourceExhausted(err, 'configured limit of 1 bytes')
+    }
+  })
+
+  it(`on port ${serverTestPort} should reject requests larger than the transport limit`, async () => {
+    try {
+      await insert(session_id, 0, new Uint8Array(2048))
+      expect.fail(
+        'insert should reject requests larger than maxRpcRequestBytes'
+      )
+    } catch (err) {
+      expect(err).to.be.instanceOf(Error)
+      expect((err as Error).message).to.include('RESOURCE_EXHAUSTED')
+      expect((err as Error).message).to.include(
+        'Received message larger than max'
+      )
     }
   })
 
