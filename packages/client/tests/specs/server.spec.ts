@@ -22,9 +22,13 @@ import {
   createSession,
   createSimpleFileLogger,
   delay,
+  del,
   destroySession,
+  getChangeDetails,
   getComputedFileSize,
   getClient,
+  getLastChange,
+  getLastUndo,
   getSegment,
   getServerHeartbeat,
   getSessionCount,
@@ -45,6 +49,7 @@ import {
   stopServerGraceful,
   stopServerImmediate,
   stopServiceOnPort,
+  undo,
 } from '@omega-edit/client'
 import {
   expect,
@@ -542,6 +547,7 @@ describe('Server Resource Limits', () => {
 
   const heartbeat: HeartbeatOptions = {
     maxChangeBytes: 1,
+    maxRpcRequestBytes: 1024,
     maxReadSegmentBytes: 1,
     maxSearchMatches: 2,
     maxViewportsPerSession: 1,
@@ -633,6 +639,21 @@ describe('Server Resource Limits', () => {
       expect.fail('overwrite should reject payloads larger than maxChangeBytes')
     } catch (err) {
       expectResourceExhausted(err, 'configured limit of 1 bytes')
+    }
+  })
+
+  it(`on port ${serverTestPort} should reject requests larger than the transport limit`, async () => {
+    try {
+      await insert(session_id, 0, new Uint8Array(2048))
+      expect.fail(
+        'insert should reject requests larger than maxRpcRequestBytes'
+      )
+    } catch (err) {
+      expect(err).to.be.instanceOf(Error)
+      expect((err as Error).message).to.include('RESOURCE_EXHAUSTED')
+      expect((err as Error).message).to.include(
+        'Received message larger than max'
+      )
     }
   })
 
@@ -777,6 +798,32 @@ describe('Server Resource Limits', () => {
       expect.fail(
         'getSegment should reject lengths larger than maxReadSegmentBytes'
       )
+    } catch (err) {
+      expectResourceExhausted(err, 'configured read segment limit of 1 bytes')
+    }
+  })
+
+  it(`on port ${serverTestPort} should reject oversized change details instead of omitting data`, async () => {
+    await insert(session_id, 0, Uint8Array.from([0x41]))
+    await insert(session_id, 1, Uint8Array.from([0x42]))
+    const serial = await del(session_id, 0, 2)
+
+    for (const readChange of [
+      () => getChangeDetails(session_id, serial),
+      () => getLastChange(session_id),
+    ]) {
+      try {
+        await readChange()
+        expect.fail('change detail read should reject an oversized payload')
+      } catch (err) {
+        expectResourceExhausted(err, 'configured read segment limit of 1 bytes')
+      }
+    }
+
+    await undo(session_id)
+    try {
+      await getLastUndo(session_id)
+      expect.fail('last undo read should reject an oversized payload')
     } catch (err) {
       expectResourceExhausted(err, 'configured read segment limit of 1 bytes')
     }
