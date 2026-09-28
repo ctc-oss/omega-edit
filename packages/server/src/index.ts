@@ -45,6 +45,8 @@ export interface HeartbeatOptions {
   viewportEventQueueCapacity?: number
   /** Limit insert and overwrite payload size in bytes (0 = unbounded). */
   maxChangeBytes?: number
+  /** Limit the serialized size of any gRPC request in bytes (0 = unbounded). */
+  maxRpcRequestBytes?: number
   /** Limit concurrently open viewports per session (0 = unbounded). */
   maxViewportsPerSession?: number
   /** Limit materialized read/classification segment size in bytes (0 = unbounded). */
@@ -466,6 +468,9 @@ function heartbeatToArgs(
   }
   if (opts?.maxChangeBytes !== undefined) {
     args.push(`--max-change-bytes=${opts.maxChangeBytes}`)
+  }
+  if (opts?.maxRpcRequestBytes !== undefined) {
+    args.push(`--max-rpc-request-bytes=${opts.maxRpcRequestBytes}`)
   }
   if (opts?.maxViewportsPerSession !== undefined) {
     args.push(`--max-viewports-per-session=${opts.maxViewportsPerSession}`)
