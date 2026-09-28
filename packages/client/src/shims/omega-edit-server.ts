@@ -35,6 +35,7 @@ export interface HeartbeatOptions {
   sessionEventQueueCapacity?: number
   viewportEventQueueCapacity?: number
   maxChangeBytes?: number
+  maxRpcRequestBytes?: number
   maxViewportsPerSession?: number
   maxReadSegmentBytes?: number
   maxSearchMatches?: number

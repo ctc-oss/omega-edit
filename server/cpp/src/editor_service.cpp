@@ -1587,8 +1587,15 @@ namespace omega_edit {
         }
 
         template<typename T>
-        void EditorServiceImpl::fill_change_details(const omega_change_t *change, const std::string &session_id,
-                                                    T *response) {
+        grpc::Status EditorServiceImpl::fill_change_details(const omega_change_t *change, const std::string &session_id,
+                                                            T *response) {
+            const auto data_length = omega_change_get_data_length(change);
+            if (resource_limits_.max_read_segment_bytes > 0 && data_length > resource_limits_.max_read_segment_bytes) {
+                return grpc::Status(grpc::StatusCode::RESOURCE_EXHAUSTED,
+                                    "change payload exceeds configured read segment limit of " +
+                                            std::to_string(resource_limits_.max_read_segment_bytes) + " bytes");
+            }
+
             response->set_session_id(session_id);
             response->set_serial(omega_change_get_serial(change));
 
@@ -1614,12 +1621,8 @@ namespace omega_edit {
             response->set_offset(omega_change_get_offset(change));
             response->set_length(omega_change_get_length(change));
 
-            const auto data_length = omega_change_get_data_length(change);
-            if (resource_limits_.max_read_segment_bytes <= 0 ||
-                data_length <= resource_limits_.max_read_segment_bytes) {
-                const auto *bytes = omega_change_get_bytes(change);
-                if (bytes && data_length > 0) { response->set_data(bytes, static_cast<size_t>(data_length)); }
-            }
+            const auto *bytes = omega_change_get_bytes(change);
+            if (bytes && data_length > 0) { response->set_data(bytes, static_cast<size_t>(data_length)); }
 
             if (omega_change_is_transform(change)) {
                 auto *transform = response->mutable_transform();
@@ -1633,6 +1636,7 @@ namespace omega_edit {
                 transform->set_computed_file_size_before(omega_change_get_transform_computed_file_size_before(change));
                 transform->set_computed_file_size_after(omega_change_get_transform_computed_file_size_after(change));
             }
+            return grpc::Status::OK;
         }
 
         template<typename T>
@@ -2330,8 +2334,7 @@ namespace omega_edit {
             const auto *change = omega_session_get_change(session, request->serial());
             if (!change) { return grpc::Status(grpc::StatusCode::NOT_FOUND, "change not found"); }
 
-            fill_change_details(change, request->session_id(), response);
-            return grpc::Status::OK;
+            return fill_change_details(change, request->session_id(), response);
         }
 
         grpc::Status EditorServiceImpl::GetLastChange(grpc::ServerContext * /*context*/,
@@ -2346,8 +2349,7 @@ namespace omega_edit {
             const auto *change = omega_session_get_last_change(session);
             if (!change) { return grpc::Status(grpc::StatusCode::UNKNOWN, "no changes available"); }
 
-            fill_change_details(change, request->id(), response);
-            return grpc::Status::OK;
+            return fill_change_details(change, request->id(), response);
         }
 
         grpc::Status EditorServiceImpl::GetLastUndo(grpc::ServerContext * /*context*/,
@@ -2362,8 +2364,7 @@ namespace omega_edit {
             const auto *change = omega_session_get_last_undo(session);
             if (!change) { return grpc::Status(grpc::StatusCode::UNKNOWN, "no undone changes available"); }
 
-            fill_change_details(change, request->id(), response);
-            return grpc::Status::OK;
+            return fill_change_details(change, request->id(), response);
         }
 
         grpc::Status
