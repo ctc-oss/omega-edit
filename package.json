@@ -45,13 +45,13 @@
     "package": "yarn workspace @omega-edit/server package && yarn workspace @omega-edit/client package && yarn workspace @omega-edit/ai package"
   },
   "devDependencies": {
-    "@biomejs/biome": "^2.5.13",
+    "@biomejs/biome": "^2.5.14",
     "@types/node": "^22.20.0",
     "run-script-os": "^1.1.6",
     "typedoc": "^0.28.20",
     "typescript": "^6.0.3",
     "vite": "^8.2.2",
-    "vitest": "^5.0.0"
+    "vitest": "^5.0.3"
   },
   "resolutions": {
     "@types/node": "22.20.0",
@@ -59,6 +59,6 @@
     "rimraf/**/brace-expansion": "1.1.13"
   },
   "dependencies": {
-    "typescript-language-server": "6.0.0"
+    "typescript-language-server": "6.0.1"
   }
 }
