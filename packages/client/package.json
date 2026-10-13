@@ -86,7 +86,7 @@
     "@omega-edit/server": "2.0.0",
     "@protobuf-ts/runtime": "^2.11.1",
     "@protobuf-ts/runtime-rpc": "^2.11.1",
-    "pino": "10.3.1",
+    "pino": "10.4.0",
     "wait-port": "1.1.0"
   }
 }
