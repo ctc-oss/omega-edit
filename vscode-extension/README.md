@@ -113,9 +113,31 @@ npm test
 
 Then open either the repository root or this folder in VS Code and press `F5`.
 An Extension Development Host window will open the included `sample.txt`
-fixture in the data editor, ready for interactive previewing. On Windows, the
-preview server uses port `19000` so it does not replace a server on the default
-port used by an installed copy of the extension.
+fixture in the data editor, ready for interactive previewing. The preview server
+uses port `19000` so it does not replace a server on the default port used by an
+installed copy of the extension. F5 recompiles the extension and webview; the
+development bundle includes a linked source map for TypeScript breakpoints.
+
+VS Code 1.139 can fail to attach its bundled JavaScript debugger to the extension
+host. If F5 reports a connection error at `localhost`, use Microsoft's
+[updated JavaScript debugger](https://github.com/microsoft/vscode-js-debug#nightly-extension)
+and disable the built-in `ms-vscode.js-debug` extension in the Extensions view,
+then run **Developer: Reload Window**. Restarting only the extension host can
+leave stale registrations and report that `pwa-extensionHost` is unsupported.
+Installing the nightly debugger alone leaves both debuggers enabled and causes
+command registration conflicts.
+
+Alternatively, launch a separate debug instance without changing extension
+enablement in your usual profile:
+
+```bash
+code --install-extension ms-vscode.js-debug-nightly
+code --user-data-dir "${XDG_CACHE_HOME:-$HOME/.cache}/omega-edit-vscode-debug" \
+  --new-window --disable-extension ms-vscode.js-debug .
+```
+
+The separate user-data directory matters: `--new-window` alone can reuse a
+running instance whose debugger is already active.
 
 In the new window:
 
