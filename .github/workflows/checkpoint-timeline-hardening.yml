@@ -100,7 +100,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - uses: lukka/get-cmake@latest
-      - uses: actions/setup-node@v6
+      - uses: actions/setup-node@v7
         with:
           node-version: 24
           cache: yarn
