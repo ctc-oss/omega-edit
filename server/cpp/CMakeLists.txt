@@ -42,7 +42,6 @@ set(CMAKE_VERBOSE_MAKEFILE ON)
 find_package(Protobuf CONFIG REQUIRED)
 find_package(gRPC CONFIG REQUIRED)
 find_package(Threads REQUIRED)
-find_package(OpenSSL REQUIRED COMPONENTS Crypto)
 
 # ── Resolve protoc and grpc_cpp_plugin executables ────────────────────────────
 # Try target property first, fall back to find_program.
@@ -226,6 +225,10 @@ endif()
 # ── Server executable ─────────────────────────────────────────────────────────
 set(SERVER_SOURCES
     src/main.cpp
+    src/allowed_path_policy.cpp
+    src/allowed_path_policy.h
+    src/resource_admission.cpp
+    src/resource_admission.h
     src/editor_service.cpp
     src/editor_service.h
     src/session_manager.cpp
@@ -241,32 +244,24 @@ target_include_directories(omega-edit-grpc-server PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/src
 )
 
-# Check if gRPC reflection is available (not always present in vcpkg builds)
-if(TARGET gRPC::grpc++_reflection)
-    target_compile_definitions(omega-edit-grpc-server PRIVATE HAS_GRPC_REFLECTION)
-    set(_GRPC_REFLECTION_LIB gRPC::grpc++_reflection)
-else()
-    set(_GRPC_REFLECTION_LIB "")
+if(NOT TARGET gRPC::grpc++_unsecure)
+    message(FATAL_ERROR "gRPC::grpc++_unsecure is required because the native server exposes only insecure endpoints")
 endif()
 
 if(omega_edit_FOUND)
     target_link_libraries(omega-edit-grpc-server PRIVATE
         omega_edit::omega_edit
-        gRPC::grpc++
-        ${_GRPC_REFLECTION_LIB}
+        gRPC::grpc++_unsecure
         protobuf::libprotobuf
         Threads::Threads
-        OpenSSL::Crypto
     )
 else()
     target_include_directories(omega-edit-grpc-server PRIVATE ${OMEGA_EDIT_INCLUDE})
     target_link_libraries(omega-edit-grpc-server PRIVATE
         ${OMEGA_EDIT_LIB}
-        gRPC::grpc++
-        ${_GRPC_REFLECTION_LIB}
+        gRPC::grpc++_unsecure
         protobuf::libprotobuf
         Threads::Threads
-        OpenSSL::Crypto
     )
 endif()
 
@@ -284,6 +279,28 @@ elseif(NOT APPLE)
     if(UUID_LIB)
         target_link_libraries(omega-edit-grpc-server PRIVATE ${UUID_LIB})
     endif()
+endif()
+
+if(BUILD_TESTING)
+    add_executable(allowed-path-policy-tests
+        tests/allowed_path_policy_tests.cpp
+        src/allowed_path_policy.cpp
+        src/allowed_path_policy.h)
+    target_include_directories(allowed-path-policy-tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
+    add_test(NAME allowed-path-policy-tests COMMAND allowed-path-policy-tests)
+    add_executable(resource-admission-tests
+        tests/resource_admission_tests.cpp
+        src/resource_admission.cpp
+        src/resource_admission.h)
+    target_include_directories(resource-admission-tests PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/src
+        ${OMEGA_EDIT_INCLUDE})
+    if(omega_edit_FOUND)
+        target_link_libraries(resource-admission-tests PRIVATE omega_edit::omega_edit Threads::Threads)
+    else()
+        target_link_libraries(resource-admission-tests PRIVATE ${OMEGA_EDIT_LIB} Threads::Threads)
+    endif()
+    add_test(NAME resource-admission-tests COMMAND resource-admission-tests)
 endif()
 
 # ── Install rules ─────────────────────────────────────────────────────────────

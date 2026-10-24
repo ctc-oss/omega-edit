@@ -113,6 +113,30 @@ TEST_CASE("File Copy", "[UtilTests]") {
     REQUIRE(!omega_util_file_exists((DATA_DIR / "test1.copy.dat").string().c_str()));
 }
 
+#ifndef OMEGA_BUILD_WINDOWS
+TEST_CASE("Available Filename Rejects Oversized Suffix", "[UtilTests][Security]") {
+    const auto root = DATA_DIR / "available_filename_limit";
+    fs::remove_all(root);
+    fs::create_directories(root);
+
+    auto directory = root;
+    auto remaining = static_cast<size_t>(FILENAME_MAX - 1) - (directory.string().length() + 1);
+    while (remaining > 255) {
+        const auto component_length = std::min<size_t>(200, remaining - 256);
+        directory /= std::string(component_length, 'd');
+        fs::create_directory(directory);
+        remaining = static_cast<size_t>(FILENAME_MAX - 1) - (directory.string().length() + 1);
+    }
+
+    const auto existing_path = directory / std::string(remaining, 'f');
+    std::ofstream(existing_path) << "x";
+    REQUIRE(fs::exists(existing_path));
+    char buffer[FILENAME_MAX]{};
+    REQUIRE(nullptr == omega_util_available_filename(existing_path.string().c_str(), buffer));
+    fs::remove_all(root);
+}
+#endif
+
 TEST_CASE("End Of Line", "[EOLTests]") {
     omega_byte_t buffer[1024];
     FILE *in_fp = FOPEN(MAKE_PATH("test1.dat"), "rb");

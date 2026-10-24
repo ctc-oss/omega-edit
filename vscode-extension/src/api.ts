@@ -6,6 +6,8 @@ import type {
   TextEncoding,
   WebviewEditorState,
   WebviewExternalHighlight,
+  WebviewActionJournalKind,
+  WebviewActionJournalViewport,
 } from './webviewProtocol'
 
 export const OMEGA_EDIT_EXTENSION_PUBLISHER = 'ctc-oss'
@@ -20,6 +22,10 @@ export type OmegaEditEditorState = WebviewEditorState
 export type OmegaEditInsertDirection = InsertDirection
 export type OmegaEditTextEncoding = TextEncoding
 export type OmegaEditAssistantContext = AssistantSessionContext
+export type OmegaEditActionJournalKind = WebviewActionJournalKind
+export type OmegaEditActionJournalViewport = WebviewActionJournalViewport & {
+  sessionId: string
+}
 
 export interface OmegaEditEditorSelector {
   uri?: vscode.Uri | string
@@ -38,8 +44,14 @@ export interface OmegaEditInsertDirectionOptions
   direction?: OmegaEditInsertDirection
 }
 
-export interface OmegaEditExternalHighlightRequest
+export interface OmegaEditExternalHighlightOptions
   extends OmegaEditEditorSelector {
+  /** Opaque owner key, preferably extension id plus debug session id. Omit for legacy annotations. */
+  owner?: string
+}
+
+export interface OmegaEditExternalHighlightRequest
+  extends OmegaEditExternalHighlightOptions {
   highlights: OmegaEditExternalHighlight[]
   reveal?: boolean
 }
@@ -56,6 +68,15 @@ export interface OmegaEditRangeMapUnloadOptions
 }
 
 export interface OmegaEditCheckpointOptions extends OmegaEditEditorSelector {}
+
+export interface OmegaEditActionJournalViewportOptions
+  extends OmegaEditEditorSelector {
+  anchorSerial?: string | number | bigint
+  capacity?: number
+  direction?: 'older' | 'newer'
+  kinds?: OmegaEditActionJournalKind[]
+  transactionId?: string
+}
 
 export interface OmegaEditChangeLogExportOptions
   extends OmegaEditEditorSelector {
@@ -92,6 +113,7 @@ export interface OmegaEditRestoreCheckpointResult {
 }
 
 export interface OmegaEditChangeLogDigest {
+  pluginId?: string
   algorithm: string
   value: string
 }
@@ -222,11 +244,14 @@ export interface OmegaEditExtensionApi {
   getAssistantContext(
     options?: vscode.Uri | string | OmegaEditEditorSelector
   ): OmegaEditAssistantContext | undefined
+  getActionJournalViewport(
+    options?: OmegaEditActionJournalViewportOptions
+  ): Promise<OmegaEditActionJournalViewport | undefined>
   setExternalHighlights(
     request: OmegaEditExternalHighlightRequest
   ): Promise<OmegaEditEditorState | undefined>
   clearExternalHighlights(
-    options?: vscode.Uri | string | OmegaEditEditorSelector
+    options?: vscode.Uri | string | OmegaEditExternalHighlightOptions
   ): OmegaEditEditorState | undefined
   loadRangeMap(
     options?: vscode.Uri | string | OmegaEditRangeMapLoadOptions

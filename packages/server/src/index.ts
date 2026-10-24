@@ -45,12 +45,46 @@ export interface HeartbeatOptions {
   viewportEventQueueCapacity?: number
   /** Limit insert and overwrite payload size in bytes (0 = unbounded). */
   maxChangeBytes?: number
+  /** Limit the serialized size of any gRPC request in bytes (0 = unbounded). */
+  maxRpcRequestBytes?: number
   /** Limit concurrently open viewports per session (0 = unbounded). */
   maxViewportsPerSession?: number
   /** Limit materialized read/classification segment size in bytes (0 = unbounded). */
   maxReadSegmentBytes?: number
   /** Limit unary search matches returned by one RPC (0 = unbounded). */
   maxSearchMatches?: number
+  /** Limit change-log entries per export (0 = unbounded). */
+  maxChangelogExportEntries?: number
+  /** Limit temporary bytes per change-log export (0 = unbounded). */
+  maxChangelogSpoolBytes?: number
+  /** Limit active sessions (0 = unbounded). */
+  maxSessions?: number
+  /** Limit whole-range scans running concurrently (0 = unbounded). */
+  maxConcurrentScans?: number
+  /** Limit plugin transforms running concurrently (0 = unbounded). */
+  maxConcurrentTransforms?: number
+  /** Limit change-log exports running concurrently (0 = unbounded). */
+  maxConcurrentChangelogExports?: number
+  /** Limit checkpoint writers running concurrently (0 = unbounded). */
+  maxConcurrentCheckpointWrites?: number
+  /** Limit retained checkpoint models per session (0 = unbounded). */
+  maxCheckpointModelsPerSession?: number
+  /** Require this much free checkpoint filesystem space (0 = disabled). */
+  minCheckpointFreeBytes?: number
+  /** Limit active event subscriptions (0 = unbounded). */
+  maxEventSubscriptions?: number
+  /** Limit bytes buffered per session event subscription (0 = unbounded). */
+  sessionEventQueueByteCapacity?: number
+  /** Limit bytes buffered per viewport event subscription (0 = unbounded). */
+  viewportEventQueueByteCapacity?: number
+  /** Limit aggregate event queue bytes (0 = unbounded). */
+  maxTotalEventQueueBytes?: number
+  /** Limit transform options JSON bytes (0 = unbounded). */
+  maxTransformOptionsBytes?: number
+  /** Limit materialized transform result bytes (0 = unbounded). */
+  maxTransformResultBytes?: number
+  /** Limit session IDs touched by one heartbeat (0 = unbounded). */
+  maxHeartbeatSessionIds?: number
   /** Append native server lifecycle logs to this file. */
   logFile?: string
   /** Native server log level. */
@@ -67,6 +101,8 @@ export interface HeartbeatOptions {
   allowTestTransformPlugins?: boolean
   /** Permit unauthenticated TCP binds outside loopback. */
   insecureAllowNonLoopback?: boolean
+  /** Restrict RPC file and checkpoint paths to this directory. */
+  allowedRoot?: string
 }
 
 /**
@@ -433,6 +469,9 @@ function heartbeatToArgs(
   if (opts?.maxChangeBytes !== undefined) {
     args.push(`--max-change-bytes=${opts.maxChangeBytes}`)
   }
+  if (opts?.maxRpcRequestBytes !== undefined) {
+    args.push(`--max-rpc-request-bytes=${opts.maxRpcRequestBytes}`)
+  }
   if (opts?.maxViewportsPerSession !== undefined) {
     args.push(`--max-viewports-per-session=${opts.maxViewportsPerSession}`)
   }
@@ -441,6 +480,30 @@ function heartbeatToArgs(
   }
   if (opts?.maxSearchMatches !== undefined) {
     args.push(`--max-search-matches=${opts.maxSearchMatches}`)
+  }
+  const numericLimits: Array<[string, number | undefined]> = [
+    ['max-changelog-export-entries', opts?.maxChangelogExportEntries],
+    ['max-changelog-spool-bytes', opts?.maxChangelogSpoolBytes],
+    ['max-sessions', opts?.maxSessions],
+    ['max-concurrent-scans', opts?.maxConcurrentScans],
+    ['max-concurrent-transforms', opts?.maxConcurrentTransforms],
+    ['max-concurrent-changelog-exports', opts?.maxConcurrentChangelogExports],
+    ['max-concurrent-checkpoint-writes', opts?.maxConcurrentCheckpointWrites],
+    ['max-checkpoint-models-per-session', opts?.maxCheckpointModelsPerSession],
+    ['min-checkpoint-free-bytes', opts?.minCheckpointFreeBytes],
+    ['max-event-subscriptions', opts?.maxEventSubscriptions],
+    ['session-event-queue-byte-capacity', opts?.sessionEventQueueByteCapacity],
+    [
+      'viewport-event-queue-byte-capacity',
+      opts?.viewportEventQueueByteCapacity,
+    ],
+    ['max-total-event-queue-bytes', opts?.maxTotalEventQueueBytes],
+    ['max-transform-options-bytes', opts?.maxTransformOptionsBytes],
+    ['max-transform-result-bytes', opts?.maxTransformResultBytes],
+    ['max-heartbeat-session-ids', opts?.maxHeartbeatSessionIds],
+  ]
+  for (const [name, value] of numericLimits) {
+    if (value !== undefined) args.push(`--${name}=${value}`)
   }
   if (opts?.logConfigFile !== undefined) {
     args.push(`--log-config=${opts.logConfigFile}`)
@@ -453,6 +516,9 @@ function heartbeatToArgs(
   }
   if (opts?.insecureAllowNonLoopback) {
     args.push('--insecure-allow-non-loopback')
+  }
+  if (opts?.allowedRoot !== undefined && opts.allowedRoot.length > 0) {
+    args.push(`--allowed-root=${opts.allowedRoot}`)
   }
   const transformPluginHostPath =
     opts?.transformPluginHostPath || defaultTransformPluginHostPath
@@ -511,22 +577,34 @@ async function executeServer(
     fs.chmodSync(serverBinary, 0o755)
   }
 
-  const serverProcess: ChildProcess = spawn(serverBinary, serverArgs, {
-    cwd: path.dirname(serverBinary),
-    detached: true,
-    shell: false,
-    stdio: ['ignore', 'ignore', 'ignore'],
-    windowsHide: true, // avoid showing a console window
+  return await new Promise<ChildProcess>((resolve, reject) => {
+    const serverProcess: ChildProcess = spawn(serverBinary, serverArgs, {
+      cwd: path.dirname(serverBinary),
+      detached: true,
+      shell: false,
+      stdio: ['ignore', 'ignore', 'ignore'],
+      windowsHide: true,
+      env: {
+        ...process.env,
+        ...(heartbeat?.maxTransformResultBytes !== undefined &&
+        heartbeat.maxTransformResultBytes > 0
+          ? {
+              OMEGA_EDIT_TRANSFORM_HOST_MAX_OUTPUT_BYTES: String(
+                heartbeat.maxTransformResultBytes
+              ),
+            }
+          : {}),
+      },
+    })
+
+    const onError = (error: Error) => reject(error)
+    serverProcess.once('error', onError)
+    serverProcess.once('spawn', () => {
+      serverProcess.off('error', onError)
+      serverProcess.unref()
+      resolve(serverProcess)
+    })
   })
-
-  serverProcess.on('error', (err: Error) => {
-    // ignore the error if the process was cancelled
-    if (!err.message.includes('Call cancelled')) throw err
-  })
-
-  serverProcess.unref()
-
-  return serverProcess
 }
 
 /**

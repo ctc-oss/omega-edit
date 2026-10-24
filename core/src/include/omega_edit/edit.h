@@ -54,6 +54,15 @@ omega_session_t *omega_edit_create_session(const char *file_path, omega_session_
                                            int32_t event_interest, const char *checkpoint_directory);
 
 /**
+ * Replace the original file locator used for save conflict detection without reopening it.
+ * The caller must ensure the locator refers to the same file captured when the session was created.
+ * @param session_ptr session to update
+ * @param file_path stable locator for the original file
+ * @return zero on success, non-zero on failure
+ */
+int omega_edit_set_session_file_path(omega_session_t *session_ptr, const char *file_path);
+
+/**
  * Create an editing session backed by an in-memory byte buffer.
  * @param data_ptr bytes to seed the session with, or nullptr if length is zero
  * @param length number of bytes in data_ptr
@@ -164,6 +173,32 @@ int omega_edit_serial_result_is_success(int64_t result);
 int omega_edit_status_result_is_success(int result);
 
 /**
+ * Callback used to verify an overwrite target immediately before core publishes a saved file.
+ *
+ * The callback is invoked only when the target is the session's original file and core detects that it changed since
+ * the last synchronization. Return zero to allow the overwrite or non-zero to preserve the target and report
+ * ORIGINAL_MODIFIED. Core does not lock the target across this callback and the following atomic replacement, so the
+ * callback detects conflicts but cannot provide transactional compare-and-swap semantics against concurrent writers.
+ */
+typedef int (*omega_edit_overwrite_guard_cbk_t)(const char *file_path, void *user_data_ptr);
+
+/** Optional behavior for publishing a session save. */
+typedef struct {
+    omega_edit_overwrite_guard_cbk_t overwrite_guard;
+    void *overwrite_guard_user_data;
+} omega_edit_save_options_t;
+
+/**
+ * Save a segment with an optional native overwrite guard.
+ *
+ * This is equivalent to omega_edit_save_segment when options_ptr is null. A configured overwrite guard is evaluated
+ * at the final publish boundary only when core's normal original-file modification check detects a conflict.
+ */
+int omega_edit_save_segment_with_options(omega_session_t *session_ptr, const char *file_path, int io_flags,
+                                         char *saved_file_path, int64_t offset, int64_t length,
+                                         const omega_edit_save_options_t *options_ptr);
+
+/**
  * Save a segment of the the given session (the edited file) to the given file path.  If the save file already exists,
  * it can be overwritten if overwrite is non zero.  If the file exists and overwrite is zero, a new unique file name
  * will be used as determined by omega_util_available_filename.  If the file being edited is overwritten, the affected
@@ -192,6 +227,10 @@ int omega_edit_save_segment(omega_session_t *session_ptr, const char *file_path,
  * @return 0 on success, non-zero otherwise
  */
 int omega_edit_save(omega_session_t *session_ptr, const char *file_path, int io_flags, char *saved_file_path);
+
+/** Save a complete session with an optional native overwrite guard. */
+int omega_edit_save_with_options(omega_session_t *session_ptr, const char *file_path, int io_flags,
+                                 char *saved_file_path, const omega_edit_save_options_t *options_ptr);
 
 /**
  * Write a session byte range to an already-open file without publishing a save event.
@@ -738,6 +777,24 @@ int omega_edit_create_checkpoint(omega_session_t *session_ptr);
  * @return zero on success, non-zero otherwise
  */
 int omega_edit_destroy_last_checkpoint(omega_session_t *session_ptr);
+
+/**
+ * Moves the session to a checkpoint boundary without destroying later checkpoint models.
+ *
+ * Checkpoint zero is the original session snapshot. Later checkpoints remain available for a subsequent checkout
+ * until a successful edit creates a new branch or omega_edit_discard_checkpoint_future is called.
+ * @param session_ptr session to navigate
+ * @param checkpoint_count checkpoint boundary to make active, from zero through the active plus future checkpoint count
+ * @return zero on success, non-zero otherwise
+ */
+int omega_edit_checkout_checkpoint(omega_session_t *session_ptr, int64_t checkpoint_count);
+
+/**
+ * Permanently destroys all checkpoint models after the active checkpoint boundary.
+ * @param session_ptr session whose future checkpoint branch should be discarded
+ * @return number of discarded future checkpoints, or a negative value on error
+ */
+int64_t omega_edit_discard_checkpoint_future(omega_session_t *session_ptr);
 
 /**
  * Restores the current session content to the most recent checkpoint snapshot.

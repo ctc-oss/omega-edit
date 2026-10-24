@@ -21,7 +21,6 @@ import {
   CountKind,
   type CreateViewportRequest,
   type CreateViewportResponse,
-  type GetCountResponse,
   type GetViewportDataResponse,
   type ModifyViewportRequest,
 } from './generated/omega_edit/v1/omega_edit'
@@ -33,14 +32,7 @@ import {
   callUnary,
   makeWrappedError,
 } from './utils'
-
-function getFirstCount(response: GetCountResponse, fn: string): number {
-  const count = response.counts[0]?.count
-  if (count === undefined) {
-    throw new Error(`${fn} failed: empty count response`)
-  }
-  return count
-}
+import { getSingleCount } from './session'
 
 export async function createViewport(
   desiredViewportId: string | undefined,
@@ -169,41 +161,7 @@ export async function destroyViewport(viewportId: string): Promise<string> {
 }
 
 export async function getViewportCount(sessionId: string): Promise<number> {
-  const log = getLogger()
-  const request = {
-    sessionId: sessionId,
-    kind: [CountKind.VIEWPORTS],
-  }
-  debugLog(log, () => ({ fn: 'protobufTs.getViewportCount', rqst: request }))
-  const client = await getClient()
-
-  return new Promise<number>((resolve, reject) => {
-    callUnary(client, client.getCount, request, (err, response) => {
-      if (err) {
-        log.error({
-          fn: 'protobufTs.getViewportCount',
-          rqst: request,
-          err: {
-            msg: err.message,
-            details: err.details,
-            code: err.code,
-            stack: err.stack,
-          },
-        })
-        return reject(makeWrappedError('getViewportCount', err))
-      }
-
-      if (!response) {
-        return reject(makeWrappedError('getViewportCount', 'empty response'))
-      }
-
-      debugLog(log, () => ({
-        fn: 'protobufTs.getViewportCount',
-        resp: response,
-      }))
-      return resolve(getFirstCount(response, 'getViewportCount'))
-    })
-  })
+  return getSingleCount(sessionId, CountKind.VIEWPORTS, 'getViewportCount')
 }
 
 export async function getViewportData(

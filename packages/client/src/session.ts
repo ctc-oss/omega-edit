@@ -28,6 +28,8 @@ import {
   ViewportEventKind as RawProtoViewportEventKind,
   type ApplyTransformPluginResponse as RawApplyTransformPluginResponse,
   type CheckSessionModelResponse as RawCheckSessionModelResponse,
+  type CheckoutCheckpointResponse as RawCheckoutCheckpointResponse,
+  type DiscardCheckpointFutureResponse as RawDiscardCheckpointFutureResponse,
   type GetSessionContentInfoResponse as RawGetSessionContentInfoResponse,
   type GetSessionFingerprintResponse as RawGetSessionFingerprintResponse,
   type InspectSessionContentResponse as RawInspectSessionContentResponse,
@@ -42,10 +44,12 @@ import {
   applyTransformPlugin as rawApplyTransformPlugin,
   beginSessionTransaction as rawBeginSessionTransaction,
   checkSessionModel as rawCheckSessionModel,
+  checkoutCheckpoint as rawCheckoutCheckpoint,
   countCharacters as rawCountCharacters,
   createCheckpoint as rawCreateCheckpoint,
   createSession as rawCreateSession,
   destroyLastCheckpoint as rawDestroyLastCheckpoint,
+  discardCheckpointFuture as rawDiscardCheckpointFuture,
   destroySession as rawDestroySession,
   getByteOrderMark as rawGetByteOrderMark,
   getComputedFileSize as rawGetComputedFileSize,
@@ -198,6 +202,8 @@ export type TransformPluginSupport =
 export type TransformPluginInfo = RawTransformPluginInfo
 export type ApplyTransformPluginResponse = RawApplyTransformPluginResponse
 export type RestoreLastCheckpointResponse = RawRestoreLastCheckpointResponse
+export type CheckoutCheckpointResponse = RawCheckoutCheckpointResponse
+export type DiscardCheckpointFutureResponse = RawDiscardCheckpointFutureResponse
 export type RestoreToChangeCountResponse = RawRestoreToChangeCountResponse
 export type CheckSessionModelResponse = RawCheckSessionModelResponse
 export type SessionContentInfo = RawSessionContentInfo
@@ -255,12 +261,14 @@ export async function checkSessionModel(
 export async function getSessionFingerprint(
   session_id: string,
   content: SessionFingerprintContent,
-  algorithm = 'sha256'
+  algorithm = 'sha256',
+  plugin_id = ''
 ): Promise<GetSessionFingerprintResponse> {
   const response = await rawGetSessionFingerprint(
     session_id,
     content,
-    algorithm
+    algorithm,
+    plugin_id
   )
   if (!response.fingerprint?.digest) {
     throw new Error('getSessionFingerprint response missing fingerprint digest')
@@ -275,6 +283,7 @@ export async function getSessionFingerprint(
         response.fingerprint.byteLength
       ),
       digest: {
+        pluginId: response.fingerprint.digest.pluginId,
         algorithm: response.fingerprint.digest.algorithm,
         value: response.fingerprint.digest.value,
       },
@@ -338,6 +347,39 @@ export async function restoreLastCheckpoint(
   })
 }
 
+export async function checkoutCheckpoint(
+  session_id: string,
+  checkpoint_count: number
+): Promise<CheckoutCheckpointResponse> {
+  return await enqueueSessionMutation(session_id, async () => {
+    const response = await rawCheckoutCheckpoint(
+      session_id,
+      requireSafeIntegerInput('checkpoint count', checkpoint_count)
+    )
+    requireSafeIntegerOutput('checkpoint count', response.checkpointCount)
+    requireSafeIntegerOutput(
+      'future checkpoint count',
+      response.futureCheckpointCount
+    )
+    requireSafeIntegerOutput('change count', response.changeCount)
+    return response
+  })
+}
+
+export async function discardCheckpointFuture(
+  session_id: string
+): Promise<DiscardCheckpointFutureResponse> {
+  return await enqueueSessionMutation(session_id, async () => {
+    const response = await rawDiscardCheckpointFuture(session_id)
+    requireSafeIntegerOutput(
+      'discarded checkpoint count',
+      response.discardedCheckpointCount
+    )
+    requireSafeIntegerOutput('checkpoint count', response.checkpointCount)
+    return response
+  })
+}
+
 export async function restoreToChangeCount(
   session_id: string,
   change_count: number
@@ -369,16 +411,23 @@ export async function saveSession(
   file_path: string,
   flags: number = IOFlags.UNSPECIFIED,
   offset: number = 0,
-  length: number = 0
+  length: number = 0,
+  expected_original_fingerprint?: SessionContentFingerprint,
+  options: CancellableCallOptions = {}
 ): Promise<SaveSessionResponse> {
   return await enqueueSessionMutation(session_id, async () => {
+    if (options.signal?.aborted) {
+      throw makeCancellationError('saveSession')
+    }
     return wrapSaveSessionResponse(
       await rawSaveSession(
         session_id,
         file_path,
         flags,
         requireSafeIntegerInput('saveSession offset', offset),
-        requireSafeIntegerInput('saveSession length', length)
+        requireSafeIntegerInput('saveSession length', length),
+        expected_original_fingerprint,
+        options
       )
     )
   })

@@ -14,9 +14,6 @@
 
 #include "editor_service.h"
 
-#ifdef HAS_GRPC_REFLECTION
-#include <grpcpp/ext/proto_server_reflection_plugin.h>
-#endif
 #include <grpcpp/grpcpp.h>
 #include <grpcpp/health_check_service_interface.h>
 
@@ -317,6 +314,10 @@ static bool parse_signed_integer(const std::string &str, const std::string &name
 
 static bool parse_unsigned_integer(const std::string &str, const std::string &name, unsigned long long min_val,
                                    unsigned long long max_val, unsigned long long &out) {
+    if (str.empty() || str.front() == '-' || str.front() == '+') {
+        std::cerr << "Error: " << name << " must be an unsigned integer, got: " << str << "\n";
+        return false;
+    }
     try {
         size_t pos = 0;
         const auto v = std::stoull(str, &pos);
@@ -395,6 +396,7 @@ static void print_usage(const char *progname) {
               << "      --unix-socket-only           Bind only to Unix domain socket\n"
               << "      --insecure-allow-non-loopback\n"
               << "                                   Permit TCP binds outside loopback without authentication\n"
+              << "      --allowed-root <dir>         Restrict RPC file and checkpoint paths to this directory\n"
               << "\nLogging options:\n"
               << "      --log-file <path>            Append native server logs to file\n"
               << "      --log-level <level>          Native log level (debug, info, warn, error)\n"
@@ -409,6 +411,8 @@ static void print_usage(const char *progname) {
               << "      --viewport-event-queue-capacity <count>\n"
               << "                                   Cap buffered viewport events per subscription (0 = unbounded)\n"
               << "      --max-change-bytes <bytes>   Limit insert/overwrite payload size (0 = unbounded)\n"
+              << "      --max-rpc-request-bytes <bytes>\n"
+              << "                                   Limit serialized gRPC request size (0 = unbounded)\n"
               << "      --max-viewports-per-session <count>\n"
               << "                                   Limit concurrently open viewports per session (0 = unbounded)\n"
               << "      --max-read-segment-bytes <bytes>\n"
@@ -417,7 +421,18 @@ static void print_usage(const char *progname) {
               << "      --max-changelog-export-entries <count>\n"
               << "                                   Cap entries in one ranged change-log export\n"
               << "      --max-changelog-spool-bytes <bytes>\n"
-              << "                                   Cap the secure temporary export spool\n"
+              << "                                   Cap the secure temporary export spool (0 = unbounded)\n"
+              << "      --max-sessions <count>       Cap active sessions (0 = unbounded)\n"
+              << "      --max-event-subscriptions <count>\n"
+              << "                                   Cap active event streams (0 = unbounded)\n"
+              << "      --max-concurrent-scans <count>\n"
+              << "                                   Cap whole-range scans, not scanned bytes (0 = unbounded)\n"
+              << "      --max-concurrent-transforms <count>\n"
+              << "                                   Cap plugin workers (0 = unbounded)\n"
+              << "      --max-concurrent-changelog-exports <count>\n"
+              << "                                   Cap concurrent export spools (0 = unbounded)\n"
+              << "      --max-concurrent-checkpoint-writes <count>\n"
+              << "                                   Cap concurrent checkpoint writers (0 = unbounded)\n"
               << "\nTransform plugin options:\n"
               << "      --transform-plugin-dir <dir>\n"
               << "                                   Register transform plugins from a directory (repeatable)\n"
@@ -439,6 +454,7 @@ int main(int argc, char **argv) {
     std::string unix_socket;
     std::string log_file;
     std::string log_config_file;
+    std::string allowed_root;
     bool unix_socket_only = false;
     bool insecure_allow_non_loopback = false;
     LogLevel log_level = LogLevel::Info;
@@ -451,11 +467,26 @@ int main(int argc, char **argv) {
     size_t session_event_queue_capacity = resource_limits.session_event_queue_capacity;
     size_t viewport_event_queue_capacity = resource_limits.viewport_event_queue_capacity;
     int64_t max_change_bytes = resource_limits.max_change_bytes;
+    int max_rpc_request_bytes = 0;
     size_t max_viewports_per_session = resource_limits.max_viewports_per_session;
     int64_t max_read_segment_bytes = resource_limits.max_read_segment_bytes;
     int64_t max_search_matches = resource_limits.max_search_matches;
     int64_t max_changelog_export_entries = resource_limits.max_changelog_export_entries;
     int64_t max_changelog_spool_bytes = resource_limits.max_changelog_spool_bytes;
+    size_t max_sessions = resource_limits.max_sessions;
+    size_t max_event_subscriptions = resource_limits.max_event_subscriptions;
+    size_t session_event_queue_byte_capacity = resource_limits.session_event_queue_byte_capacity;
+    size_t viewport_event_queue_byte_capacity = resource_limits.viewport_event_queue_byte_capacity;
+    size_t max_total_event_queue_bytes = resource_limits.max_total_event_queue_bytes;
+    size_t max_checkpoint_models_per_session = resource_limits.max_checkpoint_models_per_session;
+    size_t max_concurrent_scans = resource_limits.max_concurrent_scans;
+    size_t max_concurrent_transforms = resource_limits.max_concurrent_transforms;
+    size_t max_concurrent_changelog_exports = resource_limits.max_concurrent_changelog_exports;
+    size_t max_concurrent_checkpoint_writes = resource_limits.max_concurrent_checkpoint_writes;
+    size_t max_transform_options_bytes = resource_limits.max_transform_options_bytes;
+    size_t max_transform_result_bytes = resource_limits.max_transform_result_bytes;
+    size_t max_heartbeat_session_ids = resource_limits.max_heartbeat_session_ids;
+    uintmax_t min_checkpoint_free_bytes = resource_limits.min_checkpoint_free_bytes;
     std::vector<std::string> transform_plugin_directories;
     std::string transform_plugin_host_path;
     bool allow_experimental_transform_plugins = false;
@@ -473,6 +504,7 @@ int main(int argc, char **argv) {
         insecure_allow_non_loopback = env_value_is_true(env);
     }
     if (const char *env = std::getenv("OMEGA_EDIT_SERVER_PIDFILE")) { pidfile = env; }
+    if (const char *env = std::getenv("OMEGA_EDIT_ALLOWED_ROOT")) { allowed_root = env; }
     if (const char *env = std::getenv("OMEGA_EDIT_SERVER_LOG_CONFIG")) {
         log_config_file = env;
         if (!apply_log_config_file(log_config_file, log_file, log_level)) return 1;
@@ -509,6 +541,9 @@ int main(int argc, char **argv) {
         if (!parse_int64(env, "OMEGA_EDIT_MAX_CHANGE_BYTES", 0, std::numeric_limits<int64_t>::max(), max_change_bytes))
             return 1;
     }
+    if (const char *env = std::getenv("OMEGA_EDIT_MAX_RPC_REQUEST_BYTES")) {
+        if (!parse_int(env, "OMEGA_EDIT_MAX_RPC_REQUEST_BYTES", 0, INT_MAX, max_rpc_request_bytes)) return 1;
+    }
     if (const char *env = std::getenv("OMEGA_EDIT_MAX_VIEWPORTS_PER_SESSION")) {
         if (!parse_size_t(env, "OMEGA_EDIT_MAX_VIEWPORTS_PER_SESSION", 0, std::numeric_limits<size_t>::max(),
                           max_viewports_per_session))
@@ -525,14 +560,36 @@ int main(int argc, char **argv) {
             return 1;
     }
     if (const char *env = std::getenv("OMEGA_EDIT_MAX_CHANGELOG_EXPORT_ENTRIES")) {
-        if (!parse_int64(env, "OMEGA_EDIT_MAX_CHANGELOG_EXPORT_ENTRIES", 1, std::numeric_limits<int64_t>::max(),
+        if (!parse_int64(env, "OMEGA_EDIT_MAX_CHANGELOG_EXPORT_ENTRIES", 0, std::numeric_limits<int64_t>::max(),
                          max_changelog_export_entries))
             return 1;
     }
     if (const char *env = std::getenv("OMEGA_EDIT_MAX_CHANGELOG_SPOOL_BYTES")) {
-        if (!parse_int64(env, "OMEGA_EDIT_MAX_CHANGELOG_SPOOL_BYTES", 1, std::numeric_limits<int64_t>::max(),
+        if (!parse_int64(env, "OMEGA_EDIT_MAX_CHANGELOG_SPOOL_BYTES", 0, std::numeric_limits<int64_t>::max(),
                          max_changelog_spool_bytes))
             return 1;
+    }
+    const auto parse_size_env = [&](const char *name, size_t &target) {
+        if (const char *env = std::getenv(name)) {
+            return parse_size_t(env, name, 0, std::numeric_limits<size_t>::max(), target);
+        }
+        return true;
+    };
+    if (!parse_size_env("OMEGA_EDIT_MAX_SESSIONS", max_sessions) ||
+        !parse_size_env("OMEGA_EDIT_MAX_EVENT_SUBSCRIPTIONS", max_event_subscriptions) ||
+        !parse_size_env("OMEGA_EDIT_SESSION_EVENT_QUEUE_BYTE_CAPACITY", session_event_queue_byte_capacity) ||
+        !parse_size_env("OMEGA_EDIT_VIEWPORT_EVENT_QUEUE_BYTE_CAPACITY", viewport_event_queue_byte_capacity) ||
+        !parse_size_env("OMEGA_EDIT_MAX_TOTAL_EVENT_QUEUE_BYTES", max_total_event_queue_bytes) ||
+        !parse_size_env("OMEGA_EDIT_MAX_CHECKPOINT_MODELS_PER_SESSION", max_checkpoint_models_per_session) ||
+        !parse_size_env("OMEGA_EDIT_MAX_CONCURRENT_SCANS", max_concurrent_scans) ||
+        !parse_size_env("OMEGA_EDIT_MAX_CONCURRENT_TRANSFORMS", max_concurrent_transforms) ||
+        !parse_size_env("OMEGA_EDIT_MAX_CONCURRENT_CHANGELOG_EXPORTS", max_concurrent_changelog_exports) ||
+        !parse_size_env("OMEGA_EDIT_MAX_CONCURRENT_CHECKPOINT_WRITES", max_concurrent_checkpoint_writes) ||
+        !parse_size_env("OMEGA_EDIT_MAX_TRANSFORM_OPTIONS_BYTES", max_transform_options_bytes) ||
+        !parse_size_env("OMEGA_EDIT_MAX_TRANSFORM_RESULT_BYTES", max_transform_result_bytes) ||
+        !parse_size_env("OMEGA_EDIT_MAX_HEARTBEAT_SESSION_IDS", max_heartbeat_session_ids) ||
+        !parse_size_env("OMEGA_EDIT_MIN_CHECKPOINT_FREE_BYTES", min_checkpoint_free_bytes)) {
+        return 1;
     }
     if (const char *env = std::getenv("OMEGA_EDIT_TRANSFORM_PLUGIN_DIRS")) {
         append_transform_plugin_directories(env, transform_plugin_directories);
@@ -639,6 +696,9 @@ int main(int argc, char **argv) {
                 if (!require_option_value(key, value)) { return 1; }
                 if (!parse_int64(value, "--max-change-bytes", 0, std::numeric_limits<int64_t>::max(), max_change_bytes))
                     return 1;
+            } else if (key == "--max-rpc-request-bytes") {
+                if (!require_option_value(key, value)) { return 1; }
+                if (!parse_int(value, "--max-rpc-request-bytes", 0, INT_MAX, max_rpc_request_bytes)) return 1;
             } else if (key == "--max-viewports-per-session") {
                 if (!require_option_value(key, value)) { return 1; }
                 if (!parse_size_t(value, "--max-viewports-per-session", 0, std::numeric_limits<size_t>::max(),
@@ -656,14 +716,40 @@ int main(int argc, char **argv) {
                     return 1;
             } else if (key == "--max-changelog-export-entries") {
                 if (!require_option_value(key, value)) { return 1; }
-                if (!parse_int64(value, "--max-changelog-export-entries", 1, std::numeric_limits<int64_t>::max(),
+                if (!parse_int64(value, "--max-changelog-export-entries", 0, std::numeric_limits<int64_t>::max(),
                                  max_changelog_export_entries))
                     return 1;
             } else if (key == "--max-changelog-spool-bytes") {
                 if (!require_option_value(key, value)) { return 1; }
-                if (!parse_int64(value, "--max-changelog-spool-bytes", 1, std::numeric_limits<int64_t>::max(),
+                if (!parse_int64(value, "--max-changelog-spool-bytes", 0, std::numeric_limits<int64_t>::max(),
                                  max_changelog_spool_bytes))
                     return 1;
+            } else if (key == "--max-sessions" || key == "--max-event-subscriptions" ||
+                       key == "--session-event-queue-byte-capacity" || key == "--viewport-event-queue-byte-capacity" ||
+                       key == "--max-total-event-queue-bytes" || key == "--max-checkpoint-models-per-session" ||
+                       key == "--max-concurrent-scans" || key == "--max-concurrent-transforms" ||
+                       key == "--max-concurrent-changelog-exports" || key == "--max-concurrent-checkpoint-writes" ||
+                       key == "--max-transform-options-bytes" || key == "--max-transform-result-bytes" ||
+                       key == "--max-heartbeat-session-ids" || key == "--min-checkpoint-free-bytes") {
+                if (!require_option_value(key, value)) { return 1; }
+                size_t *target = key == "--max-sessions"                         ? &max_sessions
+                                 : key == "--max-event-subscriptions"            ? &max_event_subscriptions
+                                 : key == "--session-event-queue-byte-capacity"  ? &session_event_queue_byte_capacity
+                                 : key == "--viewport-event-queue-byte-capacity" ? &viewport_event_queue_byte_capacity
+                                 : key == "--max-total-event-queue-bytes"        ? &max_total_event_queue_bytes
+                                 : key == "--max-checkpoint-models-per-session"  ? &max_checkpoint_models_per_session
+                                 : key == "--max-concurrent-scans"               ? &max_concurrent_scans
+                                 : key == "--max-concurrent-transforms"          ? &max_concurrent_transforms
+                                 : key == "--max-concurrent-changelog-exports"   ? &max_concurrent_changelog_exports
+                                 : key == "--max-concurrent-checkpoint-writes"   ? &max_concurrent_checkpoint_writes
+                                 : key == "--max-transform-options-bytes"        ? &max_transform_options_bytes
+                                 : key == "--max-transform-result-bytes"         ? &max_transform_result_bytes
+                                 : key == "--max-heartbeat-session-ids"          ? &max_heartbeat_session_ids
+                                                                                 : &min_checkpoint_free_bytes;
+                if (!parse_size_t(value, key.c_str(), 0, std::numeric_limits<size_t>::max(), *target)) return 1;
+            } else if (key == "--allowed-root") {
+                if (!require_option_value(key, value)) { return 1; }
+                allowed_root = value;
             } else if (key == "--transform-plugin-dir") {
                 if (!require_option_value(key, value)) { return 1; }
                 transform_plugin_directories.push_back(value);
@@ -675,6 +761,25 @@ int main(int argc, char **argv) {
                 return 1;
             }
         }
+    }
+
+    if (!allowed_root.empty()) {
+        std::string allowed_root_error;
+        omega_edit::grpc_server::AllowedPathPolicy allowed_root_validation;
+        if (!allowed_root_validation.configure(allowed_root, allowed_root_error)) {
+            std::cerr << "Invalid --allowed-root: " << allowed_root_error << std::endl;
+            return 1;
+        }
+        allowed_root = allowed_root_validation.root().string();
+    }
+
+    if (max_transform_result_bytes > 0) {
+        const auto value = std::to_string(max_transform_result_bytes);
+#ifdef _WIN32
+        _putenv_s("OMEGA_EDIT_TRANSFORM_HOST_MAX_OUTPUT_BYTES", value.c_str());
+#else
+        setenv("OMEGA_EDIT_TRANSFORM_HOST_MAX_OUTPUT_BYTES", value.c_str(), 1);
+#endif
     }
 
     g_log_level = log_level;
@@ -710,22 +815,37 @@ int main(int argc, char **argv) {
     resource_limits.max_search_matches = max_search_matches;
     resource_limits.max_changelog_export_entries = max_changelog_export_entries;
     resource_limits.max_changelog_spool_bytes = max_changelog_spool_bytes;
+    resource_limits.max_sessions = max_sessions;
+    resource_limits.max_event_subscriptions = max_event_subscriptions;
+    resource_limits.session_event_queue_byte_capacity = session_event_queue_byte_capacity;
+    resource_limits.viewport_event_queue_byte_capacity = viewport_event_queue_byte_capacity;
+    resource_limits.max_total_event_queue_bytes = max_total_event_queue_bytes;
+    resource_limits.max_checkpoint_models_per_session = max_checkpoint_models_per_session;
+    resource_limits.max_concurrent_scans = max_concurrent_scans;
+    resource_limits.max_concurrent_transforms = max_concurrent_transforms;
+    resource_limits.max_concurrent_changelog_exports = max_concurrent_changelog_exports;
+    resource_limits.max_concurrent_checkpoint_writes = max_concurrent_checkpoint_writes;
+    resource_limits.max_transform_options_bytes = max_transform_options_bytes;
+    resource_limits.max_transform_result_bytes = max_transform_result_bytes;
+    resource_limits.max_heartbeat_session_ids = max_heartbeat_session_ids;
+    resource_limits.min_checkpoint_free_bytes = min_checkpoint_free_bytes;
 
     // Create service with shutdown callback that requests shutdown via the monitor thread
     auto shutdown_callback = []() {
         // Set the shutdown flag so the monitor thread exits cleanly and shuts down the server
         g_shutdown_requested.store(true, std::memory_order_relaxed);
     };
-    omega_edit::grpc_server::EditorServiceImpl service(
-            heartbeat_config, resource_limits, shutdown_callback, transform_plugin_directories,
-            transform_plugin_host_path, allow_experimental_transform_plugins, allow_test_transform_plugins);
+    omega_edit::grpc_server::EditorServiceImpl service(heartbeat_config, resource_limits, shutdown_callback,
+                                                       transform_plugin_directories, transform_plugin_host_path,
+                                                       allow_experimental_transform_plugins,
+                                                       allow_test_transform_plugins, allowed_root);
 
     grpc::EnableDefaultHealthCheckService(true);
-#ifdef HAS_GRPC_REFLECTION
-    grpc::reflection::InitProtoReflectionServerBuilderPlugin();
-#endif
 
     grpc::ServerBuilder builder;
+    // Keep the transport limit independent from field-specific resource limits such as max_change_bytes.
+    builder.SetMaxReceiveMessageSize(max_rpc_request_bytes > 0 ? max_rpc_request_bytes : -1);
+    builder.SetMaxSendMessageSize(-1);
 
     if (unix_socket_only) {
 #ifdef _WIN32

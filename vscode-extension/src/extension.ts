@@ -37,7 +37,7 @@ import {
 } from './api'
 import {
   OMEGA_EDIT_CREATE_CHECKPOINT_COMMAND,
-  OMEGA_EDIT_SHOW_CHECKPOINT_TIMELINE_COMMAND,
+  OMEGA_EDIT_SHOW_ACTION_JOURNAL_COMMAND,
   OMEGA_EDIT_APPLY_CHANGE_LOG_COMMAND,
   OMEGA_EDIT_CLEAR_EXTERNAL_HIGHLIGHTS_COMMAND,
   OMEGA_EDIT_EXPORT_CHANGE_LOG_COMMAND,
@@ -66,6 +66,7 @@ import { HexEditorProvider } from './hexEditorProvider'
 import {
   TEXT_ENCODING_OPTIONS,
   normalizeTextEncoding,
+  type InsertDirection,
   type TextEncoding,
 } from './webviewProtocol'
 
@@ -75,6 +76,8 @@ let activeServerPid: number | undefined
 let activeServerSocketPath: string | undefined
 
 const DEFAULT_SERVER_PORT = 9000
+const SERVER_SESSION_TIMEOUT_MS = 60_000
+const SERVER_CLEANUP_INTERVAL_MS = 5_000
 const DARWIN_UNIX_SOCKET_PATH_MAX_BYTES = 103
 const SERVER_PORT_OVERRIDE_ENV = 'OMEGA_EDIT_SERVER_PORT'
 const SERVER_SOCKET_OVERRIDE_ENV = 'OMEGA_EDIT_SERVER_SOCKET'
@@ -192,6 +195,10 @@ function parseOffsetInput(value: string): number | undefined {
 function safeTextEncoding(value: unknown): TextEncoding | undefined {
   const textEncoding = normalizeTextEncoding(value)
   return value === textEncoding ? textEncoding : undefined
+}
+
+function safeInsertDirection(value: unknown): InsertDirection | undefined {
+  return value === 'forward' || value === 'backward' ? value : undefined
 }
 
 function textEncodingQuickPickLabel(encoding: TextEncoding): string {
@@ -366,14 +373,6 @@ function getDefaultTransformPluginDirectories(
       'tests',
       'plugins'
     ),
-    bundledPlatform
-      ? path.join(
-          context.extensionPath,
-          'bundled',
-          'transform-plugins',
-          bundledPlatform
-        )
-      : '',
   ].filter(Boolean)
 
   return Array.from(new Set(candidates)).filter(directoryHasTransformPlugin)
@@ -561,6 +560,9 @@ async function startTcpServerConnection(
 ): Promise<StartedServer> {
   const tcpConnection = toTcpConnection(connection)
   const serverOptions = {
+    sessionTimeoutMs: SERVER_SESSION_TIMEOUT_MS,
+    cleanupIntervalMs: SERVER_CLEANUP_INTERVAL_MS,
+    shutdownWhenNoSessions: true,
     transformPluginDirectories,
     allowExperimentalTransformPlugins,
   }
@@ -589,6 +591,9 @@ async function startServerConnection(
   }
 
   const serverOptions = {
+    sessionTimeoutMs: SERVER_SESSION_TIMEOUT_MS,
+    cleanupIntervalMs: SERVER_CLEANUP_INTERVAL_MS,
+    shutdownWhenNoSessions: true,
     transformPluginDirectories,
     allowExperimentalTransformPlugins,
   }
@@ -624,8 +629,25 @@ async function stopServerConnectionGraceful(
     if (connection) {
       await connectToServer(connection)
     }
-    await stopServerGraceful()
-    return true
+    const result = await stopServerGraceful()
+
+    // The native server is deliberately detached from the extension host.
+    // A graceful request can therefore leave it alive while sessions drain,
+    // and Windows will keep the executable (and extension directory) locked.
+    // Wait for the known child PID to exit, escalating through the client's
+    // normal process-stop path when the RPC has not completed shutdown yet.
+    if (serverPid !== undefined && serverPid) {
+      const stopped = await stopProcessUsingPID(serverPid)
+      const shutdownCompleted = result.status === 'completed'
+      if (!stopped && !shutdownCompleted) {
+        console.warn(
+          `Failed to stop OmegaEdit server process ${serverPid} after graceful shutdown returned ${result.status}`
+        )
+      }
+      return stopped || shutdownCompleted
+    }
+
+    return result.status === 'completed'
   } catch (err) {
     if (serverPid !== undefined && serverPid) {
       try {
@@ -691,6 +713,9 @@ function createOmegaEditExtensionApi(
     getAssistantContext(options) {
       return provider.getAssistantContext(options)
     },
+    async getActionJournalViewport(options) {
+      return provider.getActionJournalViewport(options)
+    },
     async setExternalHighlights(request: OmegaEditExternalHighlightRequest) {
       return provider.setExternalHighlights(request)
     },
@@ -727,9 +752,70 @@ function createOmegaEditExtensionApi(
   }
 }
 
+function registerEditorEntryPoints(
+  context: vscode.ExtensionContext
+): HexEditorProvider {
+  const provider = new HexEditorProvider(context)
+  activeProvider = provider
+
+  context.subscriptions.push(
+    vscode.window.registerCustomEditorProvider(
+      HexEditorProvider.viewType,
+      provider,
+      {
+        webviewOptions: { retainContextWhenHidden: true },
+        supportsMultipleEditorsPerDocument: false,
+      }
+    )
+  )
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand(
+      OMEGA_EDIT_OPEN_IN_HEX_EDITOR_COMMAND,
+      async (resource?: vscode.Uri) => {
+        let target = resource ?? vscode.window.activeTextEditor?.document.uri
+
+        if (!target) {
+          target = (
+            await vscode.window.showOpenDialog({
+              canSelectMany: false,
+              canSelectFiles: true,
+              canSelectFolders: false,
+              openLabel: vscode.l10n.t('Open in Ωedit™ Data Editor'),
+              title: vscode.l10n.t(
+                'Select a file to open in Ωedit™ Data Editor'
+              ),
+            })
+          )?.[0]
+        }
+
+        if (!target) {
+          return
+        }
+
+        if (!isFileUri(target)) {
+          void vscode.window.showWarningMessage(
+            vscode.l10n.t('OmegaEdit Data Editor can only open local files')
+          )
+          return
+        }
+
+        await vscode.commands.executeCommand(
+          'vscode.openWith',
+          target,
+          OMEGA_EDIT_VIEW_TYPE
+        )
+      }
+    )
+  )
+
+  return provider
+}
+
 export async function activate(
   context: vscode.ExtensionContext
 ): Promise<OmegaEditExtensionApi | undefined> {
+  const provider = registerEditorEntryPoints(context)
   const config = vscode.workspace.getConfiguration('omegaEdit')
 
   let connection: ServerConnection
@@ -815,60 +901,6 @@ export async function activate(
     }
   }
 
-  const provider = new HexEditorProvider(context)
-  activeProvider = provider
-
-  context.subscriptions.push(
-    vscode.window.registerCustomEditorProvider(
-      HexEditorProvider.viewType,
-      provider,
-      {
-        webviewOptions: { retainContextWhenHidden: true },
-        supportsMultipleEditorsPerDocument: false,
-      }
-    )
-  )
-
-  context.subscriptions.push(
-    vscode.commands.registerCommand(
-      OMEGA_EDIT_OPEN_IN_HEX_EDITOR_COMMAND,
-      async (resource?: vscode.Uri) => {
-        let target = resource ?? vscode.window.activeTextEditor?.document.uri
-
-        if (!target) {
-          target = (
-            await vscode.window.showOpenDialog({
-              canSelectMany: false,
-              canSelectFiles: true,
-              canSelectFolders: false,
-              openLabel: vscode.l10n.t('Open in Ωedit™ Data Editor'),
-              title: vscode.l10n.t(
-                'Select a file to open in Ωedit™ Data Editor'
-              ),
-            })
-          )?.[0]
-        }
-
-        if (!target) {
-          return
-        }
-
-        if (!isFileUri(target)) {
-          void vscode.window.showWarningMessage(
-            vscode.l10n.t('OmegaEdit Data Editor can only open local files')
-          )
-          return
-        }
-
-        await vscode.commands.executeCommand(
-          'vscode.openWith',
-          target,
-          OMEGA_EDIT_VIEW_TYPE
-        )
-      }
-    )
-  )
-
   context.subscriptions.push(
     vscode.commands.registerCommand(
       OMEGA_EDIT_GO_TO_OFFSET_COMMAND,
@@ -932,8 +964,63 @@ export async function activate(
   context.subscriptions.push(
     vscode.commands.registerCommand(
       OMEGA_EDIT_TOGGLE_INSERT_DIRECTION_COMMAND,
-      (directionOrOptions?: unknown, options?: unknown) =>
-        provider.setInsertDirection(directionOrOptions, options)
+      async (directionOrOptions?: unknown, options?: unknown) => {
+        const requestedDirection =
+          safeInsertDirection(directionOrOptions) ??
+          (isRecord(directionOrOptions)
+            ? safeInsertDirection(
+                directionOrOptions.insertDirection ??
+                  directionOrOptions.direction
+              )
+            : undefined)
+
+        if (requestedDirection) {
+          return provider.setInsertDirection(directionOrOptions, options)
+        }
+
+        const commandOptions = isRecord(directionOrOptions)
+          ? directionOrOptions
+          : options
+        const state = provider.getEditorState(commandOptions)
+        if (!state) {
+          void vscode.window.showWarningMessage(
+            vscode.l10n.t('Open an OmegaEdit data editor first')
+          )
+          return undefined
+        }
+
+        const directionItems: Array<{
+          direction: InsertDirection
+          label: string
+        }> = [
+          {
+            direction: 'forward',
+            label: vscode.l10n.t('$(arrow-right) Forward'),
+          },
+          {
+            direction: 'backward',
+            label: vscode.l10n.t('$(arrow-left) Backward'),
+          },
+        ]
+        const picked = await vscode.window.showQuickPick(
+          directionItems.map((item) => ({
+            ...item,
+            description:
+              item.direction === state.insertDirection
+                ? vscode.l10n.t('Current direction')
+                : undefined,
+            picked: item.direction === state.insertDirection,
+          })),
+          {
+            title: vscode.l10n.t('Select Insert Direction'),
+            placeHolder: vscode.l10n.t('Choose how inserted bytes advance'),
+          }
+        )
+
+        return picked
+          ? provider.setInsertDirection(picked.direction, { uri: state.uri })
+          : state
+      }
     )
   )
 
@@ -1105,9 +1192,9 @@ export async function activate(
 
   context.subscriptions.push(
     vscode.commands.registerCommand(
-      OMEGA_EDIT_SHOW_CHECKPOINT_TIMELINE_COMMAND,
+      OMEGA_EDIT_SHOW_ACTION_JOURNAL_COMMAND,
       async (options?: unknown) => {
-        return await provider.showCheckpointTimeline(options)
+        return await provider.showActionJournal(options)
       }
     )
   )
@@ -1157,9 +1244,6 @@ export async function activate(
 
   context.subscriptions.push(
     vscode.workspace.onDidChangeConfiguration((event) => {
-      if (event.affectsConfiguration('omegaEdit.bytesPerRow')) {
-        provider.refreshBytesPerRow()
-      }
       if (event.affectsConfiguration('omegaEdit.language')) {
         provider.refreshLanguage()
       }

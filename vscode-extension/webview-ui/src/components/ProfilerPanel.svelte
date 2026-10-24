@@ -67,6 +67,16 @@
     'residentMemory',
     'virtualMemory',
     'peakResidentMemory',
+    'viewports',
+    'attachments',
+    'activeOperations',
+    'activeMutations',
+    'activeTransforms',
+    'sessionSubscriptions',
+    'viewportSubscriptions',
+    'fileBackedSessions',
+    'droppedEvents',
+    'oldestSessionIdle',
   ]
   const SERVER_HOST_BUILD_METRIC_IDS: readonly ServerHealthMetricId[] = [
     'host',
@@ -145,7 +155,7 @@
   }
 
   let {
-    expanded = true,
+    expanded = false,
     mode = 'profile',
     sectionOrder = DEFAULT_ANALYSIS_SECTION_ORDER,
     fileSize = 0,

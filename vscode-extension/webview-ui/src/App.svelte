@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onMount, untrack } from 'svelte'
   import ByteInspector from './components/ByteInspector.svelte'
-  import CheckpointTimeline from './components/CheckpointTimeline.svelte'
+  import ActionJournal from './components/ActionJournal.svelte'
   import EditorWorkspace from './components/EditorWorkspace.svelte'
   import SearchPanel from './components/SearchPanel.svelte'
   import Toolbar from './components/Toolbar.svelte'
@@ -20,6 +20,7 @@
     type ServerHealthMessage,
     type TextEncoding,
     type WebviewEditorUiState,
+    type WebviewActionJournalViewport,
     type WebviewExternalHighlight,
     type WebviewRangeMapNode,
     type WebviewSessionContentInfo,
@@ -181,9 +182,9 @@
   let inspectorLittleEndian = $state(true)
   let inspectorHighlightStart = $state(-1)
   let inspectorHighlightEnd = $state(-1)
-  let inspectorExpanded = $state(true)
+  let inspectorExpanded = $state(restoredState?.inspectorExpanded ?? false)
   let searchPanelVisible = $state(restoredState?.searchPanelVisible ?? false)
-  let profilerExpanded = $state(restoredState?.profilerExpanded ?? true)
+  let profilerExpanded = $state(restoredState?.profilerExpanded ?? false)
   let profilerMode = $state<AnalysisMode>('profile')
   let analysisSectionOrder = $state<AnalysisSectionOrder>(
     normalizeAnalysisSectionOrder(restoredState?.analysisSectionOrder)
@@ -231,6 +232,7 @@
     visible: false,
     cursor: 0,
     checkpointCount: 0,
+    originalByteLength: String(initialFileSize),
     savedChangeCount: 0,
     savedOffBranch: false,
     canRewind: false,
@@ -238,6 +240,12 @@
     navigating: false,
     checkpoints: [],
   })
+  let actionJournalVisible = $state(false)
+  let actionJournalLoading = $state(false)
+  let actionJournalError = $state('')
+  let actionJournalViewport = $state<
+    WebviewActionJournalViewport | undefined
+  >(undefined)
   let latestDataProfile = $state<AnalysisProfileMessage | undefined>(undefined)
   let latestViewportProfile = $state<ProfilerViewportSnapshot | undefined>(
     undefined
@@ -454,6 +462,7 @@
       insertDirection: InsertDirection
       searchPanelVisible: boolean
       replaceVisible: boolean
+      inspectorExpanded: boolean
       profilerExpanded: boolean
       analysisSectionOrder: AnalysisSectionOrder
       selectionAnchor: number
@@ -469,6 +478,7 @@
       insertDirection,
       searchPanelVisible,
       replaceVisible,
+      inspectorExpanded,
       profilerExpanded,
       analysisSectionOrder,
       selectionAnchor,
@@ -1414,12 +1424,6 @@
     postToHost({ type: 'toggleEditMode' })
   }
 
-  function setInsertDirection(direction: InsertDirection): void {
-    insertDirection = direction
-    savePreviewState({ insertDirection: direction })
-    postToHost({ type: 'setInsertDirection', insertDirection: direction })
-  }
-
   function setActivePane(pane: GridEditPane): void {
     activePane = pane
     pendingHexNibble = undefined
@@ -1565,28 +1569,66 @@
 
   function toggleInspectorExpanded(): void {
     inspectorExpanded = !inspectorExpanded
+    savePreviewState({ inspectorExpanded })
   }
 
   function toggleSearchPanelVisible(): void {
     const visible = !searchPanelVisible
-    if (visible && checkpointTimeline.visible) {
-      checkpointTimeline = { ...checkpointTimeline, visible: false }
-      postToHost({ type: 'hideCheckpointTimeline' })
+    if (visible && actionJournalVisible) {
+      actionJournalVisible = false
+      postToHost({ type: 'hideActionJournal' })
     }
     searchPanelVisible = visible
     savePreviewState({ searchPanelVisible })
   }
 
   function openSearchPanel(showReplace = false): void {
-    if (checkpointTimeline.visible) {
-      checkpointTimeline = { ...checkpointTimeline, visible: false }
-      postToHost({ type: 'hideCheckpointTimeline' })
+    if (actionJournalVisible) {
+      actionJournalVisible = false
+      postToHost({ type: 'hideActionJournal' })
     }
     searchPanelVisible = true
     if (showReplace) {
       replaceVisible = true
     }
     savePreviewState({ searchPanelVisible: true, replaceVisible })
+  }
+
+  function requestActionJournal(anchorSerial?: string, append = false): void {
+    actionJournalLoading = true
+    actionJournalError = ''
+    postToHost({
+      type: 'requestActionJournalViewport',
+      capacity: 256,
+      direction: 'older',
+      anchorSerial,
+      append,
+    })
+  }
+
+  function navigateActionJournal(changeCount: string): void {
+    if (
+      actionJournalLoading ||
+      actionJournalViewport?.changeCount === changeCount
+    ) {
+      return
+    }
+    actionJournalLoading = true
+    actionJournalError = ''
+    postToHost({ type: 'navigateActionJournal', changeCount })
+  }
+
+  function toggleActionJournal(): void {
+    if (actionJournalVisible) {
+      actionJournalVisible = false
+      postToHost({ type: 'hideActionJournal' })
+      return
+    }
+    if (searchPanelVisible) {
+      closeSearchPanel()
+    }
+    actionJournalVisible = true
+    requestActionJournal()
   }
 
   function setOffsetRadix(radix: 'hex' | 'dec'): void {
@@ -2788,7 +2830,49 @@
         if (message.visible && searchPanelVisible) {
           closeSearchPanel()
         }
+        if (message.visible && actionJournalVisible) {
+          actionJournalVisible = false
+          postToHost({ type: 'hideActionJournal' })
+        }
         checkpointTimeline = message
+        break
+      case 'actionJournalViewport': {
+        if (message.visible && searchPanelVisible) {
+          closeSearchPanel()
+        }
+        actionJournalVisible = message.visible
+        actionJournalLoading = false
+        actionJournalError = ''
+        if (message.append && actionJournalViewport) {
+          const seen = new Set(
+            actionJournalViewport.entries.map(
+              (entry) => `${entry.firstSerial}:${entry.lastSerial}`
+            )
+          )
+          actionJournalViewport = {
+            ...message.viewport,
+            entries: [
+              ...actionJournalViewport.entries,
+              ...message.viewport.entries.filter(
+                (entry) => !seen.has(`${entry.firstSerial}:${entry.lastSerial}`)
+              ),
+            ],
+          }
+        } else {
+          actionJournalViewport = message.viewport
+        }
+        break
+      }
+      case 'actionJournalError':
+        actionJournalVisible = message.visible
+        actionJournalLoading = false
+        actionJournalError = message.message
+        break
+      case 'actionJournalHidden':
+        actionJournalVisible = false
+        actionJournalLoading = false
+        actionJournalError = ''
+        actionJournalViewport = undefined
         break
       case 'analysisProfile':
         latestDataProfile = message
@@ -2931,7 +3015,6 @@
     {bytesPerRow}
     {offsetRadix}
     {textEncoding}
-    {insertDirection}
     {fileSize}
     {contentSources}
     {transformPlugins}
@@ -2944,6 +3027,7 @@
     transformResults={displayTransformResultHistory}
     activeTransformResultId={displayTransformResult?.id}
     {searchPanelVisible}
+    {actionJournalVisible}
     {selectedOffset}
     {selectionStart}
     {selectionEnd}
@@ -2951,7 +3035,6 @@
     onBytesPerRow={setBytesPerRow}
     onOffsetRadix={setOffsetRadix}
     onTextEncoding={setTextEncoding}
-    onInsertDirection={setInsertDirection}
     onGoToOffset={goToOffset}
     onRequestTransforms={requestTransformPlugins}
     onCancelTransform={cancelTransform}
@@ -2961,6 +3044,7 @@
     onReplaceRangeWithFile={replaceRangeWithFile}
     onOpenTransformResult={openTransformResult}
     onToggleSearchPanel={toggleSearchPanelVisible}
+    onToggleActionJournal={toggleActionJournal}
     onCreateCheckpoint={createCheckpoint}
     onRollbackCheckpoint={rollbackCheckpoint}
     onRestoreCheckpoint={restoreCheckpoint}
@@ -2968,25 +3052,8 @@
     onApplyChangeLog={applyChangeLog}
   />
 
-  {#if checkpointTimeline.visible}
-    <CheckpointTimeline
-      cursor={checkpointTimeline.cursor}
-      checkpointCount={checkpointTimeline.checkpointCount}
-      savedChangeCount={checkpointTimeline.savedChangeCount}
-      savedCheckpoint={checkpointTimeline.savedCheckpoint}
-      savedOffBranch={checkpointTimeline.savedOffBranch}
-      canRewind={checkpointTimeline.canRewind}
-      canFastForward={checkpointTimeline.canFastForward}
-      checkpoints={checkpointTimeline.checkpoints}
-      navigating={checkpointTimeline.navigating}
-      onNavigate={(checkpoint) =>
-        postToHost({ type: 'navigateCheckpointTimeline', checkpoint })}
-      onClose={() => postToHost({ type: 'hideCheckpointTimeline' })}
-    />
-  {/if}
-
   <div class="top-panels">
-    {#if searchPanelVisible && !checkpointTimeline.visible}
+    {#if searchPanelVisible}
       <SearchPanel
         query={searchQuery}
         replacement={replacementQuery}
@@ -3027,8 +3094,9 @@
     {/if}
   </div>
 
-  <div class="editor-workspace-shell">
-    <EditorWorkspace
+  <div class="editor-content-shell">
+    <div class="editor-workspace-shell">
+      <EditorWorkspace
     {data}
     {visibleOffset}
     scrollOffset={navigationOffset}
@@ -3094,8 +3162,26 @@
     onProfilerModeChange={setProfilerMode}
     onMoveAnalysisSection={moveAnalysisSectionByDelta}
     onReorderAnalysisSection={reorderAnalysisSection}
-    />
+      />
+    </div>
 
+    {#if actionJournalVisible}
+      <ActionJournal
+        viewport={actionJournalViewport}
+        loading={actionJournalLoading}
+        error={actionJournalError}
+        checkpoints={checkpointTimeline.checkpoints}
+        checkpointCursor={checkpointTimeline.cursor}
+        canUndo={canUndo && !transformInFlight}
+        canRedo={canRedo && !transformInFlight}
+        onUndo={() => postToHost({ type: 'undo' })}
+        onRedo={() => postToHost({ type: 'redo' })}
+        onNavigate={navigateActionJournal}
+        onLoadOlder={(anchorSerial) => requestActionJournal(anchorSerial, true)}
+        onClose={toggleActionJournal}
+        onRetry={() => requestActionJournal()}
+      />
+    {/if}
   </div>
 
   <ByteInspector

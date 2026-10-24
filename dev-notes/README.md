@@ -11,9 +11,12 @@ published documentation location and update links to the canonical version.
 
 ## Current papers
 
-- `CHECKPOINT-TIMELINE-PRODUCTION.md` — checkpoint timeline production plan and backlog.
-- `CHECKPOINT-TIMELINE-ATTESTATION.md` — checkpoint timeline release evidence ledger.
+- `CHECKPOINT-TIMELINE-PRODUCTION.md` — historical production plan for the
+  retired timeline UI; the underlying checkpoint machinery now supports the
+  Action Journal.
+- `CHECKPOINT-TIMELINE-ATTESTATION.md` — retained release evidence for that
+  checkpoint machinery.
 - `SHORTCOMINGS.md` — repository-wide engineering shortcomings and follow-up work.
 
 Canonical designs that graduate from this directory are published in `wiki/`.
-The change-log optimizer and checkpoint timeline designs are maintained there.
+The change-log optimizer and checkpoint storage designs are maintained there.

@@ -347,6 +347,41 @@ TEST_CASE("Apply Builtin Transform", "[EditTransform]") {
     REQUIRE(audit.unchanged());
 }
 
+TEST_CASE("A transform after undo discards the abandoned transform redo branch", "[EditTransform][UndoTests]") {
+    const ScratchDir scratch;
+    DirAudit audit(scratch.str());
+    {
+        static const omega_byte_t input[] = "AbC";
+        auto session = TestSession::from_bytes(input, 3, scratch.c_str(), NO_EVENTS);
+        REQUIRE(session);
+        auto *session_ptr = session.get();
+
+        const omega_edit_transform_t lower_transform{OMEGA_EDIT_TRANSFORM_ASCII_TO_LOWER, 0};
+        REQUIRE(0 == omega_edit_apply_builtin_transform(session_ptr, lower_transform, 0, 0));
+        REQUIRE("abc" == content_string(session_ptr));
+        REQUIRE(-1 == omega_edit_undo_last_change(session_ptr));
+        REQUIRE("AbC" == content_string(session_ptr));
+
+        const omega_edit_transform_t upper_transform{OMEGA_EDIT_TRANSFORM_ASCII_TO_UPPER, 0};
+        REQUIRE(0 == omega_edit_apply_builtin_transform(session_ptr, upper_transform, 0, 0));
+        REQUIRE("ABC" == content_string(session_ptr));
+        REQUIRE(-1 == omega_edit_undo_last_change(session_ptr));
+        REQUIRE("AbC" == content_string(session_ptr));
+
+        REQUIRE(1 == omega_session_get_num_undone_changes(session_ptr));
+        const auto *undone_change = omega_session_get_change(session_ptr, -1);
+        REQUIRE(undone_change);
+        REQUIRE(std::string("builtin:ascii-to-upper") == omega_change_get_transform_id(undone_change));
+        REQUIRE(nullptr == omega_session_get_change(session_ptr, -2));
+
+        REQUIRE(1 == omega_edit_redo_last_undo(session_ptr));
+        REQUIRE("ABC" == content_string(session_ptr));
+        REQUIRE(0 == omega_edit_redo_last_undo(session_ptr));
+        REQUIRE(model_valid(session_ptr));
+    }
+    REQUIRE(audit.unchanged());
+}
+
 TEST_CASE("Apply Builtin Bitwise Transform", "[EditTransform]") {
     const ScratchDir scratch;
     DirAudit audit(scratch.str());
@@ -724,6 +759,41 @@ TEST_CASE("Character Counts", "[CharCounts]") {
     REQUIRE(0 == omega_character_counts_invalid_bytes(char_counts_ptr));
     omega_edit_destroy_session(session_ptr);
     omega_character_counts_destroy(char_counts_ptr);
+}
+
+TEST_CASE("Character Counts Preserve Multi-Byte Sequences Across Scan Chunks", "[CharCounts][Boundary]") {
+    const std::vector<omega_byte_t> utf8_sequence{0xF0, 0x9F, 0x8C, 0x8D};
+    const size_t utf8_start = 65535;
+    std::vector<omega_byte_t> utf8_data(utf8_start + utf8_sequence.size(), 'A');
+    std::copy(utf8_sequence.begin(), utf8_sequence.end(), utf8_data.begin() + utf8_start);
+    auto *session = omega_edit_create_session_from_bytes(utf8_data.data(), static_cast<int64_t>(utf8_data.size()),
+                                                         nullptr, nullptr, NO_EVENTS, nullptr);
+    REQUIRE(session);
+    auto *counts = omega_character_counts_create();
+    REQUIRE(counts);
+    REQUIRE(0 == omega_session_character_counts(session, counts, 0, 0, BOM_NONE));
+    REQUIRE(static_cast<int64_t>(utf8_start) == omega_character_counts_single_byte_chars(counts));
+    REQUIRE(1 == omega_character_counts_quad_byte_chars(counts));
+    REQUIRE(0 == omega_character_counts_invalid_bytes(counts));
+    omega_edit_destroy_session(session);
+
+    std::vector<omega_byte_t> bom_data(65540, 'A');
+    bom_data[0] = 0xEF;
+    bom_data[1] = 0xBB;
+    bom_data[2] = 0xBF;
+    bom_data[65536] = 0xEF;
+    bom_data[65537] = 0xBB;
+    bom_data[65538] = 0xBF;
+    session = omega_edit_create_session_from_bytes(bom_data.data(), static_cast<int64_t>(bom_data.size()), nullptr,
+                                                   nullptr, NO_EVENTS, nullptr);
+    REQUIRE(session);
+    REQUIRE(0 == omega_session_character_counts(session, counts, 0, 0, BOM_UTF8));
+    REQUIRE(3 == omega_character_counts_bom_bytes(counts));
+    REQUIRE(65534 == omega_character_counts_single_byte_chars(counts));
+    REQUIRE(1 == omega_character_counts_triple_byte_chars(counts));
+    REQUIRE(0 == omega_character_counts_invalid_bytes(counts));
+    omega_edit_destroy_session(session);
+    omega_character_counts_destroy(counts);
 }
 
 TEST_CASE("Hanoi insert", "[ModelTests]") {
@@ -1338,6 +1408,8 @@ TEST_CASE("Large sparse file viewports use 64-bit file offsets", "[.][LargeFile]
     }
     REQUIRE(1 == original_markers.size());
     REQUIRE(expected_size == fs::file_size(original_markers.front()));
+    REQUIRE(!fs::is_symlink(original_markers.front()));
+    REQUIRE(fs::is_regular_file(original_markers.front()));
 
     const auto viewport_ptr =
             omega_edit_create_viewport(session_ptr, marker_offset, sizeof(marker) - 1, 0, nullptr, nullptr, NO_EVENTS);

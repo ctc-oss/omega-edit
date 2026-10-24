@@ -346,11 +346,10 @@ jobs:
           STAGE_DIR="$(mktemp -d)"
           cp -R vscode-extension/. "$STAGE_DIR"
           cd "$STAGE_DIR"
-          npm pkg set "dependencies.@omega-edit/client=${PKG_VERSION}"
+          npm pkg set "devDependencies.@omega-edit/client=${PKG_VERSION}"
           npm install --no-save \
             "${GITHUB_WORKSPACE}/packages/server/omega-edit-node-server-v${PKG_VERSION}.tgz" \
             "${GITHUB_WORKSPACE}/packages/client/omega-edit-node-client-v${PKG_VERSION}.tgz"
-          npm run stage:transform-plugins -- "${GITHUB_WORKSPACE}/_transform_plugins"
           npm run package:vsix
           mkdir -p "${GITHUB_WORKSPACE}/_vsix"
           cp omega-edit-data-editor.vsix "${GITHUB_WORKSPACE}/_vsix/omega-edit-data-editor-v${PKG_VERSION}.vsix"
@@ -487,7 +486,7 @@ jobs:
           cache-dependency-path: yarn.lock
 
       - name: Setup Python
-        uses: actions/setup-python@v6
+        uses: actions/setup-python@v7
         with:
           python-version: '3.12'
 
@@ -540,17 +539,13 @@ jobs:
           echo "CPP_SERVER_BINARY=$(pwd)/server/cpp/build/omega-edit-grpc-server" >> $GITHUB_ENV
 
       - name: Yarn Install
-        run: |
-          for attempt in 1 2 3; do
-            if yarn --network-timeout 300000; then
-              exit 0
-            fi
-            if [ "$attempt" -eq 3 ]; then
-              exit 1
-            fi
-            echo "yarn install failed on attempt $attempt; retrying in 15 seconds" >&2
-            sleep 15
-          done
+        uses: nick-fields/retry@ad984534de44a9489a53aefd81eb77f87c70dc60 # v4.0.0
+        with:
+          timeout_minutes: 10
+          max_attempts: 3
+          retry_wait_seconds: 15
+          shell: bash
+          command: yarn --network-timeout 300000
 
       - name: Yarn Package - Server
         run: yarn workspace @omega-edit/server package

@@ -46,6 +46,8 @@ runs:
 
     - name: Setup cmake
       uses: lukka/get-cmake@latest
+      with:
+        cmakeVersion: 3.31.12
 
     - name: Setup Python
       uses: actions/setup-python@v6
@@ -106,29 +108,30 @@ runs:
 
     - name: Install transform plugin dependencies via Conan
       if: inputs.runner-os == 'Windows' || inputs.runner-os == 'macOS'
-      shell: bash
-      run: |
-        conan_arch=()
-        if [ "${{ inputs.runner-os }}" == "macOS" ]; then
-          conan_arch=("-s:h" "arch=${TARGET_CONAN_ARCH}")
-        fi
-        for attempt in 1 2 3; do
-          if conan install plugins --output-folder=_build_core/plugin-conan \
+      uses: nick-fields/retry@ad984534de44a9489a53aefd81eb77f87c70dc60 # v4.0.0
+      with:
+        timeout_minutes: 60
+        max_attempts: 3
+        retry_wait_seconds: 30
+        shell: bash
+        command: |
+          conan_arch=()
+          conan_profiles=(
+            "-pr:h" "default"
+            "-pr:h" "$GITHUB_WORKSPACE/.github/conan/profiles/ci-cmake-3.31.12"
+            "-pr:b" "default"
+            "-pr:b" "$GITHUB_WORKSPACE/.github/conan/profiles/ci-cmake-3.31.12"
+          )
+          if [ "${{ inputs.runner-os }}" == "macOS" ]; then
+            conan_arch=("-s:h" "arch=${TARGET_CONAN_ARCH}")
+          fi
+          conan install plugins --output-folder=_build_core/plugin-conan \
             --build=missing \
             -s build_type=Release \
             "${conan_arch[@]}" \
+            "${conan_profiles[@]}" \
             ${CONAN_MSBUILD_VS_CONF:-} \
-            -c tools.cmake.cmaketoolchain:generator=Ninja; then
-            exit 0
-          fi
-          if [ "$attempt" -eq 3 ]; then
-            echo "Conan install for transform plugin dependencies failed after $attempt attempts" >&2
-            exit 1
-          fi
-          delay=$((attempt * 30))
-          echo "Conan install for transform plugin dependencies failed on attempt $attempt; retrying in $delay seconds" >&2
-          sleep "$delay"
-        done
+            -c tools.cmake.cmaketoolchain:generator=Ninja
 
     - name: Install transform plugin system dependencies
       if: inputs.runner-os == 'Linux'
@@ -161,31 +164,32 @@ runs:
         echo "OMEGA_EDIT_TEST_PLUGIN_DIR=$(pwd)/_build_core/plugins/plugins" >> $GITHUB_ENV
 
     - name: Install server dependencies via Conan
-      shell: bash
-      run: |
-        cd server/cpp
-        conan_arch=()
-        if [ "${{ inputs.runner-os }}" == "macOS" ]; then
-          conan_arch=("-s:h" "arch=${TARGET_CONAN_ARCH}")
-        fi
-        for attempt in 1 2 3; do
-          if conan install . --output-folder=build \
+      uses: nick-fields/retry@ad984534de44a9489a53aefd81eb77f87c70dc60 # v4.0.0
+      with:
+        timeout_minutes: 60
+        max_attempts: 3
+        retry_wait_seconds: 30
+        shell: bash
+        command: |
+          cd server/cpp
+          conan_arch=()
+          conan_profiles=(
+            "-pr:h" "default"
+            "-pr:h" "$GITHUB_WORKSPACE/.github/conan/profiles/ci-cmake-3.31.12"
+            "-pr:b" "default"
+            "-pr:b" "$GITHUB_WORKSPACE/.github/conan/profiles/ci-cmake-3.31.12"
+          )
+          if [ "${{ inputs.runner-os }}" == "macOS" ]; then
+            conan_arch=("-s:h" "arch=${TARGET_CONAN_ARCH}")
+          fi
+          conan install . --output-folder=build \
             --build=missing \
             -s build_type=Release \
             -s compiler.cppstd=17 \
             "${conan_arch[@]}" \
+            "${conan_profiles[@]}" \
             ${CONAN_MSBUILD_VS_CONF:-} \
-            -c tools.cmake.cmaketoolchain:generator=Ninja; then
-            exit 0
-          fi
-          if [ "$attempt" -eq 3 ]; then
-            echo "Conan install for server dependencies failed after $attempt attempts" >&2
-            exit 1
-          fi
-          delay=$((attempt * 30))
-          echo "Conan install for server dependencies failed on attempt $attempt; retrying in $delay seconds" >&2
-          sleep "$delay"
-        done
+            -c tools.cmake.cmaketoolchain:generator=Ninja
 
     - name: Install uuid-dev (Linux)
       if: inputs.runner-os == 'Linux'
@@ -222,18 +226,13 @@ runs:
         echo "CPP_TRANSFORM_PLUGIN_HOST_BINARY=${repo_root}/_build_core/core/omega-transform-plugin-host$([ '${{ inputs.runner-os }}' == 'Windows' ] && echo '.exe' || echo '')" >> $GITHUB_ENV
 
     - name: Yarn Install
-      shell: bash
-      run: |
-        for attempt in 1 2 3; do
-          if yarn --network-timeout 300000; then
-            exit 0
-          fi
-          if [ "$attempt" -eq 3 ]; then
-            exit 1
-          fi
-          echo "yarn install failed on attempt $attempt; retrying in 15 seconds" >&2
-          sleep 15
-        done
+      uses: nick-fields/retry@ad984534de44a9489a53aefd81eb77f87c70dc60 # v4.0.0
+      with:
+        timeout_minutes: 10
+        max_attempts: 3
+        retry_wait_seconds: 15
+        shell: bash
+        command: yarn --network-timeout 300000
 
     - name: Yarn Package - Server
       shell: bash

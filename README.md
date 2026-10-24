@@ -91,6 +91,21 @@ npx oe create-session --file ./sample.bin
 npx oe view --session <session-id> --offset 0 --length 64
 ```
 
+MCP clients can also use `omega_edit_run_file` for a bounded read, search,
+profile, transform, or edit pipeline without managing a persistent session.
+Ephemeral sessions are destroyed on success and failure; mutating pipelines
+require an explicit output path or explicit discard, and save only after every
+operation succeeds.
+
+For an installed package, the portable MCP command is:
+
+```json
+{
+  "command": "npx",
+  "args": ["-y", "-p", "@omega-edit/ai", "omega-edit-mcp"]
+}
+```
+
 To use the MCP server from Codex in this checkout, the repo now includes a project-scoped `.codex/config.toml`:
 
 ```toml
@@ -117,7 +132,10 @@ For an installed package instead of a source checkout, use the Codex MCP format 
 The bundled gRPC server is an unauthenticated local editing service. By default it binds to `127.0.0.1`; keep it on
 loopback or a Unix domain socket unless the surrounding environment supplies its own access control. Non-loopback TCP
 binds, such as `0.0.0.0`, require the explicit `--insecure-allow-non-loopback` opt-in because any client that can reach
-the server can read, edit, save, and invoke registered transform plugins with the server process's privileges.
+the server can read, edit, save, and invoke registered transform plugins with the server process's privileges. Use
+`--allowed-root` to confine RPC-controlled file and checkpoint paths. Remote deployments should keep the backend on a
+private network and expose only an HTTP/2-capable gRPC proxy that enforces TLS, authentication, authorization, rate
+limits, and request limits.
 
 ## Transform Plugins
 

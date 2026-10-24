@@ -10,6 +10,7 @@
  * on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.                    *
  **********************************************************************************************************************/
 
+#include "../include/omega_edit/config.h"
 #include "impl_/change_def.hpp"
 #include <algorithm>
 #include <cstdio>
@@ -23,10 +24,11 @@ namespace omega_edit::internal {
         constexpr int64_t PAYLOAD_BLOCK_SIZE = 1024 * 1024;
 
         bool seek_(FILE *file, int64_t offset) {
-#ifdef HAVE_FSEEKO
-            return fseeko(file, static_cast<off_t>(offset), SEEK_SET) == 0;
+#if !defined(OMEGA_BUILD_WINDOWS) && !defined(HAVE_FSEEKO)
+            return offset <= (std::numeric_limits<long>::max)() &&
+                   FSEEK(file, static_cast<long>(offset), SEEK_SET) == 0;
 #else
-            return offset <= std::numeric_limits<long>::max() && fseek(file, static_cast<long>(offset), SEEK_SET) == 0;
+            return FSEEK(file, offset, SEEK_SET) == 0;
 #endif
         }
     }// namespace

@@ -35,9 +35,26 @@ export interface HeartbeatOptions {
   sessionEventQueueCapacity?: number
   viewportEventQueueCapacity?: number
   maxChangeBytes?: number
+  maxRpcRequestBytes?: number
   maxViewportsPerSession?: number
   maxReadSegmentBytes?: number
   maxSearchMatches?: number
+  maxChangelogExportEntries?: number
+  maxChangelogSpoolBytes?: number
+  maxSessions?: number
+  maxConcurrentScans?: number
+  maxConcurrentTransforms?: number
+  maxConcurrentChangelogExports?: number
+  maxConcurrentCheckpointWrites?: number
+  maxCheckpointModelsPerSession?: number
+  minCheckpointFreeBytes?: number
+  maxEventSubscriptions?: number
+  sessionEventQueueByteCapacity?: number
+  viewportEventQueueByteCapacity?: number
+  maxTotalEventQueueBytes?: number
+  maxTransformOptionsBytes?: number
+  maxTransformResultBytes?: number
+  maxHeartbeatSessionIds?: number
   logFile?: string
   logLevel?: string
   logConfigFile?: string
@@ -46,6 +63,7 @@ export interface HeartbeatOptions {
   allowExperimentalTransformPlugins?: boolean
   allowTestTransformPlugins?: boolean
   insecureAllowNonLoopback?: boolean
+  allowedRoot?: string
 }
 
 export declare function runServer(

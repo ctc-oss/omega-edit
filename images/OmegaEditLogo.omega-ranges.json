@@ -2,6 +2,7 @@
   "format": "omega-edit.range-map",
   "version": 1,
   "source": "images/OmegaEditLogo.png",
+  "sourceFileSize": 1572763,
   "sourceFormat": "PNG",
   "producer": "OmegaEdit experimental PNG range-map fixture",
   "selectedPath": "/png/chunks[0]/data/width",

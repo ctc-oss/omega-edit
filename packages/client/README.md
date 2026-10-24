@@ -88,8 +88,9 @@ await stopServerGraceful()
 
 `startServer(..., heartbeat)` and `startServerUnixSocket(..., heartbeat)` accept the same `HeartbeatOptions` bag exported from `@omega-edit/server`, including native logging fields such as `logFile`, `logLevel`, and `logConfigFile`.
 
-The bundled server is unauthenticated. Keep TCP binds on `127.0.0.1`/`localhost` or use Unix domain sockets unless an
-outer layer controls access. Binding outside loopback requires `insecureAllowNonLoopback: true`.
+The bundled server is unauthenticated. Keep TCP binds on `127.0.0.1`/`localhost` or use Unix domain sockets. For remote
+access, keep the backend on a private network and expose only an authenticating HTTP/2-capable gRPC proxy. Binding
+outside loopback requires `insecureAllowNonLoopback: true`; use `allowedRoot` to confine RPC file and checkpoint paths.
 
 Shutdown migration note:
 
@@ -194,6 +195,38 @@ These helpers wrap the raw server-stream subscriptions and own the repetitive pa
 
 Use them instead of wiring raw gRPC streams by hand in application code.
 
+### Action journal viewport
+
+`getActionJournalViewport(...)` reads primitive edit history in bounded windows
+without materializing payload bytes. Windows can move toward older or newer
+changes and can be filtered by primitive kind or transaction id. All history
+coordinates are canonical decimal strings, so large native `int64` values are
+not rounded by JavaScript.
+
+```typescript
+const page = await getActionJournalViewport({
+  sessionId,
+  capacity: 256,
+  direction: 'older',
+  kinds: ['REPLACE', 'TRANSFORM'],
+})
+
+if (page.hasMore && page.nextAnchorSerial) {
+  const older = await getActionJournalViewport({
+    sessionId,
+    anchorSerial: page.nextAnchorSerial,
+    capacity: page.capacity,
+    direction: 'older',
+  })
+}
+```
+
+Entries expose serial and change-count coordinates, byte ranges, data length,
+size delta, transaction identity, payload-storage hints, transform descriptors,
+and checkpoint boundaries. Use `subscribeActionJournalUpdates(...)` to
+invalidate or refresh a visible window after live session changes; the journal
+RPC itself stays unary and bounded so clients control prefetch and scrolling.
+
 ### Editor Integration Helpers
 
 These higher-level helpers sit on top of the session, viewport, and subscription primitives for editor-style applications:
@@ -245,7 +278,7 @@ Start the server with `transformPluginDirectories` or `--transform-plugin-dir`
 before listing or applying plugins. See the
 [Transform Plugins guide](https://github.com/ctc-oss/omega-edit/wiki/Transform-Plugins)
 for ABI, SDK, plugin package layout, and exemplar plugin details, including base64
-encode/decode, text codecs, character transcoding, zlib compress/decompress,
+encode/decode, text codecs, character transcoding, zlib and Zstandard compress/decompress,
 record/message helpers, and inspect-only digest/checksum examples.
 
 ### Logging

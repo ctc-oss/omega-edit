@@ -22,6 +22,9 @@ import * as os from 'node:os'
 import * as path from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
 import {
+  CHANGE_LOG_DIGEST_ALGORITHM_MAX_LENGTH,
+  CHANGE_LOG_DIGEST_PLUGIN_ID_MAX_LENGTH,
+  CHANGE_LOG_DIGEST_VALUE_MAX_LENGTH,
   ChangeLogCancelledError,
   ChangeLogCodecError,
   normalizeChangeLogDocument,
@@ -131,6 +134,37 @@ async function streamedEntries(
 }
 
 describe('shared change-log codec', () => {
+  it('rejects invalid or oversized fingerprint digest metadata', () => {
+    const document = documentWithEntries(0)
+    document.before.digest.pluginId = 'a'.repeat(
+      CHANGE_LOG_DIGEST_PLUGIN_ID_MAX_LENGTH + 1
+    )
+    expect(() => normalizeChangeLogDocument(document)).toThrowError(
+      expect.objectContaining({ code: 'CHANGE_LOG_INVALID_FINGERPRINT' })
+    )
+
+    document.before.digest.pluginId = 'omega.example.digest'
+    document.before.digest.algorithm = 'a'.repeat(
+      CHANGE_LOG_DIGEST_ALGORITHM_MAX_LENGTH + 1
+    )
+    expect(() => normalizeChangeLogDocument(document)).toThrowError(
+      expect.objectContaining({ code: 'CHANGE_LOG_INVALID_FINGERPRINT' })
+    )
+
+    document.before.digest.algorithm = 'sha256'
+    document.before.digest.value = 'a'.repeat(
+      CHANGE_LOG_DIGEST_VALUE_MAX_LENGTH + 1
+    )
+    expect(() => normalizeChangeLogDocument(document)).toThrowError(
+      expect.objectContaining({ code: 'CHANGE_LOG_INVALID_FINGERPRINT' })
+    )
+
+    document.before.digest.value = 'not-hex'
+    expect(() => normalizeChangeLogDocument(document)).toThrowError(
+      expect.objectContaining({ code: 'CHANGE_LOG_INVALID_FINGERPRINT' })
+    )
+  })
+
   it('normalizes inline and streamed v2 documents identically', async () => {
     const document = documentWithEntries(3)
     const inline = normalizeChangeLogDocument(document)
@@ -179,6 +213,40 @@ describe('shared change-log codec', () => {
         limits: { maxTransformIdBytes: 3 },
       })
     ).toThrow(/transformId exceeds 3 UTF-8 bytes/)
+  })
+
+  it('decodes mixed-case transform descriptor hex without per-byte parsing', async () => {
+    const descriptor = Buffer.from(
+      JSON.stringify({
+        transformId: 'ωmega.transform',
+        args: { mode: 'ω' },
+      })
+    )
+      .toString('hex')
+      .replace(/[a-f]/g, (digit, index) =>
+        index % 2 === 0 ? digit.toUpperCase() : digit
+      )
+    const document = documentWithEntries(1)
+    document.changes = [
+      {
+        serial: '1',
+        kind: 'TRANSFORM',
+        offset: '0',
+        length: '1',
+        data: descriptor,
+      },
+    ]
+
+    const prepared = normalizeChangeLogDocument(document)
+    const entries: NormalizedChangeLogEntry[] = []
+    for await (const entry of prepared.entries()) {
+      entries.push(entry)
+    }
+
+    expect(entries[0].transformDescriptor).toEqual({
+      transformId: 'ωmega.transform',
+      optionsJson: '{"mode":"ω"}',
+    })
   })
 
   it('rejects duplicate headers, trailing data, malformed UTF-8, and unsafe integers', async () => {
@@ -398,6 +466,47 @@ class FakeExportStream extends EventEmitter {
 }
 
 describe('bounded change-log RPC iterator', () => {
+  it('cancels a stream with oversized fingerprint metadata', async () => {
+    const fake = new FakeExportStream([
+      {
+        frame: {
+          oneofKind: 'header',
+          header: {
+            formatVersion: 3,
+            resolvedFirstSerialDecimal: '0',
+            resolvedLastSerialDecimal: '0',
+            sourceChangeCountDecimal: '0',
+            before: {
+              byteLengthDecimal: '0',
+              digestPluginId: 'omega.example.digest',
+              digestAlgorithm: 'sha256',
+              digestValue: 'a'.repeat(CHANGE_LOG_DIGEST_VALUE_MAX_LENGTH + 1),
+            },
+            after: {
+              byteLengthDecimal: '0',
+              digestPluginId: 'omega.example.digest',
+              digestAlgorithm: 'sha256',
+              digestValue: 'b'.repeat(64),
+            },
+            optimized: true,
+          },
+        },
+      },
+    ])
+    await expect(async () => {
+      for await (const _frame of streamChangeLogExport({
+        sessionId: 'test',
+        subscribe: () => {
+          fake.start()
+          return fake
+        },
+      })) {
+        // Consume until validation fails.
+      }
+    }).rejects.toMatchObject({ code: 'CHANGE_LOG_RPC_FRAMING' })
+    expect(fake.cancelled).toBe(true)
+  })
+
   it('validates framing and applies backpressure at four queued frames', async () => {
     const data = Buffer.from('hello')
     const frames: ExportChangeLogResponse[] = [
@@ -405,19 +514,21 @@ describe('bounded change-log RPC iterator', () => {
         frame: {
           oneofKind: 'header',
           header: {
-            formatVersion: 2,
+            formatVersion: 3,
             resolvedFirstSerialDecimal: '1',
             resolvedLastSerialDecimal: '1',
             sourceChangeCountDecimal: '1',
             before: {
               byteLengthDecimal: '0',
-              digestAlgorithm: 'sha256',
-              digestValue: 'a'.repeat(64),
+              digestPluginId: 'omega.example.custom_digest',
+              digestAlgorithm: 'sha512',
+              digestValue: 'a'.repeat(128),
             },
             after: {
               byteLengthDecimal: '5',
-              digestAlgorithm: 'sha256',
-              digestValue: 'b'.repeat(64),
+              digestPluginId: 'omega.example.custom_digest',
+              digestAlgorithm: 'sha512',
+              digestValue: 'b'.repeat(128),
             },
             optimized: true,
           },
@@ -452,7 +563,6 @@ describe('bounded change-log RPC iterator', () => {
           complete: {
             emittedChangeCountDecimal: '1',
             payloadByteCountDecimal: '5',
-            payloadSha256: createHash('sha256').update(data).digest(),
           },
         },
       },
@@ -462,7 +572,11 @@ describe('bounded change-log RPC iterator', () => {
     for await (const frame of streamChangeLogExport({
       sessionId: 'test',
       optimize: true,
-      subscribe: () => {
+      digestPluginId: 'omega.example.custom_digest',
+      digestAlgorithm: 'sha512',
+      subscribe: (request) => {
+        expect(request.digestPluginId).toBe('omega.example.custom_digest')
+        expect(request.digestAlgorithm).toBe('sha512')
         fake.start()
         return fake
       },
@@ -488,6 +602,10 @@ describe('bounded change-log RPC iterator', () => {
     expect(written.entryCount).toBe(1)
     const prepared = await openChangeLogFile(output)
     expect(prepared.changeCount).toBe('1')
+    expect(prepared.before.digest).toMatchObject({
+      pluginId: 'omega.example.custom_digest',
+      algorithm: 'sha512',
+    })
     const entries: NormalizedChangeLogEntry[] = []
     for await (const entry of prepared.entries()) {
       entries.push(entry)
@@ -502,17 +620,19 @@ describe('bounded change-log RPC iterator', () => {
         frame: {
           oneofKind: 'header',
           header: {
-            formatVersion: 2,
+            formatVersion: 3,
             resolvedFirstSerialDecimal: '1',
             resolvedLastSerialDecimal: '1',
             sourceChangeCountDecimal: '1',
             before: {
               byteLengthDecimal: '0',
+              digestPluginId: 'omega.example.openssl_digests',
               digestAlgorithm: 'sha256',
               digestValue: 'a'.repeat(64),
             },
             after: {
               byteLengthDecimal: '1',
+              digestPluginId: 'omega.example.openssl_digests',
               digestAlgorithm: 'sha256',
               digestValue: 'b'.repeat(64),
             },
@@ -559,23 +679,24 @@ describe('bounded change-log RPC iterator', () => {
   })
 
   it('cancels the underlying RPC when its abort signal fires', async () => {
-    const emptyDigest = createHash('sha256').digest()
     const fake = new FakeExportStream([
       {
         frame: {
           oneofKind: 'header',
           header: {
-            formatVersion: 2,
+            formatVersion: 3,
             resolvedFirstSerialDecimal: '1',
             resolvedLastSerialDecimal: '1',
             sourceChangeCountDecimal: '1',
             before: {
               byteLengthDecimal: '0',
+              digestPluginId: 'omega.example.openssl_digests',
               digestAlgorithm: 'sha256',
               digestValue: 'a'.repeat(64),
             },
             after: {
               byteLengthDecimal: '0',
+              digestPluginId: 'omega.example.openssl_digests',
               digestAlgorithm: 'sha256',
               digestValue: 'b'.repeat(64),
             },
@@ -589,7 +710,6 @@ describe('bounded change-log RPC iterator', () => {
           complete: {
             emittedChangeCountDecimal: '0',
             payloadByteCountDecimal: '0',
-            payloadSha256: emptyDigest,
           },
         },
       },

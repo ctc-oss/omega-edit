@@ -24,6 +24,7 @@ import {
   SessionFingerprintContent,
   type ApplyTransformPluginResponse,
   type CheckSessionModelResponse,
+  type CheckoutCheckpointResponse,
   type CreateCheckpointResponse,
   type CreateSessionRequest,
   type CreateSessionResponse,
@@ -40,6 +41,7 @@ import {
   type ListTransformPluginsResponse,
   type NotifyChangedViewportsResponse,
   type DestroyLastCheckpointResponse,
+  type DiscardCheckpointFutureResponse,
   type ReplaceSessionRequest,
   type ReplaceSessionResponse,
   type ReplaceSessionCheckpointedRequest,
@@ -48,6 +50,7 @@ import {
   type RestoreToChangeCountResponse,
   type SaveSessionRequest,
   type SaveSessionResponse,
+  type SessionContentFingerprint,
   type SearchSessionRequest,
   type SearchSessionResponse,
   type SingleCount,
@@ -195,13 +198,16 @@ export async function checkSessionModel(
 export async function getSessionFingerprint(
   sessionId: string,
   content: SessionFingerprintContent,
-  algorithm = ''
+  algorithm = '',
+  pluginId = ''
 ): Promise<GetSessionFingerprintResponse> {
   const log = getLogger()
-  const request =
-    algorithm.length > 0
-      ? { sessionId, content, algorithm }
-      : { sessionId, content }
+  const request = {
+    sessionId,
+    content,
+    ...(algorithm.length > 0 ? { algorithm } : {}),
+    ...(pluginId.length > 0 ? { pluginId } : {}),
+  }
   debugLog(log, () => ({
     fn: 'protobufTs.getSessionFingerprint',
     rqst: request,
@@ -394,7 +400,9 @@ export async function saveSession(
   filePath: string,
   flags: number,
   offset: number = 0,
-  length: number = 0
+  length: number = 0,
+  expectedOriginalFingerprint?: SessionContentFingerprint,
+  options: CancellableCallOptions = {}
 ): Promise<SaveSessionResponse> {
   const log = getLogger()
   const request: SaveSessionRequest = {
@@ -404,34 +412,54 @@ export async function saveSession(
   }
   if (offset > 0) request.offset = offset
   if (length > 0) request.length = length
+  if (expectedOriginalFingerprint) {
+    request.expectedOriginalFingerprint = expectedOriginalFingerprint
+  }
 
   debugLog(log, () => ({ fn: 'protobufTs.saveSession', rqst: request }))
+  if (options.signal?.aborted) {
+    throw makeCancellationError('saveSession')
+  }
   const client = await getClient()
+  if (options.signal?.aborted) {
+    throw makeCancellationError('saveSession')
+  }
 
   return new Promise<SaveSessionResponse>((resolve, reject) => {
-    callUnary(client, client.saveSession, request, (err, response) => {
-      if (err) {
-        log.error({
-          fn: 'protobufTs.saveSession',
-          rqst: request,
-          err: {
-            msg: err.message,
-            details: err.details,
-            code: err.code,
-            stack: err.stack,
-          },
-        })
-        return reject(makeWrappedError('saveSession', err))
-      }
+    let removeCancellationListener: () => void = () => undefined
+    const call = callUnary(
+      client,
+      client.saveSession,
+      request,
+      (err, response) => {
+        removeCancellationListener()
+        if (err) {
+          log.error({
+            fn: 'protobufTs.saveSession',
+            rqst: request,
+            err: {
+              msg: err.message,
+              details: err.details,
+              code: err.code,
+              stack: err.stack,
+            },
+          })
+          return reject(makeWrappedError('saveSession', err))
+        }
 
-      try {
-        const required = requireResponse(response, 'saveSession')
-        debugLog(log, () => ({ fn: 'protobufTs.saveSession', resp: required }))
-        return resolve(required)
-      } catch (error) {
-        return reject(makeWrappedError('saveSession', error))
+        try {
+          const required = requireResponse(response, 'saveSession')
+          debugLog(log, () => ({
+            fn: 'protobufTs.saveSession',
+            resp: required,
+          }))
+          return resolve(required)
+        } catch (error) {
+          return reject(makeWrappedError('saveSession', error))
+        }
       }
-    })
+    )
+    removeCancellationListener = cancelUnaryOnSignal(call, options.signal)
   })
 }
 
@@ -477,23 +505,24 @@ export async function getComputedFileSize(sessionId: string): Promise<number> {
   })
 }
 
-export async function getCounts(
+async function requestCounts(
   sessionId: string,
-  kinds: number[]
+  kinds: CountKind[],
+  fn: string
 ): Promise<SingleCount[]> {
   const log = getLogger()
   const request = {
     sessionId: sessionId,
-    kind: kinds as CountKind[],
+    kind: kinds,
   }
-  debugLog(log, () => ({ fn: 'protobufTs.getCounts', rqst: request }))
+  debugLog(log, () => ({ fn: `protobufTs.${fn}`, rqst: request }))
   const client = await getClient()
 
   return new Promise<SingleCount[]>((resolve, reject) => {
     callUnary(client, client.getCount, request, (err, response) => {
       if (err) {
         log.error({
-          fn: 'protobufTs.getCounts',
+          fn: `protobufTs.${fn}`,
           rqst: request,
           err: {
             msg: err.message,
@@ -502,21 +531,41 @@ export async function getCounts(
             stack: err.stack,
           },
         })
-        return reject(makeWrappedError('getCounts', err))
+        return reject(makeWrappedError(fn, err))
       }
 
       try {
         const required = requireResponse(
           response as GetCountResponse | undefined,
-          'getCounts'
+          fn
         )
-        debugLog(log, () => ({ fn: 'protobufTs.getCounts', resp: required }))
+        debugLog(log, () => ({ fn: `protobufTs.${fn}`, resp: required }))
         return resolve(required.counts)
       } catch (error) {
-        return reject(makeWrappedError('getCounts', error))
+        return reject(makeWrappedError(fn, error))
       }
     })
   })
+}
+
+export async function getCounts(
+  sessionId: string,
+  kinds: number[]
+): Promise<SingleCount[]> {
+  return requestCounts(sessionId, kinds as CountKind[], 'getCounts')
+}
+
+export async function getSingleCount(
+  sessionId: string,
+  kind: CountKind,
+  fn: string
+): Promise<number> {
+  const counts = await requestCounts(sessionId, [kind], fn)
+  const count = counts[0]?.count
+  if (count === undefined) {
+    throw makeWrappedError(fn, 'empty count response')
+  }
+  return count
 }
 
 export async function pauseSessionChanges(sessionId: string): Promise<string> {
@@ -1415,6 +1464,100 @@ export async function restoreLastCheckpoint(
           return resolve(required)
         } catch (error) {
           return reject(makeWrappedError('restoreLastCheckpoint', error))
+        }
+      }
+    )
+  })
+}
+
+export async function checkoutCheckpoint(
+  sessionId: string,
+  checkpointCount: number
+): Promise<CheckoutCheckpointResponse> {
+  const log = getLogger()
+  const request = { sessionId, checkpointCount }
+  debugLog(log, () => ({
+    fn: 'protobufTs.checkoutCheckpoint',
+    rqst: request,
+  }))
+  const client = await getClient()
+
+  return new Promise<CheckoutCheckpointResponse>((resolve, reject) => {
+    callUnary(client, client.checkoutCheckpoint, request, (err, response) => {
+      if (err) {
+        log.error({
+          fn: 'protobufTs.checkoutCheckpoint',
+          rqst: request,
+          err: {
+            msg: err.message,
+            details: err.details,
+            code: err.code,
+            stack: err.stack,
+          },
+        })
+        return reject(makeWrappedError('checkoutCheckpoint', err))
+      }
+
+      try {
+        const required = requireResponse(
+          response as CheckoutCheckpointResponse | undefined,
+          'checkoutCheckpoint'
+        )
+        debugLog(log, () => ({
+          fn: 'protobufTs.checkoutCheckpoint',
+          resp: required,
+        }))
+        return resolve(required)
+      } catch (error) {
+        return reject(makeWrappedError('checkoutCheckpoint', error))
+      }
+    })
+  })
+}
+
+export async function discardCheckpointFuture(
+  sessionId: string
+): Promise<DiscardCheckpointFutureResponse> {
+  const log = getLogger()
+  const request = { sessionId }
+  debugLog(log, () => ({
+    fn: 'protobufTs.discardCheckpointFuture',
+    rqst: request,
+  }))
+  const client = await getClient()
+
+  return new Promise<DiscardCheckpointFutureResponse>((resolve, reject) => {
+    callUnary(
+      client,
+      client.discardCheckpointFuture,
+      request,
+      (err, response) => {
+        if (err) {
+          log.error({
+            fn: 'protobufTs.discardCheckpointFuture',
+            rqst: request,
+            err: {
+              msg: err.message,
+              details: err.details,
+              code: err.code,
+              stack: err.stack,
+            },
+          })
+          return reject(makeWrappedError('discardCheckpointFuture', err))
+        }
+
+        try {
+          const required = requireResponse(
+            response as DiscardCheckpointFutureResponse | undefined,
+            'discardCheckpointFuture'
+          )
+          debugLog(log, () => ({
+            fn: 'protobufTs.discardCheckpointFuture',
+            resp: required,
+          }))
+          return resolve(required)
+        } catch (error) {
+          return reject(makeWrappedError('discardCheckpointFuture', error))
         }
       }
     )

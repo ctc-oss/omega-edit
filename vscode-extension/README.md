@@ -111,10 +111,15 @@ npm install
 npm test
 ```
 
-Then open this folder in VS Code and press `F5`. A new Extension Development Host window will open.
+Then open either the repository root or this folder in VS Code and press `F5`.
+An Extension Development Host window will open the included `sample.txt`
+fixture in the data editor, ready for interactive previewing. On Windows, the
+preview server uses port `19000` so it does not replace a server on the default
+port used by an installed copy of the extension.
 
 In the new window:
 
+- Use the included sample immediately, including the Action Journal after making an edit
 - Run `OmegaEdit: Open in Data Editor` from the Command Palette to pick any file directly
 - Or right-click a file in the Explorer and choose `OmegaEdit: Open in Data Editor`
 
@@ -143,16 +148,18 @@ The example extension uses a bounded search window of `1000` matches. It probes 
 
 This mode decision is made only when the user runs an explicit search. If a replace operation changes the remaining match count across the `1000` threshold, the extension keeps the current mode until the next explicit search. For example, a search that starts in `large` mode with exactly `1001` matches stays in `large` mode after one single replacement leaves `1000` remaining matches.
 
+The bytes-per-row toolbar preference is stored in VS Code's workspace-local extension state rather than workspace settings.
+
 ## Extension Settings
 
 | Setting                 | Default | Description                                                                |
 | ----------------------- | ------- | -------------------------------------------------------------------------- |
 | `omegaEdit.serverPort`  | `9000`  | TCP gRPC server port; setting this explicitly opts out of the default macOS/Linux Unix socket transport |
 | `omegaEdit.logLevel`    | `info`  | Client log level (`trace` / `debug` / `info` / `warn` / `error` / `fatal`) |
-| `omegaEdit.bytesPerRow` | `16`    | Bytes displayed per row (8 / 16 / 32)                                      |
 | `omegaEdit.language`    | `auto`  | Svelte data editor UI language (`auto` follows VS Code; explicit options include `en` and `es`) |
 | `omegaEdit.transformPluginDirectories` | `[]` | Native transform plugin directories; local build plugin folders are auto-detected when this is empty |
 | `omegaEdit.allowExperimentalTransformPlugins` | `false` | Load experimental transform plugins from configured or bundled plugin directories |
+| `omegaEdit.saveConflictFingerprintAlgorithm` | `sha256` | Digest used by the native guarded save path to confirm that an apparent conflict still matches OmegaEdit's last saved content |
 
 ## Keyboard Shortcuts
 
@@ -283,14 +290,15 @@ host-backed search navigation, match highlighting on both the byte and text
 columns, command-routed Search Next / Search Previous, search replace /
 replace-all through the provider, active-pane Ctrl-C/Ctrl-X clipboard handling,
 active-pane Ctrl-V insert handling, direct grid editing for hex bytes and
-printable ASCII with Insert-key editing-mode toggling. The extension uses VS
-Code's native status-bar behavior for overwrite mode: blank in insert mode and
-`OVR` in overwrite mode. The UI also includes a
+printable ASCII with Insert-key editing-mode toggling. The status bar shows the
+current insert/overwrite mode and insertion direction; selecting that item opens
+a native VS Code picker for forward or backward insertion. Bytes per row remains
+in the webview toolbar, where it can be changed directly. The UI also includes a
 lightweight byte inspector with LE/BE contextual value editing for non-float
 values including UTF-8 and UTF-16 when valid. Native VS Code status-bar items
-show the active pane, current offset/progress, transform count, dirty state, and
-color-coded server health with a disconnected icon when the server is
-unavailable. The Server status-bar hover groups stable health, current
+show the active pane, current offset/progress, selection and file sizes,
+transform count, dirty state, and color-coded server health with a disconnected
+icon when the server is unavailable. The Server status-bar hover groups stable health, current
 instance, and host/build metadata, while live server metrics remain in Analysis
 > Structure > Server. The inspector is collapsible, inspector values highlight
 their participating bytes in both grid panes, offsets can be shown in hex or
@@ -320,7 +328,8 @@ External highlight kinds are generic (`current`, `parsed`, `error`, `warning`,
 parsers can map their own concepts into the shared editor.
 
 TypeScript extensions can also consume the typed API returned from activation.
-The package declaration entrypoint is `out/api.d.ts`.
+The package declaration entrypoint is `out/api.d.ts`, a self-contained declaration
+also shipped as `integration/omegaEditApi.d.ts`.
 
 ### Extension Dependency Contract
 
@@ -334,21 +343,26 @@ Downstream VS Code extensions should depend on the stable extension id
 }
 ```
 
+An extension dependency installs the runtime extension; it does not create a
+TypeScript module in your project. No OmegaEdit npm dependency is needed.
+
+1. Copy [omegaEdit.ts](./integration/omegaEdit.ts) and
+   [omegaEditApi.d.ts](./integration/omegaEditApi.d.ts) into your extension, for
+   example under `src/vendor/omegaEdit/`. Take both files from the same release
+   tag, or extract them from `extension/integration/` in that release's VSIX.
+2. Keep your usual VS Code development types (`@types/vscode`). The copied
+   files require no other package.
+3. Activate the installed extension using the helper:
+
 ```ts
-import type { OmegaEditExtensionApi } from 'omega-edit-data-editor'
+import { getOmegaEditApi } from './vendor/omegaEdit/omegaEdit'
+import type { OmegaEditExtensionApi } from './vendor/omegaEdit/omegaEditApi'
 
-const extension = vscode.extensions.getExtension<OmegaEditExtensionApi>(
-  'ctc-oss.omega-edit-data-editor'
-)
-const omegaEdit = await extension?.activate()
+const omegaEdit: OmegaEditExtensionApi = await getOmegaEditApi()
 
-if (omegaEdit?.version !== 2) {
-  throw new Error('Unsupported OmegaEdit Data Editor API version')
-}
-
-await omegaEdit?.open(document.uri, { offset: 128 })
-const context = omegaEdit?.getAssistantContext({ uri: document.uri })
-await omegaEdit?.setExternalHighlights({
+await omegaEdit.open(document.uri, { offset: 128 })
+const context = omegaEdit.getAssistantContext({ uri: document.uri })
+await omegaEdit.setExternalHighlights({
   uri: document.uri,
   reveal: true,
   highlights: [
@@ -363,6 +377,48 @@ await omegaEdit?.setExternalHighlights({
   ],
 })
 ```
+
+The helper reports missing/disabled extensions, activation failures, and an
+incompatible API version. Handle its rejected promise through your extension's
+normal error reporting. It neither installs packages nor starts a separate
+OmegaEdit server. Import declarations with `import type`; the `.d.ts` file has
+no runtime implementation. Actual editor operations come from the activated
+extension.
+
+Maintainers: `npm run compile:extension` regenerates the standalone declaration
+from the public API and its referenced types. Do not hand-edit it. The consumer
+compile test checks the copied files in isolation with only VS Code types.
+
+### Annotation ownership
+
+Pass an `owner` to isolate highlights by extension and debug session:
+
+```ts
+const owner = `apache.daffodil:${debugSession.id}`
+await omegaEdit.setExternalHighlights({
+  uri: document.uri,
+  owner,
+  reveal: true,
+  highlights: [{ id: 'current', offset: parserOffset, length: 1,
+    kind: 'current', label: 'Current parse point' }],
+})
+// On termination, clear this owner for each file annotated by the session.
+omegaEdit.clearExternalHighlights({ uri: document.uri, owner })
+```
+
+Setting highlights replaces only that owner's collection; an empty array or
+`clearExternalHighlights` removes it. IDs are unique within an owner, so separate
+sessions can both use `current`. Returned highlights include their owner. `source`
+is a display label, not an ownership key. Owners are opaque, nonblank strings of
+at most 256 characters; they are coordination keys, not access controls.
+
+Omitting `owner` retains the legacy unowned collection, shared with loaded range
+maps. Unowned set/clear and range-map load/unload leave owned collections intact;
+owned updates leave the range-map tree intact. Each collection tracks staleness
+against its own edit baseline. The editor-wide limit remains 512 highlights.
+Annotations belong to the open editor session and are discarded when it closes.
+Consumers should clear their owners on debug termination and extension disposal.
+This is an additive API version 2 feature.
 
 ### Assistant Command Parity
 
@@ -384,6 +440,7 @@ transform state, change-log status, and the command-surface map below.
 | Transform plugins | `omegaEdit.refreshTransformPlugins` | n/a | `oe list-transform-plugins`, `oe apply-transform-plugin` / transform MCP tools |
 | Checkpoints | Checkpoint commands | `createCheckpoint`, `restoreCheckpoint`, `rollbackCheckpoint` | Checkpoint CLI / MCP tools |
 | Change logs | `omegaEdit.exportChangeLog`, `omegaEdit.applyChangeLog` | `exportChangeLog`, `applyChangeLog` | `oe export-change-log`, `oe apply-change-log` / change-log MCP tools |
+| Action journal | `omegaEdit.showActionJournal` / Live History toolbar panel | `getActionJournalViewport` | Live transaction-aware history with direct change checkout, rewind/fast-forward controls, and checkpoint landmarks |
 | External highlights / range maps | Hidden annotation commands | Highlight and range-map API methods | VS Code API only |
 
 ### Daffodil Integration Notes

@@ -2,7 +2,6 @@
   import {
     TEXT_ENCODING_OPTIONS,
     type BytesPerRow,
-    type InsertDirection,
     type TextEncoding,
     type WebviewSessionContentInfo,
     type WebviewSessionContentSource,
@@ -27,7 +26,6 @@
     bytesPerRow: BytesPerRow
     offsetRadix?: 'hex' | 'dec'
     textEncoding?: TextEncoding
-    insertDirection?: InsertDirection
     fileSize?: number
     contentSources?: WebviewSessionContentInfo[]
     transformPlugins?: WebviewTransformPlugin[]
@@ -40,6 +38,7 @@
     transformResults?: TransformResultHistoryItem[]
     activeTransformResultId?: string
     searchPanelVisible?: boolean
+    actionJournalVisible?: boolean
     selectedOffset?: number
     selectionStart?: number
     selectionEnd?: number
@@ -47,7 +46,6 @@
     onBytesPerRow: (bytesPerRow: BytesPerRow) => void
     onOffsetRadix: (radix: 'hex' | 'dec') => void
     onTextEncoding: (encoding: TextEncoding) => void
-    onInsertDirection: (direction: InsertDirection) => void
     onGoToOffset: (offset: number) => void
     onRequestTransforms: () => void
     onCancelTransform: () => void
@@ -63,6 +61,7 @@
     onReplaceRangeWithFile: (offset: number, length: number) => void
     onOpenTransformResult: (resultId: string) => void
     onToggleSearchPanel: () => void
+    onToggleActionJournal: () => void
     onCreateCheckpoint: () => void
     onRollbackCheckpoint: () => void
     onRestoreCheckpoint: () => void
@@ -74,7 +73,6 @@
     bytesPerRow,
     offsetRadix = 'hex',
     textEncoding = 'ascii',
-    insertDirection = 'forward',
     fileSize = 0,
     contentSources = [],
     transformPlugins = [],
@@ -87,6 +85,7 @@
     transformResults = [],
     activeTransformResultId = '',
     searchPanelVisible = false,
+    actionJournalVisible = false,
     selectedOffset = -1,
     selectionStart = -1,
     selectionEnd = -1,
@@ -94,7 +93,6 @@
     onBytesPerRow,
     onOffsetRadix,
     onTextEncoding,
-    onInsertDirection,
     onGoToOffset,
     onRequestTransforms,
     onCancelTransform,
@@ -104,6 +102,7 @@
     onReplaceRangeWithFile,
     onOpenTransformResult,
     onToggleSearchPanel,
+    onToggleActionJournal,
     onCreateCheckpoint,
     onRollbackCheckpoint,
     onRestoreCheckpoint,
@@ -178,31 +177,6 @@
 
   <button
     type="button"
-    class="direction-toggle"
-    class:backward={insertDirection === 'backward'}
-    aria-label={
-      insertDirection === 'forward'
-        ? strings.toolbar.forwardInsertTitle
-        : strings.toolbar.backwardInsertTitle
-    }
-    aria-pressed={insertDirection === 'backward'}
-    title={
-      insertDirection === 'forward'
-        ? strings.toolbar.forwardInsertTitle
-        : strings.toolbar.backwardInsertTitle
-    }
-    onclick={() =>
-      onInsertDirection(insertDirection === 'forward' ? 'backward' : 'forward')}
-  >
-    {#if insertDirection === 'forward'}
-      &rarr; <span>{strings.toolbar.forwardInsertShort}</span>
-    {:else}
-      &larr; <span>{strings.toolbar.backwardInsertShort}</span>
-    {/if}
-  </button>
-
-  <button
-    type="button"
     class="toolbar-toggle"
     class:active={searchPanelVisible}
     aria-pressed={searchPanelVisible}
@@ -214,6 +188,19 @@
     onclick={onToggleSearchPanel}
   >
     {strings.toolbar.searchPanel}
+  </button>
+
+  <button
+    type="button"
+    class="toolbar-toggle"
+    class:active={actionJournalVisible}
+    aria-pressed={actionJournalVisible}
+    title={actionJournalVisible
+      ? strings.toolbar.hideActionJournalTitle
+      : strings.toolbar.showActionJournalTitle}
+    onclick={onToggleActionJournal}
+  >
+    {strings.toolbar.actionJournal}
   </button>
 
   <OffsetJump {fileSize} {offsetRadix} {onGoToOffset} />

@@ -21,8 +21,6 @@
 #include <omega_edit/utility.h>
 #include <omega_edit/version.h>
 
-#include <openssl/evp.h>
-
 #include <algorithm>
 #include <array>
 #include <atomic>
@@ -33,9 +31,9 @@
 #include <cstring>
 #include <filesystem>
 #include <fstream>
+#include <functional>
 #include <iostream>
 #include <limits>
-#include <memory>
 #include <optional>
 #include <sstream>
 #include <thread>
@@ -84,12 +82,22 @@ namespace omega_edit {
             return n > 0 ? static_cast<int>(n) : 1;
         }
 
-        static constexpr char SESSION_FINGERPRINT_DIGEST_PLUGIN_ID[] = "omega.example.openssl_digests";
+        static constexpr char DEFAULT_DIGEST_PLUGIN_ID[] = "omega.example.openssl_digests";
         static constexpr char DEFAULT_SESSION_FINGERPRINT_ALGORITHM[] = "sha256";
         static constexpr int64_t SESSION_CONTENT_INSPECTION_CHUNK_SIZE = 1024 * 1024;
         static constexpr int64_t CHANGELOG_PAYLOAD_CHUNK_SIZE = 256 * 1024;
         static constexpr size_t CHANGELOG_TRANSFORM_ID_LIMIT = 4096;
         static constexpr size_t CHANGELOG_TRANSFORM_OPTIONS_LIMIT = 1024 * 1024;
+        static constexpr size_t DIGEST_PLUGIN_ID_LIMIT = 4096;
+        static constexpr size_t DIGEST_ALGORITHM_LIMIT = 128;
+        static constexpr size_t DIGEST_VALUE_LIMIT = 4096;
+
+        static bool digest_plugin_id_is_safe(const std::string &plugin_id) {
+            return !plugin_id.empty() && plugin_id.size() <= DIGEST_PLUGIN_ID_LIMIT &&
+                   std::all_of(plugin_id.begin(), plugin_id.end(), [](unsigned char c) {
+                       return std::isalnum(c) != 0 || c == '.' || c == '_' || c == '-';
+                   });
+        }
 
         static bool parse_canonical_decimal(const std::string &value, const char *field_name, int64_t &result,
                                             grpc::Status &status) {
@@ -110,56 +118,6 @@ namespace omega_edit {
                 parsed = parsed * 10 + digit;
             }
             result = static_cast<int64_t>(parsed);
-            return true;
-        }
-
-        static std::string digest_hex(const unsigned char *digest, unsigned int length) {
-            static constexpr char HEX[] = "0123456789abcdef";
-            std::string result(length * 2, '0');
-            for (unsigned int index = 0; index < length; ++index) {
-                result[index * 2] = HEX[digest[index] >> 4U];
-                result[index * 2 + 1] = HEX[digest[index] & 0x0FU];
-            }
-            return result;
-        }
-
-        class sha256_context {
-        public:
-            sha256_context() : context_(EVP_MD_CTX_new(), EVP_MD_CTX_free) {
-                valid_ = context_ && EVP_DigestInit_ex(context_.get(), EVP_sha256(), nullptr) == 1;
-            }
-
-            bool update(const void *data, size_t length) {
-                return valid_ && EVP_DigestUpdate(context_.get(), data, length) == 1;
-            }
-
-            bool finish(std::array<unsigned char, EVP_MAX_MD_SIZE> &digest, unsigned int &length) {
-                if (!valid_ || EVP_DigestFinal_ex(context_.get(), digest.data(), &length) != 1 || length != 32) {
-                    return false;
-                }
-                valid_ = false;
-                return true;
-            }
-
-        private:
-            std::unique_ptr<EVP_MD_CTX, decltype(&EVP_MD_CTX_free)> context_;
-            bool valid_{};
-        };
-
-        static bool digest_changelog_source(const omega_changelog_content_source_t &source, std::string &hex) {
-            sha256_context digest;
-            std::vector<omega_byte_t> buffer(static_cast<size_t>(CHANGELOG_PAYLOAD_CHUNK_SIZE));
-            int64_t offset = 0;
-            while (offset < source.length) {
-                const auto read = source.read(source.context, offset, buffer.data(),
-                                              std::min<int64_t>(source.length - offset, CHANGELOG_PAYLOAD_CHUNK_SIZE));
-                if (read <= 0 || !digest.update(buffer.data(), static_cast<size_t>(read))) { return false; }
-                offset += read;
-            }
-            std::array<unsigned char, EVP_MAX_MD_SIZE> bytes{};
-            unsigned int length = 0;
-            if (!digest.finish(bytes, length)) { return false; }
-            hex = digest_hex(bytes.data(), length);
             return true;
         }
 
@@ -282,12 +240,27 @@ namespace omega_edit {
         struct changelog_export_context {
             grpc::ServerContext *rpc_context{};
             changelog_spool *spool{};
-            sha256_context payload_digest{};
+            omega_transform_plugin_registry_t *plugin_registry{};
+            std::mutex *plugin_registry_mutex{};
+            std::string checkpoint_directory;
+            std::string digest_plugin_id;
+            std::string digest_algorithm;
+            grpc::Status failure_status{};
             int64_t entry_count{};
             int64_t payload_bytes{};
             bool optimized{};
             int failure{};
         };
+
+        struct changelog_digest {
+            std::string plugin_id;
+            std::string algorithm;
+            std::string value;
+        };
+
+        static grpc::Status digest_changelog_source(changelog_export_context &context,
+                                                    const omega_changelog_content_source_t &source,
+                                                    changelog_digest &digest);
 
         static int write_changelog_summary(const omega_changelog_export_summary_t *summary, void *user_data) {
             auto &context = *static_cast<changelog_export_context *>(user_data);
@@ -295,28 +268,33 @@ namespace omega_edit {
                 context.failure = -10;
                 return context.failure;
             }
-            std::string before_digest;
-            std::string after_digest;
-            if (!digest_changelog_source(summary->before, before_digest) ||
-                !digest_changelog_source(summary->after, after_digest)) {
+            changelog_digest before_digest;
+            changelog_digest after_digest;
+            context.failure_status = digest_changelog_source(context, summary->before, before_digest);
+            if (context.failure_status.ok()) {
+                context.failure_status = digest_changelog_source(context, summary->after, after_digest);
+            }
+            if (!context.failure_status.ok()) {
                 context.failure = -12;
                 return context.failure;
             }
             ::omega_edit::v1::ExportChangeLogResponse frame;
             auto *header = frame.mutable_header();
-            header->set_format_version(2);
+            header->set_format_version(3);
             header->set_resolved_first_serial_decimal(std::to_string(summary->resolved_first_change_serial));
             header->set_resolved_last_serial_decimal(std::to_string(summary->resolved_last_change_serial));
             header->set_source_change_count_decimal(std::to_string(summary->source_change_count));
             header->set_optimized(context.optimized);
             auto *before = header->mutable_before();
             before->set_byte_length_decimal(std::to_string(summary->before.length));
-            before->set_digest_algorithm("sha256");
-            before->set_digest_value(before_digest);
+            before->set_digest_plugin_id(before_digest.plugin_id);
+            before->set_digest_algorithm(before_digest.algorithm);
+            before->set_digest_value(before_digest.value);
             auto *after = header->mutable_after();
             after->set_byte_length_decimal(std::to_string(summary->after.length));
-            after->set_digest_algorithm("sha256");
-            after->set_digest_value(after_digest);
+            after->set_digest_plugin_id(after_digest.plugin_id);
+            after->set_digest_algorithm(after_digest.algorithm);
+            after->set_digest_value(after_digest.value);
             if (!context.spool->write(frame)) {
                 context.failure = context.spool->exhausted() ? -11 : -12;
                 return context.failure;
@@ -383,7 +361,7 @@ namespace omega_edit {
                 const auto read = entry->read_payload(
                         entry->payload_context, offset, buffer.data(),
                         std::min<int64_t>(entry->payload_length - offset, CHANGELOG_PAYLOAD_CHUNK_SIZE));
-                if (read <= 0 || !context.payload_digest.update(buffer.data(), static_cast<size_t>(read))) {
+                if (read <= 0) {
                     context.failure = -12;
                     return context.failure;
                 }
@@ -424,9 +402,36 @@ namespace omega_edit {
             return algorithm;
         }
 
+        static std::string normalize_digest_value(std::string digest) {
+            std::transform(digest.begin(), digest.end(), digest.begin(),
+                           [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+            return digest;
+        }
+
         static bool digest_algorithm_is_json_safe(const std::string &algorithm) {
-            return !algorithm.empty() && std::all_of(algorithm.begin(), algorithm.end(),
-                                                     [](unsigned char c) { return std::isalnum(c) != 0 || c == '-'; });
+            return !algorithm.empty() && algorithm.size() <= DIGEST_ALGORITHM_LIMIT &&
+                   std::all_of(algorithm.begin(), algorithm.end(), [](unsigned char c) {
+                       return (c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') || c == '-';
+                   });
+        }
+
+        static bool digest_value_is_safe(const std::string &digest) {
+            return !digest.empty() && digest.size() <= DIGEST_VALUE_LIMIT &&
+                   std::all_of(digest.begin(), digest.end(),
+                               [](unsigned char c) { return (c >= '0' && c <= '9') || (c >= 'a' && c <= 'f'); });
+        }
+
+        static bool normalize_plugin_digest_algorithm(const char *label, const std::string &fallback,
+                                                      std::string &algorithm) {
+            if (!label || !*label) {
+                algorithm = normalize_digest_algorithm(fallback);
+                return digest_algorithm_is_json_safe(algorithm);
+            }
+            size_t length = 0;
+            while (length <= DIGEST_ALGORITHM_LIMIT && label[length] != '\0') { ++length; }
+            if (length > DIGEST_ALGORITHM_LIMIT) { return false; }
+            algorithm = normalize_digest_algorithm(std::string(label, length));
+            return digest_algorithm_is_json_safe(algorithm);
         }
 
         static std::string make_digest_options_json(const std::string &algorithm) {
@@ -781,6 +786,126 @@ namespace omega_edit {
                 return grpc::Status(failed_code, failed_message);
             }
             return grpc::Status::OK;
+        }
+
+        static int64_t read_changelog_source_chunk(int64_t relative_offset, omega_byte_t *buffer, int64_t length,
+                                                   void *user_data_ptr) {
+            const auto *source = static_cast<const omega_changelog_content_source_t *>(user_data_ptr);
+            if (!source || !source->read || !buffer || relative_offset < 0 || length < 0 || source->length < 0 ||
+                relative_offset > source->length) {
+                return -1;
+            }
+            const auto remaining = source->length - relative_offset;
+            const auto requested = std::min(length, remaining);
+            return requested == 0 ? 0 : source->read(source->context, relative_offset, buffer, requested);
+        }
+
+        static grpc::Status digest_changelog_source(changelog_export_context &context,
+                                                    const omega_changelog_content_source_t &source,
+                                                    changelog_digest &digest) {
+            if (!context.plugin_registry || !context.plugin_registry_mutex || !source.read || source.length < 0) {
+                return grpc::Status(grpc::StatusCode::INTERNAL, "invalid change-log digest source");
+            }
+
+            const auto options_json = make_digest_options_json(context.digest_algorithm);
+            transform_plugin_response_guard plugin_response;
+            const auto status = inspect_with_streaming_plugin(
+                    context.rpc_context, context.plugin_registry, *context.plugin_registry_mutex,
+                    context.digest_plugin_id, options_json.c_str(), context.checkpoint_directory.c_str(), 0,
+                    source.length, read_changelog_source_chunk, const_cast<omega_changelog_content_source_t *>(&source),
+                    grpc::StatusCode::FAILED_PRECONDITION,
+                    "change-log digest plugin is not registered: " + context.digest_plugin_id,
+                    "change-log digest plugin must be a streaming inspect plugin",
+                    "unsupported change-log digest algorithm: " + context.digest_algorithm,
+                    "change-log digest cancelled: " + context.digest_plugin_id, grpc::StatusCode::ABORTED,
+                    "change-log digest plugin failed: " + context.digest_plugin_id, &plugin_response.response);
+            if (!status.ok()) { return status; }
+            if (plugin_response.response.result_length <= 0 ||
+                plugin_response.response.result_length > static_cast<int64_t>(DIGEST_VALUE_LIMIT) ||
+                plugin_response.response.result_bytes == nullptr) {
+                return grpc::Status(grpc::StatusCode::INTERNAL,
+                                    "change-log digest plugin returned an invalid digest length");
+            }
+
+            digest.plugin_id = context.digest_plugin_id;
+            digest.value = normalize_digest_value(
+                    std::string(reinterpret_cast<const char *>(plugin_response.response.result_bytes),
+                                static_cast<size_t>(plugin_response.response.result_length)));
+            if (!normalize_plugin_digest_algorithm(plugin_response.response.result_label, context.digest_algorithm,
+                                                   digest.algorithm) ||
+                !digest_value_is_safe(digest.value)) {
+                return grpc::Status(grpc::StatusCode::INTERNAL,
+                                    "change-log digest plugin returned invalid digest metadata");
+            }
+            return grpc::Status::OK;
+        }
+
+        struct overwrite_fingerprint_guard_context {
+            grpc::ServerContext *grpc_context{};
+            std::shared_ptr<AllowedPathLease> output_lease;
+            omega_transform_plugin_registry_t *registry{};
+            std::mutex *registry_mutex{};
+            std::string checkpoint_directory;
+            std::string plugin_id;
+            std::string algorithm;
+            std::string expected_digest;
+            int64_t expected_length{};
+            grpc::Status failure_status{};
+        };
+
+        static int verify_overwrite_fingerprint(const char *file_path, void *user_data_ptr) {
+            auto *context = static_cast<overwrite_fingerprint_guard_context *>(user_data_ptr);
+            if (!context || !file_path || !*file_path || !context->registry || !context->registry_mutex ||
+                context->expected_length < 0) {
+                return -1;
+            }
+            const auto verification_path = context->output_lease ? context->output_lease->target_path() : file_path;
+            if (context->output_lease && context->output_lease->object_fd() >= 0 &&
+                !context->output_lease->target_matches_object()) {
+                return 1;
+            }
+            if (omega_util_file_size(verification_path.c_str()) != context->expected_length) { return 1; }
+
+            int64_t modification_time_before = 0;
+            if (omega_util_get_modification_time(verification_path.c_str(), &modification_time_before) != 0) {
+                return 1;
+            }
+
+            session_content_file_reader reader{verification_path, 0, context->expected_length};
+            transform_plugin_response_guard plugin_response;
+            const auto options_json = make_digest_options_json(context->algorithm);
+            const auto status = inspect_with_streaming_plugin(
+                    context->grpc_context, context->registry, *context->registry_mutex, context->plugin_id,
+                    options_json.c_str(), context->checkpoint_directory.c_str(), 0, context->expected_length,
+                    read_session_content_file_chunk, &reader, grpc::StatusCode::FAILED_PRECONDITION,
+                    "save conflict digest plugin is not registered: " + context->plugin_id,
+                    "save conflict digest plugin must be a streaming inspect plugin",
+                    "unsupported save conflict digest algorithm: " + context->algorithm,
+                    "save conflict digest cancelled: " + context->plugin_id, grpc::StatusCode::ABORTED,
+                    "save conflict digest failed: " + context->plugin_id, &plugin_response.response);
+            if (!status.ok()) {
+                context->failure_status = status;
+                return -1;
+            }
+
+            int64_t modification_time_after = 0;
+            if (omega_util_get_modification_time(verification_path.c_str(), &modification_time_after) != 0 ||
+                modification_time_before != modification_time_after ||
+                omega_util_file_size(verification_path.c_str()) != context->expected_length ||
+                plugin_response.response.result_length <= 0 || plugin_response.response.result_bytes == nullptr) {
+                return 1;
+            }
+            if (plugin_response.response.result_length > static_cast<int64_t>(DIGEST_VALUE_LIMIT)) { return 1; }
+            const auto actual_digest = normalize_digest_value(
+                    std::string(reinterpret_cast<const char *>(plugin_response.response.result_bytes),
+                                static_cast<size_t>(plugin_response.response.result_length)));
+            std::string actual_algorithm;
+            return normalize_plugin_digest_algorithm(plugin_response.response.result_label, context->algorithm,
+                                                     actual_algorithm) &&
+                                   digest_value_is_safe(actual_digest) && actual_algorithm == context->algorithm &&
+                                   actual_digest == context->expected_digest
+                           ? 0
+                           : 1;
         }
 
         struct transform_progress_context {
@@ -1310,10 +1435,18 @@ namespace omega_edit {
                                              std::vector<std::string> transform_plugin_directories,
                                              std::string transform_plugin_host_path,
                                              bool allow_experimental_transform_plugins,
-                                             bool allow_test_transform_plugins)
+                                             bool allow_test_transform_plugins, std::string allowed_root)
             : session_manager_(resource_limits), transform_plugin_registry_(omega_transform_plugin_registry_create()),
               start_time_(std::chrono::steady_clock::now()), heartbeat_config_(heartbeat_config),
-              resource_limits_(resource_limits), shutdown_callback_(std::move(shutdown_callback)) {
+              resource_limits_(resource_limits), scan_gate_(resource_limits.max_concurrent_scans),
+              transform_gate_(resource_limits.max_concurrent_transforms),
+              changelog_export_gate_(resource_limits.max_concurrent_changelog_exports),
+              checkpoint_write_gate_(resource_limits.max_concurrent_checkpoint_writes),
+              shutdown_callback_(std::move(shutdown_callback)) {
+            std::string allowed_root_error;
+            if (!allowed_path_policy_.configure(allowed_root, allowed_root_error)) {
+                throw std::invalid_argument("invalid allowed root: " + allowed_root_error);
+            }
             if (!transform_plugin_host_path.empty()) {
                 omega_transform_plugin_registry_set_host_path(transform_plugin_registry_,
                                                               transform_plugin_host_path.c_str());
@@ -1339,6 +1472,55 @@ namespace omega_edit {
             }
         }
 
+        grpc::Status EditorServiceImpl::resolve_allowed_path(const std::string &path, const char *field_name,
+                                                             bool existing_file, bool directory,
+                                                             std::string &resolved) const {
+            std::string error;
+            AllowedPathResult result;
+            if (existing_file) {
+                result = allowed_path_policy_.resolve_existing_file(path, resolved, error);
+            } else if (directory) {
+                result = allowed_path_policy_.resolve_directory(path, resolved, error);
+            } else {
+                result = allowed_path_policy_.resolve_output_file(path, resolved, error);
+            }
+            if (result == AllowedPathResult::OK) { return grpc::Status::OK; }
+            auto code = grpc::StatusCode::INVALID_ARGUMENT;
+            if (result == AllowedPathResult::NOT_FOUND) {
+                code = grpc::StatusCode::NOT_FOUND;
+            } else if (result == AllowedPathResult::OUTSIDE_ROOT) {
+                code = grpc::StatusCode::PERMISSION_DENIED;
+            } else if (result == AllowedPathResult::FILESYSTEM_ERROR) {
+                code = grpc::StatusCode::FAILED_PRECONDITION;
+            }
+            return grpc::Status(code, std::string(field_name) + ": " + error);
+        }
+
+        grpc::Status EditorServiceImpl::admit_checkpoint_write(omega_session_t *session,
+                                                               ResourceAdmissionLease &lease) {
+            lease = checkpoint_write_gate_.try_acquire();
+            if (!lease) {
+                return grpc::Status(grpc::StatusCode::RESOURCE_EXHAUSTED,
+                                    "all configured checkpoint writer slots are active; retry later");
+            }
+            if (resource_limits_.max_checkpoint_models_per_session > 0 &&
+                omega_session_get_num_checkpoints(session) >=
+                        static_cast<int64_t>(resource_limits_.max_checkpoint_models_per_session)) {
+                return grpc::Status(grpc::StatusCode::RESOURCE_EXHAUSTED,
+                                    "session has reached its configured checkpoint retention limit");
+            }
+            if (resource_limits_.min_checkpoint_free_bytes > 0) {
+                std::error_code ec;
+                const auto available =
+                        std::filesystem::space(omega_session_get_checkpoint_directory(session), ec).available;
+                if (ec || available < resource_limits_.min_checkpoint_free_bytes) {
+                    return grpc::Status(grpc::StatusCode::RESOURCE_EXHAUSTED,
+                                        "checkpoint filesystem has insufficient configured free-space headroom");
+                }
+            }
+            return grpc::Status::OK;
+        }
+
         EditorServiceImpl::~EditorServiceImpl() {
             {
                 std::lock_guard<std::mutex> lock(reaper_cv_mutex_);
@@ -1360,11 +1542,10 @@ namespace omega_edit {
                 }
                 if (reaper_stop_) break;
 
-                auto idle_ids = session_manager_.get_idle_session_ids(heartbeat_config_.session_timeout);
-                for (const auto &sid : idle_ids) { session_manager_.destroy_session(sid); }
+                const auto reaped_count = session_manager_.reap_idle_sessions(heartbeat_config_.session_timeout);
 
                 if (heartbeat_config_.shutdown_when_no_sessions && session_manager_.session_count() == 0 &&
-                    !idle_ids.empty()) {
+                    reaped_count > 0) {
                     // We just reaped sessions and now there are none left
                     request_shutdown();
                     break;
@@ -1406,8 +1587,15 @@ namespace omega_edit {
         }
 
         template<typename T>
-        void EditorServiceImpl::fill_change_details(const omega_change_t *change, const std::string &session_id,
-                                                    T *response) {
+        grpc::Status EditorServiceImpl::fill_change_details(const omega_change_t *change, const std::string &session_id,
+                                                            T *response) {
+            const auto data_length = omega_change_get_data_length(change);
+            if (resource_limits_.max_read_segment_bytes > 0 && data_length > resource_limits_.max_read_segment_bytes) {
+                return grpc::Status(grpc::StatusCode::RESOURCE_EXHAUSTED,
+                                    "change payload exceeds configured read segment limit of " +
+                                            std::to_string(resource_limits_.max_read_segment_bytes) + " bytes");
+            }
+
             response->set_session_id(session_id);
             response->set_serial(omega_change_get_serial(change));
 
@@ -1434,7 +1622,6 @@ namespace omega_edit {
             response->set_length(omega_change_get_length(change));
 
             const auto *bytes = omega_change_get_bytes(change);
-            const auto data_length = omega_change_get_data_length(change);
             if (bytes && data_length > 0) { response->set_data(bytes, static_cast<size_t>(data_length)); }
 
             if (omega_change_is_transform(change)) {
@@ -1449,6 +1636,7 @@ namespace omega_edit {
                 transform->set_computed_file_size_before(omega_change_get_transform_computed_file_size_before(change));
                 transform->set_computed_file_size_after(omega_change_get_transform_computed_file_size_after(change));
             }
+            return grpc::Status::OK;
         }
 
         template<typename T>
@@ -1497,9 +1685,21 @@ namespace omega_edit {
             }
 
             std::string file_path;
+            std::shared_ptr<AllowedPathLease> source_lease;
+            std::shared_ptr<AllowedPathLease> checkpoint_lease;
             if (request->has_file_path()) { file_path = request->file_path(); }
             const auto file_path_status = validate_path_argument(file_path, "file_path");
             if (!file_path_status.ok()) { return file_path_status; }
+            if (!file_path.empty()) {
+                std::string allowed_error;
+                const auto allowed_result =
+                        allowed_path_policy_.lease_existing_file(file_path, source_lease, allowed_error);
+                if (allowed_result != AllowedPathResult::OK) {
+                    std::string ignored;
+                    return resolve_allowed_path(file_path, "file_path", true, false, ignored);
+                }
+                file_path = source_lease->display_path();
+            }
 
             const auto has_initial_data = request->has_initial_data();
             if (!file_path.empty() && has_initial_data) {
@@ -1523,6 +1723,16 @@ namespace omega_edit {
             if (request->has_checkpoint_directory()) { checkpoint_dir = request->checkpoint_directory(); }
             const auto checkpoint_dir_status = validate_path_argument(checkpoint_dir, "checkpoint_directory");
             if (!checkpoint_dir_status.ok()) { return checkpoint_dir_status; }
+            if (!checkpoint_dir.empty()) {
+                std::string allowed_error;
+                const auto allowed_result =
+                        allowed_path_policy_.lease_directory(checkpoint_dir, checkpoint_lease, allowed_error);
+                if (allowed_result != AllowedPathResult::OK) {
+                    std::string ignored;
+                    return resolve_allowed_path(checkpoint_dir, "checkpoint_directory", false, true, ignored);
+                }
+                checkpoint_dir = checkpoint_lease->display_path();
+            }
 
             int64_t file_size = 0;
             std::string checkpoint_dir_out;
@@ -1533,7 +1743,8 @@ namespace omega_edit {
             const std::string *initial_data_ptr = has_initial_data ? &initial_data : nullptr;
             try {
                 session_id = session_manager_.create_session(file_path, desired_id, checkpoint_dir, initial_data_ptr,
-                                                             file_size, checkpoint_dir_out, &create_error);
+                                                             file_size, checkpoint_dir_out, &create_error,
+                                                             std::move(source_lease), std::move(checkpoint_lease));
             } catch (const std::exception &e) {
                 return grpc::Status(grpc::StatusCode::INTERNAL, std::string("Failed to create session: ") + e.what());
             }
@@ -1555,6 +1766,9 @@ namespace omega_edit {
                                 "control characters");
                     case SessionCreateError::ALREADY_EXISTS:
                         return grpc::Status(grpc::StatusCode::ALREADY_EXISTS, "session already exists: " + desired_id);
+                    case SessionCreateError::RESOURCE_EXHAUSTED:
+                        return grpc::Status(grpc::StatusCode::RESOURCE_EXHAUSTED,
+                                            "configured active session limit has been reached");
                     default:
                         return grpc::Status(grpc::StatusCode::INTERNAL, "Failed to create session");
                 }
@@ -1566,7 +1780,7 @@ namespace omega_edit {
             return grpc::Status::OK;
         }
 
-        grpc::Status EditorServiceImpl::SaveSession(grpc::ServerContext * /*context*/,
+        grpc::Status EditorServiceImpl::SaveSession(grpc::ServerContext *context,
                                                     const ::omega_edit::v1::SaveSessionRequest *request,
                                                     ::omega_edit::v1::SaveSessionResponse *response) {
             if (request->file_path().empty()) {
@@ -1574,6 +1788,21 @@ namespace omega_edit {
             }
             const auto path_status = validate_path_argument(request->file_path(), "file_path");
             if (!path_status.ok()) { return path_status; }
+            std::string save_file_path = request->file_path();
+            std::shared_ptr<AllowedPathLease> output_lease;
+            std::shared_ptr<AllowedPathLease> existing_output_lease;
+            std::string allowed_error;
+            const auto existing_result =
+                    allowed_path_policy_.lease_existing_file(save_file_path, existing_output_lease, allowed_error);
+            allowed_error.clear();
+            const auto allowed_result =
+                    allowed_path_policy_.lease_output_file(save_file_path, output_lease, allowed_error);
+            if (allowed_result != AllowedPathResult::OK) {
+                std::string ignored;
+                return resolve_allowed_path(save_file_path, "file_path", false, false, ignored);
+            }
+            const auto display_save_file_path = output_lease->display_path();
+            save_file_path = output_lease->core_path();
 
             auto locked_session = session_manager_.lock_session(request->session_id());
             if (!locked_session) {
@@ -1585,20 +1814,63 @@ namespace omega_edit {
             int64_t offset = request->has_offset() ? request->offset() : 0;
             int64_t length = request->has_length() ? request->length() : 0;
 
+            omega_edit_save_options_t save_options{};
+            overwrite_fingerprint_guard_context guard_context;
+            const omega_edit_save_options_t *save_options_ptr = nullptr;
+            if (request->has_expected_original_fingerprint()) {
+                const auto &expected = request->expected_original_fingerprint();
+                if (!expected.has_digest() || expected.byte_length() < 0) {
+                    return grpc::Status(grpc::StatusCode::INVALID_ARGUMENT,
+                                        "expected_original_fingerprint must include a non-negative size and digest");
+                }
+                const auto algorithm = normalize_digest_algorithm(expected.digest().algorithm());
+                const auto plugin_id = expected.digest().has_plugin_id() ? expected.digest().plugin_id()
+                                                                         : std::string(DEFAULT_DIGEST_PLUGIN_ID);
+                const auto digest_value = normalize_digest_value(expected.digest().value());
+                if (!digest_plugin_id_is_safe(plugin_id) || !digest_algorithm_is_json_safe(algorithm) ||
+                    !digest_value_is_safe(digest_value)) {
+                    return grpc::Status(grpc::StatusCode::INVALID_ARGUMENT,
+                                        "expected_original_fingerprint contains invalid digest metadata");
+                }
+                const auto *checkpoint_directory = omega_session_get_checkpoint_directory(session);
+                guard_context.grpc_context = context;
+                guard_context.output_lease =
+                        existing_result == AllowedPathResult::OK ? existing_output_lease : output_lease;
+                guard_context.registry = transform_plugin_registry_;
+                guard_context.registry_mutex = &transform_plugin_registry_mutex_;
+                guard_context.checkpoint_directory = checkpoint_directory ? checkpoint_directory : "";
+                guard_context.plugin_id = plugin_id;
+                guard_context.algorithm = algorithm;
+                guard_context.expected_digest = digest_value;
+                guard_context.expected_length = expected.byte_length();
+                save_options.overwrite_guard = verify_overwrite_fingerprint;
+                save_options.overwrite_guard_user_data = &guard_context;
+                save_options_ptr = &save_options;
+            }
+
             int result;
             if (offset != 0 || length != 0) {
-                result = omega_edit_save_segment(session, request->file_path().c_str(), request->io_flags(),
-                                                 saved_file_path, offset, length);
+                result = omega_edit_save_segment_with_options(session, save_file_path.c_str(), request->io_flags(),
+                                                              saved_file_path, offset, length, save_options_ptr);
             } else {
-                result = omega_edit_save(session, request->file_path().c_str(), request->io_flags(), saved_file_path);
+                result = omega_edit_save_with_options(session, save_file_path.c_str(), request->io_flags(),
+                                                      saved_file_path, save_options_ptr);
             }
+            if (!guard_context.failure_status.ok()) { return guard_context.failure_status; }
 
             response->set_session_id(request->session_id());
             response->set_save_status(result);
             if (result == 0) {
                 // Only set file_path on success
-                std::string actual_path =
-                        (saved_file_path[0] != '\0') ? std::string(saved_file_path) : request->file_path();
+                std::string actual_path = display_save_file_path;
+                if (saved_file_path[0] != '\0' && output_lease->parent_fd() >= 0) {
+                    actual_path = std::filesystem::path(display_save_file_path)
+                                          .parent_path()
+                                          .append(std::filesystem::path(saved_file_path).filename().string())
+                                          .string();
+                } else if (saved_file_path[0] != '\0') {
+                    actual_path = saved_file_path;
+                }
                 response->set_file_path(actual_path);
             }
             return grpc::Status::OK;
@@ -2062,8 +2334,7 @@ namespace omega_edit {
             const auto *change = omega_session_get_change(session, request->serial());
             if (!change) { return grpc::Status(grpc::StatusCode::NOT_FOUND, "change not found"); }
 
-            fill_change_details(change, request->session_id(), response);
-            return grpc::Status::OK;
+            return fill_change_details(change, request->session_id(), response);
         }
 
         grpc::Status EditorServiceImpl::GetLastChange(grpc::ServerContext * /*context*/,
@@ -2078,8 +2349,7 @@ namespace omega_edit {
             const auto *change = omega_session_get_last_change(session);
             if (!change) { return grpc::Status(grpc::StatusCode::UNKNOWN, "no changes available"); }
 
-            fill_change_details(change, request->id(), response);
-            return grpc::Status::OK;
+            return fill_change_details(change, request->id(), response);
         }
 
         grpc::Status EditorServiceImpl::GetLastUndo(grpc::ServerContext * /*context*/,
@@ -2094,14 +2364,18 @@ namespace omega_edit {
             const auto *change = omega_session_get_last_undo(session);
             if (!change) { return grpc::Status(grpc::StatusCode::UNKNOWN, "no undone changes available"); }
 
-            fill_change_details(change, request->id(), response);
-            return grpc::Status::OK;
+            return fill_change_details(change, request->id(), response);
         }
 
         grpc::Status
         EditorServiceImpl::ExportChangeLog(grpc::ServerContext *context,
                                            const ::omega_edit::v1::ExportChangeLogRequest *request,
                                            grpc::ServerWriter<::omega_edit::v1::ExportChangeLogResponse> *writer) {
+            auto export_slot = changelog_export_gate_.try_acquire();
+            if (!export_slot) {
+                return grpc::Status(grpc::StatusCode::RESOURCE_EXHAUSTED,
+                                    "all configured change-log export slots are active; retry later");
+            }
             grpc::Status parse_status;
             int64_t first = 0;
             int64_t last = 0;
@@ -2126,16 +2400,32 @@ namespace omega_edit {
                 return parse_status;
             }
 
-            const auto entry_cap = requested_entries == 0
-                                           ? resource_limits_.max_changelog_export_entries
-                                           : std::min(requested_entries, resource_limits_.max_changelog_export_entries);
-            const auto output_cap = requested_output_bytes == 0 ? resource_limits_.max_changelog_spool_bytes
-                                                                : std::min(requested_output_bytes,
-                                                                           resource_limits_.max_changelog_spool_bytes);
-            if (entry_cap <= 0 || output_cap <= 0) {
-                return grpc::Status(grpc::StatusCode::RESOURCE_EXHAUSTED,
-                                    "change-log export is disabled by server resource limits");
+            const auto digest_plugin_id = request->has_digest_plugin_id() ? request->digest_plugin_id()
+                                                                          : std::string(DEFAULT_DIGEST_PLUGIN_ID);
+            const auto digest_algorithm =
+                    normalize_digest_algorithm(request->has_digest_algorithm() ? request->digest_algorithm() : "");
+            if (!digest_plugin_id_is_safe(digest_plugin_id)) {
+                return grpc::Status(grpc::StatusCode::INVALID_ARGUMENT,
+                                    "invalid change-log digest plugin id: " + digest_plugin_id);
             }
+            if (!digest_algorithm_is_json_safe(digest_algorithm)) {
+                return grpc::Status(grpc::StatusCode::INVALID_ARGUMENT,
+                                    "unsupported change-log digest algorithm: " + digest_algorithm);
+            }
+
+            const auto entry_cap =
+                    resource_limits_.max_changelog_export_entries <= 0
+                            ? (requested_entries == 0 ? (std::numeric_limits<int64_t>::max)() : requested_entries)
+                            : (requested_entries == 0
+                                       ? resource_limits_.max_changelog_export_entries
+                                       : std::min(requested_entries, resource_limits_.max_changelog_export_entries));
+            const auto output_cap =
+                    resource_limits_.max_changelog_spool_bytes <= 0
+                            ? (requested_output_bytes == 0 ? (std::numeric_limits<int64_t>::max)()
+                                                           : requested_output_bytes)
+                            : (requested_output_bytes == 0
+                                       ? resource_limits_.max_changelog_spool_bytes
+                                       : std::min(requested_output_bytes, resource_limits_.max_changelog_spool_bytes));
 
             changelog_spool spool(output_cap);
             if (!spool.valid()) {
@@ -2144,12 +2434,18 @@ namespace omega_edit {
             }
             changelog_export_context export_context{context, &spool};
             export_context.optimized = request->optimize();
+            export_context.digest_plugin_id = digest_plugin_id;
+            export_context.digest_algorithm = digest_algorithm;
 
             {
                 auto locked_session = session_manager_.lock_session(request->session_id());
                 if (!locked_session) {
                     return grpc::Status(grpc::StatusCode::NOT_FOUND, "session not found: " + request->session_id());
                 }
+                export_context.plugin_registry = transform_plugin_registry_;
+                export_context.plugin_registry_mutex = &transform_plugin_registry_mutex_;
+                const auto *checkpoint_directory = omega_session_get_checkpoint_directory(locked_session.session());
+                export_context.checkpoint_directory = checkpoint_directory ? checkpoint_directory : "";
                 omega_changelog_export_options_t options{};
                 options.first_change_serial = first;
                 options.last_change_serial = last;
@@ -2172,6 +2468,7 @@ namespace omega_edit {
                     if (export_context.failure == -10 || context->IsCancelled()) {
                         return grpc::Status(grpc::StatusCode::CANCELLED, "change-log export cancelled");
                     }
+                    if (!export_context.failure_status.ok()) { return export_context.failure_status; }
                     if (result == -2 || export_context.failure == -11 || spool.exhausted()) {
                         return grpc::Status(grpc::StatusCode::RESOURCE_EXHAUSTED,
                                             "change-log export exceeded a configured resource limit");
@@ -2180,16 +2477,10 @@ namespace omega_edit {
                                         "change-log range validation, planning, or spool write failed");
                 }
 
-                std::array<unsigned char, EVP_MAX_MD_SIZE> payload_digest{};
-                unsigned int payload_digest_length = 0;
-                if (!export_context.payload_digest.finish(payload_digest, payload_digest_length)) {
-                    return grpc::Status(grpc::StatusCode::INTERNAL, "failed to finalize change-log payload digest");
-                }
                 ::omega_edit::v1::ExportChangeLogResponse complete_frame;
                 auto *complete = complete_frame.mutable_complete();
                 complete->set_emitted_change_count_decimal(std::to_string(export_context.entry_count));
                 complete->set_payload_byte_count_decimal(std::to_string(export_context.payload_bytes));
-                complete->set_payload_sha256(payload_digest.data(), payload_digest_length);
                 if (!spool.write(complete_frame)) {
                     return grpc::Status(spool.exhausted() ? grpc::StatusCode::RESOURCE_EXHAUSTED
                                                           : grpc::StatusCode::INTERNAL,
@@ -2233,6 +2524,286 @@ namespace omega_edit {
             }
             if (!saw_header || !saw_complete) {
                 return grpc::Status(grpc::StatusCode::DATA_LOSS, "incomplete change-log export spool");
+            }
+            return grpc::Status::OK;
+        }
+
+        grpc::Status
+        EditorServiceImpl::GetActionJournalViewport(grpc::ServerContext *context,
+                                                    const ::omega_edit::v1::GetActionJournalViewportRequest *request,
+                                                    ::omega_edit::v1::GetActionJournalViewportResponse *response) {
+            grpc::Status parse_status;
+            int64_t requested_anchor = 0;
+            if (request->has_anchor_serial_decimal() &&
+                !parse_canonical_decimal(request->anchor_serial_decimal(), "anchor_serial_decimal", requested_anchor,
+                                         parse_status)) {
+                return parse_status;
+            }
+            constexpr uint64_t ACTION_JOURNAL_CAPACITY_LIMIT = 1000000;
+            if (request->capacity() == 0 || request->capacity() > ACTION_JOURNAL_CAPACITY_LIMIT) {
+                return grpc::Status(grpc::StatusCode::INVALID_ARGUMENT,
+                                    "action journal viewport capacity is outside the configured range");
+            }
+            const bool older = request->direction() == ::omega_edit::v1::ACTION_JOURNAL_DIRECTION_OLDER;
+            if (!older && request->direction() != ::omega_edit::v1::ACTION_JOURNAL_DIRECTION_NEWER) {
+                return grpc::Status(grpc::StatusCode::INVALID_ARGUMENT,
+                                    "action journal viewport direction must be OLDER or NEWER");
+            }
+
+            std::array<bool, 6> included_kinds{};
+            const bool include_all_kinds = request->kinds().empty();
+            for (const auto kind : request->kinds()) {
+                if (kind < ::omega_edit::v1::CHANGE_LOG_ENTRY_KIND_DELETE ||
+                    kind > ::omega_edit::v1::CHANGE_LOG_ENTRY_KIND_TRANSFORM) {
+                    return grpc::Status(grpc::StatusCode::INVALID_ARGUMENT, "action journal kind filter is invalid");
+                }
+                included_kinds[static_cast<size_t>(kind)] = true;
+            }
+
+            auto locked_session = session_manager_.lock_session(request->session_id());
+            if (!locked_session) {
+                return grpc::Status(grpc::StatusCode::NOT_FOUND, "session not found: " + request->session_id());
+            }
+            if (context->IsCancelled()) {
+                return grpc::Status(grpc::StatusCode::CANCELLED, "action journal request was cancelled");
+            }
+            const auto active_tip = omega_session_get_num_changes(locked_session.session());
+            const auto undo_count = omega_session_get_num_undone_changes(locked_session.session());
+            if (active_tip < 0 || undo_count < 0 || undo_count > (std::numeric_limits<int64_t>::max)() - active_tip) {
+                return grpc::Status(grpc::StatusCode::INTERNAL, "action journal history size overflow");
+            }
+            const auto history_tip = active_tip + undo_count;
+            const auto checkpoint_count = omega_session_get_num_checkpoints(locked_session.session());
+            response->set_format_version(1);
+            response->set_session_id(request->session_id());
+            response->set_active_tip_serial_decimal(std::to_string(active_tip));
+            response->set_change_count_decimal(std::to_string(active_tip));
+            response->set_undo_count_decimal(std::to_string(undo_count));
+            response->set_checkpoint_count_decimal(std::to_string(checkpoint_count));
+            response->set_direction(request->direction());
+            response->set_capacity(request->capacity());
+            if (history_tip == 0) {
+                response->set_resolved_anchor_serial_decimal("0");
+                return grpc::Status::OK;
+            }
+
+            const auto get_history_change = [&](int64_t serial) {
+                return omega_session_get_change(locked_session.session(), serial <= active_tip ? serial : -serial);
+            };
+            auto anchor = requested_anchor == 0 ? (older ? history_tip : 1) : requested_anchor;
+            if (anchor <= 0 || anchor > history_tip || !get_history_change(anchor)) {
+                return grpc::Status(grpc::StatusCode::INVALID_ARGUMENT,
+                                    "action journal anchor must identify a retained change serial");
+            }
+
+            const auto is_replacement_pair = [](const omega_change_t *delete_change,
+                                                const omega_change_t *insert_change) {
+                return delete_change && insert_change && omega_change_get_kind_as_char(delete_change) == 'D' &&
+                       omega_change_get_kind_as_char(insert_change) == 'I' &&
+                       omega_change_get_transaction_bit(delete_change) ==
+                               omega_change_get_transaction_bit(insert_change) &&
+                       omega_change_get_offset(delete_change) == omega_change_get_offset(insert_change);
+            };
+            const auto *anchor_change = get_history_change(anchor);
+            if (older && anchor < history_tip && is_replacement_pair(anchor_change, get_history_change(anchor + 1))) {
+                ++anchor;
+            } else if (!older && anchor > 1 && is_replacement_pair(get_history_change(anchor - 1), anchor_change)) {
+                --anchor;
+            }
+            response->set_resolved_anchor_serial_decimal(std::to_string(anchor));
+
+            struct journal_source_entry {
+                const omega_change_t *change{};
+                int64_t serial{};
+            };
+            struct journal_canonical_entry {
+                journal_source_entry source;
+                std::optional<journal_source_entry> replacement;
+            };
+
+            const auto storage_kind = [](const omega_change_t *change, bool checkpoint_backed) {
+                if (checkpoint_backed) { return ::omega_edit::v1::ACTION_JOURNAL_PAYLOAD_STORAGE_CHECKPOINT_BACKED; }
+                switch (omega_change_get_data_storage(change)) {
+                    case OMEGA_CHANGE_DATA_STORAGE_INLINE:
+                        return ::omega_edit::v1::ACTION_JOURNAL_PAYLOAD_STORAGE_INLINE;
+                    case OMEGA_CHANGE_DATA_STORAGE_FILE_BACKED:
+                        return ::omega_edit::v1::ACTION_JOURNAL_PAYLOAD_STORAGE_FILE_BACKED;
+                    case OMEGA_CHANGE_DATA_STORAGE_NONE:
+                        return ::omega_edit::v1::ACTION_JOURNAL_PAYLOAD_STORAGE_NONE;
+                }
+                return ::omega_edit::v1::ACTION_JOURNAL_PAYLOAD_STORAGE_UNSPECIFIED;
+            };
+            const auto transaction_id_for = [](const omega_change_t *change) {
+                const auto transaction_start = omega_change_get_transaction_start_serial(change);
+                return transaction_start > 0 ? "transaction:" + std::to_string(transaction_start) : std::string{};
+            };
+            bool invalid_history_kind = false;
+            const auto append_entry = [&](const journal_canonical_entry &canonical, const std::string &transaction_id,
+                                          int64_t continuation_anchor) -> bool {
+                const auto kind_char = omega_change_get_kind_as_char(canonical.source.change);
+                auto kind = ::omega_edit::v1::CHANGE_LOG_ENTRY_KIND_UNSPECIFIED;
+                if (canonical.replacement) {
+                    kind = ::omega_edit::v1::CHANGE_LOG_ENTRY_KIND_REPLACE;
+                } else if (kind_char == 'D') {
+                    kind = ::omega_edit::v1::CHANGE_LOG_ENTRY_KIND_DELETE;
+                } else if (kind_char == 'I') {
+                    kind = ::omega_edit::v1::CHANGE_LOG_ENTRY_KIND_INSERT;
+                } else if (kind_char == 'O') {
+                    kind = ::omega_edit::v1::CHANGE_LOG_ENTRY_KIND_OVERWRITE;
+                } else if (kind_char == 'T') {
+                    kind = ::omega_edit::v1::CHANGE_LOG_ENTRY_KIND_TRANSFORM;
+                }
+                if (kind == ::omega_edit::v1::CHANGE_LOG_ENTRY_KIND_UNSPECIFIED) {
+                    invalid_history_kind = true;
+                    return false;
+                }
+                if (!include_all_kinds && !included_kinds[static_cast<size_t>(kind)]) { return true; }
+                if (request->has_transaction_id() && request->transaction_id() != transaction_id) { return true; }
+                if (response->entries_size() >= static_cast<int>(request->capacity())) {
+                    response->set_has_more(true);
+                    response->set_next_anchor_serial_decimal(std::to_string(continuation_anchor));
+                    return false;
+                }
+
+                auto *entry = response->add_entries();
+                entry->set_entry_index_decimal(std::to_string(response->entries_size() - 1));
+                entry->set_first_serial_decimal(std::to_string(canonical.source.serial));
+                entry->set_last_serial_decimal(std::to_string(canonical.replacement ? canonical.replacement->serial
+                                                                                    : canonical.source.serial));
+                const auto change_count_before = canonical.source.serial - 1;
+                const auto change_count_after =
+                        canonical.replacement ? canonical.replacement->serial : canonical.source.serial;
+                entry->set_change_count_before_decimal(std::to_string(change_count_before));
+                entry->set_change_count_after_decimal(std::to_string(change_count_after));
+                const auto checkpoint_before =
+                        omega_session_get_checkpoint_at_change_count(locked_session.session(), change_count_before);
+                if (checkpoint_before >= 0) { entry->set_checkpoint_before_decimal(std::to_string(checkpoint_before)); }
+                const auto checkpoint_after =
+                        omega_session_get_checkpoint_at_change_count(locked_session.session(), change_count_after);
+                if (checkpoint_after >= 0) { entry->set_checkpoint_after_decimal(std::to_string(checkpoint_after)); }
+                entry->set_kind(kind);
+                entry->set_offset_decimal(std::to_string(omega_change_get_offset(canonical.source.change)));
+                const auto remove_length = omega_change_get_length(canonical.source.change);
+                const auto *data_source =
+                        canonical.replacement ? canonical.replacement->change : canonical.source.change;
+                const auto data_length = kind == ::omega_edit::v1::CHANGE_LOG_ENTRY_KIND_TRANSFORM
+                                                 ? 0
+                                                 : omega_change_get_data_length(data_source);
+                entry->set_length_decimal(
+                        std::to_string(kind == ::omega_edit::v1::CHANGE_LOG_ENTRY_KIND_INSERT ? 0 : remove_length));
+                entry->set_data_length_decimal(std::to_string(data_length));
+                int64_t size_delta = 0;
+                if (kind == ::omega_edit::v1::CHANGE_LOG_ENTRY_KIND_INSERT) {
+                    size_delta = data_length;
+                } else if (kind == ::omega_edit::v1::CHANGE_LOG_ENTRY_KIND_DELETE) {
+                    size_delta = -remove_length;
+                } else if (kind == ::omega_edit::v1::CHANGE_LOG_ENTRY_KIND_REPLACE) {
+                    size_delta = data_length - remove_length;
+                } else if (kind == ::omega_edit::v1::CHANGE_LOG_ENTRY_KIND_TRANSFORM) {
+                    const auto before = omega_change_get_transform_computed_file_size_before(canonical.source.change);
+                    const auto after = omega_change_get_transform_computed_file_size_after(canonical.source.change);
+                    size_delta = before >= 0 && after >= 0 ? after - before : 0;
+                    auto *transform = entry->mutable_transform();
+                    const auto *transform_id = omega_change_get_transform_id(canonical.source.change);
+                    const auto *options_json = omega_change_get_transform_options_json(canonical.source.change);
+                    transform->set_transform_id(transform_id ? transform_id : "");
+                    transform->set_options_json(options_json ? options_json : "");
+                    transform->set_replacement_length_decimal(
+                            std::to_string(omega_change_get_transform_replacement_length(canonical.source.change)));
+                    transform->set_computed_file_size_before_decimal(std::to_string(before));
+                    transform->set_computed_file_size_after_decimal(std::to_string(after));
+                }
+                entry->set_size_delta_decimal(std::to_string(size_delta));
+                if (!transaction_id.empty()) { entry->set_transaction_id(transaction_id); }
+                entry->set_payload_storage(
+                        storage_kind(data_source, kind == ::omega_edit::v1::CHANGE_LOG_ENTRY_KIND_TRANSFORM));
+                return true;
+            };
+
+            struct journal_visit_context {
+                bool older{};
+                bool cancelled{};
+                bool stopped{};
+                grpc::ServerContext *rpc_context{};
+                std::optional<journal_source_entry> pending{};
+                std::function<bool(const omega_change_t *, const omega_change_t *)> is_replacement_pair;
+                std::function<bool(const journal_canonical_entry &, int64_t)> append;
+            };
+            journal_visit_context visit_context{
+                    older,
+                    false,
+                    false,
+                    context,
+                    std::nullopt,
+                    is_replacement_pair,
+                    [&](const journal_canonical_entry &canonical, int64_t continuation_anchor) {
+                        return append_entry(canonical, transaction_id_for(canonical.source.change),
+                                            continuation_anchor);
+                    }};
+            const auto visit_change = [](const omega_change_t *change, int64_t serial, void *user_data) {
+                auto &state = *static_cast<journal_visit_context *>(user_data);
+                if (state.rpc_context->IsCancelled()) {
+                    state.cancelled = true;
+                    return 1;
+                }
+
+                const journal_source_entry current{change, serial};
+                if (state.pending) {
+                    const auto replacement = state.older
+                                                     ? state.is_replacement_pair(current.change, state.pending->change)
+                                                     : state.is_replacement_pair(state.pending->change, current.change);
+                    if (replacement) {
+                        const journal_canonical_entry canonical =
+                                state.older
+                                        ? journal_canonical_entry{current, journal_source_entry{state.pending->change,
+                                                                                                state.pending->serial}}
+                                        : journal_canonical_entry{*state.pending, current};
+                        const auto continuation_anchor = state.pending->serial;
+                        state.pending.reset();
+                        if (!state.append(canonical, continuation_anchor)) {
+                            state.stopped = true;
+                            return 1;
+                        }
+                        return 0;
+                    }
+
+                    const journal_canonical_entry pending_entry{*state.pending, std::nullopt};
+                    const auto continuation_anchor = state.pending->serial;
+                    state.pending.reset();
+                    if (!state.append(pending_entry, continuation_anchor)) {
+                        state.stopped = true;
+                        return 1;
+                    }
+                }
+
+                const auto kind = omega_change_get_kind_as_char(change);
+                if ((state.older && kind == 'I') || (!state.older && kind == 'D')) {
+                    state.pending = current;
+                    return 0;
+                }
+                if (!state.append(journal_canonical_entry{current, std::nullopt}, serial)) {
+                    state.stopped = true;
+                    return 1;
+                }
+                return 0;
+            };
+
+            const auto visit_result = omega_visit_retained_history(locked_session.session(), older ? 1 : anchor,
+                                                                   older ? anchor : history_tip, older ? 1 : 0,
+                                                                   visit_change, &visit_context);
+            if (visit_context.cancelled) {
+                return grpc::Status(grpc::StatusCode::CANCELLED, "action journal request was cancelled");
+            }
+            if (invalid_history_kind || visit_result < 0) {
+                return grpc::Status(grpc::StatusCode::ABORTED, "action journal encountered invalid retained history");
+            }
+            if (!visit_context.stopped && visit_context.pending) {
+                const journal_canonical_entry pending_entry{*visit_context.pending, std::nullopt};
+                append_entry(pending_entry, transaction_id_for(pending_entry.source.change),
+                             pending_entry.source.serial);
+            }
+            if (invalid_history_kind) {
+                return grpc::Status(grpc::StatusCode::ABORTED, "action journal encountered invalid retained history");
             }
             return grpc::Status::OK;
         }
@@ -2365,6 +2936,12 @@ namespace omega_edit {
                 return grpc::Status(grpc::StatusCode::INVALID_ARGUMENT,
                                     "unsupported fingerprint digest algorithm: " + algorithm);
             }
+            const auto plugin_id =
+                    request->has_plugin_id() ? request->plugin_id() : std::string(DEFAULT_DIGEST_PLUGIN_ID);
+            if (!digest_plugin_id_is_safe(plugin_id)) {
+                return grpc::Status(grpc::StatusCode::INVALID_ARGUMENT,
+                                    "invalid fingerprint digest plugin id: " + plugin_id);
+            }
             const auto options_json = make_digest_options_json(algorithm);
 
             const auto inspection_content = fingerprint_content_to_session_content(content);
@@ -2376,36 +2953,41 @@ namespace omega_edit {
 
             session_content_file_reader reader{source.file_path, source.reader_file_offset, source.effective_length};
             const auto inspect_status = inspect_with_streaming_plugin(
-                    context, transform_plugin_registry_, transform_plugin_registry_mutex_,
-                    SESSION_FINGERPRINT_DIGEST_PLUGIN_ID, options_json.c_str(), source.checkpoint_directory.c_str(), 0,
-                    source.effective_length, read_session_content_file_chunk, &reader,
-                    grpc::StatusCode::FAILED_PRECONDITION,
-                    "session fingerprint digest plugin is not registered: " +
-                            std::string(SESSION_FINGERPRINT_DIGEST_PLUGIN_ID),
+                    context, transform_plugin_registry_, transform_plugin_registry_mutex_, plugin_id,
+                    options_json.c_str(), source.checkpoint_directory.c_str(), 0, source.effective_length,
+                    read_session_content_file_chunk, &reader, grpc::StatusCode::FAILED_PRECONDITION,
+                    "session fingerprint digest plugin is not registered: " + plugin_id,
                     "session fingerprint digest plugin must be a streaming inspect plugin",
                     "unsupported fingerprint digest algorithm: " + algorithm,
-                    "session fingerprint digest plugin cancelled: " + std::string(SESSION_FINGERPRINT_DIGEST_PLUGIN_ID),
-                    grpc::StatusCode::ABORTED,
-                    "session fingerprint digest plugin failed: " + std::string(SESSION_FINGERPRINT_DIGEST_PLUGIN_ID),
-                    &plugin_response.response);
+                    "session fingerprint digest plugin cancelled: " + plugin_id, grpc::StatusCode::ABORTED,
+                    "session fingerprint digest plugin failed: " + plugin_id, &plugin_response.response);
             if (!inspect_status.ok()) { return inspect_status; }
 
-            if (plugin_response.response.result_length <= 0 || plugin_response.response.result_bytes == nullptr) {
+            if (plugin_response.response.result_length <= 0 ||
+                plugin_response.response.result_length > static_cast<int64_t>(DIGEST_VALUE_LIMIT) ||
+                plugin_response.response.result_bytes == nullptr) {
                 return grpc::Status(grpc::StatusCode::INTERNAL,
-                                    "session fingerprint digest plugin returned an empty digest");
+                                    "session fingerprint digest plugin returned an invalid digest length");
             }
 
-            std::string digest_value(reinterpret_cast<const char *>(plugin_response.response.result_bytes),
-                                     static_cast<size_t>(plugin_response.response.result_length));
-            if (plugin_response.response.result_label && *plugin_response.response.result_label) {
-                algorithm = normalize_digest_algorithm(plugin_response.response.result_label);
+            auto digest_value = normalize_digest_value(
+                    std::string(reinterpret_cast<const char *>(plugin_response.response.result_bytes),
+                                static_cast<size_t>(plugin_response.response.result_length)));
+            std::string output_algorithm;
+            if (!normalize_plugin_digest_algorithm(plugin_response.response.result_label, algorithm,
+                                                   output_algorithm) ||
+                !digest_value_is_safe(digest_value)) {
+                return grpc::Status(grpc::StatusCode::INTERNAL,
+                                    "session fingerprint digest plugin returned invalid digest metadata");
             }
+            algorithm = std::move(output_algorithm);
 
             response->set_session_id(request->session_id());
             response->set_content(content);
             auto *fingerprint = response->mutable_fingerprint();
             fingerprint->set_byte_length(source.content_byte_length);
             auto *digest_response = fingerprint->mutable_digest();
+            digest_response->set_plugin_id(plugin_id);
             digest_response->set_algorithm(algorithm);
             digest_response->set_value(digest_value);
             return grpc::Status::OK;
@@ -2463,6 +3045,16 @@ namespace omega_edit {
                 return grpc::Status(grpc::StatusCode::INVALID_ARGUMENT, "plugin_id is required");
             }
 
+            auto transform_slot = transform_gate_.try_acquire();
+            if (!transform_slot) {
+                return grpc::Status(grpc::StatusCode::RESOURCE_EXHAUSTED,
+                                    "all configured transform slots are active; retry later");
+            }
+            if (resource_limits_.max_transform_options_bytes > 0 && request->has_options_json() &&
+                request->options_json().size() > resource_limits_.max_transform_options_bytes) {
+                return grpc::Status(grpc::StatusCode::RESOURCE_EXHAUSTED,
+                                    "transform options exceed configured materialization limit");
+            }
             const int64_t requested_offset = request->has_offset() ? request->offset() : 0;
             const int64_t requested_length = request->has_length() ? request->length() : 0;
             transform_plugin_response_guard plugin_response;
@@ -2488,6 +3080,12 @@ namespace omega_edit {
             if (!inspect_plugin_response_is_valid(plugin_response.response)) {
                 return grpc::Status(grpc::StatusCode::INTERNAL,
                                     "session content inspection returned an invalid result");
+            }
+            if (resource_limits_.max_transform_result_bytes > 0 &&
+                plugin_response.response.result_length >
+                        static_cast<int64_t>(resource_limits_.max_transform_result_bytes)) {
+                return grpc::Status(grpc::StatusCode::RESOURCE_EXHAUSTED,
+                                    "inspection result exceeds configured materialization limit");
             }
 
             response->set_session_id(request->session_id());
@@ -2558,9 +3156,14 @@ namespace omega_edit {
 
         // ---------- Search ----------
 
-        grpc::Status EditorServiceImpl::SearchSession(grpc::ServerContext * /*context*/,
+        grpc::Status EditorServiceImpl::SearchSession(grpc::ServerContext *context,
                                                       const ::omega_edit::v1::SearchSessionRequest *request,
                                                       ::omega_edit::v1::SearchSessionResponse *response) {
+            auto scan_slot = scan_gate_.try_acquire();
+            if (!scan_slot) {
+                return grpc::Status(grpc::StatusCode::RESOURCE_EXHAUSTED,
+                                    "all configured scan slots are active; retry later");
+            }
             bool is_reverse = request->has_is_reverse() ? request->is_reverse() : false;
             const auto requested_case_folding = request->has_case_folding()
                                                         ? request->case_folding()
@@ -2618,6 +3221,10 @@ namespace omega_edit {
                     auto search_result = 0;
                     while ((bounded_limit <= 0 || num_matches < bounded_limit) &&
                            (search_result = omega_search_next_match(ctx, 1)) > 0) {
+                        if (context->IsCancelled()) {
+                            omega_search_destroy_context(ctx);
+                            return grpc::Status(grpc::StatusCode::CANCELLED, "search cancelled");
+                        }
                         match_offsets.push_back(omega_search_context_get_match_offset(ctx));
                         ++num_matches;
                     }
@@ -2759,6 +3366,9 @@ namespace omega_edit {
                                                         std::to_string(replace_match_limit) +
                                                         "; use checkpointed replace for large replace-all operations");
                         }
+                        ResourceAdmissionLease checkpoint_slot;
+                        const auto checkpoint_status = admit_checkpoint_write(session, checkpoint_slot);
+                        if (!checkpoint_status.ok()) { return checkpoint_status; }
                         const auto rc = omega_edit_replace_all_bytes_directional(
                                 session, reinterpret_cast<const omega_byte_t *>(request->pattern().data()),
                                 static_cast<int64_t>(request->pattern().size()),
@@ -2871,6 +3481,9 @@ namespace omega_edit {
                                                 request->session_id());
                 }
 
+                ResourceAdmissionLease checkpoint_slot;
+                const auto checkpoint_status = admit_checkpoint_write(session, checkpoint_slot);
+                if (!checkpoint_status.ok()) { return checkpoint_status; }
                 const auto rc = omega_edit_replace_all_bytes(
                         session, reinterpret_cast<const omega_byte_t *>(request->pattern().data()),
                         static_cast<int64_t>(request->pattern().size()),
@@ -2918,6 +3531,67 @@ namespace omega_edit {
             return grpc::Status::OK;
         }
 
+        grpc::Status EditorServiceImpl::CheckoutCheckpoint(grpc::ServerContext * /*context*/,
+                                                           const ::omega_edit::v1::CheckoutCheckpointRequest *request,
+                                                           ::omega_edit::v1::CheckoutCheckpointResponse *response) {
+            auto mutation_guard = session_manager_.try_begin_mutation(request->session_id());
+            if (!mutation_guard) {
+                return status_for_session_operation_start(mutation_guard.result(), "checkout checkpoint",
+                                                          request->session_id());
+            }
+
+            auto locked_session = session_manager_.lock_session(request->session_id());
+            if (!locked_session) {
+                return grpc::Status(grpc::StatusCode::NOT_FOUND, "session not found: " + request->session_id());
+            }
+            auto *session = locked_session.session();
+
+            const auto requested_checkpoint_count = request->checkpoint_count();
+            const auto active_checkpoint_count = omega_session_get_num_checkpoints(session);
+            const auto future_checkpoint_count = omega_session_get_num_future_checkpoints(session);
+            if (requested_checkpoint_count < 0 ||
+                requested_checkpoint_count > active_checkpoint_count + future_checkpoint_count) {
+                return grpc::Status(grpc::StatusCode::OUT_OF_RANGE,
+                                    "checkpoint boundary is outside the materialized timeline");
+            }
+
+            if (0 != omega_edit_checkout_checkpoint(session, requested_checkpoint_count)) {
+                return grpc::Status(grpc::StatusCode::INTERNAL, "failed to checkout checkpoint");
+            }
+
+            response->set_session_id(request->session_id());
+            response->set_checkpoint_count(omega_session_get_num_checkpoints(session));
+            response->set_future_checkpoint_count(omega_session_get_num_future_checkpoints(session));
+            response->set_change_count(omega_session_get_num_changes(session));
+            return grpc::Status::OK;
+        }
+
+        grpc::Status
+        EditorServiceImpl::DiscardCheckpointFuture(grpc::ServerContext * /*context*/,
+                                                   const ::omega_edit::v1::DiscardCheckpointFutureRequest *request,
+                                                   ::omega_edit::v1::DiscardCheckpointFutureResponse *response) {
+            auto mutation_guard = session_manager_.try_begin_mutation(request->session_id());
+            if (!mutation_guard) {
+                return status_for_session_operation_start(mutation_guard.result(), "discard checkpoint future",
+                                                          request->session_id());
+            }
+
+            auto locked_session = session_manager_.lock_session(request->session_id());
+            if (!locked_session) {
+                return grpc::Status(grpc::StatusCode::NOT_FOUND, "session not found: " + request->session_id());
+            }
+            auto *session = locked_session.session();
+            const auto discarded = omega_edit_discard_checkpoint_future(session);
+            if (discarded < 0) {
+                return grpc::Status(grpc::StatusCode::INTERNAL, "failed to discard checkpoint future");
+            }
+
+            response->set_session_id(request->session_id());
+            response->set_discarded_checkpoint_count(discarded);
+            response->set_checkpoint_count(omega_session_get_num_checkpoints(session));
+            return grpc::Status::OK;
+        }
+
         grpc::Status
         EditorServiceImpl::RestoreLastCheckpoint(grpc::ServerContext * /*context*/,
                                                  const ::omega_edit::v1::RestoreLastCheckpointRequest *request,
@@ -2962,7 +3636,9 @@ namespace omega_edit {
                 return grpc::Status(grpc::StatusCode::NOT_FOUND, "session not found: " + request->session_id());
             }
             auto *session = locked_session.session();
-
+            ResourceAdmissionLease checkpoint_slot;
+            const auto checkpoint_status = admit_checkpoint_write(session, checkpoint_slot);
+            if (!checkpoint_status.ok()) { return checkpoint_status; }
             if (0 != omega_edit_create_checkpoint(session)) {
                 return grpc::Status(grpc::StatusCode::INTERNAL, "failed to create checkpoint");
             }
@@ -2989,8 +3665,18 @@ namespace omega_edit {
         EditorServiceImpl::ApplyTransformPlugin(grpc::ServerContext *context,
                                                 const ::omega_edit::v1::ApplyTransformPluginRequest *request,
                                                 ::omega_edit::v1::ApplyTransformPluginResponse *response) {
+            auto transform_slot = transform_gate_.try_acquire();
+            if (!transform_slot) {
+                return grpc::Status(grpc::StatusCode::RESOURCE_EXHAUSTED,
+                                    "all configured transform slots are active; retry later");
+            }
             if (request->plugin_id().empty()) {
                 return grpc::Status(grpc::StatusCode::INVALID_ARGUMENT, "plugin_id is required");
+            }
+            if (resource_limits_.max_transform_options_bytes > 0 && request->has_options_json() &&
+                request->options_json().size() > resource_limits_.max_transform_options_bytes) {
+                return grpc::Status(grpc::StatusCode::RESOURCE_EXHAUSTED,
+                                    "transform options exceed configured materialization limit");
             }
 
             const int64_t offset = request->has_offset() ? request->offset() : 0;
@@ -3062,6 +3748,12 @@ namespace omega_edit {
             }
 
             operation = plugin_metadata.operation;
+            ResourceAdmissionLease checkpoint_slot;
+            if (operation == OMEGA_TRANSFORM_PLUGIN_OPERATION_REPLACE ||
+                operation == OMEGA_TRANSFORM_PLUGIN_OPERATION_REPLACE_AND_INSPECT) {
+                const auto checkpoint_status = admit_checkpoint_write(session, checkpoint_slot);
+                if (!checkpoint_status.ok()) { return checkpoint_status; }
+            }
             const char *options_json = request->has_options_json() ? request->options_json().c_str() : nullptr;
             if (0 !=
                 omega_transform_plugin_options_match_args_schema(options_json, plugin_metadata.args_schema_ptr())) {
@@ -3095,6 +3787,12 @@ namespace omega_edit {
                                                 "Transform plugin returned an invalid inspection result"));
                 return grpc::Status(grpc::StatusCode::INTERNAL,
                                     "transform plugin returned an invalid inspection result");
+            }
+            if (resource_limits_.max_transform_result_bytes > 0 &&
+                plugin_response.response.result_length >
+                        static_cast<int64_t>(resource_limits_.max_transform_result_bytes)) {
+                return grpc::Status(grpc::StatusCode::RESOURCE_EXHAUSTED,
+                                    "transform result exceeds configured materialization limit");
             }
 
             const bool operation_replaces = operation == OMEGA_TRANSFORM_PLUGIN_OPERATION_REPLACE ||
@@ -3143,6 +3841,11 @@ namespace omega_edit {
         EditorServiceImpl::GetByteFrequencyProfile(grpc::ServerContext * /*context*/,
                                                    const ::omega_edit::v1::GetByteFrequencyProfileRequest *request,
                                                    ::omega_edit::v1::GetByteFrequencyProfileResponse *response) {
+            auto scan_slot = scan_gate_.try_acquire();
+            if (!scan_slot) {
+                return grpc::Status(grpc::StatusCode::RESOURCE_EXHAUSTED,
+                                    "all configured scan slots are active; retry later");
+            }
             omega_byte_frequency_profile_t profile;
             std::memset(profile, 0, sizeof(profile));
 
@@ -3175,6 +3878,11 @@ namespace omega_edit {
         grpc::Status EditorServiceImpl::GetCharacterCounts(grpc::ServerContext * /*context*/,
                                                            const ::omega_edit::v1::GetCharacterCountsRequest *request,
                                                            ::omega_edit::v1::GetCharacterCountsResponse *response) {
+            auto scan_slot = scan_gate_.try_acquire();
+            if (!scan_slot) {
+                return grpc::Status(grpc::StatusCode::RESOURCE_EXHAUSTED,
+                                    "all configured scan slots are active; retry later");
+            }
             omega_bom_t bom = omega_util_cstring_to_BOM(request->byte_order_mark().c_str());
             auto *counts = omega_character_counts_create();
             omega_character_counts_set_BOM(counts, bom);
@@ -3249,8 +3957,18 @@ namespace omega_edit {
         grpc::Status EditorServiceImpl::GetHeartbeat(grpc::ServerContext * /*context*/,
                                                      const ::omega_edit::v1::GetHeartbeatRequest *request,
                                                      ::omega_edit::v1::GetHeartbeatResponse *response) {
-            // Touch sessions referenced in the heartbeat to keep them alive
-            if (request->session_ids_size() > 0) { session_manager_.touch_sessions(request->session_ids()); }
+            // Touch sessions referenced in the heartbeat to keep them alive.
+            if (resource_limits_.max_heartbeat_session_ids > 0 &&
+                request->session_ids_size() > static_cast<int>(resource_limits_.max_heartbeat_session_ids)) {
+                return grpc::Status(grpc::StatusCode::RESOURCE_EXHAUSTED,
+                                    "heartbeat contains more session IDs than the configured limit");
+            }
+            if (request->session_ids_size() > 0) {
+                std::vector<std::string> unique_ids(request->session_ids().begin(), request->session_ids().end());
+                std::sort(unique_ids.begin(), unique_ids.end());
+                unique_ids.erase(std::unique(unique_ids.begin(), unique_ids.end()), unique_ids.end());
+                session_manager_.touch_sessions(unique_ids);
+            }
 
             auto now = std::chrono::system_clock::now();
             auto uptime = std::chrono::steady_clock::now() - start_time_;
@@ -3276,6 +3994,26 @@ namespace omega_edit {
                 response->set_peak_resident_memory_bytes(*memory.peak_resident_memory_bytes);
             }
 
+            const auto resources = session_manager_.resource_metrics_snapshot();
+            response->set_viewport_count(resources.viewport_count);
+            response->set_attachment_count(resources.attachment_count);
+            response->set_active_operation_count(resources.active_operation_count);
+            response->set_active_mutation_count(resources.active_mutation_count);
+            response->set_active_transform_count(resources.active_transform_count);
+            response->set_session_subscription_count(resources.session_subscription_count);
+            response->set_viewport_subscription_count(resources.viewport_subscription_count);
+            response->set_file_backed_session_count(resources.file_backed_session_count);
+            response->set_event_queue_dropped_count(resources.event_queue_dropped_count);
+            response->set_oldest_session_idle_ms(resources.oldest_session_idle_ms);
+            response->set_event_queue_bytes(resources.event_queue_bytes);
+            response->set_peak_event_queue_bytes(resources.peak_event_queue_bytes);
+            response->set_resource_rejection_count(resources.resource_rejection_count + scan_gate_.rejected() +
+                                                   transform_gate_.rejected() + changelog_export_gate_.rejected() +
+                                                   checkpoint_write_gate_.rejected());
+            response->set_active_scan_count(static_cast<int64_t>(scan_gate_.active()));
+            response->set_active_changelog_export_count(static_cast<int64_t>(changelog_export_gate_.active()));
+            response->set_active_checkpoint_write_count(static_cast<int64_t>(checkpoint_write_gate_.active()));
+
             return grpc::Status::OK;
         }
 
@@ -3285,9 +4023,15 @@ namespace omega_edit {
                 grpc::ServerContext *context, const ::omega_edit::v1::SubscribeToSessionEventsRequest *request,
                 grpc::ServerWriter<::omega_edit::v1::SubscribeToSessionEventsResponse> *writer) {
 
-            auto queue = session_manager_.subscribe_session_events(request->id(),
-                                                                   request->has_interest() ? request->interest() : -1);
-            if (!queue) { return grpc::Status(grpc::StatusCode::NOT_FOUND, "session not found: " + request->id()); }
+            EventSubscriptionCreateError subscription_error{};
+            auto queue = session_manager_.subscribe_session_events(
+                    request->id(), request->has_interest() ? request->interest() : -1, &subscription_error);
+            if (!queue) {
+                return subscription_error == EventSubscriptionCreateError::RESOURCE_EXHAUSTED
+                               ? grpc::Status(grpc::StatusCode::RESOURCE_EXHAUSTED,
+                                              "configured event subscription limit has been reached")
+                               : grpc::Status(grpc::StatusCode::NOT_FOUND, "session not found: " + request->id());
+            }
 
             SessionEventData event_data;
             while (!context->IsCancelled()) {
@@ -3340,9 +4084,15 @@ namespace omega_edit {
                 return grpc::Status(grpc::StatusCode::INVALID_ARGUMENT, "malformed viewport id: " + request->id());
             }
 
-            auto queue = session_manager_.subscribe_viewport_events(sid, vid,
-                                                                    request->has_interest() ? request->interest() : -1);
-            if (!queue) { return grpc::Status(grpc::StatusCode::NOT_FOUND, "viewport not found: " + request->id()); }
+            EventSubscriptionCreateError subscription_error{};
+            auto queue = session_manager_.subscribe_viewport_events(
+                    sid, vid, request->has_interest() ? request->interest() : -1, &subscription_error);
+            if (!queue) {
+                return subscription_error == EventSubscriptionCreateError::RESOURCE_EXHAUSTED
+                               ? grpc::Status(grpc::StatusCode::RESOURCE_EXHAUSTED,
+                                              "configured event subscription limit has been reached")
+                               : grpc::Status(grpc::StatusCode::NOT_FOUND, "viewport not found: " + request->id());
+            }
 
             ViewportEventData event_data;
             while (!context->IsCancelled()) {

@@ -41,7 +41,7 @@ struct omega_session_struct {
     omega_viewports_t viewports_{};            ///< Collection of viewports in this session
     omega_search_contexts_t search_contexts_{};///< Collection of active search contexts
     omega_models_t models_{};                  ///< Edit models (internal)
-    int64_t num_changes_adjustment_{};         ///< Number of changes in checkpoints
+    omega_models_t checkpoint_future_models_{};///< Checkpoint models preserved by non-destructive timeline rewind
     int64_t undo_snapshot_interval_{100};      ///< Undo model snapshot interval (0 = disabled, default 100)
     int64_t change_inline_payload_limit_{OMEGA_CHANGE_INLINE_PAYLOAD_LIMIT}; ///< Inline primitive payload threshold
     int8_t session_flags_{};                                                 ///< Internal state flags

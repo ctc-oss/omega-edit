@@ -6,7 +6,7 @@ import * as os from 'os'
 import * as path from 'path'
 import * as readline from 'readline'
 import { fileURLToPath } from 'url'
-import { findFirstAvailablePort } from '@omega-edit/client'
+import { findFirstAvailablePort, getSessionCount } from '@omega-edit/client'
 import { OmegaEditToolkit } from '../../src/service'
 import {
   assertAssistantCommandSurface,
@@ -65,6 +65,59 @@ function makeTransformDataHex(
 }
 
 describe('@omega-edit/ai mcp server', () => {
+  it('rejects primitive and oversized requests without terminating', async () => {
+    const child = spawn(
+      process.execPath,
+      [path.resolve(__dirname, '../../dist/cjs/mcp.js'), '--no-autostart'],
+      { stdio: ['pipe', 'pipe', 'pipe'] }
+    )
+    const responses: Array<Record<string, unknown>> = []
+    const stdoutReader = readline.createInterface({
+      input: child.stdout!,
+      crlfDelay: Infinity,
+    })
+    stdoutReader.on('line', (line) => {
+      responses.push(JSON.parse(line) as Record<string, unknown>)
+    })
+
+    const waitForResponses = async (count: number) => {
+      const deadline = Date.now() + 5000
+      while (responses.length < count && Date.now() < deadline) {
+        await new Promise((resolve) => setTimeout(resolve, 10))
+      }
+      assert.equal(responses.length, count)
+    }
+
+    try {
+      child.stdin!.write('null\n')
+      child.stdin!.write(`${'x'.repeat(1_048_577)}\n`)
+      child.stdin!.write('{"jsonrpc":"2.0","id":1,"method":"ping"}\n')
+      await waitForResponses(3)
+
+      assert.equal((responses[0].error as Record<string, unknown>).code, -32600)
+      assert.equal((responses[1].error as Record<string, unknown>).code, -32700)
+      assert.deepEqual(responses[2].result, {})
+      // Split a valid UTF-8 request across many writes, including within a code point.
+      const fragmented = Buffer.from(
+        JSON.stringify({ jsonrpc: '2.0', id: '🙂', method: 'ping' }) + '\r\n'
+      )
+      for (const byte of fragmented) {
+        child.stdin!.write(Buffer.from([byte]))
+        await new Promise((resolve) => setTimeout(resolve, 1))
+      }
+      await waitForResponses(4)
+      assert.equal(responses[3].id, '🙂')
+      assert.deepEqual(responses[3].result, {})
+      assert.equal(child.exitCode, null)
+      child.stdin!.end('{"jsonrpc":"2.0","id":2,"method":"ping"}')
+      await waitForResponses(5)
+      assert.deepEqual(responses[4].result, {})
+    } finally {
+      stdoutReader.close()
+      child.kill()
+    }
+  })
+
   it('wires MCP cancellation notifications to tool abort signals', () => {
     const source = fs.readFileSync(
       path.resolve(__dirname, '../../src/mcp.ts'),
@@ -84,6 +137,8 @@ describe('@omega-edit/ai mcp server', () => {
       source,
       /tool\.run\(argumentsObject, abortController\.signal\)/
     )
+    assert.match(source, /MAX_CONCURRENT_TOOL_CALLS = 8/)
+    assert.match(source, /activeToolCallCount >= MAX_CONCURRENT_TOOL_CALLS/)
   })
 
   it('serves OmegaEdit operations over MCP stdio', async function () {
@@ -92,6 +147,7 @@ describe('@omega-edit/ai mcp server', () => {
 
     const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'omega-edit-mcp-'))
     const inputPath = path.join(tempDir, 'input.bin')
+    const relativeInputPath = path.relative(process.cwd(), inputPath)
     fs.writeFileSync(inputPath, Buffer.from('hello world hello', 'utf8'))
 
     const toolkit = new OmegaEditToolkit({ port: port!, autoStart: true })
@@ -231,6 +287,179 @@ describe('@omega-edit/ai mcp server', () => {
         tools.some((tool) => tool.name === 'omega_edit_session_context'),
         'expected omega_edit_session_context in tool list'
       )
+      assert.ok(
+        tools.some((tool) => tool.name === 'omega_edit_run_file'),
+        'expected omega_edit_run_file in tool list'
+      )
+
+      await toolkit.startServer()
+      const sessionCountBeforeOneShot = await getSessionCount()
+      const shorthandResponse = await sendRequest('tools/call', {
+        name: 'omega_edit_run_file',
+        arguments: {
+          filePath: relativeInputPath,
+          tool: 'omega_edit_read_range',
+          arguments: { offset: 0, length: 5 },
+        },
+      })
+      const shorthandStructured = (
+        shorthandResponse.result as Record<string, unknown>
+      ).structuredContent as Record<string, unknown>
+      assert.equal(shorthandStructured.ephemeral, true)
+      assert.equal(shorthandStructured.mutated, false)
+      assert.equal(shorthandStructured.persisted, false)
+      const shorthandOperations = shorthandStructured.operations as Array<
+        Record<string, unknown>
+      >
+      assert.equal(
+        ((
+          (shorthandOperations[0].result as Record<string, unknown>)
+            .data as Record<string, unknown>
+        ).utf8 as string) || '',
+        'hello'
+      )
+      assert.equal(await getSessionCount(), sessionCountBeforeOneShot)
+
+      const oneShotOutputPath = path.join(tempDir, 'one-shot-output.bin')
+      const relativeOneShotOutputPath = path.relative(
+        process.cwd(),
+        oneShotOutputPath
+      )
+      const oneShotResponse = await sendRequest('tools/call', {
+        name: 'omega_edit_run_file',
+        arguments: {
+          filePath: relativeInputPath,
+          outputPath: relativeOneShotOutputPath,
+          operations: [
+            {
+              tool: 'omega_edit_read_range',
+              arguments: { offset: 0, length: 5 },
+            },
+            {
+              tool: 'omega_edit_apply_patch',
+              arguments: {
+                offset: 6,
+                operation: 'overwrite',
+                text: 'Omega',
+              },
+            },
+            {
+              tool: 'omega_edit_read_range',
+              arguments: { offset: 0, length: 17 },
+            },
+            {
+              tool: 'omega_edit_session_context',
+              arguments: {},
+            },
+          ],
+        },
+      })
+      const oneShotStructured = (
+        oneShotResponse.result as Record<string, unknown>
+      ).structuredContent as Record<string, unknown>
+      assert.equal(oneShotStructured.ephemeral, true)
+      assert.equal(oneShotStructured.mutated, true)
+      assert.equal(oneShotStructured.persisted, true)
+      assert.doesNotMatch(JSON.stringify(oneShotStructured), /sessionId/)
+      const contextOperation = (
+        oneShotStructured.operations as Array<Record<string, unknown>>
+      ).find((operation) => operation.tool === 'omega_edit_session_context')
+      assert.equal(
+        ((
+          (contextOperation?.result as Record<string, unknown>)
+            .session as Record<string, unknown>
+        ).filePath as string) || '',
+        path.resolve(relativeInputPath)
+      )
+      assert.equal(fs.readFileSync(inputPath, 'utf8'), 'hello world hello')
+      assert.equal(
+        fs.readFileSync(oneShotOutputPath, 'utf8'),
+        'hello Omega hello'
+      )
+      assert.equal(await getSessionCount(), sessionCountBeforeOneShot)
+
+      const missingOutputResponse = await sendRequest('tools/call', {
+        name: 'omega_edit_run_file',
+        arguments: {
+          filePath: inputPath,
+          operations: [
+            {
+              tool: 'omega_edit_apply_patch',
+              arguments: { offset: 0, operation: 'overwrite', text: 'H' },
+            },
+          ],
+        },
+      })
+      const missingOutputResult = missingOutputResponse.result as Record<
+        string,
+        unknown
+      >
+      assert.equal(missingOutputResult.isError, true)
+      assert.match(
+        ((missingOutputResult.structuredContent as Record<string, unknown>)
+          .error as string) || '',
+        /outputPath is required/
+      )
+      assert.equal(await getSessionCount(), sessionCountBeforeOneShot)
+
+      const discardedResponse = await sendRequest('tools/call', {
+        name: 'omega_edit_run_file',
+        arguments: {
+          filePath: inputPath,
+          discardChanges: true,
+          operations: [
+            {
+              tool: 'omega_edit_apply_patch',
+              arguments: {
+                offset: 6,
+                operation: 'overwrite',
+                text: 'Omega',
+              },
+            },
+            {
+              tool: 'omega_edit_read_range',
+              arguments: { offset: 0, length: 17 },
+            },
+          ],
+        },
+      })
+      const discardedStructured = (
+        discardedResponse.result as Record<string, unknown>
+      ).structuredContent as Record<string, unknown>
+      assert.equal(discardedStructured.mutated, true)
+      assert.equal(discardedStructured.persisted, false)
+      assert.equal(discardedStructured.discarded, true)
+      const discardedOperations = discardedStructured.operations as Array<
+        Record<string, unknown>
+      >
+      assert.equal(
+        ((
+          (discardedOperations[1].result as Record<string, unknown>)
+            .data as Record<string, unknown>
+        ).utf8 as string) || '',
+        'hello Omega hello'
+      )
+      assert.equal(fs.readFileSync(inputPath, 'utf8'), 'hello world hello')
+      assert.equal(await getSessionCount(), sessionCountBeforeOneShot)
+
+      const failedOneShotResponse = await sendRequest('tools/call', {
+        name: 'omega_edit_run_file',
+        arguments: {
+          filePath: inputPath,
+          operations: [
+            {
+              tool: 'omega_edit_read_range',
+              arguments: { offset: 1000, length: 1 },
+            },
+          ],
+        },
+      })
+      const failedOneShotResult = failedOneShotResponse.result as Record<
+        string,
+        unknown
+      >
+      assert.equal(failedOneShotResult.isError, true)
+      assert.equal(await getSessionCount(), sessionCountBeforeOneShot)
 
       const createSessionResponse = await sendRequest('tools/call', {
         name: 'omega_edit_create_session',
@@ -311,6 +540,11 @@ describe('@omega-edit/ai mcp server', () => {
       const previewChangeLogStructured = ((
         previewChangeLogResponse.result as Record<string, unknown>
       ).structuredContent as Record<string, unknown>) || { canApply: false }
+      assert.equal(
+        (previewChangeLogResponse.result as Record<string, unknown>).isError,
+        false,
+        JSON.stringify(previewChangeLogResponse.result)
+      )
       assert.equal(previewChangeLogStructured.canApply, true)
       assert.equal(
         ((previewChangeLogStructured.primitiveCounts as Record<string, unknown>)

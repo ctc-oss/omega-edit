@@ -30,6 +30,54 @@ export const TEXT_ENCODING_OPTIONS = [
   'macroman',
 ] as const
 export const DEFAULT_TEXT_ENCODING = 'ascii'
+const TIMELINE_METADATA_EDGE_COUNT = 8
+const TIMELINE_METADATA_CONTEXT_RADIUS = 12
+const TIMELINE_METADATA_SAVED_RADIUS = 4
+const TIMELINE_METADATA_SAMPLE_COUNT = 24
+
+export function checkpointTimelineMetadataWindow(
+  checkpointCount: number,
+  cursor: number,
+  savedCheckpoint?: number
+): number[] {
+  const checkpoints = new Set<number>()
+  const add = (checkpoint: number) => {
+    if (checkpoint >= 1 && checkpoint <= checkpointCount) {
+      checkpoints.add(checkpoint)
+    }
+  }
+  const addRange = (first: number, last: number) => {
+    for (let checkpoint = first; checkpoint <= last; checkpoint += 1) {
+      add(checkpoint)
+    }
+  }
+
+  addRange(1, TIMELINE_METADATA_EDGE_COUNT)
+  addRange(checkpointCount - TIMELINE_METADATA_EDGE_COUNT + 1, checkpointCount)
+  addRange(
+    cursor - TIMELINE_METADATA_CONTEXT_RADIUS,
+    cursor + TIMELINE_METADATA_CONTEXT_RADIUS
+  )
+  if (savedCheckpoint !== undefined) {
+    addRange(
+      savedCheckpoint - TIMELINE_METADATA_SAVED_RADIUS,
+      savedCheckpoint + TIMELINE_METADATA_SAVED_RADIUS
+    )
+  }
+  if (checkpointCount > 1) {
+    for (let index = 0; index < TIMELINE_METADATA_SAMPLE_COUNT; index += 1) {
+      add(
+        1 +
+          Math.round(
+            ((checkpointCount - 1) * index) /
+              (TIMELINE_METADATA_SAMPLE_COUNT - 1)
+          )
+      )
+    }
+  }
+
+  return [...checkpoints].sort((left, right) => left - right)
+}
 
 export type BytesPerRow = number
 export type BytesPerRowMode = 'fixed' | 'auto'
@@ -86,7 +134,68 @@ export interface WebviewSessionContentInfo {
   label: string
 }
 
+export const WEBVIEW_ACTION_JOURNAL_KINDS = [
+  'INSERT',
+  'DELETE',
+  'OVERWRITE',
+  'REPLACE',
+  'TRANSFORM',
+] as const
+
+export type WebviewActionJournalKind =
+  (typeof WEBVIEW_ACTION_JOURNAL_KINDS)[number]
+
+export interface WebviewActionJournalEntry {
+  index: string
+  firstSerial: string
+  lastSerial: string
+  kind: WebviewActionJournalKind
+  offset: string
+  length: string
+  dataLength: string
+  sizeDelta: string
+  changeCountBefore: string
+  changeCountAfter: string
+  checkpointBefore?: string
+  checkpointAfter?: string
+  transactionId?: string
+  payloadHint: 'none' | 'inline' | 'file-backed' | 'checkpoint-backed'
+  transform?: {
+    transformId: string
+    optionsJson?: string
+    replacementLength: string
+    computedFileSizeBefore: string
+    computedFileSizeAfter: string
+  }
+}
+
+export interface WebviewActionJournalViewport {
+  version: 1
+  activeTipSerial: string
+  changeCount: string
+  undoCount: string
+  checkpointCount: string
+  anchorSerial: string
+  capacity: number
+  direction: 'older' | 'newer'
+  entries: WebviewActionJournalEntry[]
+  hasMore: boolean
+  nextAnchorSerial?: string
+}
+
+export interface WebviewActionJournalCheckpoint {
+  checkpoint: number
+  changeCount: number
+  sourceChangeCount?: string
+  byteLengthAfter: string
+  boundaryKind: 'plain' | 'transform' | 'tip'
+  createdAt: number
+  available: boolean
+}
+
 export interface WebviewExternalHighlight {
+  /** Assigned by the host from the request, not from individual highlights. */
+  owner?: string
   id: string
   offset: number
   length: number
@@ -191,9 +300,16 @@ export type WebviewToHostMessage =
   | { type: 'createCheckpoint' }
   | { type: 'rollbackCheckpoint' }
   | { type: 'restoreCheckpoint' }
-  | { type: 'navigateCheckpointTimeline'; checkpoint: number }
-  | { type: 'hideCheckpointTimeline' }
+  | { type: 'navigateActionJournal'; changeCount: string }
   | { type: 'exportChangeLog' }
+  | {
+      type: 'requestActionJournalViewport'
+      anchorSerial?: string
+      capacity?: number
+      direction?: 'older' | 'newer'
+      append?: boolean
+    }
+  | { type: 'hideActionJournal' }
   | { type: 'applyChangeLog' }
   | { type: 'loadRangeMap' }
   | { type: 'unloadRangeMap' }
@@ -348,20 +464,38 @@ export type HostToWebviewMessage =
       visible: boolean
       cursor: number
       checkpointCount: number
+      originalByteLength: string
       savedChangeCount: number
       savedCheckpoint?: number
       savedOffBranch: boolean
       canRewind: boolean
       canFastForward: boolean
       navigating: boolean
-      checkpoints: Array<{
-        checkpoint: number
-        changeCount: number
-        createdAt: number
-        available: boolean
-        error?: string
-      }>
+      checkpoints: Array<
+        WebviewActionJournalCheckpoint & {
+          sourceChangeCount: string
+          replayChangeCount?: string
+          byteLengthBefore: string
+          archiveByteLength?: string
+          transformPluginIds: string[]
+          missingPluginIds: string[]
+          optimized: boolean
+          error?: string
+        }
+      >
     }
+  | {
+      type: 'actionJournalViewport'
+      visible: boolean
+      append: boolean
+      viewport: WebviewActionJournalViewport
+    }
+  | {
+      type: 'actionJournalError'
+      visible: boolean
+      message: string
+    }
+  | { type: 'actionJournalHidden' }
   | {
       type: 'clipboardComplete'
       action: 'copy' | 'cut'
@@ -465,6 +599,16 @@ export type ServerHealthMetricId =
   | 'residentMemory'
   | 'virtualMemory'
   | 'peakResidentMemory'
+  | 'viewports'
+  | 'attachments'
+  | 'activeOperations'
+  | 'activeMutations'
+  | 'activeTransforms'
+  | 'sessionSubscriptions'
+  | 'viewportSubscriptions'
+  | 'fileBackedSessions'
+  | 'droppedEvents'
+  | 'oldestSessionIdle'
   | 'error'
 
 export interface ServerHealthMetric {
@@ -489,14 +633,6 @@ export function normalizeBytesPerRow(value: unknown): BytesPerRow {
     value <= MAX_BYTES_PER_ROW
     ? value
     : DEFAULT_BYTES_PER_ROW
-}
-
-export function normalizeBytesPerRowSetting(value: unknown): number {
-  return normalizeBytesPerRow(value)
-}
-
-export function bytesPerRowFromSetting(value: unknown): BytesPerRow {
-  return normalizeBytesPerRowSetting(value)
 }
 
 export function normalizeBytesPerRowMode(value: unknown): BytesPerRowMode {
@@ -708,6 +844,12 @@ function safeExternalHighlightKind(
     value === 'warning' ||
     value === 'breakpoint' ||
     value === 'secondary'
+    ? value
+    : undefined
+}
+
+function safeActionJournalDecimal(value: unknown): string | undefined {
+  return typeof value === 'string' && /^(0|[1-9]\d{0,18})$/.test(value)
     ? value
     : undefined
 }
@@ -956,13 +1098,46 @@ export function normalizeWebviewMessage(
     case 'revert':
       return { type: raw.type }
 
-    case 'hideCheckpointTimeline':
+    case 'hideActionJournal':
       return { type: raw.type }
 
-    case 'navigateCheckpointTimeline': {
-      const checkpoint = safeNonNegativeInteger(raw.checkpoint)
-      return checkpoint !== undefined
-        ? { type: raw.type, checkpoint }
+    case 'requestActionJournalViewport': {
+      const anchorSerial =
+        raw.anchorSerial === undefined
+          ? undefined
+          : safeActionJournalDecimal(raw.anchorSerial)
+      const capacity =
+        raw.capacity === undefined
+          ? undefined
+          : safeNonNegativeInteger(raw.capacity, 1000)
+      const direction =
+        raw.direction === undefined
+          ? undefined
+          : raw.direction === 'older' || raw.direction === 'newer'
+            ? raw.direction
+            : null
+      if (
+        (raw.anchorSerial !== undefined && anchorSerial === undefined) ||
+        (raw.capacity !== undefined && capacity === undefined) ||
+        (capacity !== undefined && capacity === 0) ||
+        direction === null ||
+        (raw.append !== undefined && typeof raw.append !== 'boolean')
+      ) {
+        return undefined
+      }
+      return {
+        type: raw.type,
+        ...(anchorSerial === undefined ? {} : { anchorSerial }),
+        ...(capacity === undefined ? {} : { capacity }),
+        ...(direction === undefined ? {} : { direction }),
+        ...(raw.append === undefined ? {} : { append: raw.append }),
+      }
+    }
+
+    case 'navigateActionJournal': {
+      const changeCount = safeActionJournalDecimal(raw.changeCount)
+      return changeCount !== undefined
+        ? { type: raw.type, changeCount }
         : undefined
     }
 
@@ -1080,8 +1255,15 @@ export function normalizeWebviewMessage(
         raw.contentSource === undefined
           ? 'computed'
           : safeSessionContentSource(raw.contentSource)
+      // Transform APIs use zero length as the sentinel for offset through EOF.
       const range = contentSource
-        ? safeContentLengthRange(context, contentSource, raw.offset, raw.length)
+        ? safeContentLengthRange(
+            context,
+            contentSource,
+            raw.offset,
+            raw.length,
+            true
+          )
         : undefined
       const optionsJson =
         raw.optionsJson === undefined
@@ -1185,4 +1367,24 @@ export function normalizeWebviewMessage(
     default:
       return undefined
   }
+}
+
+// Weak keys retain no obsolete viewport highlights. Remember the fields as well
+// so callers that mutate a highlight's identity cannot receive a stale key.
+const externalHighlightKeyCache = new WeakMap<
+  { id: string; owner?: string },
+  { id: string; owner?: string; key: string }
+>()
+
+/** Identity for UI keys and hover state; highlight ids are local to an owner. */
+export function externalHighlightKey(highlight: {
+  id: string
+  owner?: string
+}): string {
+  const { id, owner } = highlight
+  const cached = externalHighlightKeyCache.get(highlight)
+  if (cached && cached.id === id && cached.owner === owner) return cached.key
+  const key = JSON.stringify([owner ?? null, id])
+  externalHighlightKeyCache.set(highlight, { id, owner, key })
+  return key
 }

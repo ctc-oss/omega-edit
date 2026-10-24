@@ -30,7 +30,7 @@ const {
   OMEGA_EDIT_SEARCH_PREVIOUS_COMMAND,
   OMEGA_EDIT_SET_EXTERNAL_HIGHLIGHTS_COMMAND,
   OMEGA_EDIT_SET_TEXT_ENCODING_COMMAND,
-  OMEGA_EDIT_SHOW_CHECKPOINT_TIMELINE_COMMAND,
+  OMEGA_EDIT_SHOW_ACTION_JOURNAL_COMMAND,
   OMEGA_EDIT_ROLLBACK_CHECKPOINT_COMMAND,
   OMEGA_EDIT_TOGGLE_EXPERIMENTAL_TRANSFORM_PLUGINS_COMMAND,
   OMEGA_EDIT_TOGGLE_INSERT_DIRECTION_COMMAND,
@@ -41,6 +41,7 @@ const {
 const {
   MAX_ANALYSIS_PROFILE_BYTES,
   MAX_TRANSFORM_OPTIONS_LENGTH,
+  checkpointTimelineMetadataWindow,
   normalizeExternalHighlights,
   normalizeBytesPerRow,
   normalizeWebviewMessage,
@@ -49,6 +50,11 @@ const {
   assertRangeMapFitsFile,
   parseRangeMapContent,
 } = require('../out/rangeMap.js')
+const {
+  byteToHex2,
+  bytesToHex,
+  isPrintableAscii,
+} = require('../out/textEncoding.js')
 
 function encodeRangeMap(rangeMap) {
   return Buffer.from(
@@ -123,11 +129,14 @@ test('package.json matches shared extension constants', () => {
     `${packageJson.publisher}.${packageJson.name}`,
     OMEGA_EDIT_EXTENSION_ID
   )
-  const bytesPerRowConfiguration =
-    packageJson.contributes.configuration.properties['omegaEdit.bytesPerRow']
-  assert.equal(bytesPerRowConfiguration.minimum, 8)
-  assert.equal(bytesPerRowConfiguration.maximum, 64)
-  assert.equal(bytesPerRowConfiguration.anyOf, undefined)
+  assert.equal(
+    packageJson.contributes.configuration.properties['omegaEdit.bytesPerRow'],
+    undefined
+  )
+  assert.equal(
+    packageNls['omegaEdit.configuration.bytesPerRow.description'],
+    undefined
+  )
   const historyConfiguration = packageJson.contributes.configuration.properties
   assert.equal(
     historyConfiguration['omegaEdit.checkpointHistory.maxBytesPerSession']
@@ -149,7 +158,7 @@ test('package.json matches shared extension constants', () => {
   )
   assert.equal(
     packageJson.scripts['package:vsix'],
-    'vsce package --out omega-edit-data-editor.vsix'
+    'vsce package --out omega-edit-data-editor.vsix && node scripts/verify-vsix.cjs omega-edit-data-editor.vsix'
   )
   assert.equal(packageJson.displayName, '%omegaEdit.displayName%')
   assert.equal(packageNls['omegaEdit.displayName'], 'Ωedit™ Data Editor')
@@ -282,29 +291,29 @@ test('package.json matches shared extension constants', () => {
     packageJson.contributes.commands[15].enablement,
     'omegaEdit.hexEditorActive && !omegaEdit.transformInFlight'
   )
-  assert.equal(
-    packageJson.contributes.commands[16].command,
-    OMEGA_EDIT_SHOW_CHECKPOINT_TIMELINE_COMMAND
+  const actionJournalCommand = packageJson.contributes.commands.find(
+    (entry) => entry.command === OMEGA_EDIT_SHOW_ACTION_JOURNAL_COMMAND
   )
-  assert.equal(
-    packageJson.contributes.commands[16].enablement,
-    'omegaEdit.hexEditorActive && !omegaEdit.transformInFlight'
-  )
-  assert.deepEqual(
-    packageJson.contributes.commands.slice(17).map((entry) => entry.command),
-    [
-      OMEGA_EDIT_GET_EDITOR_STATE_COMMAND,
-      OMEGA_EDIT_GET_ASSISTANT_CONTEXT_COMMAND,
-      OMEGA_EDIT_SET_EXTERNAL_HIGHLIGHTS_COMMAND,
-      OMEGA_EDIT_CLEAR_EXTERNAL_HIGHLIGHTS_COMMAND,
-      OMEGA_EDIT_LOAD_RANGE_MAP_COMMAND,
-      OMEGA_EDIT_UNLOAD_RANGE_MAP_COMMAND,
-      OMEGA_EDIT_TOGGLE_EXPERIMENTAL_TRANSFORM_PLUGINS_COMMAND,
-    ]
-  )
+  assert.ok(actionJournalCommand)
+  assert.equal(actionJournalCommand.enablement, 'omegaEdit.hexEditorActive')
+  for (const command of [
+    OMEGA_EDIT_GET_EDITOR_STATE_COMMAND,
+    OMEGA_EDIT_GET_ASSISTANT_CONTEXT_COMMAND,
+    OMEGA_EDIT_SET_EXTERNAL_HIGHLIGHTS_COMMAND,
+    OMEGA_EDIT_CLEAR_EXTERNAL_HIGHLIGHTS_COMMAND,
+    OMEGA_EDIT_LOAD_RANGE_MAP_COMMAND,
+    OMEGA_EDIT_UNLOAD_RANGE_MAP_COMMAND,
+    OMEGA_EDIT_TOGGLE_EXPERIMENTAL_TRANSFORM_PLUGINS_COMMAND,
+  ]) {
+    assert.ok(
+      packageJson.contributes.commands.some(
+        (entry) => entry.command === command
+      )
+    )
+  }
   assert.equal(
     packageNls['omegaEdit.command.toggleInsertDirection.title'],
-    'OmegaEdit: Toggle Insert Direction'
+    'OmegaEdit: Set Insert Direction'
   )
   assert.equal(
     packageNls['omegaEdit.command.setTextEncoding.title'],
@@ -372,6 +381,33 @@ test('package.json matches shared extension constants', () => {
       'omegaEdit.configuration.allowExperimentalTransformPlugins.description'
     ],
     'Load experimental OmegaEdit transform plugins from configured or bundled plugin directories.'
+  )
+  assert.deepEqual(
+    packageJson.contributes.configuration.properties[
+      'omegaEdit.saveConflictFingerprintAlgorithm'
+    ].enum,
+    [
+      'sha224',
+      'sha256',
+      'sha384',
+      'sha512',
+      'sha3-256',
+      'sha3-512',
+      'blake2b-512',
+      'blake2s-256',
+    ]
+  )
+  assert.equal(
+    packageJson.contributes.configuration.properties[
+      'omegaEdit.saveConflictFingerprintAlgorithm'
+    ].default,
+    'sha256'
+  )
+  assert.equal(
+    packageNls[
+      'omegaEdit.configuration.saveConflictFingerprintAlgorithm.description'
+    ],
+    "Digest algorithm used by the native guarded save path to verify that a conflict was caused by OmegaEdit's own Auto Save. SHA-256 is the recommended default."
   )
   assert.equal(
     Object.hasOwn(
@@ -488,50 +524,112 @@ test('package.json matches shared extension constants', () => {
   )
 })
 
-test('root build stages transform plugins before packaging the VSIX', () => {
+test('F5 opens the isolated OmegaEdit data editor preview', () => {
+  const workspaceFolder = '$' + '{workspaceFolder}'
+  const previewWorkspace = JSON.parse(
+    fs.readFileSync(
+      path.resolve(__dirname, 'workspace/preview.code-workspace'),
+      'utf8'
+    )
+  )
+  assert.equal(
+    previewWorkspace.settings['workbench.editorAssociations']['*.txt'],
+    OMEGA_EDIT_VIEW_TYPE
+  )
+
+  const launchConfigurations = [
+    {
+      config: JSON.parse(
+        fs.readFileSync(
+          path.resolve(__dirname, '../../.vscode/launch.json'),
+          'utf8'
+        )
+      ).configurations[0],
+      previewWorkspace: `${workspaceFolder}/vscode-extension/tests/workspace/preview.code-workspace`,
+      sampleFile: `${workspaceFolder}/vscode-extension/tests/workspace/sample.txt`,
+    },
+    {
+      config: JSON.parse(
+        fs.readFileSync(
+          path.resolve(__dirname, '../.vscode/launch.json'),
+          'utf8'
+        )
+      ).configurations[0],
+      previewWorkspace: `${workspaceFolder}/tests/workspace/preview.code-workspace`,
+      sampleFile: `${workspaceFolder}/tests/workspace/sample.txt`,
+    },
+  ]
+
+  for (const { config, previewWorkspace, sampleFile } of launchConfigurations) {
+    assert.equal(config.name, 'Preview Ωedit™ Data Editor')
+    assert.ok(config.args.includes('--new-window'))
+    assert.ok(config.args.includes(previewWorkspace))
+    assert.ok(config.args.includes(sampleFile))
+    assert.equal(config.windows.env.OMEGA_EDIT_SERVER_PORT, '19000')
+  }
+})
+
+test('routes save-conflict fingerprinting through the native guarded save path', () => {
+  const extensionSource = fs.readFileSync(
+    path.resolve(__dirname, '../src/hexEditorProvider.ts'),
+    'utf8'
+  )
+  const coreSource = fs.readFileSync(
+    path.resolve(__dirname, '../../core/src/lib/edit.cpp'),
+    'utf8'
+  )
+  const serverSource = fs.readFileSync(
+    path.resolve(__dirname, '../../server/cpp/src/editor_service.cpp'),
+    'utf8'
+  )
+
+  assert.doesNotMatch(extensionSource, /createReadStream|createHash/)
+  assert.match(extensionSource, /expected\.digest/)
+  assert.match(coreSource, /overwrite_guard/)
+  assert.match(serverSource, /DEFAULT_DIGEST_PLUGIN_ID/)
+  assert.match(serverSource, /verify_overwrite_fingerprint/)
+})
+
+test('VSIX packaging uses the server package as its native runtime', () => {
   const rootBuildScript = fs.readFileSync(
     path.resolve(__dirname, '../../build.sh'),
     'utf8'
   )
-  assert.match(rootBuildScript, /detect_vscode_transform_platform/)
-  assert.match(rootBuildScript, /stage_vscode_transform_plugins/)
   assert.match(
     rootBuildScript,
     /command -v cl[\s\S]*\[\[ -n "\$\{INCLUDE:-\}" && -n "\$\{LIB:-\}" \]\]/
-  )
-  assert.match(
-    rootBuildScript,
-    /build-shared-\$\{type\}\/core\/src\/tests\/plugins/
   )
   assert.match(rootBuildScript, /server_tgz="\$\(to_native_path/)
   assert.match(rootBuildScript, /client_tgz="\$\(to_native_path/)
   assert.match(
     rootBuildScript,
-    /transform_plugins_stage_native="\$\(to_native_path "\$transform_plugins_stage"\)"/
-  )
-  assert.match(
-    rootBuildScript,
     /npm install --no-save "\$server_tgz" "\$client_tgz"/
   )
-  assert.match(
-    rootBuildScript,
-    /npm run stage:transform-plugins -- "\$transform_plugins_stage_native" --platform "\$transform_plugin_platform"/
-  )
-  assert.match(
-    rootBuildScript,
-    /npm run stage:transform-plugins[\s\S]*npm run package:vsix/
-  )
+  assert.doesNotMatch(rootBuildScript, /stage:transform-plugins/)
 
-  const stageTransformPluginsScript = fs.readFileSync(
-    path.resolve(__dirname, '../scripts/stage-transform-plugins.cjs'),
+  const serverPackageScript = fs.readFileSync(
+    path.resolve(__dirname, '../../packages/server/scripts/build-package.js'),
     'utf8'
   )
-  assert.match(stageTransformPluginsScript, /platformFilter/)
-  assert.match(stageTransformPluginsScript, /--platform=/)
+  assert.match(serverPackageScript, /supportedTransformPluginPlatforms/)
+  assert.match(serverPackageScript, /copyUniversalTransformPlugins/)
   assert.match(
-    stageTransformPluginsScript,
-    /platforms = platformFilter[\s\S]*: supportedPlatforms/
+    serverPackageScript,
+    /if \(binariesDir\)[\s\S]*copyUniversalTransformPlugins/
   )
+})
+
+test('integration suite connects its independent client instance', () => {
+  const integrationSource = fs.readFileSync(
+    path.resolve(__dirname, 'suite/extension.integration.test.js'),
+    'utf8'
+  )
+
+  assert.match(
+    integrationSource,
+    /extensionApi = await extension\.activate\(\)/
+  )
+  assert.match(integrationSource, /await getClient\(testPort\)/)
 })
 
 test('text encoding lookup tables cover supported single-byte code pages', () => {
@@ -558,6 +656,17 @@ test('text encoding lookup tables cover supported single-byte code pages', () =>
   assert.equal(ebcdic037[0x81], 0x0061)
   assert.equal(ebcdic037[0xad], 0x00dd)
   assert.equal(ebcdic037[0xc1], 0x0041)
+})
+
+test('shared byte formatting helpers cover inspector presentation', () => {
+  assert.equal(byteToHex2(0), '00')
+  assert.equal(byteToHex2(0xaf), 'AF')
+  assert.equal(byteToHex2(0xff), 'FF')
+  assert.equal(bytesToHex(Uint8Array.from([0, 0x12, 0xab, 0xff])), '0012ABFF')
+  assert.equal(isPrintableAscii(0x1f), false)
+  assert.equal(isPrintableAscii(0x20), true)
+  assert.equal(isPrintableAscii(0x7e), true)
+  assert.equal(isPrintableAscii(0x7f), false)
 })
 
 test('compiled extension entrypoints exist after build', () => {
@@ -699,6 +808,17 @@ test('compiled extension entrypoints exist after build', () => {
     path.resolve(__dirname, '../webview-ui/src/components/SearchPanel.svelte'),
     'utf8'
   )
+  const actionJournalSource = fs.readFileSync(
+    path.resolve(
+      __dirname,
+      '../webview-ui/src/components/ActionJournal.svelte'
+    ),
+    'utf8'
+  )
+  const vscodeApiSource = fs.readFileSync(
+    path.resolve(__dirname, '../webview-ui/src/vscodeApi.ts'),
+    'utf8'
+  )
   const byteInspectorSource = fs.readFileSync(
     path.resolve(
       __dirname,
@@ -731,6 +851,7 @@ test('compiled extension entrypoints exist after build', () => {
     ['TransformPanel.svelte', transformPanelSource],
     ['TransformResultPanel.svelte', transformResultPanelSource],
     ['SearchPanel.svelte', searchPanelSource],
+    ['ActionJournal.svelte', actionJournalSource],
     ['ByteInspector.svelte', byteInspectorSource],
     ['EditorWorkspace.svelte', editorWorkspaceSource],
     ['ProfilerPanel.svelte', profilerPanelSource],
@@ -747,6 +868,60 @@ test('compiled extension entrypoints exist after build', () => {
       `${name} should avoid runtime inline style mutation`
     )
   }
+
+  assert.doesNotMatch(
+    svelteAppSource,
+    /actionJournalKinds|actionJournalTransactionId/
+  )
+  assert.match(svelteAppSource, /case 'actionJournalError':/)
+  assert.match(providerSource, /ACTION_JOURNAL_REQUEST_TIMEOUT_MS = 15_000/)
+  assert.match(actionJournalSource, /onUndo/)
+  assert.match(actionJournalSource, /onRedo/)
+  assert.match(actionJournalSource, /onNavigate/)
+  assert.match(actionJournalSource, /disabled=\{!canUndo\}/)
+  assert.match(actionJournalSource, /disabled=\{!canRedo\}/)
+  assert.doesNotMatch(actionJournalSource, /selectedKinds|transactionFilter/)
+  assert.match(actionJournalSource, /onscroll=\{loadOlderNearEnd\}/)
+  assert.match(actionJournalSource, /strings\.actionJournal\.noChanges/)
+  assert.match(actionJournalSource, /class="checkpoint-card"/)
+  assert.match(
+    actionJournalSource,
+    /coordinate:\s*decimal\(String\(checkpoint\.changeCount\)\)/
+  )
+  assert.doesNotMatch(
+    actionJournalSource,
+    /coordinate:[\s\S]{0,100}checkpoint\.sourceChangeCount/
+  )
+  assert.match(actionJournalSource, /checkpointChanges\(row\.coordinate\)/)
+  assert.match(
+    actionJournalSource,
+    /class:current=\{row\.position === 'current'\}/
+  )
+  assert.match(
+    actionJournalSource,
+    /class:future=\{row\.position === 'future'\}/
+  )
+  assert.match(
+    actionJournalSource,
+    /aria-current=\{row\.position === 'current'/
+  )
+  assert.match(actionJournalSource, /strings\.actionJournal\.currentChange/)
+  assert.match(actionJournalSource, /strings\.actionJournal\.redoAvailable/)
+  assert.match(actionJournalSource, /strings\.actionJournal\.originalState/)
+  assert.match(
+    actionJournalSource,
+    /strings\.actionJournal\.navigateAfterChange/
+  )
+  assert.match(actionJournalSource, /strings\.actionJournal\.navigateOriginal/)
+  assert.match(
+    svelteAppSource,
+    /checkpoints=\{checkpointTimeline\.checkpoints\}/
+  )
+  assert.match(
+    svelteAppSource,
+    /checkpointCursor=\{checkpointTimeline\.cursor\}/
+  )
+  assert.match(actionJournalSource, /role="alert"/)
 
   const externalHighlightColorCountSources = [
     ['PreviewGrid.svelte', previewGridSource],
@@ -790,6 +965,10 @@ test('compiled extension entrypoints exist after build', () => {
   assert.match(providerJs, /kind:\s*['"]REPLACE['"]/)
   assert.match(providerJs, /startServerHeartbeatLoop/)
   assert.match(providerJs, /getServerInfo/)
+  assert.match(providerJs, /viewportCount/)
+  assert.match(providerJs, /activeOperationCount/)
+  assert.match(providerJs, /eventQueueDroppedCount/)
+  assert.match(providerJs, /oldestSessionIdleMs/)
   assert.match(providerJs, /profileSession/)
   assert.match(providerJs, /countCharacters/)
   assert.match(providerJs, /listTransformPlugins/)
@@ -869,8 +1048,8 @@ test('compiled extension entrypoints exist after build', () => {
   assert.match(providerJs, /Ωedit Selection/)
   assert.match(providerJs, /Ωedit File Size/)
   assert.match(providerJs, /Ωedit Edit Mode/)
-  assert.match(providerJs, /Ωedit Bytes Per Row/)
-  assert.match(providerJs, /B\/row/)
+  assert.doesNotMatch(providerJs, /Ωedit Bytes Per Row/)
+  assert.doesNotMatch(providerJs, /B\/row/)
   assert.match(providerJs, /Replacing matches\.\.\./)
   assert.match(providerJs, /Creating checkpoint\.\.\./)
   assert.match(providerJs, /buildServerHealthTooltip/)
@@ -906,6 +1085,8 @@ test('compiled extension entrypoints exist after build', () => {
   assert.match(providerJs, /debug-disconnect/)
   assert.match(providerJs, /new vscode\.ThemeColor\(serverColorId\)/)
   assert.match(providerJs, /statusItems\.mode/)
+  assert.match(providerJs, /statusItems\.mode\.command/)
+  assert.match(providerJs, /OMEGA_EDIT_TOGGLE_INSERT_DIRECTION_COMMAND/)
   assert.match(providerJs, /Ωedit Edit Mode/)
   assert.doesNotMatch(providerJs, /vscode\.l10n\.t\('INS'\)/)
   assert.doesNotMatch(providerJs, /vscode\.l10n\.t\('OVR'\)/)
@@ -973,6 +1154,14 @@ test('compiled extension entrypoints exist after build', () => {
   assert.match(providerJs, /reconcileExternalHighlightStaleness/)
   assert.match(providerJs, /markExternalHighlightsStale/)
   assert.match(providerJs, /postBytesPerRow/)
+  assert.match(
+    providerSource,
+    /workspaceState\?\.update\(\s*BYTES_PER_ROW_STORAGE_KEY/
+  )
+  assert.doesNotMatch(
+    providerSource,
+    /configuration\.update\(['"]bytesPerRow['"]/
+  )
   assert.doesNotMatch(providerJs, /AUTO_BYTES_PER_ROW_SETTING/)
   assert.match(providerJs, /stale:\s*true/)
   assert.match(providerJs, /notifyDocumentChanged/)
@@ -1114,6 +1303,20 @@ test('compiled extension entrypoints exist after build', () => {
   assert.match(svelteBundleCss, /\.editor-main/)
   assert.match(svelteBundleCss, /\.editor-grid-shell/)
   assert.match(svelteBundleCss, /\.editor-grid-scroller/)
+  assert.match(svelteStylesSource, /\.toolbar\s*\{[^}]*padding:\s*6px 0;/)
+  assert.match(svelteStylesSource, /\.preview-grid\s*\{[^}]*padding:\s*8px 0;/)
+  assert.match(
+    svelteStylesSource,
+    /\.byte-inspector-panel\s*\{[^}]*padding:\s*6px 0;/
+  )
+  assert.match(
+    svelteStylesSource,
+    /\.editor-grid-shell\s*\{[^}]*grid-template-columns:\s*minmax\(0,\s*1fr\)/
+  )
+  assert.doesNotMatch(
+    svelteStylesSource,
+    /\.editor-grid-shell\s*\{[^}]*grid-template-columns:[^;}]*18px/
+  )
   assert.match(svelteStylesSource, /\.editor-readonly-badge/)
   assert.match(svelteStylesSource, /\.editor-readonly-dot/)
   assert.match(svelteStylesSource, /\.transform-options-form/)
@@ -1167,7 +1370,7 @@ test('compiled extension entrypoints exist after build', () => {
     assert.match(source, /\$(props|state|derived|effect)\(/, name)
     assert.doesNotMatch(source, /(^|\n)\s*export\s+let\s/, name)
     assert.doesNotMatch(source, /(^|\n)\s*\$:/, name)
-    assert.doesNotMatch(source, /on:[a-z]/, name)
+    assert.doesNotMatch(source, /<[^>]*\bon:[a-z]/, name)
   }
   assert.match(svelteAppSource, /selectionAnchor/)
   assert.match(svelteAppSource, /selectedOffset/)
@@ -1191,6 +1394,9 @@ test('compiled extension entrypoints exist after build', () => {
   assert.match(svelteAppSource, /autoFitBytesPerRow=\{false\}/)
   assert.doesNotMatch(toolbarSource, /autoBytesPerRow/)
   assert.doesNotMatch(toolbarSource, /onBytesPerRowMode\('auto'\)/)
+  assert.doesNotMatch(toolbarSource, /direction-toggle/)
+  assert.doesNotMatch(toolbarSource, /onInsertDirection/)
+  assert.doesNotMatch(svelteAppSource, /onInsertDirection=/)
   assert.match(toolbarSource, /BytesPerRowCombobox/)
   assert.match(bytesPerRowComboboxSource, /role="combobox"/)
   assert.match(bytesPerRowComboboxSource, /role="listbox"/)
@@ -1427,6 +1633,19 @@ test('compiled extension entrypoints exist after build', () => {
   assert.match(svelteAppSource, /onScrollTo=\{requestVisibleOffset\}/)
   assert.match(svelteAppSource, /function toggleInspectorEndian/)
   assert.match(svelteAppSource, /function toggleInspectorExpanded/)
+  assert.match(
+    svelteAppSource,
+    /inspectorExpanded = \$state\(restoredState\?\.inspectorExpanded \?\? false\)/
+  )
+  assert.match(
+    svelteAppSource,
+    /profilerExpanded = \$state\(restoredState\?\.profilerExpanded \?\? false\)/
+  )
+  assert.match(svelteAppSource, /savePreviewState\(\{ inspectorExpanded \}\)/)
+  assert.match(vscodeApiSource, /inspectorExpanded\?: boolean/)
+  assert.match(byteInspectorSource, /expanded = false/)
+  assert.match(editorWorkspaceSource, /profilerExpanded = false/)
+  assert.match(profilerPanelSource, /expanded = false/)
   assert.match(svelteAppSource, /function setOffsetRadix/)
   assert.match(svelteAppSource, /offsetRadix = \$state<'hex' \| 'dec'>/)
   assert.match(svelteAppSource, /textEncoding = \$state<TextEncoding>/)
@@ -1962,11 +2181,14 @@ test('compiled extension entrypoints exist after build', () => {
   assert.doesNotMatch(offsetJumpSource, /offset-jump-button/)
   assert.doesNotMatch(offsetJumpSource, /strings\.navigation\.go(?:Title)?/)
   assert.match(fileScrollbarSource, /role="scrollbar"/)
+  assert.match(fileScrollbarSource, /class:disabled/)
   assert.match(fileScrollbarSource, /aria-controls="previewGrid"/)
   assert.match(fileScrollbarSource, /strings\.navigation\.scrollbarLabel/)
   assert.match(fileScrollbarSource, /WebviewExternalHighlight/)
   assert.match(fileScrollbarSource, /rangeMarkers/)
   assert.match(fileScrollbarSource, /file-scrollbar-range-marker/)
+  assert.match(fileScrollbarSource, /file-scrollbar-thumb-glyph/)
+  assert.match(fileScrollbarSource, />\s*Ω\s*<\/text>/)
   assert.match(fileScrollbarSource, /scrollToRangeMarker/)
   assert.match(fileScrollbarSource, /activateRangeMarker/)
   assert.match(fileScrollbarSource, /onExternalHighlightHover/)
@@ -2016,14 +2238,18 @@ test('compiled extension entrypoints exist after build', () => {
   assert.doesNotMatch(searchPanelSource, />Search Next</)
   assert.doesNotMatch(searchPanelSource, />Replace All</)
   assert.match(svelteAppSource, /function openSearchPanel/)
-  assert.match(
+  assert.doesNotMatch(
     svelteAppSource,
-    /postToHost\(\{ type: 'hideCheckpointTimeline' \}\)/
+    /components\/CheckpointTimeline|<CheckpointTimeline(?:\s|>)/
   )
-  assert.match(
-    svelteAppSource,
-    /searchPanelVisible && !checkpointTimeline\.visible/
-  )
+  assert.doesNotMatch(svelteAppSource, /hideCheckpointTimeline/)
+  assert.match(actionJournalSource, /strings\.actionJournal\.rewind/)
+  assert.match(actionJournalSource, /strings\.actionJournal\.fastForward/)
+  assert.match(actionJournalSource, /checkpointBefore/)
+  assert.match(actionJournalSource, /checkpointAfter/)
+  assert.doesNotMatch(actionJournalSource, /onReveal|onCopy|onFilter/)
+  assert.doesNotMatch(actionJournalSource, />JSON<|>CLI<|>MCP</)
+  assert.match(actionJournalSource, /class="entry-main"/)
   assert.match(
     svelteAppSource,
     /message\.visible && searchPanelVisible[\s\S]+closeSearchPanel\(\)/
@@ -2119,6 +2345,10 @@ test('compiled extension entrypoints exist after build', () => {
   assert.match(profilerPanelSource, /buildServerRows/)
   assert.match(profilerPanelSource, /serverRows/)
   assert.match(profilerPanelSource, /SERVER_CURRENT_INSTANCE_METRIC_IDS/)
+  assert.match(profilerPanelSource, /activeOperations/)
+  assert.match(profilerPanelSource, /sessionSubscriptions/)
+  assert.match(profilerPanelSource, /droppedEvents/)
+  assert.match(profilerPanelSource, /oldestSessionIdle/)
   assert.match(profilerPanelSource, /SERVER_HOST_BUILD_METRIC_IDS/)
   assert.match(profilerPanelSource, /strings\.profiler\.liveStatus/)
   assert.match(profilerPanelSource, /strings\.profiler\.currentInstance/)
@@ -2155,6 +2385,23 @@ test('compiled extension entrypoints exist after build', () => {
   assert.match(svelteStylesSource, /\.analysis-section\.dragging::before/)
   assert.match(svelteStylesSource, /\.analysis-icon-button/)
   assert.match(svelteStylesSource, /\.file-scrollbar-range-marker/)
+  assert.match(svelteStylesSource, /\.file-scrollbar-thumb-glyph/)
+  assert.match(
+    svelteStylesSource,
+    /\.file-scrollbar\s*\{[^}]*position:\s*absolute/
+  )
+  assert.match(
+    svelteStylesSource,
+    /\.file-scrollbar\.disabled\s*\{[^}]*pointer-events:\s*none/
+  )
+  assert.match(
+    svelteStylesSource,
+    /\.file-scrollbar-track:hover \.file-scrollbar-range-marker/
+  )
+  assert.match(
+    svelteStylesSource,
+    /\.file-scrollbar-track:focus-within \.file-scrollbar-thumb/
+  )
   assert.match(
     svelteStylesSource,
     /\.range-map-node\[data-external-color="0"\]/
@@ -2206,6 +2453,18 @@ test('compiled extension entrypoints exist after build', () => {
     path.resolve(__dirname, '../out/extension.js'),
     'utf8'
   )
+  const extensionSource = fs.readFileSync(
+    path.resolve(__dirname, '../src/extension.ts'),
+    'utf8'
+  )
+  const editorRegistrationIndex = extensionSource.indexOf(
+    'const provider = registerEditorEntryPoints(context)'
+  )
+  const serverResolutionIndex = extensionSource.indexOf(
+    'connection = resolveServerConnection(config)'
+  )
+  assert.ok(editorRegistrationIndex >= 0)
+  assert.ok(serverResolutionIndex > editorRegistrationIndex)
   assert.match(extensionJs, /transformPluginDirectories/)
   assert.match(extensionJs, /omegaEdit\.language/)
   assert.match(extensionJs, /refreshLanguage/)
@@ -2222,7 +2481,11 @@ test('compiled extension entrypoints exist after build', () => {
   assert.match(extensionJs, /OMEGA_EDIT_ROLLBACK_SESSION_COMMAND/)
   assert.match(extensionJs, /OMEGA_EDIT_ROLLBACK_CHECKPOINT_COMMAND/)
   assert.match(extensionJs, /OMEGA_EDIT_CREATE_CHECKPOINT_COMMAND/)
-  assert.match(extensionJs, /OMEGA_EDIT_SHOW_CHECKPOINT_TIMELINE_COMMAND/)
+  assert.match(extensionJs, /OMEGA_EDIT_SHOW_ACTION_JOURNAL_COMMAND/)
+  assert.doesNotMatch(
+    extensionJs,
+    /OMEGA_EDIT_SHOW_CHECKPOINT_TIMELINE_COMMAND/
+  )
   assert.match(extensionJs, /OMEGA_EDIT_GET_EDITOR_STATE_COMMAND/)
   assert.match(extensionJs, /OMEGA_EDIT_GET_ASSISTANT_CONTEXT_COMMAND/)
   assert.match(extensionJs, /OMEGA_EDIT_SET_EXTERNAL_HIGHLIGHTS_COMMAND/)
@@ -2245,6 +2508,8 @@ test('compiled extension entrypoints exist after build', () => {
   assert.match(extensionJs, /undoActive/)
   assert.match(extensionJs, /redoActive/)
   assert.match(extensionJs, /setInsertDirection/)
+  assert.match(extensionJs, /Select Insert Direction/)
+  assert.match(extensionJs, /Choose how inserted bytes advance/)
   assert.match(extensionJs, /setTextEncoding/)
   assert.match(extensionJs, /rollbackActiveSession/)
   assert.match(extensionJs, /rollbackCheckpoint/)
@@ -2252,7 +2517,7 @@ test('compiled extension entrypoints exist after build', () => {
   assert.match(extensionJs, /createCheckpoint/)
   assert.match(extensionJs, /getDefaultTransformPluginDirectories/)
   assert.match(extensionJs, /findRepositoryRoot/)
-  assert.match(extensionJs, /path\.resolve\(extensionPath,\s*['"]\.\.['"]\)/)
+  assert.match(extensionJs, /path\d*\.resolve\(extensionPath,\s*['"]\.\.['"]\)/)
   assert.match(extensionJs, /normalizeWindowsPath/)
   assert.match(extensionJs, /replace\(\/\\\/\/g,\s*['"]\\\\['"]\)/)
   assert.match(extensionJs, /splitPathList/)
@@ -2273,26 +2538,33 @@ test('compiled extension entrypoints exist after build', () => {
   assert.match(extensionJs, /\/tmp['"],\s*['"]omega-edit/)
   assert.match(extensionJs, /process\.platform === ['"]darwin['"]/)
   assert.match(extensionJs, /process\.platform === ['"]linux['"]/)
-  assert.doesNotMatch(extensionJs, /platformAllowsUnixSocketFallback/)
-  assert.doesNotMatch(extensionJs, /process\.platform === ['"]win32['"]/)
+  assert.doesNotMatch(extensionSource, /platformAllowsUnixSocketFallback/)
+  assert.doesNotMatch(extensionSource, /process\.platform === ['"]win32['"]/)
   assert.match(extensionJs, /startTcpServerConnection/)
-  assert.doesNotMatch(extensionJs, /fallbackReason/)
+  assert.doesNotMatch(extensionSource, /fallbackReason/)
   assert.match(extensionJs, /startServerUnixSocket/)
+  assert.match(extensionSource, /sessionTimeoutMs: SERVER_SESSION_TIMEOUT_MS/)
+  assert.match(extensionSource, /cleanupIntervalMs: SERVER_CLEANUP_INTERVAL_MS/)
+  assert.match(extensionSource, /shutdownWhenNoSessions: true/)
+  assert.match(extensionSource, /transformPluginDirectories/)
+  assert.match(extensionSource, /allowExperimentalTransformPlugins/)
+  assert.match(extensionSource, /const SERVER_SESSION_TIMEOUT_MS = 60_000/)
+  assert.match(extensionSource, /const SERVER_CLEANUP_INTERVAL_MS = 5_000/)
   assert.match(
-    extensionJs,
-    /const serverOptions = \{\s*transformPluginDirectories,\s*allowExperimentalTransformPlugins/
+    extensionSource,
+    /const result = await stopServerGraceful\(\)[\s\S]*stopProcessUsingPID\(serverPid\)/
   )
   assert.match(
-    extensionJs,
+    extensionSource,
     /workspaceFolderValue[^}]+ConfigurationTarget\.WorkspaceFolder/s
   )
   assert.match(
-    extensionJs,
-    /startServer\)\(\s*tcpConnection\.port,\s*undefined,\s*undefined,\s*serverOptions/
+    extensionSource,
+    /startServer\(\s*tcpConnection\.port,\s*undefined,\s*undefined,\s*serverOptions/
   )
   assert.match(
-    extensionJs,
-    /getClient\)\(connection\.port,\s*undefined,\s*\{\s*socketPath:\s*connection\.socketPath/
+    extensionSource,
+    /getClient\(connection\.port,\s*undefined,\s*\{\s*socketPath:\s*connection\.socketPath/
   )
   assert.match(svelteStylesSource, /@media \(max-width: 1024px\)/)
   assert.match(
@@ -2307,11 +2579,13 @@ test('range map parser loads the OmegaEdit PNG logo fixture', () => {
     __dirname,
     '../../images/OmegaEditLogo.omega-ranges.json'
   )
+  const sourcePath = path.resolve(__dirname, '../../images/OmegaEditLogo.png')
   const parsed = parseRangeMapContent(fs.readFileSync(fixturePath))
 
   assert.equal(parsed.document.format, 'omega-edit.range-map')
   assert.equal(parsed.document.version, 1)
   assert.equal(parsed.document.source, 'images/OmegaEditLogo.png')
+  assert.equal(parsed.document.sourceFileSize, fs.statSync(sourcePath).size)
   assert.equal(parsed.document.selectedPath, '/png/chunks[0]/data/width')
   assert.equal(parsed.document.nodes.length, 28)
   assert.equal(parsed.nodeCount, 142)
@@ -2355,6 +2629,10 @@ test('range map parser loads the OmegaEdit PNG logo fixture', () => {
     value: '1254',
     children: [],
   })
+
+  assert.doesNotThrow(() =>
+    assertRangeMapFitsFile(parsed, fs.statSync(sourcePath).size)
+  )
 })
 
 test('range map parser rejects hostile node shapes before flattening', () => {
@@ -2460,6 +2738,62 @@ test('range map file-fit validation names the offending node', () => {
   )
 })
 
+test('range map validates its optional source file size', () => {
+  const parsed = parseRangeMapContent(
+    encodeRangeMap({
+      sourceFileSize: 6,
+      nodes: [
+        {
+          path: '/byte',
+          offset: 0,
+          length: 1,
+        },
+      ],
+    })
+  )
+
+  assert.equal(parsed.document.sourceFileSize, 6)
+  assert.doesNotThrow(() => assertRangeMapFitsFile(parsed, 6))
+  assert.throws(
+    () => assertRangeMapFitsFile(parsed, 7),
+    /Range map source file size \(6 bytes\) does not match open file size \(7 bytes\)/
+  )
+
+  assert.throws(
+    () =>
+      parseRangeMapContent(
+        encodeRangeMap({
+          sourceFileSize: -1,
+          nodes: [],
+        })
+      ),
+    /Range map sourceFileSize must be a non-negative safe integer/
+  )
+})
+
+test('checkpoint timeline metadata stays bounded around important positions', () => {
+  const checkpoints = checkpointTimelineMetadataWindow(
+    1_000_000,
+    500_000,
+    750_000
+  )
+
+  assert.ok(checkpoints.length <= 75)
+  assert.deepEqual(
+    checkpoints,
+    checkpoints.toSorted((left, right) => left - right)
+  )
+  assert.equal(new Set(checkpoints).size, checkpoints.length)
+  for (const checkpoint of [
+    1, 8, 499_988, 500_000, 500_012, 750_000, 999_993, 1_000_000,
+  ]) {
+    assert.ok(
+      checkpoints.includes(checkpoint),
+      `expected checkpoint ${checkpoint}`
+    )
+  }
+})
+
 test('webview protocol normalizes editor commands and rejects invalid ranges', () => {
   const context = { fileSize: 10 }
 
@@ -2559,22 +2893,17 @@ test('webview protocol normalizes editor commands and rejects invalid ranges', (
       type: 'cancelTransform',
     }
   )
-  assert.deepEqual(
+  assert.equal(
     normalizeWebviewMessage(context, {
       type: 'navigateCheckpointTimeline',
       checkpoint: 3,
     }),
-    { type: 'navigateCheckpointTimeline', checkpoint: 3 }
+    undefined
   )
-  for (const checkpoint of [-1, 1.5, Number.NaN, '2']) {
-    assert.equal(
-      normalizeWebviewMessage(context, {
-        type: 'navigateCheckpointTimeline',
-        checkpoint,
-      }),
-      undefined
-    )
-  }
+  assert.equal(
+    normalizeWebviewMessage(context, { type: 'hideCheckpointTimeline' }),
+    undefined
+  )
   assert.deepEqual(
     normalizeWebviewMessage(context, {
       type: 'setInsertDirection',
@@ -2836,6 +3165,115 @@ test('webview protocol normalizes editor commands and rejects invalid ranges', (
   )
 })
 
+test('action journal is the live history surface', () => {
+  const appSource = fs.readFileSync(
+    path.resolve(__dirname, '../webview-ui/src/App.svelte'),
+    'utf8'
+  )
+  const journalSource = fs.readFileSync(
+    path.resolve(
+      __dirname,
+      '../webview-ui/src/components/ActionJournal.svelte'
+    ),
+    'utf8'
+  )
+  const providerSource = fs.readFileSync(
+    path.resolve(__dirname, '../src/hexEditorProvider.ts'),
+    'utf8'
+  )
+
+  assert.doesNotMatch(
+    appSource,
+    /components\/CheckpointTimeline|<CheckpointTimeline(?:\s|>)/
+  )
+  assert.doesNotMatch(appSource, /hideCheckpointTimeline/)
+  assert.match(appSource, /onUndo=\{\(\) => postToHost\(\{ type: 'undo' \}\)\}/)
+  assert.match(appSource, /onRedo=\{\(\) => postToHost\(\{ type: 'redo' \}\)\}/)
+  assert.match(appSource, /onNavigate=\{navigateActionJournal\}/)
+  assert.match(journalSource, /strings\.actionJournal\.rewind/)
+  assert.match(journalSource, /strings\.actionJournal\.fastForward/)
+  assert.match(journalSource, /checkpointBefore/)
+  assert.match(journalSource, /checkpointAfter/)
+  assert.doesNotMatch(journalSource, /onReveal|onCopy|onFilter/)
+  assert.doesNotMatch(journalSource, />JSON<|>CLI<|>MCP</)
+  assert.match(journalSource, /class="entry-main"/)
+  assert.match(
+    journalSource,
+    /onclick=\{\(\) => onNavigate\(row\.entry\.changeCountAfter\)\}/
+  )
+  assert.match(journalSource, /onclick=\{\(\) => onNavigate\('0'\)\}/)
+  assert.match(
+    providerSource,
+    /if \(direction === 'undo'\) \{\s*await this\.performUndoOnSession\(session\)/
+  )
+  assert.match(
+    providerSource,
+    /else \{\s*await this\.performRedoOnSession\(session\)/
+  )
+  assert.doesNotMatch(
+    providerSource,
+    /navigateActionJournalToChangeCount[\s\S]*?executeCommand\(direction\)/
+  )
+  assert.match(
+    providerSource,
+    /checkoutHistoryCheckpoint\(session, nearest\.checkpoint\)/
+  )
+  assert.doesNotMatch(providerSource, /captureCheckpointTimelineTip/)
+  assert.doesNotMatch(providerSource, /case 'navigateCheckpointTimeline'/)
+  assert.equal(
+    packageJson.contributes.commands.some(
+      (entry) => entry.command === 'omegaEdit.showCheckpointTimeline'
+    ),
+    false
+  )
+})
+
+test('webview protocol bounds and validates action journal requests', () => {
+  const context = { fileSize: 10 }
+  assert.deepEqual(
+    normalizeWebviewMessage(context, {
+      type: 'requestActionJournalViewport',
+      anchorSerial: '9007199254740993',
+      capacity: 256,
+      direction: 'older',
+      append: true,
+    }),
+    {
+      type: 'requestActionJournalViewport',
+      anchorSerial: '9007199254740993',
+      capacity: 256,
+      direction: 'older',
+      append: true,
+    }
+  )
+  assert.deepEqual(
+    normalizeWebviewMessage(context, {
+      type: 'navigateActionJournal',
+      changeCount: '9007199254740993',
+    }),
+    {
+      type: 'navigateActionJournal',
+      changeCount: '9007199254740993',
+    }
+  )
+  for (const message of [
+    { type: 'requestActionJournalViewport', capacity: 0 },
+    { type: 'requestActionJournalViewport', capacity: 1001 },
+    { type: 'requestActionJournalViewport', anchorSerial: '01' },
+    { type: 'navigateActionJournal', changeCount: '01' },
+    { type: 'navigateActionJournal', changeCount: -1 },
+    { type: 'revealActionJournalEntry', offset: '1' },
+    {
+      type: 'copyActionJournalEntry',
+      firstSerial: '1',
+      lastSerial: '2',
+      format: 'mcp',
+    },
+  ]) {
+    assert.equal(normalizeWebviewMessage(context, message), undefined)
+  }
+})
+
 test('webview protocol normalizes analysis, search, and transform messages', () => {
   const context = { fileSize: 100_000 }
   const requestedLength = MAX_ANALYSIS_PROFILE_BYTES + 512
@@ -3025,14 +3463,21 @@ test('webview protocol normalizes analysis, search, and transform messages', () 
       optionsJson: '{ "operator": "xor", "mask": [255] }',
     }
   )
-  assert.equal(
+  assert.deepEqual(
     normalizeWebviewMessage(context, {
       type: 'applyTransform',
       pluginId: 'omega.example.bitwise',
-      offset: 1,
+      offset: 0,
       length: 0,
     }),
-    undefined
+    {
+      type: 'applyTransform',
+      pluginId: 'omega.example.bitwise',
+      contentSource: 'computed',
+      offset: 0,
+      length: 0,
+      optionsJson: undefined,
+    }
   )
   assert.equal(
     normalizeWebviewMessage(context, {
@@ -3065,4 +3510,45 @@ test('webview protocol normalizes analysis, search, and transform messages', () 
     }),
     undefined
   )
+})
+
+test('annotation UI identities distinguish owners and delimiter-like ids', () => {
+  const { externalHighlightKey } = require('../out/webviewProtocol.js')
+  const keys = [
+    { id: 'current' },
+    { id: 'current', owner: 'daffodil:1' },
+    { id: 'current', owner: 'daffodil:2' },
+    { id: 'b:c', owner: 'a' },
+    { id: 'c', owner: 'a:b' },
+    { id: '["daffodil:1","current"]' },
+  ].map(externalHighlightKey)
+  assert.equal(new Set(keys).size, keys.length)
+})
+
+test('annotation keys avoid repeated serialization and refresh changed identities', () => {
+  const { externalHighlightKey } = require('../out/webviewProtocol.js')
+  const highlight = { id: 'current', owner: 'daffodil:1' }
+  const stringify = JSON.stringify
+  let serializations = 0
+  JSON.stringify = (...args) => {
+    serializations += 1
+    return stringify(...args)
+  }
+  try {
+    const original = externalHighlightKey(highlight)
+    for (let index = 0; index < 1000; index += 1) {
+      assert.equal(externalHighlightKey(highlight), original)
+    }
+    assert.equal(serializations, 1)
+    highlight.owner = 'daffodil:2'
+    const otherOwner = externalHighlightKey(highlight)
+    assert.notEqual(otherOwner, original)
+    highlight.id = 'next'
+    assert.notEqual(externalHighlightKey(highlight), otherOwner)
+    delete highlight.owner
+    assert.equal(externalHighlightKey(highlight), '[null,"next"]')
+    assert.equal(serializations, 4)
+  } finally {
+    JSON.stringify = stringify
+  }
 })

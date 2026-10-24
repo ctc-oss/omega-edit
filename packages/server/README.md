@@ -62,6 +62,7 @@ const proc = await runServer(9000, '127.0.0.1', '/tmp/server.pid', {
   cleanupIntervalMs: 60000,
   shutdownWhenNoSessions: true,
   maxChangeBytes: 16 * 1024 * 1024,
+  maxRpcRequestBytes: 17 * 1024 * 1024,
   maxViewportsPerSession: 64,
   logFile: '/tmp/omega-edit-server.log',
   logLevel: 'info',
@@ -82,7 +83,9 @@ const proc2 = await runServerWithArgs([
 The native gRPC server has no built-in authentication. Its default `127.0.0.1` TCP bind and Unix domain socket mode are
 the intended trust boundary. Non-loopback TCP binds require `--insecure-allow-non-loopback` or the
 `insecureAllowNonLoopback` option because any reachable client can create sessions, read and edit files, save output,
-and invoke registered transform plugins with the server process's privileges.
+and invoke registered transform plugins with the server process's privileges. Set `allowedRoot` or `--allowed-root` to
+confine RPC-controlled file and checkpoint paths. For remote access, keep the backend on a private network and expose
+only an HTTP/2-capable gRPC proxy that supplies TLS, authentication, authorization, rate limits, and request limits.
 
 ### Standalone Binary
 
@@ -123,6 +126,7 @@ interface HeartbeatOptions {
   sessionEventQueueCapacity?: number // Buffered session events per subscription (0 = unbounded)
   viewportEventQueueCapacity?: number // Buffered viewport events per subscription (0 = unbounded)
   maxChangeBytes?: number        // Insert/overwrite payload limit in bytes (0 = unbounded)
+  maxRpcRequestBytes?: number    // Serialized gRPC request limit in bytes (0 = unbounded)
   maxViewportsPerSession?: number // Viewport cap per session (0 = unbounded)
   logFile?: string               // Append native server lifecycle logs to this file
   logLevel?: string              // Native log level: debug, info, warn, error
@@ -132,6 +136,7 @@ interface HeartbeatOptions {
   allowExperimentalTransformPlugins?: boolean // Load experimental transform plugins
   allowTestTransformPlugins?: boolean // Load test-only transform plugins
   insecureAllowNonLoopback?: boolean // Permit unauthenticated non-loopback TCP binds
+  allowedRoot?: string              // Restrict RPC file and checkpoint paths
 }
 ```
 
@@ -154,6 +159,7 @@ The native binary supports:
 | `--session-event-queue-capacity` | Buffered session events per subscription |
 | `--viewport-event-queue-capacity` | Buffered viewport events per subscription |
 | `--max-change-bytes` | Limit insert/overwrite payload size |
+| `--max-rpc-request-bytes` | Limit serialized gRPC request size |
 | `--max-viewports-per-session` | Limit open viewports per session |
 | `--log-file` | Append native server logs to a file |
 | `--log-level` | Set native server log verbosity |
@@ -163,6 +169,7 @@ The native binary supports:
 | `--allow-experimental-transform-plugins` | Load experimental transform plugins from registered directories |
 | `--allow-test-transform-plugins` | Load test-only transform plugins from registered directories |
 | `--insecure-allow-non-loopback` | Permit unauthenticated TCP binds outside loopback |
+| `--allowed-root` | Restrict RPC file and checkpoint paths to an existing directory |
 
 The package includes the first-party transform plugins for the current platform and
 registers them automatically when no explicit transform plugin directories are supplied.
@@ -178,7 +185,7 @@ test-only opt-in when used by test harnesses.
 Use the platform path-list separator (`:` on Unix-like systems, `;` on Windows).
 See the [Transform Plugins guide](https://github.com/ctc-oss/omega-edit/wiki/Transform-Plugins) for the native ABI,
 SDK helpers, plugin package layout, and exemplar plugins, including base64
-encode/decode, bitwise transforms, zlib compress/decompress, text codecs,
+encode/decode, bitwise transforms, zlib and Zstandard compress/decompress, text codecs,
 character transcoding, record/message helpers, and inspect-only digest/checksum
 examples.
 

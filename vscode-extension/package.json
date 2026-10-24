@@ -57,13 +57,6 @@
           ],
           "description": "%omegaEdit.configuration.logLevel.description%"
         },
-        "omegaEdit.bytesPerRow": {
-          "type": "number",
-          "default": 16,
-          "minimum": 8,
-          "maximum": 64,
-          "description": "%omegaEdit.configuration.bytesPerRow.description%"
-        },
         "omegaEdit.language": {
           "type": "string",
           "default": "auto",
@@ -86,6 +79,21 @@
           "type": "boolean",
           "default": false,
           "description": "%omegaEdit.configuration.allowExperimentalTransformPlugins.description%"
+        },
+        "omegaEdit.saveConflictFingerprintAlgorithm": {
+          "type": "string",
+          "default": "sha256",
+          "enum": [
+            "sha224",
+            "sha256",
+            "sha384",
+            "sha512",
+            "sha3-256",
+            "sha3-512",
+            "blake2b-512",
+            "blake2s-256"
+          ],
+          "description": "%omegaEdit.configuration.saveConflictFingerprintAlgorithm.description%"
         },
         "omegaEdit.checkpointHistory.maxBytesPerSession": {
           "type": "number",
@@ -204,10 +212,10 @@
         "enablement": "omegaEdit.hexEditorActive && !omegaEdit.transformInFlight"
       },
       {
-        "command": "omegaEdit.showCheckpointTimeline",
-        "title": "%omegaEdit.command.showCheckpointTimeline.title%",
-        "icon": "$(history)",
-        "enablement": "omegaEdit.hexEditorActive && !omegaEdit.transformInFlight"
+        "command": "omegaEdit.showActionJournal",
+        "title": "%omegaEdit.command.showActionJournal.title%",
+        "icon": "$(list-ordered)",
+        "enablement": "omegaEdit.hexEditorActive"
       },
       {
         "command": "omegaEdit.getEditorState",
@@ -258,11 +266,6 @@
           "command": "omegaEdit.rollbackSession",
           "when": "omegaEdit.hexEditorActive && omegaEdit.hasPendingChanges && !omegaEdit.transformInFlight",
           "group": "navigation@9"
-        },
-        {
-          "command": "omegaEdit.showCheckpointTimeline",
-          "when": "omegaEdit.hexEditorActive && !omegaEdit.transformInFlight",
-          "group": "navigation@8"
         }
       ],
       "commandPalette": [
@@ -329,10 +332,6 @@
           "when": "omegaEdit.hexEditorActive && !omegaEdit.transformInFlight"
         },
         {
-          "command": "omegaEdit.showCheckpointTimeline",
-          "when": "omegaEdit.hexEditorActive && !omegaEdit.transformInFlight"
-        },
-        {
           "command": "omegaEdit.getEditorState",
           "when": "false"
         },
@@ -352,15 +351,15 @@
     }
   },
   "scripts": {
-    "vscode:prepublish": "npm run compile",
+    "vscode:prepublish": "npm run compile:extension:production && npm run check:webview && npm run compile:webview",
     "compile": "npm run compile:extension && npm run check:webview && npm run compile:webview",
-    "compile:extension": "tsc -p ./",
+    "compile:extension": "tsc -p ./ && node scripts/build-extension.cjs",
+    "compile:extension:production": "tsc -p ./ && node scripts/build-extension.cjs --production",
     "check:webview": "svelte-check --tsconfig ./webview-ui/tsconfig.json",
     "compile:webview": "vite build",
     "watch": "tsc -watch -p ./",
     "watch:webview": "vite build --watch",
-    "stage:transform-plugins": "node scripts/stage-transform-plugins.cjs",
-    "package:vsix": "vsce package --out omega-edit-data-editor.vsix",
+    "package:vsix": "vsce package --out omega-edit-data-editor.vsix && node scripts/verify-vsix.cjs omega-edit-data-editor.vsix",
     "format:check": "biome format .",
     "format:write": "biome format --write .",
     "lint": "biome ci .",
@@ -371,7 +370,6 @@
     "test": "npm run lint && npm run compile && npm run test:unit && npm run test:integration"
   },
   "dependencies": {
-    "@omega-edit/client": "file:../packages/client",
     "@omega-edit/server": "file:../packages/server"
   },
   "overrides": {
@@ -382,11 +380,13 @@
   },
   "devDependencies": {
     "@biomejs/biome": "^2.4.9",
+    "@omega-edit/client": "file:../packages/client",
     "@sveltejs/vite-plugin-svelte": "^7.1.2",
     "@types/node": "^22.20.0",
     "@types/vscode": "^1.110.0",
     "@vscode/test-electron": "^2.5.2",
-    "@vscode/vsce": "^3.7.1",
+    "@vscode/vsce": "^3.9.2",
+    "esbuild": "^0.28.1",
     "mocha": "^10.8.2",
     "svelte": "^5.56.3",
     "svelte-check": "^4.1.0",

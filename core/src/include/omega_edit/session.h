@@ -142,9 +142,10 @@ int64_t omega_session_get_num_search_contexts(const omega_session_t *session_ptr
 int64_t omega_session_get_num_changes(const omega_session_t *session_ptr);
 
 /**
- * Given a session, return the current number of undone changes eligible for being redone
- * @param session_ptr session to get the number of undone changes for
- * @return number of undone changes eligible for being redone
+ * Given a session, return the current number of undone changes eligible for redo. This is the complete
+ * forward-retained suffix, including changes preserved in future checkpoint models.
+ * @param session_ptr session to get the number of redoable, forward-retained changes for
+ * @return number of redoable, forward-retained changes
  */
 int64_t omega_session_get_num_undone_changes(const omega_session_t *session_ptr);
 
@@ -285,6 +286,27 @@ int64_t omega_session_get_num_undone_change_transactions(const omega_session_t *
 * @return number of session checkpoints
  */
 int64_t omega_session_get_num_checkpoints(const omega_session_t *session_ptr);
+
+/**
+ * Return the active change count represented by a checkpoint boundary.
+ * Checkpoint zero is the original session state; positive indices are active
+ * checkpoints through omega_session_get_num_checkpoints().
+ * @return active change count at the boundary, or -1 for invalid input
+ */
+int64_t omega_session_get_checkpoint_change_count(const omega_session_t *session_ptr, int64_t checkpoint_count);
+
+/**
+ * Return the newest checkpoint index whose boundary exactly matches an active change count.
+ * @return newest matching checkpoint index (including zero for the original state), or -1 when no boundary matches
+ */
+int64_t omega_session_get_checkpoint_at_change_count(const omega_session_t *session_ptr, int64_t change_count);
+
+/**
+ * Given a session, return the number of preserved checkpoints after the active checkpoint boundary.
+ * @param session_ptr session to get the number of future checkpoints for
+ * @return number of future checkpoints
+ */
+int64_t omega_session_get_num_future_checkpoints(const omega_session_t *session_ptr);
 
 /**
  * Call the registered session event handler

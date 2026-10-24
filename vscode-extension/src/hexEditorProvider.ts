@@ -30,18 +30,22 @@
 import {
   ALL_EVENTS,
   applyTransformPlugin,
+  CHANGE_LOG_DEFAULT_DIGEST_ALGORITHM as DEFAULT_CHANGE_LOG_DIGEST_ALGORITHM,
+  CHANGE_LOG_DEFAULT_DIGEST_PLUGIN_ID as DEFAULT_CHANGE_LOG_DIGEST_PLUGIN_ID,
   CHANGE_LOG_FORMAT,
   CHANGE_LOG_VERSION,
   ChangeLogCancelledError,
   changeLogHeaderForExport,
   ChangeKind,
   checkSessionModel,
+  checkoutCheckpoint,
   clear,
   countCharacters,
   CountKind,
   createCheckpoint,
   del,
   destroyLastCheckpoint,
+  discardCheckpointFuture,
   editSimple,
   type EditorChangeRecord as ChangeRecord,
   type EditorHistoryExecutor,
@@ -49,8 +53,10 @@ import {
   EditorSearchController,
   ScopedEditorSessionHandle,
   getByteOrderMark,
+  getActionJournalViewport as requestActionJournalViewport,
   getChangeCount,
   getChangeDetails,
+  getChangeTransactionCount,
   getClientVersion,
   getComputedFileSize,
   getCounts,
@@ -58,12 +64,14 @@ import {
   getServerInfo,
   getSessionContentInfo,
   getSessionFingerprint,
+  getUndoTransactionCount,
   getViewportData,
   IOFlags,
   inspectSessionContent,
   SaveStatus,
   SearchCaseFolding,
   type IServerInfo,
+  type ActionJournalViewport,
   insert,
   listTransformPlugins,
   modifyViewport,
@@ -96,7 +104,10 @@ import {
 import * as os from 'node:os'
 import * as path from 'node:path'
 import * as vscode from 'vscode'
-import { OMEGA_EDIT_VIEW_TYPE } from './constants'
+import {
+  OMEGA_EDIT_TOGGLE_INSERT_DIRECTION_COMMAND,
+  OMEGA_EDIT_VIEW_TYPE,
+} from './constants'
 import {
   type AssistantSessionContext,
   cloneAssistantCommandSurfaces,
@@ -117,6 +128,8 @@ import {
   type WebviewEditorState,
   type WebviewEditorUiState,
   type WebviewExternalHighlight,
+  type WebviewActionJournalKind,
+  type WebviewActionJournalViewport,
   type WebviewRangeMapNode,
   type WebviewSessionContentInfo,
   type WebviewSessionContentSource,
@@ -126,10 +139,10 @@ import {
   type ServerHealthMetricId,
   type ServerHealthMessage,
   type WebviewToHostMessage,
-  bytesPerRowFromSetting,
+  MAX_EXTERNAL_HIGHLIGHTS,
+  checkpointTimelineMetadataWindow,
   normalizeExternalHighlights,
   normalizeBytesPerRow,
-  normalizeBytesPerRowSetting,
   normalizeTextEncoding,
   normalizeWebviewMessage,
 } from './webviewProtocol'
@@ -153,7 +166,6 @@ interface EditorSession {
   bufferOffset: number
   visibleRows: number
   capacity: number
-  bytesPerRowSetting: number
   bytesPerRow: BytesPerRow
   filePath: string
   panel: vscode.WebviewPanel
@@ -170,7 +182,10 @@ interface EditorSession {
   webviewState: WebviewEditorUiState
   externalHighlights: WebviewExternalHighlight[]
   rangeMapTree: WebviewRangeMapNode[]
-  externalHighlightBaseline?: ExternalHighlightBaseline
+  externalHighlightBaselines?: Map<
+    string | undefined,
+    ExternalHighlightBaseline
+  >
   contentSources: WebviewSessionContentInfo[]
   transformPlugins: WebviewTransformPlugin[]
   transformInFlight: boolean
@@ -178,7 +193,20 @@ interface EditorSession {
   pendingHistoryOperation?: 'undo' | 'redo'
   pendingHistoryCount?: number
   historyCommandTask?: Promise<void>
+  saveTask?: Promise<void>
+  savedDiskFingerprint?: ChangeLogFingerprint
   checkpointTimeline: CheckpointTimelineState
+  actionJournal: ActionJournalState
+}
+
+interface ActionJournalState {
+  visible: boolean
+  capacity: number
+  direction: 'older' | 'newer'
+  requestGeneration: number
+  navigating: boolean
+  refreshTask?: Promise<void>
+  refreshPending: boolean
 }
 
 interface CheckpointTimelineEntry {
@@ -206,6 +234,8 @@ function timelineFingerprintsEqual(
 ): boolean {
   return (
     String(left.byteLength) === String(right.byteLength) &&
+    (left.digest.pluginId ?? DEFAULT_CHANGE_LOG_DIGEST_PLUGIN_ID) ===
+      (right.digest.pluginId ?? DEFAULT_CHANGE_LOG_DIGEST_PLUGIN_ID) &&
     left.digest.algorithm === right.digest.algorithm &&
     left.digest.value === right.digest.value
   )
@@ -233,6 +263,7 @@ interface CollectedChangeLogRecords {
 }
 
 interface ChangeLogDigest {
+  pluginId?: string
   algorithm: string
   value: string
 }
@@ -402,7 +433,19 @@ const MAX_TRANSFORM_RESULT_PREVIEW_BYTES = 4 * 1024
 const MAX_FILE_SPLICE_BYTES = 32 * 1024 * 1024
 const MAX_NON_FILE_CHANGE_LOG_BYTES = 64 * 1024 * 1024
 const MAX_NON_FILE_CHANGE_LOG_ENTRIES = 10_000
-const DEFAULT_CHANGE_LOG_DIGEST_ALGORITHM = 'sha256'
+const DEFAULT_SAVE_CONFLICT_FINGERPRINT_ALGORITHM = 'sha256'
+const SAVE_CONFLICT_FINGERPRINT_ALGORITHMS = [
+  'sha224',
+  'sha256',
+  'sha384',
+  'sha512',
+  'sha3-256',
+  'sha3-512',
+  'blake2b-512',
+  'blake2s-256',
+] as const
+type SaveConflictFingerprintAlgorithm =
+  (typeof SAVE_CONFLICT_FINGERPRINT_ALGORITHMS)[number]
 const INTERNAL_REPLACE_ALL_REPLAY_ID = 'omega.internal.replace-all'
 const GRPC_NOT_FOUND = 5
 const MAX_INT64 = 9_223_372_036_854_775_807n
@@ -411,8 +454,10 @@ const CONTEXT_CAN_UNDO = 'omegaEdit.canUndo'
 const CONTEXT_CAN_REDO = 'omegaEdit.canRedo'
 const CONTEXT_HAS_PENDING_CHANGES = 'omegaEdit.hasPendingChanges'
 const CONTEXT_TRANSFORM_IN_FLIGHT = 'omegaEdit.transformInFlight'
+const BYTES_PER_ROW_STORAGE_KEY = 'omegaEdit.bytesPerRow'
 const CONTEXT_ACTIVE_SESSION_RESOURCE_PATHS =
   'omegaEdit.activeSessionResourcePaths'
+const ACTION_JOURNAL_REQUEST_TIMEOUT_MS = 15_000
 
 function openEditorFirstMessage(): string {
   return vscode.l10n.t('Open an OmegaEdit editor first')
@@ -427,6 +472,23 @@ function describeSaveStatus(status: number): string {
     return vscode.l10n.t('original file was modified outside OmegaEdit')
   }
   return vscode.l10n.t('status {status}', { status })
+}
+
+function resolveSaveConflictFingerprintAlgorithm(
+  resource?: vscode.Uri
+): SaveConflictFingerprintAlgorithm {
+  const configured = vscode.workspace
+    .getConfiguration('omegaEdit', resource)
+    .get<string>(
+      'saveConflictFingerprintAlgorithm',
+      DEFAULT_SAVE_CONFLICT_FINGERPRINT_ALGORITHM
+    )
+    .toLowerCase()
+  return (
+    SAVE_CONFLICT_FINGERPRINT_ALGORITHMS.find(
+      (algorithm) => algorithm === configured
+    ) ?? DEFAULT_SAVE_CONFLICT_FINGERPRINT_ALGORITHM
+  )
 }
 
 async function saveSessionOrThrow(
@@ -444,6 +506,43 @@ async function saveSessionOrThrow(
       })
     )
   }
+}
+
+async function saveSessionWithKnownDiskVersion(
+  session: EditorSession,
+  cancellation: vscode.CancellationToken
+): Promise<void> {
+  if (cancellation.isCancellationRequested) {
+    throw new vscode.CancellationError()
+  }
+  const expected =
+    session.savedDiskFingerprint ?? session.checkpointTimeline.savedFingerprint
+  const expectedByteLength = Number(expected.byteLength)
+  if (!Number.isSafeInteger(expectedByteLength) || expectedByteLength < 0) {
+    throw new Error('Saved file fingerprint has an invalid byte length')
+  }
+  const response = await saveSession(
+    session.sessionId,
+    session.filePath,
+    IOFlags.OVERWRITE,
+    0,
+    0,
+    {
+      byteLength: expectedByteLength,
+      digest: expected.digest,
+    }
+  )
+  const status = response.getSaveStatus()
+  if (status === SaveStatus.SUCCESS) {
+    return
+  }
+
+  throw new Error(
+    vscode.l10n.t('OmegaEdit save failed for {path}: {reason}', {
+      path: session.filePath,
+      reason: describeSaveStatus(status),
+    })
+  )
 }
 
 function transformMutationBlockedMessage(): string {
@@ -1697,9 +1796,15 @@ function assertCompleteChangeLog(
 async function getChangeLogFingerprint(
   sessionId: string,
   content: SessionFingerprintContent,
-  algorithm = DEFAULT_CHANGE_LOG_DIGEST_ALGORITHM
+  algorithm = DEFAULT_CHANGE_LOG_DIGEST_ALGORITHM,
+  pluginId = DEFAULT_CHANGE_LOG_DIGEST_PLUGIN_ID
 ): Promise<ChangeLogFingerprint> {
-  const response = await getSessionFingerprint(sessionId, content, algorithm)
+  const response = await getSessionFingerprint(
+    sessionId,
+    content,
+    algorithm,
+    pluginId
+  )
   if (!response.fingerprint?.digest) {
     throw new Error('Server fingerprint response is missing digest metadata')
   }
@@ -1707,6 +1812,7 @@ async function getChangeLogFingerprint(
   return {
     byteLength: int64ToDecimal(response.fingerprint.byteLength),
     digest: {
+      pluginId,
       algorithm: response.fingerprint.digest.algorithm.toLowerCase(),
       value: response.fingerprint.digest.value.toLowerCase(),
     },
@@ -1714,7 +1820,7 @@ async function getChangeLogFingerprint(
 }
 
 function fingerprintLabel(fingerprint: ChangeLogFingerprint): string {
-  return `${int64ToDecimal(fingerprint.byteLength)} bytes ${fingerprint.digest.algorithm}:${fingerprint.digest.value}`
+  return `${int64ToDecimal(fingerprint.byteLength)} bytes ${fingerprint.digest.pluginId ?? DEFAULT_CHANGE_LOG_DIGEST_PLUGIN_ID}/${fingerprint.digest.algorithm}:${fingerprint.digest.value}`
 }
 
 function fingerprintsMatch(
@@ -1723,6 +1829,8 @@ function fingerprintsMatch(
 ): boolean {
   return (
     int64ToDecimal(actual.byteLength) === int64ToDecimal(expected.byteLength) &&
+    (actual.digest.pluginId ?? DEFAULT_CHANGE_LOG_DIGEST_PLUGIN_ID) ===
+      (expected.digest.pluginId ?? DEFAULT_CHANGE_LOG_DIGEST_PLUGIN_ID) &&
     actual.digest.algorithm === expected.digest.algorithm &&
     actual.digest.value === expected.digest.value
   )
@@ -1747,7 +1855,8 @@ async function assertCurrentSessionFingerprint(
   const actual = await getChangeLogFingerprint(
     sessionId,
     SessionFingerprintContent.COMPUTED,
-    expected.digest.algorithm
+    expected.digest.algorithm,
+    expected.digest.pluginId ?? DEFAULT_CHANGE_LOG_DIGEST_PLUGIN_ID
   )
   if (fingerprintsMatch(actual, expected)) {
     return
@@ -1771,7 +1880,8 @@ async function assertChangeLogExportStable(
   const finalAfter = await getChangeLogFingerprint(
     sessionId,
     SessionFingerprintContent.COMPUTED,
-    expectedAfter.digest.algorithm
+    expectedAfter.digest.algorithm,
+    expectedAfter.digest.pluginId ?? DEFAULT_CHANGE_LOG_DIGEST_PLUGIN_ID
   )
   if (!fingerprintsMatch(finalAfter, expectedAfter)) {
     throw new Error(
@@ -1978,28 +2088,28 @@ export class HexEditorProvider
       vscode.StatusBarAlignment.Right,
       106
     ),
-    layout: vscode.window.createStatusBarItem(
+    transforms: vscode.window.createStatusBarItem(
       vscode.StatusBarAlignment.Right,
       105
     ),
-    transforms: vscode.window.createStatusBarItem(
+    dirty: vscode.window.createStatusBarItem(
       vscode.StatusBarAlignment.Right,
       104
     ),
-    dirty: vscode.window.createStatusBarItem(
-      vscode.StatusBarAlignment.Right,
-      103
-    ),
     server: vscode.window.createStatusBarItem(
       vscode.StatusBarAlignment.Right,
-      102
+      103
     ),
   }
 
   constructor(
     private readonly extensionContext?: Pick<
       vscode.ExtensionContext,
-      'extensionUri' | 'subscriptions' | 'storageUri' | 'globalStorageUri'
+      | 'extensionUri'
+      | 'subscriptions'
+      | 'storageUri'
+      | 'globalStorageUri'
+      | 'workspaceState'
     >
   ) {
     this.extensionContext?.subscriptions.push(
@@ -2008,11 +2118,11 @@ export class HexEditorProvider
       this.statusItems.size,
       this.statusItems.pane,
       this.statusItems.mode,
-      this.statusItems.layout,
       this.statusItems.transforms,
       this.statusItems.dirty,
       this.statusItems.server
     )
+    this.statusItems.mode.command = OMEGA_EDIT_TOGGLE_INSERT_DIRECTION_COMMAND
     const configuration = vscode.workspace.getConfiguration('omegaEdit')
     const configuredStorage =
       this.extensionContext?.storageUri?.fsPath ||
@@ -2078,45 +2188,19 @@ export class HexEditorProvider
     this.postEditState(session)
   }
 
-  private async updateBytesPerRowConfiguration(
-    session: EditorSession,
-    value: number
-  ): Promise<void> {
-    const resource = vscode.Uri.file(session.filePath)
-    const workspaceFolder = vscode.workspace.getWorkspaceFolder(resource)
-    const configuration = vscode.workspace.getConfiguration(
-      'omegaEdit',
-      resource
+  private storedBytesPerRow(): BytesPerRow {
+    return normalizeBytesPerRow(
+      this.extensionContext?.workspaceState?.get(BYTES_PER_ROW_STORAGE_KEY)
     )
-    const targets = workspaceFolder
-      ? [
-          vscode.ConfigurationTarget.WorkspaceFolder,
-          vscode.ConfigurationTarget.Workspace,
-          vscode.ConfigurationTarget.Global,
-        ]
-      : vscode.workspace.workspaceFolders &&
-          vscode.workspace.workspaceFolders.length > 0
-        ? [
-            vscode.ConfigurationTarget.Workspace,
-            vscode.ConfigurationTarget.Global,
-          ]
-        : [vscode.ConfigurationTarget.Global]
+  }
 
-    let lastError: unknown
-    let updated = false
-    for (const target of targets) {
-      try {
-        await configuration.update('bytesPerRow', value, target)
-        updated = true
-        break
-      } catch (err) {
-        lastError = err
-      }
-    }
-
-    if (!updated && lastError) {
-      throw lastError
-    }
+  private async persistBytesPerRow(value: BytesPerRow): Promise<void> {
+    const bytesPerRow = normalizeBytesPerRow(value)
+    await this.extensionContext?.workspaceState?.update(
+      BYTES_PER_ROW_STORAGE_KEY,
+      bytesPerRow
+    )
+    this.refreshBytesPerRow(bytesPerRow)
   }
 
   public getSessionForTesting(uri: vscode.Uri): EditorSession | undefined {
@@ -2133,7 +2217,7 @@ export class HexEditorProvider
 
   private renderWebviewHtml(
     webview: vscode.Webview,
-    bytesPerRowSetting: number
+    bytesPerRow: BytesPerRow
   ): string {
     const extensionUri = this.extensionContext?.extensionUri
     if (!extensionUri) {
@@ -2143,12 +2227,13 @@ export class HexEditorProvider
       return `<!DOCTYPE html><html><body>${message}</body></html>`
     }
 
-    return getSvelteWebviewContent(webview, extensionUri, bytesPerRowSetting)
+    return getSvelteWebviewContent(webview, extensionUri, bytesPerRow)
   }
 
   public async dispatchWebviewMessageForTesting(
     uri: vscode.Uri,
-    msg: WebviewToHostMessage
+    msg: WebviewToHostMessage,
+    options?: { propagateErrors?: boolean }
   ): Promise<void> {
     if (process.env.NODE_ENV !== 'test') {
       throw new Error('Test-only message dispatch is unavailable outside tests')
@@ -2175,6 +2260,9 @@ export class HexEditorProvider
         }
         await this.performRedoOnSession(session)
         return
+      case 'navigateActionJournal':
+        await this.navigateActionJournalToChangeCount(session, msg.changeCount)
+        return
       case 'save':
       case 'saveAs': {
         const cts = new vscode.CancellationTokenSource()
@@ -2199,7 +2287,11 @@ export class HexEditorProvider
       }
     }
 
-    await this.handleWebviewMessage(session, msg)
+    await this.handleWebviewMessage(
+      session,
+      msg,
+      options?.propagateErrors === true
+    )
   }
 
   public async undoActive(): Promise<WebviewEditorState | undefined> {
@@ -2304,11 +2396,7 @@ export class HexEditorProvider
     const filePath = uri.fsPath
 
     // --- Create Ωedit™ session for this file ---
-    const config = vscode.workspace.getConfiguration('omegaEdit')
-    const bytesPerRowSetting = normalizeBytesPerRowSetting(
-      config.get('bytesPerRow')
-    )
-    const bytesPerRow = bytesPerRowFromSetting(bytesPerRowSetting)
+    const bytesPerRow = this.storedBytesPerRow()
 
     // Keep a fixed buffered viewport so resizing the editor does not need to
     // resize the server-side viewport. Only the visible row count changes.
@@ -2323,7 +2411,7 @@ export class HexEditorProvider
     }
     webviewPanel.webview.html = this.renderWebviewHtml(
       webviewPanel.webview,
-      bytesPerRowSetting
+      bytesPerRow
     )
 
     const panelDisposables: vscode.Disposable[] = []
@@ -2388,6 +2476,17 @@ export class HexEditorProvider
         digest: { algorithm: 'sha256', value: '0'.repeat(64) },
       }
     })
+    const saveConflictFingerprintAlgorithm =
+      resolveSaveConflictFingerprintAlgorithm(uri)
+    const savedDiskFingerprint =
+      !fingerprintFailure &&
+      originalFingerprint.digest.algorithm === saveConflictFingerprintAlgorithm
+        ? originalFingerprint
+        : await getChangeLogFingerprint(
+            scope.sessionId,
+            SessionFingerprintContent.COMPUTED,
+            saveConflictFingerprintAlgorithm
+          ).catch(() => undefined)
     const timelineStorage = fingerprintFailure
       ? undefined
       : await this.timelineStorage
@@ -2436,7 +2535,6 @@ export class HexEditorProvider
       bufferOffset: 0,
       visibleRows: 32,
       capacity,
-      bytesPerRowSetting,
       bytesPerRow,
       filePath,
       panel: webviewPanel,
@@ -2451,6 +2549,7 @@ export class HexEditorProvider
       transformPlugins: [],
       transformInFlight: false,
       restoredFromBackup: wasRestoredFromBackup,
+      savedDiskFingerprint,
       checkpointTimeline: {
         entries: [],
         storage: timelineStorage,
@@ -2462,6 +2561,14 @@ export class HexEditorProvider
         currentFingerprint: originalFingerprint,
         visible: false,
         navigating: false,
+      },
+      actionJournal: {
+        visible: false,
+        capacity: 256,
+        direction: 'older',
+        requestGeneration: 0,
+        navigating: false,
+        refreshPending: false,
       },
     }
     if (timelineStorage) {
@@ -2479,6 +2586,7 @@ export class HexEditorProvider
     this.pendingHealthWebviews.delete(webviewPanel.webview)
     resolvedSession = session
     this.activeSession = session
+    await this.reconcileNativeHistory(session)
     this.updateEditCommandContexts(session)
 
     // Send initial data to the webview. The message listener must be in place
@@ -2532,19 +2640,34 @@ export class HexEditorProvider
 
   // --- CustomEditorProvider required methods ---
 
-  async saveCustomDocument(
-    document: HexDocument,
-    _cancellation: vscode.CancellationToken
+  private async runSerializedSave(
+    session: EditorSession,
+    cancellation: vscode.CancellationToken,
+    operation: () => Promise<void>
   ): Promise<void> {
-    const session = this.sessions.get(document.uri.toString())
-    if (!session) {
-      return
+    const previous = session.saveTask ?? Promise.resolve()
+    const task = previous
+      .catch(() => undefined)
+      .then(async () => {
+        if (cancellation.isCancellationRequested) {
+          throw new vscode.CancellationError()
+        }
+        await operation()
+      })
+    session.saveTask = task
+    try {
+      await task
+    } finally {
+      if (session.saveTask === task) {
+        session.saveTask = undefined
+      }
     }
-    await saveSessionOrThrow(
-      session.sessionId,
-      session.filePath,
-      IOFlags.OVERWRITE
-    )
+  }
+
+  private async recordSuccessfulSave(
+    session: EditorSession,
+    updateOriginalDiskFingerprint: boolean
+  ): Promise<void> {
     session.restoredFromBackup = false
     session.history.markSaved()
     session.checkpointTimeline.savedChangeCount = await getChangeCount(
@@ -2553,19 +2676,46 @@ export class HexEditorProvider
     const fingerprint = await getChangeLogFingerprint(
       session.sessionId,
       SessionFingerprintContent.COMPUTED,
-      'sha256'
+      DEFAULT_CHANGE_LOG_DIGEST_ALGORITHM
     )
     session.checkpointTimeline.savedFingerprint = fingerprint
     session.checkpointTimeline.currentFingerprint = fingerprint
+    if (updateOriginalDiskFingerprint) {
+      const algorithm = resolveSaveConflictFingerprintAlgorithm(
+        session.document.uri
+      )
+      session.savedDiskFingerprint =
+        fingerprint.digest.algorithm === algorithm
+          ? fingerprint
+          : await getChangeLogFingerprint(
+              session.sessionId,
+              SessionFingerprintContent.COMPUTED,
+              algorithm
+            ).catch(() => undefined)
+    }
     await session.checkpointTimeline.storage?.setSavedFingerprint(fingerprint)
     this.postCheckpointTimeline(session)
     this.postEditState(session)
   }
 
+  async saveCustomDocument(
+    document: HexDocument,
+    cancellation: vscode.CancellationToken
+  ): Promise<void> {
+    const session = this.sessions.get(document.uri.toString())
+    if (!session) {
+      return
+    }
+    await this.runSerializedSave(session, cancellation, async () => {
+      await saveSessionWithKnownDiskVersion(session, cancellation)
+      await this.recordSuccessfulSave(session, true)
+    })
+  }
+
   async saveCustomDocumentAs(
     document: HexDocument,
     destination: vscode.Uri,
-    _cancellation: vscode.CancellationToken
+    cancellation: vscode.CancellationToken
   ): Promise<void> {
     const session = this.sessions.get(document.uri.toString())
     if (!session) {
@@ -2576,26 +2726,14 @@ export class HexEditorProvider
         vscode.l10n.t('OmegaEdit Data Editor can only save to local files')
       )
     }
-    await saveSessionOrThrow(
-      session.sessionId,
-      destination.fsPath,
-      IOFlags.OVERWRITE
-    )
-    session.restoredFromBackup = false
-    session.history.markSaved()
-    session.checkpointTimeline.savedChangeCount = await getChangeCount(
-      session.sessionId
-    )
-    const fingerprint = await getChangeLogFingerprint(
-      session.sessionId,
-      SessionFingerprintContent.COMPUTED,
-      'sha256'
-    )
-    session.checkpointTimeline.savedFingerprint = fingerprint
-    session.checkpointTimeline.currentFingerprint = fingerprint
-    await session.checkpointTimeline.storage?.setSavedFingerprint(fingerprint)
-    this.postCheckpointTimeline(session)
-    this.postEditState(session)
+    await this.runSerializedSave(session, cancellation, async () => {
+      await saveSessionOrThrow(
+        session.sessionId,
+        destination.fsPath,
+        IOFlags.OVERWRITE
+      )
+      await this.recordSuccessfulSave(session, false)
+    })
   }
 
   async revertCustomDocument(
@@ -2659,6 +2797,18 @@ export class HexEditorProvider
       },
       onSessionEvent: async (event, context) => {
         this.postTransformProgress(session, event)
+        const kind = event.getSessionEventKind()
+        if (
+          kind === SessionEventKind.EDIT ||
+          kind === SessionEventKind.UNDO ||
+          kind === SessionEventKind.CLEAR ||
+          kind === SessionEventKind.TRANSFORM ||
+          kind === SessionEventKind.CREATE_CHECKPOINT ||
+          kind === SessionEventKind.DESTROY_CHECKPOINT ||
+          kind === SessionEventKind.RESTORE_CHECKPOINT
+        ) {
+          this.queueActionJournalRefresh(session)
+        }
         if (!context.stateChanged) {
           return
         }
@@ -2714,6 +2864,40 @@ export class HexEditorProvider
     return session ? this.buildEditorState(session) : undefined
   }
 
+  async getActionJournalViewport(options?: {
+    uri?: vscode.Uri | string
+    anchorSerial?: string | number | bigint
+    capacity?: number
+    direction?: 'older' | 'newer'
+    kinds?: WebviewActionJournalKind[]
+    transactionId?: string
+  }): Promise<ActionJournalViewport | undefined> {
+    const session = this.resolveCommandSession(options)
+    if (!session) {
+      return undefined
+    }
+    return requestActionJournalViewport({
+      sessionId: session.sessionId,
+      anchorSerial: options?.anchorSerial,
+      capacity: options?.capacity,
+      direction: options?.direction,
+      kinds: options?.kinds,
+      transactionId: options?.transactionId,
+    })
+  }
+
+  async showActionJournal(options?: unknown): Promise<void> {
+    const session = this.resolveCommandSession(options)
+    if (!session) {
+      return
+    }
+    if (session.checkpointTimeline.visible) {
+      session.checkpointTimeline.visible = false
+      this.postCheckpointTimeline(session)
+    }
+    await this.postActionJournalViewport(session)
+  }
+
   getAssistantContext(options?: unknown): AssistantSessionContext | undefined {
     const session = this.resolveCommandSession(options)
     return session ? this.buildAssistantContext(session) : undefined
@@ -2740,7 +2924,11 @@ export class HexEditorProvider
       throw new Error('Invalid external highlight request')
     }
 
-    this.setSessionExternalHighlights(session, highlights)
+    this.setSessionExternalHighlights(
+      session,
+      highlights,
+      request.options.owner
+    )
 
     if (request.options.reveal && highlights.length > 0) {
       await this.scrollTo(session, highlights[0].offset)
@@ -2750,12 +2938,13 @@ export class HexEditorProvider
   }
 
   clearExternalHighlights(options?: unknown): WebviewEditorState | undefined {
+    const owner = this.parseExternalHighlightOwner(options)
     const session = this.resolveCommandSession(options)
     if (!session) {
       return undefined
     }
 
-    this.clearSessionExternalHighlights(session)
+    this.clearSessionExternalHighlights(session, owner)
     return this.buildEditorState(session)
   }
 
@@ -2766,7 +2955,9 @@ export class HexEditorProvider
       return
     }
 
-    const unloadedCount = session.externalHighlights.length
+    const unloadedCount = session.externalHighlights.filter(
+      (highlight) => highlight.owner === undefined
+    ).length
     this.clearSessionExternalHighlights(session)
 
     if (unloadedCount > 0 && (!isRecord(options) || options.notify !== false)) {
@@ -2917,15 +3108,12 @@ export class HexEditorProvider
     return this.buildEditorState(session)
   }
 
-  /** Re-read bytesPerRow from config and refresh all open editors */
-  refreshBytesPerRow(bytesPerRowSettingOverride?: number): void {
-    const bytesPerRowSetting = normalizeBytesPerRowSetting(
-      bytesPerRowSettingOverride ??
-        vscode.workspace.getConfiguration('omegaEdit').get('bytesPerRow')
+  /** Refresh all open editors from the workspace-local preference. */
+  refreshBytesPerRow(bytesPerRowOverride?: number): void {
+    const bytesPerRow = normalizeBytesPerRow(
+      bytesPerRowOverride ?? this.storedBytesPerRow()
     )
     for (const session of this.sessions.values()) {
-      const bytesPerRow = bytesPerRowFromSetting(bytesPerRowSetting)
-      session.bytesPerRowSetting = bytesPerRowSetting
       this.postBytesPerRow(session, bytesPerRow)
       this.postTransformStatus(
         session,
@@ -2948,7 +3136,7 @@ export class HexEditorProvider
       }
       session.panel.webview.html = this.renderWebviewHtml(
         session.panel.webview,
-        session.bytesPerRowSetting
+        session.bytesPerRow
       )
       this.postTransformStatus(
         session,
@@ -2986,7 +3174,8 @@ export class HexEditorProvider
     const current = await getChangeLogFingerprint(
       session.sessionId,
       SessionFingerprintContent.COMPUTED,
-      parsed.before.digest.algorithm
+      parsed.before.digest.algorithm,
+      parsed.before.digest.pluginId ?? DEFAULT_CHANGE_LOG_DIGEST_PLUGIN_ID
     )
     if (!fingerprintsMatch(current, parsed.before)) {
       safetyIssues.push({
@@ -3248,7 +3437,8 @@ export class HexEditorProvider
     const after = await getChangeLogFingerprint(
       session.sessionId,
       SessionFingerprintContent.COMPUTED,
-      before.digest.algorithm
+      before.digest.algorithm,
+      before.digest.pluginId ?? DEFAULT_CHANGE_LOG_DIGEST_PLUGIN_ID
     )
     const controller = new AbortController()
     const withExportProgress = async <T>(
@@ -3675,7 +3865,8 @@ export class HexEditorProvider
     const finalFingerprint = await getChangeLogFingerprint(
       session.sessionId,
       SessionFingerprintContent.COMPUTED,
-      parsed.after.digest.algorithm
+      parsed.after.digest.algorithm,
+      parsed.after.digest.pluginId ?? DEFAULT_CHANGE_LOG_DIGEST_PLUGIN_ID
     )
     if (appliedChangeCount > 0) {
       await this.truncateCheckpointTimelineFuture(session)
@@ -4152,24 +4343,7 @@ export class HexEditorProvider
     }
   }
 
-  async showCheckpointTimeline(
-    options?: unknown
-  ): Promise<CheckpointTimelineResult | undefined> {
-    const session = this.resolveCommandSession(options)
-    if (!session) {
-      void vscode.window.showWarningMessage(openEditorFirstMessage())
-      return
-    }
-    session.checkpointTimeline.visible = true
-    this.postCheckpointTimeline(session)
-    return {
-      state: this.buildEditorState(session),
-      checkpointCount: session.checkpointTimeline.entries.length,
-      moved: false,
-    }
-  }
-
-  private async navigateToCheckpoint(
+  private async checkoutHistoryCheckpoint(
     session: EditorSession,
     targetCheckpointCount: number
   ): Promise<CheckpointTimelineResult> {
@@ -4185,20 +4359,31 @@ export class HexEditorProvider
       )
     }
 
+    const targetFingerprint =
+      targetCheckpointCount === 0
+        ? timeline.originalFingerprint
+        : timeline.entries[targetCheckpointCount - 1].interval.after
+    let resetCurrentCheckpoint = false
     if (targetCheckpointCount === timeline.cursor) {
-      return {
-        state: this.buildEditorState(session),
-        checkpointCount,
-        moved: false,
+      const currentFingerprint = await getChangeLogFingerprint(
+        session.sessionId,
+        SessionFingerprintContent.COMPUTED,
+        'sha256'
+      )
+      if (timelineFingerprintsEqual(currentFingerprint, targetFingerprint)) {
+        return {
+          state: this.buildEditorState(session),
+          checkpointCount,
+          moved: false,
+        }
       }
+      resetCurrentCheckpoint = true
     }
 
-    await this.captureCheckpointTimelineTip(session)
-    const nativeCheckpointCount =
-      await this.assertCheckpointTimelineNativeAlignment(
-        session,
-        'before navigation'
-      )
+    await this.assertCheckpointTimelineNativeAlignment(
+      session,
+      'before navigation'
+    )
 
     timeline.navigating = true
     this.postCheckpointTimeline(session)
@@ -4212,45 +4397,34 @@ export class HexEditorProvider
     const originalCursor = timeline.cursor
     try {
       const sessionSyncVersion = session.sessionSyncVersion
-      if (targetCheckpointCount < timeline.cursor) {
-        // Rewind relies only on native checkpoints. Durable archives are
-        // validated when fast-forward crosses them, so an unavailable future
-        // interval never prevents returning to the original content.
-        let remaining = nativeCheckpointCount
-        while (remaining > targetCheckpointCount) {
-          remaining = await destroyLastCheckpoint(session.sessionId)
+      if (resetCurrentCheckpoint) {
+        if (targetCheckpointCount <= 0) {
+          throw new Error(
+            'The original checkpoint cannot be reset while it contains uncheckpointed changes'
+          )
         }
-        if (targetCheckpointCount > 0) {
-          await restoreLastCheckpoint(session.sessionId)
-        } else {
-          await clear(session.sessionId)
-        }
-        const expected =
-          targetCheckpointCount === 0
-            ? timeline.originalFingerprint
-            : timeline.entries[targetCheckpointCount - 1].interval.after
-        await assertCurrentSessionFingerprint(
-          session.sessionId,
-          expected,
-          'after'
-        )
-        timeline.cursor = targetCheckpointCount
-        await timeline.storage?.setCursor(targetCheckpointCount)
-      } else {
-        for (
-          let next = timeline.cursor + 1;
-          next <= targetCheckpointCount;
-          next += 1
-        ) {
-          const entry = timeline.entries[next - 1]
-          if (!entry || entry.interval.checkpoint !== next) {
-            throw new Error(`Checkpoint ${next} is missing from the timeline`)
-          }
-          await this.replayCheckpointTimelineInterval(session, next)
-          timeline.cursor = next
-          await timeline.storage?.setCursor(next)
-        }
+        await checkoutCheckpoint(session.sessionId, targetCheckpointCount - 1)
       }
+      const response = await checkoutCheckpoint(
+        session.sessionId,
+        targetCheckpointCount
+      )
+      if (
+        response.checkpointCount !== targetCheckpointCount ||
+        response.futureCheckpointCount >
+          timeline.entries.length - targetCheckpointCount
+      ) {
+        throw new Error(
+          `Native checkpoint checkout reached ${response.checkpointCount} with ${response.futureCheckpointCount} future checkpoints; expected checkpoint ${targetCheckpointCount} with at most ${timeline.entries.length - targetCheckpointCount} future checkpoints`
+        )
+      }
+      await assertCurrentSessionFingerprint(
+        session.sessionId,
+        targetFingerprint,
+        'after'
+      )
+      timeline.cursor = targetCheckpointCount
+      await timeline.storage?.setCursor(targetCheckpointCount)
 
       await this.waitForSessionSync(session, sessionSyncVersion)
       const currentFingerprint = await getChangeLogFingerprint(
@@ -4274,6 +4448,7 @@ export class HexEditorProvider
             targetHistorySnapshot?.transactionLog.length ?? 0
           )
         : new EditorHistoryController()
+      await this.reconcileNativeHistory(session)
       await this.resetSessionState(session, isDirty, isDirty, false, true)
       await this.refreshSessionContentInfo(session)
       this.clearSearchState(session)
@@ -4293,14 +4468,7 @@ export class HexEditorProvider
       console.warn(`Checkpoint timeline navigation failed: ${failureMessage}`)
       let rollbackFailure: string | undefined
       try {
-        let nativeCursor = await this.getCheckpointCount(session)
-        while (nativeCursor > originalCursor) {
-          nativeCursor = await destroyLastCheckpoint(session.sessionId)
-        }
-        while (nativeCursor < originalCursor) {
-          await this.replayCheckpointTimelineInterval(session, nativeCursor + 1)
-          nativeCursor += 1
-        }
+        await checkoutCheckpoint(session.sessionId, originalCursor)
         const originalFingerprint =
           originalCursor === 0
             ? timeline.originalFingerprint
@@ -4341,108 +4509,6 @@ export class HexEditorProvider
       if (failureMessage) {
         this.postTransformStatus(session, false, undefined, failureMessage)
       }
-    }
-  }
-
-  private async preflightCheckpointTimelineInterval(
-    session: EditorSession,
-    checkpoint: number
-  ): Promise<void> {
-    const entry = session.checkpointTimeline.entries[checkpoint - 1]
-    if (!entry || entry.interval.checkpoint !== checkpoint) {
-      throw new TimelineStorageError(
-        'TIMELINE_INTERVAL_UNAVAILABLE',
-        `Checkpoint ${checkpoint} is missing from the timeline`
-      )
-    }
-    const availablePlugins = new Set(
-      session.transformPlugins.map((plugin) => plugin.id)
-    )
-    const missingPlugins = entry.interval.transformPluginIds.filter(
-      (id) => !availablePlugins.has(id)
-    )
-    if (missingPlugins.length > 0) {
-      throw new TimelineStorageError(
-        'TIMELINE_PLUGIN_UNAVAILABLE',
-        `Checkpoint ${checkpoint} requires unavailable transform plugin(s): ${missingPlugins.join(', ')}`
-      )
-    }
-    const storage = session.checkpointTimeline.storage
-    if (!storage) {
-      throw new TimelineStorageError(
-        'TIMELINE_INTERVAL_UNAVAILABLE',
-        `Checkpoint ${checkpoint} has no durable replay archive`
-      )
-    }
-    try {
-      await storage.openInterval(checkpoint)
-    } catch (error) {
-      const code =
-        error instanceof TimelineStorageError
-          ? error.code
-          : 'TIMELINE_PREFLIGHT_FAILED'
-      const message = error instanceof Error ? error.message : String(error)
-      entry.interval = {
-        ...entry.interval,
-        state: 'unavailable',
-        archive: undefined,
-        error: { code, message },
-      }
-      entry.interval = await storage
-        .markIntervalUnavailable(checkpoint, code, message)
-        .catch(() => entry.interval)
-      this.postCheckpointTimeline(session)
-      throw error
-    }
-  }
-
-  private async replayCheckpointTimelineInterval(
-    session: EditorSession,
-    checkpoint: number
-  ): Promise<void> {
-    await this.preflightCheckpointTimelineInterval(session, checkpoint)
-    const entry = session.checkpointTimeline.entries[checkpoint - 1]
-    const startChangeCount = await getChangeCount(session.sessionId)
-    const startCheckpointCount = await this.getCheckpointCount(session)
-    await assertCurrentSessionFingerprint(
-      session.sessionId,
-      entry.interval.before,
-      'before'
-    )
-    try {
-      const archive =
-        await session.checkpointTimeline.storage?.openInterval(checkpoint)
-      if (!archive) throw new Error(`Checkpoint ${checkpoint} is unavailable`)
-      await this.applyChangeLogEntries(
-        session,
-        preparedChangeLogToParsed(archive).entries(),
-        entry.interval.after
-      )
-      const replayCheckpointCount = await this.getCheckpointCount(session)
-      if (replayCheckpointCount < checkpoint) {
-        await createCheckpoint(session.sessionId)
-      } else if (replayCheckpointCount > checkpoint) {
-        throw new Error(
-          `Checkpoint replay reached ${replayCheckpointCount}, expected ${checkpoint}`
-        )
-      }
-      await assertCurrentSessionFingerprint(
-        session.sessionId,
-        entry.interval.after,
-        'after'
-      )
-    } catch (error) {
-      let nativeCheckpointCount = await this.getCheckpointCount(session)
-      while (nativeCheckpointCount > startCheckpointCount) {
-        nativeCheckpointCount = await destroyLastCheckpoint(session.sessionId)
-      }
-      await restoreToChangeCount(session.sessionId, startChangeCount)
-      await assertCurrentSessionFingerprint(
-        session.sessionId,
-        entry.interval.before,
-        'before'
-      )
-      throw error
     }
   }
 
@@ -4502,6 +4568,269 @@ export class HexEditorProvider
       }
       throw error
     }
+  }
+
+  private async postActionJournalViewport(
+    session: EditorSession,
+    options: {
+      anchorSerial?: string
+      capacity?: number
+      direction?: 'older' | 'newer'
+      append?: boolean
+    } = {}
+  ): Promise<void> {
+    const state = session.actionJournal
+    const requestGeneration = ++state.requestGeneration
+    const capacity = options.capacity ?? state.capacity
+    const direction = options.direction ?? state.direction
+    state.visible = true
+    state.capacity = capacity
+    state.direction = direction
+    let viewport: ActionJournalViewport
+    let timeout: ReturnType<typeof setTimeout> | undefined
+    try {
+      viewport = await Promise.race([
+        requestActionJournalViewport({
+          sessionId: session.sessionId,
+          anchorSerial: options.anchorSerial,
+          capacity,
+          direction,
+        }),
+        new Promise<never>((_resolve, reject) => {
+          timeout = setTimeout(() => {
+            reject(new Error(vscode.l10n.t('Action journal request timed out')))
+          }, ACTION_JOURNAL_REQUEST_TIMEOUT_MS)
+        }),
+      ])
+    } catch (error) {
+      if (
+        requestGeneration === state.requestGeneration &&
+        !session.disposed &&
+        !session.scope.isDisposed
+      ) {
+        const message = error instanceof Error ? error.message : String(error)
+        this.postWebviewMessage(session, {
+          type: 'actionJournalError',
+          visible: true,
+          message: omegaEditErrorMessage(message),
+        })
+      }
+      throw error
+    } finally {
+      if (timeout) {
+        clearTimeout(timeout)
+      }
+    }
+    if (
+      requestGeneration !== state.requestGeneration ||
+      session.disposed ||
+      session.scope.isDisposed
+    ) {
+      return
+    }
+    if (await this.reconcileNativeHistory(session)) {
+      this.updateEditCommandContexts(session)
+      this.postEditState(session)
+    }
+    const webviewViewport: WebviewActionJournalViewport = {
+      version: 1,
+      activeTipSerial: viewport.activeTipSerial,
+      changeCount: viewport.changeCount,
+      undoCount: viewport.undoCount,
+      checkpointCount: viewport.checkpointCount,
+      anchorSerial: viewport.anchorSerial,
+      capacity: viewport.capacity,
+      direction: viewport.direction,
+      entries: viewport.entries,
+      hasMore: viewport.hasMore,
+      nextAnchorSerial: viewport.nextAnchorSerial,
+    }
+    this.postWebviewMessage(session, {
+      type: 'actionJournalViewport',
+      visible: true,
+      append: options.append === true,
+      viewport: webviewViewport,
+    })
+  }
+
+  private async nearestCheckpointForChangeCount(
+    session: EditorSession,
+    targetChangeCount: number
+  ): Promise<{ checkpoint: number; changeCount: number }> {
+    let nearest = { checkpoint: 0, changeCount: 0 }
+    let nearestDistance = Math.abs(targetChangeCount)
+    const timeline = session.checkpointTimeline
+    const nativeTimeline = await checkoutCheckpoint(
+      session.sessionId,
+      timeline.cursor
+    )
+    const logicalFutureCount = timeline.entries.length - timeline.cursor
+    if (
+      nativeTimeline.checkpointCount !== timeline.cursor ||
+      nativeTimeline.futureCheckpointCount > logicalFutureCount
+    ) {
+      throw new Error(
+        `Native checkpoint timeline is misaligned at ${nativeTimeline.checkpointCount} with ${nativeTimeline.futureCheckpointCount} future checkpoints`
+      )
+    }
+    const firstUnavailableTransformIndex =
+      nativeTimeline.futureCheckpointCount < logicalFutureCount
+        ? timeline.entries.findIndex(
+            (entry, index) =>
+              index >= timeline.cursor &&
+              entry.interval.boundaryKind === 'transform'
+          )
+        : -1
+    session.checkpointTimeline.entries.forEach((entry, index) => {
+      const checkpoint = index + 1
+      if (
+        checkpoint > timeline.cursor &&
+        nativeTimeline.futureCheckpointCount < logicalFutureCount &&
+        (firstUnavailableTransformIndex < 0 ||
+          index >= firstUnavailableTransformIndex)
+      ) {
+        // Undoing a transform removes its checkpoint model and retains the
+        // transform as redo history. A directly checked-out transform remains
+        // a materialized future model, so only avoid future ordinals when the
+        // native future count proves that the logical timeline has a gap.
+        return
+      }
+      const distance = Math.abs(entry.changeCount - targetChangeCount)
+      if (
+        distance < nearestDistance ||
+        (distance === nearestDistance &&
+          entry.changeCount < nearest.changeCount)
+      ) {
+        nearest = {
+          checkpoint,
+          changeCount: entry.changeCount,
+        }
+        nearestDistance = distance
+      }
+    })
+    return nearest
+  }
+
+  private async navigateActionJournalToChangeCount(
+    session: EditorSession,
+    targetChangeCountValue: string
+  ): Promise<void> {
+    const targetChangeCount = normalizeNonNegativeInt64ForClient(
+      targetChangeCountValue,
+      'action journal change count'
+    )
+    const state = session.actionJournal
+    if (state.navigating) {
+      return
+    }
+    if (targetChangeCount === session.changeCount) {
+      await this.postActionJournalViewport(session)
+      return
+    }
+    if (!this.ensureSessionCanMutate(session, true)) {
+      await this.postActionJournalViewport(session)
+      return
+    }
+
+    await session.historyCommandTask?.catch(() => undefined)
+    state.navigating = true
+    try {
+      const nearest = await this.nearestCheckpointForChangeCount(
+        session,
+        targetChangeCount
+      )
+      if (
+        nearest.checkpoint !== session.checkpointTimeline.cursor &&
+        nearest.changeCount !== session.changeCount
+      ) {
+        await this.checkoutHistoryCheckpoint(session, nearest.checkpoint)
+      }
+
+      session.checkpointTimeline.navigating = true
+      this.postCheckpointTimeline(session)
+      while (session.changeCount !== targetChangeCount) {
+        const before = session.changeCount
+        const direction = targetChangeCount < before ? 'undo' : 'redo'
+        const editState = session.history.getEditState()
+        if (
+          (direction === 'undo' && !editState.canUndo) ||
+          (direction === 'redo' && !editState.canRedo)
+        ) {
+          throw new Error(
+            `Change count ${targetChangeCount} is not available in retained history`
+          )
+        }
+
+        // History-card activation comes from a focused webview control. The
+        // generic VS Code undo/redo commands are focus-sensitive and may
+        // complete without invoking this custom editor, so navigate through
+        // the same session callbacks used by the registered edit events.
+        if (direction === 'undo') {
+          await this.performUndoOnSession(session)
+        } else {
+          await this.performRedoOnSession(session)
+        }
+
+        const after = session.changeCount
+        if (after === before) {
+          throw new Error(
+            `History ${direction} made no progress from change count ${before}`
+          )
+        }
+        if (
+          (direction === 'undo' && after < targetChangeCount) ||
+          (direction === 'redo' && after > targetChangeCount)
+        ) {
+          throw new Error(
+            `Change count ${targetChangeCount} is inside an atomic transaction and cannot be checked out`
+          )
+        }
+      }
+
+      state.refreshPending = false
+      await this.postActionJournalViewport(session)
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error)
+      this.postWebviewMessage(session, {
+        type: 'actionJournalError',
+        visible: true,
+        message: omegaEditErrorMessage(message),
+      })
+      throw error
+    } finally {
+      state.navigating = false
+      session.checkpointTimeline.navigating = false
+      this.postCheckpointTimeline(session)
+    }
+  }
+
+  private queueActionJournalRefresh(session: EditorSession): void {
+    const state = session.actionJournal
+    if (!state.visible || session.disposed || session.scope.isDisposed) {
+      return
+    }
+    if (state.navigating) {
+      state.refreshPending = true
+      return
+    }
+    if (state.refreshTask) {
+      state.refreshPending = true
+      return
+    }
+    state.refreshTask = (async () => {
+      do {
+        state.refreshPending = false
+        await this.postActionJournalViewport(session)
+      } while (state.refreshPending && state.visible)
+    })()
+      .catch((error) => {
+        console.warn(
+          `Failed to refresh action journal: ${error instanceof Error ? error.message : String(error)}`
+        )
+      })
+      .finally(() => {
+        state.refreshTask = undefined
+      })
   }
 
   private postPendingHealthWebviewMessage(
@@ -4619,23 +4948,41 @@ export class HexEditorProvider
     const availablePlugins = new Set(
       session.transformPlugins.map((plugin) => plugin.id)
     )
-    const intervalAvailable = (checkpoint: number): boolean => {
+    const intervalAvailability = (checkpoint: number) => {
       const interval = timeline.entries[checkpoint - 1]?.interval
-      return (
+      const missingPluginIds =
+        interval?.transformPluginIds.filter(
+          (id) => !availablePlugins.has(id)
+        ) ?? []
+      const available =
         !!timeline.storage &&
         interval?.state === 'ready' &&
-        interval.transformPluginIds.every((id) => availablePlugins.has(id))
-      )
+        missingPluginIds.length === 0
+      return {
+        available,
+        missingPluginIds,
+        error:
+          interval?.error?.message ??
+          (!timeline.storage
+            ? 'Checkpoint history storage is unavailable'
+            : missingPluginIds.length > 0
+              ? `Missing transform plugin(s): ${missingPluginIds.join(', ')}`
+              : undefined),
+      }
     }
     const canRewind = timeline.cursor > 0
-    const canFastForward =
-      timeline.cursor < timeline.entries.length &&
-      intervalAvailable(timeline.cursor + 1)
+    const canFastForward = timeline.cursor < timeline.entries.length
+    const metadataCheckpoints = checkpointTimelineMetadataWindow(
+      timeline.entries.length,
+      timeline.cursor,
+      savedCheckpoint
+    )
     this.postWebviewMessage(session, {
       type: 'checkpointTimeline',
       visible: timeline.visible,
       cursor: timeline.cursor,
       checkpointCount: timeline.entries.length,
+      originalByteLength: String(timeline.originalFingerprint.byteLength),
       savedChangeCount: timeline.savedChangeCount,
       savedCheckpoint,
       savedOffBranch:
@@ -4648,15 +4995,30 @@ export class HexEditorProvider
       canRewind,
       canFastForward,
       navigating: timeline.navigating,
-      checkpoints: timeline.entries
-        .filter((entry) => entry.interval.boundaryKind !== 'tip')
-        .map((entry) => ({
-          checkpoint: entry.interval.checkpoint,
+      checkpoints: metadataCheckpoints.map((checkpoint) => {
+        const entry = timeline.entries[checkpoint - 1]
+        const availability = intervalAvailability(checkpoint)
+        return {
+          checkpoint,
           changeCount: entry.changeCount,
+          sourceChangeCount: entry.interval.sourceChangeCount,
+          ...(entry.interval.archive
+            ? {
+                replayChangeCount: entry.interval.archive.emittedChangeCount,
+                archiveByteLength: entry.interval.archive.byteLength,
+              }
+            : {}),
+          byteLengthBefore: entry.interval.before.byteLength,
+          byteLengthAfter: entry.interval.after.byteLength,
+          boundaryKind: entry.interval.boundaryKind,
+          transformPluginIds: entry.interval.transformPluginIds,
+          missingPluginIds: availability.missingPluginIds,
+          optimized: entry.interval.archive?.optimized ?? false,
           createdAt: Date.parse(entry.interval.createdAt),
-          available: intervalAvailable(entry.interval.checkpoint),
-          error: entry.interval.error?.message,
-        })),
+          available: availability.available,
+          error: availability.error,
+        }
+      }),
     })
   }
 
@@ -4674,12 +5036,6 @@ export class HexEditorProvider
       tree: session.rangeMapTree,
     })
     this.fireEditorStateChanged(session)
-  }
-
-  private cloneExternalHighlights(
-    highlights: WebviewExternalHighlight[]
-  ): WebviewExternalHighlight[] {
-    return highlights.map((highlight) => ({ ...highlight }))
   }
 
   private cloneRangeMapTree(
@@ -4710,21 +5066,10 @@ export class HexEditorProvider
 
   private setSessionExternalHighlights(
     session: EditorSession,
-    highlights: WebviewExternalHighlight[]
+    highlights: WebviewExternalHighlight[],
+    owner?: string
   ): void {
-    session.externalHighlights = this.cloneExternalHighlights(highlights)
-    session.rangeMapTree = []
-    session.externalHighlightBaseline =
-      highlights.length === 0
-        ? undefined
-        : {
-            changeCount: session.changeCount,
-            fileSize: session.fileSize,
-            highlights: this.cloneExternalHighlights(highlights),
-            rangeMapTree: [],
-          }
-    this.postExternalHighlights(session)
-    this.postRangeMapTree(session)
+    this.setAnnotationGroup(session, highlights, [], owner)
   }
 
   private setSessionRangeMap(
@@ -4732,49 +5077,75 @@ export class HexEditorProvider
     highlights: WebviewExternalHighlight[],
     tree: WebviewRangeMapNode[]
   ): void {
-    session.externalHighlights = this.cloneExternalHighlights(highlights)
-    session.rangeMapTree = this.cloneRangeMapTree(tree)
-    session.externalHighlightBaseline =
-      highlights.length === 0
-        ? undefined
-        : {
-            changeCount: session.changeCount,
-            fileSize: session.fileSize,
-            highlights: this.cloneExternalHighlights(highlights),
-            rangeMapTree: this.cloneRangeMapTree(tree),
-          }
-    this.postExternalHighlights(session)
-    this.postRangeMapTree(session)
+    this.setAnnotationGroup(session, highlights, tree)
   }
 
-  private clearSessionExternalHighlights(session: EditorSession): void {
-    session.externalHighlights = []
-    session.rangeMapTree = []
-    session.externalHighlightBaseline = undefined
-    this.postExternalHighlights(session)
-    this.postRangeMapTree(session)
+  private setAnnotationGroup(
+    session: EditorSession,
+    highlights: WebviewExternalHighlight[],
+    tree: WebviewRangeMapNode[],
+    owner?: string
+  ): void {
+    session.externalHighlightBaselines ??= new Map()
+    const groups = session.externalHighlightBaselines
+    const otherCount = [...groups].reduce(
+      (count, [key, group]) =>
+        count + (key === owner ? 0 : group.highlights.length),
+      0
+    )
+    if (otherCount + highlights.length > MAX_EXTERNAL_HIGHLIGHTS) {
+      throw new Error(
+        `At most ${MAX_EXTERNAL_HIGHLIGHTS} external highlights are supported per editor`
+      )
+    }
+    if (highlights.length === 0) {
+      groups.delete(owner)
+    } else {
+      groups.set(owner, {
+        changeCount: session.changeCount,
+        fileSize: session.fileSize,
+        highlights: highlights.map((highlight) => {
+          const annotation = { ...highlight }
+          // Ownership always comes from the group, including the legacy group.
+          delete annotation.owner
+          if (owner !== undefined) annotation.owner = owner
+          return annotation
+        }),
+        rangeMapTree: this.cloneRangeMapTree(tree),
+      })
+    }
+    this.reconcileExternalHighlightStaleness(session)
+  }
+
+  private clearSessionExternalHighlights(
+    session: EditorSession,
+    owner?: string
+  ): void {
+    session.externalHighlightBaselines?.delete(owner)
+    this.reconcileExternalHighlightStaleness(session)
   }
 
   private reconcileExternalHighlightStaleness(session: EditorSession): void {
-    const baseline = session.externalHighlightBaseline
-    if (!baseline || session.externalHighlights.length === 0) {
-      return
-    }
-
-    if (
-      session.changeCount === baseline.changeCount &&
-      session.fileSize === baseline.fileSize
-    ) {
-      session.externalHighlights = this.cloneExternalHighlights(
-        baseline.highlights
+    session.externalHighlights = []
+    session.rangeMapTree = []
+    for (const [owner, baseline] of session.externalHighlightBaselines ?? []) {
+      const fresh =
+        session.changeCount === baseline.changeCount &&
+        session.fileSize === baseline.fileSize
+      session.externalHighlights.push(
+        ...baseline.highlights.map((highlight) => ({
+          ...highlight,
+          ...(fresh ? {} : { stale: true }),
+        }))
       )
-      session.rangeMapTree = this.cloneRangeMapTree(baseline.rangeMapTree)
-      this.postExternalHighlights(session)
-      this.postRangeMapTree(session)
-      return
+      if (owner === undefined) {
+        session.rangeMapTree = fresh
+          ? this.cloneRangeMapTree(baseline.rangeMapTree)
+          : this.markRangeMapTreeNodesStale(baseline.rangeMapTree)
+      }
     }
-
-    this.markExternalHighlightsStale(session)
+    this.postExternalHighlights(session)
+    this.postRangeMapTree(session)
   }
 
   private postBytesPerRow(
@@ -5126,12 +5497,27 @@ export class HexEditorProvider
     return this.sessions.get(uri.toString())
   }
 
+  private parseExternalHighlightOwner(options: unknown): string | undefined {
+    const owner = isRecord(options) ? options.owner : undefined
+    if (owner === undefined) return undefined
+    if (
+      typeof owner !== 'string' ||
+      owner.trim().length === 0 ||
+      owner.length > 256
+    ) {
+      throw new Error(
+        'External highlight owner must be a nonblank string of at most 256 characters'
+      )
+    }
+    return owner
+  }
+
   private parseExternalHighlightCommand(
     highlightsOrRequest: unknown,
     options?: unknown
   ): {
     highlights: unknown
-    options: { uri?: vscode.Uri | string; reveal?: boolean }
+    options: { uri?: vscode.Uri | string; reveal?: boolean; owner?: string }
   } {
     if (
       isRecord(highlightsOrRequest) &&
@@ -5142,6 +5528,7 @@ export class HexEditorProvider
         options: {
           uri: highlightsOrRequest.uri as vscode.Uri | string | undefined,
           reveal: highlightsOrRequest.reveal === true,
+          owner: this.parseExternalHighlightOwner(highlightsOrRequest),
         },
       }
     }
@@ -5153,6 +5540,7 @@ export class HexEditorProvider
           ? (options.uri as vscode.Uri | string | undefined)
           : undefined,
         reveal: isRecord(options) && options.reveal === true,
+        owner: this.parseExternalHighlightOwner(options),
       },
     }
   }
@@ -5284,10 +5672,12 @@ export class HexEditorProvider
         ? vscode.l10n.t('Overwrite')
         : vscode.l10n.t('Insert')
     const direction = state.insertDirection === 'forward' ? '→' : '←'
-    this.statusItems.mode.name = vscode.l10n.t('Ωedit Edit Mode')
+    this.statusItems.mode.name = vscode.l10n.t(
+      'Ωedit Edit Mode and Insert Direction'
+    )
     this.statusItems.mode.text = `${mode} ${direction}`
     this.statusItems.mode.tooltip = vscode.l10n.t(
-      'Ωedit {mode} mode; {direction} insertion direction',
+      'Ωedit {mode} mode; {direction} insertion direction. Click to change insert direction.',
       {
         mode,
         direction:
@@ -5295,15 +5685,6 @@ export class HexEditorProvider
             ? vscode.l10n.t('forward')
             : vscode.l10n.t('backward'),
       }
-    )
-
-    this.statusItems.layout.name = vscode.l10n.t('Ωedit Bytes Per Row')
-    this.statusItems.layout.text = vscode.l10n.t('{count} B/row', {
-      count: formatStatusByteCount(state.bytesPerRow),
-    })
-    this.statusItems.layout.tooltip = vscode.l10n.t(
-      'Ωedit displays {count} bytes per row',
-      { count: formatStatusByteCount(state.bytesPerRow) }
     )
 
     this.statusItems.transforms.text = session.transformInFlight
@@ -5739,6 +6120,30 @@ export class HexEditorProvider
     return session.scope.model.waitForSync(minimumVersion, timeoutMs)
   }
 
+  private async reconcileNativeHistory(
+    session: EditorSession
+  ): Promise<boolean> {
+    const [activeTransactionCount, undoneTransactionCount, currentFingerprint] =
+      await Promise.all([
+        getChangeTransactionCount(session.sessionId),
+        getUndoTransactionCount(session.sessionId),
+        getChangeLogFingerprint(
+          session.sessionId,
+          SessionFingerprintContent.COMPUTED,
+          'sha256'
+        ),
+      ])
+    session.checkpointTimeline.currentFingerprint = currentFingerprint
+    return session.history.reconcileNativeTransactionCounts(
+      activeTransactionCount,
+      undoneTransactionCount,
+      timelineFingerprintsEqual(
+        session.checkpointTimeline.currentFingerprint,
+        session.checkpointTimeline.savedFingerprint
+      )
+    )
+  }
+
   private async getCheckpointCount(session: EditorSession): Promise<number> {
     const counts = await getCounts(session.sessionId, [CountKind.CHECKPOINTS])
     return counts[0]?.getCount() ?? 0
@@ -5924,35 +6329,6 @@ export class HexEditorProvider
     }
   }
 
-  private async captureCheckpointTimelineTip(
-    session: EditorSession
-  ): Promise<void> {
-    const timeline = session.checkpointTimeline
-    if (timeline.cursor !== timeline.entries.length) return
-
-    const changeCount = await getChangeCount(session.sessionId)
-    if (changeCount === timeline.lastArchivedChangeCount) return
-
-    const historyBefore = session.history.snapshot()
-    const sessionSyncVersion = session.sessionSyncVersion
-    const count = await createCheckpoint(session.sessionId)
-    session.history.recordMilestone()
-    await this.waitForSessionSync(session, sessionSyncVersion)
-    const interval = await this.recordCheckpointTimelineEntry(
-      session,
-      count,
-      'tip'
-    )
-    if (interval?.state !== 'ready') {
-      await this.rollbackUnusableTimelineBoundary(session, count, historyBefore)
-      throw new TimelineStorageError(
-        interval?.error?.code ?? 'TIMELINE_CAPTURE_FAILED',
-        interval?.error?.message ??
-          'Latest editor history could not be archived'
-      )
-    }
-  }
-
   private async rollbackUnusableTimelineBoundary(
     session: EditorSession,
     checkpoint: number,
@@ -5991,6 +6367,12 @@ export class HexEditorProvider
       cursor >= timeline.entries.length
     ) {
       return
+    }
+    const discarded = await discardCheckpointFuture(session.sessionId)
+    if (discarded.checkpointCount < cursor) {
+      throw new Error(
+        `Native checkpoint branch is at ${discarded.checkpointCount}, before timeline cursor ${cursor}`
+      )
     }
     try {
       await timeline.storage?.truncateFuture(cursor)
@@ -6057,6 +6439,10 @@ export class HexEditorProvider
         created: false,
       }
     }
+    // Auto Save can publish the file before it finishes updating the durable
+    // saved fingerprint. Do not let checkpoint manifest publication overlap
+    // that final save bookkeeping.
+    await session.saveTask?.catch(() => undefined)
     await this.assertCheckpointTimelineNativeAlignment(
       session,
       'before checkpoint creation'
@@ -6268,6 +6654,11 @@ export class HexEditorProvider
       return
     }
 
+    // A rollback changes the session baseline. Let any Auto Save that already
+    // captured the pre-rollback state finish publishing its disk fingerprint
+    // before the rollback makes the original content dirty again.
+    await session.saveTask?.catch(() => undefined)
+
     let resolveTimelineOperation: () => void = () => undefined
     session.checkpointTimeline.operation = new Promise<void>((resolve) => {
       resolveTimelineOperation = resolve
@@ -6386,6 +6777,16 @@ export class HexEditorProvider
     serverResidentMemoryBytes?: number
     serverVirtualMemoryBytes?: number
     serverPeakResidentMemoryBytes?: number
+    viewportCount?: number
+    attachmentCount?: number
+    activeOperationCount?: number
+    activeMutationCount?: number
+    activeTransformCount?: number
+    sessionSubscriptionCount?: number
+    viewportSubscriptionCount?: number
+    fileBackedSessionCount?: number
+    eventQueueDroppedCount?: number
+    oldestSessionIdleMs?: number
   }): Promise<void> {
     if (this.sessions.size === 0 && this.pendingHealthWebviews.size === 0) {
       return
@@ -6488,6 +6889,81 @@ export class HexEditorProvider
           logicalCpuValue
         ),
       ]
+
+      const addCountMetric = (
+        id:
+          | 'viewports'
+          | 'attachments'
+          | 'activeOperations'
+          | 'activeMutations'
+          | 'activeTransforms'
+          | 'sessionSubscriptions'
+          | 'viewportSubscriptions'
+          | 'fileBackedSessions'
+          | 'droppedEvents',
+        label: string,
+        value: number | undefined
+      ) => {
+        if (value !== undefined) {
+          metrics.push(serverHealthMetric(id, label, String(value)))
+        }
+      }
+      addCountMetric(
+        'viewports',
+        vscode.l10n.t('Viewports'),
+        heartbeat.viewportCount
+      )
+      addCountMetric(
+        'attachments',
+        vscode.l10n.t('Attachments'),
+        heartbeat.attachmentCount
+      )
+      addCountMetric(
+        'activeOperations',
+        vscode.l10n.t('Active Operations'),
+        heartbeat.activeOperationCount
+      )
+      addCountMetric(
+        'activeMutations',
+        vscode.l10n.t('Active Mutations'),
+        heartbeat.activeMutationCount
+      )
+      addCountMetric(
+        'activeTransforms',
+        vscode.l10n.t('Active Transforms'),
+        heartbeat.activeTransformCount
+      )
+      addCountMetric(
+        'sessionSubscriptions',
+        vscode.l10n.t('Session Subscriptions'),
+        heartbeat.sessionSubscriptionCount
+      )
+      addCountMetric(
+        'viewportSubscriptions',
+        vscode.l10n.t('Viewport Subscriptions'),
+        heartbeat.viewportSubscriptionCount
+      )
+      addCountMetric(
+        'fileBackedSessions',
+        vscode.l10n.t('File-backed Sessions'),
+        heartbeat.fileBackedSessionCount
+      )
+      addCountMetric(
+        'droppedEvents',
+        vscode.l10n.t('Dropped Events'),
+        heartbeat.eventQueueDroppedCount
+      )
+      if (heartbeat.oldestSessionIdleMs !== undefined) {
+        metrics.push(
+          serverHealthMetric(
+            'oldestSessionIdle',
+            vscode.l10n.t('Oldest Session Idle'),
+            vscode.l10n.t('{milliseconds} ms', {
+              milliseconds: heartbeat.oldestSessionIdleMs,
+            })
+          )
+        )
+      }
 
       if (heartbeat.serverLoadAverage !== undefined) {
         metrics.push(
@@ -6604,6 +7080,49 @@ export class HexEditorProvider
   }
 
   private makeHistoryExecutor(session: EditorSession): EditorHistoryExecutor {
+    const hasTimelineEntries = () =>
+      session.checkpointTimeline.entries.length > 0
+    const checkoutTimelineMilestone = async (direction: -1 | 1) => {
+      const targetCheckpoint = session.checkpointTimeline.cursor + direction
+      if (
+        targetCheckpoint < 0 ||
+        targetCheckpoint > session.checkpointTimeline.entries.length
+      ) {
+        throw new Error(
+          `Checkpoint milestone target ${targetCheckpoint} is outside the materialized timeline`
+        )
+      }
+      await checkoutCheckpoint(session.sessionId, targetCheckpoint)
+    }
+    const checkoutTimelineAtHistoryDepth = async (historyDepth: number) => {
+      const entries = session.checkpointTimeline.entries
+      let low = 0
+      let high = entries.length
+      while (low < high) {
+        const middle = low + Math.floor((high - low) / 2)
+        const entry = entries[middle]
+        if (!entry) {
+          throw new Error(
+            `Checkpoint timeline entry ${middle + 1} is unexpectedly missing`
+          )
+        }
+        const checkpointHistory = entry.interval.history
+        if (!checkpointHistory) {
+          throw new Error(
+            `Checkpoint ${middle + 1} is missing editor history metadata`
+          )
+        }
+        const checkpointDepth = checkpointHistory.transactionLog.length
+        if (checkpointDepth <= historyDepth) {
+          low = middle + 1
+        } else {
+          high = middle
+        }
+      }
+      const targetCheckpoint = low
+      if (targetCheckpoint <= session.checkpointTimeline.cursor) return
+      await checkoutCheckpoint(session.sessionId, targetCheckpoint)
+    }
     return {
       async undoLocal() {
         await undo(session.sessionId)
@@ -6612,15 +7131,33 @@ export class HexEditorProvider
         await redo(session.sessionId)
       },
       async undoMilestone() {
+        // With a materialized timeline, native undo moves plain checkpoint
+        // models to the future stack before undoing exactly one transaction.
+        // Only the legacy non-timeline path destroys the boundary explicitly.
+        if (hasTimelineEntries()) return
         await destroyLastCheckpoint(session.sessionId)
       },
       async redoMilestone() {
+        if (hasTimelineEntries()) {
+          await checkoutTimelineAtHistoryDepth(
+            session.history.getEditState().undoCount
+          )
+          return
+        }
         await createCheckpoint(session.sessionId)
       },
       async undoCheckpoint() {
+        if (hasTimelineEntries()) {
+          await checkoutTimelineMilestone(-1)
+          return
+        }
         await destroyLastCheckpoint(session.sessionId)
       },
       async redoCheckpoint(transaction) {
+        if (hasTimelineEntries()) {
+          await checkoutTimelineMilestone(1)
+          return
+        }
         const pattern = transaction.isHex
           ? Buffer.from(transaction.query, 'hex')
           : Buffer.from(transaction.query, 'utf8')
@@ -6797,7 +7334,8 @@ export class HexEditorProvider
         ? await getChangeLogFingerprint(
             session.sessionId,
             SessionFingerprintContent.COMPUTED,
-            expectedAfter.digest.algorithm
+            expectedAfter.digest.algorithm,
+            expectedAfter.digest.pluginId ?? DEFAULT_CHANGE_LOG_DIGEST_PLUGIN_ID
           ).catch(() => undefined)
         : undefined
     const recordAppliedChanges = async () => {
@@ -7213,7 +7751,8 @@ export class HexEditorProvider
 
   private async handleWebviewMessage(
     session: EditorSession,
-    rawMessage: unknown
+    rawMessage: unknown,
+    propagateErrors = false
   ): Promise<void> {
     const msg = normalizeWebviewMessage(
       { fileSize: session.fileSize, contentSources: session.contentSources },
@@ -7294,18 +7833,13 @@ export class HexEditorProvider
           if (msg.persist === false) {
             await this.applySessionBytesPerRow(session, msg.bytesPerRow)
           } else {
-            session.bytesPerRowSetting = msg.bytesPerRow
-            await this.updateBytesPerRowConfiguration(session, msg.bytesPerRow)
+            await this.persistBytesPerRow(msg.bytesPerRow)
           }
           break
         }
 
         case 'setBytesPerRowMode': {
-          session.bytesPerRowSetting = session.bytesPerRow
-          await this.updateBytesPerRowConfiguration(
-            session,
-            session.bytesPerRow
-          )
+          await this.persistBytesPerRow(session.bytesPerRow)
           break
         }
 
@@ -7493,21 +8027,6 @@ export class HexEditorProvider
           break
         }
 
-        case 'navigateCheckpointTimeline': {
-          const timeline = session.checkpointTimeline
-          if (msg.checkpoint > timeline.entries.length || timeline.navigating) {
-            break
-          }
-          await this.navigateToCheckpoint(session, msg.checkpoint)
-          break
-        }
-
-        case 'hideCheckpointTimeline': {
-          session.checkpointTimeline.visible = false
-          this.postCheckpointTimeline(session)
-          break
-        }
-
         case 'rollbackCheckpoint': {
           await this.rollbackCheckpoint({ uri: session.document.uri })
           break
@@ -7520,6 +8039,26 @@ export class HexEditorProvider
 
         case 'exportChangeLog': {
           await this.exportChangeLog({ uri: session.document.uri })
+          break
+        }
+
+        case 'requestActionJournalViewport': {
+          await this.postActionJournalViewport(session, msg)
+          break
+        }
+
+        case 'navigateActionJournal': {
+          await this.navigateActionJournalToChangeCount(
+            session,
+            msg.changeCount
+          )
+          break
+        }
+
+        case 'hideActionJournal': {
+          session.actionJournal.visible = false
+          session.actionJournal.requestGeneration += 1
+          this.postWebviewMessage(session, { type: 'actionJournalHidden' })
           break
         }
 
@@ -7800,6 +8339,9 @@ export class HexEditorProvider
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err)
       void vscode.window.showErrorMessage(omegaEditErrorMessage(message))
+      if (propagateErrors) {
+        throw err
+      }
     }
   }
 }

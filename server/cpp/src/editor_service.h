@@ -15,6 +15,8 @@
 #ifndef OMEGA_EDIT_EDITOR_SERVICE_H
 #define OMEGA_EDIT_EDITOR_SERVICE_H
 
+#include "allowed_path_policy.h"
+#include "resource_admission.h"
 #include "session_manager.h"
 
 #include <grpcpp/grpcpp.h>
@@ -50,7 +52,7 @@ namespace omega_edit {
                                        std::vector<std::string> transform_plugin_directories = {},
                                        std::string transform_plugin_host_path = {},
                                        bool allow_experimental_transform_plugins = false,
-                                       bool allow_test_transform_plugins = false);
+                                       bool allow_test_transform_plugins = false, std::string allowed_root = {});
             ~EditorServiceImpl() override;
 
             grpc::Status GetServerInfo(grpc::ServerContext *context,
@@ -151,6 +153,11 @@ namespace omega_edit {
             ExportChangeLog(grpc::ServerContext *context, const ::omega_edit::v1::ExportChangeLogRequest *request,
                             grpc::ServerWriter<::omega_edit::v1::ExportChangeLogResponse> *writer) override;
 
+            grpc::Status
+            GetActionJournalViewport(grpc::ServerContext *context,
+                                     const ::omega_edit::v1::GetActionJournalViewportRequest *request,
+                                     ::omega_edit::v1::GetActionJournalViewportResponse *response) override;
+
             grpc::Status GetComputedFileSize(grpc::ServerContext *context,
                                              const ::omega_edit::v1::GetComputedFileSizeRequest *request,
                                              ::omega_edit::v1::GetComputedFileSizeResponse *response) override;
@@ -206,6 +213,14 @@ namespace omega_edit {
                                                const ::omega_edit::v1::DestroyLastCheckpointRequest *request,
                                                ::omega_edit::v1::DestroyLastCheckpointResponse *response) override;
 
+            grpc::Status CheckoutCheckpoint(grpc::ServerContext *context,
+                                            const ::omega_edit::v1::CheckoutCheckpointRequest *request,
+                                            ::omega_edit::v1::CheckoutCheckpointResponse *response) override;
+
+            grpc::Status DiscardCheckpointFuture(grpc::ServerContext *context,
+                                                 const ::omega_edit::v1::DiscardCheckpointFutureRequest *request,
+                                                 ::omega_edit::v1::DiscardCheckpointFutureResponse *response) override;
+
             grpc::Status RestoreLastCheckpoint(grpc::ServerContext *context,
                                                const ::omega_edit::v1::RestoreLastCheckpointRequest *request,
                                                ::omega_edit::v1::RestoreLastCheckpointResponse *response) override;
@@ -260,10 +275,14 @@ namespace omega_edit {
             grpc::Status fill_viewport_data(const std::string &session_id, const std::string &viewport_id,
                                             const std::string &fqid, T *response);
             template<typename T>
-            void fill_change_details(const omega_change_t *change, const std::string &session_id, T *response);
+            grpc::Status fill_change_details(const omega_change_t *change, const std::string &session_id, T *response);
             void request_shutdown();
+            grpc::Status resolve_allowed_path(const std::string &path, const char *field_name, bool existing_file,
+                                              bool directory, std::string &resolved) const;
+            grpc::Status admit_checkpoint_write(omega_session_t *session, ResourceAdmissionLease &lease);
 
             SessionManager session_manager_;
+            AllowedPathPolicy allowed_path_policy_;
             omega_transform_plugin_registry_t *transform_plugin_registry_{nullptr};
             std::mutex transform_plugin_registry_mutex_;
             std::chrono::steady_clock::time_point start_time_;
@@ -272,6 +291,10 @@ namespace omega_edit {
             // Session reaping
             HeartbeatConfig heartbeat_config_;
             ResourceLimits resource_limits_;
+            ResourceAdmissionGate scan_gate_;
+            ResourceAdmissionGate transform_gate_;
+            ResourceAdmissionGate changelog_export_gate_;
+            ResourceAdmissionGate checkpoint_write_gate_;
             std::function<void()> shutdown_callback_;
             std::once_flag shutdown_once_;
             std::thread reaper_thread_;

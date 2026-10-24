@@ -36,7 +36,9 @@ if (WIN32)
     set(_fmt "ZIP")
 endif()
 set(CPACK_GENERATOR "${_fmt}")
-set(CPACK_SOURCE_GENERATOR "${_fmt}")
+# Source archives are created from tracked files by build.sh. CPack assigns defaults to an empty value, so use an
+# intentionally unsupported sentinel to prevent accidental workspace-scanning source packages.
+set(CPACK_SOURCE_GENERATOR "OMEGA_EDIT_DISABLED")
 set(CPACK_PACKAGE_VENDOR "Concurrent Technologies Corporation")
 set(CPACK_PACKAGE_CONTACT "omega.edit@ctc.com")
 set(CPACK_RESOURCE_FILE_LICENSE "${CMAKE_SOURCE_DIR}/LICENSE.txt")
@@ -46,17 +48,6 @@ set(CPACK_PACKAGE_DIRECTORY "${CMAKE_BINARY_DIR}")
 string(TOLOWER "${CMAKE_SYSTEM_NAME}" _sys)
 string(TOLOWER "${PROJECT_NAME}" _project_lower)
 set(CPACK_PACKAGE_FILE_NAME "${_project_lower}-${_sys}")
-set(OMEGA_EDIT_PACKAGE_VERSION "${PROJECT_VERSION}")
-if (DEFINED OMEGA_EDIT_VERSION)
-    set(OMEGA_EDIT_PACKAGE_VERSION "${OMEGA_EDIT_VERSION}")
-endif()
-set(CPACK_SOURCE_PACKAGE_FILE_NAME "${_project_lower}-${OMEGA_EDIT_PACKAGE_VERSION}")
-
-# not .gitignore as its regex syntax is distinct
-file(READ ".cpack_ignore" _cpack_ignore)
-string(REGEX REPLACE "\n" ";" _cpack_ignore "${_cpack_ignore}")
-set(CPACK_SOURCE_IGNORE_FILES "${_cpack_ignore}")
-
 install(FILES "${CPACK_RESOURCE_FILE_README}" "${CPACK_RESOURCE_FILE_LICENSE}" DESTINATION "${CMAKE_INSTALL_DOCDIR}")
 
 include("CPack")

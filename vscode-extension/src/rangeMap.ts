@@ -31,6 +31,7 @@ export interface RangeMapDocument {
   format: typeof RANGE_MAP_FORMAT
   version: typeof RANGE_MAP_VERSION
   source?: string
+  sourceFileSize?: number
   selectedPath?: string
   nodes: RangeMapNode[]
 }
@@ -301,6 +302,15 @@ export function parseRangeMapContent(content: Uint8Array): ParsedRangeMap {
     parsed.source === undefined
       ? undefined
       : safeString(parsed.source, 'Range map source')
+  const sourceFileSize =
+    parsed.sourceFileSize === undefined
+      ? undefined
+      : safeNonNegativeInteger(parsed.sourceFileSize)
+  if (parsed.sourceFileSize !== undefined && sourceFileSize === undefined) {
+    throw new Error(
+      'Range map sourceFileSize must be a non-negative safe integer'
+    )
+  }
   const selectedPath =
     parsed.selectedPath === undefined
       ? undefined
@@ -327,6 +337,7 @@ export function parseRangeMapContent(content: Uint8Array): ParsedRangeMap {
     format: RANGE_MAP_FORMAT,
     version: RANGE_MAP_VERSION,
     source,
+    sourceFileSize,
     selectedPath,
     nodes,
   }
@@ -367,6 +378,14 @@ export function assertRangeMapFitsFile(
 ): void {
   if (!Number.isSafeInteger(fileSize) || fileSize < 0) {
     throw new Error('Range map file size must be a non-negative safe integer')
+  }
+  if (
+    parsed.document.sourceFileSize !== undefined &&
+    parsed.document.sourceFileSize !== fileSize
+  ) {
+    throw new Error(
+      `Range map source file size (${parsed.document.sourceFileSize} bytes) does not match open file size (${fileSize} bytes)`
+    )
   }
 
   for (const node of flattenRangeMapNodes(parsed.document.nodes)) {

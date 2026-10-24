@@ -168,6 +168,26 @@ export function decodeTextByte(
   return codePoint === undefined ? undefined : String.fromCodePoint(codePoint)
 }
 
+const HEX2 = '0123456789ABCDEF'
+
+/** Single byte as two uppercase hex digits. Hot path for hex rendering. */
+export function byteToHex2(byte: number): string {
+  return HEX2[byte >> 4] + HEX2[byte & 0xf]
+}
+
+/** Compact uppercase hex string for a byte sequence. */
+export function bytesToHex(bytes: ArrayLike<number>): string {
+  let out = ''
+  for (let index = 0; index < bytes.length; index += 1) {
+    out += byteToHex2(bytes[index])
+  }
+  return out
+}
+
+export function isPrintableAscii(byte: number): boolean {
+  return byte >= 0x20 && byte <= 0x7e
+}
+
 export function isPrintableTextByte(
   byte: number,
   encoding: TextEncoding

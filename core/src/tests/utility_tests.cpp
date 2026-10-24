@@ -140,6 +140,14 @@ TEST_CASE("Null Pointer Safety - Utility", "[NullSafety]") {
 
     // Write segment null safety
     REQUIRE(-1 == omega_util_write_segment_to_file(nullptr, 0, 10, nullptr));
+    FILE *source_file = tmpfile();
+    FILE *destination_file = tmpfile();
+    REQUIRE(source_file != nullptr);
+    REQUIRE(destination_file != nullptr);
+    REQUIRE(-1 == omega_util_write_segment_to_file(source_file, -1, 1, destination_file));
+    REQUIRE(-1 == omega_util_write_segment_to_file(source_file, 0, -1, destination_file));
+    REQUIRE(0 == fclose(source_file));
+    REQUIRE(0 == fclose(destination_file));
 
     // File transform null safety
     REQUIRE(-1 == omega_util_apply_byte_transform_to_file(nullptr, nullptr, nullptr, nullptr, 0, 0));
@@ -161,4 +169,5 @@ TEST_CASE("Null Pointer Safety - Utility", "[NullSafety]") {
     REQUIRE('\0' == empty[0]);
     free(empty);
     REQUIRE(nullptr == omega_util_strndup(nullptr, 1));
+    REQUIRE(nullptr == omega_util_strndup("x", SIZE_MAX));
 }

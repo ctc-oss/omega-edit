@@ -18,6 +18,7 @@
  */
 
 export * from './change'
+export * from './action_journal'
 export * from './changeLog/index'
 export * from './changeLog/node/index'
 export * from './client'

@@ -801,12 +801,21 @@ namespace {
         omega_changelog_plan_kind_t kind{};
         int64_t offset{};
         int64_t length{};
+        int64_t replacement_length{};
+        int64_t computed_file_size_before{};
+        int64_t computed_file_size_after{};
         std::vector<omega_byte_t> payload{};
     };
 
     int capture_exported_op(const omega_changelog_plan_entry_t *entry, void *user_data) {
         auto &entries = *static_cast<std::vector<exported_op_t> *>(user_data);
-        exported_op_t captured{entry->kind, entry->offset, entry->length, {}};
+        exported_op_t captured;
+        captured.kind = entry->kind;
+        captured.offset = entry->offset;
+        captured.length = entry->length;
+        captured.replacement_length = entry->replacement_length;
+        captured.computed_file_size_before = entry->computed_file_size_before;
+        captured.computed_file_size_after = entry->computed_file_size_after;
         captured.payload.resize(static_cast<size_t>(entry->payload_length));
         int64_t offset = 0;
         while (offset < entry->payload_length) {
@@ -847,6 +856,19 @@ namespace {
         return true;
     }
 
+    bool transform_export_metadata_valid(const exported_op_t &entry) {
+        if (entry.kind != OMEGA_CHANGELOG_PLAN_TRANSFORM) { return true; }
+        if (entry.offset < 0 || entry.length < 0 || entry.replacement_length < 0 ||
+            entry.computed_file_size_before < 0 || entry.computed_file_size_after < 0 ||
+            entry.offset > entry.computed_file_size_before ||
+            entry.length > entry.computed_file_size_before - entry.offset) {
+            return false;
+        }
+        const auto retained_length = entry.computed_file_size_before - entry.length;
+        return entry.replacement_length <= std::numeric_limits<int64_t>::max() - retained_length &&
+               retained_length + entry.replacement_length == entry.computed_file_size_after;
+    }
+
     fuzz_run_result_t verify_optimized_export(const fuzz_script_t &script, const omega_session_t *source) {
         if (omega_session_get_num_changes(source) <= 0) { return {}; }
         omega_changelog_export_options_t options{};
@@ -874,6 +896,10 @@ namespace {
         }
         if (optimized.size() > raw.size()) {
             return fail_at(script.ops.size(), "optimized export contains more operations than raw export");
+        }
+        if (!std::all_of(raw.begin(), raw.end(), transform_export_metadata_valid) ||
+            !std::all_of(optimized.begin(), optimized.end(), transform_export_metadata_valid)) {
+            return fail_at(script.ops.size(), "transform export metadata is inconsistent with its file sizes");
         }
         if (std::any_of(optimized.begin(), optimized.end(),
                         [](const exported_op_t &entry) { return entry.kind == OMEGA_CHANGELOG_PLAN_TRANSFORM; })) {

@@ -18,6 +18,7 @@
 #include "impl_/internal_fun.hpp"
 #include "impl_/macros.h"
 #include "impl_/model_def.hpp"
+#include "impl_/retained_history.hpp"
 #include "impl_/safe_math.hpp"
 #include "impl_/segment_def.hpp"
 #include "impl_/session_def.hpp"
@@ -29,7 +30,12 @@
 #include <algorithm>
 #include <cassert>
 #include <cstring>
+#include <limits>
+#include <new>
+#include <vector>
 
+using omega_edit::internal::change_kind_t;
+using omega_edit::internal::omega_change_get_kind_;
 using omega_edit::internal::omega_change_get_transaction_bit_;
 using omega_edit::internal::omega_data_get_data_;
 using omega_edit::internal::omega_session_end_event_batch_;
@@ -130,7 +136,14 @@ int64_t omega_session_get_num_changes(const omega_session_t *session_ptr) {
 int64_t omega_session_get_num_undone_changes(const omega_session_t *session_ptr) {
     if (!session_ptr) { return 0; }
     assert(session_ptr->models_.back());
-    return (int64_t) session_ptr->models_.back()->changes_undone.size();
+    int64_t result = 0;
+    const auto visit_result =
+            omega_edit::internal::visit_retained_history_(session_ptr, false, [&](const omega_change_t *, int64_t) {
+                if (result == (std::numeric_limits<int64_t>::max)()) { return -1; }
+                ++result;
+                return 0;
+            });
+    return visit_result == 0 ? result : -1;
 }
 
 const omega_change_t *omega_session_get_last_change(const omega_session_t *session_ptr) {
@@ -196,12 +209,16 @@ const omega_change_t *omega_session_get_change(const omega_session_t *session_pt
             }
         }
     } else if (change_serial < 0) {
-        // Negative serials are undone changes
-        for (const auto &model : session_ptr->models_) {
-            for (auto iter = model->changes_undone.crbegin(); iter != model->changes_undone.crend(); ++iter) {
-                if (omega_change_get_serial(iter->get()) == change_serial) { return iter->get(); }
-            }
-        }
+        if (change_serial == (std::numeric_limits<int64_t>::min)()) { return nullptr; }
+        const auto requested_serial = -change_serial;
+        const omega_change_t *result = nullptr;
+        omega_edit::internal::visit_retained_history_(session_ptr, false,
+                                                      [&](const omega_change_t *change, int64_t serial) {
+                                                          if (serial < requested_serial) { return 0; }
+                                                          if (serial == requested_serial) { result = change; }
+                                                          return 1;
+                                                      });
+        return result;
     }
     return nullptr;
 }
@@ -296,13 +313,66 @@ int64_t omega_session_get_num_change_transactions(const omega_session_t *session
 int64_t omega_session_get_num_undone_change_transactions(const omega_session_t *session_ptr) {
     if (!session_ptr) { return 0; }
     int64_t result = 0;
-    for (const auto &model : session_ptr->models_) { result += count_change_transactions_(model->changes_undone); }
-    return result;
+    bool have_previous = false;
+    bool previous_transaction_bit = false;
+    const auto visit_result = omega_edit::internal::visit_retained_history_(
+            session_ptr, false, [&](const omega_change_t *change, int64_t) {
+                const auto transaction_bit = omega_change_get_transaction_bit_(change);
+                if (!have_previous || transaction_bit != previous_transaction_bit) {
+                    if (result == (std::numeric_limits<int64_t>::max)()) { return -1; }
+                    ++result;
+                    previous_transaction_bit = transaction_bit;
+                    have_previous = true;
+                }
+                return 0;
+            });
+    return visit_result == 0 ? result : -1;
 }
 
 int64_t omega_session_get_num_checkpoints(const omega_session_t *session_ptr) {
     if (!session_ptr) { return 0; }
     return static_cast<int64_t>(session_ptr->models_.size()) - 1;
+}
+
+int64_t omega_session_get_checkpoint_change_count(const omega_session_t *session_ptr, int64_t checkpoint_count) {
+    if (!session_ptr || checkpoint_count < 0 || checkpoint_count > omega_session_get_num_checkpoints(session_ptr)) {
+        return -1;
+    }
+    if (checkpoint_count == 0) { return 0; }
+    const auto *model = session_ptr->models_[static_cast<size_t>(checkpoint_count)].get();
+    if (!model) { return -1; }
+    int64_t result = model->change_serial_base;
+    if (!model->changes.empty()) {
+        const auto &first_change = model->changes.front();
+        if (omega_change_get_kind_(first_change.get()) == change_kind_t::CHANGE_TRANSFORM &&
+            first_change->transform_data && first_change->transform_data->checkpoint_file_path == model->file_path) {
+            ++result;
+        }
+    }
+    return result;
+}
+
+int64_t omega_session_get_checkpoint_at_change_count(const omega_session_t *session_ptr, int64_t change_count) {
+    if (!session_ptr || change_count < 0) { return -1; }
+    int64_t low = 0;
+    int64_t high = omega_session_get_num_checkpoints(session_ptr);
+    int64_t result = -1;
+    while (low <= high) {
+        const auto checkpoint = low + (high - low) / 2;
+        const auto boundary = omega_session_get_checkpoint_change_count(session_ptr, checkpoint);
+        if (boundary <= change_count) {
+            if (boundary == change_count) { result = checkpoint; }
+            low = checkpoint + 1;
+        } else {
+            high = checkpoint - 1;
+        }
+    }
+    return result;
+}
+
+int64_t omega_session_get_num_future_checkpoints(const omega_session_t *session_ptr) {
+    if (!session_ptr) { return 0; }
+    return static_cast<int64_t>(session_ptr->checkpoint_future_models_.size());
 }
 
 void omega_edit::internal::omega_session_begin_event_batch_(omega_session_t *session_ptr,
@@ -404,8 +474,18 @@ int omega_session_character_counts(const omega_session_t *session_ptr, omega_cha
     }
     omega_character_counts_set_BOM(omega_character_counts_reset(counts_ptr), bom);
     if (0 < length) {
-        const auto segment_ptr = omega_segment_create((std::min)(length, OMEGA_SESSION_SCAN_BUFFER_SIZE));
+        const auto scan_capacity = (std::min)(length, OMEGA_SESSION_SCAN_BUFFER_SIZE);
+        const auto segment_ptr = omega_segment_create(scan_capacity);
         if (!segment_ptr) { return -1; }
+        std::vector<omega_byte_t> pending;
+        std::vector<omega_byte_t> combined_data;
+        try {
+            pending.reserve(4);
+            combined_data.reserve(static_cast<size_t>(scan_capacity) + 4);
+        } catch (const std::bad_alloc &) {
+            omega_segment_destroy(segment_ptr);
+            return -1;
+        }
         while (length) {
             const auto rc = omega_session_get_segment(session_ptr, segment_ptr, offset);
             if (rc != 0) {
@@ -414,13 +494,70 @@ int omega_session_character_counts(const omega_session_t *session_ptr, omega_cha
             }
             const auto segment_data = omega_segment_get_data(segment_ptr);
             const auto count_length = (std::min)(length, omega_segment_get_length(segment_ptr));
-            omega_util_count_characters(segment_data, count_length, counts_ptr);
+            const omega_byte_t *count_data = segment_data;
+            auto count_size = static_cast<size_t>(count_length);
+            if (!pending.empty()) {
+                combined_data.assign(pending.begin(), pending.end());
+                combined_data.insert(combined_data.end(), segment_data, segment_data + count_length);
+                count_data = combined_data.data();
+                count_size = combined_data.size();
+            }
+            pending.clear();
+            size_t pending_length = 0;
+            if (length > count_length) {
+                switch (bom) {
+                    case BOM_UTF16LE:
+                    case BOM_UTF16BE:
+                        pending_length = count_size % 2;
+                        if (count_size >= pending_length + 2) {
+                            const auto last_word_offset = count_size - pending_length - 2;
+                            const auto last_word =
+                                    bom == BOM_UTF16LE
+                                            ? static_cast<uint16_t>(count_data[last_word_offset]) |
+                                                      static_cast<uint16_t>(count_data[last_word_offset + 1]) << 8
+                                            : static_cast<uint16_t>(count_data[last_word_offset]) << 8 |
+                                                      static_cast<uint16_t>(count_data[last_word_offset + 1]);
+                            if (last_word >= 0xD800 && last_word <= 0xDBFF) { pending_length += 2; }
+                        }
+                        break;
+                    case BOM_UTF32LE:
+                    case BOM_UTF32BE:
+                        pending_length = count_size % 4;
+                        break;
+                    default:
+                        if (count_size > 0) {
+                            size_t continuation_count = 0;
+                            for (size_t i = count_size; i > 0 && continuation_count < 3; --i) {
+                                if ((count_data[i - 1] & 0xC0) != 0x80) {
+                                    const auto lead = count_data[i - 1];
+                                    const size_t expected = (lead & 0xE0) == 0xC0   ? 2
+                                                            : (lead & 0xF0) == 0xE0 ? 3
+                                                            : (lead & 0xF8) == 0xF0 ? 4
+                                                                                    : 1;
+                                    const auto available = continuation_count + 1;
+                                    if (expected > available) { pending_length = available; }
+                                    break;
+                                }
+                                ++continuation_count;
+                            }
+                        }
+                        break;
+                }
+            }
+            if (pending_length > count_size) { pending_length = count_size; }
+            const auto process_length = count_size - pending_length;
+            if (process_length > 0) { omega_util_count_characters(count_data, process_length, counts_ptr); }
+            if (pending_length > 0) {
+                pending.assign(count_data + count_size - static_cast<std::ptrdiff_t>(pending_length),
+                               count_data + count_size);
+            }
             if (!safe_add_int64_(offset, count_length, offset)) {
                 omega_segment_destroy(segment_ptr);
                 return -1;
             }
             length -= count_length;
         }
+        if (!pending.empty()) { omega_util_count_characters(pending.data(), pending.size(), counts_ptr); }
         omega_segment_destroy(segment_ptr);
     }
     return 0;

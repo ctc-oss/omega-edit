@@ -4,7 +4,18 @@ const fs = require('node:fs/promises')
 const os = require('node:os')
 const path = require('node:path')
 const vscode = require('vscode')
-const { getComputedFileSize, getSegment } = require('@omega-edit/client')
+const {
+  checkSessionModel,
+  CountKind,
+  getActionJournalViewport,
+  getClient,
+  getComputedFileSize,
+  getCounts,
+  getSegment,
+  insert,
+  IOFlags,
+  saveSession,
+} = require('@omega-edit/client')
 
 const packageJson = require('../../package.json')
 const {
@@ -56,6 +67,10 @@ function makeUtf8Fingerprint(text) {
       value: createHash('sha256').update(data).digest('hex'),
     },
   }
+}
+
+function sha256(data) {
+  return createHash('sha256').update(data).digest('hex')
 }
 
 function canonicalizeTransformDescriptorValue(value) {
@@ -195,9 +210,23 @@ function assertAssistantContextPayloadBudget(context) {
 suite('OmegaEdit VS Code extension', () => {
   let testPort
   let extensionApi
+  let previousAllowExperimentalTransformPlugins
+  let updatedAllowExperimentalTransformPlugins = false
 
   suiteSetup(async () => {
     await vscode.commands.executeCommand('workbench.action.closeAllEditors')
+
+    const omegaEditConfiguration =
+      vscode.workspace.getConfiguration('omegaEdit')
+    previousAllowExperimentalTransformPlugins = omegaEditConfiguration.inspect(
+      'allowExperimentalTransformPlugins'
+    )?.globalValue
+    await omegaEditConfiguration.update(
+      'allowExperimentalTransformPlugins',
+      true,
+      vscode.ConfigurationTarget.Global
+    )
+    updatedAllowExperimentalTransformPlugins = true
 
     testPort = getConfiguredTestPort()
 
@@ -213,12 +242,17 @@ suite('OmegaEdit VS Code extension', () => {
     )
     extensionApi = await extension.activate()
     assert.equal(extension.isActive, true)
+    // Production builds bundle the extension's client, so the test suite's
+    // development dependency has independent module-level connection state.
+    // Connect that client explicitly before tests call its helper functions.
+    await getClient(testPort)
     assert.equal(extensionApi.extensionId, OMEGA_EDIT_EXTENSION_ID)
     assert.equal(extensionApi.version, OMEGA_EDIT_EXTENSION_API_VERSION)
     assert.equal(typeof extensionApi.open, 'function')
     assert.equal(typeof extensionApi.reveal, 'function')
     assert.equal(typeof extensionApi.getEditorState, 'function')
     assert.equal(typeof extensionApi.getAssistantContext, 'function')
+    assert.equal(typeof extensionApi.getActionJournalViewport, 'function')
     assert.equal(typeof extensionApi.setExternalHighlights, 'function')
     assert.equal(typeof extensionApi.clearExternalHighlights, 'function')
     assert.equal(typeof extensionApi.loadRangeMap, 'function')
@@ -234,6 +268,19 @@ suite('OmegaEdit VS Code extension', () => {
 
   teardown(async () => {
     await vscode.commands.executeCommand('workbench.action.closeAllEditors')
+  })
+
+  suiteTeardown(async () => {
+    if (!updatedAllowExperimentalTransformPlugins) {
+      return
+    }
+    await vscode.workspace
+      .getConfiguration('omegaEdit')
+      .update(
+        'allowExperimentalTransformPlugins',
+        previousAllowExperimentalTransformPlugins,
+        vscode.ConfigurationTarget.Global
+      )
   })
 
   test('registers the go to offset command', async () => {
@@ -276,6 +323,25 @@ suite('OmegaEdit VS Code extension', () => {
       assert.ok(session, 'Expected a live session for the typed API test')
       assert.equal(openedState.uri, uri.toString())
       assert.equal(openedState.fileSize, 6)
+
+      const emptyJournal = await extensionApi.getActionJournalViewport({
+        uri,
+        capacity: 256,
+        direction: 'older',
+        kinds: ['INSERT', 'DELETE', 'OVERWRITE', 'REPLACE', 'TRANSFORM'],
+      })
+      assert.equal(emptyJournal.version, 1)
+      assert.equal(emptyJournal.sessionId, session.sessionId)
+      assert.equal(emptyJournal.activeTipSerial, '0')
+      assert.equal(emptyJournal.changeCount, '0')
+      assert.equal(emptyJournal.undoCount, '0')
+      assert.equal(emptyJournal.checkpointCount, '0')
+      assert.equal(emptyJournal.anchorSerial, '0')
+      assert.equal(emptyJournal.capacity, 256)
+      assert.equal(emptyJournal.direction, 'older')
+      assert.deepEqual(emptyJournal.entries, [])
+      assert.equal(emptyJournal.hasMore, false)
+      assert.equal(emptyJournal.nextAnchorSerial, undefined)
 
       await provider.dispatchWebviewMessageForTesting(uri, {
         type: 'editorStateChanged',
@@ -524,6 +590,140 @@ suite('OmegaEdit VS Code extension', () => {
       )
     } finally {
       disposable.dispose()
+      await vscode.commands.executeCommand('workbench.action.closeActiveEditor')
+      await fs.rm(tmpDir, { recursive: true, force: true })
+    }
+  })
+
+  test('isolates annotation owners, range maps, and edit baselines', async () => {
+    const provider = getHexEditorProviderForTesting()
+    const tmpDir = await fs.mkdtemp(
+      path.join(os.tmpdir(), 'omega-edit-owners-')
+    )
+    const uri = vscode.Uri.file(path.join(tmpDir, 'data.bin'))
+    const sourceUri = vscode.Uri.file(path.join(tmpDir, 'map.json'))
+    await fs.writeFile(uri.fsPath, 'abcdef')
+    await fs.writeFile(
+      sourceUri.fsPath,
+      JSON.stringify({
+        format: 'omega-edit.range-map',
+        version: 1,
+        nodes: [
+          {
+            path: '/header',
+            offset: 0,
+            length: 2,
+            label: 'Header',
+            kind: 'parsed',
+          },
+        ],
+      })
+    )
+    const marker = {
+      id: 'current',
+      offset: 1,
+      length: 1,
+      kind: 'current',
+      label: 'Current',
+    }
+    const set = (owner, offset = 1) =>
+      extensionApi.setExternalHighlights({
+        uri,
+        owner,
+        highlights: [{ ...marker, offset }],
+      })
+    const state = () => extensionApi.getEditorState(uri)
+    try {
+      await extensionApi.open(uri)
+      await waitForSession(provider, uri)
+      // Even internal, already-normalized callers cannot assign ownership
+      // through a per-highlight field when storing the legacy group.
+      const session = provider.getSessionForTesting(uri)
+      provider.setAnnotationGroup(session, [{ ...marker, owner: 'forged' }], [])
+      assert.equal(Object.hasOwn(state().externalHighlights[0], 'owner'), false)
+      extensionApi.clearExternalHighlights(uri)
+      assert.equal(state().externalHighlights.length, 0)
+      await extensionApi.setExternalHighlights({
+        uri,
+        owner: 'actual',
+        highlights: [{ ...marker, owner: 'forged' }],
+      })
+      assert.equal(state().externalHighlights[0].owner, 'actual')
+      extensionApi.clearExternalHighlights({ uri, owner: 'forged' })
+      assert.equal(state().externalHighlights.length, 1)
+      extensionApi.clearExternalHighlights({ uri, owner: 'actual' })
+      assert.equal(state().externalHighlights.length, 0)
+      await extensionApi.loadRangeMap({
+        uri,
+        sourceUri,
+        reveal: false,
+        notify: false,
+      })
+      await set('daffodil:1')
+      await set('daffodil:2')
+      assert.equal(state().externalHighlights.length, 3)
+      await set('daffodil:1', 2)
+      assert.equal(state().externalHighlights.length, 3)
+      assert.equal(
+        state().externalHighlights.find((h) => h.owner === 'daffodil:2').offset,
+        1
+      )
+      for (const owner of ['', ' ', null, 42, 'x'.repeat(257)]) {
+        await assert.rejects(set(owner), /owner/)
+        assert.throws(
+          () => extensionApi.clearExternalHighlights({ uri, owner }),
+          /owner/
+        )
+      }
+      assert.equal(state().externalHighlights.length, 3)
+      await provider.dispatchWebviewMessageForTesting(uri, {
+        type: 'insert',
+        offset: 0,
+        data: '21',
+      })
+      assert.ok(state().externalHighlights.every((h) => h.stale))
+      await set('daffodil:1')
+      assert.ok(
+        state().externalHighlights.find((h) => h.owner === 'daffodil:2').stale
+      )
+      assert.ok(
+        !state().externalHighlights.find((h) => h.owner === 'daffodil:1').stale
+      )
+      await provider.dispatchWebviewMessageForTesting(uri, { type: 'undo' })
+      assert.ok(
+        state().externalHighlights.find((h) => h.owner === 'daffodil:1').stale
+      )
+      assert.ok(
+        !state().externalHighlights.find((h) => h.owner === 'daffodil:2').stale
+      )
+      extensionApi.clearExternalHighlights({ uri, owner: 'daffodil:1' })
+      assert.equal(state().externalHighlights.length, 2)
+      await extensionApi.loadRangeMap({
+        uri,
+        sourceUri,
+        reveal: false,
+        notify: false,
+      })
+      assert.equal(state().externalHighlights.length, 2)
+      assert.equal(
+        extensionApi.unloadRangeMap({ uri, notify: false }).unloadedCount,
+        1
+      )
+      assert.equal(state().externalHighlights.length, 1)
+      await set(undefined)
+      extensionApi.clearExternalHighlights(uri)
+      assert.equal(state().externalHighlights.length, 1)
+      await vscode.commands.executeCommand(
+        OMEGA_EDIT_SET_EXTERNAL_HIGHLIGHTS_COMMAND,
+        {
+          uri,
+          owner: 'daffodil:2',
+          highlights: [],
+        }
+      )
+      assert.equal(state().externalHighlights.length, 0)
+      extensionApi.clearExternalHighlights({ uri, owner: 'missing' })
+    } finally {
       await vscode.commands.executeCommand('workbench.action.closeActiveEditor')
       await fs.rm(tmpDir, { recursive: true, force: true })
     }
@@ -1288,10 +1488,7 @@ suite('OmegaEdit VS Code extension', () => {
     await assertSessionText(session.sessionId, 'Xbc1')
 
     for (let cycle = 0; cycle < 3; cycle += 1) {
-      await provider.dispatchWebviewMessageForTesting(document.uri, {
-        type: 'navigateCheckpointTimeline',
-        checkpoint: 1,
-      })
+      await provider.checkoutHistoryCheckpoint(session, 1)
       await assertSessionText(session.sessionId, 'Xbc')
 
       await provider.dispatchWebviewMessageForTesting(document.uri, {
@@ -1303,22 +1500,13 @@ suite('OmegaEdit VS Code extension', () => {
       })
       await assertSessionText(session.sessionId, 'Xbc')
 
-      await provider.dispatchWebviewMessageForTesting(document.uri, {
-        type: 'navigateCheckpointTimeline',
-        checkpoint: 2,
-      })
+      await provider.checkoutHistoryCheckpoint(session, 2)
       await assertSessionText(session.sessionId, 'Xbc1')
     }
 
-    await provider.dispatchWebviewMessageForTesting(document.uri, {
-      type: 'navigateCheckpointTimeline',
-      checkpoint: 0,
-    })
+    await provider.checkoutHistoryCheckpoint(session, 0)
     await assertSessionText(session.sessionId, 'abc')
-    await provider.dispatchWebviewMessageForTesting(document.uri, {
-      type: 'navigateCheckpointTimeline',
-      checkpoint: 2,
-    })
+    await provider.checkoutHistoryCheckpoint(session, 2)
     await assertSessionText(session.sessionId, 'Xbc1')
 
     await provider.dispatchWebviewMessageForTesting(document.uri, {
@@ -1327,26 +1515,25 @@ suite('OmegaEdit VS Code extension', () => {
       data: Buffer.from('!', 'utf8').toString('hex'),
     })
     await assertSessionText(session.sessionId, 'Xbc1!')
-    await provider.dispatchWebviewMessageForTesting(document.uri, {
-      type: 'navigateCheckpointTimeline',
-      checkpoint: 0,
-    })
+    await provider.dispatchWebviewMessageForTesting(
+      document.uri,
+      { type: 'navigateActionJournal', changeCount: '0' },
+      { propagateErrors: true }
+    )
     await assertSessionText(session.sessionId, 'abc')
-    assert.equal(session.checkpointTimeline.entries.length, 3)
+    assert.equal(session.checkpointTimeline.entries.length, 2)
     assert.equal(
       lastMessageOfType(panel.messages, 'checkpointTimeline').checkpoints
         .length,
       2
     )
-    await provider.dispatchWebviewMessageForTesting(document.uri, {
-      type: 'navigateCheckpointTimeline',
-      checkpoint: 3,
-    })
+    await provider.dispatchWebviewMessageForTesting(
+      document.uri,
+      { type: 'navigateActionJournal', changeCount: '3' },
+      { propagateErrors: true }
+    )
     await assertSessionText(session.sessionId, 'Xbc1!')
-    await provider.dispatchWebviewMessageForTesting(document.uri, {
-      type: 'navigateCheckpointTimeline',
-      checkpoint: 2,
-    })
+    await provider.checkoutHistoryCheckpoint(session, 2)
     await assertSessionText(session.sessionId, 'Xbc1')
     await provider.dispatchWebviewMessageForTesting(document.uri, {
       type: 'overwrite',
@@ -1356,10 +1543,7 @@ suite('OmegaEdit VS Code extension', () => {
     await assertSessionText(session.sessionId, 'Xbc2')
     assert.equal(session.checkpointTimeline.entries.length, 2)
 
-    await provider.dispatchWebviewMessageForTesting(document.uri, {
-      type: 'navigateCheckpointTimeline',
-      checkpoint: 1,
-    })
+    await provider.checkoutHistoryCheckpoint(session, 1)
     assert.equal(lastMessageOfType(panel.messages, 'editState').isDirty, true)
     await provider.dispatchWebviewMessageForTesting(document.uri, {
       type: 'replace',
@@ -1367,16 +1551,10 @@ suite('OmegaEdit VS Code extension', () => {
       length: 1,
       data: Buffer.from('X', 'utf8').toString('hex'),
     })
-    await provider.dispatchWebviewMessageForTesting(document.uri, {
-      type: 'navigateCheckpointTimeline',
-      checkpoint: 2,
-    })
+    await provider.checkoutHistoryCheckpoint(session, 2)
     await assertSessionText(session.sessionId, 'Xbc1')
     assert.equal(lastMessageOfType(panel.messages, 'editState').isDirty, false)
-    await provider.dispatchWebviewMessageForTesting(document.uri, {
-      type: 'navigateCheckpointTimeline',
-      checkpoint: 1,
-    })
+    await provider.checkoutHistoryCheckpoint(session, 1)
     const abandonedArchiveFile =
       session.checkpointTimeline.entries[1].interval.archive.file
     await provider.dispatchWebviewMessageForTesting(document.uri, {
@@ -1402,14 +1580,8 @@ suite('OmegaEdit VS Code extension', () => {
     )
     await assertSessionText(session.sessionId, 'XYc')
 
-    await provider.dispatchWebviewMessageForTesting(document.uri, {
-      type: 'navigateCheckpointTimeline',
-      checkpoint: 1,
-    })
-    await provider.dispatchWebviewMessageForTesting(document.uri, {
-      type: 'navigateCheckpointTimeline',
-      checkpoint: 2,
-    })
+    await provider.checkoutHistoryCheckpoint(session, 1)
+    await provider.checkoutHistoryCheckpoint(session, 2)
     await assertSessionText(session.sessionId, 'XYc')
 
     const secondInterval = session.checkpointTimeline.entries[1].interval
@@ -1422,24 +1594,197 @@ suite('OmegaEdit VS Code extension', () => {
       ),
       'corrupt'
     )
-    await provider.navigateToCheckpoint(session, 1)
+    await provider.checkoutHistoryCheckpoint(session, 1)
     await assertSessionText(session.sessionId, 'Xbc')
-    await assert.rejects(
-      provider.navigateToCheckpoint(session, 2),
-      /archive length changed.*restored checkpoint 1/
-    )
-    await assertSessionText(session.sessionId, 'Xbc')
-    const unavailableTimeline = lastMessageOfType(
+    await provider.checkoutHistoryCheckpoint(session, 2)
+    await assertSessionText(session.sessionId, 'XYc')
+    const materializedTimeline = lastMessageOfType(
       panel.messages,
       'checkpointTimeline'
     )
-    assert.equal(unavailableTimeline.cursor, 1)
-    assert.equal(unavailableTimeline.canRewind, true)
-    assert.equal(unavailableTimeline.canFastForward, false)
-    assert.equal(unavailableTimeline.checkpoints[1].available, false)
+    assert.equal(materializedTimeline.cursor, 2)
+    assert.equal(materializedTimeline.canRewind, true)
+    assert.equal(materializedTimeline.canFastForward, false)
 
-    await provider.navigateToCheckpoint(session, 0)
+    await provider.checkoutHistoryCheckpoint(session, 0)
     await assertSessionText(session.sessionId, 'abc')
+
+    await panel.fireDidDispose()
+    await fs.rm(tmpDir, { recursive: true, force: true })
+  })
+
+  test('resets analyzer history and change serials when branching from the original checkpoint', async () => {
+    const tmpDir = await fs.mkdtemp(
+      path.join(os.tmpdir(), 'omega-edit-vscode-checkpoint-branch-history-')
+    )
+    const samplePath = path.join(tmpDir, 'branch-history.bin')
+    await fs.writeFile(samplePath, Buffer.from('abc', 'utf8'))
+
+    const provider = new HexEditorProvider({ subscriptions: [] }, testPort)
+    const panel = createMockWebviewPanel()
+    const document = await provider.openCustomDocument(
+      vscode.Uri.file(samplePath),
+      { backupId: undefined, untitledDocumentData: undefined },
+      new vscode.CancellationTokenSource().token
+    )
+    await provider.resolveCustomEditor(
+      document,
+      panel,
+      new vscode.CancellationTokenSource().token
+    )
+
+    const session = provider.getSessionForTesting(document.uri)
+    assert.ok(session, 'Expected a session for checkpoint branch history')
+
+    await provider.dispatchWebviewMessageForTesting(document.uri, {
+      type: 'insert',
+      offset: 3,
+      data: Buffer.from('1', 'utf8').toString('hex'),
+    })
+    assert.equal(
+      (await provider.createCheckpoint({ uri: document.uri }))?.checkpointCount,
+      1
+    )
+    await provider.dispatchWebviewMessageForTesting(document.uri, {
+      type: 'insert',
+      offset: 4,
+      data: Buffer.from('2', 'utf8').toString('hex'),
+    })
+    assert.equal(
+      (await provider.createCheckpoint({ uri: document.uri }))?.checkpointCount,
+      2
+    )
+    await assertSessionText(session.sessionId, 'abc12')
+
+    await provider.checkoutHistoryCheckpoint(session, 0)
+    await assertSessionText(session.sessionId, 'abc')
+
+    await provider.dispatchWebviewMessageForTesting(document.uri, {
+      type: 'insert',
+      offset: 3,
+      data: Buffer.from('X', 'utf8').toString('hex'),
+    })
+    await assertSessionText(session.sessionId, 'abcX')
+
+    assert.deepEqual(lastMessageOfType(panel.messages, 'editState'), {
+      type: 'editState',
+      canUndo: true,
+      canRedo: false,
+      undoCount: 1,
+      redoCount: 0,
+      isDirty: true,
+      savedChangeDepth: 0,
+    })
+    assert.equal(session.checkpointTimeline.entries.length, 0)
+    assert.equal(session.changeCount, 1)
+    assert.deepEqual(
+      session.history.getChangeLog().map((change) => change.serial),
+      [1]
+    )
+
+    await provider.dispatchWebviewMessageForTesting(
+      document.uri,
+      { type: 'undo' },
+      { propagateErrors: true }
+    )
+    await assertSessionText(session.sessionId, 'abc')
+    assert.deepEqual(lastMessageOfType(panel.messages, 'editState'), {
+      type: 'editState',
+      canUndo: false,
+      canRedo: true,
+      undoCount: 0,
+      redoCount: 1,
+      isDirty: false,
+      savedChangeDepth: 0,
+    })
+
+    await provider.dispatchWebviewMessageForTesting(
+      document.uri,
+      { type: 'redo' },
+      { propagateErrors: true }
+    )
+    await assertSessionText(session.sessionId, 'abcX')
+    assert.deepEqual(lastMessageOfType(panel.messages, 'editState'), {
+      type: 'editState',
+      canUndo: true,
+      canRedo: false,
+      undoCount: 1,
+      redoCount: 0,
+      isDirty: true,
+      savedChangeDepth: 0,
+    })
+    assert.deepEqual(
+      session.history.getChangeLog().map((change) => change.serial),
+      [1]
+    )
+
+    await panel.fireDidDispose()
+    await fs.rm(tmpDir, { recursive: true, force: true })
+  })
+
+  test('checks out a full-range Zstandard transform across the checkpoint timeline', async () => {
+    const tmpDir = await fs.mkdtemp(
+      path.join(os.tmpdir(), 'omega-edit-vscode-transform-timeline-')
+    )
+    const samplePath = path.join(tmpDir, 'transform-timeline.bin')
+    await fs.writeFile(samplePath, Buffer.from('abc', 'utf8'))
+
+    const provider = new HexEditorProvider({ subscriptions: [] }, testPort)
+    const panel = createMockWebviewPanel()
+    const document = await provider.openCustomDocument(
+      vscode.Uri.file(samplePath),
+      { backupId: undefined, untitledDocumentData: undefined },
+      new vscode.CancellationTokenSource().token
+    )
+    await provider.resolveCustomEditor(
+      document,
+      panel,
+      new vscode.CancellationTokenSource().token
+    )
+
+    const session = provider.getSessionForTesting(document.uri)
+    assert.ok(session, 'Expected a session for transform timeline navigation')
+
+    await provider.dispatchWebviewMessageForTesting(
+      document.uri,
+      {
+        type: 'applyTransform',
+        pluginId: 'omega.example.zstd',
+        offset: 0,
+        length: 0,
+        optionsJson: JSON.stringify({ action: 'compress', level: 3 }),
+      },
+      { propagateErrors: true }
+    )
+    const transformedBytes = await readSessionBytes(session.sessionId)
+    assert.notDeepEqual(transformedBytes, Buffer.from('abc', 'utf8'))
+    assert.equal(session.checkpointTimeline.entries.length, 1)
+    const transformedTimeline = lastMessageOfType(
+      panel.messages,
+      'checkpointTimeline'
+    )
+    assert.equal(transformedTimeline.originalByteLength, '3')
+    assert.equal(transformedTimeline.checkpoints[0].boundaryKind, 'transform')
+    assert.equal(transformedTimeline.checkpoints[0].sourceChangeCount, '1')
+    assert.equal(transformedTimeline.checkpoints[0].replayChangeCount, '1')
+    assert.equal(transformedTimeline.checkpoints[0].byteLengthBefore, '3')
+    assert.equal(
+      transformedTimeline.checkpoints[0].byteLengthAfter,
+      String(transformedBytes.length)
+    )
+    assert.deepEqual(transformedTimeline.checkpoints[0].transformPluginIds, [
+      'omega.example.zstd',
+    ])
+
+    await provider.checkoutHistoryCheckpoint(session, 0)
+    await assertSessionText(session.sessionId, 'abc')
+
+    await provider.checkoutHistoryCheckpoint(session, 1)
+    assert.deepEqual(
+      await readSessionBytes(session.sessionId),
+      transformedBytes
+    )
+    assert.equal(session.checkpointTimeline.cursor, 1)
 
     await panel.fireDidDispose()
     await fs.rm(tmpDir, { recursive: true, force: true })
@@ -1490,26 +1835,350 @@ suite('OmegaEdit VS Code extension', () => {
     await assertSessionText(session.sessionId, 'abefij')
     assert.equal(session.checkpointTimeline.cursor, 2)
 
-    // Rewind is native-only and must remain available even if replay storage
-    // is unavailable or damaged.
+    // Both directions use materialized native checkpoints and remain available
+    // even if the durable audit archive is unavailable or damaged.
     const timelineStorage = session.checkpointTimeline.storage
     session.checkpointTimeline.storage = undefined
-    await provider.navigateToCheckpoint(session, 1)
+    await provider.checkoutHistoryCheckpoint(session, 1)
     await assertSessionText(session.sessionId, 'abefghij')
     assert.equal(session.checkpointTimeline.cursor, 1)
+    await provider.checkoutHistoryCheckpoint(session, 2)
+    await assertSessionText(session.sessionId, 'abefij')
+    await provider.checkoutHistoryCheckpoint(session, 1)
     session.checkpointTimeline.storage = timelineStorage
 
     for (let cycle = 0; cycle < 3; cycle += 1) {
-      await provider.navigateToCheckpoint(session, 0)
+      await provider.checkoutHistoryCheckpoint(session, 0)
       await assertSessionText(session.sessionId, 'abcdefghij')
-      await provider.navigateToCheckpoint(session, 1)
+      await provider.checkoutHistoryCheckpoint(session, 1)
       await assertSessionText(session.sessionId, 'abefghij')
-      await provider.navigateToCheckpoint(session, 2)
+      await provider.checkoutHistoryCheckpoint(session, 2)
       await assertSessionText(session.sessionId, 'abefij')
     }
 
     await panel.fireDidDispose()
     await fs.rm(tmpDir, { recursive: true, force: true })
+  })
+
+  test('undo traverses a multi-action materialized checkpoint one action at a time', async () => {
+    const tmpDir = await fs.mkdtemp(
+      path.join(os.tmpdir(), 'omega-edit-vscode-checkpoint-action-undo-')
+    )
+    const panel = createMockWebviewPanel()
+    const openCancellation = new vscode.CancellationTokenSource()
+    const resolveCancellation = new vscode.CancellationTokenSource()
+    let document
+    try {
+      const samplePath = path.join(tmpDir, 'checkpoint-action-undo.bin')
+      await fs.writeFile(samplePath, Buffer.from('abc', 'utf8'))
+
+      const provider = new HexEditorProvider({ subscriptions: [] }, testPort)
+      document = await provider.openCustomDocument(
+        vscode.Uri.file(samplePath),
+        { backupId: undefined, untitledDocumentData: undefined },
+        openCancellation.token
+      )
+      await provider.resolveCustomEditor(
+        document,
+        panel,
+        resolveCancellation.token
+      )
+      const session = provider.getSessionForTesting(document.uri)
+      assert.ok(session)
+
+      await provider.dispatchWebviewMessageForTesting(document.uri, {
+        type: 'insert',
+        offset: 3,
+        data: Buffer.from('1', 'utf8').toString('hex'),
+      })
+      await provider.dispatchWebviewMessageForTesting(document.uri, {
+        type: 'insert',
+        offset: 4,
+        data: Buffer.from('2', 'utf8').toString('hex'),
+      })
+      assert.equal(
+        (await provider.createCheckpoint({ uri: document.uri }))
+          ?.checkpointCount,
+        1
+      )
+      await assertSessionText(session.sessionId, 'abc12')
+
+      await provider.dispatchWebviewMessageForTesting(
+        document.uri,
+        { type: 'undo' },
+        { propagateErrors: true }
+      )
+      await assertSessionText(session.sessionId, 'abc1')
+      assert.equal(session.checkpointTimeline.cursor, 0)
+      assert.deepEqual(session.history.getEditState(), {
+        canUndo: true,
+        canRedo: true,
+        undoCount: 1,
+        redoCount: 1,
+        isDirty: true,
+        savedChangeDepth: 0,
+      })
+
+      await provider.dispatchWebviewMessageForTesting(
+        document.uri,
+        { type: 'undo' },
+        { propagateErrors: true }
+      )
+      await assertSessionText(session.sessionId, 'abc')
+
+      await provider.dispatchWebviewMessageForTesting(
+        document.uri,
+        { type: 'redo' },
+        { propagateErrors: true }
+      )
+      await assertSessionText(session.sessionId, 'abc1')
+      assert.equal(session.checkpointTimeline.cursor, 0)
+
+      await provider.dispatchWebviewMessageForTesting(
+        document.uri,
+        { type: 'redo' },
+        { propagateErrors: true }
+      )
+      await assertSessionText(session.sessionId, 'abc12')
+      assert.equal(session.checkpointTimeline.cursor, 1)
+      assert.deepEqual(session.history.getEditState(), {
+        canUndo: true,
+        canRedo: false,
+        undoCount: 2,
+        redoCount: 0,
+        isDirty: true,
+        savedChangeDepth: 0,
+      })
+    } finally {
+      openCancellation.dispose()
+      resolveCancellation.dispose()
+      try {
+        await panel.fireDidDispose()
+      } finally {
+        document?.dispose()
+        await fs.rm(tmpDir, { recursive: true, force: true })
+      }
+    }
+  })
+
+  test('action journal jumps to a middle delete through the nearest checkpoint', async () => {
+    const tmpDir = await fs.mkdtemp(
+      path.join(os.tmpdir(), 'omega-edit-vscode-history-jump-')
+    )
+    const samplePath = path.join(tmpDir, 'history-jump.bin')
+    await fs.writeFile(samplePath, Buffer.from('abcdefg', 'utf8'))
+
+    const provider = new HexEditorProvider({ subscriptions: [] }, testPort)
+    const panel = createMockWebviewPanel()
+    const document = await provider.openCustomDocument(
+      vscode.Uri.file(samplePath),
+      { backupId: undefined, untitledDocumentData: undefined },
+      new vscode.CancellationTokenSource().token
+    )
+
+    try {
+      await provider.resolveCustomEditor(
+        document,
+        panel,
+        new vscode.CancellationTokenSource().token
+      )
+      const session = provider.getSessionForTesting(document.uri)
+      assert.ok(session)
+
+      for (const [index, offset] of [1, 2, 3, 3].entries()) {
+        await provider.dispatchWebviewMessageForTesting(document.uri, {
+          type: 'delete',
+          offset,
+          length: 1,
+        })
+        if (index === 0 || index === 2) {
+          await provider.createCheckpoint({ uri: document.uri })
+        }
+      }
+      await assertSessionText(session.sessionId, 'ace')
+
+      const assertNoImplicitCheckpoints = async (expectedCursor) => {
+        assert.equal(session.checkpointTimeline.entries.length, 2)
+        assert.equal(session.checkpointTimeline.cursor, expectedCursor)
+        const counts = await getCounts(session.sessionId, [
+          CountKind.CHECKPOINTS,
+        ])
+        assert.equal(counts[0].getCount(), expectedCursor)
+      }
+      await assertNoImplicitCheckpoints(2)
+
+      await provider.dispatchWebviewMessageForTesting(
+        document.uri,
+        { type: 'navigateActionJournal', changeCount: '2' },
+        { propagateErrors: true }
+      )
+      await assertSessionText(session.sessionId, 'acefg')
+      await assertNoImplicitCheckpoints(1)
+      assert.equal(session.history.getEditState().canRedo, true)
+
+      await provider.dispatchWebviewMessageForTesting(
+        document.uri,
+        { type: 'navigateActionJournal', changeCount: '4' },
+        { propagateErrors: true }
+      )
+      await assertSessionText(session.sessionId, 'ace')
+      await assertNoImplicitCheckpoints(2)
+      assert.equal(session.history.getEditState().canRedo, false)
+
+      await provider.dispatchWebviewMessageForTesting(
+        document.uri,
+        { type: 'navigateActionJournal', changeCount: '0' },
+        { propagateErrors: true }
+      )
+      await assertSessionText(session.sessionId, 'abcdefg')
+      await assertNoImplicitCheckpoints(0)
+
+      await provider.dispatchWebviewMessageForTesting(
+        document.uri,
+        { type: 'navigateActionJournal', changeCount: '3' },
+        { propagateErrors: true }
+      )
+      await assertSessionText(session.sessionId, 'aceg')
+      await assertNoImplicitCheckpoints(2)
+    } finally {
+      await panel.fireDidDispose()
+      document.dispose()
+      await fs.rm(tmpDir, { recursive: true, force: true })
+    }
+  })
+
+  test('action journal repeatedly crosses an undone transform boundary', async () => {
+    const tmpDir = await fs.mkdtemp(
+      path.join(os.tmpdir(), 'omega-edit-vscode-transform-history-jump-')
+    )
+    const samplePath = path.join(tmpDir, 'transform-history-jump.bin')
+    const originalBytes = Buffer.from(
+      'the quick brown fox jumps over the lazy dog '.repeat(8),
+      'utf8'
+    )
+    await fs.writeFile(samplePath, originalBytes)
+
+    const provider = new HexEditorProvider({ subscriptions: [] }, testPort)
+    const panel = createMockWebviewPanel()
+    const document = await provider.openCustomDocument(
+      vscode.Uri.file(samplePath),
+      { backupId: undefined, untitledDocumentData: undefined },
+      new vscode.CancellationTokenSource().token
+    )
+
+    try {
+      await provider.resolveCustomEditor(
+        document,
+        panel,
+        new vscode.CancellationTokenSource().token
+      )
+      const session = provider.getSessionForTesting(document.uri)
+      assert.ok(session)
+
+      for (const offset of [3, 7, 11]) {
+        await provider.dispatchWebviewMessageForTesting(document.uri, {
+          type: 'delete',
+          offset,
+          length: 1,
+        })
+      }
+      await provider.createCheckpoint({ uri: document.uri })
+      for (const offset of [17, 23, 29]) {
+        await provider.dispatchWebviewMessageForTesting(document.uri, {
+          type: 'delete',
+          offset,
+          length: 1,
+        })
+      }
+      await provider.createCheckpoint({ uri: document.uri })
+      const beforeTransformBytes = await readSessionBytes(session.sessionId)
+
+      await provider.dispatchWebviewMessageForTesting(
+        document.uri,
+        {
+          type: 'applyTransform',
+          pluginId: 'omega.example.zstd',
+          offset: 0,
+          length: 0,
+          optionsJson: JSON.stringify({ action: 'compress', level: 3 }),
+        },
+        { propagateErrors: true }
+      )
+      const afterTransformBytes = await readSessionBytes(session.sessionId)
+      assert.notDeepEqual(afterTransformBytes, beforeTransformBytes)
+
+      await provider.dispatchWebviewMessageForTesting(document.uri, {
+        type: 'insert',
+        offset: afterTransformBytes.length,
+        data: Buffer.from('!', 'utf8').toString('hex'),
+      })
+      await provider.dispatchWebviewMessageForTesting(document.uri, {
+        type: 'overwrite',
+        offset: 0,
+        data: Buffer.from('?', 'utf8').toString('hex'),
+      })
+      const tipBytes = await readSessionBytes(session.sessionId)
+
+      const journal = await getActionJournalViewport({
+        sessionId: session.sessionId,
+        capacity: 100,
+        direction: 'older',
+      })
+      const transformEntry = journal.entries.find(
+        (entry) => entry.kind === 'TRANSFORM'
+      )
+      assert.ok(transformEntry)
+      const targets = new Map([
+        ['0', originalBytes],
+        [transformEntry.changeCountBefore, beforeTransformBytes],
+        [transformEntry.changeCountAfter, afterTransformBytes],
+        [journal.changeCount, tipBytes],
+      ])
+      const assertAt = async (changeCount) => {
+        assert.equal(session.changeCount, Number(changeCount))
+        assert.deepEqual(
+          await readSessionBytes(session.sessionId),
+          targets.get(changeCount)
+        )
+        assert.equal((await checkSessionModel(session.sessionId)).valid, true)
+        const counts = await getCounts(session.sessionId, [
+          CountKind.CHECKPOINTS,
+        ])
+        assert.equal(counts[0].getCount(), session.checkpointTimeline.cursor)
+      }
+      const navigate = async (changeCount) => {
+        await provider.dispatchWebviewMessageForTesting(
+          document.uri,
+          { type: 'navigateActionJournal', changeCount },
+          { propagateErrors: true }
+        )
+        await assertAt(changeCount)
+      }
+
+      // Every cycle uses native undo to remove the transform checkpoint model
+      // before asking the journal to replay it. The seeded extra jump varies
+      // the surrounding checkpoint path while keeping failures reproducible.
+      let randomState = 0xc0ffee
+      const targetChangeCounts = [...targets.keys()]
+      for (let cycle = 0; cycle < 20; cycle += 1) {
+        await navigate(transformEntry.changeCountAfter)
+        await provider.dispatchWebviewMessageForTesting(
+          document.uri,
+          { type: 'undo' },
+          { propagateErrors: true }
+        )
+        await assertAt(transformEntry.changeCountBefore)
+        await navigate(transformEntry.changeCountAfter)
+        randomState = (1664525 * randomState + 1013904223) >>> 0
+        await navigate(
+          targetChangeCounts[randomState % targetChangeCounts.length]
+        )
+      }
+    } finally {
+      await panel.fireDidDispose()
+      document.dispose()
+      await fs.rm(tmpDir, { recursive: true, force: true })
+    }
   })
 
   test('reports search matches and keeps undo/redo disabled state in sync', async () => {
@@ -2437,6 +3106,430 @@ suite('OmegaEdit VS Code extension', () => {
     }
   })
 
+  test('restores an auto-saved OmegaEdit PNG after Zstandard transform rollback and save', async () => {
+    const provider = getHexEditorProviderForTesting()
+    assert.ok(
+      provider,
+      'Expected the activated extension to expose its provider'
+    )
+
+    const fixturePath = path.resolve(
+      __dirname,
+      '..',
+      '..',
+      '..',
+      'images',
+      'OmegaEditLogo.png'
+    )
+    const originalBytes = await fs.readFile(fixturePath)
+    const originalHash = sha256(originalBytes)
+    assert.equal(
+      originalHash,
+      '3eae0f11aabb39a5c64663d7c4a2ff076f570a7e41b12b770cb6456ecd8da792',
+      'The regression fixture must match the canonical OmegaEdit logo'
+    )
+
+    const tmpDir = await fs.mkdtemp(
+      path.join(os.tmpdir(), 'omega-edit-vscode-zstd-rollback-')
+    )
+    const samplePath = path.join(tmpDir, 'OmegaEditLogo.png')
+    await fs.writeFile(samplePath, originalBytes)
+    const uri = vscode.Uri.file(samplePath)
+    const files = vscode.workspace.getConfiguration('files')
+    const previousAutoSave = files.inspect('autoSave')?.globalValue
+    const previousDelay = files.inspect('autoSaveDelay')?.globalValue
+    const omegaEdit = vscode.workspace.getConfiguration('omegaEdit')
+    const previousFingerprintAlgorithm = omegaEdit.inspect(
+      'saveConflictFingerprintAlgorithm'
+    )?.globalValue
+
+    try {
+      await omegaEdit.update(
+        'saveConflictFingerprintAlgorithm',
+        'sha512',
+        vscode.ConfigurationTarget.Global
+      )
+      await files.update(
+        'autoSave',
+        'afterDelay',
+        vscode.ConfigurationTarget.Global
+      )
+      await files.update('autoSaveDelay', 50, vscode.ConfigurationTarget.Global)
+      await vscode.commands.executeCommand(
+        'vscode.openWith',
+        uri,
+        OMEGA_EDIT_VIEW_TYPE
+      )
+      await waitForOmegaEditTab(uri, { dirty: false })
+      const session = await waitForSession(provider, uri)
+      assert.ok(session, 'Expected a live session for the Zstandard test')
+      await provider.refreshActiveTransformPlugins()
+      assert.ok(
+        session.transformPlugins.some(
+          (plugin) => plugin.id === 'omega.example.zstd'
+        ),
+        'Expected the Zstandard action to be available'
+      )
+
+      await provider.dispatchWebviewMessageForTesting(
+        uri,
+        {
+          type: 'applyTransform',
+          pluginId: 'omega.example.zstd',
+          contentSource: 'computed',
+          offset: 0,
+          length: originalBytes.length,
+          optionsJson: JSON.stringify({ action: 'compress', level: 3 }),
+        },
+        { propagateErrors: true }
+      )
+      const transformedBytes = await readSessionBytes(session.sessionId)
+      const transformedHash = sha256(transformedBytes)
+      assert.notEqual(transformedHash, originalHash)
+      await waitForFileBytes(samplePath, transformedBytes)
+      await waitForOmegaEditTab(uri, { dirty: false })
+
+      // The regression requires rollback to leave the Auto Save bytes on disk
+      // until the explicit save below. Disable Auto Save after its transformed
+      // write completes so it cannot race the rollback assertions.
+      await files.update('autoSave', 'off', vscode.ConfigurationTarget.Global)
+      await vscode.commands.executeCommand(OMEGA_EDIT_ROLLBACK_SESSION_COMMAND)
+      assert.deepEqual(await readSessionBytes(session.sessionId), originalBytes)
+      assert.equal(sha256(await fs.readFile(samplePath)), transformedHash)
+
+      await waitForOmegaEditTab(uri, { dirty: true })
+
+      await vscode.commands.executeCommand('workbench.action.files.save')
+      assert.equal(
+        sha256(await fs.readFile(samplePath)),
+        originalHash,
+        'Save after rollback must restore the original PNG bytes'
+      )
+      await waitForOmegaEditTab(uri, { dirty: false })
+    } finally {
+      await files.update(
+        'autoSave',
+        previousAutoSave,
+        vscode.ConfigurationTarget.Global
+      )
+      await files.update(
+        'autoSaveDelay',
+        previousDelay,
+        vscode.ConfigurationTarget.Global
+      )
+      await omegaEdit.update(
+        'saveConflictFingerprintAlgorithm',
+        previousFingerprintAlgorithm,
+        vscode.ConfigurationTarget.Global
+      )
+      await vscode.commands
+        .executeCommand('workbench.action.files.revert')
+        .then(undefined, () => undefined)
+      await vscode.commands.executeCommand('workbench.action.closeActiveEditor')
+      await fs.rm(tmpDir, { recursive: true, force: true })
+    }
+  })
+
+  test('does not force-overwrite genuinely different external file content', async () => {
+    const tmpDir = await fs.mkdtemp(
+      path.join(os.tmpdir(), 'omega-edit-vscode-save-conflict-')
+    )
+    const samplePath = path.join(tmpDir, 'save-conflict.bin')
+    await fs.writeFile(samplePath, Buffer.from('original', 'utf8'))
+
+    const provider = new HexEditorProvider({ subscriptions: [] }, testPort)
+    const panel = createMockWebviewPanel()
+    const document = await provider.openCustomDocument(
+      vscode.Uri.file(samplePath),
+      { backupId: undefined, untitledDocumentData: undefined },
+      new vscode.CancellationTokenSource().token
+    )
+
+    try {
+      await provider.resolveCustomEditor(
+        document,
+        panel,
+        new vscode.CancellationTokenSource().token
+      )
+      await provider.dispatchWebviewMessageForTesting(document.uri, {
+        type: 'overwrite',
+        offset: 0,
+        data: Buffer.from('O', 'utf8').toString('hex'),
+      })
+
+      const externalBytes = Buffer.from('external', 'utf8')
+      await fs.writeFile(samplePath, externalBytes)
+      const future = new Date(Date.now() + 5000)
+      await fs.utimes(samplePath, future, future)
+
+      await assert.rejects(
+        provider.saveCustomDocument(
+          document,
+          new vscode.CancellationTokenSource().token
+        ),
+        /original file was modified outside OmegaEdit/
+      )
+      assert.deepEqual(await fs.readFile(samplePath), externalBytes)
+    } finally {
+      await panel.fireDidDispose()
+      await fs.rm(tmpDir, { recursive: true, force: true })
+    }
+  })
+
+  test('fails closed for invalid and mismatched save fingerprints', async () => {
+    const tmpDir = await fs.mkdtemp(
+      path.join(os.tmpdir(), 'omega-edit-vscode-hostile-fingerprint-')
+    )
+    const samplePath = path.join(tmpDir, 'hostile-fingerprint.bin')
+    const externalBytes = Buffer.from('external', 'utf8')
+    await fs.writeFile(samplePath, Buffer.from('original', 'utf8'))
+
+    const provider = new HexEditorProvider({ subscriptions: [] }, testPort)
+    const panel = createMockWebviewPanel()
+    const document = await provider.openCustomDocument(
+      vscode.Uri.file(samplePath),
+      { backupId: undefined, untitledDocumentData: undefined },
+      new vscode.CancellationTokenSource().token
+    )
+
+    try {
+      await provider.resolveCustomEditor(
+        document,
+        panel,
+        new vscode.CancellationTokenSource().token
+      )
+      const session = provider.getSessionForTesting(document.uri)
+      assert.ok(session, 'Expected a live session for fingerprint validation')
+      await provider.dispatchWebviewMessageForTesting(document.uri, {
+        type: 'overwrite',
+        offset: 0,
+        data: Buffer.from('O', 'utf8').toString('hex'),
+      })
+
+      await fs.writeFile(samplePath, externalBytes)
+      const future = new Date(Date.now() + 5000)
+      await fs.utimes(samplePath, future, future)
+
+      const sizeMismatch = await saveSession(
+        session.sessionId,
+        samplePath,
+        IOFlags.OVERWRITE,
+        0,
+        0,
+        {
+          byteLength: externalBytes.byteLength + 1,
+          digest: { algorithm: 'sha256', value: sha256(externalBytes) },
+        }
+      )
+      assert.notEqual(sizeMismatch.getSaveStatus(), 0)
+      assert.deepEqual(await fs.readFile(samplePath), externalBytes)
+
+      await assert.rejects(
+        saveSession(session.sessionId, samplePath, IOFlags.OVERWRITE, 0, 0, {
+          byteLength: externalBytes.byteLength,
+          digest: { algorithm: 'sha256', value: '' },
+        }),
+        /invalid digest metadata/
+      )
+      assert.deepEqual(await fs.readFile(samplePath), externalBytes)
+
+      await assert.rejects(
+        saveSession(session.sessionId, samplePath, IOFlags.OVERWRITE, 0, 0, {
+          byteLength: externalBytes.byteLength,
+          digest: {
+            algorithm: 'definitely-not-a-digest',
+            value: sha256(externalBytes),
+          },
+        }),
+        /unsupported save conflict digest algorithm/
+      )
+      assert.deepEqual(await fs.readFile(samplePath), externalBytes)
+
+      const uppercaseDigest = await saveSession(
+        session.sessionId,
+        samplePath,
+        IOFlags.OVERWRITE,
+        0,
+        0,
+        {
+          byteLength: externalBytes.byteLength,
+          digest: {
+            algorithm: 'sha256',
+            value: sha256(externalBytes).toUpperCase(),
+          },
+        }
+      )
+      assert.equal(uppercaseDigest.getSaveStatus(), 0)
+      assert.deepEqual(
+        await fs.readFile(samplePath),
+        Buffer.from('Original', 'utf8')
+      )
+    } finally {
+      await panel.fireDidDispose()
+      await fs.rm(tmpDir, { recursive: true, force: true })
+    }
+  })
+
+  test('cancels guarded hashing without publishing staged bytes', async () => {
+    const tmpDir = await fs.mkdtemp(
+      path.join(os.tmpdir(), 'omega-edit-vscode-cancelled-save-')
+    )
+    const samplePath = path.join(tmpDir, 'cancelled-save.bin')
+    const originalBytes = Buffer.alloc(32 * 1024 * 1024, 0x5a)
+    await fs.writeFile(samplePath, originalBytes)
+
+    const provider = new HexEditorProvider({ subscriptions: [] }, testPort)
+    const panel = createMockWebviewPanel()
+    const document = await provider.openCustomDocument(
+      vscode.Uri.file(samplePath),
+      { backupId: undefined, untitledDocumentData: undefined },
+      new vscode.CancellationTokenSource().token
+    )
+
+    try {
+      await provider.resolveCustomEditor(
+        document,
+        panel,
+        new vscode.CancellationTokenSource().token
+      )
+      const session = provider.getSessionForTesting(document.uri)
+      assert.ok(session, 'Expected a live session for cancelled save')
+      await provider.dispatchWebviewMessageForTesting(document.uri, {
+        type: 'overwrite',
+        offset: 0,
+        data: '00',
+      })
+
+      await fs.writeFile(samplePath, originalBytes)
+      const future = new Date(Date.now() + 5000)
+      await fs.utimes(samplePath, future, future)
+
+      const abortController = new AbortController()
+      const savePromise = saveSession(
+        session.sessionId,
+        samplePath,
+        IOFlags.OVERWRITE,
+        0,
+        0,
+        {
+          byteLength: originalBytes.byteLength,
+          digest: { algorithm: 'sha256', value: sha256(originalBytes) },
+        },
+        { signal: abortController.signal }
+      )
+      await waitForCompletedSaveStage(tmpDir, originalBytes.byteLength)
+      abortController.abort()
+
+      await assert.rejects(savePromise, /cancel/i)
+      await waitForNoSaveStages(tmpDir)
+      assert.deepEqual(await fs.readFile(samplePath), originalBytes)
+    } finally {
+      await panel.fireDidDispose()
+      await fs.rm(tmpDir, { recursive: true, force: true })
+    }
+  })
+
+  test('waits for an in-flight save before rolling back the session', async () => {
+    const tmpDir = await fs.mkdtemp(
+      path.join(os.tmpdir(), 'omega-edit-vscode-save-rollback-order-')
+    )
+    const samplePath = path.join(tmpDir, 'save-rollback-order.bin')
+    await fs.writeFile(samplePath, Buffer.from('abc', 'utf8'))
+
+    const provider = new HexEditorProvider({ subscriptions: [] }, testPort)
+    const panel = createMockWebviewPanel()
+    const document = await provider.openCustomDocument(
+      vscode.Uri.file(samplePath),
+      { backupId: undefined, untitledDocumentData: undefined },
+      new vscode.CancellationTokenSource().token
+    )
+
+    try {
+      await provider.resolveCustomEditor(
+        document,
+        panel,
+        new vscode.CancellationTokenSource().token
+      )
+      const session = provider.getSessionForTesting(document.uri)
+      assert.ok(session, 'Expected a live session for save ordering')
+      await provider.dispatchWebviewMessageForTesting(document.uri, {
+        type: 'applyTransform',
+        pluginId: 'omega.example.base64',
+        offset: 0,
+        length: 3,
+      })
+      await assertSessionText(session.sessionId, 'YWJj')
+
+      let releaseSave
+      session.saveTask = new Promise((resolve) => {
+        releaseSave = resolve
+      })
+      const rollback = provider.rollbackActiveSession()
+      await delay(50)
+      await assertSessionText(session.sessionId, 'YWJj')
+
+      releaseSave()
+      await rollback
+      await assertSessionText(session.sessionId, 'abc')
+    } finally {
+      await panel.fireDidDispose()
+      await fs.rm(tmpDir, { recursive: true, force: true })
+    }
+  })
+
+  test('waits for an in-flight save before creating a checkpoint', async () => {
+    const tmpDir = await fs.mkdtemp(
+      path.join(os.tmpdir(), 'omega-edit-vscode-save-checkpoint-order-')
+    )
+    const samplePath = path.join(tmpDir, 'save-checkpoint-order.bin')
+    await fs.writeFile(samplePath, Buffer.from('abc', 'utf8'))
+
+    const provider = new HexEditorProvider({ subscriptions: [] }, testPort)
+    const panel = createMockWebviewPanel()
+    const document = await provider.openCustomDocument(
+      vscode.Uri.file(samplePath),
+      { backupId: undefined, untitledDocumentData: undefined },
+      new vscode.CancellationTokenSource().token
+    )
+
+    try {
+      await provider.resolveCustomEditor(
+        document,
+        panel,
+        new vscode.CancellationTokenSource().token
+      )
+      const session = provider.getSessionForTesting(document.uri)
+      assert.ok(session, 'Expected a live session for checkpoint ordering')
+      await provider.dispatchWebviewMessageForTesting(document.uri, {
+        type: 'overwrite',
+        offset: 0,
+        data: Buffer.from('X', 'utf8').toString('hex'),
+      })
+
+      let releaseSave
+      session.saveTask = new Promise((resolve) => {
+        releaseSave = resolve
+      })
+      let alignmentStarted = false
+      const getCheckpointCount = provider.getCheckpointCount.bind(provider)
+      provider.getCheckpointCount = async (...args) => {
+        alignmentStarted = true
+        return await getCheckpointCount(...args)
+      }
+
+      const checkpoint = provider.createCheckpoint({ uri: document.uri })
+      await Promise.resolve()
+      assert.equal(alignmentStarted, false)
+
+      releaseSave()
+      assert.equal((await checkpoint)?.checkpointCount, 1)
+      assert.equal(alignmentStarted, true)
+    } finally {
+      await panel.fireDidDispose()
+      await fs.rm(tmpDir, { recursive: true, force: true })
+    }
+  })
+
   test('refreshes viewport data when webview metrics arrive after initial load', async () => {
     const tmpDir = await fs.mkdtemp(
       path.join(os.tmpdir(), 'omega-edit-vscode-ready-')
@@ -2485,14 +3578,30 @@ suite('OmegaEdit VS Code extension', () => {
     }
   })
 
-  test('updates bytes per row without replacing the live webview', async () => {
+  test('stores bytes per row locally without replacing the live webview', async () => {
     const tmpDir = await fs.mkdtemp(
       path.join(os.tmpdir(), 'omega-edit-vscode-bytes-row-')
     )
     const samplePath = path.join(tmpDir, 'bytes-row.bin')
     await fs.writeFile(samplePath, Buffer.from('bytes per row', 'utf8'))
 
-    const provider = new HexEditorProvider({ subscriptions: [] }, testPort)
+    const workspaceValues = new Map([['omegaEdit.bytesPerRow', 32]])
+    const workspaceUpdates = []
+    const provider = new HexEditorProvider(
+      {
+        subscriptions: [],
+        workspaceState: {
+          keys: () => [...workspaceValues.keys()],
+          get: (key, fallback) =>
+            workspaceValues.has(key) ? workspaceValues.get(key) : fallback,
+          update: async (key, value) => {
+            workspaceUpdates.push([key, value])
+            workspaceValues.set(key, value)
+          },
+        },
+      },
+      testPort
+    )
     const panel = createMockWebviewPanel()
     const document = await provider.openCustomDocument(
       vscode.Uri.file(samplePath),
@@ -2513,19 +3622,23 @@ suite('OmegaEdit VS Code extension', () => {
         session,
         'Expected a live session for the bytes-per-row refresh test'
       )
-      session.bytesPerRowSetting = 0
-      session.bytesPerRow = 32
+      assert.equal(session.bytesPerRow, 32)
 
-      provider.refreshBytesPerRow(0)
+      await provider.dispatchWebviewMessageForTesting(document.uri, {
+        type: 'setBytesPerRow',
+        bytesPerRow: 24,
+      })
 
       assert.equal(panel.webview.html, initialHtml)
+      assert.deepEqual(workspaceUpdates, [['omegaEdit.bytesPerRow', 24]])
+      assert.equal(workspaceValues.get('omegaEdit.bytesPerRow'), 24)
       const bytesPerRowMessage = lastMessageOfType(
         panel.messages,
         'bytesPerRow'
       )
       assert.deepEqual(bytesPerRowMessage, {
         type: 'bytesPerRow',
-        bytesPerRow: 16,
+        bytesPerRow: 24,
         bytesPerRowMode: 'fixed',
       })
     } finally {
@@ -2612,6 +3725,60 @@ suite('OmegaEdit VS Code extension', () => {
     await fs.rm(tmpDir, { recursive: true, force: true })
   })
 
+  test('reconciles action journal history changed by another attached client', async () => {
+    const tmpDir = await fs.mkdtemp(
+      path.join(os.tmpdir(), 'omega-edit-vscode-shared-history-')
+    )
+    const samplePath = path.join(tmpDir, 'shared-history.bin')
+    await fs.writeFile(samplePath, Buffer.from('abc', 'utf8'))
+
+    const provider = new HexEditorProvider({ subscriptions: [] }, testPort)
+    const panel = createMockWebviewPanel()
+    const document = await provider.openCustomDocument(
+      vscode.Uri.file(samplePath),
+      { backupId: undefined, untitledDocumentData: undefined },
+      new vscode.CancellationTokenSource().token
+    )
+
+    await provider.resolveCustomEditor(
+      document,
+      panel,
+      new vscode.CancellationTokenSource().token
+    )
+
+    const session = provider.getSessionForTesting(document.uri)
+    assert.ok(session, 'Expected a live session for shared history')
+
+    await insert(session.sessionId, 0, Buffer.from('!', 'utf8'))
+    await assertSessionText(session.sessionId, '!abc')
+    assert.equal(session.history.getEditState().canUndo, false)
+
+    await provider.dispatchWebviewMessageForTesting(document.uri, {
+      type: 'requestActionJournalViewport',
+      capacity: 20,
+      direction: 'older',
+    })
+
+    const editState = lastMessageOfType(panel.messages, 'editState')
+    assert.deepEqual(editState, {
+      type: 'editState',
+      canUndo: true,
+      canRedo: false,
+      undoCount: 1,
+      redoCount: 0,
+      isDirty: true,
+      savedChangeDepth: 0,
+    })
+
+    await provider.dispatchWebviewMessageForTesting(document.uri, {
+      type: 'undo',
+    })
+    await assertSessionText(session.sessionId, 'abc')
+
+    await panel.fireDidDispose()
+    await fs.rm(tmpDir, { recursive: true, force: true })
+  })
+
   test('tracks save-state semantics after checkpointed replace-all followed by more edits', async () => {
     const tmpDir = await fs.mkdtemp(
       path.join(os.tmpdir(), 'omega-edit-vscode-checkpoint-save-')
@@ -2665,6 +3832,24 @@ suite('OmegaEdit VS Code extension', () => {
       isDirty: true,
       savedChangeDepth: 0,
     })
+
+    await provider.dispatchWebviewMessageForTesting(document.uri, {
+      type: 'undo',
+    })
+    await assertSessionText(session.sessionId, original)
+    let timeline = lastMessageOfType(panel.messages, 'checkpointTimeline')
+    assert.equal(timeline.checkpointCount, 1)
+    assert.equal(timeline.cursor, 0)
+    assert.equal(timeline.canFastForward, true)
+
+    await provider.dispatchWebviewMessageForTesting(document.uri, {
+      type: 'redo',
+    })
+    await assertSessionText(session.sessionId, replaced)
+    timeline = lastMessageOfType(panel.messages, 'checkpointTimeline')
+    assert.equal(timeline.checkpointCount, 1)
+    assert.equal(timeline.cursor, 1)
+    assert.equal(timeline.canRewind, true)
 
     await provider.dispatchWebviewMessageForTesting(document.uri, {
       type: 'insert',
@@ -2732,10 +3917,28 @@ suite('OmegaEdit VS Code extension', () => {
       savedChangeDepth: 2,
     })
 
-    await provider.navigateToCheckpoint(session, 0)
+    await provider.checkoutHistoryCheckpoint(session, 0)
     await assertSessionText(session.sessionId, original)
-    await provider.navigateToCheckpoint(session, 1)
+    await provider.checkoutHistoryCheckpoint(session, 1)
     await assertSessionText(session.sessionId, replaced)
+
+    await provider.dispatchWebviewMessageForTesting(document.uri, {
+      type: 'undo',
+    })
+    await assertSessionText(session.sessionId, original)
+    timeline = lastMessageOfType(panel.messages, 'checkpointTimeline')
+    assert.equal(timeline.checkpointCount, 1)
+    assert.equal(timeline.cursor, 0)
+    assert.equal(timeline.canFastForward, true)
+
+    await provider.dispatchWebviewMessageForTesting(document.uri, {
+      type: 'redo',
+    })
+    await assertSessionText(session.sessionId, replaced)
+    timeline = lastMessageOfType(panel.messages, 'checkpointTimeline')
+    assert.equal(timeline.checkpointCount, 1)
+    assert.equal(timeline.cursor, 1)
+    assert.equal(timeline.canRewind, true)
 
     await panel.fireDidDispose()
     await fs.rm(tmpDir, { recursive: true, force: true })
@@ -2922,6 +4125,48 @@ async function waitForFileText(filePath, expected, timeoutMs = 10000) {
   )
 }
 
+async function waitForFileBytes(filePath, expected, timeoutMs = 10000) {
+  const deadline = Date.now() + timeoutMs
+  while (Date.now() < deadline) {
+    const actual = await fs.readFile(filePath).catch(() => undefined)
+    if (actual?.equals(expected)) {
+      return
+    }
+    await delay(25)
+  }
+  assert.deepEqual(await fs.readFile(filePath), expected)
+}
+
+async function listSaveStages(directory) {
+  const names = await fs.readdir(directory).catch(() => [])
+  return names.filter((name) => name.startsWith('.OmegaEdit_'))
+}
+
+async function waitForCompletedSaveStage(directory, expectedSize) {
+  const deadline = Date.now() + 30000
+  while (Date.now() < deadline) {
+    for (const name of await listSaveStages(directory)) {
+      const stat = await fs.stat(path.join(directory, name)).catch(() => null)
+      if (stat?.size === expectedSize) {
+        return
+      }
+    }
+    await delay(10)
+  }
+  assert.fail('Timed out waiting for the guarded save staging file')
+}
+
+async function waitForNoSaveStages(directory) {
+  const deadline = Date.now() + 10000
+  while (Date.now() < deadline) {
+    if ((await listSaveStages(directory)).length === 0) {
+      return
+    }
+    await delay(10)
+  }
+  assert.deepEqual(await listSaveStages(directory), [])
+}
+
 async function assertSessionText(
   sessionId,
   expected,
@@ -2944,6 +4189,26 @@ async function assertSessionText(
   }
 
   assert.equal(lastValue, expectedBuffer.toString('utf8'))
+}
+
+async function readSessionBytes(sessionId) {
+  const size = await getComputedFileSize(sessionId)
+  const chunks = []
+  const maxSegmentLength = 1024 * 1024
+
+  for (let offset = 0; offset < size; offset += maxSegmentLength) {
+    chunks.push(
+      Buffer.from(
+        await getSegment(
+          sessionId,
+          offset,
+          Math.min(maxSegmentLength, size - offset)
+        )
+      )
+    )
+  }
+
+  return Buffer.concat(chunks)
 }
 
 async function assertEditState(

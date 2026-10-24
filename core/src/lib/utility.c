@@ -66,7 +66,7 @@ int omega_util_compute_mode(int mode) {
 }
 
 int64_t omega_util_write_segment_to_file(FILE *from_file_ptr, int64_t offset, int64_t byte_count, FILE *to_file_ptr) {
-    if (!from_file_ptr || !to_file_ptr) { return -1; }
+    if (!from_file_ptr || !to_file_ptr || offset < 0 || byte_count < 0) { return -1; }
     if (0 != FSEEK(from_file_ptr, offset, SEEK_SET)) { return -1; }
     int64_t remaining = byte_count;
     omega_byte_t buff[BUFSIZ];
@@ -230,7 +230,7 @@ int omega_util_strnicmp(const char *s1, const char *s2, uint64_t sz) {
 }
 
 char *omega_util_strndup(const char *s, size_t len) {
-    if (!s && len > 0) { return NULL; }
+    if ((!s && len > 0) || len == SIZE_MAX) { return NULL; }
     char *result = (char *) malloc(len + 1);
     if (result != NULL) {
         if (len > 0) { memcpy(result, s, len); }
@@ -329,9 +329,12 @@ void omega_util_count_characters(const unsigned char *data, size_t length, omega
     assert(data);
     assert(counts_ptr);
 
-    // Skip the BOM if present (the BOM is metadata, not part of the text)
+    // Skip the BOM only at the beginning of the counted stream.
     const size_t bomSize = omega_util_BOM_size(counts_ptr->bom);
-    switch (counts_ptr->bom) {
+    const int at_stream_start = counts_ptr->bomBytes == 0 && counts_ptr->singleByteChars == 0 &&
+                                counts_ptr->doubleByteChars == 0 && counts_ptr->tripleByteChars == 0 &&
+                                counts_ptr->quadByteChars == 0 && counts_ptr->invalidBytes == 0;
+    switch (at_stream_start ? counts_ptr->bom : BOM_NONE) {
         case BOM_UTF8:
             if (length >= 3 && data[0] == 0xEF && data[1] == 0xBB && data[2] == 0xBF) {
                 data += bomSize;

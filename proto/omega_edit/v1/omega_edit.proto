@@ -155,6 +155,10 @@ service EditorService {
     // Export an inclusive active-serial range as a bounded, validated frame stream.
     rpc ExportChangeLog(ExportChangeLogRequest) returns (stream ExportChangeLogResponse);
 
+    // Read a bounded metadata-only viewport over active primitive history.
+    // Payload bytes remain lazy and can be fetched through change-log export.
+    rpc GetActionJournalViewport(GetActionJournalViewportRequest) returns (GetActionJournalViewportResponse);
+
     // ---------------------------------------------------------------------------
     // Data inspection
     // ---------------------------------------------------------------------------
@@ -211,6 +215,12 @@ service EditorService {
     // Revert the most recent checkpoint-backed rewrite by destroying the last
     // checkpoint model and exposing the previous model again.
     rpc DestroyLastCheckpoint(DestroyLastCheckpointRequest) returns (DestroyLastCheckpointResponse);
+
+    // Move to a checkpoint boundary while preserving later checkpoints for fast-forward.
+    rpc CheckoutCheckpoint(CheckoutCheckpointRequest) returns (CheckoutCheckpointResponse);
+
+    // Permanently discard checkpoints after the active checkpoint boundary.
+    rpc DiscardCheckpointFuture(DiscardCheckpointFutureRequest) returns (DiscardCheckpointFutureResponse);
 
     // Restore session content to the most recent checkpoint snapshot while
     // keeping that checkpoint available.
@@ -463,7 +473,23 @@ message GetHeartbeatResponse {
     optional int64 resident_memory_bytes = 10;// Resident set size (RSS) in bytes.
     optional int64 virtual_memory_bytes =
             11;// Virtual address space usage in bytes when the platform can report it consistently.
-    optional int64 peak_resident_memory_bytes = 12;// Peak RSS in bytes.
+    optional int64 peak_resident_memory_bytes = 12;   // Peak RSS in bytes.
+    optional int64 viewport_count = 13;               // Total active viewports across all sessions.
+    optional int64 attachment_count = 14;             // Total attached session authors.
+    optional int64 active_operation_count = 15;       // RPCs currently holding session access.
+    optional int64 active_mutation_count = 16;        // Mutations currently admitted.
+    optional int64 active_transform_count = 17;       // Transform operations currently running.
+    optional int64 session_subscription_count = 18;   // Active session-event subscriptions.
+    optional int64 viewport_subscription_count = 19;  // Active viewport-event subscriptions.
+    optional int64 file_backed_session_count = 20;    // Sessions created from files.
+    optional int64 event_queue_dropped_count = 21;    // Buffered events dropped by active queues.
+    optional int64 oldest_session_idle_ms = 22;       // Longest current session idle duration.
+    optional int64 event_queue_bytes = 23;            // Bytes currently buffered by active event queues.
+    optional int64 peak_event_queue_bytes = 24;       // Peak aggregate event queue bytes.
+    optional int64 resource_rejection_count = 25;     // Admission and queue budget rejections.
+    optional int64 active_scan_count = 26;            // Whole-range scans currently running.
+    optional int64 active_changelog_export_count = 27;// Change-log exports currently spooling or streaming.
+    optional int64 active_checkpoint_write_count = 28;// Checkpoint writers currently running.
 }
 
 // ===========================================================================
@@ -497,6 +523,10 @@ message SaveSessionRequest {
     int32 io_flags = 3;       // Bitmask of IOFlags values.
     optional int64 offset = 4;// Start of the byte range to save (default: 0).
     optional int64 length = 5;// Length of the byte range to save (default: entire file).
+    // Fingerprint of the last content OmegaEdit successfully wrote to the original file. When core detects an
+    // original-file modification conflict, the native server may permit the overwrite only if the target still
+    // matches this fingerprint at core's final publish boundary.
+    optional SessionContentFingerprint expected_original_fingerprint = 6;
 }
 
 // Response after a save operation.
@@ -800,12 +830,15 @@ message ExportChangeLogRequest {
     optional string max_span_bytes_decimal = 5;     // Absent/"0" = 64 MiB.
     optional string max_entries_decimal = 6;        // Absent/"0" = server cap.
     optional string max_output_bytes_decimal = 7;   // Absent/"0" = server cap.
+    optional string digest_plugin_id = 8;           // Defaults to "omega.example.openssl_digests".
+    optional string digest_algorithm = 9;           // Plugin algorithm label; defaults to "sha256".
 }
 
 message ChangeLogStreamFingerprint {
     string byte_length_decimal = 1;
     string digest_algorithm = 2;
     string digest_value = 3;
+    string digest_plugin_id = 4;
 }
 
 message ChangeLogStreamHeader {
@@ -843,9 +876,10 @@ message ChangeLogPayloadChunk {
 }
 
 message ChangeLogStreamComplete {
+    reserved 3;
+    reserved "payload_sha256";
     string emitted_change_count_decimal = 1;
     string payload_byte_count_decimal = 2;
-    bytes payload_sha256 = 3;
 }
 
 message ExportChangeLogResponse {
@@ -855,6 +889,64 @@ message ExportChangeLogResponse {
         ChangeLogPayloadChunk payload = 3;
         ChangeLogStreamComplete complete = 4;
     }
+}
+
+// Metadata-only primitive history viewport. Decimal strings preserve the
+// native int64 domain without relying on a JavaScript-safe-number transport.
+enum ActionJournalDirection {
+    ACTION_JOURNAL_DIRECTION_UNSPECIFIED = 0;
+    ACTION_JOURNAL_DIRECTION_OLDER = 1;
+    ACTION_JOURNAL_DIRECTION_NEWER = 2;
+}
+
+message GetActionJournalViewportRequest {
+    string session_id = 1;
+    optional string anchor_serial_decimal = 2;// Absent/"0" = newest for OLDER, oldest for NEWER.
+    uint32 capacity = 3;                      // Required bounded result capacity.
+    ActionJournalDirection direction = 4;
+    repeated ChangeLogEntryKind kinds = 5;// Empty = every primitive kind.
+    optional string transaction_id = 6;
+}
+
+enum ActionJournalPayloadStorage {
+    ACTION_JOURNAL_PAYLOAD_STORAGE_UNSPECIFIED = 0;
+    ACTION_JOURNAL_PAYLOAD_STORAGE_NONE = 1;
+    ACTION_JOURNAL_PAYLOAD_STORAGE_INLINE = 2;
+    ACTION_JOURNAL_PAYLOAD_STORAGE_FILE_BACKED = 3;
+    ACTION_JOURNAL_PAYLOAD_STORAGE_CHECKPOINT_BACKED = 4;
+}
+
+message ActionJournalEntry {
+    string entry_index_decimal = 1;
+    string first_serial_decimal = 2;
+    string last_serial_decimal = 3;
+    ChangeLogEntryKind kind = 4;
+    string offset_decimal = 5;
+    string length_decimal = 6;
+    string data_length_decimal = 7;
+    string size_delta_decimal = 8;
+    optional string transaction_id = 9;
+    ActionJournalPayloadStorage payload_storage = 10;
+    optional ChangeLogStreamTransform transform = 11;
+    string change_count_before_decimal = 12;
+    string change_count_after_decimal = 13;
+    optional string checkpoint_before_decimal = 14;
+    optional string checkpoint_after_decimal = 15;
+}
+
+message GetActionJournalViewportResponse {
+    int32 format_version = 1;
+    string session_id = 2;
+    string active_tip_serial_decimal = 3;
+    string change_count_decimal = 4;
+    string undo_count_decimal = 5;
+    string resolved_anchor_serial_decimal = 6;
+    ActionJournalDirection direction = 7;
+    uint32 capacity = 8;
+    repeated ActionJournalEntry entries = 9;
+    bool has_more = 10;
+    optional string next_anchor_serial_decimal = 11;
+    string checkpoint_count_decimal = 12;
 }
 
 // ===========================================================================
@@ -956,8 +1048,9 @@ message GetSessionContentInfoResponse {
 
 // Digest metadata for a content fingerprint.
 message ContentDigest {
-    string algorithm = 1;// Digest algorithm identifier, e.g. "sha256".
-    string value = 2;    // Lowercase hexadecimal digest value.
+    string algorithm = 1;         // Digest algorithm identifier, e.g. "sha256".
+    string value = 2;             // Lowercase hexadecimal digest value.
+    optional string plugin_id = 3;// Streaming inspect plugin that produced the digest.
 }
 
 // Size and digest for a session content snapshot.
@@ -971,6 +1064,7 @@ message GetSessionFingerprintRequest {
     string session_id = 1;                // Session to fingerprint.
     SessionFingerprintContent content = 2;// Original or computed content.
     optional string algorithm = 3;        // Digest algorithm; defaults to "sha256".
+    optional string plugin_id = 4;        // Defaults to "omega.example.openssl_digests".
 }
 
 // Server-side content fingerprint result.
@@ -1132,6 +1226,32 @@ message DestroyLastCheckpointRequest {
 message DestroyLastCheckpointResponse {
     string session_id = 1;          // Session that was reverted.
     int64 remaining_checkpoints = 2;// Remaining checkpoint count after revert.
+}
+
+// Request to navigate to a materialized checkpoint boundary.
+message CheckoutCheckpointRequest {
+    string session_id = 1;     // Session to navigate.
+    int64 checkpoint_count = 2;// Checkpoint boundary to make active; zero is the original snapshot.
+}
+
+// Result of non-destructive checkpoint navigation.
+message CheckoutCheckpointResponse {
+    string session_id = 1;            // Session that was navigated.
+    int64 checkpoint_count = 2;       // Active checkpoint count after navigation.
+    int64 future_checkpoint_count = 3;// Preserved checkpoint count available for fast-forward.
+    int64 change_count = 4;           // Active session change count after navigation.
+}
+
+// Request to destroy the preserved checkpoint branch after the active boundary.
+message DiscardCheckpointFutureRequest {
+    string session_id = 1;// Session whose checkpoint future should be discarded.
+}
+
+// Result of destroying a preserved checkpoint branch.
+message DiscardCheckpointFutureResponse {
+    string session_id = 1;               // Session whose future was discarded.
+    int64 discarded_checkpoint_count = 2;// Number of checkpoint models destroyed.
+    int64 checkpoint_count = 3;          // Active checkpoint count, which is unchanged.
 }
 
 // Request to restore the most recent checkpoint snapshot without discarding it.

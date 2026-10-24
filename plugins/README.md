@@ -3,7 +3,7 @@
 This package builds the native transform plugins for Omega Edit.
 
 The plugins consume the Omega Edit transform plugin ABI and SDK from the core
-package. Third-party transform dependencies, such as libmagic, CLD3, zlib, and OpenSSL 3, are
+package. Third-party transform dependencies, such as libmagic, CLD3, zlib, zstd, and OpenSSL 3, are
 owned here rather than by the core library.
 
 Transform plugin metadata includes a description, help text, example arguments,
@@ -11,10 +11,13 @@ default arguments, and an optional JSON Schema for validating options on both
 the client and native apply path. The bitwise exemplar exposes one action with
 an `operator` field plus a single repeated byte or repeating mask sequence, for
 example `{"operator":"xor","byte":"0x42"}` or
-`{"operator":"and","mask":["0x0F","0xF0"]}`. The zlib exemplar exposes an
+`{"operator":"and","mask":["0x0F","0xF0"]}`. The production zlib plugin exposes an
 `action` field for compression or decompression; compression accepts `level`
 values from `-1` through `9`, and decompression accepts `maxOutputBytes` with a
-64 MiB default cap.
+64 MiB default and absolute safety cap.
+The production zstd plugin provides the same actions and decompression cap, with
+compression levels from `1` (fastest) through `22` (smallest) and a default of
+`3`. Its decoder window is also capped at 64 MiB.
 The production detector plugins provide on-demand MIME content type detection
 (`omega.detect.content_type`) and language detection (`omega.detect.language`).
 Content type detection uses libmagic when available and falls back to built-in

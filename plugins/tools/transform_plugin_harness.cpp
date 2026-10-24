@@ -18,16 +18,24 @@
 #include <cctype>
 #include <cstdlib>
 #include <cstring>
+#include <filesystem>
 #include <iostream>
 #include <optional>
 #include <sstream>
 #include <string>
 #include <vector>
 
+#if defined(_WIN32)
+#include <windows.h>
+#elif defined(__APPLE__)
+#include <mach-o/dyld.h>
+#endif
+
 namespace {
     struct options_t {
         std::vector<std::string> plugin_dirs;
         std::vector<std::string> plugin_paths;
+        bool allow_experimental = false;
         bool list = false;
         std::string run_id;
         std::optional<std::vector<omega_byte_t>> input;
@@ -39,11 +47,77 @@ namespace {
     };
 
     void print_usage(const char *argv0) {
-        std::cerr << "Usage:\n"
-                  << "  " << argv0 << " --plugin-dir DIR --list\n"
-                  << "  " << argv0 << " --plugin PATH --run ID --input TEXT [--expect-output TEXT]\n"
-                  << "  " << argv0 << " --plugin-dir DIR --run ID --input-hex HEX [--offset N] [--length N]\n"
-                  << "       [--options JSON] [--expect-output-hex HEX] [--expect-result TEXT]\n";
+        std::cerr
+                << "Usage:\n"
+                << "  " << argv0 << " [--plugin-dir DIR] --list\n"
+                << "  " << argv0 << " --plugin PATH --run ID --input TEXT [--expect-output TEXT]\n"
+                << "  " << argv0 << " --plugin-dir DIR --run ID --input-hex HEX [--offset N] [--length N]\n"
+                << "       [--allow-experimental] [--options JSON] [--expect-output-hex HEX] [--expect-result TEXT]\n";
+    }
+
+    auto executable_path_from_argv0(const char *argv0) -> std::filesystem::path {
+        if (!argv0 || !*argv0) { return {}; }
+        const std::filesystem::path argv0_path(argv0);
+        std::error_code error;
+        if (argv0_path.has_parent_path()) { return std::filesystem::absolute(argv0_path, error); }
+
+#if defined(_WIN32)
+        char *path_env = nullptr;
+        size_t path_env_size = 0;
+        if (_dupenv_s(&path_env, &path_env_size, "PATH") != 0 || !path_env) { return {}; }
+        const std::string path_value(path_env);
+        std::free(path_env);
+        constexpr char path_separator = ';';
+#else
+        const auto *path_env = std::getenv("PATH");
+        if (!path_env) { return {}; }
+        const std::string path_value(path_env);
+        constexpr char path_separator = ':';
+#endif
+        std::stringstream paths(path_value);
+        std::string directory;
+        while (std::getline(paths, directory, path_separator)) {
+            const auto candidate =
+                    (directory.empty() ? std::filesystem::path(".") : std::filesystem::path(directory)) / argv0_path;
+            if (std::filesystem::is_regular_file(candidate, error) && !error) {
+                return std::filesystem::absolute(candidate, error);
+            }
+            error.clear();
+        }
+        return {};
+    }
+
+    auto running_executable_path(const char *argv0) -> std::filesystem::path {
+#if defined(_WIN32)
+        std::vector<wchar_t> buffer(1024);
+        while (buffer.size() <= 32768) {
+            const auto length = GetModuleFileNameW(nullptr, buffer.data(), static_cast<DWORD>(buffer.size()));
+            if (length == 0) { break; }
+            if (length < buffer.size()) { return {buffer.data(), buffer.data() + length}; }
+            buffer.resize(buffer.size() * 2);
+        }
+#elif defined(__APPLE__)
+        uint32_t size = 0;
+        if (_NSGetExecutablePath(nullptr, &size) != 0 && size > 0) {
+            std::vector<char> buffer(size);
+            if (_NSGetExecutablePath(buffer.data(), &size) == 0) { return buffer.data(); }
+        }
+#elif defined(__linux__)
+        std::error_code error;
+        auto executable = std::filesystem::read_symlink("/proc/self/exe", error);
+        if (!error && !executable.empty()) { return executable; }
+#endif
+        return executable_path_from_argv0(argv0);
+    }
+
+    auto installed_plugin_directory(const char *argv0) -> std::string {
+        auto executable = running_executable_path(argv0);
+        if (executable.empty()) { return {}; }
+        std::error_code error;
+        executable = std::filesystem::weakly_canonical(executable, error);
+        if (error) { return {}; }
+        const auto candidate = executable.parent_path().parent_path() / "lib" / "omega_edit" / "plugins";
+        return std::filesystem::is_directory(candidate, error) && !error ? candidate.string() : std::string{};
     }
 
     auto parse_i64(const char *value, int64_t &out) -> bool {
@@ -125,6 +199,8 @@ namespace {
                 options.plugin_paths.emplace_back(value);
             } else if (arg == "--list") {
                 options.list = true;
+            } else if (arg == "--allow-experimental") {
+                options.allow_experimental = true;
             } else if (arg == "--run") {
                 const auto value = require_value("--run");
                 if (!value) { return false; }
@@ -301,14 +377,29 @@ namespace {
 
 int main(int argc, char **argv) {
     options_t options;
-    if (!parse_options(argc, argv, options) || (options.plugin_dirs.empty() && options.plugin_paths.empty())) {
+    if (!parse_options(argc, argv, options)) {
         print_usage(argv[0]);
         return 2;
+    }
+    if (options.plugin_dirs.empty() && options.plugin_paths.empty()) {
+        const auto installed_directory = installed_plugin_directory(argv[0]);
+        if (installed_directory.empty()) {
+            std::cerr << "no plugin directory specified and no installed plugins found\n";
+            print_usage(argv[0]);
+            return 2;
+        }
+        options.plugin_dirs.push_back(installed_directory);
     }
 
     auto *registry_ptr = omega_transform_plugin_registry_create();
     if (!registry_ptr) {
         std::cerr << "failed to create plugin registry\n";
+        return 1;
+    }
+
+    if (options.allow_experimental && omega_transform_plugin_registry_set_allow_experimental(registry_ptr, 1) != 0) {
+        omega_transform_plugin_registry_destroy(registry_ptr);
+        std::cerr << "failed to enable experimental plugins\n";
         return 1;
     }
 
