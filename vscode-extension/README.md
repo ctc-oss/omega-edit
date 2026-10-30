@@ -163,6 +163,10 @@ The bytes-per-row toolbar preference is stored in VS Code's workspace-local exte
 
 ## Keyboard Shortcuts
 
+Click **Help** in the Data Editor toolbar for a grouped shortcut reference,
+including the focus requirements and Control/Command combinations. Close the
+reference with its close button or press Escape while focus is inside it.
+
 | Key                      | Action                                                     |
 | ------------------------ | ---------------------------------------------------------- |
 | `Ctrl+Z`                 | Native VS Code undo                                       |
