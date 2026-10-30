@@ -130,6 +130,13 @@ function verifyNpm(packageFiles, packageSize) {
     'package/README',
     'package/README.md',
     'package/package.json',
+    'package/skills',
+    'package/skills/omega-edit',
+    'package/skills/omega-edit/SKILL.md',
+    'package/skills/omega-edit/references',
+    'package/skills/omega-edit/references/byte-edit.json',
+    'package/skills/omega-edit/references/dfdl.md',
+    'package/skills/omega-edit/references/reverse-engineering.md',
   ])
   const unexpected = packageFiles.filter(
     (entry) =>
