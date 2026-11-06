@@ -67,6 +67,9 @@
   function handleKeydown(event: KeyboardEvent): void {
     if (event.key === 'Escape' && panel?.contains(event.target as Node)) {
       event.preventDefault()
+      // The listener is on `window`, so other `window` keydown handlers would still run.
+      // Stop other listeners on the same target from also acting on this Escape press.
+      event.stopImmediatePropagation()
       onClose()
     }
   }
