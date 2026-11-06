@@ -1,0 +1,199 @@
+{
+  "description": "Artificial OEAI fixture: magic at 0, two-byte little-endian version at 4, reserved bytes at 6, four-byte little-endian payload length at 8, eight payload bytes at 12. Expected bytes are tutorial assertions, not captured tool results.",
+  "inputHex": "4f45414901000000080000004142434445464748",
+  "outputHex": "4f45414902000000080000004142434445464748",
+  "offset": 4,
+  "expectedBeforeHex": "0100",
+  "replacementHex": "0200",
+  "examples": [
+    {
+      "cli": ["create-session", "--file", "<input>"],
+      "mcp": {
+        "name": "omega_edit_create_session",
+        "arguments": { "filePath": "<input>" }
+      }
+    },
+    {
+      "cli": ["session-context", "--session", "<session-id>"],
+      "mcp": {
+        "name": "omega_edit_session_context",
+        "arguments": { "sessionId": "<session-id>" }
+      }
+    },
+    {
+      "cli": [
+        "view",
+        "--session",
+        "<session-id>",
+        "--offset",
+        "0",
+        "--length",
+        "20"
+      ],
+      "mcp": {
+        "name": "omega_edit_read_range",
+        "arguments": { "sessionId": "<session-id>", "offset": 0, "length": 20 }
+      }
+    },
+    {
+      "cli": [
+        "search",
+        "--session",
+        "<session-id>",
+        "--hex",
+        "4f454149",
+        "--offset",
+        "0",
+        "--length",
+        "20",
+        "--limit",
+        "10"
+      ],
+      "mcp": {
+        "name": "omega_edit_search",
+        "arguments": {
+          "sessionId": "<session-id>",
+          "hex": "4f454149",
+          "offset": 0,
+          "length": 20,
+          "limit": 10
+        }
+      }
+    },
+    {
+      "cli": [
+        "profile-range",
+        "--session",
+        "<session-id>",
+        "--offset",
+        "0",
+        "--length",
+        "20"
+      ],
+      "mcp": {
+        "name": "omega_edit_profile_range",
+        "arguments": { "sessionId": "<session-id>", "offset": 0, "length": 20 }
+      }
+    },
+    {
+      "cli": ["create-checkpoint", "--session", "<session-id>"],
+      "mcp": {
+        "name": "omega_edit_create_checkpoint",
+        "arguments": { "sessionId": "<session-id>" }
+      }
+    },
+    {
+      "cli": [
+        "patch",
+        "--session",
+        "<session-id>",
+        "--offset",
+        "4",
+        "--operation",
+        "overwrite",
+        "--hex",
+        "0200",
+        "--dry-run"
+      ],
+      "mcp": {
+        "name": "omega_edit_preview_patch",
+        "arguments": {
+          "sessionId": "<session-id>",
+          "offset": 4,
+          "operation": "overwrite",
+          "hex": "0200"
+        }
+      }
+    },
+    {
+      "cli": [
+        "patch",
+        "--session",
+        "<session-id>",
+        "--offset",
+        "4",
+        "--operation",
+        "overwrite",
+        "--hex",
+        "0200"
+      ],
+      "mcp": {
+        "name": "omega_edit_apply_patch",
+        "arguments": {
+          "sessionId": "<session-id>",
+          "offset": 4,
+          "operation": "overwrite",
+          "hex": "0200"
+        }
+      }
+    },
+    {
+      "cli": [
+        "view",
+        "--session",
+        "<session-id>",
+        "--offset",
+        "4",
+        "--length",
+        "2"
+      ],
+      "mcp": {
+        "name": "omega_edit_read_range",
+        "arguments": { "sessionId": "<session-id>", "offset": 4, "length": 2 }
+      }
+    },
+    {
+      "cli": ["undo", "--session", "<session-id>"],
+      "mcp": {
+        "name": "omega_edit_undo",
+        "arguments": { "sessionId": "<session-id>" }
+      }
+    },
+    {
+      "cli": ["redo", "--session", "<session-id>"],
+      "mcp": {
+        "name": "omega_edit_redo",
+        "arguments": { "sessionId": "<session-id>" }
+      }
+    },
+    {
+      "cli": [
+        "export-change-log",
+        "--session",
+        "<session-id>",
+        "--output",
+        "<change-log>"
+      ],
+      "mcp": {
+        "name": "omega_edit_export_change_log",
+        "arguments": {
+          "sessionId": "<session-id>",
+          "outputPath": "<change-log>"
+        }
+      }
+    },
+    {
+      "cli": [
+        "save-session",
+        "--session",
+        "<session-id>",
+        "--output",
+        "<candidate>"
+      ],
+      "mcp": {
+        "name": "omega_edit_save_session",
+        "arguments": {
+          "sessionId": "<session-id>",
+          "outputPath": "<candidate>"
+        }
+      }
+    },
+    {
+      "cli": ["destroy-session", "--session", "<session-id>"],
+      "mcp": {
+        "name": "omega_edit_destroy_session",
+        "arguments": { "sessionId": "<session-id>" }
+      }
+    }
+  ]
+}

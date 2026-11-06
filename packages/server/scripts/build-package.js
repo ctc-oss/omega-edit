@@ -400,9 +400,25 @@ function copySinglePlatformBinaries(binDir) {
 
   const sharedLib = findSharedLibrary()
   if (sharedLib) {
-    const destLib = path.join(binDir, path.basename(sharedLib))
-    copyFileReplacing(sharedLib, destLib)
-    console.log(`Copied shared library: ${sharedLib} -> ${destLib}`)
+    const libraryDir = path.dirname(sharedLib)
+    const libraryName = path.basename(sharedLib)
+    const libraryNames = fs
+      .readdirSync(libraryDir)
+      .filter(
+        (file) =>
+          file === libraryName ||
+          (process.platform === 'linux' &&
+            /^libomega_edit\.so\.\d+(?:\.\d+)*$/.test(file)) ||
+          (process.platform === 'darwin' &&
+            /^libomega_edit\.\d+(?:\.\d+)*\.dylib$/.test(file))
+      )
+    for (const file of libraryNames) {
+      const sourceLib = path.join(libraryDir, file)
+      const destLib = path.join(binDir, file)
+      // Package real files for SONAME aliases: npm archives omit symlinks.
+      copyFileReplacing(sourceLib, destLib)
+      console.log(`Copied shared library: ${sourceLib} -> ${destLib}`)
+    }
   }
 }
 

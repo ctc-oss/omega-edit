@@ -37,6 +37,7 @@ multiple viewports.
 
 | I want to… | Install | Time |
 |---|---|---|
+| **Use Ωedit™ as an AI editing skill** | `npm install @omega-edit/ai`; see the [portable skill](packages/ai/skills/omega-edit/SKILL.md) | — |
 | **Use Ωedit™ from TypeScript / Node.js** | `npm install @omega-edit/client` | 2 min |
 | **Build a VS Code extension** | See [`vscode-extension/`](vscode-extension/) | 5 min |
 | **Use the C/C++ library** | [Pre-built binaries](https://github.com/ctc-oss/omega-edit/releases) or build from source (see below) | 5 min |
@@ -80,7 +81,16 @@ Examples:
 
 ## AI Tooling
 
-Use `@omega-edit/ai` for a JSON-first `oe` CLI and a stdio MCP server that expose bounded reads, reversible edits, and binary-safe large-file operations.
+Use `@omega-edit/ai` for precise, bounded, verifiable edits to large text and
+binary files. It ships a portable [agent skill](packages/ai/skills/omega-edit/SKILL.md),
+a JSON-first `oe` command-line interface (CLI), and a stdio Model Context Protocol
+(MCP) server. Register the complete skill directory with your assistant; see the
+[AI package guide](packages/ai/README.md#agent-skill) for installation paths.
+
+The skill covers byte editing, reverse engineering, and schema-guided workflows
+using an external Data Format Description Language (DFDL) processor. Ωedit™
+handles bytes; the processor and schema supply meaning. The AI package does not
+currently provide a built-in DFDL parser or semantic field-write endpoint.
 
 ```bash
 npm install @omega-edit/ai

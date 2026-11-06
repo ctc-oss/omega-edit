@@ -839,7 +839,6 @@ function buildTools(toolkit: OmegaEditToolkit): ToolDefinition[] {
         },
         required: ['sessionId', 'offset', 'length', 'outputPath'],
       },
-      oneShotMutation: 'never',
       run: async (argumentsObject) => {
         return await toolkit.exportRange(
           getString(argumentsObject, 'sessionId', true)!,
@@ -873,7 +872,7 @@ function buildTools(toolkit: OmegaEditToolkit): ToolDefinition[] {
   tools.push({
     name: 'omega_edit_run_file',
     description:
-      'Run OmegaEdit operations in an always-destroyed ephemeral session. For one operation pass {filePath, tool, arguments}. For a pipeline pass {filePath, operations: [{tool, arguments}]}; the limit is 16. Read-only work needs only filePath. Mutating work also requires outputPath for save-on-success or discardChanges for explicit temporary work.',
+      'Run OmegaEdit operations in an always-destroyed ephemeral session. For one operation pass {filePath, tool, arguments}. For a pipeline pass {filePath, operations: [{tool, arguments}]}; the limit is 16. Read-only work needs only filePath. Mutating work also requires outputPath for save-on-success or discardChanges for explicit temporary work. Independently persistent exports must be called as top-level tools.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -919,6 +918,15 @@ function buildTools(toolkit: OmegaEditToolkit): ToolDefinition[] {
         if (!tool) {
           throw new Error(
             `operations[${index}].tool is not available for one-shot use: ${operation.tool}`
+          )
+        }
+        if (
+          operation.tool === 'omega_edit_export_change_log' &&
+          (getString(operation.arguments, 'outputPath') !== undefined ||
+            getBoolean(operation.arguments, 'optimize') === true)
+        ) {
+          throw new Error(
+            'omega_edit_export_change_log cannot write files from a one-shot pipeline; call it as a top-level tool instead'
           )
         }
         return { ...operation, definition: tool }
