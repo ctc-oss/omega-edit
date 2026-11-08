@@ -96,20 +96,20 @@ jobs:
           checkName: "VS Code extension checks on windows-2025 with VS Code stable"
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
 
-      - name: Check tests - macOS 15
+      - name: Check tests - macOS 15 ARM64
         uses: fountainhead/action-wait-for-check@v1.2.0
-        id: macos15-tests
+        id: macos-arm64-tests
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           checkName: "Build middleware macos-15"
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
 
-      - name: Check tests - macOS 14
+      - name: Check tests - macOS 15 Intel
         uses: fountainhead/action-wait-for-check@v1.2.0
-        id: macos14-tests
+        id: macos-intel-tests
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-          checkName: "Build middleware macos-14"
+          checkName: "Build middleware macos-15-intel"
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
 
       - name: Check tests - Linux
@@ -145,8 +145,8 @@ jobs:
           steps.vscode-ubuntu-stable.outcome != 'success' ||
           steps.vscode-windows-floor.outcome != 'success' ||
           steps.vscode-windows-stable.outcome != 'success' ||
-          steps.macos15-tests.outcome != 'success' ||
-          steps.macos14-tests.outcome != 'success' ||
+          steps.macos-arm64-tests.outcome != 'success' ||
+          steps.macos-intel-tests.outcome != 'success' ||
           steps.ubuntu-tests.outcome != 'success' ||
           steps.ubuntu-arm64-native.outcome != 'success' ||
           steps.windows-tests.outcome != 'success'
@@ -158,8 +158,8 @@ jobs:
           echo "VS Code Ubuntu stable Status: ${{ steps.vscode-ubuntu-stable.outcome }}"
           echo "VS Code Windows 1.110.0 Status: ${{ steps.vscode-windows-floor.outcome }}"
           echo "VS Code Windows stable Status: ${{ steps.vscode-windows-stable.outcome }}"
-          echo "MacOS 15 Test Status: ${{ steps.macos15-tests.outcome }}"
-          echo "MacOS 14 Test Status: ${{ steps.macos14-tests.outcome }}"
+          echo "macOS 15 ARM64 Test Status: ${{ steps.macos-arm64-tests.outcome }}"
+          echo "macOS 15 Intel Test Status: ${{ steps.macos-intel-tests.outcome }}"
           echo "Ubuntu Test Status: ${{ steps.ubuntu-tests.outcome }}"
           echo "Ubuntu ARM64 Native Status: ${{ steps.ubuntu-arm64-native.outcome }}"
           echo "Windows Test Status: ${{ steps.windows-tests.outcome }}"
@@ -219,10 +219,10 @@ jobs:
           - os: ubuntu-24.04-arm
             runner-os: Linux
             platform: linux-arm64
-          - os: macos-15
+          - os: macos-15-intel
             runner-os: macOS
             platform: macos-x64
-          - os: macos-14
+          - os: macos-15
             runner-os: macOS
             platform: macos-arm64
           - os: windows-2022

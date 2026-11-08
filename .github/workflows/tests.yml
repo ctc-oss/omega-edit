@@ -23,7 +23,7 @@ jobs:
   vscode-extension:
     strategy:
       matrix:
-        os: [ubuntu-24.04, macos-14, windows-2025]
+        os: [ubuntu-24.04, macos-15, windows-2025]
         vscode-version: ['1.110.0', stable]
       fail-fast: false
     name: VS Code extension checks on ${{ matrix.os }} with VS Code ${{ matrix.vscode-version }}
@@ -92,10 +92,10 @@ jobs:
           - os: ubuntu-24.04-arm
             runner-os: Linux
             platform: linux-arm64
-          - os: macos-15
+          - os: macos-15-intel
             runner-os: macOS
             platform: macos-x64
-          - os: macos-14
+          - os: macos-15
             runner-os: macOS
             platform: macos-arm64
           - os: windows-2022
@@ -365,7 +365,7 @@ jobs:
   build-native:
     strategy:
       matrix:
-        os: [windows-2022, windows-2025, ubuntu-22.04, ubuntu-24.04, macos-14, macos-15]
+        os: [windows-2022, windows-2025, ubuntu-22.04, ubuntu-24.04, macos-15, macos-15-intel]
       fail-fast: false
     name: Native build and test on ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
@@ -386,7 +386,7 @@ jobs:
 
   build-native-macos-x64:
     name: Native build macos-15 x64
-    runs-on: macos-15
+    runs-on: macos-15-intel
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -414,7 +414,7 @@ jobs:
   build-middleware:
     strategy:
       matrix:
-        os: [windows-2022, windows-2025, ubuntu-22.04, ubuntu-24.04, macos-14, macos-15]
+        os: [windows-2022, windows-2025, ubuntu-22.04, ubuntu-24.04, macos-15, macos-15-intel]
       fail-fast: false
     runs-on: ${{ matrix.os }}
     name: Build middleware ${{ matrix.os }}
