@@ -25,6 +25,8 @@ export type ExternalHighlightKind = 'current' | 'parsed' | 'error' | 'warning' |
 export type OmegaEditExternalHighlight = WebviewExternalHighlight;
 
 export interface WebviewExternalHighlight {
+    /** Assigned by the host from the request, not from individual highlights. */
+    owner?: string;
     id: string;
     offset: number;
     length: number;
@@ -267,7 +269,12 @@ export interface OmegaEditInsertDirectionOptions extends OmegaEditEditorSelector
     direction?: OmegaEditInsertDirection;
 }
 
-export interface OmegaEditExternalHighlightRequest extends OmegaEditEditorSelector {
+export interface OmegaEditExternalHighlightOptions extends OmegaEditEditorSelector {
+    /** Opaque owner key, preferably extension id plus debug session id. Omit for legacy annotations. */
+    owner?: string;
+}
+
+export interface OmegaEditExternalHighlightRequest extends OmegaEditExternalHighlightOptions {
     highlights: OmegaEditExternalHighlight[];
     reveal?: boolean;
 }
@@ -448,7 +455,7 @@ export interface OmegaEditExtensionApi {
     getAssistantContext(options?: vscode.Uri | string | OmegaEditEditorSelector): OmegaEditAssistantContext | undefined;
     getActionJournalViewport(options?: OmegaEditActionJournalViewportOptions): Promise<OmegaEditActionJournalViewport | undefined>;
     setExternalHighlights(request: OmegaEditExternalHighlightRequest): Promise<OmegaEditEditorState | undefined>;
-    clearExternalHighlights(options?: vscode.Uri | string | OmegaEditEditorSelector): OmegaEditEditorState | undefined;
+    clearExternalHighlights(options?: vscode.Uri | string | OmegaEditExternalHighlightOptions): OmegaEditEditorState | undefined;
     loadRangeMap(options?: vscode.Uri | string | OmegaEditRangeMapLoadOptions): Promise<OmegaEditRangeMapLoadResult | undefined>;
     unloadRangeMap(options?: vscode.Uri | string | OmegaEditRangeMapUnloadOptions): OmegaEditRangeMapUnloadResult | undefined;
     setInsertDirection(directionOrOptions?: OmegaEditInsertDirection | vscode.Uri | string | OmegaEditInsertDirectionOptions, options?: vscode.Uri | string | OmegaEditEditorSelector): OmegaEditEditorState | undefined;
