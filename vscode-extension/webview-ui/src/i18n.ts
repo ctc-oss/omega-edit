@@ -52,6 +52,37 @@ const englishStrings = {
     showActionJournalTitle: 'Show live action journal',
     hideActionJournalTitle: 'Hide action journal',
   },
+  shortcutHelp: {
+    toggle: 'Help',
+    title: 'Keyboard shortcuts',
+    close: 'Close keyboard shortcuts (Escape)',
+    focusNote:
+      'Focus the byte grid for navigation and editing. Ctrl / Cmd means Control on Windows/Linux or Command on macOS. Clipboard format follows the active HEX or TEXT pane.',
+    nativeNote: 'Save, Undo and Redo follow your VS Code keybindings.',
+    navigation: 'Navigation and selection',
+    editing: 'Editing and panes',
+    clipboard: 'Clipboard',
+    search: 'Search and replace',
+    move: 'Move the selection by byte or row',
+    extend: 'Extend the selection by byte or row',
+    page: 'Move the selection and scroll by a page',
+    extendPage: 'Extend the selection and scroll by a page',
+    boundary: 'Scroll to the start or end of the file',
+    offset: 'Focus the offset field; Enter jumps to the entered offset',
+    pane: 'Switch between the HEX and TEXT panes',
+    editMode: 'Toggle insert / overwrite mode',
+    backspace: 'Delete the selection, or the byte before the cursor',
+    delete: 'Delete the selection, or the byte at the cursor',
+    copy: 'Copy selected bytes',
+    cut: 'Cut selected bytes',
+    paste: 'Insert clipboard bytes at the cursor',
+    find: 'Open search and focus the query',
+    replace: 'Open search and focus the replacement',
+    nextPrevious: 'Next / previous match outside text inputs',
+    searchInput: 'Next / previous match in the search field',
+    replaceInput: 'Replace the current match in the replacement field',
+    closeSearch: 'Close search from either search input',
+  },
   encoding: {
     ascii: 'ASCII',
     windows1252: 'Windows-1252',
@@ -633,6 +664,37 @@ const localeOverrides: Record<string, LocaleStringOverrides> = {
       showActionJournalTitle: 'Mostrar el diario de acciones en vivo',
       hideActionJournalTitle: 'Ocultar el diario de acciones',
     },
+    shortcutHelp: {
+      toggle: 'Ayuda',
+      title: 'Atajos de teclado',
+      close: 'Cerrar atajos de teclado (Escape)',
+      focusNote:
+        'Enfoca la cuadrícula de bytes para navegar y editar. Ctrl / Cmd significa Control en Windows/Linux o Command en macOS. El formato del portapapeles depende del panel HEX o TEXT activo.',
+      nativeNote: 'Guardar, Deshacer y Rehacer usan los atajos de VS Code.',
+      navigation: 'Navegación y selección',
+      editing: 'Edición y paneles',
+      clipboard: 'Portapapeles',
+      search: 'Buscar y reemplazar',
+      move: 'Mover la selección por byte o fila',
+      extend: 'Ampliar la selección por byte o fila',
+      page: 'Mover la selección y desplazarse una página',
+      extendPage: 'Ampliar la selección y desplazarse una página',
+      boundary: 'Desplazarse al inicio o al final del archivo',
+      offset: 'Enfocar el desplazamiento; Enter salta al valor introducido',
+      pane: 'Alternar entre los paneles HEX y TEXT',
+      editMode: 'Alternar el modo insertar / sobrescribir',
+      backspace: 'Eliminar la selección o el byte anterior al cursor',
+      delete: 'Eliminar la selección o el byte en el cursor',
+      copy: 'Copiar los bytes seleccionados',
+      cut: 'Cortar los bytes seleccionados',
+      paste: 'Insertar los bytes del portapapeles en el cursor',
+      find: 'Abrir búsqueda y enfocar la consulta',
+      replace: 'Abrir búsqueda y enfocar el reemplazo',
+      nextPrevious: 'Coincidencia siguiente / anterior fuera de campos de texto',
+      searchInput: 'Coincidencia siguiente / anterior en el campo de búsqueda',
+      replaceInput: 'Reemplazar la coincidencia actual en el campo de reemplazo',
+      closeSearch: 'Cerrar búsqueda desde cualquiera de sus campos',
+    },
     encoding: {
       ascii: 'ASCII',
       windows1252: 'Windows-1252',
@@ -881,6 +943,7 @@ function createStringTable(): WebviewStrings {
   return {
     app: { ...englishStrings.app },
     toolbar: { ...englishStrings.toolbar },
+    shortcutHelp: { ...englishStrings.shortcutHelp },
     encoding: { ...englishStrings.encoding },
     navigation: { ...englishStrings.navigation },
     transform: { ...englishStrings.transform },
@@ -898,6 +961,11 @@ export const strings: WebviewStrings = createStringTable()
 function applyLocaleOverrides(overrides?: LocaleStringOverrides): void {
   Object.assign(strings.app, englishStrings.app, overrides?.app)
   Object.assign(strings.toolbar, englishStrings.toolbar, overrides?.toolbar)
+  Object.assign(
+    strings.shortcutHelp,
+    englishStrings.shortcutHelp,
+    overrides?.shortcutHelp
+  )
   Object.assign(strings.encoding, englishStrings.encoding, overrides?.encoding)
   Object.assign(
     strings.navigation,

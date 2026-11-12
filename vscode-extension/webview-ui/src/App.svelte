@@ -4,6 +4,7 @@
   import ActionJournal from './components/ActionJournal.svelte'
   import EditorWorkspace from './components/EditorWorkspace.svelte'
   import SearchPanel from './components/SearchPanel.svelte'
+  import ShortcutHelp from './components/ShortcutHelp.svelte'
   import Toolbar from './components/Toolbar.svelte'
   import TransformResultPanel from './components/TransformResultPanel.svelte'
   import { formatNumber, strings } from './i18n'
@@ -241,6 +242,7 @@
     checkpoints: [],
   })
   let actionJournalVisible = $state(false)
+  let shortcutHelpVisible = $state(false)
   let actionJournalLoading = $state(false)
   let actionJournalError = $state('')
   let actionJournalViewport = $state<
@@ -2921,6 +2923,11 @@
     transformResult = undefined
   }
 
+  function closeShortcutHelp(): void {
+    shortcutHelpVisible = false
+    document.getElementById('shortcutHelpToggle')?.focus()
+  }
+
   $effect(() => {
     requestAnalysisProfile()
   })
@@ -3028,6 +3035,7 @@
     activeTransformResultId={displayTransformResult?.id}
     {searchPanelVisible}
     {actionJournalVisible}
+    {shortcutHelpVisible}
     {selectedOffset}
     {selectionStart}
     {selectionEnd}
@@ -3045,6 +3053,9 @@
     onOpenTransformResult={openTransformResult}
     onToggleSearchPanel={toggleSearchPanelVisible}
     onToggleActionJournal={toggleActionJournal}
+    onToggleShortcutHelp={() => {
+      shortcutHelpVisible = !shortcutHelpVisible
+    }}
     onCreateCheckpoint={createCheckpoint}
     onRollbackCheckpoint={rollbackCheckpoint}
     onRestoreCheckpoint={restoreCheckpoint}
@@ -3053,6 +3064,10 @@
   />
 
   <div class="top-panels">
+    {#if shortcutHelpVisible}
+      <ShortcutHelp onClose={closeShortcutHelp} />
+    {/if}
+
     {#if searchPanelVisible}
       <SearchPanel
         query={searchQuery}

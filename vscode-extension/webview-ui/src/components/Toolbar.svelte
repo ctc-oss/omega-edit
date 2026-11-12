@@ -39,6 +39,7 @@
     activeTransformResultId?: string
     searchPanelVisible?: boolean
     actionJournalVisible?: boolean
+    shortcutHelpVisible?: boolean
     selectedOffset?: number
     selectionStart?: number
     selectionEnd?: number
@@ -62,6 +63,7 @@
     onOpenTransformResult: (resultId: string) => void
     onToggleSearchPanel: () => void
     onToggleActionJournal: () => void
+    onToggleShortcutHelp: () => void
     onCreateCheckpoint: () => void
     onRollbackCheckpoint: () => void
     onRestoreCheckpoint: () => void
@@ -86,6 +88,7 @@
     activeTransformResultId = '',
     searchPanelVisible = false,
     actionJournalVisible = false,
+    shortcutHelpVisible = false,
     selectedOffset = -1,
     selectionStart = -1,
     selectionEnd = -1,
@@ -103,6 +106,7 @@
     onOpenTransformResult,
     onToggleSearchPanel,
     onToggleActionJournal,
+    onToggleShortcutHelp,
     onCreateCheckpoint,
     onRollbackCheckpoint,
     onRestoreCheckpoint,
@@ -204,6 +208,19 @@
   </button>
 
   <OffsetJump {fileSize} {offsetRadix} {onGoToOffset} />
+
+  <button
+    id="shortcutHelpToggle"
+    type="button"
+    class="toolbar-toggle"
+    class:active={shortcutHelpVisible}
+    aria-expanded={shortcutHelpVisible}
+    aria-controls="shortcutHelpPanel"
+    title={strings.shortcutHelp.title}
+    onclick={onToggleShortcutHelp}
+  >
+    {strings.shortcutHelp.toggle}
+  </button>
 
   <div class="toolbar-group">
     <TransformPanel
