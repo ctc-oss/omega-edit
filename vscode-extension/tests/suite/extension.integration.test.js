@@ -283,6 +283,82 @@ suite('OmegaEdit VS Code extension', () => {
       )
   })
 
+  test('waits for native server readiness before opening a startup editor', async () => {
+    let ready
+    const serverReady = new Promise((resolve) => {
+      ready = resolve
+    })
+    const subscriptions = []
+    const provider = new HexEditorProvider({ subscriptions })
+    provider.setServerReadiness(serverReady)
+    const panel = createMockWebviewPanel()
+    const uri = vscode.Uri.file(
+      path.resolve(__dirname, '..', 'workspace', 'sample.txt')
+    )
+    const cancellation = new vscode.CancellationTokenSource()
+    const document = await provider.openCustomDocument(
+      uri,
+      {},
+      cancellation.token
+    )
+    let resolved = false
+    const resolving = provider
+      .resolveCustomEditor(document, panel, cancellation.token)
+      .then(() => {
+        resolved = true
+      })
+    try {
+      await delay(100)
+      assert.equal(resolved, false, 'editor must wait while the server starts')
+      assert.equal(provider.getSessionForTesting(uri), undefined)
+      ready()
+      await resolving
+      const session = provider.getSessionForTesting(uri)
+      assert.ok(session, 'editor should open once the server is ready')
+      assert.deepEqual(
+        await readSessionBytes(session.sessionId),
+        await fs.readFile(uri.fsPath)
+      )
+    } finally {
+      ready()
+      try {
+        await resolving
+      } finally {
+        await panel.fireDidDispose()
+        for (const subscription of subscriptions) subscription.dispose()
+        cancellation.dispose()
+      }
+    }
+  })
+
+  test('reports startup failure instead of opening an editor on a default connection', async () => {
+    const subscriptions = []
+    const provider = new HexEditorProvider({ subscriptions })
+    const failure = new Error('native server startup failed')
+    provider.setServerReadiness(Promise.reject(failure))
+    const panel = createMockWebviewPanel()
+    const uri = vscode.Uri.file(
+      path.resolve(__dirname, '..', 'workspace', 'sample.txt')
+    )
+    const cancellation = new vscode.CancellationTokenSource()
+    try {
+      const document = await provider.openCustomDocument(
+        uri,
+        {},
+        cancellation.token
+      )
+      await assert.rejects(
+        provider.resolveCustomEditor(document, panel, cancellation.token),
+        (error) => error === failure
+      )
+      assert.equal(provider.getSessionForTesting(uri), undefined)
+    } finally {
+      await panel.fireDidDispose()
+      for (const subscription of subscriptions) subscription.dispose()
+      cancellation.dispose()
+    }
+  })
+
   test('registers the go to offset command', async () => {
     const commands = await vscode.commands.getCommands(true)
     assert.ok(commands.includes(OMEGA_EDIT_OPEN_IN_HEX_EDITOR_COMMAND))

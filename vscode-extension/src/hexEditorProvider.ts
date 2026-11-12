@@ -2057,6 +2057,8 @@ export class HexEditorProvider
 
   private heartbeatLoop: ServerHeartbeatLoop | undefined
 
+  private serverReady: Promise<void> = Promise.resolve()
+
   private serverInfo: IServerInfo | undefined
 
   private latestServerHealth: ServerHealthMessage | undefined
@@ -2155,6 +2157,13 @@ export class HexEditorProvider
       return manager
     })
     this.hideStatusBar()
+  }
+
+  setServerReadiness(serverReady: Promise<void>): void {
+    this.serverReady = serverReady
+    // Startup can fail before any editor opens; consumers still receive the
+    // original rejection when they await readiness below.
+    void serverReady.catch(() => {})
   }
 
   private getViewportCapacity(bytesPerRow: number): number {
@@ -2437,8 +2446,6 @@ export class HexEditorProvider
         this.stopHealthPollingIfIdle()
       })
     )
-    this.startHealthPolling()
-
     // --- Create a viewport starting at offset 0 ---
     // If VS Code supplies a backup id (crash-recovery), open from the backup so
     // unsaved edits are restored; save still targets the original filePath.
@@ -2449,6 +2456,12 @@ export class HexEditorProvider
 
     let scope: ScopedEditorSessionHandle
     try {
+      // VS Code may restore or preview a file while activation is still
+      // starting the native server. Do not initialize the shared client on its
+      // default target before activation has selected the actual connection.
+      await this.serverReady
+      if (panelDisposed) return
+      this.startHealthPolling()
       scope = await ScopedEditorSessionHandle.openFile(restoreFromPath, {
         filePath: restoreFromPath,
         capacity,
