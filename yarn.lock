@@ -1092,10 +1092,10 @@ typedoc@^0.28.20:
     minimatch "^10.2.5"
     yaml "^2.9.0"
 
-typescript-language-server@6.0.2:
-  version "6.0.2"
-  resolved "https://registry.yarnpkg.com/typescript-language-server/-/typescript-language-server-6.0.2.tgz#d47b0d0922f0539e1ce59c9771ea96625392f9ea"
-  integrity sha512-Ph7Ql+xkUJvMamnkh1h+aKP6HxLR7lrWIYkPn9/LZBkJdJZgtIj7OoVhkDYtQ7zFPTPmqZHOVXaUKGyz9M2q1Q==
+typescript-language-server@6.0.3:
+  version "6.0.3"
+  resolved "https://registry.yarnpkg.com/typescript-language-server/-/typescript-language-server-6.0.3.tgz#0d169fec685d4a79f36d5fcc046c7617135500d1"
+  integrity sha512-iAxKyLXRNbnxGfCGZ/j4ilAb0PSNommvTvcghF8B8sq5JFGDKEQwzNEFZ0KTYEwzcA7rtRa+2OPeouiFR8L5KA==
 
 typescript@5.4.5:
   version "5.4.5"
