@@ -149,6 +149,9 @@ A complete, runnable reference extension lives at [`vscode-extension/`](https://
 
 The current reference implementation also uses the higher-level `@omega-edit/client` editor helpers for session lifecycle, live session state, undo/save-state bookkeeping, and bounded-vs-large search behavior instead of hand-rolling that glue in the provider.
 
+See [VS Code Data Editor Keyboard Shortcuts](VS-Code-Data-Editor-Keyboard-Shortcuts)
+for editing, navigation, clipboard, and search controls.
+
 ```bash
 cd vscode-extension
 npm install
