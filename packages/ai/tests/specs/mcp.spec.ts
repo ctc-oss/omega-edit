@@ -118,6 +118,143 @@ describe('@omega-edit/ai mcp server', () => {
     }
   })
 
+  it('keeps independently persistent exports out of one-shot pipelines', async () => {
+    const child = spawn(
+      process.execPath,
+      [path.resolve(__dirname, '../../dist/cjs/mcp.js'), '--no-autostart'],
+      { stdio: ['pipe', 'pipe', 'pipe'] }
+    )
+    const responses: Array<Record<string, unknown>> = []
+    const stdoutReader = readline.createInterface({
+      input: child.stdout!,
+      crlfDelay: Infinity,
+    })
+    stdoutReader.on('line', (line) => {
+      responses.push(JSON.parse(line) as Record<string, unknown>)
+    })
+
+    const sendRequest = async (
+      id: number,
+      method: string,
+      params?: Record<string, unknown>
+    ) => {
+      child.stdin!.write(
+        `${JSON.stringify({ jsonrpc: '2.0', id, method, params })}\n`
+      )
+      const deadline = Date.now() + 5000
+      while (Date.now() < deadline) {
+        const response = responses.find((candidate) => candidate.id === id)
+        if (response) return response
+        await new Promise((resolve) => setTimeout(resolve, 10))
+      }
+      assert.fail(`timed out waiting for MCP response ${id}`)
+    }
+
+    try {
+      await sendRequest(1, 'initialize', {
+        protocolVersion: '2025-11-25',
+        capabilities: {},
+        clientInfo: { name: 'one-shot-policy-test', version: '1.0.0' },
+      })
+      child.stdin!.write(
+        `${JSON.stringify({
+          jsonrpc: '2.0',
+          method: 'notifications/initialized',
+        })}\n`
+      )
+
+      const toolsResponse = await sendRequest(2, 'tools/list')
+      const tools = (toolsResponse.result as Record<string, unknown>)
+        .tools as Array<Record<string, unknown>>
+      assert.ok(
+        tools.some((tool) => tool.name === 'omega_edit_export_change_log')
+      )
+      assert.ok(tools.some((tool) => tool.name === 'omega_edit_export_range'))
+
+      const runFile = tools.find((tool) => tool.name === 'omega_edit_run_file')!
+      const inputSchema = runFile.inputSchema as Record<string, unknown>
+      const properties = inputSchema.properties as Record<string, unknown>
+      const toolProperty = properties.tool as Record<string, unknown>
+      const oneShotToolNames = toolProperty.enum as string[]
+      assert.ok(oneShotToolNames.includes('omega_edit_export_change_log'))
+      assert.ok(!oneShotToolNames.includes('omega_edit_export_range'))
+
+      const outputPathResponse = await sendRequest(3, 'tools/call', {
+        name: 'omega_edit_run_file',
+        arguments: {
+          filePath: 'not-opened.bin',
+          operations: [
+            {
+              tool: 'omega_edit_export_change_log',
+              arguments: {
+                outputPath: 'must-not-be-written.json',
+              },
+            },
+          ],
+        },
+      })
+      const optimizeResponse = await sendRequest(4, 'tools/call', {
+        name: 'omega_edit_run_file',
+        arguments: {
+          filePath: 'not-opened.bin',
+          operations: [
+            {
+              tool: 'omega_edit_export_change_log',
+              arguments: { optimize: true },
+            },
+          ],
+        },
+      })
+      const exportRangeResponse = await sendRequest(5, 'tools/call', {
+        name: 'omega_edit_run_file',
+        arguments: {
+          filePath: 'not-opened.bin',
+          operations: [
+            {
+              tool: 'omega_edit_export_range',
+              arguments: {
+                offset: 0,
+                length: 1,
+                outputPath: 'must-not-be-written.bin',
+              },
+            },
+          ],
+        },
+      })
+
+      const outputPathResult = outputPathResponse.result as Record<
+        string,
+        unknown
+      >
+      const optimizeResult = optimizeResponse.result as Record<string, unknown>
+      const exportRangeResult = exportRangeResponse.result as Record<
+        string,
+        unknown
+      >
+      assert.equal(outputPathResult.isError, true)
+      assert.match(
+        ((outputPathResult.structuredContent as Record<string, unknown>)
+          .error as string) || '',
+        /cannot write files from a one-shot pipeline/
+      )
+      assert.equal(optimizeResult.isError, true)
+      assert.match(
+        ((optimizeResult.structuredContent as Record<string, unknown>)
+          .error as string) || '',
+        /cannot write files from a one-shot pipeline/
+      )
+      assert.equal(exportRangeResult.isError, true)
+      assert.match(
+        ((exportRangeResult.structuredContent as Record<string, unknown>)
+          .error as string) || '',
+        /not available for one-shot use/
+      )
+    } finally {
+      stdoutReader.close()
+      child.kill()
+    }
+  })
+
   it('wires MCP cancellation notifications to tool abort signals', () => {
     const source = fs.readFileSync(
       path.resolve(__dirname, '../../src/mcp.ts'),

@@ -15,6 +15,9 @@
         "${workspaceFolder}/tests/workspace/sample.txt"
       ],
       "outFiles": ["${workspaceFolder}/out/**/*.js"],
+      "env": {
+        "OMEGA_EDIT_SERVER_PORT": "19000"
+      },
       "windows": {
         "env": {
           "CPP_SERVER_BINARY": "${workspaceFolder}/../packages/server/out/bin/omega-edit-grpc-server.exe",

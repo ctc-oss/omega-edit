@@ -20,7 +20,8 @@
   },
   "files": [
     "dist",
-    "README.md"
+    "README.md",
+    "skills/omega-edit"
   ],
   "repository": {
     "url": "https://github.com/ctc-oss/omega-edit",

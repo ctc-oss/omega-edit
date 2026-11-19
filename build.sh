@@ -21,7 +21,11 @@ generator=${generator:-"Ninja"}
 build_docs=${build_docs:-"NO"}
 install_dir="${PWD}/_install"
 conan_venv_dir="${PWD}/.venv-conan"
-cmake_extra_args=""
+cmake_extra_args=()
+conan_build_args=()
+if [[ -n "${CMAKE_BUILD_PARALLEL_LEVEL:-}" ]]; then
+  conan_build_args=(-c "tools.build:jobs=${CMAKE_BUILD_PARALLEL_LEVEL}")
+fi
 
 case "$(uname -s)" in
   MINGW* | MSYS* | CYGWIN*) is_windows="YES" ;;
@@ -130,7 +134,8 @@ setup_msvc_env() {
     case "$key" in
       PATH | Path)
         # Convert the Windows PATH list to POSIX so cl/link/rc are resolvable.
-        export PATH="$(cygpath -u -p "$value"):${PATH}"
+        PATH="$(cygpath -u -p "$value"):${PATH}"
+        export PATH
         ;;
       INCLUDE | LIB | LIBPATH)
         # Consumed by the native toolchain; keep Windows-style values verbatim.
@@ -176,13 +181,17 @@ ensure_conan_profile() {
   conan profile detect --force
 }
 
-# The transform plugins depend on zlib and OpenSSL 3. On Linux/macOS these are
-# expected from system packages (apt/brew); on Windows there is no system
-# OpenSSL, so provide them through Conan and feed the generated toolchain to the
-# top-level CMake configure, mirroring the CI build-native action.
+# Provide the transform plugin dependencies through Conan on every platform,
+# matching the native development helper. System packages may omit the static
+# libraries required by the plugins, as OpenSSL does on Arch Linux.
 plugin_conan_dir="${PWD}/build-plugin-conan"
 ensure_plugin_deps() {
-  [[ "$is_windows" == "YES" ]] || return 0
+  [[ ${#cmake_extra_args[@]} -eq 0 ]] || return 0
+
+  local conan_extra_args=()
+  if [[ -n "${CONAN_MSBUILD_VS_CONF:-}" ]]; then
+    read -r -a conan_extra_args <<< "$CONAN_MSBUILD_VS_CONF"
+  fi
 
   node scripts/conan-install.js \
     --conanfile plugins/conanfile.py \
@@ -192,16 +201,14 @@ ensure_plugin_deps() {
     conan install plugins --output-folder="$plugin_conan_dir" \
       --build=missing \
       -s build_type="$type" \
-      ${CONAN_MSBUILD_VS_CONF:-} \
+      -s compiler.cppstd=17 \
+      "${conan_build_args[@]}" \
+      "${conan_extra_args[@]}" \
       -c "tools.cmake.cmaketoolchain:generator=$generator"
 
   local toolchain
   toolchain="$(to_native_path "${plugin_conan_dir}/conan_toolchain.cmake")"
-  if [[ -n "$cmake_extra_args" ]]; then
-    echo "WARNING: a toolchain is already configured; not adding the Conan plugin toolchain." >&2
-  else
-    cmake_extra_args="-DCMAKE_TOOLCHAIN_FILE=${toolchain}"
-  fi
+  cmake_extra_args=("-DCMAKE_TOOLCHAIN_FILE=${toolchain}")
 }
 
 setup_msvc_env
@@ -217,7 +224,7 @@ if [[ -n "$toolchain_file" ]]; then
     echo "Toolchain file not found: $toolchain_file"
     exit 1
   fi
-  cmake_extra_args=-DCMAKE_TOOLCHAIN_FILE=$(to_native_path "${toolchain_file}")
+  cmake_extra_args=("-DCMAKE_TOOLCHAIN_FILE=$(to_native_path "${toolchain_file}")")
 fi
 
 ensure_plugin_deps
@@ -237,8 +244,7 @@ for objtype in shared static; do
   fi
   rm -rf "${install_dir}-${objtype}-$type"
   if [[ $objtype == "shared" ]]; then shared_build_dir="$build_dir"; fi
-  # shellcheck disable=SC2090
-  cmake -G "$generator" -S . -B "$build_dir" $cmake_extra_args -DBUILD_SHARED_LIBS="$build_shared_libs" -DBUILD_DOCS="$build_docs" -DCMAKE_BUILD_TYPE="$type"
+  cmake -G "$generator" -S . -B "$build_dir" "${cmake_extra_args[@]}" -DBUILD_SHARED_LIBS="$build_shared_libs" -DBUILD_DOCS="$build_docs" -DCMAKE_BUILD_TYPE="$type"
   cmake --build "$build_dir" --config "$type"
   ctest -C "$type" --test-dir "$build_dir/core" --output-on-failure
   if [[ -d "$build_dir/plugins" ]]; then
@@ -264,12 +270,13 @@ done
 
 # OE_LIB_DIR is used by native code to bundle the proper library file
 # NOTE: Windows uses bin for shared libraries, and non-Windows uses lib
-if [[ -d "${install_dir}-shared-${type}/bin" ]]; then
-  export OE_LIB_DIR="$(to_native_path "${install_dir}-shared-${type}/bin")"
+if [[ "$is_windows" == "YES" ]]; then
+  OE_LIB_DIR="$(to_native_path "${install_dir}-shared-${type}/bin")"
 else
-  export OE_LIB_DIR="$(to_native_path "${install_dir}-shared-${type}/lib")"
+  OE_LIB_DIR="$(to_native_path "${install_dir}-shared-${type}/lib")"
 fi
-export OE_PREFIX="$(to_native_path "${install_dir}-shared-${type}")"
+OE_PREFIX="$(to_native_path "${install_dir}-shared-${type}")"
+export OE_LIB_DIR OE_PREFIX
 
 # Copy the shared library to the _install directory
 if [[ -d "$OE_LIB_DIR" ]]; then
@@ -287,6 +294,7 @@ fi
     --build=missing \
     -s build_type="$type" \
     -s compiler.cppstd=17 \
+    "${conan_build_args[@]}" \
     -c "tools.cmake.cmaketoolchain:generator=$generator"
   cmake -G "$generator" -S . -B build \
     -DCMAKE_BUILD_TYPE="$type" \
@@ -294,7 +302,18 @@ fi
     -DOE_LIB_DIR="$OE_LIB_DIR" \
     -DCMAKE_PREFIX_PATH="$OE_PREFIX"
   cmake --build build --config "$type"
+  ctest -C "$type" --test-dir build --output-on-failure
+  # Keep full debug symbols in the build tree and ship a stripped install copy.
+  cmake --install build --prefix "$OE_PREFIX" --config "$type" --strip
 )
+
+# Package the artifacts from this build, even when older build trees exist.
+executable_suffix=""
+if [[ "$is_windows" == "YES" ]]; then executable_suffix=".exe"; fi
+CPP_SERVER_BINARY="${OE_PREFIX}/bin/omega-edit-grpc-server${executable_suffix}"
+CPP_TRANSFORM_PLUGIN_HOST_BINARY="${OE_PREFIX}/bin/omega-transform-plugin-host${executable_suffix}"
+OMEGA_EDIT_TRANSFORM_PLUGINS_DIR="$(to_native_path "${shared_build_dir}/core/src/tests/plugins")"
+export CPP_SERVER_BINARY CPP_TRANSFORM_PLUGIN_HOST_BINARY OMEGA_EDIT_TRANSFORM_PLUGINS_DIR
 
 # Install common packages and check lint for client and server
 yarn install
@@ -303,8 +322,9 @@ yarn lint
 # Packages modules in ./packages/{client, server}
 ./packages/build.sh -fc
 
-# Execute client module tests (covers C++ server integration)
+# Execute client and AI module tests (covers C++ server integration).
 yarn workspace @omega-edit/client test
+yarn workspace @omega-edit/ai test
 
 # Package all Node artifacts, then package the VS Code extension into a VSIX
 # using the freshly built local client and server tarballs.

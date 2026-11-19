@@ -31,6 +31,7 @@ project(omega_edit_grpc_server
         LANGUAGES C CXX)
 
 include("${CMAKE_CURRENT_SOURCE_DIR}/../../cmake/OmegaEditCcache.cmake" OPTIONAL)
+include(CTest)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED True)
@@ -146,6 +147,27 @@ endif()
 if(TARGET gRPC::grpc_cpp_plugin)
     get_target_property(_GRPC_CPP_PLUGIN gRPC::grpc_cpp_plugin IMPORTED_LOCATION)
 endif()
+# Conan's imported executable target may resolve through PATH first. Prefer the
+# generator shipped with the selected gRPC package, as we do for protoc above.
+set(_GRPC_CPP_PLUGIN_CANDIDATES "")
+foreach(_grpc_config IN ITEMS "${CMAKE_BUILD_TYPE}" Release Debug RelWithDebInfo MinSizeRel)
+    if(_grpc_config)
+        string(TOUPPER "${_grpc_config}" _grpc_config_upper)
+        if(NOT CMAKE_CROSSCOMPILING AND DEFINED grpc_PACKAGE_FOLDER_${_grpc_config_upper})
+            list(APPEND _GRPC_CPP_PLUGIN_CANDIDATES
+                "${grpc_PACKAGE_FOLDER_${_grpc_config_upper}}/bin/grpc_cpp_plugin${CMAKE_EXECUTABLE_SUFFIX}")
+        endif()
+    endif()
+endforeach()
+list(APPEND _GRPC_CPP_PLUGIN_CANDIDATES
+    "${_VCPKG_INSTALLED_DIR}/${_VCPKG_TOOL_TRIPLET}/tools/grpc/grpc_cpp_plugin${CMAKE_EXECUTABLE_SUFFIX}"
+    "${_VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/tools/grpc/grpc_cpp_plugin${CMAKE_EXECUTABLE_SUFFIX}")
+foreach(_grpc_plugin_candidate ${_GRPC_CPP_PLUGIN_CANDIDATES})
+    if(EXISTS "${_grpc_plugin_candidate}")
+        set(_GRPC_CPP_PLUGIN "${_grpc_plugin_candidate}")
+        break()
+    endif()
+endforeach()
 if(NOT _GRPC_CPP_PLUGIN OR _GRPC_CPP_PLUGIN STREQUAL "_GRPC_CPP_PLUGIN-NOTFOUND")
     find_program(_GRPC_CPP_PLUGIN grpc_cpp_plugin
         HINTS "${_VCPKG_INSTALLED_DIR}/${_VCPKG_TOOL_TRIPLET}/tools/grpc"
@@ -182,7 +204,7 @@ add_custom_command(
          -I "${CMAKE_CURRENT_SOURCE_DIR}/../../proto"
          --plugin=protoc-gen-grpc=${_GRPC_CPP_PLUGIN}
          "${PROTO_FILE}"
-    DEPENDS "${PROTO_FILE}"
+    DEPENDS "${PROTO_FILE}" "${_PROTOBUF_PROTOC}" "${_GRPC_CPP_PLUGIN}"
     COMMENT "Generating gRPC/Protobuf sources from omega_edit/v1/omega_edit.proto"
 )
 
@@ -238,6 +260,11 @@ set(SERVER_SOURCES
 )
 
 add_executable(omega-edit-grpc-server ${SERVER_SOURCES})
+if(APPLE)
+    set_target_properties(omega-edit-grpc-server PROPERTIES INSTALL_RPATH "@loader_path;@loader_path/../lib")
+elseif(UNIX)
+    set_target_properties(omega-edit-grpc-server PROPERTIES INSTALL_RPATH "$ORIGIN;$ORIGIN/../lib")
+endif()
 
 target_include_directories(omega-edit-grpc-server PRIVATE
     ${PROTO_GEN_DIR}

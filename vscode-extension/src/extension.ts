@@ -815,14 +815,25 @@ function registerEditorEntryPoints(
 export async function activate(
   context: vscode.ExtensionContext
 ): Promise<OmegaEditExtensionApi | undefined> {
+  let resolveServerReady!: () => void
+  let rejectServerReady!: (error: Error) => void
+  const serverReady = new Promise<void>((resolve, reject) => {
+    resolveServerReady = resolve
+    rejectServerReady = reject
+  })
   const provider = registerEditorEntryPoints(context)
+  provider.setServerReadiness(serverReady)
+  const failActivation = (message: string) => {
+    rejectServerReady(new Error(message))
+    reportActivationError(message)
+  }
   const config = vscode.workspace.getConfiguration('omegaEdit')
 
   let connection: ServerConnection
   try {
     connection = resolveServerConnection(config)
   } catch (err) {
-    reportActivationError(
+    failActivation(
       vscode.l10n.t('Failed to start Ωedit™ server: {message}', {
         message: toErrorMessage(err),
       })
@@ -853,7 +864,7 @@ export async function activate(
         ? startedServer.connection.socketPath
         : undefined
   } catch (err) {
-    reportActivationError(
+    failActivation(
       vscode.l10n.t('Failed to start Ωedit™ server: {message}', {
         message: toErrorMessage(err),
       })
@@ -874,11 +885,11 @@ export async function activate(
     activeServerConnection = undefined
     activeServerPid = undefined
     activeServerSocketPath = undefined
-    reportActivationError(
-      vscode.l10n.t('Ωedit™ server started but is not reachable')
-    )
+    failActivation(vscode.l10n.t('Ωedit™ server started but is not reachable'))
     return
   }
+
+  resolveServerReady()
 
   if (startedServer.serverPid && !isTestRuntime()) {
     if (startedServer.connection.kind === 'unix') {

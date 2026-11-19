@@ -33,7 +33,7 @@ async function main() {
     target: 'node22',
     external: ['vscode', '@omega-edit/server'],
     minify: production,
-    sourcemap: production ? false : 'external',
+    sourcemap: production ? false : 'linked',
     sourcesContent: false,
     metafile: true,
     logLevel: 'info',

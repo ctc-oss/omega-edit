@@ -20,7 +20,7 @@
 
 </div>
 
-AI-facing tooling for [Ωedit™](https://github.com/ctc-oss/omega-edit): a scriptable `oe` CLI plus a stdio MCP server for bounded reads, reversible edits, and large-file-safe binary workflows.
+AI-facing tooling for [Ωedit™](https://github.com/ctc-oss/omega-edit): precise, bounded, verifiable edits to large text and binary files, with optional schema-guided meaning supplied by an external parser. The package provides a portable agent skill, a JSON-first `oe` CLI, and a stdio Model Context Protocol (MCP) server.
 
 ## Install
 
@@ -29,6 +29,42 @@ npm install @omega-edit/ai
 # or
 yarn add @omega-edit/ai
 ```
+
+## Agent Skill
+
+The package ships a portable [precision-editing skill](skills/omega-edit/SKILL.md)
+that teaches an agent when to choose Ωedit™ and how to verify an edit, rather than
+merely listing commands. Its three workflows cover exact byte edits,
+[DFDL-assisted semantic editing](skills/omega-edit/references/dfdl.md), and
+[reverse engineering](skills/omega-edit/references/reverse-engineering.md).
+Data Format Description Language (DFDL) parsing requires an external processor,
+schema, and trustworthy field-to-byte mapping; it is not a built-in AI endpoint.
+
+Register the complete `omega-edit` directory using your assistant's skill-loading
+mechanism. Keep `SKILL.md` and its `references/` directory together:
+
+- Source checkout: `packages/ai/skills/omega-edit/`.
+- Local npm installation: `node_modules/@omega-edit/ai/skills/omega-edit/`.
+
+Installing the npm package supplies these files but does not register a skill or
+configure MCP in your assistant. A skill teaches the workflow; the CLI or MCP
+server executes it. The skill is transport-independent and does not require a
+particular agent vendor or editor.
+
+The workflow requires checking expected bytes, previewing changes, retaining
+undo/checkpoint recovery, checking untouched regions, and reopening saved
+candidates. It explicitly distinguishes a separate read-before-write check from
+an atomic conditional write, and parsed values from byte-identical round trips.
+It prefers ordinary source patches or validated format libraries when those
+are the better fit; there is no blanket speed or accuracy claim over Python.
+
+[Worked CLI/MCP examples](skills/omega-edit/references/byte-edit.json) use an
+artificial fixed-width binary header. Tests check the fixture, invoke every CLI
+example without a server to validate its arguments, check live MCP schemas,
+and inspect an actual npm archive for all skill assets. A native-server test also
+executes the worked CLI edit, checks preview and undo/redo, compares untouched
+bytes, and reopens the saved candidate. External DFDL validation remains the
+responsibility of the processor integration.
 
 ## CLI Quick Start
 
@@ -219,6 +255,13 @@ file. For an intentionally temporary transform/edit-and-inspect pipeline, set
 ```
 
 Results are marked `ephemeral: true` and omit the destroyed session id.
+
+One-shot pipelines save session content only through their top-level
+`outputPath`, after every operation succeeds. Operations that persist files
+independently are therefore excluded: `omega_edit_export_range` is unavailable
+inside a one-shot pipeline, and `omega_edit_export_change_log` is limited to an
+inline result there. Invoke either export as a top-level MCP tool when a separate
+output file is required.
 
 The server speaks newline-delimited JSON-RPC over stdio, following the MCP lifecycle documented by the Model Context Protocol:
 
